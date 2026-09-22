@@ -84,42 +84,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
     /**
      * ウィンドウへ共通のレイアウトを適用する
-     * @param {Window} win - 対象ダイアログ
+     * @param {Window} targetWindow - 対象ダイアログ
      * @param {number} spacing - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルへ共通のレイアウトを適用する
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 行グループへ共通のレイアウトを適用する
-     * @param {Group} group - 対象グループ
+     * @param {Group} rowGroup - 対象グループ
      * @param {string} alignment - 親の中での配置（省略時は "left"）
      * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = alignment || "left";
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
@@ -130,9 +130,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * @returns {Panel} 生成したパネル
      */
     function addPanel(parent, titleText, spacing) {
-        var panel = parent.add("panel", undefined, titleText);
-        setupPanel(panel, spacing);
-        return panel;
+        var newPanel = parent.add("panel", undefined, titleText);
+        setupPanel(newPanel, spacing);
+        return newPanel;
     }
 
     /**
@@ -172,10 +172,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * 実行環境のロケールから表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -305,10 +305,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     /**
      * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {Object} labelNode - LABELS 内の { ja, en } ノード
-     * @returns {string} コロンを添えたラベル
+     * @returns {string} コロン付きの項目名
      */
     function labelText(labelNode) {
-        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ": ");
+        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
     }
 
     /**
@@ -400,6 +400,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
     var PREF_KEY = "DashCalcPrefs_GapToDash_v1";
 
+    /* 保存する項目と ActionDescriptor の型 / Saved fields and their descriptor types */
+    var PREF_FIELD_TYPES = {
+        segments:    "Integer",
+        gapPt:       "Double",
+        dashPt:      "Double",
+        offsetPt:    "Double",
+        capMode:     "Integer",
+        mode:        "Integer",
+        reversePath: "Boolean",
+        adjustEnds:  "Boolean",
+        useOffset:   "Boolean"
+    };
+
     /* ランダムパターン保存用のキー / Keys for the random pattern */
     var RANDOM_PREF_KEYS = ["rand0Pt", "rand1Pt", "rand2Pt", "rand3Pt", "rand4Pt", "rand5Pt"];
 
@@ -409,28 +422,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      */
     function loadPrefs() {
         try {
+            /* 保存値が無いと getCustomOptions は例外を投げる / throws when nothing is saved */
             var descriptor = app.getCustomOptions(PREF_KEY);
             var savedPrefs = {};
 
-            var kSegments = stringIDToTypeID("segments");
-            var kGapPt = stringIDToTypeID("gapPt");
-            var kDashPt = stringIDToTypeID("dashPt");
-            var kOffsetPt = stringIDToTypeID("offsetPt");
-            var kCapMode = stringIDToTypeID("capMode");
-            var kMode = stringIDToTypeID("mode");
-            var kReverse = stringIDToTypeID("reversePath");
-            var kAdjustEnds = stringIDToTypeID("adjustEnds");
-            var kUseOffset = stringIDToTypeID("useOffset");
-
-            if (descriptor.hasKey(kSegments)) savedPrefs.segments = descriptor.getInteger(kSegments);
-            if (descriptor.hasKey(kGapPt)) savedPrefs.gapPt = descriptor.getDouble(kGapPt);
-            if (descriptor.hasKey(kDashPt)) savedPrefs.dashPt = descriptor.getDouble(kDashPt);
-            if (descriptor.hasKey(kOffsetPt)) savedPrefs.offsetPt = descriptor.getDouble(kOffsetPt);
-            if (descriptor.hasKey(kCapMode)) savedPrefs.capMode = descriptor.getInteger(kCapMode);
-            if (descriptor.hasKey(kMode)) savedPrefs.mode = descriptor.getInteger(kMode);
-            if (descriptor.hasKey(kReverse)) savedPrefs.reversePath = descriptor.getBoolean(kReverse);
-            if (descriptor.hasKey(kAdjustEnds)) savedPrefs.adjustEnds = descriptor.getBoolean(kAdjustEnds);
-            if (descriptor.hasKey(kUseOffset)) savedPrefs.useOffset = descriptor.getBoolean(kUseOffset);
+            for (var fieldName in PREF_FIELD_TYPES) {
+                var fieldKey = stringIDToTypeID(fieldName);
+                if (descriptor.hasKey(fieldKey)) savedPrefs[fieldName] = descriptor["get" + PREF_FIELD_TYPES[fieldName]](fieldKey);
+            }
 
             /* ランダムパターンは先頭から連続している分だけ読む（旧バージョンの4要素も許容） */
             var randomDashes = [];
@@ -455,15 +454,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     function savePrefs(newPrefs) {
         try {
             var descriptor = new ActionDescriptor();
-            descriptor.putInteger(stringIDToTypeID("segments"), newPrefs.segments);
-            descriptor.putDouble(stringIDToTypeID("gapPt"), newPrefs.gapPt);
-            descriptor.putDouble(stringIDToTypeID("dashPt"), newPrefs.dashPt);
-            descriptor.putDouble(stringIDToTypeID("offsetPt"), newPrefs.offsetPt);
-            descriptor.putInteger(stringIDToTypeID("capMode"), newPrefs.capMode);
-            descriptor.putInteger(stringIDToTypeID("mode"), newPrefs.mode);
-            descriptor.putBoolean(stringIDToTypeID("reversePath"), !!newPrefs.reversePath);
-            descriptor.putBoolean(stringIDToTypeID("adjustEnds"), !!newPrefs.adjustEnds);
-            descriptor.putBoolean(stringIDToTypeID("useOffset"), !!newPrefs.useOffset);
+            for (var fieldName in PREF_FIELD_TYPES) {
+                var fieldType = PREF_FIELD_TYPES[fieldName];
+                var fieldValue = (fieldType === "Boolean") ? !!newPrefs[fieldName] : newPrefs[fieldName];
+                descriptor["put" + fieldType](stringIDToTypeID(fieldName), fieldValue);
+            }
 
             if (newPrefs.randPt && newPrefs.randPt.length === RANDOM_PATTERN_LENGTH) {
                 for (var i = 0; i < RANDOM_PREF_KEYS.length; i++) {
@@ -472,6 +467,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             }
             app.putCustomOptions(PREF_KEY, descriptor, true);
         } catch (e) { }
+    }
+
+    /**
+     * 前回値の長さ（pt）を現在の単位に変換して返す
+     * @param {number} storedPt - 保存されている長さ（pt）
+     * @param {number} fallbackUnit - 保存値がないときの値（単位値）
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @returns {number} 長さ（単位値）
+     */
+    function toInitialUnit(storedPt, fallbackUnit, strokeUnit) {
+        return (typeof storedPt === "number" && storedPt >= 0) ? ptToUnit(storedPt, strokeUnit) : fallbackUnit;
+    }
+
+    /**
+     * 前回値の真偽値を返す
+     * @param {boolean} storedFlag - 保存されている値
+     * @param {boolean} fallbackFlag - 保存値がないときの値
+     * @returns {boolean} 復元した値
+     */
+    function toInitialFlag(storedFlag, fallbackFlag) {
+        return (typeof storedFlag === "boolean") ? storedFlag : fallbackFlag;
+    }
+
+    /**
+     * 前回値の数値を返す
+     * @param {number} storedNumber - 保存されている値
+     * @param {number} fallbackNumber - 保存値がないときの値
+     * @param {number} minValue - 許容する下限値
+     * @returns {number} 復元した値
+     */
+    function toInitialNumber(storedNumber, fallbackNumber, minValue) {
+        return (typeof storedNumber === "number" && storedNumber >= minValue) ? storedNumber : fallbackNumber;
+    }
+
+    /**
+     * 前回値からダイアログの初期値を決める（保存値が無い項目は既定値）
+     * @param {Object} savedPrefs - loadPrefs() の戻り値（読み込めない場合は null）
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @returns {Object} 初期値（長さは現在の線の単位）
+     */
+    function readInitialValues(savedPrefs, strokeUnit) {
+        var stored = savedPrefs || {};
+        return {
+            segments:   toInitialNumber(stored.segments, 3, 1),
+            capMode:    toInitialNumber(stored.capMode, 0, 0),
+            mode:       toInitialNumber(stored.mode, 0, 0), /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
+            gapUnit:    toInitialUnit(stored.gapPt, 5, strokeUnit),
+            dashUnit:   toInitialUnit(stored.dashPt, 0, strokeUnit),
+            offsetUnit: toInitialUnit(stored.offsetPt, 0, strokeUnit),
+            useOffset:  toInitialFlag(stored.useOffset, false),
+            adjustEnds: toInitialFlag(stored.adjustEnds, true),
+            reversePath: toInitialFlag(stored.reversePath, false)
+        };
     }
 
     // =========================================

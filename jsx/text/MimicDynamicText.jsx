@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "MimicDynamicText";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MimicDynamicText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MimicDynamicText.md"; /* README (English) */
@@ -36,164 +36,220 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
-
     var LABELS = {
-        alertSelectAreaText: { ja: "エリア内文字を選択してください。", en: "Please select area text." },
-        alertSortError: { ja: "ソート中にエラーが発生しました: ", en: "An error occurred during sorting: " }
+        alert: {
+            selectAreaText: { ja: "エリア内文字を選択してください。", en: "Please select area text." },
+            sortError: { ja: "ソート中にエラーが発生しました: ", en: "An error occurred during sorting: " }
+        }
     };
 
-    /* エリア内文字を行単位に分割し、ポイント文字のTextFrameとして再配置 / Split area text by lines and reposition as point text frames */
-    function splitTextFrameIntoLines(textFrame) {
-        var lines = textFrame.contents.split('\r');
-        var originalPosition = textFrame.position;
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.selectAreaText" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) {
+                return labelPath;
+            }
+        }
+        return labelNode[uiLang] || labelNode.en;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * エリア内文字を行ごとのポイント文字に分け、行の幅を元の幅にそろえてから1つのエリア内文字にまとめ直す
+     * @param {TextFrame} areaTextFrame - 対象のエリア内文字
+     * @returns {void}
+     */
+    function splitTextFrameIntoLines(areaTextFrame) {
+        var doc = app.activeDocument;
+        var lineTexts = areaTextFrame.contents.split('\r');
+        var originalPosition = areaTextFrame.position;
         var currentY = originalPosition[1];
-        var textSize = textFrame.textRange.characterAttributes.size;
-        var textFont = textFrame.textRange.characterAttributes.textFont;
-        var textColor = textFrame.textRange.characterAttributes.fillColor;
-        var hScale = textFrame.textRange.characterAttributes.horizontalScale;
+        var sourceAttributes = areaTextFrame.textRange.characterAttributes;
+        var textSize = sourceAttributes.size;
+        var textFont = sourceAttributes.textFont;
+        var textColor = sourceAttributes.fillColor;
 
-        var splitLines = [];
+        var lineFrames = [];
 
-        for (var i = 0; i < lines.length; i++) {
-            var newLine = app.activeDocument.textFrames.pointText([originalPosition[0], currentY]);
-            newLine.contents = lines[i];
-            newLine.textRange.characterAttributes.size = textSize;
-            newLine.textRange.characterAttributes.textFont = textFont;
-            newLine.textRange.characterAttributes.fillColor = textColor;
+        for (var i = 0; i < lineTexts.length; i++) {
+            var lineFrame = doc.textFrames.pointText([originalPosition[0], currentY]);
+            lineFrame.contents = lineTexts[i];
+            /* 内容を入れてから範囲を取る / Take the range after setting the contents */
+            var lineAttributes = lineFrame.textRange.characterAttributes;
+            lineAttributes.size = textSize;
+            lineAttributes.textFont = textFont;
+            lineAttributes.fillColor = textColor;
 
-            var actualWidth = newLine.width;
-            var scaleX = (textFrame.width / actualWidth);
-            if (scaleX > 0) {
-                newLine.textRange.characterAttributes.size = textSize * scaleX;
-                newLine.textRange.characterAttributes.horizontalScale = 100;
-                newLine.textRange.characterAttributes.verticalScale = 100;
+            /* 行の幅を元のフレームの幅に合わせる / Scale the line to the original frame width */
+            var widthRatio = areaTextFrame.width / lineFrame.width;
+            if (widthRatio > 0) {
+                lineAttributes.size = textSize * widthRatio;
+                lineAttributes.horizontalScale = 100;
+                lineAttributes.verticalScale = 100;
             }
 
-            currentY -= newLine.height;
-            splitLines.push(newLine);
+            currentY -= lineFrame.height;
+            lineFrames.push(lineFrame);
         }
-        var mergedFrame = mergeTextFramesVertically(splitLines);
+        var mergedFrame = mergeTextFramesVertically(lineFrames);
         if (mergedFrame) {
-            /* 行間を自動に設定し、autoLeadingAmount を 100 に設定 / Set auto leading and autoLeadingAmount to 110 */
+            /* 行送りを自動にし、自動行送りの値を 110% にする / Set auto leading and autoLeadingAmount to 110 */
             mergedFrame.textRange.characterAttributes.autoLeading = true;
 
-            var paragraphs = mergedFrame.paragraphs;
-            for (var i = 0; i < paragraphs.length; i++) {
-                paragraphs[i].paragraphAttributes.autoLeadingAmount = 110;
+            var mergedParagraphs = mergedFrame.paragraphs;
+            for (var j = 0; j < mergedParagraphs.length; j++) {
+                mergedParagraphs[j].paragraphAttributes.autoLeadingAmount = 110;
             }
 
             redraw();
-            textFrame.remove();
+            areaTextFrame.remove();
             mergedFrame.convertPointObjectToAreaObject();
         }
     }
 
-    /* テキストフレームのみをリストに追加 / Add only text frames to list */
-    function collectTextFrame(item, list) {
-        if (item.typename === 'TextFrame') {
-            list.push(item);
+    /**
+     * テキストフレームのときだけリストに追加する
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @param {TextFrame[]} textFrameList - 追加先のリスト
+     * @returns {void}
+     */
+    function collectTextFrame(pageItem, textFrameList) {
+        if (pageItem.typename === 'TextFrame') {
+            textFrameList.push(pageItem);
         }
     }
 
-    /* 複数のテキストフレームを縦方向に連結して再構成 / Merge multiple text frames vertically */
-    function mergeTextFramesVertically(frames) {
-        if (frames.length < 2) {
+    /**
+     * 複数のテキストフレームを上から順に1つのテキストフレームへ連結する
+     * @param {TextFrame[]} textFrames - 連結するテキストフレーム
+     * @returns {TextFrame|undefined} 連結後のテキストフレーム（2つ未満のときは undefined）
+     */
+    function mergeTextFramesVertically(textFrames) {
+        if (textFrames.length < 2) {
             return;
         }
 
-        var sortedFrames = sortTextFramesByPosition(frames);
-        var splitFrames = [];
+        /* 複数行のフレームは1行ずつの複製に分ける / Split multi-line frames into one duplicate per line */
+        var sortedFrames = sortTextFramesByPosition(textFrames);
+        var singleLineFrames = [];
         for (var i = 0; i < sortedFrames.length; i++) {
-            var lines = sortedFrames[i].contents.split('\r');
-            for (var j = 0; j < lines.length; j++) {
-                if (lines[j] !== "") {
-                    var tf = sortedFrames[i].duplicate();
-                    tf.contents = lines[j];
-                    tf.top -= j * 2000; /* 行順を維持するために位置調整 / Adjust position to maintain line order */
-                    splitFrames.push(tf);
+            var lineTexts = sortedFrames[i].contents.split('\r');
+            for (var j = 0; j < lineTexts.length; j++) {
+                if (lineTexts[j] !== "") {
+                    var lineFrame = sortedFrames[i].duplicate();
+                    lineFrame.contents = lineTexts[j];
+                    lineFrame.top -= j * 2000; /* 行順を維持するために位置調整 / Adjust position to maintain line order */
+                    singleLineFrames.push(lineFrame);
                 }
             }
             sortedFrames[i].remove();
         }
-        sortedFrames = sortTextFramesByPosition(splitFrames);
+        sortedFrames = sortTextFramesByPosition(singleLineFrames);
 
         var baseFrame = sortedFrames[0];
         for (var k = 1; k < sortedFrames.length; k++) {
             baseFrame.paragraphs.add('\n');
-            var paragraphs = sortedFrames[k].paragraphs;
-            for (var p = 0; p < paragraphs.length; p++) {
-                paragraphs[p].duplicate(baseFrame);
+            var sourceParagraphs = sortedFrames[k].paragraphs;
+            for (j = 0; j < sourceParagraphs.length; j++) {
+                sourceParagraphs[j].duplicate(baseFrame);
             }
             sortedFrames[k].remove();
         }
         return baseFrame;
     }
 
-    /* テキストフレームを位置情報（上→下、左→右）でソート / Sort text frames by position (top to bottom, left to right) */
+    /**
+     * テキストフレームを位置（上→下、同じ高さなら左→右）で並べ替えた配列を返す
+     * @param {TextFrame[]} frameList - 並べ替えるテキストフレーム
+     * @returns {TextFrame[]} 並べ替えた新しい配列（失敗したときは元の配列）
+     */
     function sortTextFramesByPosition(frameList) {
+        /* 位置の読み取りは DOM アクセス / Reading positions touches the DOM */
         try {
-            var copyList = [];
-            var i;
-            for (i = 0; i < frameList.length; i++) {
-                copyList.push(frameList[i]);
+            var sortedList = [];
+            for (var i = 0; i < frameList.length; i++) {
+                sortedList.push(frameList[i]);
             }
 
-            copyList.sort(function(a, b) {
-                if (a.position[1] > b.position[1]) {
+            sortedList.sort(function (firstFrame, secondFrame) {
+                var firstPosition = firstFrame.position;
+                var secondPosition = secondFrame.position;
+                if (firstPosition[1] > secondPosition[1]) {
                     return -1;
                 }
-                if (a.position[1] < b.position[1]) {
+                if (firstPosition[1] < secondPosition[1]) {
                     return 1;
                 }
-                if (a.position[1] === b.position[1]) {
-                    if (a.position[0] < b.position[0]) {
+                if (firstPosition[1] === secondPosition[1]) {
+                    if (firstPosition[0] < secondPosition[0]) {
                         return -1;
                     }
-                    if (a.position[0] > b.position[0]) {
+                    if (firstPosition[0] > secondPosition[0]) {
                         return 1;
                     }
                     return 0;
                 }
             });
-            return copyList;
+            return sortedList;
         } catch (e) {
-            alert(LABELS.alertSortError[uiLang] + e.message);
+            alert(getLabel("alert.sortError") + e.message);
             return frameList;
         }
     }
 
-    /* メイン処理 / Main process */
+    /**
+     * メイン処理
+     * @returns {void}
+     */
     function main() {
         /* 選択確認 / Check selection */
         if (app.documents.length === 0 || app.activeDocument.selection.length === 0) {
-            alert(LABELS.alertSelectAreaText[uiLang]);
+            alert(getLabel("alert.selectAreaText"));
             return;
         }
 
-        var areaTextFrame = app.activeDocument.selection[0];
+        var doc = app.activeDocument;
+        var areaTextFrame = doc.selection[0];
 
         if (areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) {
-            alert(LABELS.alertSelectAreaText[uiLang]);
+            alert(getLabel("alert.selectAreaText"));
             return;
         }
-
-        var areaWidth = areaTextFrame.width;
 
         /* 分割 / Split */
         splitTextFrameIntoLines(areaTextFrame);
 
         /* 連結 / Merge */
-        var selectionItems = app.activeDocument.selection;
-        if (selectionItems.length >= 2) {
+        var selectedItems = doc.selection;
+        if (selectedItems.length >= 2) {
             var textFrames = [];
-            for (var i = 0; i < selectionItems.length; i++) {
-                collectTextFrame(selectionItems[i], textFrames);
+            for (var i = 0; i < selectedItems.length; i++) {
+                collectTextFrame(selectedItems[i], textFrames);
             }
             if (textFrames.length >= 2) {
                 mergeTextFramesVertically(textFrames);

@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "AreaTypeCenterMiddle";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeCenterMiddle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeCenterMiddle.md"; /* README (English) */
@@ -48,20 +48,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DUMMY_FONT_JA = ["HiraginoSans-W3", "Hiragino Sans W3"];
     var DUMMY_FONT_EN = ["MyriadPro-Regular", "Myriad Pro Regular", "MyriadPro", "Myriad"];
     var DUMMY_FONT_SIZE = 10;
-    // ============================================================
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
     /**
-     * 現在の言語（ja / en）を返す
+     * Illustrator の UI 言語から表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLanguage() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLanguage();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義（カテゴリ別）/ Japanese-English labels grouped by category */
     var LABELS = {
@@ -73,21 +72,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * "category.key" 形式のキーからラベルを取得する
-     * @param {string} key - ラベルキー（例: "alert.noDocument"）
-     * @returns {string} 現在の言語のラベル文字列
+     * @param {string} labelPath - ラベルキー（例: "alert.noDocument"）
+     * @returns {string} 現在の言語のラベル文字列（見つからない場合は labelPath をそのまま返す）
      */
-    function getLabel(key) {
-        var keyParts = key.split(".");
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
+        for (var i = 0; i < labelPathKeys.length; i++) {
             if (!labelNode) break;
-            labelNode = labelNode[keyParts[i]];
+            labelNode = labelNode[labelPathKeys[i]];
         }
         if (labelNode) {
-            if (typeof labelNode[currentLanguage] === "string") return labelNode[currentLanguage];
+            if (typeof labelNode[uiLang] === "string") return labelNode[uiLang];
             if (typeof labelNode.en === "string") return labelNode.en;
         }
-        return key;
+        return labelPath;
     }
 
     // =========================================
@@ -107,22 +106,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 16進文字列
      */
     function asciiToHex(text) {
-        var hex = "";
+        var hexText = "";
         for (var i = 0; i < text.length; i++) {
             var hexPair = text.charCodeAt(i).toString(16);
             if (hexPair.length < 2) hexPair = "0" + hexPair;
-            hex += hexPair;
+            hexText += hexPair;
         }
-        return hex;
+        return hexText;
     }
 
     /**
      * アクション名ブロック /name [ <len> <hex> ] を生成する
-     * @param {string} name - アクション名またはセット名
+     * @param {string} actionName - アクション名またはセット名
      * @returns {string} 名前ブロックの文字列
      */
-    function buildActionNameBlock(name) {
-        return "/name [ " + name.length + " " + asciiToHex(name).toUpperCase() + " ]";
+    function buildActionNameBlock(actionName) {
+        return "/name [ " + actionName.length + " " + asciiToHex(actionName).toUpperCase() + " ]";
     }
 
     /**
@@ -163,7 +162,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function loadAlignmentAction() {
-        try { app.unloadAction(ACTION_SET_ALIGNMENT, ""); } catch (e0) { }
+        unloadAlignmentAction();
         var tempFile = new File(Folder.temp + "/" + ACTION_SET_ALIGNMENT + ".aia");
         tempFile.open("w");
         tempFile.write(buildAlignCenterAia());
@@ -177,6 +176,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function unloadAlignmentAction() {
+        /* 読み込まれていなければ例外になる / Throws when the set is not loaded */
         try { app.unloadAction(ACTION_SET_ALIGNMENT, ""); } catch (e) { }
     }
 
@@ -192,22 +192,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function findAvailableTextFont(candidateFontNames) {
         for (var i = 0; i < candidateFontNames.length; i++) {
             try {
-                var font = app.textFonts.getByName(candidateFontNames[i]);
-                if (font) return font;
-            } catch (e) { }
+                var candidateFont = app.textFonts.getByName(candidateFontNames[i]);
+                if (candidateFont) return candidateFont;
+            } catch (e) { /* 無いフォント名は例外になる / getByName throws for a missing font */ }
         }
         return null;
     }
 
     /**
      * 閉じたパスを取り出す（複合パスは先頭のパスを見る）
-     * @param {object} item - 選択オブジェクト
+     * @param {PageItem} pageItem - 選択オブジェクト
      * @returns {PathItem} 閉じたパス（無ければnull）
      */
-    function getClosedPathItem(item) {
-        if (item.typename === "PathItem") return item.closed ? item : null;
-        if (item.typename === "CompoundPathItem" && item.pathItems.length > 0) {
-            var firstPath = item.pathItems[0];
+    function getClosedPathItem(pageItem) {
+        if (pageItem.typename === "PathItem") return pageItem.closed ? pageItem : null;
+        if (pageItem.typename === "CompoundPathItem" && pageItem.pathItems.length > 0) {
+            var firstPath = pageItem.pathItems[0];
             return firstPath.closed ? firstPath : null;
         }
         return null;
@@ -268,8 +268,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Array<TextFrame>} 作成したエリア内文字
      */
     function fillShapesWithText(doc, fillJobs) {
-        var sampleText = (currentLanguage === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
-        var sampleFont = findAvailableTextFont((currentLanguage === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
+        var sampleText = (uiLang === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
+        var sampleFont = findAvailableTextFont((uiLang === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
         var createdFrames = [];
 
         for (var i = 0; i < fillJobs.length; i++) {
@@ -304,74 +304,74 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getShapeTextPair(groupItem) {
         /* クリップグループの枠はマスクなので対象にしない / The frame of a clipping group is a mask, not a shape to convert */
         if (groupItem.clipped) return null;
-        var members = groupItem.pageItems;
-        if (members.length !== 2) return null;
-        var pair = { shapeItem: null, textFrame: null };
-        for (var i = 0; i < members.length; i++) {
-            if (members[i].typename === "TextFrame") pair.textFrame = members[i];
-            else if (getClosedPathItem(members[i])) pair.shapeItem = members[i];
+        var groupMembers = groupItem.pageItems;
+        if (groupMembers.length !== 2) return null;
+        var shapeTextPair = { shapeItem: null, textFrame: null };
+        for (var i = 0; i < groupMembers.length; i++) {
+            if (groupMembers[i].typename === "TextFrame") shapeTextPair.textFrame = groupMembers[i];
+            else if (getClosedPathItem(groupMembers[i])) shapeTextPair.shapeItem = groupMembers[i];
         }
-        return (pair.shapeItem && pair.textFrame) ? pair : null;
+        return (shapeTextPair.shapeItem && shapeTextPair.textFrame) ? shapeTextPair : null;
     }
 
     /**
      * グループから「閉じたパス1つ＋テキスト1つ」の組み合わせを集める
      * @param {GroupItem} groupItem - 対象のグループ
-     * @param {Array} pairs - 集めた組み合わせの入れ物
+     * @param {Array} shapeTextPairs - 集めた組み合わせの入れ物
      * @returns {void}
      */
-    function collectShapeTextPairs(groupItem, pairs) {
-        var pair = getShapeTextPair(groupItem);
-        if (pair) {
-            pairs.push(pair);
+    function collectShapeTextPairs(groupItem, shapeTextPairs) {
+        var shapeTextPair = getShapeTextPair(groupItem);
+        if (shapeTextPair) {
+            shapeTextPairs.push(shapeTextPair);
             return;
         }
         /* 該当しないグループは、入れ子になっているグループを見る / Look into nested groups when the group itself is not a pair */
         for (var i = 0; i < groupItem.pageItems.length; i++) {
-            if (groupItem.pageItems[i].typename === "GroupItem") collectShapeTextPairs(groupItem.pageItems[i], pairs);
+            if (groupItem.pageItems[i].typename === "GroupItem") collectShapeTextPairs(groupItem.pageItems[i], shapeTextPairs);
         }
     }
 
     /**
      * 選択オブジェクトを、エリア内文字・閉じたパス・それ以外のテキスト・グループの組み合わせに仕分ける
-     * @param {Array} selection - ドキュメントの選択内容
+     * @param {Array} selectedItems - ドキュメントの選択内容
      * @returns {object} areaTextFrames / shapeItems / otherTextFrames / shapePairs を持つオブジェクト
      */
-    function classifySelection(selection) {
-        var picked = { areaTextFrames: [], shapeItems: [], otherTextFrames: [], shapePairs: [] };
+    function classifySelection(selectedItems) {
+        var classifiedItems = { areaTextFrames: [], shapeItems: [], otherTextFrames: [], shapePairs: [] };
         /* 文字編集中は選択がTextRangeになり、ページアイテムが取り出せない / While editing text the selection is a TextRange, not page items */
-        if (!selection || !selection.length) return picked;
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (!item || !item.typename) continue;
-            if (item.typename === "TextFrame") {
-                if (item.kind === TextType.AREATEXT) picked.areaTextFrames.push(item);
-                else picked.otherTextFrames.push(item);
-            } else if (item.typename === "GroupItem") {
-                collectShapeTextPairs(item, picked.shapePairs);
-            } else if (getClosedPathItem(item)) {
-                picked.shapeItems.push(item);
+        if (!selectedItems || !selectedItems.length) return classifiedItems;
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (!selectedItem || !selectedItem.typename) continue;
+            if (selectedItem.typename === "TextFrame") {
+                if (selectedItem.kind === TextType.AREATEXT) classifiedItems.areaTextFrames.push(selectedItem);
+                else classifiedItems.otherTextFrames.push(selectedItem);
+            } else if (selectedItem.typename === "GroupItem") {
+                collectShapeTextPairs(selectedItem, classifiedItems.shapePairs);
+            } else if (getClosedPathItem(selectedItem)) {
+                classifiedItems.shapeItems.push(selectedItem);
             }
         }
-        return picked;
+        return classifiedItems;
     }
 
     /**
      * 流し込む組み合わせ（パスと流し込み元のテキスト）を作る
-     * @param {object} picked - classifySelection() の戻り値
+     * @param {object} classifiedItems - classifySelection() の戻り値
      * @param {number} selectionLength - 選択オブジェクトの数
      * @returns {Array<object>} shapeItem / sourceTextFrame を持つオブジェクトの配列
      */
-    function buildFillJobs(picked, selectionLength) {
+    function buildFillJobs(classifiedItems, selectionLength) {
         /* 「閉じたパス1つ＋テキスト1つ」の選択なら、そのテキストを流し込む / Pour the selected text when it is a single path plus a single text */
-        var sourceTextFrame = (selectionLength === 2 && picked.shapeItems.length === 1 && picked.otherTextFrames.length === 1) ? picked.otherTextFrames[0] : null;
+        var sourceTextFrame = (selectionLength === 2 && classifiedItems.shapeItems.length === 1 && classifiedItems.otherTextFrames.length === 1) ? classifiedItems.otherTextFrames[0] : null;
         var fillJobs = [];
-        for (var i = 0; i < picked.shapeItems.length; i++) {
-            fillJobs.push({ shapeItem: picked.shapeItems[i], sourceTextFrame: sourceTextFrame });
+        for (var i = 0; i < classifiedItems.shapeItems.length; i++) {
+            fillJobs.push({ shapeItem: classifiedItems.shapeItems[i], sourceTextFrame: sourceTextFrame });
         }
         /* グループはそれぞれの中のテキストを流し込む / Each group pours the text it holds */
-        for (var j = 0; j < picked.shapePairs.length; j++) {
-            fillJobs.push({ shapeItem: picked.shapePairs[j].shapeItem, sourceTextFrame: picked.shapePairs[j].textFrame });
+        for (var j = 0; j < classifiedItems.shapePairs.length; j++) {
+            fillJobs.push({ shapeItem: classifiedItems.shapePairs[j].shapeItem, sourceTextFrame: classifiedItems.shapePairs[j].textFrame });
         }
         return fillJobs;
     }
@@ -402,9 +402,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     var doc = app.activeDocument;
-    var picked = classifySelection(doc.selection);
-    var fillJobs = buildFillJobs(picked, doc.selection.length);
-    var targetFrames = picked.areaTextFrames;
+    var classifiedItems = classifySelection(doc.selection);
+    var fillJobs = buildFillJobs(classifiedItems, doc.selection.length);
+    var targetFrames = classifiedItems.areaTextFrames;
     if (!targetFrames.length && !fillJobs.length) {
         alert(getLabel("alert.selectTarget"));
         return;

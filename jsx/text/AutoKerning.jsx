@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "AutoKerning";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning.md"; /* README (English) */
@@ -41,29 +41,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
 (function () {
 
     // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var PANEL_MARGINS = [16, 20, 16, 12];  /* パネル余白 [左,上,右,下] / panel margins */
+    var BUTTON_WIDTH  = 90;                /* OK／キャンセルの幅 / OK and Cancel width */
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 言語判定 / Detect UI language */
-    function getCurrentLang() {
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
         dialog: {
             title: { ja: "自動カーニング", en: "Auto Kerning" }
         },
-        field: {
-            autoKern: { ja: "自動カーニング", en: "Auto Kerning" },
-            propMetrics: { ja: "プロポーショナルメトリクス", en: "Proportional Metrics" }
+        panel: {
+            autoKern: { ja: "自動カーニング", en: "Auto Kerning" }
         },
-        autoKern: {
+        radio: {
             mono: { ja: "和文等幅", en: "Metrics - Roman Only" },
             zero: { ja: "0", en: "0" },
             metrics: { ja: "メトリクス", en: "Metrics" },
             optical: { ja: "オプティカル", en: "Optical" }
+        },
+        checkbox: {
+            propMetrics: { ja: "プロポーショナルメトリクス", en: "Proportional Metrics" }
+        },
+        tooltip: {
+            propMetrics: {
+                ja: "カーニング方式に連動し、メトリクスのときだけオンになります。単独で切り替えると、カーニング方式は変えずにプロポーショナルメトリクスだけを設定します。",
+                en: "Follows the kerning method and turns on only for Metrics. Toggling it on its own sets proportional metrics without changing the kerning method."
+            }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -74,46 +91,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         }
     };
 
-    /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLabel(entry) {
-        if (!entry) return "";
-        return entry[currentLanguage] || entry.ja || entry.en || "";
+    /**
+     * 表示言語のラベル文字列を返す
+     * @param {Object} labelSet - { ja, en } のラベル
+     * @returns {string} 表示言語の文字列（無ければ ja → en → 空文字の順に代替）
+     */
+    function getLabel(labelSet) {
+        if (!labelSet) return "";
+        return labelSet[uiLang] || labelSet.ja || labelSet.en || "";
     }
 
     // =========================================
     // 選択取得 / Selection
     // =========================================
 
-    /* 型名を安全に取得（host オブジェクトは typename を優先、JS オブジェクトは constructor.name）
-       Safely resolve a type name: typename for host objects, constructor.name for JS objects */
-    function getTypeName(obj) {
-        if (obj === null || obj === undefined) return "";
-        if (obj.typename) return obj.typename;
-        try {
-            return obj.constructor ? obj.constructor.name : "";
-        } catch (e) {
-            return "";
-        }
-    }
-
-    /* 選択中のテキスト範囲を取得 / Get selected text ranges from current document */
+    /**
+     * 選択中のテキスト範囲を集める
+     * テキスト編集モードでは selection が配列でなく TextRange になる
+     * @returns {TextRange[]} 選択中のテキスト範囲（テキストフレームは全文の範囲）
+     */
     function getSelectedTextRanges() {
-        var activeDoc = app.activeDocument;
-        var currentSelection = activeDoc.selection;
+        var currentSelection = app.activeDocument.selection;
         var selectedRanges = [];
         if (!currentSelection) return selectedRanges;
-        /* テキスト編集モードでは selection が配列でなく TextRange になる / In text-edit mode the selection is a TextRange, not an array */
-        if (getTypeName(currentSelection) === "TextRange") {
+        /* テキスト編集モード / Text-edit mode: the selection itself is a TextRange */
+        if (currentSelection.typename === "TextRange") {
             selectedRanges.push(currentSelection);
             return selectedRanges;
         }
-        if (currentSelection.length === 0) return selectedRanges;
         for (var i = 0; i < currentSelection.length; i++) {
             var selectedItem = currentSelection[i];
-            var itemType = getTypeName(selectedItem);
-            if (itemType === "TextFrame") {
+            if (selectedItem.typename === "TextFrame") {
                 selectedRanges.push(selectedItem.textRange);
-            } else if (itemType === "TextRange") {
+            } else if (selectedItem.typename === "TextRange") {
                 selectedRanges.push(selectedItem);
             }
         }
@@ -124,42 +134,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // カーニング処理 / Kerning
     // =========================================
 
-    /* 自動カーニングの選択肢を生成 / Build the auto-kerning option list
-       和文等幅は欧文のみメトリクス＝和文は等幅（METRICSROMANONLY）
-       Japanese equal width = metrics for Roman only (METRICSROMANONLY) */
+    /**
+     * 自動カーニングの選択肢を作る
+     * 和文等幅は欧文のみメトリクス＝和文は等幅（METRICSROMANONLY）
+     * @returns {Object[]} { label: ラベル, value: AutoKernType } の配列
+     */
     function createAutoKernOptions() {
         return [
-            { label: LABELS.autoKern.mono, value: AutoKernType.METRICSROMANONLY },
-            { label: LABELS.autoKern.zero, value: AutoKernType.NOAUTOKERN },
-            { label: LABELS.autoKern.metrics, value: AutoKernType.AUTO },
-            { label: LABELS.autoKern.optical, value: AutoKernType.OPTICAL }
+            { label: LABELS.radio.mono, value: AutoKernType.METRICSROMANONLY },
+            { label: LABELS.radio.zero, value: AutoKernType.NOAUTOKERN },
+            { label: LABELS.radio.metrics, value: AutoKernType.AUTO },
+            { label: LABELS.radio.optical, value: AutoKernType.OPTICAL }
         ];
     }
 
-    /* 選択範囲にカーニング方式を適用 / Apply a kerning method to the given ranges
-       メトリクスのときのみプロポーショナルメトリクスをON、それ以外はOFF
-       Proportional metrics ON only for Metrics, OFF otherwise */
-    function applyKerningToRanges(ranges, kerningMethod) {
-        var useProportionalMetrics = (kerningMethod === AutoKernType.AUTO);
-        for (var i = 0; i < ranges.length; i++) {
-            try {
-                ranges[i].characterAttributes.kerningMethod = kerningMethod;
-                ranges[i].characterAttributes.proportionalMetrics = useProportionalMetrics;
-            } catch (e) {
-                // 適用できない範囲はスキップ / Skip ranges that can't take these attributes
-            }
+    /**
+     * テキスト範囲にカーニング方式とプロポーショナルメトリクスを設定する
+     * undefined の値は設定しない。設定できない範囲は飛ばす
+     * @param {TextRange} textRange - 対象のテキスト範囲
+     * @param {AutoKernType|undefined} kerningMethod - カーニング方式（undefined なら変えない）
+     * @param {boolean|undefined} useProportionalMetrics - プロポーショナルメトリクス（undefined なら変えない）
+     * @returns {void}
+     */
+    function setKerningAttributes(textRange, kerningMethod, useProportionalMetrics) {
+        try {
+            var charAttrs = textRange.characterAttributes;
+            if (kerningMethod !== undefined) charAttrs.kerningMethod = kerningMethod;
+            if (useProportionalMetrics !== undefined) charAttrs.proportionalMetrics = useProportionalMetrics;
+        } catch (e) {
+            /* 適用できない範囲はスキップ / Skip ranges that can't take these attributes */
         }
     }
 
-    /* 選択範囲にプロポーショナルメトリクスだけを適用 / Apply only proportional metrics to the given ranges
-       カーニング方式には触れない / The kerning method is left untouched */
-    function applyProportionalMetricsToRanges(ranges, useProportionalMetrics) {
-        for (var i = 0; i < ranges.length; i++) {
-            try {
-                ranges[i].characterAttributes.proportionalMetrics = useProportionalMetrics ? true : false;
-            } catch (e) {
-                // 適用できない範囲はスキップ / Skip ranges that can't take this attribute
-            }
+    /**
+     * 複数のテキスト範囲にカーニング方式とプロポーショナルメトリクスを設定する
+     * @param {TextRange[]} textRanges - 対象のテキスト範囲
+     * @param {AutoKernType|undefined} kerningMethod - カーニング方式（undefined なら変えない）
+     * @param {boolean|undefined} useProportionalMetrics - プロポーショナルメトリクス（undefined なら変えない）
+     * @returns {void}
+     */
+    function applyKerningAttributes(textRanges, kerningMethod, useProportionalMetrics) {
+        for (var i = 0; i < textRanges.length; i++) {
+            setKerningAttributes(textRanges[i], kerningMethod, useProportionalMetrics);
         }
     }
 
@@ -167,15 +183,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // UI構築 / Build UI
     // =========================================
 
-    /* ダイアログを組み立てて参照を返す（イベント未接続）/ Build the dialog and return references (events not wired yet) */
-    function createDialogUI(autoKernOptions) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
+    /**
+     * ダイアログを組み立てて参照を返す（イベントは未接続）
+     * @param {Object[]} autoKernOptions - createAutoKernOptions() の選択肢
+     * @returns {Object} kerningDialog / kernRadios / propMetricsCheckbox / btnOK / btnCancel
+     */
+    function buildDialog(autoKernOptions) {
+        var kerningDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        kerningDialog.alignChildren = "fill";
 
-        var autoKernPanel = dialog.add("panel", undefined, getLabel(LABELS.field.autoKern));
+        var autoKernPanel = kerningDialog.add("panel", undefined, getLabel(LABELS.panel.autoKern));
         autoKernPanel.orientation = "column";
         autoKernPanel.alignChildren = ["left", "top"];
-        autoKernPanel.margins = [16, 20, 16, 12];
+        autoKernPanel.margins = PANEL_MARGINS;
 
         var kernRadios = [];
         for (var i = 0; i < autoKernOptions.length; i++) {
@@ -187,104 +207,107 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
 
         /* パネルの外に置く（方式に連動しつつ単独でも操作できる）
            Sits outside the panel: follows the method, but can also be toggled on its own */
-        var propMetricsCheckbox = dialog.add("checkbox", undefined, getLabel(LABELS.field.propMetrics));
+        var propMetricsCheckbox = kerningDialog.add("checkbox", undefined, getLabel(LABELS.checkbox.propMetrics));
         propMetricsCheckbox.value = false;
         propMetricsCheckbox.alignment = "left";
+        propMetricsCheckbox.helpTip = getLabel(LABELS.tooltip.propMetrics);
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        okButton.preferredSize.width = 90;
-        cancelButton.preferredSize.width = 90;
+        var btnRowGroup = kerningDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "right";
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        btnOK.preferredSize.width = BUTTON_WIDTH;
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
 
         return {
-            dialog: dialog,
+            kerningDialog: kerningDialog,
             kernRadios: kernRadios,
             propMetricsCheckbox: propMetricsCheckbox,
-            okButton: okButton,
-            cancelButton: cancelButton
+            btnOK: btnOK,
+            btnCancel: btnCancel
         };
     }
 
-    /* ダイアログにライブプレビューのイベントを接続 / Wire live-preview events to the dialog
-       プレビュー状態（適用済みフラグ・選択中インデックス）はこの関数内に保持
-       Preview state (applied flag, selected index) is kept inside this function */
-    function bindDialogEvents(ui, targetRanges, autoKernOptions) {
+    /**
+     * ダイアログにライブプレビューのイベントを接続する
+     * プレビュー状態（確定フラグ・選択中インデックス）はこの関数内に保持
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {TextRange[]} targetRanges - 対象のテキスト範囲
+     * @param {Object[]} autoKernOptions - createAutoKernOptions() の選択肢
+     * @returns {{finalizePreview: Function}} show() の後に呼ぶ後始末
+     */
+    function bindDialogEvents(dialogControls, targetRanges, autoKernOptions) {
         var selectedKernIndex = 0;
-        // OK で閉じたときだけ確定。Esc・ウィンドウ閉じる等は未確定のまま復元する
-        // Commit only when closed via OK; Esc / window-close etc. stay uncommitted and get reverted
+        /* OK で閉じたときだけ確定。Esc・ウィンドウを閉じる等は未確定のまま復元する
+           Commit only when closed via OK; Esc / window-close etc. stay uncommitted and get reverted */
         var isCommitted = false;
 
-        // ---- プレビュー前の元値を保持 / Snapshot the original attributes before previewing ----
-        // app.undo() の段数前提に依存せず、復元は元値の再代入で行う
-        // Avoid relying on app.undo() step counting; restore by reassigning the captured values
+        /* プレビュー前の元値を保持。app.undo() の段数に頼らず、元値の再代入で戻す
+           Snapshot the original attributes; restore by reassigning them instead of counting app.undo() steps */
         var originalAttributes = [];
-        for (var s = 0; s < targetRanges.length; s++) {
-            var sourceAttrs = targetRanges[s].characterAttributes;
+        for (var i = 0; i < targetRanges.length; i++) {
+            var sourceAttrs = targetRanges[i].characterAttributes;
             originalAttributes.push({
                 kerningMethod: sourceAttrs.kerningMethod,
                 proportionalMetrics: sourceAttrs.proportionalMetrics
             });
         }
 
+        /**
+         * 選択中の方式を適用し、チェックボックスを連動させる
+         * 毎回両方のプロパティを上書きするので、前回のプレビューを戻す必要はない
+         * @returns {void}
+         */
         function applyPreview() {
-            // 各適用で両プロパティを一律に上書きするため、前回プレビューの取り消しは不要
-            // Each apply overwrites both properties uniformly, so no prior revert is needed
-            applyKerningToRanges(targetRanges, autoKernOptions[selectedKernIndex].value);
-            // 表示も適用と同じ連動にする / Keep the checkbox in step with what is applied
-            ui.propMetricsCheckbox.value = (autoKernOptions[selectedKernIndex].value === AutoKernType.AUTO);
+            var kerningMethod = autoKernOptions[selectedKernIndex].value;
+            var useProportionalMetrics = (kerningMethod === AutoKernType.AUTO);
+            /* メトリクスのときだけプロポーショナルメトリクスをオン / Proportional metrics on only for Metrics */
+            applyKerningAttributes(targetRanges, kerningMethod, useProportionalMetrics);
+            dialogControls.propMetricsCheckbox.value = useProportionalMetrics;
             app.redraw();
         }
 
+        /**
+         * 元値を再代入してダイアログを開く前に戻す
+         * 混在などで取得できなかった値（undefined）は戻さない
+         * @returns {void}
+         */
         function restoreOriginal() {
-            for (var r = 0; r < targetRanges.length; r++) {
-                try {
-                    var targetAttrs = targetRanges[r].characterAttributes;
-                    var original = originalAttributes[r];
-                    // 混在等で取得できなかった値（undefined）は復元しない / Skip values that couldn't be captured (undefined)
-                    if (original.kerningMethod !== undefined) {
-                        targetAttrs.kerningMethod = original.kerningMethod;
-                    }
-                    if (original.proportionalMetrics !== undefined) {
-                        targetAttrs.proportionalMetrics = original.proportionalMetrics;
-                    }
-                } catch (e) {
-                    // 復元できない範囲はスキップ / Skip ranges that can't be restored
-                }
+            for (var i = 0; i < targetRanges.length; i++) {
+                setKerningAttributes(targetRanges[i], originalAttributes[i].kerningMethod, originalAttributes[i].proportionalMetrics);
             }
             app.redraw();
         }
 
-        for (var i = 0; i < ui.kernRadios.length; i++) {
-            ui.kernRadios[i].onClick = function () { selectedKernIndex = this.index; applyPreview(); };
+        for (var r = 0; r < dialogControls.kernRadios.length; r++) {
+            dialogControls.kernRadios[r].onClick = function () { selectedKernIndex = this.index; applyPreview(); };
         }
 
-        // カーニング方式は変えずに単独で適用 / Applied on its own, leaving the kerning method alone
-        ui.propMetricsCheckbox.onClick = function () {
-            applyProportionalMetricsToRanges(targetRanges, this.value);
+        /* カーニング方式は変えずに単独で適用 / Applied on its own, leaving the kerning method alone */
+        dialogControls.propMetricsCheckbox.onClick = function () {
+            applyKerningAttributes(targetRanges, undefined, this.value ? true : false);
             app.redraw();
         };
 
-        // OK のときだけ確定フラグを立てて閉じる / Set the commit flag and close only on OK
-        ui.okButton.onClick = function () {
+        /* OK のときだけ確定フラグを立てて閉じる / Set the commit flag and close only on OK */
+        dialogControls.btnOK.onClick = function () {
             isCommitted = true;
-            ui.dialog.close(1);
+            dialogControls.kerningDialog.close(1);
         };
 
-        // キャンセルは確定せず閉じる（復元は show() 後の finalizePreview に委譲）
-        // Cancel closes without committing (revert is handled by finalizePreview after show())
-        ui.cancelButton.onClick = function () {
-            ui.dialog.close(2);
+        /* キャンセルは確定せず閉じる（復元は show() 後の finalizePreview に任せる）
+           Cancel closes without committing (revert is handled by finalizePreview after show()) */
+        dialogControls.btnCancel.onClick = function () {
+            dialogControls.kerningDialog.close(2);
         };
 
-        // 初期プレビュー / Initial preview
+        /* 初期プレビュー / Initial preview */
         applyPreview();
 
-        /* show() 後に呼び出し、未確定なら元値を再代入して開く前へ戻す
-           Call after show(): if not committed, restore the original values */
         return {
+            /* show() 後に呼び出し、未確定なら元値を再代入して開く前へ戻す
+               Call after show(): if not committed, restore the original values */
             finalizePreview: function () {
                 if (!isCommitted) {
                     restoreOriginal();
@@ -296,6 +319,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // =========================================
     // メイン処理 / Main
     // =========================================
+
+    /**
+     * 選択テキストを確かめ、ダイアログを開いてプレビューを確定または破棄する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length <= 0) {
             return;
@@ -308,11 +336,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         }
 
         var autoKernOptions = createAutoKernOptions();
-        var ui = createDialogUI(autoKernOptions);
-        var preview = bindDialogEvents(ui, targetRanges, autoKernOptions);
-        ui.dialog.show();
-        // OK 以外で閉じた場合はプレビューを破棄 / Discard preview unless closed via OK
-        preview.finalizePreview();
+        var dialogControls = buildDialog(autoKernOptions);
+        var previewSession = bindDialogEvents(dialogControls, targetRanges, autoKernOptions);
+        dialogControls.kerningDialog.show();
+        /* OK 以外で閉じた場合はプレビューを破棄 / Discard preview unless closed via OK */
+        previewSession.finalizePreview();
     }
 
     main();

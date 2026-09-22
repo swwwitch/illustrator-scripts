@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                  /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md"; /* README (English) */
@@ -42,6 +42,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
     /* Dropboxのローカルマウントパス。空文字にするとホーム直下から自動検出 / Local Dropbox mount path ("" = auto detect) */
     var DROPBOX_MOUNT_PATH = "";
@@ -90,13 +94,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
        Margin from a screen edge required to reuse a restored dialog position, so the title bar never lands off-screen */
     var ON_SCREEN_MARGIN = 60;
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /**
+     * パネルの共通設定を適用する
+     * @param {Panel} sectionPanel - 設定するパネル
+     * @param {number} [spacing] - 子の間隔。省略時は PANEL_SPACING
+     * @returns {void}
+     */
+    function setupPanel(sectionPanel, spacing) {
+        sectionPanel.orientation = "column";
+        sectionPanel.alignChildren = ["fill", "top"];
+        sectionPanel.alignment = "fill";
+        sectionPanel.margins = PANEL_MARGINS;
+        sectionPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -169,9 +178,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
     // =========================================
     // パス表示 / Path display
     // 移植元 / Ported from: LinkedImageManager.jsx
+    // findDropboxFolder / findSingleSubFolder / resolveDropboxPrefix は移植元と同じ実装を保つ
+    // findDropboxFolder / findSingleSubFolder / resolveDropboxPrefix stay in step with the source
     // =========================================
 
-    /* 失敗しうる取得を試み、例外時は代替値を返す / Try a lookup that may throw, falling back to a default */
+    /**
+     * 失敗しうる取得を試み、例外時は代替値を返す
+     * @param {Function} getValue - 値を返す関数
+     * @param {*} fallback - 例外時に返す値
+     * @returns {*} 取得した値、または代替値
+     */
     function tryGet(getValue, fallback) {
         try {
             return getValue();
@@ -180,10 +196,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         }
     }
 
-    /* ホーム直下から「Dropbox」を含むフォルダーを探す。チームフォルダー（「sw Dropbox」など）を優先し、
-       個人用の「Dropbox」は「~/Dropbox/」として短縮できるため優先度を下げる
-       Find a folder named like "Dropbox" directly under the home folder; a team folder ("sw Dropbox") wins over
-       the personal "Dropbox", which the ~ form already shortens well */
+    /**
+     * ホーム直下から「Dropbox」を含むフォルダーを探す。
+     * チームフォルダー（「sw Dropbox」など）を優先し、個人用の「Dropbox」は「~/Dropbox/」として短縮できるため優先度を下げる
+     * @returns {Folder|null} 見つかったフォルダー。なければ null
+     */
     function findDropboxFolder() {
         var homeFolder = Folder("~");
         if (!homeFolder.exists) {
@@ -223,8 +240,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         return teamFolder ? teamFolder : personalFolder;
     }
 
-    /* フォルダー直下にサブフォルダーが1つだけあるときそれを返す。チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う
-       Return the only subfolder directly inside a folder; used to spot a team Dropbox member folder. Null when there are zero or several */
+    /**
+     * フォルダー直下にサブフォルダーが1つだけあるとき、そのフォルダーを返す。
+     * チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う
+     * @param {Folder} parentFolder - 探索するフォルダー
+     * @returns {Folder|null} 唯一のサブフォルダー。0個または2個以上のときは null
+     */
     function findSingleSubFolder(parentFolder) {
         var entryList = tryGet(function() {
             return parentFolder.getFiles();
@@ -252,10 +273,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         return foundFolder;
     }
 
-    /* Dropboxのローカルマウントパスを決める。手動指定が空のときはホーム直下の「Dropbox」を含むフォルダーを探し、
-       メンバーフォルダーが1つだけあればそこまでをプレフィックスにする。見つからない場合は空文字
-       Resolve the local Dropbox mount path; with no manual setting, look for a "Dropbox" folder under home and
-       extend the prefix to its single member folder when there is one. Empty string when nothing is found */
+    /**
+     * Dropboxのローカルマウントパスを決める。
+     * 手動指定が空のときはホーム直下の「Dropbox」を含むフォルダーを探し、メンバーフォルダーが1つだけあればそこまでをプレフィックスにする
+     * @param {string} manualPath - 手動で指定するパス。空文字なら自動検出
+     * @returns {string} 末尾に「/」を付けたプレフィックス。見つからない場合は空文字
+     */
     function resolveDropboxPrefix(manualPath) {
         if (manualPath) {
             return (manualPath.charAt(manualPath.length - 1) === "/") ? manualPath : manualPath + "/";
@@ -272,29 +295,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
     var DROPBOX_PREFIX = resolveDropboxPrefix(DROPBOX_MOUNT_PATH);
 
-    /* ホームフォルダー以下のパスを ~ 表記に短縮する / Abbreviate a path under the home folder with ~ */
+    /**
+     * ホームフォルダー以下のパスを ~ 表記に短縮する
+     * @param {string} fsPath - 短縮するパス
+     * @returns {string} 短縮したパス。ホーム以下でなければそのまま
+     */
     function abbreviateHomePath(fsPath) {
-        var home = tryGet(function() {
+        var homePath = tryGet(function() {
             return Folder("~").fsName;
         }, "");
-        if (!home) {
+        if (!homePath) {
             return fsPath;
         }
-        if (fsPath === home) {
+        if (fsPath === homePath) {
             return "~";
         }
-        if (fsPath.indexOf(home) === 0) {
-            var rest = fsPath.substring(home.length);
+        if (fsPath.indexOf(homePath) === 0) {
+            var pathAfterHome = fsPath.substring(homePath.length);
             /* 直後が区切り文字のときだけ短縮（同名の別フォルダーを誤判定しない）/ Abbreviate only on a separator boundary, so a similarly named folder isn't mistaken for the home folder */
-            if (rest.charAt(0) === "/" || rest.charAt(0) === "\\") {
-                return "~" + rest;
+            if (pathAfterHome.charAt(0) === "/" || pathAfterHome.charAt(0) === "\\") {
+                return "~" + pathAfterHome;
             }
         }
         return fsPath;
     }
 
-    /* 表示用にパスを短縮する。Dropbox配下ならプレフィックスを落とし、そうでなければ ~ 表記にする
-       Shorten a path for display: drop the Dropbox prefix when it applies, otherwise fall back to the ~ form */
+    /**
+     * 表示用にパスを短縮する。Dropbox配下ならプレフィックスを落とし、そうでなければ ~ 表記にする
+     * @param {string} fsPath - 表示するパス
+     * @returns {string} 表示用のパス
+     */
     function formatDisplayPath(fsPath) {
         if (!fsPath) {
             return fsPath;
@@ -309,11 +339,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在の UI 言語を取得（ja / en）/ Get current UI language (ja / en) */
-    function getCurrentLang() {
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
@@ -326,6 +360,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             container: { ja: "グループ／レイヤー", en: "Groups / Layers" },
             guide: { ja: "ガイド", en: "Guides" },
             artboard: { ja: "アートボード", en: "Artboards" }
+        },
+        radio: {
+            frontmostDocument: { ja: "最前面のドキュメント", en: "Frontmost document" },
+            allOpenDocuments: { ja: "開いているすべてのドキュメント（{0}）", en: "All open documents ({0})" },
+            targetFolder: { ja: "フォルダー指定", en: "Folder" },
+            targetFolderWithCount: { ja: "フォルダー指定（{0}）", en: "Folder ({0})" },
+            guidesNone: { ja: "削除しない", en: "Don't delete" },
+            clearGuides: { ja: "ガイドを消去（ロック分は残る）", en: "Clear Guides (locked ones remain)" },
+            guides: { ja: "すべてのガイド（ロックも解除）", en: "All guides (unlocks everything)" },
+            guidesOutsideActiveArtboard: { ja: "アクティブなアートボード以外", en: "Outside the active artboard" }
         },
         checkbox: {
             swatches: { ja: "スウォッチ", en: "Swatches" },
@@ -344,33 +388,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
             outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
             emptyGroup: { ja: "空のグループ", en: "Empty groups" },
-            guidesNone: { ja: "削除しない", en: "Don't delete" },
-            clearGuides: { ja: "ガイドを消去（ロック分は残る）", en: "Clear Guides (locked ones remain)" },
-            guides: { ja: "すべてのガイド（ロックも解除）", en: "All guides (unlocks everything)" },
-            guidesOutsideActiveArtboard: { ja: "アクティブなアートボード以外", en: "Outside the active artboard" },
             emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
             artboards: { ja: "空のアートボード", en: "Empty artboards" },
             force: { ja: "使用中のパネル項目も削除", en: "Delete panel items even if in use" }
         },
-        target: {
-            frontmostDocument: { ja: "最前面のドキュメント", en: "Frontmost document" },
-            allOpenDocuments: { ja: "開いているすべてのドキュメント（{0}）", en: "All open documents ({0})" },
-            targetFolder: { ja: "フォルダー指定", en: "Folder" },
-            targetFolderWithCount: { ja: "フォルダー指定（{0}）", en: "Folder ({0})" },
+        fieldLabel: {
+            preset: { ja: "セット", en: "Preset" }
+        },
+        dropdown: {
+            presetBasic: { ja: "基本", en: "Default" },
+            presetAllOff: { ja: "すべてOFF", en: "All off" },
+            presetAllOn: { ja: "すべてON", en: "All on" },
+            presetPanelItemsOnly: { ja: "パネル項目のみ", en: "Panel items only" },
+            presetCustom: { ja: "カスタム", en: "Custom" }
+        },
+        status: {
             noFolderChosen: { ja: "（未指定）", en: "(none chosen)" }
         },
         button: {
             chooseFolder: { ja: "指定...", en: "Choose..." },
             cancel: { ja: "キャンセル", en: "Cancel" },
             run: { ja: "実行", en: "Run" }
-        },
-        preset: {
-            label: { ja: "セット", en: "Preset" },
-            basic: { ja: "基本", en: "Default" },
-            allOff: { ja: "すべてOFF", en: "All off" },
-            allOn: { ja: "すべてON", en: "All on" },
-            panelItemsOnly: { ja: "パネル項目のみ", en: "Panel items only" },
-            custom: { ja: "カスタム", en: "Custom" }
         },
         result: {
             swatches: { ja: "スウォッチ", en: "Swatches" },
@@ -559,27 +597,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         }
     };
 
-    /* ドット区切りのキーからローカライズ文字列を取得 / Resolve a localized string from a dotted key path */
-    function getLabel(labelKey) {
-        var keyParts = labelKey.split(".");
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "panel.target" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
+        for (var i = 0; i < labelPathKeys.length; i++) {
             if (labelNode == null) {
-                return labelKey;
+                return labelPath;
             }
-            labelNode = labelNode[keyParts[i]];
+            labelNode = labelNode[labelPathKeys[i]];
         }
         if (labelNode == null) {
-            return labelKey;
+            return labelPath;
         }
-        return labelNode[currentLanguage] || labelNode.ja || labelKey;
+        return labelNode[uiLang] || labelNode.ja || labelPath;
     }
 
-    /* ラベル内の {0} {1} … を値で置き換える / Replace {0}, {1}, … placeholders in a label */
-    function fillPlaceholders(template, values) {
-        var filledText = template;
-        for (var i = 0; i < values.length; i++) {
-            filledText = filledText.replace("{" + i + "}", values[i]);
+    /**
+     * ラベル内の {0} {1} … を値で置き換える
+     * @param {string} labelTemplate - プレースホルダーを含むラベル
+     * @param {Array} placeholderValues - {0} から順に差し込む値
+     * @returns {string} 置き換えたテキスト
+     */
+    function fillPlaceholders(labelTemplate, placeholderValues) {
+        var filledText = labelTemplate;
+        for (var i = 0; i < placeholderValues.length; i++) {
+            filledText = filledText.replace("{" + i + "}", placeholderValues[i]);
         }
         return filledText;
     }
@@ -588,71 +635,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
     // メイン処理 / Main
     // =========================================
     (function() {
-        /* 種類キーごとの削除処理。run(doc, force) で件数を返す / Handler per type key; run(doc, force) returns the count */
+        /* 種類キーごとの削除処理。handler(doc, force) で件数を返す（force を使わない処理は無視する）
+           Handler per type key; handler(doc, force) returns the count (handlers that don't use force ignore it) */
         var TARGET_RUNNERS = {
-            swatches: function(doc, force) {
-                return deleteUnusedSwatches(doc, force);
-            },
-            graphicStyles: function(doc, force) {
-                return deleteUnusedGraphicStyles(doc, force);
-            },
-            symbols: function(doc, force) {
-                return deleteUnusedSymbols(doc, force);
-            },
-            brushes: function(doc, force) {
-                return deleteUnusedBrushes(doc, force);
-            },
-            paragraphStyles: function(doc, force) {
-                return deleteUnusedParagraphStyles(doc, force);
-            },
-            characterStyles: function(doc, force) {
-                return deleteUnusedCharacterStyles(doc, force);
-            },
-            strayPoints: function(doc) {
-                return deleteStrayPoints(doc);
-            },
-            emptyText: function(doc) {
-                return deleteEmptyTextFrames(doc);
-            },
-            noPaintPath: function(doc) {
-                return deleteUnpaintedPaths(doc);
-            },
-            zeroOpacity: function(doc) {
-                return deleteZeroOpacityObjects(doc);
-            },
-            hiddenObjects: function(doc) {
-                return deleteHiddenObjects(doc);
-            },
-            brokenLink: function(doc) {
-                return deleteBrokenLinkImages(doc);
-            },
-            notes: function(doc) {
-                return clearNotes(doc);
-            },
-            outsideAllArtboards: function(doc) {
-                return deleteObjectsOutsideAllArtboards(doc);
-            },
-            outsideActiveArtboard: function(doc) {
-                return deleteObjectsOutsideActiveArtboard(doc);
-            },
-            emptyGroup: function(doc) {
-                return deleteEmptyGroups(doc);
-            },
-            clearGuides: function(doc) {
-                return clearGuides(doc);
-            },
-            guides: function(doc) {
-                return deleteAllGuides(doc);
-            },
-            guidesOutsideActiveArtboard: function(doc) {
-                return deleteGuidesOutsideActiveArtboard(doc);
-            },
-            emptyLayer: function(doc) {
-                return deleteEmptyLayers(doc);
-            },
-            artboards: function(doc) {
-                return deleteUnusedArtboards(doc);
-            }
+            swatches: deleteUnusedSwatches,
+            graphicStyles: deleteUnusedGraphicStyles,
+            symbols: deleteUnusedSymbols,
+            brushes: deleteUnusedBrushes,
+            paragraphStyles: deleteUnusedParagraphStyles,
+            characterStyles: deleteUnusedCharacterStyles,
+            strayPoints: deleteStrayPoints,
+            emptyText: deleteEmptyTextFrames,
+            noPaintPath: deleteUnpaintedPaths,
+            zeroOpacity: deleteZeroOpacityObjects,
+            hiddenObjects: deleteHiddenObjects,
+            brokenLink: deleteBrokenLinkImages,
+            notes: clearNotes,
+            outsideAllArtboards: deleteObjectsOutsideAllArtboards,
+            outsideActiveArtboard: deleteObjectsOutsideActiveArtboard,
+            emptyGroup: deleteEmptyGroups,
+            clearGuides: clearGuides,
+            guides: deleteAllGuides,
+            guidesOutsideActiveArtboard: deleteGuidesOutsideActiveArtboard,
+            emptyLayer: deleteEmptyLayers,
+            artboards: deleteUnusedArtboards
         };
 
         /* 削除対象プリセットのポップアップ項目。「カスタム」は選ぶものではなく、手でチェックを変えたことを示す状態
@@ -707,81 +713,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
         ];
 
-        /* レイアウトを順に辿って全キーを取り出す / Flatten all keys in layout order */
-        var ALL_KEYS = (function(layout) {
-            var collectedKeys = [];
-
-            function collectKeysFromNode(layoutNode) {
-                if (layoutNode.row) {
-                    for (var j = 0; j < layoutNode.row.length; j++) {
-                        collectKeysFromNode(layoutNode.row[j]);
-                    }
-                } else if (layoutNode.column) {
-                    for (var k = 0; k < layoutNode.column.length; k++) {
-                        collectKeysFromNode(layoutNode.column[k]);
-                    }
-                } else {
-                    collectedKeys = collectedKeys.concat(layoutNode.keys);
-                }
-            }
-            for (var i = 0; i < layout.length; i++) {
-                collectKeysFromNode(layout[i]);
-            }
-            return collectedKeys;
-        })(DIALOG_LAYOUT);
-
+        /* レイアウト順の全キー / Every key in layout order */
+        var ALL_KEYS = [];
         /* ラジオで排他選択するパネル（ガイド）の情報。プリセット適用と復元で「削除しない」を含めて明示的に設定するために使う
            The radio-selected panel (guides); presets and restoring need to set its options explicitly, none option included */
-        var RADIO_GROUP = (function(layout) {
-            var found = null;
-
-            function scanNode(layoutNode) {
-                if (layoutNode.row) {
-                    for (var j = 0; j < layoutNode.row.length; j++) {
-                        scanNode(layoutNode.row[j]);
-                    }
-                } else if (layoutNode.column) {
-                    for (var k = 0; k < layoutNode.column.length; k++) {
-                        scanNode(layoutNode.column[k]);
-                    }
-                } else if (layoutNode.radio && !found) {
-                    found = {
-                        noneKey: layoutNode.noneKey,
-                        allOnKey: layoutNode.allOnKey,
-                        keys: layoutNode.keys
-                    };
-                }
-            }
-            for (var i = 0; i < layout.length; i++) {
-                scanNode(layout[i]);
-            }
-            return found;
-        })(DIALOG_LAYOUT);
-
+        var GUIDE_RADIO_GROUP = null;
         /* 「パネル項目のみ」プリセットで ON にするキーの集合 / The set of keys the Panel-items-only preset turns on */
-        var PANEL_ITEM_KEY_SET = (function(layout) {
-            var keySet = {};
+        var PANEL_ITEM_KEY_SET = {};
 
-            function scanNode(layoutNode) {
-                if (layoutNode.row) {
-                    for (var j = 0; j < layoutNode.row.length; j++) {
-                        scanNode(layoutNode.row[j]);
-                    }
-                } else if (layoutNode.column) {
-                    for (var k = 0; k < layoutNode.column.length; k++) {
-                        scanNode(layoutNode.column[k]);
-                    }
-                } else if (layoutNode.panelItemsGroup) {
-                    for (var m = 0; m < layoutNode.keys.length; m++) {
-                        keySet[layoutNode.keys[m]] = true;
-                    }
+        forEachLayoutPanel(DIALOG_LAYOUT, function(panelSpec) {
+            ALL_KEYS = ALL_KEYS.concat(panelSpec.keys);
+            if (panelSpec.radio && !GUIDE_RADIO_GROUP) {
+                GUIDE_RADIO_GROUP = {
+                    noneKey: panelSpec.noneKey,
+                    allOnKey: panelSpec.allOnKey,
+                    keys: panelSpec.keys
+                };
+            }
+            if (panelSpec.panelItemsGroup) {
+                for (var i = 0; i < panelSpec.keys.length; i++) {
+                    PANEL_ITEM_KEY_SET[panelSpec.keys[i]] = true;
                 }
             }
-            for (var i = 0; i < layout.length; i++) {
-                scanNode(layout[i]);
-            }
-            return keySet;
-        })(DIALOG_LAYOUT);
+        });
 
         /* 空グループ・空レイヤーの掃除は他の削除の後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup after the other deletions so parents emptied by them are removed in the same pass */
         var CONTAINER_CLEANUP_KEYS = {
@@ -798,13 +752,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             var containerCleanupKeys = [];
             var finalKeys = [];
             for (var i = 0; i < layoutOrderedKeys.length; i++) {
-                var key = layoutOrderedKeys[i];
-                if (FINAL_KEYS[key]) {
-                    finalKeys.push(key);
-                } else if (CONTAINER_CLEANUP_KEYS[key]) {
-                    containerCleanupKeys.push(key);
+                var optionKey = layoutOrderedKeys[i];
+                if (FINAL_KEYS[optionKey]) {
+                    finalKeys.push(optionKey);
+                } else if (CONTAINER_CLEANUP_KEYS[optionKey]) {
+                    containerCleanupKeys.push(optionKey);
                 } else {
-                    earlierKeys.push(key);
+                    earlierKeys.push(optionKey);
                 }
             }
             return earlierKeys.concat(containerCleanupKeys, finalKeys);
@@ -828,40 +782,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             runFrontmostDocument(dialogChoices);
         }
 
+        /**
+         * レイアウト定義を順に辿り、パネル1枚ぶんの定義（row / column 以外のノード）ごとに関数を呼ぶ
+         * @param {Object[]} layoutNodes - レイアウト定義の配列
+         * @param {Function} visitPanel - パネルの定義を受け取る関数
+         * @returns {void}
+         */
+        function forEachLayoutPanel(layoutNodes, visitPanel) {
+            for (var i = 0; i < layoutNodes.length; i++) {
+                var layoutNode = layoutNodes[i];
+                if (layoutNode.row) {
+                    forEachLayoutPanel(layoutNode.row, visitPanel);
+                } else if (layoutNode.column) {
+                    forEachLayoutPanel(layoutNode.column, visitPanel);
+                } else {
+                    visitPanel(layoutNode);
+                }
+            }
+        }
+
         // ==================================================
         // 実行 / Execution
         // ==================================================
 
-        /* 1ドキュメントに対して選択された種類をすべて実行し、種類キーごとの件数を返す（実行順は EXECUTION_KEYS）
-           Run every selected type against one document and return the per-type counts (in EXECUTION_KEYS order) */
+        /**
+         * 1ドキュメントに対して選択された種類をすべて実行し、種類キーごとの件数を返す（実行順は EXECUTION_KEYS）
+         * @param {Document} targetDoc - 処理するドキュメント
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {Object} 種類キーごとの削除件数
+         */
         function runCleanup(targetDoc, choices) {
             /* アクションとメニューコマンドは最前面のドキュメントに効くため、対象を必ず前面にする
                Actions and menu commands act on the frontmost document, so bring the target forward first */
             app.activeDocument = targetDoc;
 
-            var counts = {};
+            var deletedCounts = {};
             for (var i = 0; i < EXECUTION_KEYS.length; i++) {
-                var key = EXECUTION_KEYS[i];
-                if (choices[key]) {
-                    counts[key] = TARGET_RUNNERS[key](targetDoc, choices.force);
+                var optionKey = EXECUTION_KEYS[i];
+                if (choices[optionKey]) {
+                    deletedCounts[optionKey] = TARGET_RUNNERS[optionKey](targetDoc, choices.force);
                 }
             }
-            return counts;
+            return deletedCounts;
         }
 
-        /* 最前面のドキュメントだけを処理する（保存はしない）/ Process only the frontmost document (nothing is saved) */
+        /**
+         * 最前面のドキュメントだけを処理する（保存はしない）
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {void}
+         */
         function runFrontmostDocument(choices) {
             if (app.documents.length === 0) {
                 alert(getLabel('alert.noDocument'));
                 return;
             }
 
-            var counts = runCleanup(app.activeDocument, choices);
+            var deletedCounts = runCleanup(app.activeDocument, choices);
             app.redraw();
-            alert(buildSingleResultMessage(counts, choices));
+            alert(buildSingleResultMessage(deletedCounts, choices));
         }
 
-        /* 開いているすべてのドキュメントを処理する（保存はしない）/ Process every open document (nothing is saved) */
+        /**
+         * 開いているすべてのドキュメントを処理する（保存はしない）
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {void}
+         */
         function runOpenDocumentsBatch(choices) {
             if (app.documents.length === 0) {
                 alert(getLabel('alert.noDocument'));
@@ -875,12 +860,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
             var originallyActiveDoc = app.activeDocument;
 
-            var totals = {};
+            var deletedTotals = {};
             var processedCount = 0;
             var failedNames = [];
             for (var j = 0; j < targetDocs.length; j++) {
                 try {
-                    addCounts(totals, runCleanup(targetDocs[j], choices));
+                    addCounts(deletedTotals, runCleanup(targetDocs[j], choices));
                     processedCount++;
                 } catch (e) {
                     failedNames.push(getDocumentName(targetDocs[j]));
@@ -896,22 +881,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             app.redraw();
 
             alert(fillPlaceholders(getLabel('alert.batchDoneDocuments'), [processedCount]) + "\n\n" +
-                buildBatchResultMessage(totals, choices, failedNames));
+                buildBatchResultMessage(deletedTotals, choices, failedNames));
         }
 
-        /* 指定フォルダー直下の .ai ファイルを順に開いて処理し、上書き保存して閉じる / Open each .ai file directly inside the folder, clean it, save over the original, and close it */
-        function runFolderBatch(folder, choices) {
-            var aiFiles = collectAiFiles(folder);
+        /**
+         * 指定フォルダー直下の .ai ファイルを順に開いて処理し、上書き保存して閉じる
+         * @param {Folder} targetFolder - 対象フォルダー
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {void}
+         */
+        function runFolderBatch(targetFolder, choices) {
+            var aiFiles = collectAiFiles(targetFolder);
             if (aiFiles.length === 0) {
                 /* 対象フォルダーと走査した項目数を出して、フォルダー違いと絞り込み漏れを切り分けられるようにする
                    Report the folder and how many entries were scanned, so a wrong folder can be told apart from a filtering problem */
                 alert(fillPlaceholders(getLabel('alert.folderNoFiles'),
-                    [formatDisplayPath(folder.fsName), folder.getFiles().length]));
+                    [formatDisplayPath(targetFolder.fsName), targetFolder.getFiles().length]));
                 return;
             }
 
             /* 元ファイルを上書きして元に戻せないため、実行前に必ず確認する / The originals are overwritten irreversibly, so always confirm first */
-            if (!confirm(fillPlaceholders(getLabel('alert.folderConfirm'), [aiFiles.length, folder.fsName]))) {
+            if (!confirm(fillPlaceholders(getLabel('alert.folderConfirm'), [aiFiles.length, targetFolder.fsName]))) {
                 return;
             }
 
@@ -919,7 +909,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             var originalInteractionLevel = app.userInteractionLevel;
             app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
 
-            var totals = {};
+            var deletedTotals = {};
             var processedCount = 0;
             var failedNames = [];
             try {
@@ -932,7 +922,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                         var fileCounts = runCleanup(openedDoc, choices);
                         openedDoc.close(SaveOptions.SAVECHANGES);
                         openedDoc = null;
-                        addCounts(totals, fileCounts);
+                        addCounts(deletedTotals, fileCounts);
                         processedCount++;
                     } catch (e) {
                         failedNames.push(getEntryName(aiFiles[i]));
@@ -952,19 +942,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
 
             alert(fillPlaceholders(getLabel('alert.batchDoneFiles'), [processedCount]) + "\n\n" +
-                buildBatchResultMessage(totals, choices, failedNames));
+                buildBatchResultMessage(deletedTotals, choices, failedNames));
         }
 
-        /* ファイル名を取得。displayName は OS の表示名なので拡張子の判定には使わず、実ファイル名の name を復号して使う
-           Get a file's name from `name` (URI-decoded): `displayName` is the OS display name and isn't reliable for extension matching */
-        function getEntryName(entry) {
-            return decodeURI(entry.name);
+        /**
+         * ファイル名を取得する。displayName は OS の表示名なので拡張子の判定には使わず、実ファイル名の name を復号して使う
+         * @param {File} fileEntry - ファイル
+         * @returns {string} 復号したファイル名
+         */
+        function getEntryName(fileEntry) {
+            return decodeURI(fileEntry.name);
         }
 
-        /* フォルダー直下の .ai ファイルを名前順に集める（サブフォルダー・不可視ファイルは対象外）
-           Collect .ai files directly inside the folder, sorted by name (subfolders and invisible files are skipped) */
-        function collectAiFiles(folder) {
-            var folderEntries = folder.getFiles();
+        /**
+         * フォルダー直下の .ai ファイルを名前順に集める（サブフォルダー・不可視ファイルは対象外）
+         * @param {Folder} targetFolder - 対象フォルダー
+         * @returns {File[]} .ai ファイルの配列
+         */
+        function collectAiFiles(targetFolder) {
+            var folderEntries = targetFolder.getFiles();
             var aiFiles = [];
             for (var i = 0; i < folderEntries.length; i++) {
                 var entry = folderEntries[i];
@@ -992,17 +988,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return aiFiles;
         }
 
-        /* 件数の集計に1ドキュメントぶんの結果を足し込む / Add one document's counts into the running totals */
-        function addCounts(totals, counts) {
+        /**
+         * 件数の集計に1ドキュメントぶんの結果を足し込む
+         * @param {Object} deletedTotals - 種類キーごとの合計（書き換える）
+         * @param {Object} deletedCounts - 1ドキュメントぶんの件数
+         * @returns {void}
+         */
+        function addCounts(deletedTotals, deletedCounts) {
             for (var i = 0; i < ALL_KEYS.length; i++) {
-                var key = ALL_KEYS[i];
-                if (counts[key] > 0) {
-                    totals[key] = (totals[key] || 0) + counts[key];
+                var optionKey = ALL_KEYS[i];
+                if (deletedCounts[optionKey] > 0) {
+                    deletedTotals[optionKey] = (deletedTotals[optionKey] || 0) + deletedCounts[optionKey];
                 }
             }
         }
 
-        /* ドキュメント名を取得（取得できない場合は空文字）/ Get a document's name (empty string when unavailable) */
+        /**
+         * ドキュメント名を取得する（取得できない場合は空文字）
+         * @param {Document} targetDoc - ドキュメント
+         * @returns {string} ドキュメント名
+         */
         function getDocumentName(targetDoc) {
             try {
                 return targetDoc.name;
@@ -1015,59 +1020,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         // 結果メッセージ / Result message
         // ==================================================
 
-        /* 集計1行を組み立て（日本語は「件」を付ける）/ Build one result line (JA appends a counter word) */
-        function formatResultLine(key, count) {
-            if (currentLanguage === "ja") {
-                return getLabel(key) + ": " + count + " 件\n";
+        /**
+         * 集計1行を組み立てる（日本語は「件」を付ける）
+         * @param {string} labelPath - 種類名のラベルのパス
+         * @param {number} deletedCount - 件数
+         * @returns {string} 改行付きの1行
+         */
+        function formatResultLine(labelPath, deletedCount) {
+            if (uiLang === "ja") {
+                return getLabel(labelPath) + ": " + deletedCount + " 件\n";
             }
-            return getLabel(key) + ": " + count + "\n";
+            return getLabel(labelPath) + ": " + deletedCount + "\n";
         }
 
-        /* 種類ごとの削除件数を行にまとめる（0件の種類は省略）/ Collect the per-type counts into lines (zero-count types are omitted) */
-        function buildCountLines(counts, choices) {
-            var lines = "";
+        /**
+         * 種類ごとの削除件数を行にまとめる（0件の種類は省略）
+         * @param {Object} deletedCounts - 種類キーごとの件数
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {string} 件数の行。1件もなければ空文字
+         */
+        function buildCountLines(deletedCounts, choices) {
+            var countLines = "";
             for (var i = 0; i < ALL_KEYS.length; i++) {
-                var key = ALL_KEYS[i];
-                if (choices[key] && counts[key] > 0) {
-                    lines += formatResultLine('result.' + key, counts[key]);
+                var optionKey = ALL_KEYS[i];
+                if (choices[optionKey] && deletedCounts[optionKey] > 0) {
+                    countLines += formatResultLine('result.' + optionKey, deletedCounts[optionKey]);
                 }
             }
-            return lines;
+            return countLines;
         }
 
-        /* 見出しと項目名の一覧を組み立て（該当なしなら空文字）/ Build a heading followed by a list of names (empty when there is nothing to list) */
-        function buildNoticeLines(headingKey, names) {
-            if (names.length === 0) {
+        /**
+         * 見出しと項目名の一覧を組み立てる
+         * @param {string} headingPath - 見出しのラベルのパス
+         * @param {string[]} itemNames - 並べる項目名
+         * @returns {string} 一覧のテキスト。該当なしなら空文字
+         */
+        function buildNoticeLines(headingPath, itemNames) {
+            if (itemNames.length === 0) {
                 return "";
             }
-            var lines = "\n" + getLabel(headingKey) + "\n";
-            for (var i = 0; i < names.length; i++) {
-                lines += "- " + names[i] + "\n";
+            var noticeLines = "\n" + getLabel(headingPath) + "\n";
+            for (var i = 0; i < itemNames.length; i++) {
+                noticeLines += "- " + itemNames[i] + "\n";
             }
-            return lines;
+            return noticeLines;
         }
 
-        /* アクションを再生できなかった種類の一覧（0件ではなく失敗として明示する）/ List the types whose action couldn't be played, so they aren't reported as a genuine zero */
+        /**
+         * アクションを再生できなかった種類の一覧を組み立てる（0件ではなく失敗として明示する）
+         * @returns {string} 一覧のテキスト。該当なしなら空文字
+         */
         function buildActionFailureLines() {
-            var names = [];
+            var failedTypeNames = [];
             for (var i = 0; i < actionFailureKeys.length; i++) {
-                names.push(getLabel('result.' + actionFailureKeys[i]));
+                failedTypeNames.push(getLabel('result.' + actionFailureKeys[i]));
             }
-            return buildNoticeLines('alert.actionFailed', names);
+            return buildNoticeLines('alert.actionFailed', failedTypeNames);
         }
 
-        /* 単一ドキュメント用の完了メッセージ / Completion message for a single document */
-        function buildSingleResultMessage(counts, choices) {
-            var lines = buildCountLines(counts, choices);
+        /**
+         * 単一ドキュメント用の完了メッセージを組み立てる
+         * @param {Object} deletedCounts - 種類キーごとの件数
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {string} 完了メッセージ
+         */
+        function buildSingleResultMessage(deletedCounts, choices) {
+            var countLines = buildCountLines(deletedCounts, choices);
             /* 1件も削除されなければ「対象なし」だけ表示 / If nothing was deleted, show only the no-target message */
-            var message = (lines === "") ? getLabel('alert.noTarget') : getLabel('alert.done') + "\n\n" + lines;
+            var message = (countLines === "") ? getLabel('alert.noTarget') : getLabel('alert.done') + "\n\n" + countLines;
             return message + buildActionFailureLines();
         }
 
-        /* 一括処理用の完了メッセージ（合計件数と失敗したファイル名）/ Completion message for a batch run (totals plus the names that failed) */
-        function buildBatchResultMessage(totals, choices, failedNames) {
-            var lines = buildCountLines(totals, choices);
-            var message = (lines === "") ? getLabel('alert.noTarget') : lines;
+        /**
+         * 一括処理用の完了メッセージを組み立てる（合計件数と失敗したファイル名）
+         * @param {Object} deletedTotals - 種類キーごとの合計
+         * @param {Object} choices - ダイアログの選択結果
+         * @param {string[]} failedNames - 処理できなかったファイル／ドキュメント名
+         * @returns {string} 完了メッセージ
+         */
+        function buildBatchResultMessage(deletedTotals, choices, failedNames) {
+            var countLines = buildCountLines(deletedTotals, choices);
+            var message = (countLines === "") ? getLabel('alert.noTarget') : countLines;
             return message + buildActionFailureLines() + buildNoticeLines('alert.batchFailed', failedNames);
         }
 
@@ -1075,27 +1109,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         // ダイアログ生成 / Build the dialog
         // ==================================================
 
-        /* 削除対象を選択するダイアログを構築し、選択結果を返す / Build the dialog and return the user's selection */
+        /**
+         * 削除対象を選択するダイアログを表示し、選択結果を返す
+         * @returns {Object|null} 対象の指定と各項目の選択状態。キャンセル時は null
+         */
         function showDeleteDialog() {
-            var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
-            dialog.orientation = "column";
-            dialog.alignChildren = ["fill", "top"];
+            var cleanerDialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
+            cleanerDialog.orientation = "column";
+            cleanerDialog.alignChildren = ["fill", "top"];
 
-            /* 最上部に「対象」パネル（最前面／すべて開いている／フォルダー指定）/ The Target panel (frontmost / all open / folder) sits at the top */
-            var targetPanel = dialog.add("panel", undefined, getLabel('panel.target'));
+            var targetControls = buildTargetPanel(cleanerDialog);
+            var optionState = buildOptionPanels(cleanerDialog);
+            buildButtonRow(cleanerDialog, targetControls, optionState);
+
+            restoreSessionChoices(targetControls, optionState);
+            /* 復元後の状態に合わせてプリセット表示を決める / Pick the preset display that matches the restored state */
+            refreshPresetSelection(optionState);
+
+            /* 前回の位置を再現する。画面構成が変わって画面外になる位置は使わない
+               Reuse the previous position, unless a display change would leave it off-screen */
+            cleanerDialog.onShow = function() {
+                if (sessionState.dialogLocation && isLocationOnScreen(sessionState.dialogLocation)) {
+                    cleanerDialog.location = sessionState.dialogLocation;
+                }
+            };
+
+            if (cleanerDialog.show() !== 1) {
+                return null;
+            }
+
+            var choices = readDialogChoices(targetControls, optionState);
+
+            /* 次回の起動で再現できるようセッションに控える。Folder オブジェクトは持ち越さず、パス文字列だけを残す
+               Stash it in the session for the next run; the Folder object is dropped and only its path is kept */
+            sessionState.choices = copyChoicesForSession(choices);
+            sessionState.folderPath = targetControls.selectedFolder ? targetControls.selectedFolder.fsName : null;
+
+            return choices;
+        }
+
+        /**
+         * 最上部の「処理対象」パネル（最前面／すべて開いている／フォルダー指定）を作る
+         * @param {Window} parentDialog - 親ダイアログ
+         * @returns {Object} ラジオ・選択中のフォルダー・操作関数をまとめたオブジェクト
+         */
+        function buildTargetPanel(parentDialog) {
+            var targetPanel = parentDialog.add("panel", undefined, getLabel('panel.target'));
             setupPanel(targetPanel, 6);
             targetPanel.helpTip = getLabel('tooltip.target');
 
             var openDocumentCount = app.documents.length;
 
-            var frontmostRadio = targetPanel.add("radiobutton", undefined, getLabel('target.frontmostDocument'));
+            var frontmostRadio = targetPanel.add("radiobutton", undefined, getLabel('radio.frontmostDocument'));
             frontmostRadio.helpTip = getLabel('tooltip.frontmostDocument');
             /* ドキュメントが1つも開いていなければ選べない / Not selectable when no document is open */
             frontmostRadio.enabled = (openDocumentCount > 0);
 
             /* 対象になるドキュメント数をラベルに添える / Show how many documents the option covers */
             var allOpenRadio = targetPanel.add("radiobutton", undefined,
-                fillPlaceholders(getLabel('target.allOpenDocuments'), [openDocumentCount]));
+                fillPlaceholders(getLabel('radio.allOpenDocuments'), [openDocumentCount]));
             allOpenRadio.helpTip = getLabel('tooltip.allOpenDocuments');
             /* 1つ以下のときは「最前面のドキュメント」と変わらないのでディム表示 / Dimmed at one document or fewer, where it would do the same as the frontmost option */
             allOpenRadio.enabled = (openDocumentCount > 1);
@@ -1107,12 +1179,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             folderRow.alignChildren = ["left", "center"];
             folderRow.spacing = 8;
 
-            var folderRadio = folderRow.add("radiobutton", undefined, getLabel('target.targetFolder'));
+            var folderRadio = folderRow.add("radiobutton", undefined, getLabel('radio.targetFolder'));
             folderRadio.helpTip = getLabel('tooltip.targetFolder');
             /* ラジオも生成後に伸びないので、件数を付けた状態の幅を先に確保する / A radiobutton doesn't grow after creation either, so reserve the width the counted label needs */
             folderRadio.preferredSize.width = FOLDER_RADIO_WIDTH;
-            var chooseFolderButton = folderRow.add("button", undefined, getLabel('button.chooseFolder'));
-            chooseFolderButton.helpTip = getLabel('tooltip.chooseFolder');
+            var btnChooseFolder = folderRow.add("button", undefined, getLabel('button.chooseFolder'));
+            btnChooseFolder.helpTip = getLabel('tooltip.chooseFolder');
 
             /* 選択中のパスは次の行に、ラジオのラベル位置に合わせて字下げして表示 / The chosen path goes on the next line, indented to line up with the radio's label */
             var folderPathRow = targetPanel.add("group");
@@ -1122,13 +1194,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             folderPathRow.margins = [FOLDER_PATH_INDENT, 0, 0, 0];
 
             /* statictext は生成後に伸びないので、長いパスを収める幅を先に確保する / A statictext never grows after creation, so reserve enough width for a long path up front */
-            var folderPathText = folderPathRow.add("statictext", undefined, getLabel('target.noFolderChosen'), {
+            var folderPathText = folderPathRow.add("statictext", undefined, getLabel('status.noFolderChosen'), {
                 truncate: "middle"
             });
             folderPathText.preferredSize.width = FOLDER_PATH_WIDTH;
             folderPathText.alignment = ["fill", "center"];
 
-            var selectedFolder = null;
+            var targetControls = {
+                frontmostRadio: frontmostRadio,
+                allOpenRadio: allOpenRadio,
+                folderRadio: folderRadio,
+                /* 選んだフォルダー（未指定なら null）/ The chosen folder (null when none) */
+                selectedFolder: null,
+                selectRadio: selectTargetRadio,
+                applyChosenFolder: applyChosenFolder
+            };
 
             /* 3つのラジオのうち1つだけを選択状態にする。フォルダー指定だけ横並び用の別グループにいて ScriptUI の自動排他が効かないため手動で揃える
                Select exactly one of the three radios by hand: the folder radio sits in its own row group, so ScriptUI won't treat the three as one exclusive set */
@@ -1143,30 +1223,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             function selectDefaultTargetRadio() {
                 selectTargetRadio(frontmostRadio.enabled ? frontmostRadio : folderRadio);
             }
-            selectDefaultTargetRadio();
 
             /* 選んだフォルダーを保持して表示に反映する（選択ダイアログ経由でもセッション復元でも通る）
                Hold the chosen folder and reflect it in the display; used both by the picker and by the session restore */
-            function applyChosenFolder(folder) {
-                selectedFolder = folder;
+            function applyChosenFolder(chosenFolder) {
+                targetControls.selectedFolder = chosenFolder;
                 /* 表示は Dropbox 配下ならプレフィックスを落とし、そうでなければ ~ に短縮。幅に収まらないぶんは中央が省略されるため、末尾のフォルダー名は残る
                    Drop the Dropbox prefix when it applies, otherwise show the ~ form; middle truncation keeps the trailing folder name readable */
-                folderPathText.text = formatDisplayPath(folder.fsName);
-                folderPathText.helpTip = folder.fsName;
+                folderPathText.text = formatDisplayPath(chosenFolder.fsName);
+                folderPathText.helpTip = chosenFolder.fsName;
                 /* 処理対象になる .ai ファイル数をラベルに添える（0件なら実行前に気づける）/ Show how many .ai files the run will cover, so a zero is obvious before running */
-                folderRadio.text = fillPlaceholders(getLabel('target.targetFolderWithCount'), [collectAiFiles(folder).length]);
+                folderRadio.text = fillPlaceholders(getLabel('radio.targetFolderWithCount'), [collectAiFiles(chosenFolder).length]);
             }
 
             /* フォルダー選択ダイアログを開き、選んだフォルダーを表示に反映する（キャンセル時は false）
                Open the folder picker and reflect the choice in the display; returns false when cancelled */
             function chooseTargetFolder() {
-                var folder = Folder.selectDialog(getLabel('prompt.selectFolder'), selectedFolder);
-                if (!folder) {
+                var chosenFolder = Folder.selectDialog(getLabel('prompt.selectFolder'), targetControls.selectedFolder);
+                if (!chosenFolder) {
                     return false;
                 }
-                applyChosenFolder(folder);
+                applyChosenFolder(chosenFolder);
                 return true;
             }
+
+            selectDefaultTargetRadio();
 
             frontmostRadio.onClick = function() {
                 selectTargetRadio(frontmostRadio);
@@ -1176,7 +1257,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 selectTargetRadio(allOpenRadio);
             };
 
-            chooseFolderButton.onClick = function() {
+            btnChooseFolder.onClick = function() {
                 /* ［指定］を押したらフォルダー指定モードに切り替える / Pressing Choose switches the target to folder mode */
                 if (chooseTargetFolder()) {
                     selectTargetRadio(folderRadio);
@@ -1186,126 +1267,154 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             folderRadio.onClick = function() {
                 /* 未指定のままフォルダー指定を選んだら、その場で選択させる。キャンセル時はディム表示のラジオに戻さない
                    Picking folder mode with nothing chosen opens the picker right away; cancelling must not land on a dimmed radio */
-                if (selectedFolder === null && !chooseTargetFolder()) {
+                if (targetControls.selectedFolder === null && !chooseTargetFolder()) {
                     selectDefaultTargetRadio();
                     return;
                 }
                 selectTargetRadio(folderRadio);
             };
 
-            /* レイアウト定義どおりにパネル・サブパネル・チェックボックス／ラジオを生成 / Build panels, sub-panels, and their checkboxes/radios per the layout */
-            var optionControls = {};
-            var forceCheckbox = null;
-            /* プリセットが値を書き込むチェックボックスの一覧。{ checkbox, key, initialValue } の組で持ち、
-               ScriptUI ウィジェットに独自プロパティを生やさない。強制オプションは含めない（ガイドのラジオは RADIO_GROUP 経由）
-               The checkboxes a preset writes to, held as { checkbox, key, initialValue } records rather than as custom
-               properties on the ScriptUI widgets; the force option is never included (guide radios go through RADIO_GROUP) */
-            var checkboxEntries = [];
-            var presetDropdown = null;
-            /* 表示を合わせ直している最中かどうか。ScriptUI は selection への代入でも onChange を呼ぶため、
-               そのままだと手で変えた直後にプリセットが再適用されてしまう
-               Whether the display is being resynced; ScriptUI fires onChange on assignment to selection too,
-               which would otherwise re-apply the preset right after a hand-made change */
-            var isSyncingPreset = false;
+            return targetControls;
+        }
+
+        /**
+         * レイアウト定義どおりに削除対象のパネル・サブパネル・チェックボックス／ラジオを作る
+         * @param {Window} parentDialog - 親ダイアログ
+         * @returns {Object} 項目のコントロールとプリセットの状態をまとめたオブジェクト
+         */
+        function buildOptionPanels(parentDialog) {
+            var optionState = {
+                /* 種類キー → チェックボックス／ラジオ / Type key -> checkbox or radio */
+                optionControls: {},
+                /* プリセットが値を書き込むチェックボックスの一覧。{ checkbox, key, initialValue } の組で持ち、
+                   ScriptUI ウィジェットに独自プロパティを生やさない。強制オプションは含めない（ガイドのラジオは GUIDE_RADIO_GROUP 経由）
+                   The checkboxes a preset writes to, held as { checkbox, key, initialValue } records rather than as custom
+                   properties on the ScriptUI widgets; the force option is never included (guide radios go through GUIDE_RADIO_GROUP) */
+                checkboxEntries: [],
+                forceCheckbox: null,
+                presetDropdown: null,
+                /* 表示を合わせ直している最中かどうか。ScriptUI は selection への代入でも onChange を呼ぶため、
+                   そのままだと手で変えた直後にプリセットが再適用されてしまう
+                   Whether the display is being resynced; ScriptUI fires onChange on assignment to selection too,
+                   which would otherwise re-apply the preset right after a hand-made change */
+                isSyncingPreset: false
+            };
 
             /* 手で選択を変えたらプリセット表示を今の状態に合わせ直す（多くは「カスタム」になる）
                After a hand-made change, resync the preset display with the current state (usually landing on Custom) */
-            function refreshPresetSelection() {
-                if (!presetDropdown) {
-                    return;
-                }
-                isSyncingPreset = true;
-                try {
-                    presetDropdown.selection = detectPreset(checkboxEntries, optionControls);
-                } finally {
-                    isSyncingPreset = false;
-                }
-            }
-
-            /* レイアウト定義1件ぶんのパネルを親コンテナに生成 / Build the panel for one layout node inside a parent container */
-            function buildPanelNode(parentContainer, layoutNode) {
-                /* column ノードは複数パネルを縦積みするグループ / A column node stacks several panels vertically */
-                if (layoutNode.column) {
-                    var panelStack = parentContainer.add("group");
-                    panelStack.orientation = "column";
-                    panelStack.alignChildren = ["fill", "top"];
-                    panelStack.alignment = "fill";
-                    panelStack.spacing = PANEL_SPACING;
-                    for (var k = 0; k < layoutNode.column.length; k++) {
-                        buildPanelNode(panelStack, layoutNode.column[k]);
-                    }
-                    return;
-                }
-
-                var sectionPanel = parentContainer.add("panel", undefined, getLabel(layoutNode.titleKey));
-                setupPanel(sectionPanel, 6);
-                if (layoutNode.radio) {
-                    addRadioGroup(sectionPanel, layoutNode, optionControls, refreshPresetSelection);
-                } else {
-                    /* option＋クリックの一括切り替えが効くのはチェックボックスのパネルだけ / Only checkbox panels support the option-click bulk toggle */
-                    sectionPanel.helpTip = getLabel('tooltip.optionClickToggleAll');
-                    checkboxEntries = checkboxEntries.concat(
-                        addCheckboxes(sectionPanel, layoutNode.keys, optionControls, refreshPresetSelection));
-                }
-
-                /* 強制オプションはグループに入れて対象パネル（パネル項目）の末尾に追加 / The force option sits in a group at the bottom of its panel (panel items) */
-                if (layoutNode.force) {
-                    /* 使用中削除オプションの上に区切り線。上下の余白は区切り線側にまとめて持たせる / Divider above the force option; the space above and below it belongs to the divider */
-                    var forceDividerWrap = sectionPanel.add("group");
-                    forceDividerWrap.orientation = "column";
-                    forceDividerWrap.alignChildren = ["fill", "top"];
-                    forceDividerWrap.alignment = ["fill", "top"];
-                    forceDividerWrap.margins = [0, FORCE_DIVIDER_MARGIN, 0, FORCE_DIVIDER_MARGIN];
-                    forceDividerWrap.spacing = 0;
-                    var forceDivider = forceDividerWrap.add("panel");
-                    forceDivider.alignment = ["fill", "top"];
-                    forceDivider.minimumSize.height = forceDivider.maximumSize.height = 1;
-
-                    var forceGroup = sectionPanel.add("group");
-                    forceGroup.orientation = "column";
-                    forceGroup.alignChildren = ["left", "top"];
-                    forceGroup.alignment = "left";
-                    forceGroup.margins = [0, 0, 0, 0];
-                    forceCheckbox = forceGroup.add("checkbox", undefined, getLabel('checkbox.force'));
-                    forceCheckbox.value = false;
-                    forceCheckbox.helpTip = getLabel('tooltip.force');
-                }
+            function onManualChange() {
+                refreshPresetSelection(optionState);
             }
 
             for (var i = 0; i < DIALOG_LAYOUT.length; i++) {
                 var layoutNode = DIALOG_LAYOUT[i];
                 if (layoutNode.row) {
                     /* 複数パネルを横並び / Lay multiple panels side by side */
-                    var panelRow = dialog.add("group");
+                    var panelRow = parentDialog.add("group");
                     panelRow.orientation = "row";
                     panelRow.alignChildren = ["fill", "top"];
                     panelRow.alignment = "fill";
                     panelRow.spacing = PANEL_SPACING;
                     for (var j = 0; j < layoutNode.row.length; j++) {
-                        buildPanelNode(panelRow, layoutNode.row[j]);
+                        buildPanelNode(panelRow, layoutNode.row[j], optionState, onManualChange);
                     }
                 } else {
-                    buildPanelNode(dialog, layoutNode);
+                    buildPanelNode(parentDialog, layoutNode, optionState, onManualChange);
                 }
             }
+            return optionState;
+        }
 
-            /* ボタンエリアは 左（削除対象プリセット）／中央スペーサー／右（キャンセル・実行）の3カラム
-               Button area is three columns: left (deletion-target preset), center spacer, right (cancel / run) */
-            var buttonRow = dialog.add("group");
-            buttonRow.orientation = "row";
-            buttonRow.alignment = "fill";
-            buttonRow.alignChildren = ["fill", "center"];
+        /**
+         * レイアウト定義1件ぶんのパネルを親コンテナに作る
+         * @param {Object} parentContainer - 親のダイアログまたはグループ
+         * @param {Object} layoutNode - レイアウト定義のノード
+         * @param {Object} optionState - buildOptionPanels() の状態（書き換える）
+         * @param {Function} onManualChange - 手で変えたときに呼ぶ関数
+         * @returns {void}
+         */
+        function buildPanelNode(parentContainer, layoutNode, optionState, onManualChange) {
+            /* column ノードは複数パネルを縦積みするグループ / A column node stacks several panels vertically */
+            if (layoutNode.column) {
+                var panelStack = parentContainer.add("group");
+                panelStack.orientation = "column";
+                panelStack.alignChildren = ["fill", "top"];
+                panelStack.alignment = "fill";
+                panelStack.spacing = PANEL_SPACING;
+                for (var k = 0; k < layoutNode.column.length; k++) {
+                    buildPanelNode(panelStack, layoutNode.column[k], optionState, onManualChange);
+                }
+                return;
+            }
 
-            var buttonLeft = buttonRow.add("group");
-            buttonLeft.orientation = "row";
-            buttonLeft.alignment = ["left", "center"];
-            buttonLeft.add("statictext", undefined, getLabel('preset.label'));
-            presetDropdown = buttonLeft.add("dropdownlist", undefined, [
-                getLabel('preset.basic'),
-                getLabel('preset.allOff'),
-                getLabel('preset.allOn'),
-                getLabel('preset.panelItemsOnly'),
-                getLabel('preset.custom')
+            var sectionPanel = parentContainer.add("panel", undefined, getLabel(layoutNode.titleKey));
+            setupPanel(sectionPanel, 6);
+            if (layoutNode.radio) {
+                addRadioGroup(sectionPanel, layoutNode, optionState.optionControls, onManualChange);
+            } else {
+                /* option＋クリックの一括切り替えが効くのはチェックボックスのパネルだけ / Only checkbox panels support the option-click bulk toggle */
+                sectionPanel.helpTip = getLabel('tooltip.optionClickToggleAll');
+                optionState.checkboxEntries = optionState.checkboxEntries.concat(
+                    addCheckboxes(sectionPanel, layoutNode.keys, optionState.optionControls, onManualChange));
+            }
+
+            /* 強制オプションは対象パネル（パネル項目）の末尾に追加 / The force option sits at the bottom of its panel (panel items) */
+            if (layoutNode.force) {
+                optionState.forceCheckbox = addForceCheckbox(sectionPanel);
+            }
+        }
+
+        /**
+         * 区切り線と「使用中のパネル項目も削除」のチェックボックスをパネルの末尾に追加する
+         * @param {Panel} sectionPanel - 追加先のパネル
+         * @returns {Checkbox} 追加したチェックボックス
+         */
+        function addForceCheckbox(sectionPanel) {
+            /* 使用中削除オプションの上に区切り線。上下の余白は区切り線側にまとめて持たせる / Divider above the force option; the space above and below it belongs to the divider */
+            var forceDividerWrap = sectionPanel.add("group");
+            forceDividerWrap.orientation = "column";
+            forceDividerWrap.alignChildren = ["fill", "top"];
+            forceDividerWrap.alignment = ["fill", "top"];
+            forceDividerWrap.margins = [0, FORCE_DIVIDER_MARGIN, 0, FORCE_DIVIDER_MARGIN];
+            forceDividerWrap.spacing = 0;
+            var forceDivider = forceDividerWrap.add("panel");
+            forceDivider.alignment = ["fill", "top"];
+            forceDivider.minimumSize.height = forceDivider.maximumSize.height = 1;
+
+            var forceGroup = sectionPanel.add("group");
+            forceGroup.orientation = "column";
+            forceGroup.alignChildren = ["left", "top"];
+            forceGroup.alignment = "left";
+            forceGroup.margins = [0, 0, 0, 0];
+            var forceCheckbox = forceGroup.add("checkbox", undefined, getLabel('checkbox.force'));
+            forceCheckbox.value = false;
+            forceCheckbox.helpTip = getLabel('tooltip.force');
+            return forceCheckbox;
+        }
+
+        /**
+         * ボタンエリアを作る。左（削除対象プリセット）／中央スペーサー／右（キャンセル・実行）の3カラム
+         * @param {Window} parentDialog - 親ダイアログ
+         * @param {Object} targetControls - buildTargetPanel() の戻り値
+         * @param {Object} optionState - buildOptionPanels() の戻り値（presetDropdown を書き込む）
+         * @returns {void}
+         */
+        function buildButtonRow(parentDialog, targetControls, optionState) {
+            var btnRowGroup = parentDialog.add("group");
+            btnRowGroup.orientation = "row";
+            btnRowGroup.alignment = "fill";
+            btnRowGroup.alignChildren = ["fill", "center"];
+
+            var btnLeftGroup = btnRowGroup.add("group");
+            btnLeftGroup.orientation = "row";
+            btnLeftGroup.alignment = ["left", "center"];
+            btnLeftGroup.add("statictext", undefined, getLabel('fieldLabel.preset'));
+            var presetDropdown = btnLeftGroup.add("dropdownlist", undefined, [
+                getLabel('dropdown.presetBasic'),
+                getLabel('dropdown.presetAllOff'),
+                getLabel('dropdown.presetAllOn'),
+                getLabel('dropdown.presetPanelItemsOnly'),
+                getLabel('dropdown.presetCustom')
             ]);
             presetDropdown.helpTip = getLabel('tooltip.preset');
             presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
@@ -1313,191 +1422,223 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             presetDropdown.selection = PRESET_BASIC;
             presetDropdown.onChange = function() {
                 /* 表示を合わせ直しただけの代入では、プリセットを適用し直さない / An assignment that only resyncs the display must not re-apply the preset */
-                if (isSyncingPreset) {
+                if (optionState.isSyncingPreset) {
                     return;
                 }
                 if (this.selection) {
-                    applyCheckboxPreset(checkboxEntries, optionControls, this.selection.index);
+                    applyCheckboxPreset(optionState.checkboxEntries, optionState.optionControls, this.selection.index);
                 }
             };
+            optionState.presetDropdown = presetDropdown;
 
             /* 中央のスペーサーが余白を吸収して左右を両端に寄せる / The center spacer absorbs slack, pushing the two sides apart */
-            var buttonSpacer = buttonRow.add("group");
-            buttonSpacer.alignment = ["fill", "center"];
-            buttonSpacer.minimumSize.width = 1;
+            var spacer = btnRowGroup.add("group");
+            spacer.alignment = ["fill", "center"];
+            spacer.minimumSize.width = 1;
 
-            var buttonRight = buttonRow.add("group");
-            buttonRight.orientation = "row";
-            buttonRight.alignment = ["right", "center"];
-            var cancelButton = buttonRight.add("button", undefined, getLabel('button.cancel'), {
+            var btnRightGroup = btnRowGroup.add("group");
+            btnRightGroup.orientation = "row";
+            btnRightGroup.alignment = ["right", "center"];
+            var btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), {
                 name: "cancel"
             });
             /* キャンセルでも位置だけは覚える（onClick を付けたので明示的に閉じる）
                Remember the position even on cancel; onClick replaces the default close, so close explicitly */
-            cancelButton.onClick = function() {
-                rememberDialogLocation();
-                dialog.close(2);
+            btnCancel.onClick = function() {
+                rememberDialogLocation(parentDialog);
+                parentDialog.close(2);
             };
 
-            var runButton = buttonRight.add("button", undefined, getLabel('button.run'), {
+            var btnRun = btnRightGroup.add("button", undefined, getLabel('button.run'), {
                 name: "ok"
             });
-            runButton.helpTip = getLabel('tooltip.run');
+            btnRun.helpTip = getLabel('tooltip.run');
 
             /* フォルダー未指定のまま実行させない（onClick を付けたので明示的に閉じる）
                Don't let the run start without a folder; onClick replaces the default close, so close explicitly */
-            runButton.onClick = function() {
-                if (folderRadio.value && selectedFolder === null) {
+            btnRun.onClick = function() {
+                if (targetControls.folderRadio.value && targetControls.selectedFolder === null) {
                     alert(getLabel('alert.folderNotChosen'));
                     return;
                 }
-                rememberDialogLocation();
-                dialog.close(1);
+                rememberDialogLocation(parentDialog);
+                parentDialog.close(1);
             };
+        }
 
-            /* 前回の位置を覚えておく / Remember where the dialog was left */
-            function rememberDialogLocation() {
-                sessionState.dialogLocation = tryGet(function() {
-                    return [dialog.location[0], dialog.location[1]];
-                }, null);
+        /**
+         * ダイアログの位置をセッションに控える
+         * @param {Window} cleanerDialog - ダイアログ
+         * @returns {void}
+         */
+        function rememberDialogLocation(cleanerDialog) {
+            sessionState.dialogLocation = tryGet(function() {
+                return [cleanerDialog.location[0], cleanerDialog.location[1]];
+            }, null);
+        }
+
+        /**
+         * 手で選択を変えたあと、プリセット表示を今の状態に合わせ直す（多くは「カスタム」になる）
+         * @param {Object} optionState - buildOptionPanels() の戻り値
+         * @returns {void}
+         */
+        function refreshPresetSelection(optionState) {
+            if (!optionState.presetDropdown) {
+                return;
+            }
+            optionState.isSyncingPreset = true;
+            try {
+                optionState.presetDropdown.selection = detectPreset(optionState.checkboxEntries, optionState.optionControls);
+            } finally {
+                optionState.isSyncingPreset = false;
+            }
+        }
+
+        /**
+         * 前回の選択をセッションから復元する（記憶がなければ何もしない）
+         * @param {Object} targetControls - buildTargetPanel() の戻り値
+         * @param {Object} optionState - buildOptionPanels() の戻り値
+         * @returns {void}
+         */
+        function restoreSessionChoices(targetControls, optionState) {
+            var savedChoices = sessionState.choices;
+            if (!savedChoices) {
+                return;
             }
 
-            /* 前回の選択をセッションから復元する（記憶がなければ何もしない）/ Restore the previous selection from the session (a no-op when there is none) */
-            function restoreSessionChoices() {
-                var saved = sessionState.choices;
-                if (!saved) {
-                    return;
-                }
+            /* チェックボックス（ガイドのラジオはこの後まとめて設定する）/ Checkboxes; the guide radios are set together below */
+            var checkboxEntries = optionState.checkboxEntries;
+            for (var i = 0; i < checkboxEntries.length; i++) {
+                checkboxEntries[i].checkbox.value = (savedChoices[checkboxEntries[i].key] === true);
+            }
 
-                /* チェックボックス（ガイドのラジオはこの後まとめて設定する）/ Checkboxes; the guide radios are set together below */
-                for (var i = 0; i < checkboxEntries.length; i++) {
-                    checkboxEntries[i].checkbox.value = (saved[checkboxEntries[i].key] === true);
-                }
-
-                /* ガイドは1つだけONにする / Exactly one guide option is on */
-                if (RADIO_GROUP) {
-                    var chosenGuideKey = null;
-                    for (var j = 0; j < RADIO_GROUP.keys.length; j++) {
-                        if (saved[RADIO_GROUP.keys[j]]) {
-                            chosenGuideKey = RADIO_GROUP.keys[j];
-                            break;
-                        }
+            /* ガイドは1つだけONにする / Exactly one guide option is on */
+            if (GUIDE_RADIO_GROUP) {
+                var chosenGuideKey = null;
+                for (var j = 0; j < GUIDE_RADIO_GROUP.keys.length; j++) {
+                    if (savedChoices[GUIDE_RADIO_GROUP.keys[j]]) {
+                        chosenGuideKey = GUIDE_RADIO_GROUP.keys[j];
+                        break;
                     }
-                    selectGuideRadio(optionControls, chosenGuideKey);
                 }
-
-                if (forceCheckbox) {
-                    forceCheckbox.value = (saved.force === true);
-                }
-
-                /* 処理対象。今のドキュメント数で選べない項目と、消えたフォルダーは復元しない
-                   The scope; an option the current document count disables, or a folder that is gone, is not restored */
-                if (saved.targetMode === TARGET_ALL_OPEN && allOpenRadio.enabled) {
-                    selectTargetRadio(allOpenRadio);
-                } else if (saved.targetMode === TARGET_FOLDER && sessionState.folderPath) {
-                    var savedFolder = new Folder(sessionState.folderPath);
-                    if (savedFolder.exists) {
-                        applyChosenFolder(savedFolder);
-                        selectTargetRadio(folderRadio);
-                    }
-                }
+                selectGuideRadio(optionState.optionControls, chosenGuideKey);
             }
 
-            restoreSessionChoices();
-            /* 復元後の状態に合わせてプリセット表示を決める / Pick the preset display that matches the restored state */
-            refreshPresetSelection();
-
-            /* 前回の位置を再現する。画面構成が変わって画面外になる位置は使わない
-               Reuse the previous position, unless a display change would leave it off-screen */
-            dialog.onShow = function() {
-                if (sessionState.dialogLocation && isLocationOnScreen(sessionState.dialogLocation)) {
-                    dialog.location = sessionState.dialogLocation;
-                }
-            };
-
-            if (dialog.show() !== 1) {
-                return null;
+            if (optionState.forceCheckbox) {
+                optionState.forceCheckbox.value = (savedChoices.force === true);
             }
 
-            /* 対象の指定と各項目の選択状態を種類キーごとにまとめて返す / Collect the chosen target and every option's state, keyed by type */
+            /* 処理対象。今のドキュメント数で選べない項目と、消えたフォルダーは復元しない
+               The scope; an option the current document count disables, or a folder that is gone, is not restored */
+            if (savedChoices.targetMode === TARGET_ALL_OPEN && targetControls.allOpenRadio.enabled) {
+                targetControls.selectRadio(targetControls.allOpenRadio);
+            } else if (savedChoices.targetMode === TARGET_FOLDER && sessionState.folderPath) {
+                var savedFolder = new Folder(sessionState.folderPath);
+                if (savedFolder.exists) {
+                    targetControls.applyChosenFolder(savedFolder);
+                    targetControls.selectRadio(targetControls.folderRadio);
+                }
+            }
+        }
+
+        /**
+         * 対象の指定と各項目の選択状態を種類キーごとにまとめる
+         * @param {Object} targetControls - buildTargetPanel() の戻り値
+         * @param {Object} optionState - buildOptionPanels() の戻り値
+         * @returns {Object} 選択結果（force / targetMode / targetFolder と種類キーごとの真偽値）
+         */
+        function readDialogChoices(targetControls, optionState) {
             var choices = {
-                force: forceCheckbox ? forceCheckbox.value : false,
-                targetMode: folderRadio.value ? TARGET_FOLDER : (allOpenRadio.value ? TARGET_ALL_OPEN : TARGET_FRONTMOST),
-                targetFolder: selectedFolder
+                force: optionState.forceCheckbox ? optionState.forceCheckbox.value : false,
+                targetMode: targetControls.folderRadio.value ? TARGET_FOLDER : (targetControls.allOpenRadio.value ? TARGET_ALL_OPEN : TARGET_FRONTMOST),
+                targetFolder: targetControls.selectedFolder
             };
-            for (i = 0; i < ALL_KEYS.length; i++) {
-                choices[ALL_KEYS[i]] = optionControls[ALL_KEYS[i]].value;
+            for (var i = 0; i < ALL_KEYS.length; i++) {
+                choices[ALL_KEYS[i]] = optionState.optionControls[ALL_KEYS[i]].value;
             }
-
-            /* 次回の起動で再現できるようセッションに控える。Folder オブジェクトは持ち越さず、パス文字列だけを残す
-               Stash it in the session for the next run; the Folder object is dropped and only its path is kept */
-            sessionState.choices = copyChoicesForSession(choices);
-            sessionState.folderPath = selectedFolder ? selectedFolder.fsName : null;
-
             return choices;
         }
 
-        /* セッションに残す用の複製。targetFolder（Folder オブジェクト）は folderPath に置き換わるので持ち越さない
-           Copy for the session; targetFolder (a Folder object) is left out because folderPath replaces it */
+        /**
+         * セッションに残す用に選択結果を複製する。targetFolder（Folder オブジェクト）は folderPath に置き換わるので持ち越さない
+         * @param {Object} choices - ダイアログの選択結果
+         * @returns {Object} 複製した選択結果
+         */
         function copyChoicesForSession(choices) {
-            var copy = {
+            var sessionChoices = {
                 force: choices.force,
                 targetMode: choices.targetMode
             };
             for (var i = 0; i < ALL_KEYS.length; i++) {
-                copy[ALL_KEYS[i]] = choices[ALL_KEYS[i]];
+                sessionChoices[ALL_KEYS[i]] = choices[ALL_KEYS[i]];
             }
-            return copy;
+            return sessionChoices;
         }
 
-        /* 保存した位置がいずれかの画面に収まるか / Whether a saved position still lands on one of the screens */
-        function isLocationOnScreen(location) {
-            var screens = tryGet(function() {
+        /**
+         * 保存した位置がいずれかの画面に収まるか判定する
+         * @param {number[]} dialogLocation - [x, y]
+         * @returns {boolean} 収まれば true
+         */
+        function isLocationOnScreen(dialogLocation) {
+            var screenList = tryGet(function() {
                 return $.screens;
             }, null);
-            if (!screens || !screens.length) {
+            if (!screenList || !screenList.length) {
                 return false;
             }
-            for (var i = 0; i < screens.length; i++) {
-                var screen = screens[i];
-                if (location[0] >= screen.left && location[0] <= screen.right - ON_SCREEN_MARGIN &&
-                    location[1] >= screen.top && location[1] <= screen.bottom - ON_SCREEN_MARGIN) {
+            for (var i = 0; i < screenList.length; i++) {
+                var screenBounds = screenList[i];
+                if (dialogLocation[0] >= screenBounds.left && dialogLocation[0] <= screenBounds.right - ON_SCREEN_MARGIN &&
+                    dialogLocation[1] >= screenBounds.top && dialogLocation[1] <= screenBounds.bottom - ON_SCREEN_MARGIN) {
                     return true;
                 }
             }
             return false;
         }
 
-        /* キー配列ぶんのチェックボックスを親に追加し、参照を記録して { checkbox, key, initialValue } の配列を返す。
-           initialValue は「基本」プリセットで元に戻すために控える
-           Add a checkbox per key, record the reference, and return { checkbox, key, initialValue } records;
-           initialValue is kept so the Default preset can restore it */
-        function addCheckboxes(parentContainer, keys, optionControls, onManualChange) {
+        /**
+         * キー配列ぶんのチェックボックスを親に追加し、参照を記録して { checkbox, key, initialValue } の配列を返す。
+         * initialValue は「基本」プリセットで元に戻すために控える
+         * @param {Object} parentContainer - 追加先のパネル
+         * @param {string[]} optionKeys - 種類キーの配列
+         * @param {Object} optionControls - 種類キー → コントロール（書き換える）
+         * @param {Function} onManualChange - 手で変えたときに呼ぶ関数
+         * @returns {Object[]} { checkbox, key, initialValue } の配列
+         */
+        function addCheckboxes(parentContainer, optionKeys, optionControls, onManualChange) {
             var panelEntries = [];
-            for (var i = 0; i < keys.length; i++) {
-                var checkbox = parentContainer.add("checkbox", undefined, getLabel('checkbox.' + keys[i]));
-                checkbox.value = !UNCHECKED_BY_DEFAULT[keys[i]];
-                checkbox.helpTip = getLabel('tooltip.' + keys[i]);
-                optionControls[keys[i]] = checkbox;
+            for (var i = 0; i < optionKeys.length; i++) {
+                var optionCheckbox = parentContainer.add("checkbox", undefined, getLabel('checkbox.' + optionKeys[i]));
+                optionCheckbox.value = !UNCHECKED_BY_DEFAULT[optionKeys[i]];
+                optionCheckbox.helpTip = getLabel('tooltip.' + optionKeys[i]);
+                optionControls[optionKeys[i]] = optionCheckbox;
                 panelEntries.push({
-                    checkbox: checkbox,
-                    key: keys[i],
-                    initialValue: checkbox.value
+                    checkbox: optionCheckbox,
+                    key: optionKeys[i],
+                    initialValue: optionCheckbox.value
                 });
             }
             enableOptionClickToggleAll(panelEntries, onManualChange);
             return panelEntries;
         }
 
-        /* option（Alt）キーが押されているか / Whether the option/alt key is held down */
+        /**
+         * option（Alt）キーが押されているか判定する
+         * @returns {boolean} 押されていれば true
+         */
         function isOptionKeyDown() {
             return tryGet(function() {
                 return ScriptUI.environment.keyboardState.altKey === true;
             }, false);
         }
 
-        /* option（Alt）＋クリックで、渡したチェックボックス全部をクリック先の状態に揃える。修飾キーなしのクリックは通常どおり
-           Option/alt-click sets every given checkbox to the clicked one's new state; an unmodified click toggles just that one */
+        /**
+         * option（Alt）＋クリックで、渡したチェックボックス全部をクリック先の状態に揃える。修飾キーなしのクリックは通常どおり
+         * @param {Object[]} panelEntries - { checkbox, key, initialValue } の配列
+         * @param {Function} onManualChange - 手で変えたときに呼ぶ関数
+         * @returns {void}
+         */
         function enableOptionClickToggleAll(panelEntries, onManualChange) {
             for (var i = 0; i < panelEntries.length; i++) {
                 panelEntries[i].checkbox.onClick = function() {
@@ -1514,56 +1655,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
         }
 
-        /* ガイドのラジオで選ばれているキーを返す。「削除しない」のときは null / The selected guide key, or null when "Don't delete" is on */
+        /**
+         * ガイドのラジオで選ばれているキーを返す
+         * @param {Object} optionControls - 種類キー → コントロール
+         * @returns {string|null} 選ばれているキー。「削除しない」のときは null
+         */
         function getSelectedGuideKey(optionControls) {
-            if (!RADIO_GROUP) {
+            if (!GUIDE_RADIO_GROUP) {
                 return null;
             }
-            for (var i = 0; i < RADIO_GROUP.keys.length; i++) {
-                if (optionControls[RADIO_GROUP.keys[i]].value) {
-                    return RADIO_GROUP.keys[i];
+            for (var i = 0; i < GUIDE_RADIO_GROUP.keys.length; i++) {
+                if (optionControls[GUIDE_RADIO_GROUP.keys[i]].value) {
+                    return GUIDE_RADIO_GROUP.keys[i];
                 }
             }
             return null;
         }
 
-        /* ガイドのラジオを1つだけONにする。null なら「削除しない」/ Turn on exactly one guide radio; null means "Don't delete" */
+        /**
+         * ガイドのラジオを1つだけONにする
+         * @param {Object} optionControls - 種類キー → コントロール
+         * @param {string|null} chosenKey - ONにするキー。null なら「削除しない」
+         * @returns {void}
+         */
         function selectGuideRadio(optionControls, chosenKey) {
-            if (!RADIO_GROUP) {
+            if (!GUIDE_RADIO_GROUP) {
                 return;
             }
-            optionControls[RADIO_GROUP.noneKey].value = (chosenKey === null);
-            for (var i = 0; i < RADIO_GROUP.keys.length; i++) {
-                optionControls[RADIO_GROUP.keys[i]].value = (RADIO_GROUP.keys[i] === chosenKey);
+            optionControls[GUIDE_RADIO_GROUP.noneKey].value = (chosenKey === null);
+            for (var i = 0; i < GUIDE_RADIO_GROUP.keys.length; i++) {
+                optionControls[GUIDE_RADIO_GROUP.keys[i]].value = (GUIDE_RADIO_GROUP.keys[i] === chosenKey);
             }
         }
 
-        /* プリセットに合わせてチェックとガイドのラジオを一括設定（「カスタム」は現状維持）
-           Apply a preset to every checkbox and to the guide radios (Custom leaves them as they are) */
+        /**
+         * プリセットに合わせてチェックとガイドのラジオを一括設定する（「カスタム」は現状維持）
+         * @param {Object[]} checkboxEntries - { checkbox, key, initialValue } の配列
+         * @param {Object} optionControls - 種類キー → コントロール
+         * @param {number} presetIndex - プリセットの番号（PRESET_*）
+         * @returns {void}
+         */
         function applyCheckboxPreset(checkboxEntries, optionControls, presetIndex) {
             if (presetIndex === PRESET_CUSTOM) {
                 return;
             }
             for (var i = 0; i < checkboxEntries.length; i++) {
-                var entry = checkboxEntries[i];
+                var checkboxEntry = checkboxEntries[i];
                 if (presetIndex === PRESET_ALL_ON) {
-                    entry.checkbox.value = true;
+                    checkboxEntry.checkbox.value = true;
                 } else if (presetIndex === PRESET_ALL_OFF) {
-                    entry.checkbox.value = false;
+                    checkboxEntry.checkbox.value = false;
                 } else if (presetIndex === PRESET_PANEL_ITEMS_ONLY) {
                     /* すべてOFFにしてから、パネル項目だけをONにする / Everything off, then just the panel items back on */
-                    entry.checkbox.value = (PANEL_ITEM_KEY_SET[entry.key] === true);
+                    checkboxEntry.checkbox.value = (PANEL_ITEM_KEY_SET[checkboxEntry.key] === true);
                 } else {
-                    entry.checkbox.value = entry.initialValue;
+                    checkboxEntry.checkbox.value = checkboxEntry.initialValue;
                 }
             }
             /* 「すべてON」はガイドも「すべてのガイド」に。それ以外は既定の「削除しない」
                All-on also picks the all-guides option; the others fall back to "Don't delete" */
-            var chosenGuideKey = (RADIO_GROUP && presetIndex === PRESET_ALL_ON) ? RADIO_GROUP.allOnKey : null;
+            var chosenGuideKey = (GUIDE_RADIO_GROUP && presetIndex === PRESET_ALL_ON) ? GUIDE_RADIO_GROUP.allOnKey : null;
             selectGuideRadio(optionControls, chosenGuideKey);
         }
 
-        /* 現在の選択がどのプリセットに当たるかを判定する / Work out which preset the current selection matches */
+        /**
+         * 現在の選択がどのプリセットに当たるかを判定する
+         * @param {Object[]} checkboxEntries - { checkbox, key, initialValue } の配列
+         * @param {Object} optionControls - 種類キー → コントロール
+         * @returns {number} プリセットの番号（PRESET_*）
+         */
         function detectPreset(checkboxEntries, optionControls) {
             var matchesInitial = true;
             var allOn = true;
@@ -1571,29 +1731,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             var panelItemsOnly = true;
 
             for (var i = 0; i < checkboxEntries.length; i++) {
-                var entry = checkboxEntries[i];
-                if (entry.checkbox.value !== entry.initialValue) {
+                var checkboxEntry = checkboxEntries[i];
+                if (checkboxEntry.checkbox.value !== checkboxEntry.initialValue) {
                     matchesInitial = false;
                 }
-                if (entry.checkbox.value) {
+                if (checkboxEntry.checkbox.value) {
                     allOff = false;
                 } else {
                     allOn = false;
                 }
-                if (entry.checkbox.value !== (PANEL_ITEM_KEY_SET[entry.key] === true)) {
+                if (checkboxEntry.checkbox.value !== (PANEL_ITEM_KEY_SET[checkboxEntry.key] === true)) {
                     panelItemsOnly = false;
                 }
             }
 
             /* ガイドの既定は「削除しない」なので、選ばれていれば初期状態ではない / The guide default is "Don't delete", so any choice means it isn't the initial state */
-            if (RADIO_GROUP) {
+            if (GUIDE_RADIO_GROUP) {
                 var guideKey = getSelectedGuideKey(optionControls);
                 if (guideKey !== null) {
                     matchesInitial = false;
                     allOff = false;
                     panelItemsOnly = false;
                 }
-                if (guideKey !== RADIO_GROUP.allOnKey) {
+                if (guideKey !== GUIDE_RADIO_GROUP.allOnKey) {
                     allOn = false;
                 }
             }
@@ -1613,29 +1773,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return PRESET_CUSTOM;
         }
 
-        /* ラジオグループを生成。先頭に「削除しない」（既定で選択）を置き、各キーのラジオを記録。
-           プリセット判定と復元で使うため、「削除しない」も noneKey で記録する
-           Build a radio group with a "Don't delete" option (selected by default) first and record each key's radio;
-           the none option is recorded under noneKey too, since presets and restoring need it */
+        /**
+         * ラジオグループを作る。先頭に「削除しない」（既定で選択）を置き、各キーのラジオを記録する。
+         * プリセット判定と復元で使うため、「削除しない」も noneKey で記録する
+         * @param {Panel} parentPanel - 追加先のパネル
+         * @param {Object} layoutNode - レイアウト定義のノード（noneKey と keys を持つ）
+         * @param {Object} optionControls - 種類キー → コントロール（書き換える）
+         * @param {Function} onManualChange - 手で変えたときに呼ぶ関数
+         * @returns {void}
+         */
         function addRadioGroup(parentPanel, layoutNode, optionControls, onManualChange) {
-            var radios = [];
-            var noneRadio = parentPanel.add("radiobutton", undefined, getLabel('checkbox.' + layoutNode.noneKey));
+            var panelRadios = [];
+            var noneRadio = parentPanel.add("radiobutton", undefined, getLabel('radio.' + layoutNode.noneKey));
             noneRadio.helpTip = getLabel('tooltip.' + layoutNode.noneKey);
             noneRadio.value = true;
             optionControls[layoutNode.noneKey] = noneRadio;
-            radios.push(noneRadio);
+            panelRadios.push(noneRadio);
 
             for (var i = 0; i < layoutNode.keys.length; i++) {
-                var radio = parentPanel.add("radiobutton", undefined, getLabel('checkbox.' + layoutNode.keys[i]));
-                radio.helpTip = getLabel('tooltip.' + layoutNode.keys[i]);
-                radio.value = false;
-                optionControls[layoutNode.keys[i]] = radio;
-                radios.push(radio);
+                var optionRadio = parentPanel.add("radiobutton", undefined, getLabel('radio.' + layoutNode.keys[i]));
+                optionRadio.helpTip = getLabel('tooltip.' + layoutNode.keys[i]);
+                optionRadio.value = false;
+                optionControls[layoutNode.keys[i]] = optionRadio;
+                panelRadios.push(optionRadio);
             }
 
             /* ガイドを手で切り替えたときもプリセット表示を追従させる / Keep the preset display in step when a guide option is picked by hand */
-            for (var j = 0; j < radios.length; j++) {
-                radios[j].onClick = onManualChange;
+            for (var j = 0; j < panelRadios.length; j++) {
+                panelRadios[j].onClick = onManualChange;
             }
         }
 
@@ -1643,22 +1808,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         // 一時アクション / Temporary action
         // ==================================================
 
-        /* ASCII 文字列を16進に変換 / Convert an ASCII string to hex */
-        function asciiToHex(text) {
-            var hex = "";
-            for (var i = 0; i < text.length; i++) {
-                var code = text.charCodeAt(i).toString(16);
-                if (code.length < 2) {
-                    code = "0" + code;
+        /**
+         * ASCII 文字列を16進に変換する
+         * @param {string} asciiText - 変換する文字列
+         * @returns {string} 16進の文字列
+         */
+        function asciiToHex(asciiText) {
+            var hexText = "";
+            for (var i = 0; i < asciiText.length; i++) {
+                var hexByte = asciiText.charCodeAt(i).toString(16);
+                if (hexByte.length < 2) {
+                    hexByte = "0" + hexByte;
                 }
-                hex += code;
+                hexText += hexByte;
             }
-            return hex;
+            return hexText;
         }
 
-        /* メニューコマンド1件のイベントブロックを組み立て / Build one menu-command event block */
-        function buildMenuEventBlock(eventIndex, internalName, localizedNameHex, commandNameHex, value, hasDialog) {
-            var lines = [
+        /**
+         * メニューコマンド1件のイベントブロックを組み立てる
+         * @param {number} eventIndex - イベント番号
+         * @param {string} internalName - プラグインの内部名
+         * @param {string} localizedNameHex - パネル名の16進
+         * @param {string} commandNameHex - コマンド名の16進
+         * @param {number} commandValue - コマンドの値
+         * @param {boolean} hasDialog - ダイアログを持つコマンドか
+         * @returns {string} イベントブロックのテキスト
+         */
+        function buildMenuEventBlock(eventIndex, internalName, localizedNameHex, commandNameHex, commandValue, hasDialog) {
+            var eventLines = [
                 "\t/event-" + eventIndex + " {",
                 "\t\t/useRulersIn1stQuadrant 1",
                 "\t\t/internalName (" + internalName + ")",
@@ -1670,9 +1848,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 "\t\t/hasDialog " + (hasDialog ? "1" : "0")
             ];
             if (hasDialog) {
-                lines.push("\t\t/showDialog 0");
+                eventLines.push("\t\t/showDialog 0");
             }
-            lines.push(
+            eventLines.push(
                 "\t\t/parameterCount 1",
                 "\t\t/parameter-1 {",
                 "\t\t\t/key 1835363957",
@@ -1681,14 +1859,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 "\t\t\t/name [ " + (commandNameHex.length / 2),
                 "\t\t\t\t" + commandNameHex,
                 "\t\t\t]",
-                "\t\t\t/value " + value,
+                "\t\t\t/value " + commandValue,
                 "\t\t}",
                 "\t}"
             );
-            return lines.join("\n");
+            return eventLines.join("\n");
         }
 
-        /* 「未使用をすべて選択 → 削除」の一時アクション定義を録画値から組み立て / Build the temporary "Select All Unused -> Delete" action from recorded values */
+        /**
+         * 「未使用をすべて選択 → 削除」の一時アクション定義を録画値から組み立てる
+         * @param {string} setName - アクションセット名
+         * @param {string} actionName - アクション名
+         * @param {Object} pruneSpec - PRUNE_SPECS の1件
+         * @returns {string} アクション定義のテキスト
+         */
         function buildActionSource(setName, actionName, pruneSpec) {
             return [
                 "/version 3",
@@ -1711,16 +1895,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             ].join("\n");
         }
 
-        /* 失敗しても無視してよい後始末を実行 / Run best-effort cleanup, ignoring any failure */
-        function ignoringErrors(action) {
+        /**
+         * 失敗しても無視してよい後始末を実行する
+         * @param {Function} cleanupStep - 後始末の処理
+         * @returns {void}
+         */
+        function ignoringErrors(cleanupStep) {
             try {
-                action();
+                cleanupStep();
             } catch (e) {
                 /* 後始末の失敗は無視 / Ignore cleanup failures */
             }
         }
 
-        /* アクションを一時ファイルに書き出して再生。close/unload/remove は finally で必ず試みる / Write, load, and play the action; close/unload/remove are always attempted in finally */
+        /**
+         * アクションを一時ファイルに書き出して再生する。close/unload/remove は finally で必ず試みる
+         * @param {string} actionSource - アクション定義のテキスト
+         * @param {string} setName - アクションセット名
+         * @param {string} actionName - アクション名
+         * @param {string} fileName - 一時ファイルのパス
+         * @returns {boolean} 再生できたら true
+         */
         function playTemporaryAction(actionSource, setName, actionName, fileName) {
             var actionFile = new File(fileName);
             var played = false;
@@ -1756,8 +1951,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return played;
         }
 
-        /* 指定コレクションの未使用項目を、対応するアクションを再生して削除し、件数を返す。再生に失敗した種類は resultKey を控えて完了時に警告する（「未使用0件」と区別するため）
-           Prune a collection's unused items via its action and return the count; a failed playback records resultKey so the summary can warn about it (instead of looking like a genuine zero) */
+        /**
+         * 指定コレクションの未使用項目を、対応するアクションを再生して削除し、件数を返す。
+         * 再生に失敗した種類は resultKey を控えて完了時に警告する（「未使用0件」と区別するため）
+         * @param {Object} collection - スウォッチなどのコレクション
+         * @param {Object} pruneSpec - PRUNE_SPECS の1件
+         * @param {string} resultKey - 種類キー
+         * @returns {number} 削除した件数
+         */
         function pruneUnusedViaAction(collection, pruneSpec, resultKey) {
             var countBefore = collection.length;
             var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, pruneSpec);
@@ -1779,11 +1980,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         }
 
         // ==================================================
-        // アートボードの空判定 / Artboard emptiness check
+        // 矩形の判定 / Rectangle tests
         // ==================================================
 
-        /* アートワークの外接矩形を一度だけ集める（ガイドは対象外）。アートボードごとに全 pageItems を走査し直さないため
-           Collect artwork bounds once (guides excluded), so each artboard doesn't rescan every pageItem */
+        /**
+         * アートワークの外接矩形を一度だけ集める（ガイドは対象外）。アートボードごとに全 pageItems を走査し直さないため
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number[][]} 外接矩形 [left, top, right, bottom] の配列
+         */
         function collectArtworkBounds(doc) {
             var artworkBounds = [];
             for (var i = 0; i < doc.pageItems.length; i++) {
@@ -1801,35 +2005,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return artworkBounds;
         }
 
-        /* 集めておいた外接矩形を使い、アートボード矩形にアートワークが載っているか判定
-           Using the collected bounds, determine whether any artwork sits on the artboard rectangle */
-        function isArtboardEmpty(artworkBounds, artboardRect) {
-            for (var i = 0; i < artworkBounds.length; i++) {
-                if (rectsIntersect(artboardRect, artworkBounds[i])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /* 2つの矩形 [left, top, right, bottom] が重なるか判定（Illustrator は上が大きいY）/ Whether two [left, top, right, bottom] rects overlap (Illustrator: top has the larger Y) */
+        /**
+         * 2つの矩形 [left, top, right, bottom] が重なるか判定する（Illustrator は上が大きいY）
+         * @param {number[]} rectA - 矩形A
+         * @param {number[]} rectB - 矩形B
+         * @returns {boolean} 重なれば true
+         */
         function rectsIntersect(rectA, rectB) {
-            if (rectB[2] < rectA[0]) {
-                return false;
-            } /* B 右端が A 左端より左 / B right is left of A left */
-            if (rectB[0] > rectA[2]) {
-                return false;
-            } /* B 左端が A 右端より右 / B left is right of A right */
-            if (rectB[3] > rectA[1]) {
-                return false;
-            } /* B 下端が A 上端より上 / B bottom is above A top */
-            if (rectB[1] < rectA[3]) {
-                return false;
-            } /* B 上端が A 下端より下 / B top is below A bottom */
-            return true;
+            return !(
+                rectB[2] < rectA[0] || /* B 右端が A 左端より左 / B right is left of A left */
+                rectB[0] > rectA[2] || /* B 左端が A 右端より右 / B left is right of A right */
+                rectB[3] > rectA[1] || /* B 下端が A 上端より上 / B bottom is above A top */
+                rectB[1] < rectA[3]    /* B 上端が A 下端より下 / B top is below A bottom */
+            );
         }
 
-        /* 矩形がいずれかの矩形と重なるか / Whether a rect overlaps any of the rects */
+        /**
+         * 矩形がいずれかの矩形と重なるか判定する
+         * @param {number[]} bounds - 調べる矩形
+         * @param {number[][]} rects - 比べる矩形の配列
+         * @returns {boolean} 1つでも重なれば true
+         */
         function intersectsAnyRect(bounds, rects) {
             for (var i = 0; i < rects.length; i++) {
                 if (rectsIntersect(rects[i], bounds)) {
@@ -1839,13 +2035,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return false;
         }
 
-        /* すべてのアートボードの矩形を取得 / Get the rectangles of all artboards */
+        /**
+         * すべてのアートボードの矩形を取得する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number[][]} アートボード矩形の配列
+         */
         function getAllArtboardRects(doc) {
-            var rects = [];
+            var artboardRects = [];
             for (var i = 0; i < doc.artboards.length; i++) {
-                rects.push(doc.artboards[i].artboardRect);
+                artboardRects.push(doc.artboards[i].artboardRect);
             }
-            return rects;
+            return artboardRects;
         }
 
         // ==================================================
@@ -1853,17 +2053,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         // 移植元 / Ported from: 不要なアイテムを削除.jsx (c) 2020 Toshiyuki Takahashi, MIT License
         // ==================================================
 
-        /* 孤立点（アンカー1点・長さ0のパス）を削除し、件数を返す / Remove stray points (single-anchor, zero-length paths), return the count */
+        /**
+         * 孤立点（アンカー1点・長さ0のパス）を削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteStrayPoints(doc) {
             var removedCount = 0;
             for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                var item = doc.pageItems[i];
-                if (item.typename !== "PathItem") {
+                var pageItem = doc.pageItems[i];
+                if (pageItem.typename !== "PathItem") {
                     continue;
                 }
                 try {
-                    if (item.pathPoints.length < 2 && item.length <= 0) {
-                        item.remove();
+                    if (pageItem.pathPoints.length < 2 && pageItem.length <= 0) {
+                        pageItem.remove();
                         removedCount++;
                     }
                 } catch (e) {
@@ -1873,29 +2077,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* 文字のない空テキストを削除し、件数を返す（エリア内/パス上は塗り・線のないパスのみ）/ Remove empty text frames, return the count (area/path text only when the path has no fill/stroke) */
+        /**
+         * 文字のない空テキストを削除する（エリア内文字／パス上文字は塗り・線のないパスのときだけ）
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteEmptyTextFrames(doc) {
             var removedCount = 0;
             for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                var item = doc.pageItems[i];
-                if (item.typename !== "TextFrame") {
+                var textFrame = doc.pageItems[i];
+                if (textFrame.typename !== "TextFrame") {
                     continue;
                 }
                 try {
-                    if (item.contents.length >= 1) {
+                    if (textFrame.contents.length >= 1) {
                         continue;
                     }
                     var shouldRemove = false;
-                    if (item.kind === TextType.POINTTEXT) {
+                    if (textFrame.kind === TextType.POINTTEXT) {
                         shouldRemove = true;
-                    } else if (item.kind === TextType.AREATEXT || item.kind === TextType.PATHTEXT) {
+                    } else if (textFrame.kind === TextType.AREATEXT || textFrame.kind === TextType.PATHTEXT) {
                         /* テキストパスが塗り・線なしのときだけ削除 / Remove only when the text path has no fill/stroke */
-                        if (!item.textPath.stroked && !item.textPath.filled) {
+                        if (!textFrame.textPath.stroked && !textFrame.textPath.filled) {
                             shouldRemove = true;
                         }
                     }
                     if (shouldRemove) {
-                        item.remove();
+                        textFrame.remove();
                         removedCount++;
                     }
                 } catch (e) {
@@ -1909,23 +2117,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         // オブジェクト削除 / Object deletion
         // ==================================================
 
-        /* 塗りも線もない（不可視の）パスを削除し、件数を返す。ガイド・クリッピングパスは除外 / Remove paths with no fill and no stroke (invisible) and return the count; guides and clipping paths are excluded */
+        /**
+         * 単体で削除してはいけないパスか判定する（ガイド・クリッピングパス・コンパウンドパスの構成パス）
+         * @param {PathItem} pathItem - 調べるパス
+         * @returns {boolean} 削除対象から外すなら true
+         */
+        function isStructuralPath(pathItem) {
+            /* ガイドは「ガイド」セクションでのみ削除する / Guides are only removed by the guide section */
+            if (pathItem.guides) {
+                return true;
+            }
+            /* マスクを消すとクリップが解除され、隠れていた中身が現れてしまう / Removing the mask releases the clip and reveals what it was hiding */
+            if (pathItem.clipping) {
+                return true;
+            }
+            /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
+            return !!(pathItem.parent && pathItem.parent.typename === "CompoundPathItem");
+        }
+
+        /**
+         * 塗りも線もない（不可視の）パスを削除する。ガイド・クリッピングパス・コンパウンドパスの構成パスは除外
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteUnpaintedPaths(doc) {
             var removedCount = 0;
-            var paths = doc.pathItems;
-            for (var i = paths.length - 1; i >= 0; i--) {
-                var pathItem = paths[i];
+            var pathItems = doc.pathItems;
+            for (var i = pathItems.length - 1; i >= 0; i--) {
+                var pathItem = pathItems[i];
                 try {
-                    /* ガイドは別オプションで扱う / Guides are handled by a separate option */
-                    if (pathItem.guides) {
-                        continue;
-                    }
-                    /* クリッピングパスはグループの一部なので残す / Keep clipping paths (part of a clip group) */
-                    if (pathItem.clipping) {
-                        continue;
-                    }
-                    /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
-                    if (pathItem.parent && pathItem.parent.typename === "CompoundPathItem") {
+                    if (isStructuralPath(pathItem)) {
                         continue;
                     }
                     if (!pathItem.filled && !pathItem.stroked) {
@@ -1939,36 +2160,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* 不透明度が0%のオブジェクトを削除し、件数を返す（グループ内も対象）。単体で消すと構造が壊れるもの、
-           および別オプションで扱うガイドは除外する
-           Remove objects at 0% opacity and return the count (including inside groups); items whose individual removal
-           would break a structure, and guides (handled by their own option), are excluded */
+        /**
+         * 不透明度が0%のオブジェクトを削除する（グループ内も対象）。
+         * 単体で消すと構造が壊れるもの、および別オプションで扱うガイドは除外する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteZeroOpacityObjects(doc) {
             var removedCount = 0;
 
             /* doc.pageItems はグループ内も含む平坦なコレクション / doc.pageItems is a flat collection that includes items inside groups */
             for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                var item = doc.pageItems[i];
-                if (item.typename === "GroupItem") {
+                var pageItem = doc.pageItems[i];
+                if (pageItem.typename === "GroupItem") {
                     continue;
                 }
                 try {
-                    if (item.typename === "PathItem") {
-                        /* ガイドは「ガイド」セクションでのみ削除する / Guides are only removed by the guide section */
-                        if (item.guides) {
-                            continue;
-                        }
-                        /* マスクを消すとクリップが解除され、隠れていた中身が現れてしまう / Removing the mask releases the clip and reveals what it was hiding */
-                        if (item.clipping) {
-                            continue;
-                        }
-                        /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
-                        if (item.parent && item.parent.typename === "CompoundPathItem") {
-                            continue;
-                        }
+                    if (pageItem.typename === "PathItem" && isStructuralPath(pageItem)) {
+                        continue;
                     }
-                    if (item.opacity === 0) {
-                        item.remove();
+                    if (pageItem.opacity === 0) {
+                        pageItem.remove();
                         removedCount++;
                     }
                 } catch (e) {
@@ -1978,16 +2190,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* 非表示オブジェクトを削除し、件数を返す（非表示グループは中身ごと）/ Remove hidden objects and return the count (hidden groups go with their contents) */
+        /**
+         * 非表示オブジェクトを削除する（非表示グループは中身ごと）
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteHiddenObjects(doc) {
             /* まず参照だけを収集（この間はコレクションを変更しない）。非表示グループを消すと子のインデックスがずれ、末尾からの走査でも取りこぼすため
                Collect references first without mutating the collection; removing a hidden group shifts child indices, so even a reverse scan would skip items */
             var hiddenItems = [];
-            var items = doc.pageItems;
-            for (var i = 0; i < items.length; i++) {
+            var pageItems = doc.pageItems;
+            for (var i = 0; i < pageItems.length; i++) {
                 try {
-                    if (items[i].hidden) {
-                        hiddenItems.push(items[i]);
+                    if (pageItems[i].hidden) {
+                        hiddenItems.push(pageItems[i]);
                     }
                 } catch (e) {
                     /* 判定不可はスキップ / Skip items we can't test */
@@ -2006,7 +2222,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* リンク切れ（リンク先が見つからない）の配置画像を削除し、件数を返す。埋め込み・正常リンクは対象外 / Remove placed images with a missing link and return the count; embedded images and valid links are kept */
+        /**
+         * リンク切れ（リンク先が見つからない）の配置画像を削除する。埋め込み・正常リンクは対象外
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteBrokenLinkImages(doc) {
             var removedCount = 0;
             var placedItems = doc.placedItems;
@@ -2032,15 +2252,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* 属性パネルの「メモ」を空にし、件数を返す（グループ内も対象。オブジェクト自体は残す）
-           Empty the Attributes panel note on every object that has one and return the count (items inside groups included; the objects stay) */
+        /**
+         * 属性パネルの「メモ」を空にする（グループ内も対象。オブジェクト自体は残す）
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} メモを空にした件数
+         */
         function clearNotes(doc) {
             var clearedCount = 0;
-            var items = doc.pageItems;
-            for (var i = 0; i < items.length; i++) {
+            var pageItems = doc.pageItems;
+            for (var i = 0; i < pageItems.length; i++) {
                 try {
-                    if (items[i].note) {
-                        items[i].note = "";
+                    if (pageItems[i].note) {
+                        pageItems[i].note = "";
                         clearedCount++;
                     }
                 } catch (e) {
@@ -2050,19 +2273,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return clearedCount;
         }
 
-        /* どのアートボードにも載っていないオブジェクトを削除し、件数を返す / Remove objects that sit on none of the artboards, return the count */
+        /**
+         * どのアートボードにも載っていないオブジェクトを削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteObjectsOutsideAllArtboards(doc) {
             return deleteObjectsOutsideRects(doc, getAllArtboardRects(doc));
         }
 
-        /* アクティブなアートボードに載っていないオブジェクトを削除し、件数を返す / Remove objects not on the active artboard, return the count */
+        /**
+         * アクティブなアートボードに載っていないオブジェクトを削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteObjectsOutsideActiveArtboard(doc) {
             var activeIndex = doc.artboards.getActiveArtboardIndex();
             return deleteObjectsOutsideRects(doc, [doc.artboards[activeIndex].artboardRect]);
         }
 
-        /* 指定矩形のいずれにも重ならないトップレベルオブジェクトを削除し、件数を返す / Remove top-level objects overlapping none of the given rects, return the count */
-        function deleteObjectsOutsideRects(doc, rects) {
+        /**
+         * 指定矩形のいずれにも重ならないトップレベルオブジェクトを削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @param {number[][]} keepRects - この矩形に重なるものは残す
+         * @returns {number} 削除した件数
+         */
+        function deleteObjectsOutsideRects(doc, keepRects) {
             var removedCount = 0;
 
             /* トップレベル（レイヤー直下）のオブジェクトだけをスナップショット。ガイドは専用オプションで扱うため除外 / Snapshot only top-level objects (direct children of a layer); guides are excluded (handled by the dedicated guide option) */
@@ -2079,13 +2315,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
             for (var j = topLevelItems.length - 1; j >= 0; j--) {
                 var topLevelItem = topLevelItems[j];
-                var bounds;
+                var itemBounds;
                 try {
-                    bounds = topLevelItem.visibleBounds;
+                    itemBounds = topLevelItem.visibleBounds;
                 } catch (e) {
                     continue;
                 }
-                if (!intersectsAnyRect(bounds, rects)) {
+                if (!intersectsAnyRect(itemBounds, keepRects)) {
                     try {
                         topLevelItem.remove();
                         removedCount++;
@@ -2097,7 +2333,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* 空のグループ（通常グループ・クリップグループ）を削除し、件数を返す / Remove empty groups (ordinary and clip groups) and return the count */
+        /**
+         * 空のグループ（通常グループ・クリップグループ）を削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteEmptyGroups(doc) {
             var removedCount = 0;
             for (var i = 0; i < doc.layers.length; i++) {
@@ -2106,123 +2346,179 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* コンテナ内を再帰的に探索し、空のグループを削除して件数を返す。子を先に掃除するので、空になった親も同じパスで削除できる / Recurse a container removing empty groups; children are cleaned first so a parent that becomes empty is removed in the same pass */
-        function removeEmptyGroupsIn(container) {
-            var removed = 0;
+        /**
+         * コンテナ内を再帰的に探索し、空のグループを削除する。子を先に掃除するので、空になった親も同じパスで削除できる
+         * @param {Layer|GroupItem} parentContainer - 探索するレイヤーまたはグループ
+         * @returns {number} 削除した件数
+         */
+        function removeEmptyGroupsIn(parentContainer) {
+            var removedCount = 0;
             /* サブレイヤーの中身は layer.pageItems に含まれないため、先に再帰する / Sublayer contents aren't in layer.pageItems, so recurse into sublayers first */
-            if (container.typename === "Layer") {
-                for (var j = container.layers.length - 1; j >= 0; j--) {
-                    removed += removeEmptyGroupsIn(container.layers[j]);
+            if (parentContainer.typename === "Layer") {
+                for (var j = parentContainer.layers.length - 1; j >= 0; j--) {
+                    removedCount += removeEmptyGroupsIn(parentContainer.layers[j]);
                 }
             }
             /* 削除でインデックスがずれるため末尾から / Iterate from the end because removal shifts indices */
-            for (var i = container.pageItems.length - 1; i >= 0; i--) {
-                var item = container.pageItems[i];
-                if (item.typename === "GroupItem") {
+            for (var i = parentContainer.pageItems.length - 1; i >= 0; i--) {
+                var pageItem = parentContainer.pageItems[i];
+                if (pageItem.typename === "GroupItem") {
                     /* 先に中を掃除してから自身の空判定 / Clean inside first, then test this group */
-                    removed += removeEmptyGroupsIn(item);
-                    if (isEmptyGroup(item)) {
+                    removedCount += removeEmptyGroupsIn(pageItem);
+                    if (isEmptyGroup(pageItem)) {
                         try {
-                            item.remove();
-                            removed++;
+                            pageItem.remove();
+                            removedCount++;
                         } catch (e) {
                             /* 削除不可 / Not removable */
                         }
                     }
                 }
             }
-            return removed;
+            return removedCount;
         }
 
-        /* グループが空か判定。子が無いグループ、またはマスク以外が塗り・線なしのパスだけのクリップグループ / Whether a group is empty: no children, or a clip group whose non-mask contents are only paths with no fill/stroke */
-        function isEmptyGroup(item) {
-            if (item.typename !== "GroupItem") {
+        /**
+         * グループが空か判定する。子が無いグループ、またはマスク以外が塗り・線なしのパスだけのクリップグループを空とみなす
+         * @param {PageItem} groupItem - 調べるオブジェクト
+         * @returns {boolean} 空なら true
+         */
+        function isEmptyGroup(groupItem) {
+            if (groupItem.typename !== "GroupItem") {
                 return false;
             }
 
-            var children = item.pageItems;
+            var childItems = groupItem.pageItems;
             /* 子のないグループは空 / A group with no children is empty */
-            if (children.length === 0) {
+            if (childItems.length === 0) {
                 return true;
             }
 
             /* クリップグループのみ、中身が塗り・線なしパスだけなら空とみなす / Only for clip groups: empty when all contents are unpainted paths */
-            if (item.clipped !== true) {
+            if (groupItem.clipped !== true) {
                 return false;
             }
 
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
-                if (child.typename !== "PathItem") {
+            for (var i = 0; i < childItems.length; i++) {
+                var childItem = childItems[i];
+                if (childItem.typename !== "PathItem") {
                     return false;
                 }
-                if (child.filled === true && child.fillColor.typename !== "NoColor") {
+                if (childItem.filled === true && childItem.fillColor.typename !== "NoColor") {
                     return false;
                 }
-                if (child.stroked === true && child.strokeColor.typename !== "NoColor") {
+                if (childItem.stroked === true && childItem.strokeColor.typename !== "NoColor") {
                     return false;
                 }
             }
             return true;
         }
 
-        /* ガイド属性を持つパスの数を数える / Count paths flagged as guides */
+        // ==================================================
+        // ガイド削除 / Guide deletion
+        // ==================================================
+
+        /**
+         * ガイド属性を持つパスの数を数える
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} ガイドの数
+         */
         function countGuidePaths(doc) {
-            var count = 0;
-            var paths = doc.pathItems;
-            for (var i = 0; i < paths.length; i++) {
-                if (paths[i].guides) {
-                    count++;
+            var guideCount = 0;
+            var pathItems = doc.pathItems;
+            for (var i = 0; i < pathItems.length; i++) {
+                if (pathItems[i].guides) {
+                    guideCount++;
                 }
             }
-            return count;
+            return guideCount;
         }
 
-        /* メニューコマンド「ガイドを消去」でガイドを削除し、件数を返す。ロック済みガイドは残す（一時解除しない）/ Remove guides via the Clear Guides menu command and return the count; locked guides are kept (no temporary unlock) */
+        /**
+         * メニューコマンド「ガイドを消去」でガイドを削除する。ロック済みガイドは残す（一時解除しない）
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function clearGuides(doc) {
             var countBefore = countGuidePaths(doc);
             app.executeMenuCommand("clearguide");
             return Math.max(0, countBefore - countGuidePaths(doc));
         }
 
-        /* サブレイヤーを含む全レイヤーを親→子の順に集める / Collect every layer and sublayer, parents before children */
+        /**
+         * サブレイヤーを含む全レイヤーを親→子の順に集める
+         * @param {Layers} layerCollection - 集めるレイヤーのコレクション
+         * @param {Layer[]} collectedLayers - 集めた結果（書き足す）
+         * @returns {Layer[]} collectedLayers
+         */
         function collectLayersDeep(layerCollection, collectedLayers) {
             for (var i = 0; i < layerCollection.length; i++) {
-                var layer = layerCollection[i];
-                collectedLayers.push(layer);
-                collectLayersDeep(layer.layers, collectedLayers);
+                var currentLayer = layerCollection[i];
+                collectedLayers.push(currentLayer);
+                collectLayersDeep(currentLayer.layers, collectedLayers);
             }
             return collectedLayers;
         }
 
-        /* ガイドのロック・レイヤーロック（サブレイヤー含む）・ガイド自体のロックを一時解除し、判定関数が真のガイドを削除して件数を返す。ロック状態は finally で必ず復元
-           Temporarily clear guide locks, layer locks (sublayers included), and each guide's own lock; remove guides for which the predicate is true and return the count. Locks are always restored in finally */
-        function removeGuidesWhere(doc, shouldRemove) {
-            var removedCount = 0;
-
-            /* サブレイヤーまで含めてロック状態を保存し、親から順に解除 / Save every lock state down to sublayers and clear them parents-first */
-            var layers = collectLayersDeep(doc.layers, []);
+        /**
+         * レイヤーのロック状態を控えてから、親から順に解除する
+         * @param {Layer[]} allLayers - 親→子の順のレイヤー
+         * @returns {boolean[]} 元のロック状態
+         */
+        function unlockLayers(allLayers) {
             var lockStates = [];
-            for (var i = 0; i < layers.length; i++) {
+            for (var i = 0; i < allLayers.length; i++) {
                 lockStates[i] = false;
                 try {
-                    lockStates[i] = layers[i].locked;
+                    lockStates[i] = allLayers[i].locked;
                     if (lockStates[i]) {
-                        layers[i].locked = false;
+                        allLayers[i].locked = false;
                     }
                 } catch (e) {
                     /* 解除できないレイヤーはそのまま / Leave layers we can't unlock */
                 }
             }
+            return lockStates;
+        }
+
+        /**
+         * レイヤーのロック状態を元に戻す。子から順に戻して親のロックに邪魔されないようにする
+         * @param {Layer[]} allLayers - 親→子の順のレイヤー
+         * @param {boolean[]} lockStates - unlockLayers() で控えたロック状態
+         * @returns {void}
+         */
+        function restoreLayerLocks(allLayers, lockStates) {
+            for (var j = allLayers.length - 1; j >= 0; j--) {
+                try {
+                    allLayers[j].locked = lockStates[j];
+                } catch (e) {
+                    /* 復元できない場合は無視 / Ignore when it can't be restored */
+                }
+            }
+        }
+
+        /**
+         * ガイドのロック・レイヤーロック（サブレイヤー含む）・ガイド自体のロックを一時解除し、判定関数が真のガイドを削除する。
+         * ロック状態は finally で必ず復元する
+         * @param {Document} doc - 対象ドキュメント
+         * @param {Function} shouldRemove - ガイドのパスを受け取り、削除するなら true を返す関数
+         * @returns {number} 削除した件数
+         */
+        function removeGuidesWhere(doc, shouldRemove) {
+            var removedCount = 0;
+
+            /* サブレイヤーまで含めてロック状態を保存し、親から順に解除 / Save every lock state down to sublayers and clear them parents-first */
+            var allLayers = collectLayersDeep(doc.layers, []);
+            var lockStates = unlockLayers(allLayers);
 
             var guidesWereLocked = doc.guidesLocked;
 
             try {
                 doc.guidesLocked = false;
 
-                var paths = doc.pathItems;
-                for (var k = paths.length - 1; k >= 0; k--) {
-                    var guidePath = paths[k];
+                var pathItems = doc.pathItems;
+                for (var k = pathItems.length - 1; k >= 0; k--) {
+                    var guidePath = pathItems[k];
                     if (!guidePath.guides) {
                         continue;
                     }
@@ -2252,29 +2548,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                     }
                 }
             } finally {
-                /* 例外時もロック状態を必ず元に戻す。子から順に戻して親のロックに邪魔されないようにする
-                   Always restore the lock states, even on error; restore children first so a re-locked parent doesn't block them */
-                for (var j = layers.length - 1; j >= 0; j--) {
-                    try {
-                        layers[j].locked = lockStates[j];
-                    } catch (e3) {
-                        /* 復元できない場合は無視 / Ignore when it can't be restored */
-                    }
-                }
+                /* 例外時もロック状態を必ず元に戻す / Always restore the lock states, even on error */
+                restoreLayerLocks(allLayers, lockStates);
                 doc.guidesLocked = guidesWereLocked;
             }
 
             return removedCount;
         }
 
-        /* すべてのガイドを削除し、件数を返す / Remove all guides and return the count */
+        /**
+         * すべてのガイドを削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteAllGuides(doc) {
             return removeGuidesWhere(doc, function() {
                 return true;
             });
         }
 
-        /* 現在（アクティブ）のアートボード上にないガイドを削除し、件数を返す / Remove guides not on the active artboard and return the count */
+        /**
+         * 現在（アクティブ）のアートボード上にないガイドを削除する
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteGuidesOutsideActiveArtboard(doc) {
             var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             return removeGuidesWhere(doc, function(guidePath) {
@@ -2283,11 +2580,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         }
 
         // ==================================================
-        // 関数：空のレイヤー削除 / Delete empty layers
+        // 空のレイヤー削除 / Delete empty layers
         // ==================================================
 
-        /* 中身が空（pageItems もサブレイヤーも無い）のレイヤーを削除し、件数を返す。ガイドは pageItems に含まれるためガイドのみのレイヤーは残る。トップレベルは最低1つ残す
-           Remove empty layers (no pageItems and no sublayers) and return the count; guides count as pageItems so guide-only layers stay, and at least one top-level layer remains */
+        /**
+         * 中身が空（pageItems もサブレイヤーも無い）のレイヤーを削除する。
+         * ガイドは pageItems に含まれるためガイドのみのレイヤーは残る。トップレベルは最低1つ残す
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteEmptyLayers(doc) {
             var removedCount = 0;
             for (var i = doc.layers.length - 1; i >= 0; i--) {
@@ -2305,36 +2606,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* サブレイヤーを再帰的に処理し、空のものを削除して件数を返す / Recurse sublayers, removing empty ones, return the count */
+        /**
+         * サブレイヤーを再帰的に処理し、空のものを削除する
+         * @param {Layer} parentLayer - 親レイヤー
+         * @returns {number} 削除した件数
+         */
         function removeEmptySublayers(parentLayer) {
-            var removed = 0;
+            var removedCount = 0;
             for (var i = parentLayer.layers.length - 1; i >= 0; i--) {
                 var subLayer = parentLayer.layers[i];
-                removed += removeEmptySublayers(subLayer);
+                removedCount += removeEmptySublayers(subLayer);
                 if (PROTECTED_LAYER_NAMES[subLayer.name]) {
                     continue;
                 }
                 if (subLayer.pageItems.length === 0 && subLayer.layers.length === 0) {
-                    removed += removeLayerUnlocked(subLayer);
+                    removedCount += removeLayerUnlocked(subLayer);
                 }
             }
-            return removed;
+            return removedCount;
         }
 
-        /* ロックを一時解除してレイヤーを削除し、削除できた数（0 または 1）を返す。失敗した場合はロック状態を元に戻す
-           Unlock a layer, remove it, and return how many were removed (0 or 1); the lock is restored when removal fails */
-        function removeLayerUnlocked(layer) {
+        /**
+         * ロックを一時解除してレイヤーを削除する。失敗した場合はロック状態を元に戻す
+         * @param {Layer} targetLayer - 削除するレイヤー
+         * @returns {number} 削除できた数（0 または 1）
+         */
+        function removeLayerUnlocked(targetLayer) {
             var wasLocked = false;
             try {
-                wasLocked = layer.locked;
-                layer.locked = false;
-                layer.remove();
+                wasLocked = targetLayer.locked;
+                targetLayer.locked = false;
+                targetLayer.remove();
                 return 1;
             } catch (e) {
                 /* 削除できなかったのでロックを戻す（意図しないロック解除を残さない）/ Removal failed, so restore the lock instead of leaving it cleared */
                 if (wasLocked) {
                     try {
-                        layer.locked = true;
+                        targetLayer.locked = true;
                     } catch (e2) {
                         /* 復元できない場合は無視 / Ignore when it can't be restored */
                     }
@@ -2344,10 +2652,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
         }
 
         // ==================================================
-        // 関数：未使用スウォッチ削除 / Delete unused swatches
+        // パネル項目の削除 / Delete panel items
         // ==================================================
 
-        /* 通常はアクションで未使用のみ、強制時は保護対象以外を全削除。件数を返す / Normally prune unused via action; force mode removes all but protected ones. Returns the count */
+        /**
+         * コレクションの項目を末尾から削除する（先頭の keepLeadingCount 件は残す）。削除できないものは飛ばす
+         * @param {Object} collection - シンボル・ブラシ・スタイルなどのコレクション
+         * @param {number} keepLeadingCount - 残す先頭の件数
+         * @returns {number} 削除した件数
+         */
+        function removeCollectionItems(collection, keepLeadingCount) {
+            var removedCount = 0;
+            for (var i = collection.length - 1; i >= keepLeadingCount; i--) {
+                try {
+                    collection[i].remove();
+                    removedCount++;
+                } catch (e) {
+                    /* 使用中・既定など削除不可 / In use, default, or otherwise not removable */
+                }
+            }
+            return removedCount;
+        }
+
+        /**
+         * 未使用スウォッチを削除する。通常はアクションで未使用のみ、強制時は保護対象以外を全削除
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedSwatches(doc, force) {
             var removedCount;
             if (!force) {
@@ -2357,7 +2689,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
 
             /* 強制時：削除してはいけない既定スウォッチ以外を総当たり削除 / Force: remove everything except the built-in swatches */
-            var protectedNames = {
+            var protectedSwatchNames = {
                 "[None]": true,
                 "[Registration]": true,
                 "[Black]": true,
@@ -2367,7 +2699,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             removedCount = 0;
             for (var i = doc.swatches.length - 1; i >= 0; i--) {
                 var swatch = doc.swatches[i];
-                if (protectedNames[swatch.name]) {
+                if (protectedSwatchNames[swatch.name]) {
                     continue;
                 }
                 try {
@@ -2381,8 +2713,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        /* スウォッチを消したあとに中身が空になったスウォッチグループを片付ける。スウォッチそのものではないので件数には数えない
-           Clear out swatch groups left empty after swatches were removed; they aren't swatches, so they don't count toward the total */
+        /**
+         * スウォッチを消したあとに中身が空になったスウォッチグループを片付ける。スウォッチそのものではないので件数には数えない
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {void}
+         */
         function removeEmptySwatchGroups(doc) {
             for (var i = doc.swatchGroups.length - 1; i >= 0; i--) {
                 try {
@@ -2395,11 +2730,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             }
         }
 
-        // ==================================================
-        // 関数：未使用グラフィックスタイル削除 / Delete unused graphic styles
-        // ==================================================
-
-        /* 通常はアクションで未使用のみ、強制時は既定（最後の1つ）以外を全削除。件数を返す / Normally prune unused via action; force mode removes all but the default. Returns the count */
+        /**
+         * 未使用グラフィックスタイルを削除する。通常はアクションで未使用のみ、強制時は既定（最後の1つ）以外を全削除
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedGraphicStyles(doc, force) {
             if (!force) {
                 return pruneUnusedViaAction(doc.graphicStyles, PRUNE_SPECS.graphicstyle, "graphicStyles");
@@ -2421,101 +2757,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return removedCount;
         }
 
-        // ==================================================
-        // 関数：未使用シンボル削除 / Delete unused symbols
-        // ==================================================
-
-        /* 通常はアクションで未使用のみ、強制時はすべて削除。件数を返す / Normally prune unused via action; force mode removes them all. Returns the count */
+        /**
+         * 未使用シンボルを削除する。通常はアクションで未使用のみ、強制時はすべて削除（使用中は Illustrator が拒むため残る）
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedSymbols(doc, force) {
             if (!force) {
                 return pruneUnusedViaAction(doc.symbols, PRUNE_SPECS.symbol, "symbols");
             }
-
-            var removedCount = 0;
-            for (var i = doc.symbols.length - 1; i >= 0; i--) {
-                try {
-                    doc.symbols[i].remove();
-                    removedCount++;
-                } catch (e) {
-                    /* 使用中、または削除不可 / In use or not removable */
-                }
-            }
-            return removedCount;
+            return removeCollectionItems(doc.symbols, 0);
         }
 
-        // ==================================================
-        // 関数：未使用ブラシ削除 / Delete unused brushes
-        // ==================================================
-
-        /* 通常はアクションで未使用のみ、強制時は削除できるものをすべて削除（使用中・基本ブラシは不可）。件数を返す / Normally prune unused via action; force mode removes every removable brush (in-use and basic brushes can't be removed). Returns the count */
+        /**
+         * 未使用ブラシを削除する。通常はアクションで未使用のみ、強制時は削除できるものをすべて削除（使用中・基本ブラシは不可）
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedBrushes(doc, force) {
             if (!force) {
                 return pruneUnusedViaAction(doc.brushes, PRUNE_SPECS.brush, "brushes");
             }
-
-            var removedCount = 0;
-            for (var i = doc.brushes.length - 1; i >= 0; i--) {
-                try {
-                    doc.brushes[i].remove();
-                    removedCount++;
-                } catch (e) {
-                    /* 使用中・基本ブラシなど削除不可 / In use, basic brush, or otherwise not removable */
-                }
-            }
-            return removedCount;
+            return removeCollectionItems(doc.brushes, 0);
         }
 
-        // ==================================================
-        // 関数：未使用段落スタイル削除 / Delete unused paragraph styles
-        // ==================================================
-
-        /* 使用情報を取得できないため強制時のみ、既定（先頭）以外を削除。件数を返す / No usage info, so only force mode removes all but the default (first). Returns the count */
+        /**
+         * 段落スタイルを削除する。使用情報を取得できないため強制時のみ、既定（先頭の [標準段落スタイル]）以外を削除
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedParagraphStyles(doc, force) {
             if (!force) {
                 return 0;
             }
-
-            var removedCount = 0;
-            /* インデックス0は [標準段落スタイル] なので残す / Index 0 is [Normal Paragraph Style], keep it */
-            for (var i = doc.paragraphStyles.length - 1; i >= 1; i--) {
-                try {
-                    doc.paragraphStyles[i].remove();
-                    removedCount++;
-                } catch (e) {
-                    /* 削除不可 / Not removable */
-                }
-            }
-            return removedCount;
+            return removeCollectionItems(doc.paragraphStyles, 1);
         }
 
-        // ==================================================
-        // 関数：未使用文字スタイル削除 / Delete unused character styles
-        // ==================================================
-
-        /* 使用情報を取得できないため強制時のみ、既定（先頭）以外を削除。件数を返す / No usage info, so only force mode removes all but the default (first). Returns the count */
+        /**
+         * 文字スタイルを削除する。使用情報を取得できないため強制時のみ、既定（先頭の [標準文字スタイル]）以外を削除
+         * @param {Document} doc - 対象ドキュメント
+         * @param {boolean} force - 使用中も削除するか
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedCharacterStyles(doc, force) {
             if (!force) {
                 return 0;
             }
-
-            var removedCount = 0;
-            /* インデックス0は [標準文字スタイル] なので残す / Index 0 is [Normal Character Style], keep it */
-            for (var i = doc.characterStyles.length - 1; i >= 1; i--) {
-                try {
-                    doc.characterStyles[i].remove();
-                    removedCount++;
-                } catch (e) {
-                    /* 削除不可 / Not removable */
-                }
-            }
-            return removedCount;
+            return removeCollectionItems(doc.characterStyles, 1);
         }
 
         // ==================================================
-        // 関数：未使用アートボード削除 / Delete unused artboards
+        // 空のアートボード削除 / Delete empty artboards
         // ==================================================
 
-        /* 空のアートボードを削除し、最低1つは残す。件数を返す / Remove empty artboards keeping at least one, return the count */
+        /**
+         * 空のアートボードを削除する（最低1つは残す）
+         * @param {Document} doc - 対象ドキュメント
+         * @returns {number} 削除した件数
+         */
         function deleteUnusedArtboards(doc) {
             var removedCount = 0;
             /* アートボードを消してもアートワークは変わらないので、外接矩形は最初に1回だけ集める
@@ -2530,8 +2832,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
                 /* 「使用中のパネル項目も削除」はパネル項目だけの設定なので、アートボードは常に空のものだけを削除する
                    The force option covers panel items only, so artboards are always limited to the empty ones */
-                var artboard = doc.artboards[i];
-                if (!isArtboardEmpty(artworkBounds, artboard.artboardRect)) {
+                if (intersectsAnyRect(doc.artboards[i].artboardRect, artworkBounds)) {
                     continue;
                 }
 

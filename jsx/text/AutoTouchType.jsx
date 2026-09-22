@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoTouchType.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchType.md"; /* README (English) */
@@ -111,10 +111,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      * UIの表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -223,22 +223,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      */
     function getLabel(labelKey) {
         var keyParts = labelKey.split(".");
-        var node = LABELS;
+        var labelNode = LABELS;
         for (var i = 0; i < keyParts.length; i++) {
-            if (node == null) return labelKey;
-            node = node[keyParts[i]];
+            if (labelNode == null) return labelKey;
+            labelNode = labelNode[keyParts[i]];
         }
-        if (node == null) return labelKey;
-        return node[uiLang] || node.ja || node.en || labelKey;
+        if (labelNode == null) return labelKey;
+        return labelNode[uiLang] || labelNode.ja || labelNode.en || labelKey;
     }
 
     /**
      * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {string} labelKey - ドット区切りキー
-     * @returns {string} コロンを付けた文言
+     * @returns {string} コロン付きの項目名
      */
     function labelText(labelKey) {
-        return getLabel(labelKey) + (uiLang === "ja" ? "：" : ": ");
+        return getLabel(labelKey) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -290,14 +290,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 複数オブジェクトを囲む可視バウンディングボックスを返す
-     * @param {Object[]} items - ページアイテムの配列
+     * @param {Object[]} pageItems - ページアイテムの配列
      * @returns {number[]} [left, top, right, bottom]
      */
-    function getUnionVisibleBounds(items) {
-        var bounds = items[0].visibleBounds;
-        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
-        for (var i = 1; i < items.length; i++) {
-            var itemBounds = items[i].visibleBounds;
+    function getUnionVisibleBounds(pageItems) {
+        var firstBounds = pageItems[0].visibleBounds;
+        var left = firstBounds[0], top = firstBounds[1], right = firstBounds[2], bottom = firstBounds[3];
+        for (var i = 1; i < pageItems.length; i++) {
+            var itemBounds = pageItems[i].visibleBounds;
             if (itemBounds[0] < left) left = itemBounds[0];
             if (itemBounds[1] > top) top = itemBounds[1];
             if (itemBounds[2] > right) right = itemBounds[2];
@@ -363,12 +363,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 選択範囲に含まれるテキストフレームを重複なく集める
-     * @param {Object[]} selection - 選択オブジェクトの配列
+     * @param {Object[]} selectionItems - 選択オブジェクトの配列
      * @returns {TextFrame[]} テキストフレームの配列
      */
-    function getSelectionTextFrames(selection) {
+    function getSelectionTextFrames(selectionItems) {
         var textFrames = [];
-        if (!selection || selection.length === 0) return textFrames;
+        if (!selectionItems || selectionItems.length === 0) return textFrames;
 
         /* 同じフレームを二重に入れない / Keep the list unique */
         function pushUnique(textFrame) {
@@ -379,16 +379,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
             textFrames.push(textFrame);
         }
 
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (!item) continue;
-            if (item.typename === "TextFrame") {
-                pushUnique(item);
-            } else if (item.typename === "TextRange") {
+        for (var i = 0; i < selectionItems.length; i++) {
+            var selectedItem = selectionItems[i];
+            if (!selectedItem) continue;
+            if (selectedItem.typename === "TextFrame") {
+                pushUnique(selectedItem);
+            } else if (selectedItem.typename === "TextRange") {
                 /* 文字編集中の選択は親をたどってフレームにする / A text-editing selection resolves to its frame */
-                var owner = item.parent;
-                if (owner && owner.typename === "TextFrame") pushUnique(owner);
-                else if (owner && owner.parent && owner.parent.typename === "TextFrame") pushUnique(owner.parent);
+                var rangeParent = selectedItem.parent;
+                if (rangeParent && rangeParent.typename === "TextFrame") pushUnique(rangeParent);
+                else if (rangeParent && rangeParent.parent && rangeParent.parent.typename === "TextFrame") pushUnique(rangeParent.parent);
             }
         }
         return textFrames;
@@ -441,26 +441,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 長方形の4隅を外側へランダムにずらす
-     * @param {PathItem} rect - 対象の長方形
+     * @param {PathItem} rectPath - 対象の長方形
      * @param {number} maxOffsetPt - ずらす最大量（pt）
      * @returns {void}
      */
-    function expandRectCornersRandomly(rect, maxOffsetPt) {
-        if (!rect.pathPoints || rect.pathPoints.length < 4) return;
-        var bounds = rect.geometricBounds;
+    function expandRectCornersRandomly(rectPath, maxOffsetPt) {
+        if (!rectPath.pathPoints || rectPath.pathPoints.length < 4) return;
+        var bounds = rectPath.geometricBounds;
         var centerX = (bounds[0] + bounds[2]) / 2;
         var centerY = (bounds[1] + bounds[3]) / 2;
-        for (var i = 0; i < rect.pathPoints.length; i++) {
-            var pathPoint = rect.pathPoints[i];
+        for (var i = 0; i < rectPath.pathPoints.length; i++) {
+            var pathPoint = rectPath.pathPoints[i];
             var anchorX = pathPoint.anchor[0];
             var anchorY = pathPoint.anchor[1];
             var dx = anchorX - centerX;
             var dy = anchorY - centerY;
             var distance = Math.sqrt(dx * dx + dy * dy);
             if (!distance) continue;
-            var offset = Math.random() * maxOffsetPt;
-            var offsetX = (dx / distance) * offset;
-            var offsetY = (dy / distance) * offset;
+            var offsetDistance = Math.random() * maxOffsetPt;
+            var offsetX = (dx / distance) * offsetDistance;
+            var offsetY = (dy / distance) * offsetDistance;
             pathPoint.anchor = [anchorX + offsetX, anchorY + offsetY];
             pathPoint.leftDirection = [pathPoint.leftDirection[0] + offsetX, pathPoint.leftDirection[1] + offsetY];
             pathPoint.rightDirection = [pathPoint.rightDirection[0] + offsetX, pathPoint.rightDirection[1] + offsetY];
@@ -479,36 +479,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
         var rectWidth = (charBounds[2] + RANSOM_RECT_PADDING_PT) - rectLeft;
         var rectHeight = rectTop - (charBounds[3] - RANSOM_RECT_PADDING_PT);
         if (rectWidth <= 0 || rectHeight <= 0) return null;
-        var rect = bgGroup.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
-        rect.stroked = false;
-        rect.filled = true;
-        rect.fillColor = createRandomGrayFill();
-        expandRectCornersRandomly(rect, RANSOM_RECT_JITTER_PT);
-        return rect;
+        var bgRect = bgGroup.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
+        bgRect.stroked = false;
+        bgRect.filled = true;
+        bgRect.fillColor = createRandomGrayFill();
+        expandRectCornersRandomly(bgRect, RANSOM_RECT_JITTER_PT);
+        return bgRect;
     }
 
     /**
      * アウトライン化した結果から1文字ぶんのまとまりを集める
      * @param {Object} outlinedItem - createOutline() の戻り値
-     * @param {Object[]} collected - 集めた結果を入れる配列
+     * @param {Object[]} charItems - 集めた結果を入れる配列
      * @returns {void}
      */
-    function collectOutlinedCharItems(outlinedItem, collected) {
+    function collectOutlinedCharItems(outlinedItem, charItems) {
         if (!outlinedItem) return;
 
         /* 末端のパスまで降りて拾う / Walk down to the leaf paths */
-        function pushLeafItems(container) {
-            if (!container || !container.pageItems) return;
-            for (var k = 0; k < container.pageItems.length; k++) {
-                var item = container.pageItems[k];
-                if (!item) continue;
-                if (item.typename === "GroupItem") pushLeafItems(item);
-                else if (item.typename === "PathItem" || item.typename === "CompoundPathItem") collected.push(item);
+        function pushLeafItems(parentItem) {
+            if (!parentItem || !parentItem.pageItems) return;
+            for (var k = 0; k < parentItem.pageItems.length; k++) {
+                var childItem = parentItem.pageItems[k];
+                if (!childItem) continue;
+                if (childItem.typename === "GroupItem") pushLeafItems(childItem);
+                else if (childItem.typename === "PathItem" || childItem.typename === "CompoundPathItem") charItems.push(childItem);
             }
         }
 
         if (outlinedItem.typename !== "GroupItem") {
-            collected.push(outlinedItem);
+            charItems.push(outlinedItem);
             return;
         }
 
@@ -519,18 +519,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
             if (!lineGroup || lineGroup.typename !== "GroupItem") continue;
             if (lineGroup.groupItems.length > 0) {
                 for (var j = 0; j < lineGroup.groupItems.length; j++) {
-                    collected.push(lineGroup.groupItems[j]);
+                    charItems.push(lineGroup.groupItems[j]);
                     pushedCharGroup = true;
                 }
             } else {
-                collected.push(lineGroup);
+                charItems.push(lineGroup);
                 pushedCharGroup = true;
             }
         }
         if (pushedCharGroup) return;
 
         pushLeafItems(outlinedItem);
-        if (collected.length === 0) collected.push(outlinedItem);
+        if (charItems.length === 0) charItems.push(outlinedItem);
     }
 
     /**
@@ -561,10 +561,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
             try {
                 outlinedGroup = duplicatedFrame.createOutline();
             } catch (e) { }
-            /* createOutline() は複製自体をアウトライン化して消費するため、残っているときだけ片付ける
-               createOutline() consumes the duplicate, so remove it only when it is still there */
-            try { duplicatedFrame.remove(); } catch (e) { }
-            if (!outlinedGroup) continue;
+            if (!outlinedGroup) {
+                /* createOutline() は成功すると複製を消費する。失敗して残った複製だけ片付ける
+                   createOutline() consumes the duplicate on success; remove the one left behind by a failure */
+                try { duplicatedFrame.remove(); } catch (e) { }
+                continue;
+            }
 
             var charItems = [];
             collectOutlinedCharItems(outlinedGroup, charItems);
@@ -603,12 +605,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * ひらがな・カタカナ・漢字を含むか判定する
-     * @param {string} text - 判定する文字列
+     * @param {string} sourceText - 判定する文字列
      * @returns {boolean} 含むとき true
      */
-    function hasJapaneseCharacters(text) {
-        if (!text) return false;
-        return /[぀-ゟ゠-ヿ一-鿿]/.test(String(text));
+    function hasJapaneseCharacters(sourceText) {
+        if (!sourceText) return false;
+        return /[぀-ゟ゠-ヿ一-鿿]/.test(String(sourceText));
     }
 
     /* 名前に含まれていたら和文として扱わない語 / Markers that rule a font out */
@@ -642,34 +644,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 和文フォントかどうかを名前から判定する
-     * @param {TextFont} font - 判定するフォント
+     * @param {TextFont} candidateFont - 判定するフォント
      * @returns {boolean} 和文とみなせるとき true
      */
-    function isJapaneseFont(font) {
-        if (!font) return false;
-        var names = [];
+    function isJapaneseFont(candidateFont) {
+        if (!candidateFont) return false;
+        var fontNames = [];
         /* 環境にないフォントは名前を取れないことがある / A font missing from the system may not expose its names */
         try {
-            names = [String(font.name || ""), String(font.family || ""), String(font.fullName || ""), String(font.postScriptName || "")];
+            fontNames = [String(candidateFont.name || ""), String(candidateFont.family || ""), String(candidateFont.fullName || ""), String(candidateFont.postScriptName || "")];
         } catch (e) {
             return false;
         }
 
         var i, j;
         for (i = 0; i < NON_JAPANESE_FONT_MARKERS.length; i++) {
-            for (j = 0; j < names.length; j++) {
-                if (names[j].indexOf(NON_JAPANESE_FONT_MARKERS[i]) !== -1) return false;
+            for (j = 0; j < fontNames.length; j++) {
+                if (fontNames[j].indexOf(NON_JAPANESE_FONT_MARKERS[i]) !== -1) return false;
             }
         }
 
         /* 名前そのものが和文表記ならそれで判定できる / A Japanese name settles it */
         for (j = 0; j < 3; j++) {
-            if (hasJapaneseCharacters(names[j])) return true;
+            if (hasJapaneseCharacters(fontNames[j])) return true;
         }
 
         for (i = 0; i < JAPANESE_FONT_KEYWORDS.length; i++) {
-            for (j = 0; j < names.length; j++) {
-                if (names[j].indexOf(JAPANESE_FONT_KEYWORDS[i]) !== -1) return true;
+            for (j = 0; j < fontNames.length; j++) {
+                if (fontNames[j].indexOf(JAPANESE_FONT_KEYWORDS[i]) !== -1) return true;
             }
         }
         return false;
@@ -697,18 +699,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 選択オブジェクトから TextRange を集める
-     * @param {Object[]} selection - 選択オブジェクトの配列
+     * @param {Object[]} selectionItems - 選択オブジェクトの配列
      * @returns {TextRange[]} TextRange の配列
      */
-    function collectTextRanges(selection) {
-        var collected = [];
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (!item) continue;
-            if (item.typename === "TextRange") collected.push(item);
-            else if (item.typename === "TextFrame") collected.push(item.textRange);
+    function collectTextRanges(selectionItems) {
+        var collectedRanges = [];
+        for (var i = 0; i < selectionItems.length; i++) {
+            var selectedItem = selectionItems[i];
+            if (!selectedItem) continue;
+            if (selectedItem.typename === "TextRange") collectedRanges.push(selectedItem);
+            else if (selectedItem.typename === "TextFrame") collectedRanges.push(selectedItem.textRange);
         }
-        return collected;
+        return collectedRanges;
     }
 
     /**
@@ -718,9 +720,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      */
     function containsNonAlphanumeric(targetRanges) {
         for (var i = 0; i < targetRanges.length; i++) {
-            var text = targetRanges[i].contents;
-            for (var j = 0; j < text.length; j++) {
-                var oneChar = text.charAt(j);
+            var rangeText = targetRanges[i].contents;
+            for (var j = 0; j < rangeText.length; j++) {
+                var oneChar = rangeText.charAt(j);
                 if (oneChar === "\r" || oneChar === "\n") continue;
                 if (!/[A-Za-z0-9]/.test(oneChar)) return true;
             }
@@ -736,8 +738,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function getCharacterKerning(character) {
         /* 自動カーニング中の文字では Error 9551 になる / Reading kerning throws 9551 while auto-kerning is on */
         try {
-            var kerning = character.kerning;
-            return (typeof kerning === "number") ? kerning : 0;
+            var kerningValue = character.kerning;
+            return (typeof kerningValue === "number") ? kerningValue : 0;
         } catch (e) {
             return 0;
         }
@@ -760,20 +762,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      */
     function takeCharSnapshots() {
         charSnapshots = [];
-        for (var r = 0; r < textRanges.length; r++) {
-            var textRange = textRanges[r];
-            for (var c = 0; c < textRange.length; c++) {
-                var character = textRange.characters[c];
-                var attributes = character.characterAttributes;
+        for (var i = 0; i < textRanges.length; i++) {
+            var textRange = textRanges[i];
+            for (var j = 0; j < textRange.length; j++) {
+                var character = textRange.characters[j];
+                var charAttributes = character.characterAttributes;
                 charSnapshots.push({
                     character: character,
-                    baselineShift: attributes.baselineShift,
-                    horizontalScale: attributes.horizontalScale,
-                    verticalScale: attributes.verticalScale,
-                    rotation: attributes.rotation,
+                    baselineShift: charAttributes.baselineShift,
+                    horizontalScale: charAttributes.horizontalScale,
+                    verticalScale: charAttributes.verticalScale,
+                    rotation: charAttributes.rotation,
                     kerning: getCharacterKerning(character),
-                    tracking: (typeof attributes.tracking === "number") ? attributes.tracking : 0,
-                    textFont: attributes.textFont
+                    tracking: (typeof charAttributes.tracking === "number") ? charAttributes.tracking : 0,
+                    textFont: charAttributes.textFont
                 });
             }
         }
@@ -786,21 +788,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function restoreCharSnapshots() {
         for (var i = 0; i < charSnapshots.length; i++) {
             var snapshot = charSnapshots[i];
-            var attributes = snapshot.character.characterAttributes;
-            attributes.baselineShift = snapshot.baselineShift;
-            attributes.horizontalScale = snapshot.horizontalScale;
-            attributes.verticalScale = snapshot.verticalScale;
-            attributes.rotation = snapshot.rotation;
+            var charAttributes = snapshot.character.characterAttributes;
+            charAttributes.baselineShift = snapshot.baselineShift;
+            charAttributes.horizontalScale = snapshot.horizontalScale;
+            charAttributes.verticalScale = snapshot.verticalScale;
+            charAttributes.rotation = snapshot.rotation;
             /* カーニング・トラッキング・フォントは書き込めない環境がある / These three are not writable everywhere */
             try {
-                attributes.kerningMethod = AutoKernType.NOAUTOKERN;
+                charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
                 snapshot.character.kerning = snapshot.kerning;
             } catch (e) { }
             try {
-                attributes.tracking = snapshot.tracking;
+                charAttributes.tracking = snapshot.tracking;
             } catch (e) { }
             try {
-                if (snapshot.textFont) attributes.textFont = snapshot.textFont;
+                if (snapshot.textFont) charAttributes.textFont = snapshot.textFont;
             } catch (e) { }
         }
     }
@@ -871,8 +873,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
         /* 2周目：まとめて書き込む / Pass 2: write the values */
         for (i = 0; i < charCount; i++) {
             if (Math.abs(trackingDeltas[i]) <= 0.5) continue;
-            var content = characters[i].contents;
-            if (content === "\r" || content === "\n") continue;
+            var charContent = characters[i].contents;
+            if (charContent === "\r" || charContent === "\n") continue;
             /* トラッキングを書き込めない環境がある / Tracking is not writable everywhere */
             try {
                 characters[i].characterAttributes.tracking = trackingDeltas[i];
@@ -886,8 +888,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      * @returns {void}
      */
     function applyRotationTrackingToRanges(targetRanges) {
-        for (var r = 0; r < targetRanges.length; r++) {
-            applyRotationTrackingToRange(targetRanges[r]);
+        for (var i = 0; i < targetRanges.length; i++) {
+            applyRotationTrackingToRange(targetRanges[i]);
         }
     }
 
@@ -897,105 +899,105 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * seedから同じ並びを再現できる乱数生成器を作る
-     * @param {number} seed - 乱数の種
+     * @param {number} randomSeed - 乱数の種
      * @returns {function} 0以上1未満の乱数を返す関数
      */
-    function createSeededRandom(seed) {
-        var state = seed >>> 0;
+    function createSeededRandom(randomSeed) {
+        var rngState = randomSeed >>> 0;
         return function () {
-            state = (1664525 * state + 1013904223) >>> 0;
-            return state / 4294967296;
+            rngState = (1664525 * rngState + 1013904223) >>> 0;
+            return rngState / 4294967296;
         };
     }
 
     /**
      * -1〜1の乱数を返す
-     * @param {function} random - 乱数生成器
+     * @param {function} nextRandom - 乱数生成器
      * @returns {number} -1以上1未満の値
      */
-    function randomSigned(random) {
-        return random() * 2.0 - 1.0;
+    function randomSigned(nextRandom) {
+        return nextRandom() * 2.0 - 1.0;
     }
 
     /**
      * 入れ替え先のフォント一覧を決める
-     * @param {Object} options - 適用オプション
+     * @param {Object} touchOptions - 適用オプション
      * @returns {TextFont[]|null} フォントの配列（入れ替えないときは null）
      */
-    function resolveFontPool(options) {
-        if (!options.randomFont) return null;
-        var fontPool = options.japaneseOnly ? options.japaneseFonts : options.allFonts;
+    function resolveFontPool(touchOptions) {
+        if (!touchOptions.randomFont) return null;
+        var fontPool = touchOptions.japaneseOnly ? touchOptions.japaneseFonts : touchOptions.allFonts;
         return (fontPool && fontPool.length > 0) ? fontPool : null;
     }
 
     /**
      * 選択中の各文字にランダムな文字タッチを適用する
-     * @param {{baselinePt: number, scalePercent: number, rotationDeg: number, kerningEm: number}} amounts - 各項目の最大量
-     * @param {number} seed - 乱数の種
-     * @param {Object} options - フォント入れ替えや「犯行声明文」風などのオプション
+     * @param {{baselinePt: number, scalePercent: number, rotationDeg: number, kerningEm: number}} touchAmounts - 各項目の最大量
+     * @param {number} randomSeed - 乱数の種
+     * @param {Object} touchOptions - フォント入れ替えや「犯行声明文」風などのオプション
      * @returns {void}
      */
-    function applyRandomTouch(amounts, seed, options) {
-        var random = createSeededRandom(seed);
-        var fontPool = resolveFontPool(options);
+    function applyRandomTouch(touchAmounts, randomSeed, touchOptions) {
+        var nextRandom = createSeededRandom(randomSeed);
+        var fontPool = resolveFontPool(touchOptions);
 
         /* 「犯行声明文」風のトラッキングは固定値で上書きする / Ransom-note tracking overrides the random spacing */
-        var ransomTrackEnabled = (options.ransomTrack !== false);
-        var useFixedTracking = (options.ransom && ransomTrackEnabled) || options.previewRansomTracking;
-        var fixedTracking = (typeof options.ransomTrackValue === "number") ? options.ransomTrackValue : RANSOM_TRACKING_DEFAULT;
-        var addFixedToExisting = (options.rotationTracking !== false);
+        var ransomTrackEnabled = (touchOptions.ransomTrack !== false);
+        var useFixedTracking = (touchOptions.ransom && ransomTrackEnabled) || touchOptions.previewRansomTracking;
+        var fixedTracking = (typeof touchOptions.ransomTrackValue === "number") ? touchOptions.ransomTrackValue : RANSOM_TRACKING_DEFAULT;
+        var addFixedToExisting = (touchOptions.rotationTracking !== false);
 
         for (var i = 0; i < charSnapshots.length; i++) {
             var snapshot = charSnapshots[i];
-            var attributes = snapshot.character.characterAttributes;
-            var content = snapshot.character.contents;
+            var charAttributes = snapshot.character.characterAttributes;
+            var charContent = snapshot.character.contents;
 
-            if (fontPool && !(content === "\r" || content === "\n" || content === " ")) {
+            if (fontPool && !(charContent === "\r" || charContent === "\n" || charContent === " ")) {
                 /* 環境にないフォントは適用できない / A font missing from the system cannot be applied */
                 try {
-                    attributes.textFont = fontPool[Math.floor(random() * fontPool.length)];
+                    charAttributes.textFont = fontPool[Math.floor(nextRandom() * fontPool.length)];
                 } catch (e) { }
             }
 
-            attributes.baselineShift = randomSigned(random) * amounts.baselinePt;
-            attributes.rotation = snapshot.rotation + (randomSigned(random) * amounts.rotationDeg);
+            charAttributes.baselineShift = randomSigned(nextRandom) * touchAmounts.baselinePt;
+            charAttributes.rotation = snapshot.rotation + (randomSigned(nextRandom) * touchAmounts.rotationDeg);
 
-            var scaleFactor = 1.0 + (randomSigned(random) * (amounts.scalePercent / 100.0));
-            attributes.horizontalScale = snapshot.horizontalScale * scaleFactor;
-            attributes.verticalScale = snapshot.verticalScale * scaleFactor;
+            var scaleFactor = 1.0 + (randomSigned(nextRandom) * (touchAmounts.scalePercent / 100.0));
+            charAttributes.horizontalScale = snapshot.horizontalScale * scaleFactor;
+            charAttributes.verticalScale = snapshot.verticalScale * scaleFactor;
 
             /* カーニングとトラッキングは書き込めない環境がある / Kerning and tracking are not writable everywhere */
             try {
-                attributes.kerningMethod = AutoKernType.NOAUTOKERN;
-                snapshot.character.kerning = snapshot.kerning + (randomSigned(random) * amounts.kerningEm);
+                charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
+                snapshot.character.kerning = snapshot.kerning + (randomSigned(nextRandom) * touchAmounts.kerningEm);
             } catch (e) { }
             try {
-                if (!useFixedTracking) attributes.tracking = snapshot.tracking;
-                else if (addFixedToExisting) attributes.tracking = snapshot.tracking + fixedTracking;
-                else attributes.tracking = fixedTracking;
+                if (!useFixedTracking) charAttributes.tracking = snapshot.tracking;
+                else if (addFixedToExisting) charAttributes.tracking = snapshot.tracking + fixedTracking;
+                else charAttributes.tracking = fixedTracking;
             } catch (e) { }
         }
 
         /* 回転で広がった見た目の幅を字間で打ち消す / Offset the width the rotation added */
-        if (Math.abs(amounts.rotationDeg) > 0.0001 && options.rotationTracking !== false && !useFixedTracking) {
+        if (Math.abs(touchAmounts.rotationDeg) > 0.0001 && touchOptions.rotationTracking !== false && !useFixedTracking) {
             applyRotationTrackingToRanges(textRanges);
         }
 
-        if (!options.skipRedraw) app.redraw();
+        if (!touchOptions.skipRedraw) app.redraw();
     }
 
     /**
      * 文字列を数値に変換する
-     * @param {string} text - 入力文字列
+     * @param {string} inputText - 入力文字列
      * @returns {number|null} 数値（数値にならないときは null）
      */
-    function parseNumber(text) {
-        var value = parseFloat(text);
-        return isNaN(value) ? null : value;
+    function parseNumber(inputText) {
+        var parsedValue = parseFloat(inputText);
+        return isNaN(parsedValue) ? null : parsedValue;
     }
 
     takeCharSnapshots();
-    var seed = (new Date()).getTime() & 0xffffffff;
+    var randomSeed = (new Date()).getTime() & 0xffffffff;
 
     /* 前回の実行が残した背景を消してから始める / Clear any background left by a previous run */
     clearRansomBgRects();
@@ -1029,6 +1031,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      */
     function cancelPreview() {
         if (!previewApplied) return;
+        /* 文字が消えるなどして控えが無効になっていることがある / the snapshots may have gone stale */
         try { restoreCharSnapshots(); } catch (e) { }
         previewApplied = false;
     }
@@ -1037,52 +1040,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     // ダイアログ / Dialog
     // -----------------------------------------
 
-    var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-    dlg.orientation = "column";
-    dlg.alignChildren = ["fill", "top"];
+    var touchDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    touchDialog.orientation = "column";
+    touchDialog.alignChildren = ["fill", "top"];
 
     /* 前回閉じた位置を復元する（未保存のときは 0 が返る）/ Restore the last position; an unset key returns 0 */
     var savedDialogX = app.preferences.getIntegerPreference(PREF_KEY_DIALOG_X);
     var savedDialogY = app.preferences.getIntegerPreference(PREF_KEY_DIALOG_Y);
-    if (savedDialogX !== 0 || savedDialogY !== 0) dlg.location = [savedDialogX, savedDialogY];
+    if (savedDialogX !== 0 || savedDialogY !== 0) touchDialog.location = [savedDialogX, savedDialogY];
+
+    /**
+     * 縦並びのパネルを追加する
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} titleKey - パネル見出しのキー（LABELS.panel）
+     * @param {string} childAlignment - 子の横方向の揃え（"fill" / "left"）
+     * @returns {Panel} 追加したパネル
+     */
+    function addColumnPanel(parentContainer, titleKey, childAlignment) {
+        var addedPanel = parentContainer.add("panel", undefined, getLabel("panel." + titleKey));
+        addedPanel.orientation = "column";
+        addedPanel.alignChildren = [childAlignment, "top"];
+        addedPanel.margins = PANEL_MARGINS;
+        return addedPanel;
+    }
+
+    /**
+     * チェックボックスかボタンを、LABELS のキーで tooltip 付きで追加する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} controlType - "checkbox" / "button"
+     * @param {string} labelKey - LABELS.checkbox（または LABELS.button）と LABELS.tooltip のキー
+     * @returns {Checkbox|Button} 追加したコントロール
+     */
+    function addLabeledControl(parentContainer, controlType, labelKey) {
+        var addedControl = parentContainer.add(controlType, undefined, getLabel(controlType + "." + labelKey));
+        addedControl.helpTip = getLabel("tooltip." + labelKey);
+        return addedControl;
+    }
 
     /* 文字タッチ / Touch panel */
-    var touchPanel = dlg.add("panel", undefined, getLabel("panel.touch"));
-    touchPanel.orientation = "column";
-    touchPanel.alignChildren = ["fill", "top"];
-    touchPanel.margins = PANEL_MARGINS;
+    var touchPanel = addColumnPanel(touchDialog, "touch", "fill");
 
     /* フォントと「犯行声明文」風を横に並べる / Font and ransom-note panels sit side by side */
-    var fontRowGroup = dlg.add("group");
+    var fontRowGroup = touchDialog.add("group");
     fontRowGroup.orientation = "row";
     fontRowGroup.alignChildren = ["fill", "top"];
 
-    var fontPanel = fontRowGroup.add("panel", undefined, getLabel("panel.font"));
-    fontPanel.orientation = "column";
-    fontPanel.alignChildren = ["left", "top"];
-    fontPanel.margins = PANEL_MARGINS;
+    var fontPanel = addColumnPanel(fontRowGroup, "font", "left");
     fontPanel.alignment = ["fill", "top"];
 
-    var chkRandomFont = fontPanel.add("checkbox", undefined, getLabel("checkbox.randomFont"));
-    chkRandomFont.helpTip = getLabel("tooltip.randomFont");
-    var chkJapaneseOnly = fontPanel.add("checkbox", undefined, getLabel("checkbox.japaneseOnly"));
-    chkJapaneseOnly.helpTip = getLabel("tooltip.japaneseOnly");
+    var chkRandomFont = addLabeledControl(fontPanel, "checkbox", "randomFont");
+    var chkJapaneseOnly = addLabeledControl(fontPanel, "checkbox", "japaneseOnly");
 
-    var ransomPanel = fontRowGroup.add("panel", undefined, getLabel("panel.ransom"));
-    ransomPanel.orientation = "column";
-    ransomPanel.alignChildren = ["left", "top"];
-    ransomPanel.margins = PANEL_MARGINS;
+    var ransomPanel = addColumnPanel(fontRowGroup, "ransom", "left");
     ransomPanel.alignment = ["fill", "top"];
 
-    var chkRansomEnabled = ransomPanel.add("checkbox", undefined, getLabel("checkbox.ransomEnabled"));
-    chkRansomEnabled.helpTip = getLabel("tooltip.ransomEnabled");
+    var chkRansomEnabled = addLabeledControl(ransomPanel, "checkbox", "ransomEnabled");
 
     var ransomTrackingGroup = ransomPanel.add("group");
     ransomTrackingGroup.orientation = "row";
     ransomTrackingGroup.alignChildren = ["left", "center"];
 
-    var chkRansomTracking = ransomTrackingGroup.add("checkbox", undefined, getLabel("checkbox.ransomTracking"));
-    chkRansomTracking.helpTip = getLabel("tooltip.ransomTracking");
+    var chkRansomTracking = addLabeledControl(ransomTrackingGroup, "checkbox", "ransomTracking");
     var edtRansomTracking = ransomTrackingGroup.add("edittext", undefined, String(RANSOM_TRACKING_DEFAULT));
     edtRansomTracking.helpTip = getLabel("tooltip.ransomTrackingValue");
     edtRansomTracking.characters = RANSOM_FIELD_CHARS;
@@ -1138,26 +1156,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      * @returns {{toggle: Checkbox, label: StaticText, field: EditText, unit: StaticText, slider: Slider}} 作成したコントロール
      */
     function addTouchRow(parentPanel, labelKey, unitLabel, defaultValue, minValue, maxValue) {
-        var row = parentPanel.add("group");
+        var rowGroup = parentPanel.add("group");
 
-        var toggle = row.add("checkbox", undefined, "");
-        toggle.helpTip = getLabel("tooltip." + labelKey + "Enabled");
-        toggle.value = true;
-        toggle.preferredSize.width = TOGGLE_WIDTH;
+        var enableCheckbox = rowGroup.add("checkbox", undefined, "");
+        enableCheckbox.helpTip = getLabel("tooltip." + labelKey + "Enabled");
+        enableCheckbox.value = true;
+        enableCheckbox.preferredSize.width = TOGGLE_WIDTH;
 
-        var label = row.add("statictext", undefined, labelText("fieldLabel." + labelKey));
+        var rowLabel = rowGroup.add("statictext", undefined, labelText("fieldLabel." + labelKey));
 
-        var field = row.add("edittext", undefined, String(defaultValue));
-        field.characters = VALUE_FIELD_CHARS;
-        field.helpTip = getLabel("tooltip." + labelKey);
+        var valueField = rowGroup.add("edittext", undefined, String(defaultValue));
+        valueField.characters = VALUE_FIELD_CHARS;
+        valueField.helpTip = getLabel("tooltip." + labelKey);
 
-        var unit = row.add("statictext", undefined, unitLabel);
+        var unitText = rowGroup.add("statictext", undefined, unitLabel);
 
-        var slider = row.add("slider", undefined, defaultValue, minValue, maxValue);
-        slider.preferredSize.width = SLIDER_WIDTH;
-        slider.helpTip = getLabel("tooltip." + labelKey);
+        var valueSlider = rowGroup.add("slider", undefined, defaultValue, minValue, maxValue);
+        valueSlider.preferredSize.width = SLIDER_WIDTH;
+        valueSlider.helpTip = getLabel("tooltip." + labelKey);
 
-        return { toggle: toggle, label: label, field: field, unit: unit, slider: slider };
+        return { toggle: enableCheckbox, label: rowLabel, field: valueField, unit: unitText, slider: valueSlider };
     }
 
     var baselineRow = addTouchRow(touchPanel, "baseline", baselineUnitLabel, defaultBaselineValue, 0, baselineSliderMax);
@@ -1167,18 +1185,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 複数のラベルの幅を、いちばん広いものに揃える
-     * @param {StaticText[]} controls - 幅を揃えるラベル
+     * @param {StaticText[]} labelControls - 幅を揃えるラベル
      * @returns {void}
      */
-    function alignLabelWidths(controls) {
-        var widest = 0;
+    function alignLabelWidths(labelControls) {
+        var widestWidth = 0;
         var i;
-        for (i = 0; i < controls.length; i++) {
-            if (controls[i].preferredSize.width > widest) widest = controls[i].preferredSize.width;
+        for (i = 0; i < labelControls.length; i++) {
+            if (labelControls[i].preferredSize.width > widestWidth) widestWidth = labelControls[i].preferredSize.width;
         }
-        for (i = 0; i < controls.length; i++) {
-            controls[i].preferredSize.width = widest;
-            controls[i].justify = "left";
+        for (i = 0; i < labelControls.length; i++) {
+            labelControls[i].preferredSize.width = widestWidth;
+            labelControls[i].justify = "left";
         }
     }
     alignLabelWidths([baselineRow.label, scaleRow.label, kerningRow.label, rotationRow.label]);
@@ -1196,11 +1214,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     touchButtonLeftGroup.orientation = "row";
     touchButtonLeftGroup.alignChildren = ["left", "center"];
 
-    var btnAllOn = touchButtonLeftGroup.add("button", undefined, getLabel("button.allOn"));
-    btnAllOn.helpTip = getLabel("tooltip.allOn");
+    var btnAllOn = addLabeledControl(touchButtonLeftGroup, "button", "allOn");
     btnAllOn.preferredSize = SMALL_BUTTON_SIZE;
-    var btnAllOff = touchButtonLeftGroup.add("button", undefined, getLabel("button.allOff"));
-    btnAllOff.helpTip = getLabel("tooltip.allOff");
+    var btnAllOff = addLabeledControl(touchButtonLeftGroup, "button", "allOff");
     btnAllOff.preferredSize = SMALL_BUTTON_SIZE;
 
     var touchButtonSpacer = touchButtonRow.add("group");
@@ -1211,12 +1227,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     touchButtonRightGroup.orientation = "row";
     touchButtonRightGroup.alignChildren = ["right", "center"];
 
-    var chkRotationTracking = touchButtonRightGroup.add("checkbox", undefined, getLabel("checkbox.rotationTracking"));
-    chkRotationTracking.helpTip = getLabel("tooltip.rotationTracking");
+    var chkRotationTracking = addLabeledControl(touchButtonRightGroup, "checkbox", "rotationTracking");
     chkRotationTracking.value = true;
 
     /* ズーム / Zoom row */
-    var zoomGroup = dlg.add("group");
+    var zoomGroup = touchDialog.add("group");
     zoomGroup.orientation = "row";
     zoomGroup.alignChildren = ["center", "center"];
     zoomGroup.margins = [0, 0, 0, 0];
@@ -1226,12 +1241,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     sldZoom.helpTip = getLabel("tooltip.zoom");
     sldZoom.preferredSize.width = ZOOM_SLIDER_WIDTH;
 
-    var chkLightMode = zoomGroup.add("checkbox", undefined, getLabel("checkbox.lightMode"));
-    chkLightMode.helpTip = getLabel("tooltip.lightMode");
+    var chkLightMode = addLabeledControl(zoomGroup, "checkbox", "lightMode");
     chkLightMode.value = false;
 
     /* ボタンエリア / Button row */
-    var btnRowGroup = dlg.add("group");
+    var btnRowGroup = touchDialog.add("group");
     btnRowGroup.orientation = "row";
     btnRowGroup.alignChildren = ["fill", "center"];
     btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
@@ -1240,10 +1254,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     btnLeftGroup.orientation = "row";
     btnLeftGroup.alignChildren = ["left", "center"];
 
-    var btnRandomize = btnLeftGroup.add("button", undefined, getLabel("button.randomize"));
-    btnRandomize.helpTip = getLabel("tooltip.randomize");
-    var btnReset = btnLeftGroup.add("button", undefined, getLabel("button.reset"));
-    btnReset.helpTip = getLabel("tooltip.reset");
+    var btnRandomize = addLabeledControl(btnLeftGroup, "button", "randomize");
+    var btnReset = addLabeledControl(btnLeftGroup, "button", "reset");
 
     var spacer = btnRowGroup.add("group");
     spacer.alignment = ["fill", "fill"];
@@ -1261,71 +1273,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 値を範囲内に収める
-     * @param {number} value - 対象の値
+     * @param {number} inputValue - 対象の値
      * @param {number} minValue - 下限
      * @param {number} maxValue - 上限
      * @returns {number} 範囲内に収めた値
      */
-    function clamp(value, minValue, maxValue) {
-        if (value < minValue) return minValue;
-        if (value > maxValue) return maxValue;
-        return value;
+    function clampToRange(inputValue, minValue, maxValue) {
+        if (inputValue < minValue) return minValue;
+        if (inputValue > maxValue) return maxValue;
+        return inputValue;
     }
 
     /**
      * 数値欄の値をスライダーに反映する
-     * @param {EditText} field - 数値欄
-     * @param {Slider} slider - スライダー
+     * @param {EditText} valueField - 数値欄
+     * @param {Slider} valueSlider - スライダー
      * @returns {void}
      */
-    function syncSliderFromField(field, slider) {
-        var value = parseNumber(field.text);
-        if (value === null) return;
-        slider.value = clamp(value, slider.minvalue, slider.maxvalue);
+    function syncSliderFromField(valueField, valueSlider) {
+        var fieldValue = parseNumber(valueField.text);
+        if (fieldValue === null) return;
+        valueSlider.value = clampToRange(fieldValue, valueSlider.minvalue, valueSlider.maxvalue);
     }
 
     /**
      * スライダーの値を数値欄に反映する
-     * @param {Slider} slider - スライダー
-     * @param {EditText} field - 数値欄
+     * @param {Slider} valueSlider - スライダー
+     * @param {EditText} valueField - 数値欄
      * @returns {void}
      */
-    function syncFieldFromSlider(slider, field) {
-        field.text = String(Math.round(slider.value));
+    function syncFieldFromSlider(valueSlider, valueField) {
+        valueField.text = String(Math.round(valueSlider.value));
     }
 
     /**
      * 数値欄を↑↓キーで増減できるようにする
-     * @param {EditText} field - 対象の数値欄
-     * @param {Slider} slider - 連動するスライダー（無いときは null）
+     * @param {EditText} valueField - 対象の数値欄
+     * @param {Slider} linkedSlider - 連動するスライダー（無いときは null）
      * @param {boolean} allowNegative - マイナス値を許すかどうか
      * @returns {void}
      */
-    function changeValueByArrowKey(field, slider, allowNegative) {
-        field.addEventListener("keydown", function (event) {
+    function changeValueByArrowKey(valueField, linkedSlider, allowNegative) {
+        valueField.addEventListener("keydown", function (event) {
             if (!(event && (event.keyName === "Up" || event.keyName === "Down"))) return;
 
-            var value = Number(field.text);
-            if (isNaN(value)) return;
+            var currentValue = Number(valueField.text);
+            if (isNaN(currentValue)) return;
 
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
             var delta = 1;
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 /* Shiftキー押下時は10の倍数にスナップ / Shift snaps to multiples of ten */
                 delta = 10;
-                value = (event.keyName === "Up")
-                    ? Math.ceil((value + 1) / delta) * delta
-                    : Math.floor((value - 1) / delta) * delta;
+                currentValue = (event.keyName === "Up")
+                    ? Math.ceil((currentValue + 1) / delta) * delta
+                    : Math.floor((currentValue - 1) / delta) * delta;
             } else {
                 /* Optionキー押下時は0.1単位 / Option steps by 0.1 */
-                delta = keyboard.altKey ? 0.1 : 1;
-                value += (event.keyName === "Up") ? delta : -delta;
+                delta = keyboardState.altKey ? 0.1 : 1;
+                currentValue += (event.keyName === "Up") ? delta : -delta;
             }
-            if (!allowNegative && value < 0) value = 0;
+            if (!allowNegative && currentValue < 0) currentValue = 0;
 
             event.preventDefault();
-            field.text = String(value);
-            if (slider) syncSliderFromField(field, slider);
+            valueField.text = String(currentValue);
+            if (linkedSlider) syncSliderFromField(valueField, linkedSlider);
             requestPreview();
         });
     }
@@ -1374,12 +1386,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 空欄の項目があるか判定する
-     * @param {Object} amounts - readTouchAmounts() の戻り値
+     * @param {Object} touchAmounts - readTouchAmounts() の戻り値
      * @returns {boolean} 空欄があるとき true
      */
-    function hasEmptyAmount(amounts) {
-        return amounts.baselinePt === null || amounts.scalePercent === null ||
-            amounts.rotationDeg === null || amounts.kerningEm === null;
+    function hasEmptyAmount(touchAmounts) {
+        return touchAmounts.baselinePt === null || touchAmounts.scalePercent === null ||
+            touchAmounts.rotationDeg === null || touchAmounts.kerningEm === null;
     }
 
     /**
@@ -1388,7 +1400,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      * @returns {Object} applyRandomTouch() に渡すオプション
      */
     function buildTouchOptions(forPreview) {
-        var ransomOn = chkRansomEnabled.value && chkRansomTracking.value;
+        var ransomTrackingOn = chkRansomEnabled.value && chkRansomTracking.value;
         return {
             randomFont: chkRandomFont.value,
             japaneseOnly: chkJapaneseOnly.value,
@@ -1396,7 +1408,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
             ransom: forPreview ? false : chkRansomEnabled.value,
             ransomTrack: chkRansomTracking.value,
             /* プレビューではトラッキングの固定値だけ反映する / The preview only reflects the fixed tracking */
-            previewRansomTracking: forPreview && ransomOn,
+            previewRansomTracking: forPreview && ransomTrackingOn,
             ransomTrackValue: null,
             rotationTracking: chkRotationTracking.value,
             allFonts: allFonts,
@@ -1407,13 +1419,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * 和文フォントに限定するとき、一覧をオプションに入れる
-     * @param {Object} options - 適用オプション
+     * @param {Object} touchOptions - 適用オプション
      * @returns {boolean} 続行できるとき true（和文フォントが無いときは false）
      */
-    function fillJapaneseFonts(options) {
-        if (!(options.randomFont && options.japaneseOnly)) return true;
-        options.japaneseFonts = getJapaneseFonts();
-        if (options.japaneseFonts.length > 0) return true;
+    function fillJapaneseFonts(touchOptions) {
+        if (!(touchOptions.randomFont && touchOptions.japaneseOnly)) return true;
+        touchOptions.japaneseFonts = getJapaneseFonts();
+        if (touchOptions.japaneseFonts.length > 0) return true;
         alert(getLabel("alert.noJapaneseFonts"));
         return false;
     }
@@ -1425,18 +1437,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function updatePreview() {
         didReset = false;
 
-        var amounts = readTouchAmounts();
-        if (hasEmptyAmount(amounts)) return;
+        var touchAmounts = readTouchAmounts();
+        if (hasEmptyAmount(touchAmounts)) return;
 
-        var options = buildTouchOptions(true);
-        if (!fillJapaneseFonts(options)) return;
-        if (options.previewRansomTracking) {
+        var touchOptions = buildTouchOptions(true);
+        if (!fillJapaneseFonts(touchOptions)) return;
+        if (touchOptions.previewRansomTracking) {
             var trackingValue = parseNumber(edtRansomTracking.text);
-            options.ransomTrackValue = (trackingValue === null) ? RANSOM_TRACKING_DEFAULT : trackingValue;
+            touchOptions.ransomTrackValue = (trackingValue === null) ? RANSOM_TRACKING_DEFAULT : trackingValue;
         }
 
         runPreview(function () {
-            applyRandomTouch(amounts, seed, options);
+            applyRandomTouch(touchAmounts, randomSeed, touchOptions);
         });
         app.redraw();
     }
@@ -1484,21 +1496,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
        Wire the fields, sliders and toggles to the preview */
     var rowKeys = ["baseline", "scale", "kerning", "rotation"];
     for (var rowIndex = 0; rowIndex < touchRows.length; rowIndex++) {
-        (function (row, allowNegative) {
-            row.field.onChanging = function () {
-                syncSliderFromField(row.field, row.slider);
+        (function (touchRow, allowNegative) {
+            touchRow.field.onChanging = function () {
+                syncSliderFromField(touchRow.field, touchRow.slider);
                 requestPreview();
             };
-            row.slider.onChanging = function () {
-                syncFieldFromSlider(row.slider, row.field);
+            touchRow.slider.onChanging = function () {
+                syncFieldFromSlider(touchRow.slider, touchRow.field);
                 requestPreview();
             };
-            row.toggle.onClick = function () {
+            touchRow.toggle.onClick = function () {
                 requestPreview();
                 updateRandomizeEnabled();
             };
-            changeValueByArrowKey(row.field, row.slider, allowNegative);
-            syncSliderFromField(row.field, row.slider);
+            changeValueByArrowKey(touchRow.field, touchRow.slider, allowNegative);
+            syncSliderFromField(touchRow.field, touchRow.slider);
         })(touchRows[rowIndex], !!allowNegativeRows[rowKeys[rowIndex]]);
     }
 
@@ -1540,9 +1552,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     sldZoom.onChanging = function () {
         /* 軽量モードではドラッグ中は何もしない / Light mode skips the update while dragging */
         if (chkLightMode.value) return;
-        var now = (new Date()).getTime();
-        if (now - lastZoomAppliedMs < ZOOM_THROTTLE_MS) return;
-        lastZoomAppliedMs = now;
+        var nowMs = (new Date()).getTime();
+        if (nowMs - lastZoomAppliedMs < ZOOM_THROTTLE_MS) return;
+        lastZoomAppliedMs = nowMs;
         applyZoomPercent(this.value);
     };
 
@@ -1556,12 +1568,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     function resetCharAttributes() {
         for (var i = 0; i < charSnapshots.length; i++) {
             var snapshot = charSnapshots[i];
-            var attributes = snapshot.character.characterAttributes;
+            var charAttributes = snapshot.character.characterAttributes;
 
-            attributes.baselineShift = 0;
-            attributes.horizontalScale = 100;
-            attributes.verticalScale = 100;
-            attributes.rotation = 0;
+            charAttributes.baselineShift = 0;
+            charAttributes.horizontalScale = 100;
+            charAttributes.verticalScale = 100;
+            charAttributes.rotation = 0;
             snapshot.baselineShift = 0;
             snapshot.horizontalScale = 100;
             snapshot.verticalScale = 100;
@@ -1569,12 +1581,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
             /* カーニングとトラッキングは書き込めない環境がある / Kerning and tracking are not writable everywhere */
             try {
-                attributes.kerningMethod = AutoKernType.NOAUTOKERN;
+                charAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
                 snapshot.character.kerning = 0;
                 snapshot.kerning = 0;
             } catch (e) { }
             try {
-                attributes.tracking = 0;
+                charAttributes.tracking = 0;
                 snapshot.tracking = 0;
             } catch (e) { }
         }
@@ -1590,8 +1602,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
         if (!firstFont) return;
         for (var i = 0; i < charSnapshots.length; i++) {
             var snapshot = charSnapshots[i];
-            var content = snapshot.character.contents;
-            if (content === "\r" || content === "\n") continue;
+            var charContent = snapshot.character.contents;
+            if (charContent === "\r" || charContent === "\n") continue;
             /* 環境にないフォントは適用できない / A font missing from the system cannot be applied */
             try {
                 snapshot.character.characterAttributes.textFont = firstFont;
@@ -1602,7 +1614,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     btnRandomize.onClick = function () {
         didReset = false;
-        seed = (new Date()).getTime() & 0xffffffff;
+        randomSeed = (new Date()).getTime() & 0xffffffff;
         requestPreview();
         autoEnableJapaneseOnly();
         updateRandomizeEnabled();
@@ -1623,46 +1635,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     };
 
     btnOK.onClick = function () {
-        var amounts = readTouchAmounts();
+        var touchAmounts = readTouchAmounts();
         /* ベースラインの空欄は0として扱う / An empty baseline field counts as zero */
-        if (amounts.baselinePt === null) amounts.baselinePt = 0;
-        if (hasEmptyAmount(amounts)) {
+        if (touchAmounts.baselinePt === null) touchAmounts.baselinePt = 0;
+        if (hasEmptyAmount(touchAmounts)) {
             alert(getLabel("alert.enterNumber"));
             return;
         }
 
-        var options = buildTouchOptions(false);
-        if (options.ransom && options.ransomTrack) {
-            options.ransomTrackValue = parseNumber(edtRansomTracking.text);
-            if (options.ransomTrackValue === null) {
+        var touchOptions = buildTouchOptions(false);
+        if (touchOptions.ransom && touchOptions.ransomTrack) {
+            touchOptions.ransomTrackValue = parseNumber(edtRansomTracking.text);
+            if (touchOptions.ransomTrackValue === null) {
                 alert(getLabel("alert.enterNumber"));
                 return;
             }
         }
-        if (!fillJapaneseFonts(options)) return;
+        if (!fillJapaneseFonts(touchOptions)) return;
 
         /* リセット直後でプレビューが無ければ、その結果をそのまま確定する
            Right after Reset with no preview, keep the reset result as is */
         if (!(didReset && !previewApplied)) {
             try {
-                applyRandomTouch(amounts, seed, options);
+                applyRandomTouch(touchAmounts, randomSeed, touchOptions);
             } catch (e) {
                 /* 選択が変わって控えが無効になったときは取り直してやり直す
                    Re-derive the selection when the snapshots went stale */
                 textRanges = collectTextRanges(doc.selection);
                 selectedTextFrames = getSelectionTextFrames(doc.selection);
                 takeCharSnapshots();
-                applyRandomTouch(amounts, seed, options);
+                applyRandomTouch(touchAmounts, randomSeed, touchOptions);
             }
         }
 
         /* 背景の長方形はOK時だけ作る / The background rectangles are created on OK only */
-        if (options.ransom) createRansomBgRects(selectedTextFrames);
+        if (touchOptions.ransom) createRansomBgRects(selectedTextFrames);
         else clearRansomBgRects();
 
         closedByOK = true;
         didReset = false;
-        dlg.close(1);
+        touchDialog.close(1);
     };
 
     btnCancel.onClick = function () {
@@ -1670,14 +1682,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
         clearRansomBgRects();
         restoreOriginalView();
         closedByOK = false;
-        dlg.close(0);
+        touchDialog.close(0);
     };
 
-    dlg.onClose = function () {
-        var location = dlg.location;
-        if (location && location.length === 2) {
-            app.preferences.setIntegerPreference(PREF_KEY_DIALOG_X, Math.round(location[0]));
-            app.preferences.setIntegerPreference(PREF_KEY_DIALOG_Y, Math.round(location[1]));
+    touchDialog.onClose = function () {
+        var dialogLocation = touchDialog.location;
+        if (dialogLocation && dialogLocation.length === 2) {
+            app.preferences.setIntegerPreference(PREF_KEY_DIALOG_X, Math.round(dialogLocation[0]));
+            app.preferences.setIntegerPreference(PREF_KEY_DIALOG_Y, Math.round(dialogLocation[1]));
         }
         /* OKで閉じたときは確定済みなので後始末しない / A close via OK keeps the committed result */
         if (closedByOK) return true;
@@ -1690,6 +1702,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     updatePreview();
     updateRandomizeEnabled();
-    dlg.opacity = DIALOG_OPACITY;
-    dlg.show();
+    touchDialog.opacity = DIALOG_OPACITY;
+    touchDialog.show();
 })();

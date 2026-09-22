@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md"; /* README (English) */
@@ -144,10 +144,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
      * 実行環境の言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
@@ -288,10 +288,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
      * @returns {void}
      */
     function selectFrameOfEditedText(doc) {
-        var selection = doc.selection;
-        if (!selection || selection.typename !== "TextRange") return;
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.typename !== "TextRange") return;
 
-        var storyFrames = selection.story.textFrames;
+        var storyFrames = currentSelection.story.textFrames;
         if (storyFrames.length !== 1) return;
 
         app.executeMenuCommand("deselectall");
@@ -301,30 +301,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * アイテムがテキストフレームなら追加し、グループなら中を再帰的にたどる
-     * @param {PageItem} item - 調べるアイテム
+     * @param {PageItem} pageItem - 調べるアイテム
      * @param {TextFrame[]} textFrames - 見つけたフレームを追加する配列
      * @returns {void}
      */
-    function appendTextFrames(item, textFrames) {
-        if (item.typename === "TextFrame") {
-            textFrames.push(item);
-        } else if (item.typename === "GroupItem") {
-            for (var i = 0; i < item.pageItems.length; i++) {
-                appendTextFrames(item.pageItems[i], textFrames);
+    function appendTextFrames(pageItem, textFrames) {
+        if (pageItem.typename === "TextFrame") {
+            textFrames.push(pageItem);
+        } else if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                appendTextFrames(pageItem.pageItems[i], textFrames);
             }
         }
     }
 
     /**
      * 選択（グループの中を含む）からテキストフレームを集める
-     * @param {Array<PageItem>|TextRange} selection - ドキュメントの選択
+     * @param {Array<PageItem>|TextRange} currentSelection - ドキュメントの選択
      * @returns {TextFrame[]} テキストフレーム（文字の編集中は空）
      */
-    function collectTextFrames(selection) {
+    function collectTextFrames(currentSelection) {
         var textFrames = [];
-        if (!selection || selection.typename === "TextRange") return textFrames;
-        for (var i = 0; i < selection.length; i++) {
-            appendTextFrames(selection[i], textFrames);
+        if (!currentSelection || currentSelection.typename === "TextRange") return textFrames;
+        for (var i = 0; i < currentSelection.length; i++) {
+            appendTextFrames(currentSelection[i], textFrames);
         }
         return textFrames;
     }
@@ -372,10 +372,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
      * @returns {void}
      */
     function applyBaselineShift(textFrame, targetChars, shiftAmount) {
-        var characters = textFrame.textRange.characters;
-        for (var i = 0; i < characters.length; i++) {
-            var character = characters[i].contents;
-            if (character && targetChars.indexOf(character) !== -1) characters[i].characterAttributes.baselineShift = shiftAmount;
+        var frameCharacters = textFrame.textRange.characters;
+        for (var i = 0; i < frameCharacters.length; i++) {
+            var charText = frameCharacters[i].contents;
+            if (charText && targetChars.indexOf(charText) !== -1) frameCharacters[i].characterAttributes.baselineShift = shiftAmount;
         }
     }
 
@@ -399,11 +399,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * アイテムの天地中央のY座標を求める
-     * @param {PageItem} item - 対象のアイテム
+     * @param {PageItem} pageItem - 対象のアイテム
      * @returns {number} 天地中央のY座標
      */
-    function getCenterY(item) {
-        var bounds = item.geometricBounds;
+    function getCenterY(pageItem) {
+        var bounds = pageItem.geometricBounds;
         return (bounds[1] + bounds[3]) / 2;
     }
 
@@ -457,14 +457,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
      * @param {Group|Panel} parent - 追加先
      * @param {object} labelSet - 項目名のラベル
      * @param {string} initialText - 入力欄の初期値
-     * @param {number} characters - 入力欄の幅（文字数）
+     * @param {number} inputCharacters - 入力欄の幅（文字数）
      * @returns {EditText} 追加した入力欄（行のグループは parent で取れる）
      */
-    function addFieldRow(parent, labelSet, initialText, characters) {
+    function addFieldRow(parent, labelSet, initialText, inputCharacters) {
         var fieldRow = parent.add("group");
         fieldRow.add("statictext", undefined, labelText(labelSet));
         var fieldInput = fieldRow.add("edittext", undefined, initialText);
-        fieldInput.characters = characters;
+        fieldInput.characters = inputCharacters;
         return fieldInput;
     }
 
@@ -534,15 +534,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         /* シフト量の欄は環境設定の「東アジア言語」の単位で表示し、適用するときに pt へ換算する
            The shift field uses the East Asian type unit; values are converted to points when applied */
         var shiftUnit = getUnitInfo("text/asianunits");
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
-        dialog.opacity = DIALOG_OPACITY;
-        dialog.onShow = function () {
-            dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1]];
+        var shiftDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        shiftDialog.orientation = "column";
+        shiftDialog.alignChildren = "left";
+        shiftDialog.opacity = DIALOG_OPACITY;
+        shiftDialog.onShow = function () {
+            shiftDialog.location = [shiftDialog.location[0] + DIALOG_OFFSET_X, shiftDialog.location[1]];
         };
 
-        var columnsGroup = dialog.add("group");
+        var columnsGroup = shiftDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
 
@@ -552,7 +552,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         var shiftInput = inputControls.shiftInput;
         var referenceInput = inputControls.referenceInput;
 
-        /* 直前のプレビューを取り消してから、いまの入力で掛け直す / Undo the previous preview, then apply the current input */
+        /**
+         * 直前のプレビューを取り消してから、いまの入力で掛け直す
+         * @returns {void}
+         */
         function updatePreview() {
             previewManager.rollback();
             if (!targetInput.text) return;
@@ -603,10 +606,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
                 alert(getLabel(LABELS.alert.shiftNotNumber));
                 return;
             }
-            dialog.close(1);
+            shiftDialog.close(1);
         };
 
-        if (dialog.show() !== 1) return null;
+        if (shiftDialog.show() !== 1) return null;
         return { targetChars: targetInput.text, shiftAmount: Number(shiftInput.text) * shiftUnit.pointsPerUnit };
     }
 

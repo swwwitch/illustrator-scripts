@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "DirectPrefs";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefs.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefs.md"; /* README (English) */
@@ -37,11 +37,76 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 言語判定 / Detect language */
-    function getCurrentLang() {
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 角度の制限のプリセット（アイソメトリック作図の3軸＋0°）/ Constrain-angle presets (the three isometric axes plus 0°) */
+    var CONSTRAIN_PRESETS = [0, 150, 90, 30];
+
+    /* キー増加のプリセット（定規単位コードごと。値は各単位そのままの数値）
+       / Keyboard-increment presets per ruler unit code (values are in that unit) */
+    var KEY_INCREMENT_PRESETS = {
+        "1": [1, 5, 10],   /* mm */
+        "2": [1, 6, 12],   /* pt */
+        "6": [0.1, 1, 8]   /* px */
+    };
+
+    /* 上表にない単位（in / cm / Q/H など）で使うプリセット / Presets used for units missing from the table (in, cm, Q/H, ...) */
+    var KEY_INCREMENT_PRESETS_DEFAULT = [1, 5, 10];
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_SPACING = 8;
+    var INPUT_CHARS = 6;
+    var PRESET_BUTTON_WIDTH = 48;
+    var UNIT_LABEL_WIDTH = 32;
+
+    /**
+     * パネルの共通設定をまとめて適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループの共通設定をまとめて適用する（row は縦中央、column は左揃え）
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [orientation] - "row" / "column"（省略時は "column"）
+     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(targetGroup, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        targetGroup.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI の表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -54,17 +119,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             guide: { ja: "ガイド", en: "Guides" },
             grid: { ja: "グリッド", en: "Grid" }
         },
-        label: {
+        fieldLabel: {
             constrain: { ja: "角度の制限", en: "Constrain angle" },
             keyIncrement: { ja: "キー増加", en: "Keyboard increment" }
         },
         button: {
-            apply: { ja: "「角度の制限」の値を変更", en: "Change constrain angle" },
+            applyConstrain: { ja: "「角度の制限」の値を変更", en: "Change constrain angle" },
             applyKeyIncrement: { ja: "変更", en: "Change" },
             resetConstrain: { ja: "リセット", en: "Reset" },
             toggleVisibility: { ja: "表示・非表示", en: "Show/Hide" },
             toggleLock: { ja: "ロック・ロック解除", en: "Lock/Unlock" },
             snapToGrid: { ja: "グリッドにスナップ", en: "Snap to Grid" }
+        },
+        tooltip: {
+            constrainInput: {
+                ja: "ビューの回転角度が候補として入ります（ドキュメントがないときは現在の値）。［「角度の制限」の値を変更］で適用します。",
+                en: "Prefilled with the view rotation (the current value when no document is open). Click \"Change constrain angle\" to apply it."
+            },
+            constrainPreset: { ja: "この角度を「角度の制限」にすぐ適用します。", en: "Applies this angle to the Constrain Angle preference right away." },
+            resetConstrain: { ja: "角度の制限を0°に戻します。", en: "Resets the constrain angle to 0°." },
+            keyIncrementPreset: { ja: "この値をキー増加にすぐ適用します。", en: "Applies this value to the keyboard increment right away." }
         },
         status: {
             applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
@@ -83,23 +157,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /* ネストしたラベルをドット区切りパスで取得 / Get a nested label by dot-separated path */
-    function getLabel(path) {
-        var parts = path.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            node = node[parts[i]];
+    /**
+     * ドット区切りのパスで表示言語のラベルを取り出す
+     * @param {string} labelPath - LABELS 内のパス（例: "button.resetConstrain"）
+     * @returns {string} 表示言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
         }
-        return node[currentLanguage];
+        return labelNode[uiLang];
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(path) {
-        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /* 結果文字列を表示用ステータスへ変換（既知コードは専用文、未知は汎用エラー）
-       / Convert a result string to status text (known codes get a specific message, unknown ones the generic error) */
+    /**
+     * ワーカーの結果文字列を表示用のステータス文にする（既知のコードは専用文、未知のものは汎用エラー）
+     * @param {string} result - ワーカーから返った結果文字列
+     * @returns {string} ステータス文
+     */
     function statusFromResult(result) {
         if (result.indexOf("NODOC") !== -1) {
             return getLabel("alert.noDocument");
@@ -155,20 +240,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    /**
+     * 単位コードに対応するキー増加のプリセットを取得する
+     * @param {number} unitCode - 定規の単位コード
+     * @returns {number[]} プリセットの値（その単位での数値）
+     */
+    function getKeyIncrementPresets(unitCode) {
+        var presets = KEY_INCREMENT_PRESETS[String(unitCode)];
+        return presets ? presets : KEY_INCREMENT_PRESETS_DEFAULT;
+    }
+
     // =========================================
     // 角度の計算 / Angle helpers
     // =========================================
 
-    /* 角度を -180〜180 に正規化 / Normalize an angle into the -180..180 range */
+    /**
+     * 角度を -180〜180 に正規化する
+     * @param {number} angle - 角度（度）
+     * @returns {number} 正規化した角度
+     */
     function normalizeAngle(angle) {
-        var a = angle % 360;
-        if (a > 180) { a -= 360; }
-        if (a < -180) { a += 360; }
-        return a;
+        var normalized = angle % 360;
+        if (normalized > 180) { normalized -= 360; }
+        if (normalized < -180) { normalized += 360; }
+        return normalized;
     }
 
-    /* 表示用に小数2桁へ丸める（atan2 由来の 30.00000001 のような桁あふれを抑える）
-       / Round to 2 decimals for display (suppresses float noise like 30.00000001 from atan2) */
+    /**
+     * 表示用に小数2桁へ丸める（atan2 由来の 30.00000001 のような桁あふれを抑える）
+     * @param {number} angle - 角度（度）
+     * @returns {number} 丸めた角度
+     */
     function roundAngle(angle) {
         return Math.round(angle * 100) / 100;
     }
@@ -177,94 +279,109 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // メインエンジンへの委譲 / Delegation to the main engine
     // =========================================
 
-    /* メインエンジンでコードを実行する（常駐パレットの app は DOM 接続を失うため）。
-       本文は encodeURIComponent + eval で送り、バックスラッシュ・多バイト文字を無傷で渡す。
-       / Run code in the main engine (the palette's app loses DOM access).
-       The body is sent via encodeURIComponent + eval so backslashes and multibyte chars survive intact. */
+    /**
+     * メインエンジンでコードを実行する（常駐パレットの app は DOM 接続を失うため）。
+     * 本文は encodeURIComponent + eval で送り、バックスラッシュ・多バイト文字を無傷で渡す
+     * @param {string} code - 実行するコード
+     * @param {Function} onResult - 結果文字列を受け取るコールバック（失敗時は "ERR:" で始まる）
+     * @returns {void}
+     */
     function runInMainEngine(code, onResult) {
-        var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
-        bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(code) + '"));';
-        bridge.onResult = function (response) {
+        var bridgeTalk = new BridgeTalk();
+        bridgeTalk.target = "illustrator";
+        bridgeTalk.body = 'eval(decodeURIComponent("' + encodeURIComponent(code) + '"));';
+        bridgeTalk.onResult = function (response) {
             onResult(String(response.body));
         };
-        bridge.onError = function (response) {
+        bridgeTalk.onError = function (response) {
             onResult("ERR:" + String(response.body));
         };
-        bridge.send();
+        bridgeTalk.send();
     }
 
-    /* worker 本文を IIFE で包む / Wrap a worker body in an IIFE */
-    function workerBody(body) {
-        return "(function(){" + body + "})()";
+    /**
+     * ワーカーの本文を IIFE で包む
+     * @param {string} workerCode - ワーカーの本文
+     * @returns {string} IIFE で包んだコード
+     */
+    function wrapWorkerBody(workerCode) {
+        return "(function(){" + workerCode + "})()";
     }
 
-    /* worker 断片：「角度の制限」を読む。実際の拘束方向は constrain/sin・constrain/cos が持っているため、
+    /* ワーカー断片：「角度の制限」を読む。実際の拘束方向は constrain/sin・constrain/cos が持っているため、
        constrain/angle ではなくこの2つから角度を復元する（angle は書いても拘束に反映されない）
        / Worker fragment: read the constrain angle. The real constraint direction lives in constrain/sin and
        constrain/cos, so recover the angle from those instead of constrain/angle (writing `angle` alone has no effect) */
-    var W_CONSTRAIN_GET =
-        "var c=Math.atan2(app.preferences.getRealPreference('constrain/sin')," +
+    var WORKER_READ_CONSTRAIN =
+        "var constrainAngle=Math.atan2(app.preferences.getRealPreference('constrain/sin')," +
         "app.preferences.getRealPreference('constrain/cos'))*180/Math.PI;";
 
-    /* worker 断片を作る：「角度の制限」を書き込む。angle は環境設定ダイアログの表示用で度、
-       sin・cos は実際の拘束方向でラジアン由来。angle だけでは拘束に効かないので3つとも書く
-       / Build a worker fragment that writes the constrain angle. `angle` is the value shown in the
-       Preferences dialog and is in degrees; sin and cos carry the real constraint direction and are
-       derived from radians. Writing `angle` alone does not affect the constraint, so all three are written */
-    function constrainSetter(deg) {
-        return "var rad=(" + deg + ")*Math.PI/180;" +
-            "app.preferences.setRealPreference('constrain/angle'," + deg + ");" +
-            "app.preferences.setRealPreference('constrain/sin',Math.sin(rad));" +
-            "app.preferences.setRealPreference('constrain/cos',Math.cos(rad));";
+    /**
+     * 「角度の制限」を書き込むワーカー断片を作る。angle は環境設定ダイアログの表示用で度、
+     * sin・cos は実際の拘束方向でラジアン由来。angle だけでは拘束に効かないので3つとも書く
+     * @param {number} angle - 書き込む角度（度）
+     * @returns {string} ワーカー断片
+     */
+    function buildConstrainWriteCode(angle) {
+        return "var radians=(" + angle + ")*Math.PI/180;" +
+            "app.preferences.setRealPreference('constrain/angle'," + angle + ");" +
+            "app.preferences.setRealPreference('constrain/sin',Math.sin(radians));" +
+            "app.preferences.setRealPreference('constrain/cos',Math.cos(radians));";
     }
 
-    /* ビュー回転角度・制限角度・定規単位・キー増加(pt)を1回の委譲でまとめて取得
-       （"OK:回転,制限,単位コード,キー増加"。回転はドキュメントが開いていなければ空）
-       環境設定はドキュメントがなくても読めるため、回転だけを条件付きにしている。
-       / Fetch the view rotation, constrain angle, ruler unit, and keyboard increment (pt) in a single delegation
-       ("OK:rotation,constrain,unitCode,increment"; rotation is empty when no document is open).
-       Preferences are readable without a document, so only the rotation is conditional. */
+    /**
+     * ビュー回転角度・制限角度・定規単位・キー増加(pt)を1回の委譲でまとめて取得する
+     * （"OK:回転,制限,単位コード,キー増加"。回転はドキュメントが開いていなければ空）。
+     * 環境設定はドキュメントがなくても読めるため、回転だけを条件付きにしている
+     * @param {Function} onResult - 結果文字列を受け取るコールバック
+     * @returns {void}
+     */
     function fetchState(onResult) {
-        runInMainEngine(workerBody(
-            "var r=(app.documents.length>0)?app.activeDocument.activeView.rotateAngle:'';" +
-            W_CONSTRAIN_GET +
-            "var u=app.preferences.getIntegerPreference('rulerType');" +
-            "var k=app.preferences.getRealPreference('cursorKeyLength');" +
-            "return 'OK:'+r+','+c+','+u+','+k;"
+        runInMainEngine(wrapWorkerBody(
+            "var viewRotation=(app.documents.length>0)?app.activeDocument.activeView.rotateAngle:'';" +
+            WORKER_READ_CONSTRAIN +
+            "var rulerUnitCode=app.preferences.getIntegerPreference('rulerType');" +
+            "var keyIncrementPt=app.preferences.getRealPreference('cursorKeyLength');" +
+            "return 'OK:'+viewRotation+','+constrainAngle+','+rulerUnitCode+','+keyIncrementPt;"
         ), onResult);
     }
 
-    /* 制限角度をメインエンジンで環境設定に適用 / Apply the constrain angle to the preference in the main engine */
+    /**
+     * 制限角度をメインエンジンで環境設定に適用する
+     * @param {number} angle - 制限角度（度）
+     * @param {Function} onResult - 結果文字列を受け取るコールバック
+     * @returns {void}
+     */
     function applyConstrainAngle(angle, onResult) {
-        runInMainEngine(workerBody(
-            constrainSetter(angle) +
+        runInMainEngine(wrapWorkerBody(
+            buildConstrainWriteCode(angle) +
             "return 'OK';"
         ), onResult);
     }
 
-    /* 「角度の制限」を0°に戻す / Reset the constrain angle to 0° */
-    function resetConstrain(onResult) {
-        runInMainEngine(workerBody(
-            constrainSetter(0) +
-            "return 'OK';"
-        ), onResult);
-    }
-
-    /* キー増加をメインエンジンで環境設定に適用（値は pt）/ Apply the keyboard increment to the preference in the main engine (value in pt) */
+    /**
+     * キー増加をメインエンジンで環境設定に適用する（値は pt）
+     * @param {number} lengthPt - キー増加（pt）
+     * @param {Function} onResult - 結果文字列を受け取るコールバック
+     * @returns {void}
+     */
     function applyKeyIncrement(lengthPt, onResult) {
-        runInMainEngine(workerBody(
+        runInMainEngine(wrapWorkerBody(
             "app.preferences.setRealPreference('cursorKeyLength'," + lengthPt + ");" +
             "return 'OK';"
         ), onResult);
     }
 
-    /* メニューコマンドをメインエンジンで実行（ガイド・グリッドの状態は取得できないため、メニューのトグルを呼ぶ）
-       / Run a menu command in the main engine (guide/grid states are not readable, so the menu toggles are invoked) */
-    function runMenuCommand(command, onResult) {
-        runInMainEngine(workerBody(
+    /**
+     * メニューコマンドをメインエンジンで実行する（ガイド・グリッドの状態は取得できないため、メニューのトグルを呼ぶ）
+     * @param {string} menuCommand - メニューコマンド名
+     * @param {Function} onResult - 結果文字列を受け取るコールバック
+     * @returns {void}
+     */
+    function runMenuCommand(menuCommand, onResult) {
+        runInMainEngine(wrapWorkerBody(
             "if(app.documents.length===0){return 'ERR:NODOC';}" +
-            "app.executeMenuCommand('" + command + "');" +
+            "app.executeMenuCommand('" + menuCommand + "');" +
             "return 'OK';"
         ), onResult);
     }
@@ -273,78 +390,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // パレット / Palette
     // =========================================
 
-    /* 角度の制限のプリセット（アイソメトリック作図の3軸＋0°）/ Constrain-angle presets (the three isometric axes plus 0°) */
-    var CONSTRAIN_PRESETS = [0, 150, 90, 30];
-
-    /* キー増加のプリセット（定規単位コードごと。値は各単位そのままの数値）
-       / Keyboard-increment presets per ruler unit code (values are in that unit) */
-    var KEY_INCREMENT_PRESETS = {
-        "1": [1, 5, 10],   /* mm */
-        "2": [1, 6, 12],   /* pt */
-        "6": [0.1, 1, 8]   /* px */
-    };
-
-    /* 上表にない単位（in / cm / Q/H など）で使うプリセット / Presets used for units missing from the table (in, cm, Q/H, ...) */
-    var KEY_INCREMENT_PRESETS_DEFAULT = [1, 5, 10];
-
-    /* 単位コードに対応するキー増加のプリセットを取得 / Get the keyboard-increment presets for a unit code */
-    function getKeyIncrementPresets(code) {
-        var presets = KEY_INCREMENT_PRESETS[String(code)];
-        return presets ? presets : KEY_INCREMENT_PRESETS_DEFAULT;
-    }
-
-    /* パレットを作成して表示する（IIFEで即時実行）/ Build and show the palette (run immediately as an IIFE) */
-    (function () {
-        var palette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        palette.orientation = "column";
-        palette.alignChildren = "fill";
-        palette.margins = 16;
-        palette.spacing = 12;
-
-        // =========================================
-        // レイアウト寸法 / Layout metrics
-        // =========================================
-        var PANEL_MARGINS = [16, 20, 16, 12];
-        var PANEL_SPACING = 8;
-        var INPUT_CHARS = 6;
-        var PRESET_BUTTON_WIDTH = 48;
-        var UNIT_LABEL_WIDTH = 32;
-
-        /* パネルの共通設定 / Apply shared panel layout */
-        function setupPanel(panel, spacing) {
-            panel.orientation = "column";
-            panel.alignChildren = ["fill", "top"];
-            panel.alignment = "fill";
-            panel.margins = PANEL_MARGINS;
-            panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-        }
-
-        /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-        function setupGroup(group, orientation, spacing) {
-            var groupOrientation = orientation || "column";
-            group.orientation = groupOrientation;
-            /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-            group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-            group.alignment = "fill";
-            group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-        }
+    /**
+     * パレットと各コントロールを作る
+     * @returns {Object} パレット（palette）と各コントロールの参照
+     */
+    function buildPalette() {
+        var prefsPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        prefsPalette.orientation = "column";
+        prefsPalette.alignChildren = "fill";
+        prefsPalette.margins = 16;
+        prefsPalette.spacing = 12;
 
         /* 角度の制限を変更するパネル / Panel for changing the constrain angle */
-        var constrainPanel = palette.add("panel", undefined, getLabel("panel.constrain"));
+        var constrainPanel = prefsPalette.add("panel", undefined, getLabel("panel.constrain"));
         setupPanel(constrainPanel, 6);
 
         /* 角度の制限（編集可。ビューの回転角度が候補値として入るが、反映は適用ボタンを押したときだけ）
            / Constrain angle (editable; seeded with the view rotation as a suggestion, but committed only on the Apply button) */
-        var constrainGroup = constrainPanel.add("group");
-        setupGroup(constrainGroup, "row");
-        constrainGroup.add("statictext", undefined, labelText("label.constrain"));
-        var constrainInput = constrainGroup.add("edittext", undefined, "");
+        var constrainInputGroup = constrainPanel.add("group");
+        setupGroup(constrainInputGroup, "row");
+        constrainInputGroup.add("statictext", undefined, labelText("fieldLabel.constrain"));
+        var constrainInput = constrainInputGroup.add("edittext", undefined, "");
         constrainInput.characters = INPUT_CHARS;
-        constrainGroup.add("statictext", undefined, "°");
+        constrainInput.helpTip = getLabel("tooltip.constrainInput");
+        constrainInputGroup.add("statictext", undefined, "°");
 
         /* プリセットボタン行（押すとその角度を即座に適用）/ Preset button row (clicking applies that angle immediately) */
-        var presetGroup = constrainPanel.add("group");
-        setupGroup(presetGroup, "row", 4);
+        var constrainPresetGroup = constrainPanel.add("group");
+        setupGroup(constrainPresetGroup, "row", 4);
+        var constrainPresetButtons = [];
+        for (var i = 0; i < CONSTRAIN_PRESETS.length; i++) {
+            var constrainPresetButton = constrainPresetGroup.add("button", undefined, CONSTRAIN_PRESETS[i] + "°");
+            constrainPresetButton.preferredSize.width = PRESET_BUTTON_WIDTH;
+            constrainPresetButton.helpTip = getLabel("tooltip.constrainPreset");
+            constrainPresetButtons.push({ angle: CONSTRAIN_PRESETS[i], button: constrainPresetButton });
+        }
 
         /* ボタン行：適用とリセット / Button row: Apply and Reset */
         var constrainButtonGroup = constrainPanel.add("group");
@@ -353,35 +433,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 角度の制限を0°に戻す / Reset the constrain angle to 0° */
         var resetConstrainButton = constrainButtonGroup.add("button", undefined, getLabel("button.resetConstrain"));
+        resetConstrainButton.helpTip = getLabel("tooltip.resetConstrain");
 
         /* 「角度の制限」の値を変更ボタン / Change-constrain-angle button */
-        var applyButton = constrainButtonGroup.add("button", undefined, getLabel("button.apply"));
+        var applyConstrainButton = constrainButtonGroup.add("button", undefined, getLabel("button.applyConstrain"));
 
         /* キー増加を変更するパネル / Panel for changing the keyboard increment */
-        var keyIncrementPanel = palette.add("panel", undefined, getLabel("panel.keyIncrement"));
+        var keyIncrementPanel = prefsPalette.add("panel", undefined, getLabel("panel.keyIncrement"));
         setupPanel(keyIncrementPanel, 6);
 
         /* キー増加（定規単位で表示・入力。単位ラベルは rulerType に追従）
            / Keyboard increment (shown and entered in the ruler unit; the unit label follows rulerType) */
-        var keyIncrementGroup = keyIncrementPanel.add("group");
-        setupGroup(keyIncrementGroup, "row");
-        keyIncrementGroup.add("statictext", undefined, labelText("label.keyIncrement"));
-        var keyIncrementInput = keyIncrementGroup.add("edittext", undefined, "");
+        var keyIncrementInputGroup = keyIncrementPanel.add("group");
+        setupGroup(keyIncrementInputGroup, "row");
+        keyIncrementInputGroup.add("statictext", undefined, labelText("fieldLabel.keyIncrement"));
+        var keyIncrementInput = keyIncrementInputGroup.add("edittext", undefined, "");
         keyIncrementInput.characters = INPUT_CHARS;
-        var keyIncrementUnit = keyIncrementGroup.add("statictext", undefined, "pt");
-        keyIncrementUnit.preferredSize.width = UNIT_LABEL_WIDTH;
+        var keyIncrementUnitLabel = keyIncrementInputGroup.add("statictext", undefined, "pt");
+        keyIncrementUnitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
 
-        /* プリセットボタン行（押すとその値を即座に適用。表示値は定規単位に追従）
-           / Preset button row (clicking applies that value immediately; the values follow the ruler unit) */
+        /* プリセットボタン行（押すとその値を即座に適用。単位が変わっても作り直さず、表示値だけ差し替える）
+           / Preset button row (clicking applies that value immediately; the buttons persist and only their values follow the ruler unit) */
         var keyIncrementPresetGroup = keyIncrementPanel.add("group");
         setupGroup(keyIncrementPresetGroup, "row", 4);
+        var keyIncrementPresetButtons = [];
+        for (var j = 0; j < KEY_INCREMENT_PRESETS_DEFAULT.length; j++) {
+            var keyIncrementPresetButton = keyIncrementPresetGroup.add("button", undefined, "");
+            keyIncrementPresetButton.preferredSize.width = PRESET_BUTTON_WIDTH;
+            keyIncrementPresetButton.helpTip = getLabel("tooltip.keyIncrementPreset");
+            keyIncrementPresetButtons.push(keyIncrementPresetButton);
+        }
 
         /* 「キー増加」の値を変更ボタン / Change-keyboard-increment button */
         var applyKeyIncrementButton = keyIncrementPanel.add("button", undefined, getLabel("button.applyKeyIncrement"));
         applyKeyIncrementButton.alignment = "right";
 
         /* ガイドのパネル / Guides panel */
-        var guidePanel = palette.add("panel", undefined, getLabel("panel.guide"));
+        var guidePanel = prefsPalette.add("panel", undefined, getLabel("panel.guide"));
         setupPanel(guidePanel, 6);
 
         var guideButtonGroup = guidePanel.add("group");
@@ -394,7 +482,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var toggleGuideLockButton = guideButtonGroup.add("button", undefined, getLabel("button.toggleLock"));
 
         /* グリッドのパネル / Grid panel */
-        var gridPanel = palette.add("panel", undefined, getLabel("panel.grid"));
+        var gridPanel = prefsPalette.add("panel", undefined, getLabel("panel.grid"));
         setupPanel(gridPanel, 6);
 
         var gridButtonGroup = gridPanel.add("group");
@@ -407,183 +495,232 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var snapToGridButton = gridButtonGroup.add("button", undefined, getLabel("button.snapToGrid"));
 
         /* ステータス表示 / Status line */
-        var statusText = palette.add("statictext", undefined, "");
+        var statusText = prefsPalette.add("statictext", undefined, "");
         statusText.alignment = "fill";
 
+        return {
+            palette: prefsPalette,
+            constrainInput: constrainInput,
+            constrainPresetButtons: constrainPresetButtons,
+            resetConstrainButton: resetConstrainButton,
+            applyConstrainButton: applyConstrainButton,
+            keyIncrementInput: keyIncrementInput,
+            keyIncrementUnitLabel: keyIncrementUnitLabel,
+            keyIncrementPresetButtons: keyIncrementPresetButtons,
+            applyKeyIncrementButton: applyKeyIncrementButton,
+            toggleGuideVisibilityButton: toggleGuideVisibilityButton,
+            toggleGuideLockButton: toggleGuideLockButton,
+            toggleGridVisibilityButton: toggleGridVisibilityButton,
+            snapToGridButton: snapToGridButton,
+            statusText: statusText
+        };
+    }
+
+    /**
+     * パレットの表示更新と各コントロールの操作を結び付ける
+     * @param {Object} paletteUI - buildPalette() が返したパレットとコントロールの参照
+     * @returns {void}
+     */
+    function bindPaletteHandlers(paletteUI) {
         /* 現在の制限角度と定規単位（リセットボタンのディム判定・単位換算に使用）
            / Current constrain angle and ruler unit (used to dim the Reset button and to convert units) */
         var currentConstrain = 0;
         var currentUnit = getUnitByCode(2);
 
-        /* 適用済みの制限角度を状態に記録し、0°ならリセットボタンをディム
-           / Record the applied constrain angle in state and dim the Reset button when it is 0° */
-        function setConstrain(angle) {
-            currentConstrain = angle;
-            resetConstrainButton.enabled = (currentConstrain !== 0);
-        }
+        /* キー増加のプリセットボタンが押された時点で読む値 / Values the keyboard-increment preset buttons read at click time */
+        var keyIncrementPresetValues = KEY_INCREMENT_PRESETS_DEFAULT;
 
-        /* 制限角度を適用して表示・状態を更新する共通処理 / Shared routine that applies a constrain angle and updates the display and state */
-        function commitConstrain(angle) {
-            applyConstrainAngle(angle, function (result) {
+        /**
+         * ワーカーの結果を受けるコールバックを作る。失敗ならステータスにエラーを出し、成功なら onSuccess を呼ぶ
+         * @param {Function} onSuccess - 成功時の処理
+         * @returns {Function} runInMainEngine に渡すコールバック
+         */
+        function handleWorkerResult(onSuccess) {
+            return function (result) {
                 if (result.indexOf("OK") === 0) {
-                    setConstrain(angle);
-                    constrainInput.text = roundAngle(angle);
-                    statusText.text = getLabel("status.applied");
+                    onSuccess();
                 } else {
-                    statusText.text = statusFromResult(result);
+                    paletteUI.statusText.text = statusFromResult(result);
                 }
-            });
-        }
-
-        /* プリセットボタンを1つ作る（ES3にはブロックスコープがないため、クロージャを関数で切り出す）
-           / Create one preset button (ES3 has no block scope, so the closure is captured in a function) */
-        function addPresetButton(angle) {
-            var button = presetGroup.add("button", undefined, angle + "°");
-            button.preferredSize.width = PRESET_BUTTON_WIDTH;
-            button.onClick = function () {
-                commitConstrain(angle);
             };
         }
-        for (var i = 0; i < CONSTRAIN_PRESETS.length; i++) {
-            addPresetButton(CONSTRAIN_PRESETS[i]);
+
+        /**
+         * 適用済みの制限角度を状態に記録し、0°ならリセットボタンをディムする
+         * @param {number} angle - 制限角度（度）
+         * @returns {void}
+         */
+        function setConstrain(angle) {
+            currentConstrain = angle;
+            paletteUI.resetConstrainButton.enabled = (currentConstrain !== 0);
         }
 
-        /* キー増加(pt)を現在の定規単位の表示文字列に変換 / Convert the keyboard increment (pt) to a display string in the current ruler unit */
+        /**
+         * 制限角度を適用して表示・状態を更新する
+         * @param {number} angle - 制限角度（度）
+         * @returns {void}
+         */
+        function commitConstrain(angle) {
+            applyConstrainAngle(angle, handleWorkerResult(function () {
+                setConstrain(angle);
+                paletteUI.constrainInput.text = roundAngle(angle);
+                paletteUI.statusText.text = getLabel("status.applied");
+            }));
+        }
+
+        /**
+         * キー増加(pt)を現在の定規単位の表示文字列に変換する
+         * @param {number} lengthPt - キー増加（pt）
+         * @returns {string} 表示用の文字列
+         */
         function formatKeyIncrement(lengthPt) {
             return (lengthPt / currentUnit.pointsPerUnit).toFixed(currentUnit.decimals);
         }
 
-        /* キー増加を適用して表示を更新する共通処理（値は現在の定規単位）
-           / Shared routine that applies the keyboard increment and updates the display (value in the current ruler unit) */
+        /**
+         * キー増加を適用して表示を更新する（値は現在の定規単位）
+         * @param {number} unitValue - 定規単位での値
+         * @returns {void}
+         */
         function commitKeyIncrement(unitValue) {
             var lengthPt = unitValue * currentUnit.pointsPerUnit;
-            applyKeyIncrement(lengthPt, function (result) {
-                if (result.indexOf("OK") === 0) {
-                    keyIncrementInput.text = formatKeyIncrement(lengthPt);
-                    statusText.text = getLabel("status.appliedKeyIncrement");
-                } else {
-                    statusText.text = statusFromResult(result);
-                }
-            });
+            applyKeyIncrement(lengthPt, handleWorkerResult(function () {
+                paletteUI.keyIncrementInput.text = formatKeyIncrement(lengthPt);
+                paletteUI.statusText.text = getLabel("status.appliedKeyIncrement");
+            }));
         }
 
-        /* キー増加のプリセットボタン（単位が変わっても作り直さず、表示値だけ差し替える）
-           / Keyboard-increment preset buttons (rebuilt values only; the buttons themselves persist across unit changes) */
-        var keyIncrementPresetValues = KEY_INCREMENT_PRESETS_DEFAULT;
-        var keyIncrementPresetButtons = [];
-
-        /* プリセットボタンを1つ作る（押した時点の keyIncrementPresetValues を参照する）
-           / Create one preset button (it reads keyIncrementPresetValues at click time) */
-        function addKeyIncrementPresetButton(index) {
-            var button = keyIncrementPresetGroup.add("button", undefined, "");
-            button.preferredSize.width = PRESET_BUTTON_WIDTH;
-            button.onClick = function () {
-                commitKeyIncrement(keyIncrementPresetValues[index]);
-            };
-            keyIncrementPresetButtons.push(button);
-        }
-        for (var j = 0; j < KEY_INCREMENT_PRESETS_DEFAULT.length; j++) {
-            addKeyIncrementPresetButton(j);
-        }
-
-        /* 現在の定規単位に合わせてプリセットボタンの値とラベルを差し替え
-           / Swap the preset buttons' values and labels to match the current ruler unit */
+        /**
+         * 現在の定規単位に合わせてプリセットボタンの値とラベルを差し替える
+         * @returns {void}
+         */
         function updateKeyIncrementPresets() {
             keyIncrementPresetValues = getKeyIncrementPresets(currentUnit.code);
-            for (var n = 0; n < keyIncrementPresetButtons.length; n++) {
-                var hasValue = (n < keyIncrementPresetValues.length);
-                keyIncrementPresetButtons[n].visible = hasValue;
+            for (var i = 0; i < paletteUI.keyIncrementPresetButtons.length; i++) {
+                var hasValue = (i < keyIncrementPresetValues.length);
+                paletteUI.keyIncrementPresetButtons[i].visible = hasValue;
                 if (hasValue) {
-                    keyIncrementPresetButtons[n].text = keyIncrementPresetValues[n] + currentUnit.label;
+                    paletteUI.keyIncrementPresetButtons[i].text = keyIncrementPresetValues[i] + currentUnit.label;
                 }
             }
         }
 
-        /* ビュー回転角度・制限角度・定規単位・キー増加を取得し、各表示へ反映
-           （制限角度の入力欄にはビューの回転角度を候補値として入れる。適用はボタン押下時のみ）
-           / Fetch the view rotation, constrain angle, ruler unit, and keyboard increment, and reflect them in the display
-           (the constrain field is seeded with the view rotation; it is applied only on the button) */
-        function refresh() {
+        /**
+         * ビュー回転角度・制限角度・定規単位・キー増加を取得し、各表示へ反映する
+         * （制限角度の入力欄にはビューの回転角度を候補値として入れる。適用はボタン押下時のみ）
+         * @returns {void}
+         */
+        function refreshState() {
             fetchState(function (result) {
                 if (result.indexOf("OK:") !== 0) {
-                    statusText.text = statusFromResult(result);
+                    paletteUI.statusText.text = statusFromResult(result);
                     return;
                 }
-                var parts = result.substring(3).split(",");
-                setConstrain(parseFloat(parts[1]));
-                currentUnit = getUnitByCode(parseInt(parts[2], 10));
-                keyIncrementUnit.text = currentUnit.label;
-                keyIncrementInput.text = formatKeyIncrement(parseFloat(parts[3]));
+                var stateValues = result.substring(3).split(",");
+                setConstrain(parseFloat(stateValues[1]));
+                currentUnit = getUnitByCode(parseInt(stateValues[2], 10));
+                paletteUI.keyIncrementUnitLabel.text = currentUnit.label;
+                paletteUI.keyIncrementInput.text = formatKeyIncrement(parseFloat(stateValues[3]));
                 updateKeyIncrementPresets();
-                if (parts[0] === "") {
+                if (stateValues[0] === "") {
                     /* ドキュメントがなければ回転を取得できないので、現在の制限角度をそのまま表示
                        / Without a document there is no rotation to read, so show the current constrain angle as-is */
-                    constrainInput.text = roundAngle(currentConstrain);
-                    statusText.text = getLabel("alert.noDocument");
+                    paletteUI.constrainInput.text = roundAngle(currentConstrain);
+                    paletteUI.statusText.text = getLabel("alert.noDocument");
                 } else {
-                    constrainInput.text = roundAngle(normalizeAngle(parseFloat(parts[0])));
-                    statusText.text = "";
+                    paletteUI.constrainInput.text = roundAngle(normalizeAngle(parseFloat(stateValues[0])));
+                    paletteUI.statusText.text = "";
                 }
             });
         }
 
+        /**
+         * 角度の制限のプリセットボタンに適用処理を付ける（ES3にはブロックスコープがないため、クロージャを関数で切り出す）
+         * @param {Object} constrainPreset - プリセットの角度（angle）とボタン（button）の対
+         * @returns {void}
+         */
+        function bindConstrainPreset(constrainPreset) {
+            constrainPreset.button.onClick = function () {
+                commitConstrain(constrainPreset.angle);
+            };
+        }
+
+        /**
+         * キー増加のプリセットボタンに適用処理を付ける（押した時点の keyIncrementPresetValues を参照する）
+         * @param {Button} presetButton - 対象のボタン
+         * @param {number} presetIndex - プリセットの番号
+         * @returns {void}
+         */
+        function bindKeyIncrementPreset(presetButton, presetIndex) {
+            presetButton.onClick = function () {
+                commitKeyIncrement(keyIncrementPresetValues[presetIndex]);
+            };
+        }
+
+        /**
+         * メニューコマンドをトグルボタンに割り当てる
+         * @param {Button} toggleButton - 対象のボタン
+         * @param {string} menuCommand - メニューコマンド名
+         * @param {string} statusPath - 成功時に表示するステータスのラベルパス
+         * @returns {void}
+         */
+        function bindMenuCommand(toggleButton, menuCommand, statusPath) {
+            toggleButton.onClick = function () {
+                runMenuCommand(menuCommand, handleWorkerResult(function () {
+                    paletteUI.statusText.text = getLabel(statusPath);
+                }));
+            };
+        }
+
+        for (var i = 0; i < paletteUI.constrainPresetButtons.length; i++) {
+            bindConstrainPreset(paletteUI.constrainPresetButtons[i]);
+        }
+        for (var j = 0; j < paletteUI.keyIncrementPresetButtons.length; j++) {
+            bindKeyIncrementPreset(paletteUI.keyIncrementPresetButtons[j], j);
+        }
+
         /* リセット：制限角度を0°に戻して入力欄と状態を更新 / Reset: set the constrain angle to 0° and refresh the field and state */
-        resetConstrainButton.onClick = function () {
-            resetConstrain(function (result) {
-                if (result.indexOf("OK") === 0) {
-                    setConstrain(0);
-                    constrainInput.text = "0";
-                    statusText.text = getLabel("status.resetConstrain");
-                } else {
-                    statusText.text = statusFromResult(result);
-                }
-            });
+        paletteUI.resetConstrainButton.onClick = function () {
+            applyConstrainAngle(0, handleWorkerResult(function () {
+                setConstrain(0);
+                paletteUI.constrainInput.text = "0";
+                paletteUI.statusText.text = getLabel("status.resetConstrain");
+            }));
         };
 
         /* 適用ボタン：入力値を検証してメインエンジンで適用 / Apply button: validate the input and apply in the main engine */
-        applyButton.onClick = function () {
-            var constrainAngle = parseFloat(constrainInput.text);
+        paletteUI.applyConstrainButton.onClick = function () {
+            var constrainAngle = parseFloat(paletteUI.constrainInput.text);
             if (isNaN(constrainAngle)) {
-                statusText.text = getLabel("alert.invalidAngle");
+                paletteUI.statusText.text = getLabel("alert.invalidAngle");
                 return;
             }
             commitConstrain(constrainAngle);
         };
 
         /* キー増加の適用ボタン：入力値（定規単位）を pt に換算して適用 / Keyboard-increment apply button: convert the entered value (ruler unit) to pt and apply */
-        applyKeyIncrementButton.onClick = function () {
-            var unitValue = parseFloat(keyIncrementInput.text);
+        paletteUI.applyKeyIncrementButton.onClick = function () {
+            var unitValue = parseFloat(paletteUI.keyIncrementInput.text);
             if (isNaN(unitValue) || unitValue < 0) {
-                statusText.text = getLabel("alert.invalidValue");
+                paletteUI.statusText.text = getLabel("alert.invalidValue");
                 return;
             }
             commitKeyIncrement(unitValue);
         };
 
-        /* メニューコマンドをトグルボタンに割り当てる共通処理 / Shared routine that binds a menu command to a toggle button */
-        function bindMenuCommand(button, command, statusPath) {
-            button.onClick = function () {
-                runMenuCommand(command, function (result) {
-                    if (result.indexOf("OK") === 0) {
-                        statusText.text = getLabel(statusPath);
-                    } else {
-                        statusText.text = statusFromResult(result);
-                    }
-                });
-            };
-        }
-
-        bindMenuCommand(toggleGuideVisibilityButton, "showguide", "status.toggledGuideVisibility");
-        bindMenuCommand(toggleGuideLockButton, "lockguide", "status.toggledGuideLock");
-        bindMenuCommand(toggleGridVisibilityButton, "showgrid", "status.toggledGridVisibility");
-        bindMenuCommand(snapToGridButton, "snapgrid", "status.toggledSnapToGrid");
+        bindMenuCommand(paletteUI.toggleGuideVisibilityButton, "showguide", "status.toggledGuideVisibility");
+        bindMenuCommand(paletteUI.toggleGuideLockButton, "lockguide", "status.toggledGuideLock");
+        bindMenuCommand(paletteUI.toggleGridVisibilityButton, "showgrid", "status.toggledGridVisibility");
+        bindMenuCommand(paletteUI.snapToGridButton, "snapgrid", "status.toggledSnapToGrid");
 
         /* 初期表示時、およびパレットがアクティブになるたびに最新の状態を取得
            / Fetch the latest state on first show and whenever the palette becomes active */
-        palette.onShow = refresh;
-        palette.onActivate = refresh;
+        paletteUI.palette.onShow = refreshState;
+        paletteUI.palette.onActivate = refreshState;
+    }
 
-        palette.show();
-    })();
+    var paletteUI = buildPalette();
+    bindPaletteHandlers(paletteUI);
+    paletteUI.palette.show();
 
 })();

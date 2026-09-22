@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "FitToArtboardWidth";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-21";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitToArtboardWidth.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitToArtboardWidth.md"; /* README (English) */
@@ -62,7 +62,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     var CENTER_VERTICALLY = true;
 
     // =========================================
-    // 日英ラベル定義 / Japanese-English label definitions
+    // ローカライズ / Localization
     // =========================================
 
     /**
@@ -78,22 +78,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         alert: {
-            noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection: { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
-            zeroWidth:   { ja: "選択範囲または仕上がり幅が0のため、リサイズできません。", en: "The currentSelection or the target width is zero, so nothing can be resized." }
+            zeroWidth: {
+                ja: "選択範囲または仕上がり幅が0のため、リサイズできません。",
+                en: "The currentSelection or the target width is zero, so nothing can be resized."
+            }
         }
     };
 
     /**
-     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('alert','noDocument')）
-     * @param {...string} keys - LABELS を辿るキー列
+     * LABELS からドット区切りのパスで現在の言語のラベルを取得する（例: getLabel("alert.noDocument")）
+     * @param {string} labelPath - "alert.noDocument" のようなドット区切りのキー
      * @returns {string} 該当するラベル（見つからない場合は空文字）
      */
-    function getLabel() {
+    function getLabel(labelPath) {
         var labelNode = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
+        var pathKeys = labelPath.split(".");
+        for (var i = 0; i < pathKeys.length; i++) {
             if (labelNode == null) break;
-            labelNode = labelNode[arguments[i]];
+            labelNode = labelNode[pathKeys[i]];
         }
         return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
     }
@@ -282,7 +286,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      */
     function scaleItemsAsCluster(targetItems, scaleFactor) {
         /* リサイズで位置がずれる前に、各オブジェクトの左上とクラスタの左上を控える
-           Record each targetItem's top-left and the cluster origin before anything moves */
+           Record each item's top-left and the cluster origin before anything moves */
         var originLeft = null;
         var originTop = null;
         var originalPositions = [];
@@ -354,8 +358,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      */
     function getSelectedItems(doc) {
         var currentSelection = doc.selection;
-        /* 文字を部分選択しているときは currentSelection が TextRange になるため、テキストオブジェクトに置き換える
-           A partial text currentSelection comes back as a TextRange; promote it to the text object */
+        /* 文字を部分選択しているときは選択が TextRange になるため、テキストオブジェクトに置き換える
+           A partial text selection comes back as a TextRange; promote it to the text object */
         if (currentSelection && !(currentSelection instanceof Array)) {
             return selectTextFramesFromTextRange(doc);
         }
@@ -376,34 +380,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel("alert", "noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var doc = app.activeDocument;
 
         var targetItems = getSelectedItems(doc);
         if (targetItems.length === 0) {
-            alert(getLabel("alert", "noSelection"));
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
         /* 重なるアートボードごとに分けて、それぞれを1つのまとまりとして処理する
-           Split the currentSelection per artboard and handle each group as its own cluster */
+           Split the selection per artboard and handle each group as its own cluster */
         var artboardGroups = groupItemsByArtboard(doc, targetItems);
         var resizedCount = 0;
         for (var i = 0; i < artboardGroups.length; i++) {
-            var groupBounds = getCombinedBounds(artboardGroups[i].items);
-            var scaleFactor = getFitScaleFactor(groupBounds, artboardGroups[i].artboardRect);
+            var artboardGroup = artboardGroups[i];
+            var scaleFactor = getFitScaleFactor(getCombinedBounds(artboardGroup.items), artboardGroup.artboardRect);
             /* 幅が0のときは倍率を求められないので、そのグループは飛ばす / Skip a group with no measurable width */
             if (!isFinite(scaleFactor) || scaleFactor <= 0) {
                 continue;
             }
-            scaleItemsAsCluster(artboardGroups[i].items, scaleFactor);
-            centerItemsOnArtboard(artboardGroups[i].items, artboardGroups[i].artboardRect, CENTER_VERTICALLY);
+            scaleItemsAsCluster(artboardGroup.items, scaleFactor);
+            centerItemsOnArtboard(artboardGroup.items, artboardGroup.artboardRect, CENTER_VERTICALLY);
             resizedCount++;
         }
         if (resizedCount === 0) {
-            alert(getLabel("alert", "zeroWidth"));
+            alert(getLabel("alert.zeroWidth"));
             return;
         }
         app.redraw();

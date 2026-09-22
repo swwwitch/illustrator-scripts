@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "GridTextLayout";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridTextLayout.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridTextLayout.md"; /* README (English) */
@@ -63,19 +63,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DIALOG_OFFSET_X = 300;                /* ダイアログの表示位置：右(+)／左(-) */
     var DIALOG_OFFSET_Y = 0;                  /* ダイアログの表示位置：下(+)／上(-) */
     var DIALOG_OPACITY = 0.97;                /* ダイアログの不透明度 0.0 - 1.0 */
-    var DETECTION_PANEL_MARGINS = [15, 20, 15, 10];
-    var GUTTER_PANEL_MARGINS = [15, 20, 15, 5];
-    var REGION_PANEL_MARGINS = [15, 20, 15, 10];
-    var OPTION_PANEL_MARGINS = [15, 20, 15, 10];
+    var PANEL_MARGINS = [15, 20, 15, 10];     /* パネル余白 [左,上,右,下] / panel margins */
+    var GUTTER_PANEL_MARGINS = [15, 20, 15, 5]; /* ［ガター］だけ下を詰める / the Gutter panel has a tighter bottom */
     var SIZE_LABEL_WIDTH = 30;                /* 幅・高さラベルの共通幅 / common width of the size labels */
     var TOLERANCE_INPUT_CHARS = 3;
     var GAP_INPUT_CHARS = 3;
     var SIZE_INPUT_CHARS = 5;
     var LINK_SPACER_HEIGHT = 10;              /* ［連動］の上下に入れる余白 / padding above and below the Link checkbox */
 
-    // =========================================
-    // 単位 / Units
-    // =========================================
+    /**
+     * 向き・子の揃え・余白を指定してパネルを追加する
+     * @param {Window} parentWindow - 追加先
+     * @param {string} panelTitle - パネル名
+     * @param {string} orientation - "row" または "column"
+     * @param {string|string[]} alignChildren - 子の揃え
+     * @param {number[]} margins - 余白 [左,上,右,下]
+     * @returns {Panel} 追加したパネル
+     */
+    function addDialogPanel(parentWindow, panelTitle, orientation, alignChildren, margins) {
+        var dialogPanel = parentWindow.add("panel", undefined, panelTitle);
+        dialogPanel.orientation = orientation;
+        dialogPanel.alignChildren = alignChildren;
+        dialogPanel.margins = margins;
+        return dialogPanel;
+    }
+
+    /**
+     * 項目名と数値入力欄を追加する
+     * @param {Group|Panel} parentGroup - 追加先
+     * @param {string} labelPath - 項目名のラベルのパス
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} inputChars - 入力欄の文字数
+     * @param {string} tooltipPath - 入力欄の tooltip のラベルのパス
+     * @param {number} [labelWidth] - 指定すると項目名をこの幅で右揃えにする
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberField(parentGroup, labelPath, initialText, inputChars, tooltipPath, labelWidth) {
+        var fieldLabel = parentGroup.add("statictext", undefined, labelText(labelPath));
+        if (labelWidth) {
+            fieldLabel.justify = "right";
+            fieldLabel.minimumSize.width = labelWidth;
+        }
+        var numberInput = parentGroup.add("edittext", undefined, initialText);
+        numberInput.characters = inputChars;
+        numberInput.helpTip = getLabel(tooltipPath);
+        return numberInput;
+    }
 
     // =========================================
     // 単位 / Units
@@ -97,16 +130,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -193,12 +233,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 項目名にコロンを付ける（日本語は全角、英語は半角）
-     * @param {string} labelPath - ラベルのドット区切りキー
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object|string} labelSet - ラベル、またはラベルのパス
      * @returns {string} コロン付きの項目名
      */
-    function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -433,17 +473,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * グリッド化のダイアログを組み立てて表示する
-     * @param {Document} doc - 対象ドキュメント
-     * @param {TextFrame[]} textFrames - 対象のテキスト
-     * @returns {void}
+     * グリッド化のダイアログを組み立てる（イベント結線は呼び出し側で行う）
+     * @param {object} gridShape - unionBounds / rowCount / columnCount を持つ判定結果（幅・高さの初期値に使う）
+     * @returns {object} ダイアログと各コントロールの参照
      */
-    function showGridDialog(doc, textFrames) {
-        var backgroundLayer = getOrCreateBackgroundLayer(doc, BACKGROUND_LAYER_NAME);
-        var rowTolerance = DEFAULT_ROW_TOLERANCE;
-        var columnTolerance = DEFAULT_COLUMN_TOLERANCE;
-        var gridShape = detectGridShape(textFrames, rowTolerance, columnTolerance);
-
+    function buildGridDialog(gridShape) {
         var currentUnitLabel = getUnitInfo().label;
 
         var gridDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -452,42 +486,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gridDialog.opacity = DIALOG_OPACITY;
 
         /* 判定 / Detection */
-        var detectionPanel = gridDialog.add("panel", undefined, getLabel("panel.detection"));
-        detectionPanel.orientation = "row";
-        detectionPanel.alignChildren = ["left", "center"];
-        detectionPanel.margins = DETECTION_PANEL_MARGINS;
-
-        detectionPanel.add("statictext", undefined, labelText("fieldLabel.rowTolerance"));
-        var rowToleranceInput = detectionPanel.add("edittext", undefined, String(rowTolerance));
-        rowToleranceInput.characters = TOLERANCE_INPUT_CHARS;
-        rowToleranceInput.helpTip = getLabel("tooltip.rowTolerance");
-
-        detectionPanel.add("statictext", undefined, labelText("fieldLabel.columnTolerance"));
-        var columnToleranceInput = detectionPanel.add("edittext", undefined, String(columnTolerance));
-        columnToleranceInput.characters = TOLERANCE_INPUT_CHARS;
-        columnToleranceInput.helpTip = getLabel("tooltip.columnTolerance");
+        var detectionPanel = addDialogPanel(gridDialog, getLabel("panel.detection"), "row", ["left", "center"], PANEL_MARGINS);
+        var rowToleranceInput = addNumberField(detectionPanel, "fieldLabel.rowTolerance",
+            String(DEFAULT_ROW_TOLERANCE), TOLERANCE_INPUT_CHARS, "tooltip.rowTolerance");
+        var columnToleranceInput = addNumberField(detectionPanel, "fieldLabel.columnTolerance",
+            String(DEFAULT_COLUMN_TOLERANCE), TOLERANCE_INPUT_CHARS, "tooltip.columnTolerance");
 
         /* ガター / Gutter */
-        var gutterPanel = gridDialog.add("panel", undefined, getLabel("panel.gutter") + "（" + currentUnitLabel + "）");
-        gutterPanel.orientation = "row";
-        gutterPanel.alignChildren = "top";
-        gutterPanel.margins = GUTTER_PANEL_MARGINS;
+        var gutterPanel = addDialogPanel(gridDialog, getLabel("panel.gutter") + "（" + currentUnitLabel + "）",
+            "row", "top", GUTTER_PANEL_MARGINS);
 
         var gutterLeftColumn = gutterPanel.add("group");
         gutterLeftColumn.orientation = "column";
         gutterLeftColumn.alignChildren = "left";
 
-        var rowGapRow = gutterLeftColumn.add("group");
-        rowGapRow.add("statictext", undefined, labelText("fieldLabel.rowGap"));
-        var rowGapInput = rowGapRow.add("edittext", undefined, String(DEFAULT_GAP));
-        rowGapInput.characters = GAP_INPUT_CHARS;
-        rowGapInput.helpTip = getLabel("tooltip.rowGap");
-
-        var columnGapRow = gutterLeftColumn.add("group");
-        columnGapRow.add("statictext", undefined, labelText("fieldLabel.columnGap"));
-        var columnGapInput = columnGapRow.add("edittext", undefined, String(DEFAULT_GAP));
-        columnGapInput.characters = GAP_INPUT_CHARS;
-        columnGapInput.helpTip = getLabel("tooltip.columnGap");
+        var rowGapInput = addNumberField(gutterLeftColumn.add("group"), "fieldLabel.rowGap",
+            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.rowGap");
+        var columnGapInput = addNumberField(gutterLeftColumn.add("group"), "fieldLabel.columnGap",
+            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.columnGap");
 
         var gutterRightColumn = gutterPanel.add("group");
         gutterRightColumn.orientation = "column";
@@ -505,34 +521,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         linkSpacerBottom.minimumSize.height = LINK_SPACER_HEIGHT;
 
         /* 全体サイズ / Overall size */
-        var regionPanel = gridDialog.add("panel", undefined, getLabel("panel.region") + "（" + currentUnitLabel + "）");
-        regionPanel.orientation = "row";
-        regionPanel.alignChildren = "top";
-        regionPanel.margins = REGION_PANEL_MARGINS;
-
-        var widthRow = regionPanel.add("group");
-        var widthLabel = widthRow.add("statictext", undefined, labelText("fieldLabel.width"));
-        widthLabel.justify = "right";
-        widthLabel.minimumSize.width = SIZE_LABEL_WIDTH;
-        var widthInput = widthRow.add("edittext", undefined,
-            String(Math.round(gridShape.unionBounds[2] - gridShape.unionBounds[0])));
-        widthInput.characters = SIZE_INPUT_CHARS;
-        widthInput.helpTip = getLabel("tooltip.width");
-
-        var heightRow = regionPanel.add("group");
-        var heightLabel = heightRow.add("statictext", undefined, labelText("fieldLabel.height"));
-        heightLabel.justify = "right";
-        heightLabel.minimumSize.width = SIZE_LABEL_WIDTH;
-        var heightInput = heightRow.add("edittext", undefined,
-            String(Math.round(gridShape.unionBounds[1] - gridShape.unionBounds[3])));
-        heightInput.characters = SIZE_INPUT_CHARS;
-        heightInput.helpTip = getLabel("tooltip.height");
+        var regionPanel = addDialogPanel(gridDialog, getLabel("panel.region") + "（" + currentUnitLabel + "）",
+            "row", "top", PANEL_MARGINS);
+        var widthInput = addNumberField(regionPanel.add("group"), "fieldLabel.width",
+            String(Math.round(gridShape.unionBounds[2] - gridShape.unionBounds[0])), SIZE_INPUT_CHARS, "tooltip.width", SIZE_LABEL_WIDTH);
+        var heightInput = addNumberField(regionPanel.add("group"), "fieldLabel.height",
+            String(Math.round(gridShape.unionBounds[1] - gridShape.unionBounds[3])), SIZE_INPUT_CHARS, "tooltip.height", SIZE_LABEL_WIDTH);
 
         /* オプション / Options */
-        var optionPanel = gridDialog.add("panel", undefined, getLabel("panel.option"));
-        optionPanel.orientation = "column";
-        optionPanel.alignChildren = "left";
-        optionPanel.margins = OPTION_PANEL_MARGINS;
+        var optionPanel = addDialogPanel(gridDialog, getLabel("panel.option"), "column", "left", PANEL_MARGINS);
 
         var deleteRectanglesCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.deleteRectangles"));
         deleteRectanglesCheckbox.helpTip = getLabel("tooltip.deleteRectangles");
@@ -542,6 +539,95 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         convertToAreaCheckbox.helpTip = getLabel("tooltip.convertToArea");
         convertToAreaCheckbox.value = false;
         convertToAreaCheckbox.enabled = false;
+
+        /* ボタンエリア / Button row */
+        var btnRowGroup = gridDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "center";
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return {
+            gridDialog: gridDialog,
+            rowToleranceInput: rowToleranceInput,
+            columnToleranceInput: columnToleranceInput,
+            rowGapInput: rowGapInput,
+            columnGapInput: columnGapInput,
+            linkGapsCheckbox: linkGapsCheckbox,
+            widthInput: widthInput,
+            heightInput: heightInput,
+            deleteRectanglesCheckbox: deleteRectanglesCheckbox,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
+
+    /**
+     * 入力値からセルの寸法を求める。間隔は数値でなければ 0、幅・高さは正の数でなければ選択範囲の寸法
+     * @param {object} dialogControls - buildGridDialog() の戻り値
+     * @param {object} gridShape - unionBounds / rowCount / columnCount を持つ判定結果
+     * @returns {object} cellWidth / cellHeight / rowGap / columnGap を持つ寸法
+     */
+    function readCellMetrics(dialogControls, gridShape) {
+        var rowGap = Number(dialogControls.rowGapInput.text);
+        var columnGap = Number(dialogControls.columnGapInput.text);
+        if (isNaN(rowGap)) rowGap = 0;
+        if (isNaN(columnGap)) columnGap = 0;
+
+        var totalWidth = Number(dialogControls.widthInput.text);
+        var totalHeight = Number(dialogControls.heightInput.text);
+        if (isNaN(totalWidth) || totalWidth <= 0) totalWidth = gridShape.unionBounds[2] - gridShape.unionBounds[0];
+        if (isNaN(totalHeight) || totalHeight <= 0) totalHeight = gridShape.unionBounds[1] - gridShape.unionBounds[3];
+
+        return {
+            rowGap: rowGap,
+            columnGap: columnGap,
+            cellWidth: (totalWidth - (gridShape.columnCount - 1) * columnGap) / gridShape.columnCount,
+            cellHeight: (totalHeight - (gridShape.rowCount - 1) * rowGap) / gridShape.rowCount
+        };
+    }
+
+    /**
+     * セルごとに下敷きの長方形（グレー・線なし）を最背面に描く
+     * @param {Layer} backgroundLayer - 描き込むレイヤー
+     * @param {object} gridShape - unionBounds / rowCount / columnCount を持つ判定結果
+     * @param {object} cellMetrics - cellWidth / cellHeight / rowGap / columnGap を持つ寸法
+     * @returns {PathItem[]} 描いた長方形
+     */
+    function drawCellRectangles(backgroundLayer, gridShape, cellMetrics) {
+        var cellRectangles = [];
+        for (var rowIndex = 0; rowIndex < gridShape.rowCount; rowIndex++) {
+            for (var columnIndex = 0; columnIndex < gridShape.columnCount; columnIndex++) {
+                var cellOrigin = getCellOrigin(gridShape.unionBounds, cellMetrics, rowIndex, columnIndex);
+                var cellRectangle = backgroundLayer.pathItems.rectangle(
+                    cellOrigin.top, cellOrigin.left, cellMetrics.cellWidth, cellMetrics.cellHeight);
+                cellRectangle.stroked = false;
+                cellRectangle.filled = true;
+                cellRectangle.fillColor = makeGrayColor(BACKGROUND_GRAY_VALUE);
+                cellRectangle.zOrder(ZOrderMethod.SENDTOBACK);
+                cellRectangles.push(cellRectangle);
+            }
+        }
+        return cellRectangles;
+    }
+
+    /**
+     * グリッド化のダイアログを表示し、入力に合わせてプレビューを更新する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {void}
+     */
+    function showGridDialog(doc, textFrames) {
+        var backgroundLayer = getOrCreateBackgroundLayer(doc, BACKGROUND_LAYER_NAME);
+        var rowTolerance = DEFAULT_ROW_TOLERANCE;
+        var columnTolerance = DEFAULT_COLUMN_TOLERANCE;
+        var gridShape = detectGridShape(textFrames, rowTolerance, columnTolerance);
+
+        var dialogControls = buildGridDialog(gridShape);
+        var gridDialog = dialogControls.gridDialog;
+        var rowGapInput = dialogControls.rowGapInput;
+        var columnGapInput = dialogControls.columnGapInput;
+        var linkGapsCheckbox = dialogControls.linkGapsCheckbox;
 
         /* プレビュー用の長方形 / Rectangles drawn for the preview */
         var previewRectangles = [];
@@ -561,49 +647,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
-         * 入力値からセルの寸法を求める
-         * @returns {object} cellWidth / cellHeight / rowGap / columnGap を持つ寸法
-         */
-        function getCellMetrics() {
-            var rowGap = Number(rowGapInput.text);
-            var columnGap = Number(columnGapInput.text);
-            if (isNaN(rowGap)) rowGap = 0;
-            if (isNaN(columnGap)) columnGap = 0;
-
-            var totalWidth = Number(widthInput.text);
-            var totalHeight = Number(heightInput.text);
-            if (isNaN(totalWidth) || totalWidth <= 0) totalWidth = gridShape.unionBounds[2] - gridShape.unionBounds[0];
-            if (isNaN(totalHeight) || totalHeight <= 0) totalHeight = gridShape.unionBounds[1] - gridShape.unionBounds[3];
-
-            return {
-                rowGap: rowGap,
-                columnGap: columnGap,
-                cellWidth: (totalWidth - (gridShape.columnCount - 1) * columnGap) / gridShape.columnCount,
-                cellHeight: (totalHeight - (gridShape.rowCount - 1) * rowGap) / gridShape.rowCount
-            };
-        }
-
-        /**
          * 下敷きの長方形を引き直し、テキストを各セルの中央へ置き直す
          * @returns {void}
          */
         function updatePreview() {
             clearPreview();
-
-            var cellMetrics = getCellMetrics();
-            for (var rowIndex = 0; rowIndex < gridShape.rowCount; rowIndex++) {
-                for (var columnIndex = 0; columnIndex < gridShape.columnCount; columnIndex++) {
-                    var cellOrigin = getCellOrigin(gridShape.unionBounds, cellMetrics, rowIndex, columnIndex);
-                    var cellRectangle = backgroundLayer.pathItems.rectangle(
-                        cellOrigin.top, cellOrigin.left, cellMetrics.cellWidth, cellMetrics.cellHeight);
-                    cellRectangle.stroked = false;
-                    cellRectangle.filled = true;
-                    cellRectangle.fillColor = makeGrayColor(BACKGROUND_GRAY_VALUE);
-                    cellRectangle.zOrder(ZOrderMethod.SENDTOBACK);
-                    previewRectangles.push(cellRectangle);
-                }
-            }
-
+            var cellMetrics = readCellMetrics(dialogControls, gridShape);
+            previewRectangles = drawCellRectangles(backgroundLayer, gridShape, cellMetrics);
             centerTextInCells(textFrames, gridShape.unionBounds, gridShape, cellMetrics);
             app.redraw();
         }
@@ -613,8 +663,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function refreshGridShape() {
-            var enteredRowTolerance = Number(rowToleranceInput.text);
-            var enteredColumnTolerance = Number(columnToleranceInput.text);
+            var enteredRowTolerance = Number(dialogControls.rowToleranceInput.text);
+            var enteredColumnTolerance = Number(dialogControls.columnToleranceInput.text);
             if (!isNaN(enteredRowTolerance) && enteredRowTolerance >= 0) rowTolerance = enteredRowTolerance;
             if (!isNaN(enteredColumnTolerance) && enteredColumnTolerance >= 0) columnTolerance = enteredColumnTolerance;
 
@@ -622,12 +672,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreview();
         }
 
-        bindNumericInput(rowToleranceInput, { onValueChanged: refreshGridShape });
-        bindNumericInput(columnToleranceInput, { onValueChanged: refreshGridShape });
+        bindNumericInput(dialogControls.rowToleranceInput, { onValueChanged: refreshGridShape });
+        bindNumericInput(dialogControls.columnToleranceInput, { onValueChanged: refreshGridShape });
         bindNumericInput(rowGapInput, { linkedInput: columnGapInput, linkCheckbox: linkGapsCheckbox, onValueChanged: updatePreview });
         bindNumericInput(columnGapInput, { onValueChanged: updatePreview });
-        bindNumericInput(widthInput, { onValueChanged: updatePreview });
-        bindNumericInput(heightInput, { onValueChanged: updatePreview });
+        bindNumericInput(dialogControls.widthInput, { onValueChanged: updatePreview });
+        bindNumericInput(dialogControls.heightInput, { onValueChanged: updatePreview });
 
         linkGapsCheckbox.onClick = function () {
             columnGapInput.enabled = !linkGapsCheckbox.value;
@@ -637,21 +687,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         };
 
-        /* ボタンエリア / Button row */
-        var btnRowGroup = gridDialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = "center";
-
-        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        btnCancel.onClick = function () {
+        dialogControls.btnCancel.onClick = function () {
             clearPreview();
             gridDialog.close();
         };
 
-        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        btnOK.onClick = function () {
+        dialogControls.btnOK.onClick = function () {
             updatePreview();
-            if (deleteRectanglesCheckbox.value) {
+            if (dialogControls.deleteRectanglesCheckbox.value) {
                 clearPreview();
                 removeBackgroundLayer(doc);
             }

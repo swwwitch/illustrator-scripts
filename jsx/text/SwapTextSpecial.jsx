@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SwapTextSpecial";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapTextSpecial.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapTextSpecial.md"; /* README (English) */
@@ -42,57 +42,107 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
 
 (function () {
 
-    var uiLang = (function () {
-        /* 日本語 / English */
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
-    })();
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var PANEL_MARGINS = [15, 20, 15, 15];  /* パネル余白 / panel margins */
 
-    function getLabel(obj) {
-        return obj[uiLang] || obj.en;
-    }
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 日本語 / English */
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
-        dialogTitle: { ja: "テキストの入れ替え " + SCRIPT_VERSION, en: "Swap Text " + SCRIPT_VERSION },
-        panelTarget: { ja: "入れ替える対象", en: "Swap target" },
-        modeContents: { ja: "文字列", en: "String" },
-        modeFormat: { ja: "書式", en: "Format" },
-        modePosition: { ja: "座標", en: "Position" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        needTwo: { ja: "テキストオブジェクトを2つ選択してください。", en: "Please select two text objects." },
-        needText: { ja: "選択した2つは両方ともテキストオブジェクトである必要があります。", en: "Both selected objects must be text objects." },
-        tipModeContents: { ja: "2つのテキストの文字列だけを入れ替えます。書式と位置はそのままです。", en: "Swaps only the strings. The formatting and positions stay put." },
-        tipModeFormat: { ja: "フォント・サイズ・色などの書式だけを入れ替えます。文字列と位置はそのままです。", en: "Swaps only the formatting, such as font, size, and colour. The strings and positions stay put." },
-        tipModePosition: { ja: "2つのテキストの位置だけを入れ替えます。中身はそのままです。", en: "Swaps only the positions. The contents stay put." }
+        dialog: {
+            title: { ja: "テキストの入れ替え", en: "Swap Text" }
+        },
+        panel: {
+            target: { ja: "入れ替える対象", en: "Swap target" }
+        },
+        radio: {
+            contents: { ja: "文字列", en: "String" },
+            format: { ja: "書式", en: "Format" },
+            position: { ja: "座標", en: "Position" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            needTwo: { ja: "テキストオブジェクトを2つ選択してください。", en: "Please select two text objects." },
+            needText: {
+                ja: "選択した2つは両方ともテキストオブジェクトである必要があります。",
+                en: "Both selected objects must be text objects."
+            }
+        },
+        tooltip: {
+            contents: {
+                ja: "2つのテキストの文字列だけを入れ替えます。書式と位置はそのままです。",
+                en: "Swaps only the strings. The formatting and positions stay put."
+            },
+            format: {
+                ja: "フォント・サイズ・色などの書式だけを入れ替えます。文字列と位置はそのままです。",
+                en: "Swaps only the formatting, such as font, size, and colour. The strings and positions stay put."
+            },
+            position: {
+                ja: "2つのテキストの位置だけを入れ替えます。中身はそのままです。",
+                en: "Swaps only the positions. The contents stay put."
+            }
+        }
     };
+
+    /**
+     * 表示言語の文言を返す（無ければ英語）
+     * @param {Object} labelSet - { ja, en } の文言オブジェクト
+     * @returns {string} 表示言語の文言
+     */
+    function getLabel(labelSet) {
+        return labelSet[uiLang] || labelSet.en;
+    }
 
     // =============================================================
     // ダイアログ / Dialog
     // =============================================================
 
-    function showSwapDialog() {
-        var dialog = new Window("dialog", getLabel(LABELS.dialogTitle));
-        dialog.alignChildren = "fill";
+    /**
+     * 入れ替え対象のラジオボタンを tooltip 付きで追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} modeKey - LABELS.radio と LABELS.tooltip のキー（"contents" / "format" / "position"）
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addModeRadio(parentPanel, modeKey) {
+        var modeRadio = parentPanel.add("radiobutton", undefined, getLabel(LABELS.radio[modeKey]));
+        modeRadio.helpTip = getLabel(LABELS.tooltip[modeKey]);
+        return modeRadio;
+    }
 
-        var targetPanel = dialog.add("panel", undefined, getLabel(LABELS.panelTarget));
+    /**
+     * 入れ替える対象を選ぶダイアログを表示する
+     * @returns {string|null} "contents" / "format" / "position"（キャンセル時は null）
+     */
+    function showSwapDialog() {
+        var swapDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        swapDialog.alignChildren = "fill";
+
+        var targetPanel = swapDialog.add("panel", undefined, getLabel(LABELS.panel.target));
         targetPanel.orientation = "column";
         targetPanel.alignChildren = "left";
-        targetPanel.margins = [15, 20, 15, 15];
+        targetPanel.margins = PANEL_MARGINS;
 
-        var radioContents = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeContents));
-        radioContents.helpTip = getLabel(LABELS.tipModeContents);
-        var radioFormat = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeFormat));
-        radioFormat.helpTip = getLabel(LABELS.tipModeFormat);
-        var radioPosition = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modePosition));
-        radioPosition.helpTip = getLabel(LABELS.tipModePosition);
+        var radioContents = addModeRadio(targetPanel, "contents");
+        var radioFormat = addModeRadio(targetPanel, "format");
+        var radioPosition = addModeRadio(targetPanel, "position");
         radioContents.value = true;
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, getLabel(LABELS.cancel), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
+        var btnRowGroup = swapDialog.add("group");
+        btnRowGroup.alignment = "right";
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        if (dialog.show() !== 1) {
+        if (swapDialog.show() !== 1) {
             return null;
         }
 
@@ -105,10 +155,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
     // 入れ替え処理 / Swap operations
     // =============================================================
 
+    /**
+     * 2つのテキストの文字列を入れ替える
+     * @param {TextFrame} firstTextFrame - 1つ目のテキスト
+     * @param {TextFrame} secondTextFrame - 2つ目のテキスト
+     * @returns {void}
+     */
     function swapContents(firstTextFrame, secondTextFrame) {
         var firstContents = firstTextFrame.contents;
-        var secondContents = secondTextFrame.contents;
-        firstTextFrame.contents = secondContents;
+        firstTextFrame.contents = secondTextFrame.contents;
         secondTextFrame.contents = firstContents;
     }
 
@@ -131,29 +186,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         "capitalization"   /* 大文字小文字 / capitalization */
     ];
 
+    /**
+     * テキスト全体の書式を控える
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {Object} 属性名と値の組（読み取れなかった属性は含まない）
+     */
     function captureFormatAttributes(textFrame) {
-        var attributes = textFrame.textRange.characterAttributes;
-        var captured = {};
+        var charAttributes = textFrame.textRange.characterAttributes;
+        var capturedAttributes = {};
         for (var i = 0; i < FORMAT_ATTRIBUTE_KEYS.length; i++) {
-            var key = FORMAT_ATTRIBUTE_KEYS[i];
+            var attributeKey = FORMAT_ATTRIBUTE_KEYS[i];
+            /* 属性によっては読み取りで例外になる / some attributes throw on read */
             try {
-                captured[key] = attributes[key];
+                capturedAttributes[attributeKey] = charAttributes[attributeKey];
             } catch (e) {}
         }
-        return captured;
+        return capturedAttributes;
     }
 
-    function applyFormatAttributes(textFrame, captured) {
-        var attributes = textFrame.textRange.characterAttributes;
+    /**
+     * 控えた書式をテキスト全体に適用する
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {Object} capturedAttributes - captureFormatAttributes() の戻り値
+     * @returns {void}
+     */
+    function applyFormatAttributes(textFrame, capturedAttributes) {
+        var charAttributes = textFrame.textRange.characterAttributes;
         for (var i = 0; i < FORMAT_ATTRIBUTE_KEYS.length; i++) {
-            var key = FORMAT_ATTRIBUTE_KEYS[i];
-            if (!captured.hasOwnProperty(key)) continue;
+            var attributeKey = FORMAT_ATTRIBUTE_KEYS[i];
+            if (!capturedAttributes.hasOwnProperty(attributeKey)) continue;
+            /* 書き込めない値（未定義の色など）は飛ばす / skip values that cannot be written */
             try {
-                attributes[key] = captured[key];
+                charAttributes[attributeKey] = capturedAttributes[attributeKey];
             } catch (e) {}
         }
     }
 
+    /**
+     * 2つのテキストの書式を入れ替える
+     * @param {TextFrame} firstTextFrame - 1つ目のテキスト
+     * @param {TextFrame} secondTextFrame - 2つ目のテキスト
+     * @returns {void}
+     */
     function swapFormat(firstTextFrame, secondTextFrame) {
         /* 両方の書式を先に取得してから入れ替える / Capture both before applying */
         var firstAttributes = captureFormatAttributes(firstTextFrame);
@@ -162,6 +236,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         applyFormatAttributes(secondTextFrame, firstAttributes);
     }
 
+    /**
+     * 2つのテキストの位置（左上）を入れ替える
+     * @param {TextFrame} firstTextFrame - 1つ目のテキスト
+     * @param {TextFrame} secondTextFrame - 2つ目のテキスト
+     * @returns {void}
+     */
     function swapPosition(firstTextFrame, secondTextFrame) {
         /*
            position はベースライン基準で上端/左端が崩れるため geometricBounds を使う。
@@ -184,9 +264,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
     // メイン / Main
     // =============================================================
 
+    /**
+     * 選択を確かめ、ダイアログで選んだ対象を入れ替える
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel(LABELS.noDocument));
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
@@ -194,25 +278,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         var selectedItems = doc.selection;
 
         if (selectedItems.length !== 2) {
-            alert(getLabel(LABELS.needTwo));
+            alert(getLabel(LABELS.alert.needTwo));
             return;
         }
         if (selectedItems[0].typename !== "TextFrame" || selectedItems[1].typename !== "TextFrame") {
-            alert(getLabel(LABELS.needText));
+            alert(getLabel(LABELS.alert.needText));
             return;
         }
 
-        var mode = showSwapDialog();
-        if (mode === null) {
+        var swapMode = showSwapDialog();
+        if (swapMode === null) {
             return;
         }
 
         var firstTextFrame = selectedItems[0];
         var secondTextFrame = selectedItems[1];
 
-        if (mode === "format") {
+        if (swapMode === "format") {
             swapFormat(firstTextFrame, secondTextFrame);
-        } else if (mode === "position") {
+        } else if (swapMode === "position") {
             swapPosition(firstTextFrame, secondTextFrame);
         } else {
             swapContents(firstTextFrame, secondTextFrame);

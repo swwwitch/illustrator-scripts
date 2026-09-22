@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "ConvertToAreaTypeLikeButton";  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md"; /* README (English) */
@@ -45,14 +45,57 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
 
     // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS        = 20;                /* ダイアログの余白 / dialog margins */
+    var PANEL_MARGINS         = [16, 20, 16, 12];  /* パネルの余白 / panel margins */
+    var PANEL_SPACING         = 8;                 /* パネル内の間隔 / panel spacing */
+    var SIZE_LABEL_WIDTH      = 44;                /* 幅・高さのラベル幅 / width of the width/height labels */
+    var INDENT_CHECKBOX_WIDTH = 52;                /* 左右インデントのチェックボックス幅 / width of the indent checkboxes */
+
+    /**
+     * パネルの共通設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - パネル内の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループの共通設定を適用する（row/column で整列を切り替え）
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - グループ内の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(targetGroup, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        targetGroup.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 表示言語を判定 / Detect display language */
-    function getCurrentLang() {
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義（カテゴリ構造）/ Japanese-English label definitions (categorized) */
     var LABELS = {
@@ -68,7 +111,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             options: { ja: "オプション", en: "Options" }
         },
         /* 入力ラベル / Field labels */
-        label: {
+        fieldLabel: {
             fontSize: { ja: "フォントサイズ", en: "Font size" },
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" }
@@ -98,44 +141,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sync: { ja: "左右のインデントを同じ値にします。", en: "Keeps the left and right indents the same." },
             margin: { ja: "テキストフレームの内側に空ける余白です。", en: "Inset kept inside the text frame." }
         },
-
         /* 警告メッセージ / Alerts */
         alert: {
             selectText: {
                 ja: "ポイント文字・パス上文字・エリア内文字を選択してください。",
                 en: "Please select point text, path text, or area text."
             },
-            noDocument: {
-                ja: "ドキュメントが開かれていません。",
-                en: "No document is open."
-            }
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
         }
     };
 
-    /* ドット区切りキーから LABELS のエントリを取得 / Resolve a LABELS entry from a dot-separated key */
-    function getLabelEntry(key) {
-        var parts = key.split(".");
-        var cur = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (cur && typeof cur[parts[i]] !== "undefined") { cur = cur[parts[i]]; }
-            else { return null; }
+    /**
+     * "category.key" 形式のキーからラベルを取得する
+     * @param {string} labelPath - ラベルキー（例: "panel.fontSize"）
+     * @returns {string} 現在の言語のラベル文字列（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            if (labelNode && typeof labelNode[labelPathKeys[i]] !== "undefined") { labelNode = labelNode[labelPathKeys[i]]; }
+            else { return labelPath; }
         }
-        return cur;
+        if (labelNode[uiLang]) return labelNode[uiLang];
+        if (labelNode.en) return labelNode.en;
+        return labelPath;
     }
 
-    /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function getLabel(key) {
-        var entry = getLabelEntry(key);
-        if (entry) {
-            if (entry[currentLanguage]) return entry[currentLanguage];
-            if (entry.en) return entry.en;
-        }
-        return key;
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelSet - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -174,264 +213,392 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
+    // 選択の判定 / Selection checks
+    // =========================================
+
+    /**
+     * パス上文字かを返す
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @returns {boolean} パス上文字なら true
+     */
+    function isPathTextFrame(pageItem) {
+        return pageItem.typename === "TextFrame" && pageItem.kind === TextType.PATHTEXT;
+    }
+
+    /**
+     * エリア内文字かを返す
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @returns {boolean} エリア内文字なら true
+     */
+    function isAreaTextFrame(pageItem) {
+        return pageItem.typename === "TextFrame" && pageItem.kind === TextType.AREATEXT;
+    }
+
+    /**
+     * 選択にポイント文字（パス上文字を含む）・エリア内文字・パスが含まれるかを調べる
+     * @param {Array} selectedItems - 選択オブジェクト
+     * @returns {{hasPointText: boolean, hasAreaText: boolean, hasPathItem: boolean}} 含まれる種類
+     */
+    function classifySelection(selectedItems) {
+        var selectionKinds = { hasPointText: false, hasAreaText: false, hasPathItem: false };
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (selectedItem.typename === "TextFrame") {
+                if (selectedItem.kind === TextType.POINTTEXT || selectedItem.kind === TextType.PATHTEXT) selectionKinds.hasPointText = true;
+                if (selectedItem.kind === TextType.AREATEXT) selectionKinds.hasAreaText = true;
+            }
+            if (selectedItem.typename === "PathItem" || selectedItem.typename === "CompoundPathItem") {
+                selectionKinds.hasPathItem = true;
+            }
+        }
+        return selectionKinds;
+    }
+
+    /**
+     * 選択から最初のエリア内文字を返す
+     * @param {Array} selectedItems - 選択オブジェクト
+     * @returns {TextFrame|null} 最初のエリア内文字（無ければ null）
+     */
+    function findFirstAreaText(selectedItems) {
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (isAreaTextFrame(selectedItems[i])) return selectedItems[i];
+        }
+        return null;
+    }
+
+    // =========================================
     // パス上文字 → ポイント文字（変換前処理）/ Path text → Point text (pre-process)
     // =========================================
 
-    /* パス上文字を字形を保ったままポイント文字へ分離 / Detach path text into point text keeping attributes */
-    function detachPathTextToPointText(doc, pathTextFrames) {
-        function safe(fn) { try { return fn(); } catch (e) { return undefined; } }
+    /**
+     * 関数を実行し、例外は握りつぶす（属性ごとに失敗しても残りを続けるため）
+     * @param {function} attemptAction - 実行する処理
+     * @returns {*} 処理の戻り値（例外時は undefined）
+     */
+    function runIgnoringErrors(attemptAction) {
+        try { return attemptAction(); } catch (e) { return undefined; }
+    }
 
-        var created = [];
-        if (!doc || !pathTextFrames || !pathTextFrames.length) return created;
+    /**
+     * 文字ごとの属性を控える
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {Array<object>} 文字ごとの属性
+     */
+    function snapshotCharacterAttributes(textFrame) {
+        var attributeSnapshots = [];
+        for (var i = 0; i < textFrame.characters.length; i++) {
+            var sourceAttributes = textFrame.characters[i].characterAttributes;
+            attributeSnapshots.push({
+                font: sourceAttributes.textFont,
+                size: sourceAttributes.size,
+                fillColor: sourceAttributes.fillColor,
+                strokeColor: sourceAttributes.strokeColor,
+                strokeWeight: sourceAttributes.strokeWeight,
+                autoLeading: sourceAttributes.autoLeading,
+                leading: sourceAttributes.leading
+            });
+        }
+        return attributeSnapshots;
+    }
+
+    /**
+     * 控えた文字属性を書き戻す（ベースライン移動と比率はリセット）。属性ごとに失敗しても続ける
+     * @param {TextFrame} textFrame - 書き戻し先のテキストフレーム
+     * @param {Array<object>} attributeSnapshots - snapshotCharacterAttributes() の戻り値
+     * @returns {void}
+     */
+    function restoreCharacterAttributes(textFrame, attributeSnapshots) {
+        var restoreCount = Math.min(textFrame.characters.length, attributeSnapshots.length);
+        for (var i = 0; i < restoreCount; i++) {
+            var targetAttributes = textFrame.characters[i].characterAttributes;
+            var savedAttributes = attributeSnapshots[i];
+
+            runIgnoringErrors(function () { targetAttributes.textFont = savedAttributes.font; });
+            runIgnoringErrors(function () { targetAttributes.size = savedAttributes.size; });
+            runIgnoringErrors(function () { targetAttributes.fillColor = savedAttributes.fillColor; });
+            runIgnoringErrors(function () {
+                var savedStrokeColor = savedAttributes.strokeColor;
+                targetAttributes.strokeColor = savedStrokeColor;
+                targetAttributes.strokeWeight = (savedStrokeColor && savedStrokeColor.typename === "NoColor") ? 0 : savedAttributes.strokeWeight;
+            });
+            runIgnoringErrors(function () { targetAttributes.baselineShift = 0; });
+            runIgnoringErrors(function () { targetAttributes.horizontalScale = 100; });
+            runIgnoringErrors(function () { targetAttributes.verticalScale = 100; });
+            runIgnoringErrors(function () { targetAttributes.autoLeading = savedAttributes.autoLeading; });
+            if (!savedAttributes.autoLeading) runIgnoringErrors(function () { targetAttributes.leading = savedAttributes.leading; });
+        }
+    }
+
+    /**
+     * パス上文字を字形を保ったままポイント文字へ分離する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame[]} pathTextFrames - 分離するパス上文字
+     * @returns {TextFrame[]} 作成したポイント文字
+     */
+    function detachPathTextToPointText(doc, pathTextFrames) {
+        var createdPointTexts = [];
+        if (!doc || !pathTextFrames || !pathTextFrames.length) return createdPointTexts;
 
         // 新規テキストだけ選べるよう選択を解除 / Clear selection
-        safe(function () { doc.selection = null; });
+        runIgnoringErrors(function () { doc.selection = null; });
 
         for (var j = pathTextFrames.length - 1; j >= 0; j--) {
             var pathText = pathTextFrames[j];
-            if (!pathText || pathText.typename !== "TextFrame" || pathText.kind !== TextType.PATHTEXT) continue;
+            if (!pathText || !isPathTextFrame(pathText)) continue;
 
             var originalPath = null;
-            safe(function () { originalPath = pathText.textPath; });
+            runIgnoringErrors(function () { originalPath = pathText.textPath; });
             if (!originalPath) continue;
 
             // 1) 文字ごとの属性を退避 / Snapshot per-character attributes
-            var charAttrs = [];
-            for (var c = 0; c < pathText.characters.length; c++) {
-                var ca = pathText.characters[c].characterAttributes;
-                charAttrs.push({
-                    font: ca.textFont,
-                    size: ca.size,
-                    fillColor: ca.fillColor,
-                    strokeColor: ca.strokeColor,
-                    strokeWeight: ca.strokeWeight,
-                    autoLeading: ca.autoLeading,
-                    leading: ca.leading
-                });
-            }
+            var attributeSnapshots = snapshotCharacterAttributes(pathText);
 
             var textContents = "";
-            safe(function () { textContents = pathText.contents; });
+            runIgnoringErrors(function () { textContents = pathText.contents; });
 
             var justification = null;
-            safe(function () {
+            runIgnoringErrors(function () {
                 if (pathText.paragraphs && pathText.paragraphs.length > 0) {
                     justification = pathText.paragraphs[0].paragraphAttributes.justification;
                 }
             });
 
             // 2) パス始点にポイント文字を新規作成 / Create new point text at path start anchor
-            var newText = doc.textFrames.add();
+            var pointText = doc.textFrames.add();
             var anchorPoint = null;
-            safe(function () {
+            runIgnoringErrors(function () {
                 if (originalPath.pathPoints && originalPath.pathPoints.length > 0) {
                     anchorPoint = originalPath.pathPoints[0].anchor;
                 }
             });
             if (anchorPoint) {
-                newText.position = [anchorPoint[0], anchorPoint[1]];
+                pointText.position = [anchorPoint[0], anchorPoint[1]];
             }
 
-            newText.contents = textContents;
+            pointText.contents = textContents;
 
-            if (justification !== null && newText.paragraphs && newText.paragraphs.length > 0) {
-                safe(function () { newText.paragraphs[0].paragraphAttributes.justification = justification; });
+            if (justification !== null && pointText.paragraphs && pointText.paragraphs.length > 0) {
+                runIgnoringErrors(function () { pointText.paragraphs[0].paragraphAttributes.justification = justification; });
             }
 
             // 既定の線を一旦消し、後で文字ごとに復元 / Clear default stroke, restore per-character later
-            safe(function () {
-                var nc = new NoColor();
-                newText.textRange.characterAttributes.strokeColor = nc;
-                newText.textRange.characterAttributes.strokeWeight = 0;
+            runIgnoringErrors(function () {
+                pointText.textRange.characterAttributes.strokeColor = new NoColor();
+                pointText.textRange.characterAttributes.strokeWeight = 0;
             });
 
             // 文字ごとの属性を復元 / Restore per-character attributes
-            var n = Math.min(newText.characters.length, charAttrs.length);
-            for (var k = 0; k < n; k++) {
-                var targetCa = newText.characters[k].characterAttributes;
-                var srcCa = charAttrs[k];
-
-                safe(function () { targetCa.textFont = srcCa.font; });
-                safe(function () { targetCa.size = srcCa.size; });
-                safe(function () { targetCa.fillColor = srcCa.fillColor; });
-                safe(function () {
-                    var sc = srcCa.strokeColor;
-                    targetCa.strokeColor = sc;
-                    targetCa.strokeWeight = (sc && sc.typename === "NoColor") ? 0 : srcCa.strokeWeight;
-                });
-                safe(function () { targetCa.baselineShift = 0; });
-                safe(function () { targetCa.horizontalScale = 100; });
-                safe(function () { targetCa.verticalScale = 100; });
-                safe(function () { targetCa.autoLeading = srcCa.autoLeading; });
-                if (!srcCa.autoLeading) safe(function () { targetCa.leading = srcCa.leading; });
-            }
+            restoreCharacterAttributes(pointText, attributeSnapshots);
 
             // 3) 元のパス上文字を削除（パスも一緒に消える）/ Remove original path text
-            safe(function () { pathText.remove(); });
+            runIgnoringErrors(function () { pathText.remove(); });
 
             // 4) 新規テキストを選択して返す / Select and return new text
-            safe(function () { newText.selected = true; });
-            created.push(newText);
+            runIgnoringErrors(function () { pointText.selected = true; });
+            createdPointTexts.push(pointText);
         }
 
-        return created;
+        return createdPointTexts;
     }
 
-    /* 選択内のパス上文字をポイント文字へ置き換えた選択配列を返す / Replace path text in selection with point text */
+    /**
+     * 選択内のパス上文字をポイント文字へ置き換え、置き換えた選択配列を返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} currentSelection - 現在の選択
+     * @returns {Array} 置き換え後の選択（パス上文字が無ければ元の選択）
+     */
     function preprocessPathTextSelection(doc, currentSelection) {
         if (!doc || !currentSelection || !currentSelection.length) return currentSelection;
 
         var pathTexts = [];
         for (var i = 0; i < currentSelection.length; i++) {
-            var it = currentSelection[i];
+            var selectedItem = currentSelection[i];
+            /* 無効オブジェクト（削除済み等）は読めない / Invalid (deleted) objects cannot be read */
             try {
-                if (it && it.typename === "TextFrame" && it.kind === TextType.PATHTEXT) {
-                    pathTexts.push(it);
-                }
-            } catch (e0) {
-                // 無効オブジェクト（削除済み等）はスキップ / Skip invalid objects
-            }
+                if (selectedItem && isPathTextFrame(selectedItem)) pathTexts.push(selectedItem);
+            } catch (e0) { }
         }
         if (!pathTexts.length) return currentSelection;
 
-        var newTexts = detachPathTextToPointText(doc, pathTexts);
-        if (!newTexts.length) return currentSelection;
+        var createdPointTexts = detachPathTextToPointText(doc, pathTexts);
+        if (!createdPointTexts.length) return currentSelection;
 
         // パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array
-        var out = [];
+        var replacedSelection = [];
         for (var j = 0; j < currentSelection.length; j++) {
-            var it2 = currentSelection[j];
+            var remainingItem = currentSelection[j];
+            /* 削除したパス上文字は読めないので飛ばす / Removed path text cannot be read, so it is skipped */
             try {
-                if (it2 && it2.typename === "TextFrame" && it2.kind === TextType.PATHTEXT) {
-                    // 旧オブジェクトは除外 / skip old
-                } else if (it2) {
-                    out.push(it2);
-                }
-            } catch (e1) {
-                // 無効オブジェクトはスキップ / Skip invalid objects
-            }
+                if (remainingItem && !isPathTextFrame(remainingItem)) replacedSelection.push(remainingItem);
+            } catch (e1) { }
         }
-        for (var k = 0; k < newTexts.length; k++) out.push(newTexts[k]);
+        for (var k = 0; k < createdPointTexts.length; k++) replacedSelection.push(createdPointTexts[k]);
 
-        try { doc.selection = out; } catch (e) { }
+        try { doc.selection = replacedSelection; } catch (e) { }
         app.redraw();
 
-        return out;
+        return replacedSelection;
     }
 
     // =========================================
     // オーバーセット判定・文字サイズ調整 / Overset detection & font sizing
     // =========================================
 
-    /* overflows プロパティを安全に取得 / Safely read the overflows property */
-    function safeOverflows(tf) {
+    /**
+     * overflows プロパティを安全に取得する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean|null} あふれていれば true（読めなければ null）
+     */
+    function readOverflows(textFrame) {
         try {
-            if (tf && typeof tf.overflows !== "undefined") return !!tf.overflows;
+            if (textFrame && typeof textFrame.overflows !== "undefined") return !!textFrame.overflows;
         } catch (e) { }
         return null;
     }
 
-    /* 指定行数までに全文字が収まらないか判定 / Whether text overflows within the given line count */
-    function isOverset(tf, lineAmt) {
-        if (tf.lines.length > 0) {
-            var chars = 0;
-            lineAmt = (typeof lineAmt === "undefined" || lineAmt === null) ? 1 : Math.floor(lineAmt);
-            if (lineAmt < 1) lineAmt = 1;
-            if (lineAmt > tf.lines.length) lineAmt = tf.lines.length;
-            for (var i = 0; i < lineAmt; i++) { chars += tf.lines[i].characters.length; }
-            return chars < tf.characters.length;
-        }
-        return tf.characters.length > 0;
+    /**
+     * 表示されている行に収まらない文字があるか判定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} あふれているとき true
+     */
+    function hasHiddenCharacters(textFrame) {
+        var lineCount = textFrame.lines.length;
+        if (lineCount === 0) return textFrame.characters.length > 0;
+        var visibleCharacters = 0;
+        for (var i = 0; i < lineCount; i++) { visibleCharacters += textFrame.lines[i].characters.length; }
+        return visibleCharacters < textFrame.characters.length;
     }
 
-    /* テキストフレームがあふれているか判定 / Whether a text frame is overset */
-    function isOversetFrame(tf) {
-        if (tf && tf.kind === TextType.AREATEXT) {
-            var ov = safeOverflows(tf);
-            if (ov !== null) return ov;
-            try { return isOverset(tf, tf.lines.length || 1); } catch (e) { return false; }
+    /**
+     * テキストフレームがあふれているか判定する（エリア内文字は overflows を優先）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} あふれているとき true
+     */
+    function isOversetFrame(textFrame) {
+        if (textFrame && textFrame.kind === TextType.AREATEXT) {
+            var overflowState = readOverflows(textFrame);
+            if (overflowState !== null) return overflowState;
         }
-        try { return isOverset(tf, tf.lines.length || 1); } catch (e) { return false; }
+        try { return hasHiddenCharacters(textFrame); } catch (e) { return false; }
     }
 
-    /* 行送り比率（行送り/サイズ）を取得 / Get leading ratio (leading / size) */
-    function getLeadingInfo(tf) {
+    /**
+     * 行送り比率（行送り/サイズ）を取得する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {{ratio: number}|null} 行送りの比率（自動行送りなどのときは null）
+     */
+    function getLeadingInfo(textFrame) {
         try {
-            var attrs = tf.textRange.characterAttributes;
-            if (attrs.autoLeading) return null;
-            var size = attrs.size, leading = attrs.leading;
-            if (size > 0 && leading > 0) return { ratio: leading / size };
+            var textAttributes = textFrame.textRange.characterAttributes;
+            if (textAttributes.autoLeading) return null;
+            var fontSize = textAttributes.size, leading = textAttributes.leading;
+            if (fontSize > 0 && leading > 0) return { ratio: leading / fontSize };
         } catch (e) { }
         return null;
     }
 
-    /* 比率を保ったまま行送りを更新 / Update leading keeping the ratio */
-    function applyLeading(tf, newSize, li) {
-        if (!li) return;
-        try { tf.textRange.characterAttributes.leading = newSize * li.ratio; } catch (e) { }
+    /**
+     * 比率を保ったまま行送りを更新する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} newSize - 変更後の文字サイズ（pt）
+     * @param {{ratio: number}|null} leadingInfo - getLeadingInfo() の戻り値
+     * @returns {void}
+     */
+    function applyLeading(textFrame, newSize, leadingInfo) {
+        if (!leadingInfo) return;
+        try { textFrame.textRange.characterAttributes.leading = newSize * leadingInfo.ratio; } catch (e) { }
     }
 
-    /* あふれなくなる最大サイズをバイナリサーチで探して縮小 / Shrink to the largest non-overset size */
-    function shrinkFont(tf) {
-        if (tf.characters.length <= 0 || !isOversetFrame(tf)) return;
-        var li = getLeadingInfo(tf);
-        var hi = tf.textRange.characterAttributes.size;
-        var lo = 0.1;
+    /**
+     * 文字サイズを設定し、行送りを比率に合わせる
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} fontSize - 文字サイズ（pt）
+     * @param {{ratio: number}|null} leadingInfo - getLeadingInfo() の戻り値
+     * @returns {void}
+     */
+    function setFontSizeKeepingLeading(textFrame, fontSize, leadingInfo) {
+        textFrame.textRange.characterAttributes.size = fontSize;
+        applyLeading(textFrame, fontSize, leadingInfo);
+    }
 
-        // 最小でもあふれるならそのまま終了 / If even lo overflows, keep min size
-        tf.textRange.characterAttributes.size = lo;
-        applyLeading(tf, lo, li);
-        if (isOversetFrame(tf)) return;
+    /**
+     * あふれなくなる最大サイズを二分探索で探して縮小する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function shrinkFont(textFrame) {
+        if (textFrame.characters.length <= 0 || !isOversetFrame(textFrame)) return;
+        var leadingInfo = getLeadingInfo(textFrame);
+        var upperSize = textFrame.textRange.characterAttributes.size;
+        var lowerSize = 0.1;
 
-        // バイナリサーチ / Binary search
-        for (var iter = 0; iter < 40; iter++) {
-            var mid = (lo + hi) / 2;
-            tf.textRange.characterAttributes.size = mid;
-            applyLeading(tf, mid, li);
-            if (isOversetFrame(tf)) {
-                hi = mid;
+        // 最小でもあふれるならそのまま終了 / If even lowerSize overflows, keep min size
+        setFontSizeKeepingLeading(textFrame, lowerSize, leadingInfo);
+        if (isOversetFrame(textFrame)) return;
+
+        // 二分探索 / Binary search
+        for (var i = 0; i < 40; i++) {
+            var middleSize = (lowerSize + upperSize) / 2;
+            setFontSizeKeepingLeading(textFrame, middleSize, leadingInfo);
+            if (isOversetFrame(textFrame)) {
+                upperSize = middleSize;
             } else {
-                lo = mid;
+                lowerSize = middleSize;
             }
-            if (hi - lo < 0.1) break;
+            if (upperSize - lowerSize < 0.1) break;
         }
 
-        // あふれない側（lo）に確定 / Settle on the non-overset side
-        tf.textRange.characterAttributes.size = lo;
-        applyLeading(tf, lo, li);
+        // あふれない側（lowerSize）に確定 / Settle on the non-overset side
+        setFontSizeKeepingLeading(textFrame, lowerSize, leadingInfo);
     }
 
     // =========================================
     // ダイナミックアクション / Dynamic actions
     // =========================================
 
-    /* 文字列を16進数表現へ / Convert a string to hex */
-    function _hexAscii(s) {
-        var out = "";
-        for (var i = 0; i < s.length; i++) {
-            var h = s.charCodeAt(i).toString(16);
-            if (h.length < 2) h = "0" + h;
-            out += h;
+    /**
+     * 文字列を16進数表現へ変換する
+     * @param {string} text - 変換する文字列
+     * @returns {string} 16進文字列
+     */
+    function asciiToHex(text) {
+        var hexText = "";
+        for (var i = 0; i < text.length; i++) {
+            var hexPair = text.charCodeAt(i).toString(16);
+            if (hexPair.length < 2) hexPair = "0" + hexPair;
+            hexText += hexPair;
         }
-        return out;
+        return hexText;
     }
 
-    /* /name ブロック（ASCII）を生成 / Build a /name block (ASCII) */
-    function _nameBlockAscii(s) {
-        return "/name [ " + s.length + " " + _hexAscii(s).toUpperCase() + " ]";
+    /**
+     * /name ブロック（ASCII）を生成する
+     * @param {string} actionName - アクション名またはセット名
+     * @returns {string} 名前ブロックの文字列
+     */
+    function buildActionNameBlock(actionName) {
+        return "/name [ " + actionName.length + " " + asciiToHex(actionName).toUpperCase() + " ]";
     }
 
-    /* アクションセット定義(.aia)文字列を組み立て / Build an action set (.aia) definition string */
-    function _buildActionSetAIA(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
-        var str = "/version 3" +
-            _nameBlockAscii(setName) +
+    /**
+     * アクションセット定義（.aia）文字列を組み立てる
+     * @param {string} setName - アクションセット名
+     * @param {string} internalName - イベントの内部名
+     * @param {string} localizedNameHex - ローカライズ名（長さと16進。空なら省略）
+     * @param {number} paramKeyInt - パラメーターのキー
+     * @param {Array<{name: string, value: number}>} actionDefs - アクション名と値の組
+     * @returns {string} .aia 形式のアクションセット定義
+     */
+    function buildActionSetAia(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
+        var aiaText = "/version 3" +
+            buildActionNameBlock(setName) +
             "/isOpen 1" +
             "/actionCount " + actionDefs.length;
 
         for (var i = 0; i < actionDefs.length; i++) {
-            var a = actionDefs[i];
-            str += "/action-" + (i + 1) + " {" +
-                " " + _nameBlockAscii(a.name) +
+            var actionDef = actionDefs[i];
+            aiaText += "/action-" + (i + 1) + " {" +
+                " " + buildActionNameBlock(actionDef.name) +
                 " /keyIndex 0" +
                 " /colorIndex 0" +
                 " /isOpen 1" +
@@ -448,83 +615,104 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 " /key " + paramKeyInt +
                 " /showInPalette 4294967295" +
                 " /type (integer)" +
-                " /value " + a.value +
+                " /value " + actionDef.value +
                 " }" +
                 " }" +
                 "}";
         }
-        return str;
+        return aiaText;
     }
 
     /* フレーム整列アクションセット名 / Frame-alignment action set name */
     var AREA_TEXT_ACTION_SET = "AreaText";
 
-    /* アクションセットを読み込む（temp に .aia を書き出して loadAction）/ Load an action set (write .aia to temp, then loadAction) */
+    /* フレーム整列のアクション名（添字がアクションの値：0=上, 1=中央, 2=下, 3=均等）
+       Frame-alignment action names; the index is the action value (0=top, 1=center, 2=bottom, 3=justify) */
+    var FRAME_ALIGNMENT_ACTIONS = ["AlignTop", "AlignCenter", "AlignBottom", "AlignJustify"];
+
+    /**
+     * アクションセットを読み込む（temp に .aia を書き出して loadAction。既存があれば先に外す）
+     * @param {string} setName - アクションセット名
+     * @param {string} aiaString - .aia 形式のアクションセット定義
+     * @returns {void}
+     */
     function loadActionSet(setName, aiaString) {
+        unloadActionSet(setName);
+        /* 一時ファイルの書き出し・読み込みは失敗しうる / Writing the temp file or loading it can fail */
         try {
-            // 既存があれば一旦外して衝突回避 / Unload existing set first to avoid conflicts
-            try { app.unloadAction(setName, ""); } catch (e0) { }
+            var actionFile = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
+            actionFile.open("w");
+            actionFile.write(aiaString);
+            actionFile.close();
 
-            var f = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
-            f.open("w");
-            f.write(aiaString);
-            f.close();
-
-            app.loadAction(f);
-            try { f.remove(); } catch (e1) { }
+            app.loadAction(actionFile);
+            actionFile.remove();
         } catch (e) { }
     }
 
-    /* アクションセットを破棄 / Unload an action set */
+    /**
+     * アクションセットを破棄する
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
     function unloadActionSet(setName) {
+        /* 読み込まれていなければ例外になる / Throws when the set is not loaded */
         try { app.unloadAction(setName, ""); } catch (e) { }
     }
 
-    /* フレーム整列アクション（AlignTop/Center/Bottom/Justify）を読み込む / Load frame-alignment actions */
+    /**
+     * フレーム整列アクション（AlignTop/Center/Bottom/Justify）を読み込む
+     * @returns {void}
+     */
     function loadAreaTextActions() {
-        var aia = _buildActionSetAIA(
+        var actionDefs = [];
+        for (var i = 0; i < FRAME_ALIGNMENT_ACTIONS.length; i++) {
+            actionDefs.push({ name: FRAME_ALIGNMENT_ACTIONS[i], value: i });
+        }
+        var aiaText = buildActionSetAia(
             AREA_TEXT_ACTION_SET,
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
             1717660782,
-            [
-                { name: "AlignTop", value: 0 },
-                { name: "AlignCenter", value: 1 },
-                { name: "AlignBottom", value: 2 },
-                { name: "AlignJustify", value: 3 }
-            ]
+            actionDefs
         );
-        loadActionSet(AREA_TEXT_ACTION_SET, aia);
+        loadActionSet(AREA_TEXT_ACTION_SET, aiaText);
     }
 
-    /* フレーム整列アクションを破棄 / Unload frame-alignment actions */
+    /**
+     * フレーム整列アクションを破棄する
+     * @returns {void}
+     */
     function unloadAreaTextActions() {
         unloadActionSet(AREA_TEXT_ACTION_SET);
     }
 
-    /* テキストの配置（フレーム整列）を変更 / Change vertical alignment (frame alignment)
-       valueInt: 0=上/top, 1=中央/center, 2=下/bottom, 3=均等/justify */
-    function act_alignHorizontal(valueInt) {
-        if (valueInt !== 0 && valueInt !== 1 && valueInt !== 2 && valueInt !== 3) return;
-
-        var actionName = "AlignTop";
-        if (valueInt === 1) actionName = "AlignCenter";
-        else if (valueInt === 2) actionName = "AlignBottom";
-        else if (valueInt === 3) actionName = "AlignJustify";
-
-        try { app.doScript(actionName, AREA_TEXT_ACTION_SET, false); } catch (e) { }
+    /**
+     * テキストの配置（垂直方向のフレーム整列）をアクションで変更する
+     * @param {number} alignValue - 0=上 / 1=中央 / 2=下 / 3=均等
+     * @returns {void}
+     */
+    function runFrameAlignmentAction(alignValue) {
+        if (alignValue !== 0 && alignValue !== 1 && alignValue !== 2 && alignValue !== 3) return;
+        try { app.doScript(FRAME_ALIGNMENT_ACTIONS[alignValue], AREA_TEXT_ACTION_SET, false); } catch (e) { }
     }
 
-    /* 指定フレームにフレーム整列を適用（プレビュー中はスキップ）/ Apply frame alignment (skipped during preview) */
-    function applyAreaTextFrameAlignment(tf, valueInt, forPreview) {
+    /**
+     * 指定フレームにフレーム整列を適用する（プレビュー中はスキップ）
+     * @param {TextFrame} areaTextFrame - 対象のエリア内文字
+     * @param {number} alignValue - 0=上 / 1=中央 / 2=下 / 3=均等
+     * @param {boolean} forPreview - プレビュー中か
+     * @returns {void}
+     */
+    function applyAreaTextFrameAlignment(areaTextFrame, alignValue, forPreview) {
         // app.doScript はプレビュー中に呼ぶと不安定なためスキップ / Unstable during preview, so skip
         if (forPreview) return;
         try {
             var doc = app.activeDocument;
             doc.selection = null;
-            doc.selection = [tf];
+            doc.selection = [areaTextFrame];
             app.redraw(); // 選択状態を確定 / Commit the selection
-            act_alignHorizontal(valueInt);
+            runFrameAlignmentAction(alignValue);
         } catch (e) { }
     }
 
@@ -532,30 +720,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // UIユーティリティ / UI utilities
     // =========================================
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* ↑↓キーで値を増減（Shift=10/Alt=0.1）/ Increment value with arrow keys (Shift=10, Alt=0.1) */
+    /**
+     * ↑↓キーで値を増減する（Shift=10 / Alt=0.1）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - 負の値を許すか
+     * @param {function} [onChangeCallback] - 値を変えたあとに呼ぶ処理
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, allowNegative, onChangeCallback) {
         editText.addEventListener("keydown", function (event) {
             var value = Number(editText.text);
@@ -598,510 +769,632 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
+    /**
+     * 幅・高さの行（ラベル＋入力欄＋単位）を追加する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelKey - LABELS.fieldLabel と LABELS.tooltip のキー
+     * @param {string} unitLabel - 単位の表示
+     * @returns {EditText} 追加した入力欄
+     */
+    function addSizeRow(parentContainer, labelKey, unitLabel) {
+        var sizeRowGroup = parentContainer.add("group");
+        var sizeLabel = sizeRowGroup.add("statictext", undefined, labelText("fieldLabel." + labelKey));
+        sizeLabel.preferredSize.width = SIZE_LABEL_WIDTH;
+        var sizeInput = sizeRowGroup.add("edittext", undefined, "");
+        sizeInput.characters = 5;
+        sizeInput.helpTip = getLabel("tooltip." + labelKey);
+        sizeRowGroup.add("statictext", undefined, unitLabel);
+        return sizeInput;
+    }
+
+    /**
+     * インデントの行（チェックボックス＋入力欄＋単位）を追加する（入力欄は無効で始まる）
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelKey - LABELS.checkbox と LABELS.tooltip のキー
+     * @param {string} unitLabel - 単位の表示
+     * @returns {{checkbox: Checkbox, input: EditText}} 追加したチェックボックスと入力欄
+     */
+    function addIndentRow(parentContainer, labelKey, unitLabel) {
+        var indentRowGroup = parentContainer.add("group");
+        var indentCheckbox = indentRowGroup.add("checkbox", undefined, getLabel("checkbox." + labelKey));
+        indentCheckbox.preferredSize.width = INDENT_CHECKBOX_WIDTH;
+        indentCheckbox.helpTip = getLabel("tooltip." + labelKey);
+        var indentInput = indentRowGroup.add("edittext", undefined, "0");
+        indentInput.characters = 4;
+        indentInput.helpTip = getLabel("tooltip.indentValue");
+        indentRowGroup.add("statictext", undefined, unitLabel);
+        indentInput.enabled = false;
+        return { checkbox: indentCheckbox, input: indentInput };
+    }
+
     // =========================================
     // 変換 / Conversion
     // =========================================
 
-    /* 選択からモードを自動判定して変換し、調整ダイアログを開く / Auto-detect mode, convert, then open the dialog */
+    /**
+     * テキストのフォントとサイズを読む
+     * @param {TextFrame} textFrame - 読み取り元
+     * @returns {{font: TextFont|null, size: number}} フォントとサイズ（読めなければ null / 0）
+     */
+    function readFontAndSize(textFrame) {
+        var fontStyle = { font: null, size: 0 };
+        try {
+            fontStyle.font = textFrame.textRange.characterAttributes.textFont;
+            fontStyle.size = textFrame.textRange.characterAttributes.size;
+        } catch (e) { }
+        return fontStyle;
+    }
+
+    /**
+     * フォントとサイズを適用する（未インストールのフォントなどは失敗しうる）
+     * @param {TextFrame} textFrame - 適用先
+     * @param {{font: TextFont|null, size: number}} fontStyle - readFontAndSize() の戻り値
+     * @returns {void}
+     */
+    function applyFontAndSize(textFrame, fontStyle) {
+        try {
+            if (fontStyle.font) textFrame.textRange.characterAttributes.textFont = fontStyle.font;
+            if (fontStyle.size > 0) textFrame.textRange.characterAttributes.size = fontStyle.size;
+        } catch (e) { }
+    }
+
+    /**
+     * 選択からモードを判定して変換し、調整ダイアログを開く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} currentSelection - 現在の選択
+     * @returns {void}
+     */
     function convertToAreaTypeAndAdjust(doc, currentSelection) {
-        currentSelection = preprocessPathTextSelection(doc, currentSelection);
+        preprocessPathTextSelection(doc, currentSelection);
 
-        var currentSel = app.activeDocument.selection;
-        if (!currentSel || currentSel.length === 0) { return; }
-
-        // 選択種別フラグ / Selection type flags
-        var hasPointText = false, hasPathItem = false;
-        for (var ti = 0; ti < currentSel.length; ti++) {
-            if (currentSel[ti].typename === "TextFrame" && (currentSel[ti].kind === TextType.POINTTEXT || currentSel[ti].kind === TextType.PATHTEXT)) hasPointText = true;
-            if (currentSel[ti].typename === "PathItem" || currentSel[ti].typename === "CompoundPathItem") hasPathItem = true;
-        }
+        var updatedSelection = doc.selection;
+        if (!updatedSelection || updatedSelection.length === 0) { return; }
 
         // 選択内容に応じてモードを決定（ポイント文字は常にボタン風）/ Decide mode (point text is always button style)
-        var useButton = false, useSelected = false;
-        if (hasPointText && hasPathItem) {
-            useSelected = true;
-        } else if (hasPointText && !hasPathItem) {
-            useButton = true;
-        } else {
-            return;
-        }
+        var selectionKinds = classifySelection(updatedSelection);
+        if (!selectionKinds.hasPointText) return;
 
-        var created = runConvert(doc, currentSel, useButton, useSelected);
-        if (created.length > 0) {
-            try { app.activeDocument.selection = created; } catch (e) { }
-            showDialogB(doc, created[0], created);
+        var createdFrames = selectionKinds.hasPathItem
+            ? createAreaTextFromTextAndShape(doc, updatedSelection)
+            : createButtonAreaTexts(doc, updatedSelection);
+        if (createdFrames.length > 0) {
+            doc.selection = createdFrames;
+            app.redraw();
+            showAdjustDialog(doc, createdFrames[0], createdFrames);
         }
     }
 
-    /* モードに応じてエリア内文字を作成し、作成フレーム配列を返す / Create area type per mode; return created frames */
-    function runConvert(doc, currentSelection, useButton, useSelected) {
-        var created = [];
-
-        if (useSelected) {
-            // 選択オブジェクトを利用：テキスト＋図形からエリア内文字を生成 / Text + shape → area type
-            var srcText = null, destPath = null;
-            for (var k = 0; k < currentSelection.length; k++) {
-                if (!srcText && currentSelection[k].typename === "TextFrame") { srcText = currentSelection[k]; }
-                else if (!destPath && currentSelection[k].typename === "PathItem" && currentSelection[k].closed) { destPath = currentSelection[k]; }
-            }
-            if (srcText && destPath) {
-                try {
-                    var srcContents = srcText.contents;
-                    var srcFont = null, srcSize = 0;
-                    try { srcFont = srcText.textRange.characterAttributes.textFont; srcSize = srcText.textRange.characterAttributes.size; } catch (e) { }
-                    var dupPath = destPath.duplicate();
-                    dupPath.filled = false; dupPath.stroked = false;
-                    var newTf = doc.textFrames.areaText(dupPath);
-                    newTf.contents = srcContents;
-                    try { if (srcFont) newTf.textRange.characterAttributes.textFont = srcFont; if (srcSize > 0) newTf.textRange.characterAttributes.size = srcSize; } catch (e) { }
-                    srcText.remove();
-                    destPath.remove();
-                    created.push(newTf);
-                } catch (e) { }
-            }
-        } else if (useButton) {
-            // ボタン風：幅×BUTTON_WIDTH_RATIO・高さ×BUTTON_HEIGHT_RATIO、中央揃え / Button style, centered
-            for (var bt = currentSelection.length - 1; bt >= 0; bt--) {
-                var btItem = currentSelection[bt];
-                if (btItem.typename === "TextFrame" && btItem.kind === TextType.POINTTEXT) {
-                    try {
-                        var btB = btItem.geometricBounds;
-                        var btOW = btB[2] - btB[0], btOH = btB[1] - btB[3];
-                        var btW = btOW * BUTTON_WIDTH_RATIO, btH = btOH * BUTTON_HEIGHT_RATIO;
-                        var btRect = doc.pathItems.rectangle(
-                            btB[1] + (btH - btOH) / 2, btB[0] - (btW - btOW) / 2, btW, btH);
-                        btRect.filled = false; btRect.stroked = false;
-                        var btC = btItem.contents, btFont = null, btSize = 0;
-                        try { btFont = btItem.textRange.characterAttributes.textFont; btSize = btItem.textRange.characterAttributes.size; } catch (e) { }
-                        var btTf = doc.textFrames.areaText(btRect);
-                        btTf.contents = btC;
-                        try { if (btFont) btTf.textRange.characterAttributes.textFont = btFont; if (btSize > 0) btTf.textRange.characterAttributes.size = btSize; } catch (e) { }
-                        // 行揃えを中央に / Horizontal center
-                        try { btTf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
-                        // 縦位置はDOMで不安定なためアクションで中央 / Vertical center via dynamic action (unreliable via DOM)
-                        try { applyAreaTextFrameAlignment(btTf, 1, false); } catch (e2) { }
-                        created.push(btTf);
-                        btItem.remove();
-                    } catch (e) { }
-                }
-            }
+    /**
+     * 選択したテキストと閉じたパスから、エリア内文字を1つ作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selectedItems - 選択オブジェクト
+     * @returns {TextFrame[]} 作成したエリア内文字（作れなければ空）
+     */
+    function createAreaTextFromTextAndShape(doc, selectedItems) {
+        var createdFrames = [];
+        var sourceText = null, destPath = null;
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (!sourceText && selectedItems[i].typename === "TextFrame") { sourceText = selectedItems[i]; }
+            else if (!destPath && selectedItems[i].typename === "PathItem" && selectedItems[i].closed) { destPath = selectedItems[i]; }
         }
+        if (!sourceText || !destPath) return createdFrames;
 
-        if (created.length > 0) {
-            app.activeDocument.selection = created;
-            app.redraw();
+        /* 種類によってはエリア内文字にできない / Some shapes cannot become area type */
+        try {
+            var sourceContents = sourceText.contents;
+            var sourceStyle = readFontAndSize(sourceText);
+            var framePath = destPath.duplicate();
+            framePath.filled = false; framePath.stroked = false;
+            var areaTextFrame = doc.textFrames.areaText(framePath);
+            areaTextFrame.contents = sourceContents;
+            applyFontAndSize(areaTextFrame, sourceStyle);
+            sourceText.remove();
+            destPath.remove();
+            createdFrames.push(areaTextFrame);
+        } catch (e) { }
+        return createdFrames;
+    }
+
+    /**
+     * ポイント文字ごとに、幅×BUTTON_WIDTH_RATIO・高さ×BUTTON_HEIGHT_RATIO の枠で中央揃えのエリア内文字を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selectedItems - 選択オブジェクト
+     * @returns {TextFrame[]} 作成したエリア内文字
+     */
+    function createButtonAreaTexts(doc, selectedItems) {
+        var createdFrames = [];
+        for (var i = selectedItems.length - 1; i >= 0; i--) {
+            var pointText = selectedItems[i];
+            if (pointText.typename !== "TextFrame" || pointText.kind !== TextType.POINTTEXT) continue;
+            /* 1件で失敗しても残りを処理する / One failure must not stop the rest */
+            try {
+                var textBounds = pointText.geometricBounds;
+                var originalWidth = textBounds[2] - textBounds[0], originalHeight = textBounds[1] - textBounds[3];
+                var buttonWidth = originalWidth * BUTTON_WIDTH_RATIO, buttonHeight = originalHeight * BUTTON_HEIGHT_RATIO;
+                var buttonRect = doc.pathItems.rectangle(
+                    textBounds[1] + (buttonHeight - originalHeight) / 2, textBounds[0] - (buttonWidth - originalWidth) / 2, buttonWidth, buttonHeight);
+                buttonRect.filled = false; buttonRect.stroked = false;
+                var textContents = pointText.contents;
+                var sourceStyle = readFontAndSize(pointText);
+                var areaTextFrame = doc.textFrames.areaText(buttonRect);
+                areaTextFrame.contents = textContents;
+                applyFontAndSize(areaTextFrame, sourceStyle);
+                // 行揃えを中央に / Horizontal center
+                try { areaTextFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
+                // 縦位置はDOMで不安定なためアクションで中央 / Vertical center via dynamic action (unreliable via DOM)
+                applyAreaTextFrameAlignment(areaTextFrame, 1, false);
+                createdFrames.push(areaTextFrame);
+                pointText.remove();
+            } catch (e) { }
         }
-        return created;
+        return createdFrames;
     }
 
     // =========================================
     // 調整ダイアログ / Adjust dialog
     // =========================================
 
-    /* エリア内文字の調整ダイアログを表示 / Show the area-type adjust dialog */
-    function showDialogB(doc, initialTf, targetFrames) {
-        var rulerInfo = getUnitInfo("rulerType");
+    /**
+     * 幅・高さの入力を検証して有効値を返す（不正なら最終正常値へ戻す）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {number|null} lastValue - 最終正常値（ルーラー単位）
+     * @param {number} pointsPerUnit - ルーラー単位1あたりのポイント数
+     * @returns {number|null} 有効値（ルーラー単位。不正なら null）
+     */
+    function validateSizeField(editText, lastValue, pointsPerUnit) {
+        var sizeValue = parseFloat(String(editText.text));
+        if (isNaN(sizeValue) || !isFinite(sizeValue) || sizeValue <= 0) {
+            if (lastValue !== null) editText.text = lastValue;
+            return null;
+        }
+        /* 表示単位での上限値（極端値防止）/ Max size in ruler units (guards extreme values) */
+        var maxSize = 100000 / pointsPerUnit;
+        if (sizeValue > maxSize) {
+            sizeValue = maxSize;
+            editText.text = Math.round(sizeValue * 100) / 100;
+        }
+        if (sizeValue < 0.01) {
+            sizeValue = 0.01;
+            editText.text = Math.round(sizeValue * 100) / 100;
+        }
+        return sizeValue;
+    }
+
+    /**
+     * 選択からエリア内文字だけを集める
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {TextFrame[]|null} エリア内文字（無ければ・読めなければ null）
+     */
+    function collectSelectedAreaTexts(doc) {
+        /* undo 後などは選択が読めないことがある / The selection may be unreadable, e.g. after an undo */
+        try {
+            var currentSelection = doc.selection;
+            var areaTextFrames = [];
+            if (currentSelection && currentSelection.length) {
+                for (var i = 0; i < currentSelection.length; i++) {
+                    if (currentSelection[i] && isAreaTextFrame(currentSelection[i])) {
+                        areaTextFrames.push(currentSelection[i]);
+                    }
+                }
+            }
+            return areaTextFrames.length ? areaTextFrames : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 調整ダイアログを組み立てる（イベントは showAdjustDialog() で結び付ける）
+     * @param {string} unitLabel - ルーラー単位の表示
+     * @returns {object} ダイアログと各コントロール
+     */
+    function buildAdjustDialog(unitLabel) {
+        var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        adjustDialog.alignChildren = "fill";
+        adjustDialog.margins = DIALOG_MARGINS;
+
+        var mainColumnGroup = adjustDialog.add("group");
+        setupGroup(mainColumnGroup, "column");
+
+        /* フォントサイズ / Font size */
+        var fontSizePanel = mainColumnGroup.add("panel", undefined, getLabel("panel.fontSize"));
+        setupPanel(fontSizePanel);
+        var fontSizeRow = fontSizePanel.add("group");
+        fontSizeRow.alignment = "left";
+        fontSizeRow.add("statictext", undefined, labelText("fieldLabel.fontSize"));
+        var fontSizeInput = fontSizeRow.add("edittext", undefined, "");
+        fontSizeInput.characters = 5;
+        fontSizeInput.helpTip = getLabel("tooltip.fontSize");
+        fontSizeRow.add("statictext", undefined, "pt");
+        var oversetButtonRow = fontSizePanel.add("group");
+        oversetButtonRow.orientation = "row";
+        var btnFixOverset = oversetButtonRow.add("button", undefined, getLabel("button.overset"));
+        btnFixOverset.helpTip = getLabel("tooltip.overset");
+
+        /* フレームサイズ / Frame size */
+        var frameSizePanel = mainColumnGroup.add("panel", undefined, getLabel("panel.frameSize"));
+        setupPanel(frameSizePanel);
+        var widthInput = addSizeRow(frameSizePanel, "width", unitLabel);
+        var heightInput = addSizeRow(frameSizePanel, "height", unitLabel);
+
+        /* インデント / Indent */
+        var indentPanel = mainColumnGroup.add("panel", undefined, getLabel("panel.indent"));
+        setupPanel(indentPanel);
+        // 連動チェックを右側に並べるため行方向へ上書き / Override to row so "Link" sits to the right
+        indentPanel.orientation = "row";
+        indentPanel.alignChildren = ["left", "top"];
+        var indentFieldsColumn = indentPanel.add("group");
+        indentFieldsColumn.orientation = "column";
+        indentFieldsColumn.alignChildren = "left";
+        var leftIndentRow = addIndentRow(indentFieldsColumn, "indentLeft", unitLabel);
+        var rightIndentRow = addIndentRow(indentFieldsColumn, "indentRight", unitLabel);
+        var syncColumn = indentPanel.add("group");
+        syncColumn.orientation = "column";
+        syncColumn.alignChildren = "left";
+        syncColumn.alignment = ["left", "center"];
+        var syncCheckbox = syncColumn.add("checkbox", undefined, getLabel("checkbox.sync"));
+        syncCheckbox.helpTip = getLabel("tooltip.sync");
+
+        /* オプション / Options */
+        var optionsPanel = mainColumnGroup.add("panel", undefined, getLabel("panel.options"));
+        setupPanel(optionsPanel);
+        var marginRow = optionsPanel.add("group");
+        var marginCheckbox = marginRow.add("checkbox", undefined, getLabel("checkbox.margin"));
+        marginCheckbox.helpTip = getLabel("tooltip.margin");
+        var marginInput = marginRow.add("edittext", undefined, "0");
+        marginInput.characters = 6;
+        marginInput.helpTip = getLabel("tooltip.margin");
+        var marginUnitLabel = marginRow.add("statictext", undefined, unitLabel);
+        marginInput.enabled = false;
+        marginUnitLabel.enabled = false;
+
+        /* ボタンエリア / Button area */
+        var btnRowGroup = adjustDialog.add("group");
+        setupGroup(btnRowGroup, "row");
+        btnRowGroup.alignChildren = ["right", "center"];
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        var btnClose = btnRightGroup.add("button", undefined, getLabel("button.close"), { name: "cancel" });
+        var btnRun = btnRightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+
+        return {
+            adjustDialog: adjustDialog,
+            fontSizeInput: fontSizeInput,
+            btnFixOverset: btnFixOverset,
+            widthInput: widthInput,
+            heightInput: heightInput,
+            leftIndentCheckbox: leftIndentRow.checkbox,
+            leftIndentInput: leftIndentRow.input,
+            rightIndentCheckbox: rightIndentRow.checkbox,
+            rightIndentInput: rightIndentRow.input,
+            syncCheckbox: syncCheckbox,
+            marginCheckbox: marginCheckbox,
+            marginInput: marginInput,
+            marginUnitLabel: marginUnitLabel,
+            btnClose: btnClose,
+            btnRun: btnRun
+        };
+    }
+
+    /**
+     * エリア内文字の調整ダイアログを表示する（プレビューは常時ON）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame|null} initialFrame - 初期値を読むエリア内文字
+     * @param {TextFrame[]|null} targetFrames - 調整対象（null なら現在の選択）
+     * @returns {void}
+     */
+    function showAdjustDialog(doc, initialFrame, targetFrames) {
+        var rulerUnit = getUnitInfo("rulerType");
+        var pointsPerUnit = rulerUnit.pointsPerUnit;
 
         // 受け取った変換結果を確実に対象にする / Make the passed frames the active target
-        if (targetFrames && targetFrames.length) {
-            try { app.activeDocument.selection = targetFrames; } catch (e) { }
-        } else if (initialTf) {
-            try { app.activeDocument.selection = [initialTf]; } catch (e2) { }
+        var framesToSelect = (targetFrames && targetFrames.length) ? targetFrames : (initialFrame ? [initialFrame] : null);
+        if (framesToSelect) {
+            try { doc.selection = framesToSelect; } catch (e) { }
         }
         app.redraw();
 
         // モーダル中は selection が変動するため、渡された配列を優先して固定 / Pin targets (selection drifts in modal)
-        var _fixedTargets = null;
+        var fixedTargets = null;
         if (targetFrames && targetFrames.length) {
-            _fixedTargets = targetFrames.slice(0);
+            fixedTargets = targetFrames.slice(0);
         } else {
+            /* 選択が読めないことがある / The selection may be unreadable */
             try {
-                var _sel0 = app.activeDocument.selection;
-                if (_sel0 && _sel0.length) {
-                    _fixedTargets = [];
-                    for (var _k0 = 0; _k0 < _sel0.length; _k0++) { _fixedTargets.push(_sel0[_k0]); }
+                var initialSelection = doc.selection;
+                if (initialSelection && initialSelection.length) {
+                    fixedTargets = [];
+                    for (var i = 0; i < initialSelection.length; i++) { fixedTargets.push(initialSelection[i]); }
                 }
             } catch (e4) { }
         }
 
-        /* 現在の選択からエリア内文字を取り直して固定対象を更新 / Refresh pinned targets from selection */
-        function refreshFixedTargetsFromSelection() {
-            try {
-                var s = app.activeDocument.selection;
-                var arr = [];
-                if (s && s.length) {
-                    for (var i = 0; i < s.length; i++) {
-                        if (s[i] && s[i].typename === "TextFrame" && s[i].kind === TextType.AREATEXT) {
-                            arr.push(s[i]);
-                        }
-                    }
-                }
-                _fixedTargets = arr.length ? arr : null;
-            } catch (e) {
-                _fixedTargets = null;
-            }
-        }
-
-        var dlgB = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dlgB.alignChildren = "fill";
-        dlgB.margins = 20;
-
-        var grpLeft = dlgB.add("group");
-        setupGroup(grpLeft, "column");
-
-        /* フォントサイズ / Font size */
-        var pnlAutoSize = grpLeft.add("panel", undefined, getLabel("panel.fontSize"));
-        setupPanel(pnlAutoSize);
-        var grpFontSize = pnlAutoSize.add("group");
-        grpFontSize.alignment = "left";
-        grpFontSize.add("statictext", undefined, labelText("label.fontSize"));
-        var etFontSize = grpFontSize.add("edittext", undefined, "");
-        etFontSize.characters = 5;
-        etFontSize.helpTip = getLabel("tooltip.fontSize");
-        grpFontSize.add("statictext", undefined, "pt");
-        var grpAutoSizeBtns = pnlAutoSize.add("group");
-        grpAutoSizeBtns.orientation = "row";
-        var btnTextSize = grpAutoSizeBtns.add("button", undefined, getLabel("button.overset"));
-        btnTextSize.helpTip = getLabel("tooltip.overset");
-
-        /* フレームサイズ / Frame size */
-        var pnlFrameSize = grpLeft.add("panel", undefined, getLabel("panel.frameSize"));
-        setupPanel(pnlFrameSize);
-        var grpWidth = pnlFrameSize.add("group");
-        var lblWidth = grpWidth.add("statictext", undefined, labelText("label.width"));
-        lblWidth.preferredSize.width = 44;
-        var etWidth = grpWidth.add("edittext", undefined, "");
-        etWidth.characters = 5;
-        etWidth.helpTip = getLabel("tooltip.width");
-        grpWidth.add("statictext", undefined, rulerInfo.label);
-        var grpHeight = pnlFrameSize.add("group");
-        var lblHeight = grpHeight.add("statictext", undefined, labelText("label.height"));
-        lblHeight.preferredSize.width = 44;
-        var etHeight = grpHeight.add("edittext", undefined, "");
-        etHeight.characters = 5;
-        etHeight.helpTip = getLabel("tooltip.height");
-        grpHeight.add("statictext", undefined, rulerInfo.label);
-
-        /* インデント / Indent */
-        var pnlIndent = grpLeft.add("panel", undefined, getLabel("panel.indent"));
-        setupPanel(pnlIndent);
-        // 連動チェックを右側に並べるため行方向へ上書き / Override to row so "Link" sits to the right
-        pnlIndent.orientation = "row";
-        pnlIndent.alignChildren = ["left", "top"];
-        var grpIndentLeft = pnlIndent.add("group");
-        grpIndentLeft.orientation = "column";
-        grpIndentLeft.alignChildren = "left";
-        var grpLeftIndent = grpIndentLeft.add("group");
-        var chkLeftIndent = grpLeftIndent.add("checkbox", undefined, getLabel("checkbox.indentLeft"));
-        chkLeftIndent.preferredSize.width = 52;
-        chkLeftIndent.helpTip = getLabel("tooltip.indentLeft");
-        var etLeftIndent = grpLeftIndent.add("edittext", undefined, "0");
-        etLeftIndent.characters = 4;
-        etLeftIndent.helpTip = getLabel("tooltip.indentValue");
-        grpLeftIndent.add("statictext", undefined, rulerInfo.label);
-        etLeftIndent.enabled = false;
-        var grpRightIndent = grpIndentLeft.add("group");
-        var chkRightIndent = grpRightIndent.add("checkbox", undefined, getLabel("checkbox.indentRight"));
-        chkRightIndent.preferredSize.width = 52;
-        chkRightIndent.helpTip = getLabel("tooltip.indentRight");
-        var etRightIndent = grpRightIndent.add("edittext", undefined, "0");
-        etRightIndent.characters = 4;
-        etRightIndent.helpTip = getLabel("tooltip.indentValue");
-        grpRightIndent.add("statictext", undefined, rulerInfo.label);
-        etRightIndent.enabled = false;
-        var grpIndentRight = pnlIndent.add("group");
-        grpIndentRight.orientation = "column";
-        grpIndentRight.alignChildren = "left";
-        grpIndentRight.alignment = ["left", "center"];
-        var chkSync = grpIndentRight.add("checkbox", undefined, getLabel("checkbox.sync"));
-        chkSync.helpTip = getLabel("tooltip.sync");
-
-        /* オプション / Options */
-        var pnlOptions = grpLeft.add("panel", undefined, getLabel("panel.options"));
-        setupPanel(pnlOptions);
-        var grpMargin = pnlOptions.add("group");
-        var chkMargin = grpMargin.add("checkbox", undefined, getLabel("checkbox.margin"));
-        chkMargin.helpTip = getLabel("tooltip.margin");
-        var etMargin = grpMargin.add("edittext", undefined, "0");
-        etMargin.characters = 6;
-        etMargin.helpTip = getLabel("tooltip.margin");
-        var lblUnit = grpMargin.add("statictext", undefined, rulerInfo.label);
-        etMargin.enabled = false;
-        lblUnit.enabled = false;
-
-        /* ボタンエリア / Button area */
-        var grpBottom = dlgB.add("group");
-        setupGroup(grpBottom, "row");
-        grpBottom.alignChildren = ["right", "center"];
-        var btnGroupB = grpBottom.add("group");
-        btnGroupB.alignment = ["right", "center"];
-        var btnCloseB = btnGroupB.add("button", undefined, getLabel("button.close"), { name: "cancel" });
-        var btnRun = btnGroupB.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        var dialogControls = buildAdjustDialog(rulerUnit.label);
+        var adjustDialog = dialogControls.adjustDialog;
+        var fontSizeInput = dialogControls.fontSizeInput;
+        var widthInput = dialogControls.widthInput;
+        var heightInput = dialogControls.heightInput;
+        var leftIndentCheckbox = dialogControls.leftIndentCheckbox;
+        var leftIndentInput = dialogControls.leftIndentInput;
+        var rightIndentCheckbox = dialogControls.rightIndentCheckbox;
+        var rightIndentInput = dialogControls.rightIndentInput;
+        var syncCheckbox = dialogControls.syncCheckbox;
+        var marginCheckbox = dialogControls.marginCheckbox;
+        var marginInput = dialogControls.marginInput;
+        var marginUnitLabel = dialogControls.marginUnitLabel;
 
         // 状態変数 / State
         var isPreviewActive = false;
-        var _autoSizeMode = "none";
-        var hasMultiParagraph = false;
-        var fontSize = 0;
 
         // 入力バリデーション用の最終正常値（ルーラー単位）/ Last valid values for validation (ruler units)
-        var _lastValidWidth = null;
-        var _lastValidHeight = null;
+        var lastValidWidth = null;
+        var lastValidHeight = null;
 
-        /* 表示単位での上限値（極端値防止）/ Max size in ruler units (guards extreme values) */
-        function _maxSizeInRulerUnits() {
-            return 100000 / rulerInfo.pointsPerUnit;
+        /**
+         * ポイント値をルーラー単位に換算して小数第2位で丸める
+         * @param {number} valueInPt - ポイント値
+         * @returns {number} ルーラー単位の値
+         */
+        function toRoundedRulerUnits(valueInPt) {
+            return Math.round((valueInPt / pointsPerUnit) * 100) / 100;
         }
 
-        /* 幅/高さ入力を検証して有効値を返す（不正は最終正常値へ戻す）/ Validate width/height input */
-        function validateSizeField(editText, lastValue) {
-            var raw = String(editText.text);
-            var v = parseFloat(raw);
-            if (isNaN(v) || !isFinite(v)) {
-                if (lastValue !== null) editText.text = lastValue;
-                return null;
-            }
-            if (v <= 0) {
-                if (lastValue !== null) editText.text = lastValue;
-                return null;
-            }
-            var maxV = _maxSizeInRulerUnits();
-            if (v > maxV) {
-                v = maxV;
-                editText.text = Math.round(v * 100) / 100;
-            }
-            if (v < 0.01) {
-                v = 0.01;
-                editText.text = Math.round(v * 100) / 100;
-            }
-            return v;
-        }
-
-        /* 対象フレームから現在値をUIに読み込む / Load current values from the frame into the UI */
-        function loadValuesFromFrame(tf0) {
-            try { hasMultiParagraph = (tf0.paragraphs && tf0.paragraphs.length >= 2); } catch (e) { hasMultiParagraph = false; }
-            var initW = tf0.textPath.width / rulerInfo.pointsPerUnit;
-            var initH = tf0.textPath.height / rulerInfo.pointsPerUnit;
-            fontSize = 0;
-            try { fontSize = tf0.textRange.characterAttributes.size || 0; } catch (e) { }
-            if (fontSize > 0) { etFontSize.text = Math.round(fontSize * 100) / 100; }
-            etWidth.text = Math.round(initW * 100) / 100;
-            etHeight.text = Math.round(initH * 100) / 100;
-            _lastValidWidth = parseFloat(etWidth.text);
-            _lastValidHeight = parseFloat(etHeight.text);
+        /**
+         * 対象フレームから現在値をUIに読み込む
+         * @param {TextFrame} sourceFrame - 読み取り元のエリア内文字
+         * @returns {void}
+         */
+        function loadValuesFromFrame(sourceFrame) {
+            var hasMultiParagraph;
+            try { hasMultiParagraph = (sourceFrame.paragraphs && sourceFrame.paragraphs.length >= 2); } catch (e) { hasMultiParagraph = false; }
+            var initialWidth = toRoundedRulerUnits(sourceFrame.textPath.width);
+            var initialHeight = toRoundedRulerUnits(sourceFrame.textPath.height);
+            var fontSize = 0;
+            try { fontSize = sourceFrame.textRange.characterAttributes.size || 0; } catch (e) { }
+            if (fontSize > 0) { fontSizeInput.text = Math.round(fontSize * 100) / 100; }
+            widthInput.text = initialWidth;
+            heightInput.text = initialHeight;
+            lastValidWidth = parseFloat(widthInput.text);
+            lastValidHeight = parseFloat(heightInput.text);
             try {
-                var sp = tf0.spacing || 0;
-                etMargin.text = Math.round((sp / rulerInfo.pointsPerUnit) * 100) / 100;
-                chkMargin.value = (sp !== 0);
-                etMargin.enabled = chkMargin.value;
-                lblUnit.enabled = chkMargin.value;
+                var frameSpacing = sourceFrame.spacing || 0;
+                marginInput.text = toRoundedRulerUnits(frameSpacing);
+                marginCheckbox.value = (frameSpacing !== 0);
+                marginInput.enabled = marginCheckbox.value;
+                marginUnitLabel.enabled = marginCheckbox.value;
             } catch (e) { }
             try {
-                var ilp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].leftIndent || 0) : 0;
-                var irp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].rightIndent || 0) : 0;
-                chkLeftIndent.value = (ilp !== 0);
-                etLeftIndent.enabled = chkLeftIndent.value;
-                etLeftIndent.text = chkLeftIndent.value ? Math.round((ilp / rulerInfo.pointsPerUnit) * 100) / 100 : "0";
-                chkRightIndent.value = (irp !== 0);
-                etRightIndent.enabled = chkRightIndent.value;
-                etRightIndent.text = chkRightIndent.value ? Math.round((irp / rulerInfo.pointsPerUnit) * 100) / 100 : "0";
+                var leftIndentPt = sourceFrame.paragraphs.length > 0 ? (sourceFrame.paragraphs[0].leftIndent || 0) : 0;
+                var rightIndentPt = sourceFrame.paragraphs.length > 0 ? (sourceFrame.paragraphs[0].rightIndent || 0) : 0;
+                leftIndentCheckbox.value = (leftIndentPt !== 0);
+                leftIndentInput.enabled = leftIndentCheckbox.value;
+                leftIndentInput.text = leftIndentCheckbox.value ? toRoundedRulerUnits(leftIndentPt) : "0";
+                rightIndentCheckbox.value = (rightIndentPt !== 0);
+                rightIndentInput.enabled = rightIndentCheckbox.value;
+                rightIndentInput.text = rightIndentCheckbox.value ? toRoundedRulerUnits(rightIndentPt) : "0";
             } catch (e) { }
-            btnTextSize.enabled = !hasMultiParagraph;
+            dialogControls.btnFixOverset.enabled = !hasMultiParagraph;
         }
 
-        /* UIの値をフレームへ適用（行揃え・配置は常に中央）/ Apply UI values (justify & alignment always centered) */
-        function runAdjust(forPreview) {
-            var doTextSize = (_autoSizeMode === "textsize");
+        /**
+         * UIの値をフレームへ適用する（行揃え・配置は常に中央）
+         * @param {boolean} forPreview - プレビューとして適用するか（フレーム整列のアクションは実行しない）
+         * @param {boolean} [shrinkToFit] - あふれないところまでフォントサイズを下げるか
+         * @returns {void}
+         */
+        function runAdjust(forPreview, shrinkToFit) {
+            var justification = Justification.CENTER;
+            var frameAlignment = 1; /* 中央 / center */
 
-            var justValue = Justification.CENTER;
-            var alignValueInt = 1;
-
-            var leftIndentPt = (chkLeftIndent.value || chkSync.value)
-                ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit : 0;
-            var rightIndentPt = chkSync.value
+            var leftIndentPt = (leftIndentCheckbox.value || syncCheckbox.value)
+                ? (parseFloat(leftIndentInput.text) || 0) * pointsPerUnit : 0;
+            var rightIndentPt = syncCheckbox.value
                 ? leftIndentPt
-                : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit : 0);
-            var marginPt = chkMargin.value ? (parseFloat(etMargin.text) || 0) * rulerInfo.pointsPerUnit : 0;
+                : (rightIndentCheckbox.value ? (parseFloat(rightIndentInput.text) || 0) * pointsPerUnit : 0);
+            var marginPt = marginCheckbox.value ? (parseFloat(marginInput.text) || 0) * pointsPerUnit : 0;
 
-            var savedSel = [];
-            var origSel = app.activeDocument.selection;
-            for (var s = 0; s < origSel.length; s++) { savedSel.push(origSel[s]); }
+            var savedSelection = [];
+            var originalSelection = doc.selection;
+            for (var j = 0; j < originalSelection.length; j++) { savedSelection.push(originalSelection[j]); }
 
             // 固定ターゲットを優先 / Prefer pinned targets
-            if (!(_fixedTargets && _fixedTargets.length)) { refreshFixedTargetsFromSelection(); }
-            var targets = _fixedTargets && _fixedTargets.length ? _fixedTargets : app.activeDocument.selection;
+            if (!(fixedTargets && fixedTargets.length)) { fixedTargets = collectSelectedAreaTexts(doc); }
+            var adjustTargets = fixedTargets && fixedTargets.length ? fixedTargets : doc.selection;
 
-            for (var i = targets.length - 1; i >= 0; i--) {
-                var obj = targets[i];
-                if (obj.typename === "TextFrame" && obj.kind === TextType.AREATEXT) {
-                    try { obj.spacing = marginPt; } catch (e) { }
-                    // 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values
-                    var wRu = validateSizeField(etWidth, _lastValidWidth);
-                    var hRu = validateSizeField(etHeight, _lastValidHeight);
-                    if (wRu !== null) { _lastValidWidth = wRu; try { obj.textPath.width = wRu * rulerInfo.pointsPerUnit; } catch (e) { } }
-                    if (hRu !== null) { _lastValidHeight = hRu; try { obj.textPath.height = hRu * rulerInfo.pointsPerUnit; } catch (e) { } }
-                    if (doTextSize) { shrinkFont(obj); }
-                    try { var pa2 = obj.textRange.paragraphAttributes; pa2.justification = justValue; pa2.leftIndent = leftIndentPt; pa2.rightIndent = rightIndentPt; } catch (e) { }
-                    applyAreaTextFrameAlignment(obj, alignValueInt, forPreview);
-                }
+            for (var i = adjustTargets.length - 1; i >= 0; i--) {
+                var targetFrame = adjustTargets[i];
+                if (!isAreaTextFrame(targetFrame)) continue;
+                try { targetFrame.spacing = marginPt; } catch (e) { }
+                // 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values
+                var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, pointsPerUnit);
+                var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, pointsPerUnit);
+                if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; try { targetFrame.textPath.width = widthInRulerUnits * pointsPerUnit; } catch (e) { } }
+                if (heightInRulerUnits !== null) { lastValidHeight = heightInRulerUnits; try { targetFrame.textPath.height = heightInRulerUnits * pointsPerUnit; } catch (e) { } }
+                if (shrinkToFit) { shrinkFont(targetFrame); }
+                try {
+                    var paragraphAttrs = targetFrame.textRange.paragraphAttributes;
+                    paragraphAttrs.justification = justification;
+                    paragraphAttrs.leftIndent = leftIndentPt;
+                    paragraphAttrs.rightIndent = rightIndentPt;
+                } catch (e) { }
+                applyAreaTextFrameAlignment(targetFrame, frameAlignment, forPreview);
             }
-            if (savedSel.length > 0) { try { app.activeDocument.selection = savedSel; } catch (e) { } }
+            if (savedSelection.length > 0) { try { doc.selection = savedSelection; } catch (e) { } }
             app.redraw();
         }
 
-        /* プレビューを更新（常時ON。直前のプレビューはundoで戻す）/ Update preview (always on; undo the previous one first) */
+        /**
+         * 直前のプレビューを undo で取り消す
+         * @returns {void}
+         */
+        function undoPreview() {
+            try { app.undo(); } catch (e) { }
+            app.redraw();
+            isPreviewActive = false;
+        }
+
+        /**
+         * プレビューを更新する（常時ON。直前のプレビューは undo で戻す）
+         * @returns {void}
+         */
         function updatePreview() {
             if (isPreviewActive) {
-                try { app.undo(); } catch (e) { }
-                app.redraw();
-                isPreviewActive = false;
-
+                undoPreview();
                 // undo 後は参照が無効化されるため対象を取り直す / Refresh targets after undo
-                refreshFixedTargetsFromSelection();
+                fixedTargets = collectSelectedAreaTexts(doc);
             }
-            if (!(_fixedTargets && _fixedTargets.length)) { refreshFixedTargetsFromSelection(); }
+            if (!(fixedTargets && fixedTargets.length)) { fixedTargets = collectSelectedAreaTexts(doc); }
             runAdjust(true);
             isPreviewActive = true;
         }
 
-        /* フォントサイズ入力を選択中のエリア内文字へ即時反映 / Apply font size field immediately */
+        /**
+         * フォントサイズ入力を選択中のエリア内文字へ即時反映する
+         * @returns {void}
+         */
         function applyFontSizeFromField() {
-            var newSize = parseFloat(etFontSize.text) || 0;
+            var newSize = parseFloat(fontSizeInput.text) || 0;
             if (newSize <= 0) return;
-            var tgts = app.activeDocument.selection;
-            for (var i = 0; i < tgts.length; i++) {
-                if (tgts[i].typename === "TextFrame" && tgts[i].kind === TextType.AREATEXT) {
-                    try { tgts[i].textRange.characterAttributes.size = newSize; } catch (e) { }
+            var selectedItems = doc.selection;
+            for (var i = 0; i < selectedItems.length; i++) {
+                if (isAreaTextFrame(selectedItems[i])) {
+                    try { selectedItems[i].textRange.characterAttributes.size = newSize; } catch (e) { }
                 }
             }
             app.redraw();
         }
 
-        /* 幅入力の検証＋プレビュー / Validate width then preview */
+        /**
+         * 幅入力を検証してプレビューする
+         * @returns {void}
+         */
         function onWidthChange() {
-            var wRu = validateSizeField(etWidth, _lastValidWidth);
-            if (wRu !== null) { _lastValidWidth = wRu; }
+            var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, pointsPerUnit);
+            if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; }
             updatePreview();
         }
 
-        /* 連動時に右インデントを同期してから幅変更扱い / Sync right indent (when linked) then treat as width change */
+        /**
+         * 高さ入力を検証してプレビューする
+         * @returns {void}
+         */
+        function onHeightChange() {
+            var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, pointsPerUnit);
+            if (heightInRulerUnits !== null) { lastValidHeight = heightInRulerUnits; }
+            updatePreview();
+        }
+
+        /**
+         * 連動時に右インデントを同期してから幅変更扱いにする
+         * @returns {void}
+         */
         function onAdjustmentChange() {
-            if (chkSync.value) { etRightIndent.text = etLeftIndent.text; }
+            if (syncCheckbox.value) { rightIndentInput.text = leftIndentInput.text; }
             onWidthChange();
         }
 
         // --- イベントハンドラ / Event handlers ---
-        btnTextSize.onClick = function () { _autoSizeMode = "textsize"; runAdjust(false); _autoSizeMode = "none"; };
-        chkMargin.onClick = function () {
-            etMargin.enabled = chkMargin.value;
-            lblUnit.enabled = chkMargin.value;
-            if (chkMargin.value) { etMargin.text = "1"; }
+        dialogControls.btnFixOverset.onClick = function () { runAdjust(false, true); };
+        marginCheckbox.onClick = function () {
+            marginInput.enabled = marginCheckbox.value;
+            marginUnitLabel.enabled = marginCheckbox.value;
+            if (marginCheckbox.value) { marginInput.text = "1"; }
             onAdjustmentChange();
         };
-        chkSync.onClick = function () {
-            if (chkSync.value) {
-                chkLeftIndent.value = true; etLeftIndent.enabled = true;
-                chkRightIndent.enabled = false; etRightIndent.enabled = false;
-                etRightIndent.text = etLeftIndent.text;
+        syncCheckbox.onClick = function () {
+            if (syncCheckbox.value) {
+                leftIndentCheckbox.value = true; leftIndentInput.enabled = true;
+                rightIndentCheckbox.enabled = false; rightIndentInput.enabled = false;
+                rightIndentInput.text = leftIndentInput.text;
             } else {
-                chkRightIndent.enabled = true; etRightIndent.enabled = chkRightIndent.value;
+                rightIndentCheckbox.enabled = true; rightIndentInput.enabled = rightIndentCheckbox.value;
             }
             onAdjustmentChange();
         };
-        chkLeftIndent.onClick = function () {
-            if (!chkSync.value) { etLeftIndent.enabled = chkLeftIndent.value; }
-            if (!chkLeftIndent.value) { etLeftIndent.text = "0"; }
+        leftIndentCheckbox.onClick = function () {
+            if (!syncCheckbox.value) { leftIndentInput.enabled = leftIndentCheckbox.value; }
+            if (!leftIndentCheckbox.value) { leftIndentInput.text = "0"; }
             onAdjustmentChange();
         };
-        chkRightIndent.onClick = function () {
-            etRightIndent.enabled = chkRightIndent.value;
-            if (!chkRightIndent.value) { etRightIndent.text = "0"; }
+        rightIndentCheckbox.onClick = function () {
+            rightIndentInput.enabled = rightIndentCheckbox.value;
+            if (!rightIndentCheckbox.value) { rightIndentInput.text = "0"; }
             onAdjustmentChange();
         };
 
-        etFontSize.onChange = applyFontSizeFromField;
-        etMargin.onChange = onAdjustmentChange;
-        etWidth.onChange = onWidthChange;
-        etHeight.onChange = function () {
-            var hRu = validateSizeField(etHeight, _lastValidHeight);
-            if (hRu !== null) { _lastValidHeight = hRu; }
-            updatePreview();
-        };
-        etLeftIndent.onChange = onAdjustmentChange;
-        etRightIndent.onChange = onAdjustmentChange;
-        changeValueByArrowKey(etFontSize, false, applyFontSizeFromField);
-        changeValueByArrowKey(etMargin, false, onAdjustmentChange);
-        changeValueByArrowKey(etWidth, false, onWidthChange);
-        changeValueByArrowKey(etHeight, false, updatePreview);
-        changeValueByArrowKey(etLeftIndent, false, onAdjustmentChange);
-        changeValueByArrowKey(etRightIndent, false, onAdjustmentChange);
+        fontSizeInput.onChange = applyFontSizeFromField;
+        marginInput.onChange = onAdjustmentChange;
+        widthInput.onChange = onWidthChange;
+        heightInput.onChange = onHeightChange;
+        leftIndentInput.onChange = onAdjustmentChange;
+        rightIndentInput.onChange = onAdjustmentChange;
+        changeValueByArrowKey(fontSizeInput, false, applyFontSizeFromField);
+        changeValueByArrowKey(marginInput, false, onAdjustmentChange);
+        changeValueByArrowKey(widthInput, false, onWidthChange);
+        changeValueByArrowKey(heightInput, false, updatePreview);
+        changeValueByArrowKey(leftIndentInput, false, onAdjustmentChange);
+        changeValueByArrowKey(rightIndentInput, false, onAdjustmentChange);
 
-        btnRun.onClick = function () {
-            if (isPreviewActive) { try { app.undo(); } catch (e) { } app.redraw(); isPreviewActive = false; }
+        dialogControls.btnRun.onClick = function () {
+            if (isPreviewActive) { undoPreview(); }
             runAdjust(false);
-            dlgB.close(1);
+            adjustDialog.close(1);
         };
-        btnCloseB.onClick = function () {
+        dialogControls.btnClose.onClick = function () {
             if (isPreviewActive) { app.undo(); app.redraw(); }
-            dlgB.close(0);
+            adjustDialog.close(0);
         };
 
         // 初期値読み込み / Load initial values
-        if (initialTf) { loadValuesFromFrame(initialTf); }
+        if (initialFrame) { loadValuesFromFrame(initialFrame); }
 
         // 開いたらプレビュー実行（常時ON）/ Run preview on open (always on)
         updatePreview();
 
-        dlgB.show();
+        adjustDialog.show();
     }
 
     // =========================================
     // エントリポイント / Entry point
     // =========================================
-    if (app.documents.length > 0) {
+
+    /**
+     * 選択を確かめ、変換または調整ダイアログを実行する（アクションは終了時に必ず破棄）
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
         var doc = app.activeDocument;
         var currentSelection = doc.selection;
-
-        if (currentSelection && currentSelection.length > 0) {
-            var _hasPoint = false, _hasArea = false, _hasPath = false;
-            for (var _ei = 0; _ei < currentSelection.length; _ei++) {
-                if (currentSelection[_ei].typename === "TextFrame") {
-                    if (currentSelection[_ei].kind === TextType.POINTTEXT || currentSelection[_ei].kind === TextType.PATHTEXT) _hasPoint = true;
-                    if (currentSelection[_ei].kind === TextType.AREATEXT) _hasArea = true;
-                }
-                if (currentSelection[_ei].typename === "PathItem" || currentSelection[_ei].typename === "CompoundPathItem") {
-                    _hasPath = true;
-                }
-            }
-
-            if (_hasPoint || _hasPath || _hasArea) {
-                // アクションを実行時に読み込み、終了時に破棄 / Load actions at start, unload on exit
-                loadAreaTextActions();
-                try {
-                    if (_hasPoint || _hasPath) {
-                        // ポイント文字 または 図形 → 変換（常にボタン風）してダイアログ / Point or shape → convert then dialog
-                        convertToAreaTypeAndAdjust(doc, currentSelection);
-                    } else {
-                        // エリア内文字のみ → 調整ダイアログ / Area type only → adjust dialog
-                        var _firstArea = null;
-                        for (var _fi = 0; _fi < currentSelection.length; _fi++) {
-                            if (currentSelection[_fi].typename === "TextFrame" && currentSelection[_fi].kind === TextType.AREATEXT) {
-                                _firstArea = currentSelection[_fi]; break;
-                            }
-                        }
-                        showDialogB(doc, _firstArea, null);
-                    }
-                } finally {
-                    unloadAreaTextActions();
-                }
-            } else {
-                alert(getLabel("alert.selectText"));
-            }
-        } else {
+        if (!currentSelection || currentSelection.length === 0) {
             alert(getLabel("alert.selectText"));
+            return;
         }
-    } else {
-        alert(getLabel("alert.noDocument"));
+
+        var selectionKinds = classifySelection(currentSelection);
+        if (!selectionKinds.hasPointText && !selectionKinds.hasPathItem && !selectionKinds.hasAreaText) {
+            alert(getLabel("alert.selectText"));
+            return;
+        }
+
+        // アクションを実行時に読み込み、終了時に破棄 / Load actions at start, unload on exit
+        loadAreaTextActions();
+        try {
+            if (selectionKinds.hasPointText || selectionKinds.hasPathItem) {
+                // ポイント文字 または 図形 → 変換（常にボタン風）してダイアログ / Point or shape → convert then dialog
+                convertToAreaTypeAndAdjust(doc, currentSelection);
+            } else {
+                // エリア内文字のみ → 調整ダイアログ / Area type only → adjust dialog
+                showAdjustDialog(doc, findFirstAreaText(currentSelection), null);
+            }
+        } finally {
+            unloadAreaTextActions();
+        }
     }
+
+    main();
 
 })();

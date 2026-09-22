@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md"; /* README (English) */
@@ -100,10 +100,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      *
      * @returns {string} "ja" または "en"。
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* UI文言の定義 / UI string definitions */
     var LABELS = {
@@ -301,39 +301,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 線の単位コード→ラベルとpt換算係数（コード5はH=0.25mm） / Stroke unit code to label and points factor */
-    var STROKE_UNITS = {
-        0: { label: "in", factor: 72.0 },
-        1: { label: "mm", factor: 72.0 / 25.4 },
-        2: { label: "pt", factor: 1.0 },
-        3: { label: "pica", factor: 12.0 },
-        4: { label: "cm", factor: 72.0 / 2.54 },
-        5: { label: "H", factor: 72.0 / 25.4 * 0.25 },
-        6: { label: "px", factor: 1.0 },
-        7: { label: "ft/in", factor: 72.0 * 12.0 },
-        8: { label: "m", factor: 72.0 / 25.4 * 1000.0 },
-        9: { label: "yd", factor: 72.0 * 36.0 },
-        10: { label: "ft", factor: 72.0 * 12.0 }
-    };
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 環境設定の［線］の単位を取得します（不明な単位は pt 扱い）。
-     *
-     * @returns {{label: string, factor: number}} 単位ラベルとpt換算係数。
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getStrokeUnit() {
-        var code = app.preferences.getIntegerPreference("strokeUnits");
-        return STROKE_UNITS[code] || STROKE_UNITS[2];
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
-     * 線の単位で入力された値をptに換算します。
+     * 環境設定の［線］の単位で入力された値をptに換算します。
      *
      * @param {number} value - 線の単位での値。
      * @returns {number} pt換算した値。
      */
-    function toPoints(value) {
-        return value * getStrokeUnit().factor;
+    function strokeUnitsToPoints(value) {
+        return value * getUnitInfo("strokeUnits").pointsPerUnit;
     }
 
     // =========================================
@@ -382,16 +392,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      */
     function clusterByValue(sortedItems, getValue, tolerance) {
         var clusters = [];
-        var current = null;
+        var currentCluster = null;
         var baseValue = 0;
         for (var i = 0; i < sortedItems.length; i++) {
             var value = getValue(sortedItems[i]);
-            if (!current || Math.abs(baseValue - value) > tolerance) {
-                current = [];
+            if (!currentCluster || Math.abs(baseValue - value) > tolerance) {
+                currentCluster = [];
                 baseValue = value;
-                clusters.push(current);
+                clusters.push(currentCluster);
             }
-            current.push(sortedItems[i]);
+            currentCluster.push(sortedItems[i]);
         }
         return clusters;
     }
@@ -399,18 +409,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 重み付き平均を求めます。
      *
-     * @param {Array<Object>} items - 対象の配列。
+     * @param {Array<Object>} weightedItems - 対象の配列。
      * @param {function(Object):number} getValue - 平均する値を取り出す関数。
      * @param {function(Object):number} getWeight - 重みを取り出す関数。
      * @returns {number} 重み付き平均（重みの合計が0のときは0）。
      */
-    function weightedAverage(items, getValue, getWeight) {
+    function weightedAverage(weightedItems, getValue, getWeight) {
         var total = 0;
         var sum = 0;
-        for (var i = 0; i < items.length; i++) {
-            var weight = getWeight(items[i]);
+        for (var i = 0; i < weightedItems.length; i++) {
+            var weight = getWeight(weightedItems[i]);
             total += weight;
-            sum += getValue(items[i]) * weight;
+            sum += getValue(weightedItems[i]) * weight;
         }
         return total > 0 ? (sum / total) : 0;
     }
@@ -422,9 +432,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {GrayColor} 作成したカラー。
      */
     function makeGrayColor(tint) {
-        var color = new GrayColor();
-        color.gray = tint;
-        return color;
+        var grayColor = new GrayColor();
+        grayColor.gray = tint;
+        return grayColor;
     }
 
     /**
@@ -434,58 +444,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {CMYKColor} 作成したカラー。
      */
     function makeCyanColor(tint) {
-        var color = new CMYKColor();
-        color.cyan = tint;
-        color.magenta = 0;
-        color.yellow = 0;
-        color.black = 0;
-        return color;
+        var cyanColor = new CMYKColor();
+        cyanColor.cyan = tint;
+        cyanColor.magenta = 0;
+        cyanColor.yellow = 0;
+        cyanColor.black = 0;
+        return cyanColor;
     }
 
     /**
      * 補助線を作成するレイヤーを用意します。新しく作ったレイヤーは控えておきます。
      *
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {string} name - レイヤー名。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {string} layerName - レイヤー名。
      * @returns {Layer} 取得または作成したレイヤー。
      */
-    function ensureGuideLayer(context, name) {
-        for (var i = 0; i < context.doc.layers.length; i++) {
-            if (context.doc.layers[i].name === name) {
-                return context.doc.layers[i];
+    function ensureGuideLayer(gridContext, layerName) {
+        for (var i = 0; i < gridContext.doc.layers.length; i++) {
+            if (gridContext.doc.layers[i].name === layerName) {
+                return gridContext.doc.layers[i];
             }
         }
-        var layer = context.doc.layers.add();
-        layer.name = name;
-        context.createdLayers.push(layer);
-        return layer;
+        var newLayer = gridContext.doc.layers.add();
+        newLayer.name = layerName;
+        gridContext.createdLayers.push(newLayer);
+        return newLayer;
     }
 
     /**
      * このスクリプトが作ったレイヤーのうち、空のまま残ったものを削除します。
      *
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function removeEmptyCreatedLayers(context) {
-        for (var i = context.createdLayers.length - 1; i >= 0; i--) {
+    function removeEmptyCreatedLayers(gridContext) {
+        for (var i = gridContext.createdLayers.length - 1; i >= 0; i--) {
+            /* ユーザーが先に削除したレイヤーは参照が無効になる / The layer may already be gone */
             try {
-                if (context.createdLayers[i].pageItems.length === 0) {
-                    context.createdLayers[i].remove();
+                if (gridContext.createdLayers[i].pageItems.length === 0) {
+                    gridContext.createdLayers[i].remove();
                 }
             } catch (e) { }
         }
-        context.createdLayers = [];
+        gridContext.createdLayers = [];
     }
 
     /**
      * レイヤー名の入力値から改行・タブと前後の空白を取り除きます。
      *
-     * @param {string} text - 入力された文字列。
+     * @param {string} inputText - 入力された文字列。
      * @returns {string} 整えた文字列。
      */
-    function normalizeLayerNameText(text) {
-        return String(text).replace(/[\r\n\t]+/g, " ").replace(/^\s+|\s+$/g, "");
+    function normalizeLayerNameText(inputText) {
+        return String(inputText).replace(/[\r\n\t]+/g, " ").replace(/^\s+|\s+$/g, "");
     }
 
     // =========================================
@@ -495,12 +506,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * オブジェクトの visibleBounds を取得します（取得できないときは null）。
      *
-     * @param {PageItem} item - 対象のオブジェクト。
+     * @param {PageItem} pageItem - 対象のオブジェクト。
      * @returns {Array<number>|null} [左, 上, 右, 下] または null。
      */
-    function getItemBounds(item) {
+    function getVisibleBounds(pageItem) {
+        /* visibleBounds を持たない・取得できないオブジェクトがある / Some items throw on visibleBounds */
         try {
-            return item.visibleBounds;
+            return pageItem.visibleBounds;
         } catch (e) {
             return null;
         }
@@ -509,50 +521,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 選択範囲全体の visibleBounds を求めます。
      *
-     * @param {Array<PageItem>} items - 選択中のオブジェクト。
+     * @param {Array<PageItem>} pageItems - 選択中のオブジェクト。
      * @returns {Array<number>|null} [左, 上, 右, 下] または null。
      */
-    function getSelectionBounds(items) {
+    function getSelectionBounds(pageItems) {
         var left, top, right, bottom;
-        var found = false;
+        var hasBounds = false;
 
-        for (var i = 0; i < items.length; i++) {
-            var bounds = getItemBounds(items[i]);
-            if (!bounds) continue;
+        for (var i = 0; i < pageItems.length; i++) {
+            var itemBounds = getVisibleBounds(pageItems[i]);
+            if (!itemBounds) continue;
 
-            if (!found) {
-                left = bounds[0];
-                top = bounds[1];
-                right = bounds[2];
-                bottom = bounds[3];
-                found = true;
+            if (!hasBounds) {
+                left = itemBounds[0];
+                top = itemBounds[1];
+                right = itemBounds[2];
+                bottom = itemBounds[3];
+                hasBounds = true;
                 continue;
             }
-            if (bounds[0] < left) left = bounds[0];
-            if (bounds[1] > top) top = bounds[1];
-            if (bounds[2] > right) right = bounds[2];
-            if (bounds[3] < bottom) bottom = bounds[3];
+            if (itemBounds[0] < left) left = itemBounds[0];
+            if (itemBounds[1] > top) top = itemBounds[1];
+            if (itemBounds[2] > right) right = itemBounds[2];
+            if (itemBounds[3] < bottom) bottom = itemBounds[3];
         }
 
-        return found ? [left, top, right, bottom] : null;
+        return hasBounds ? [left, top, right, bottom] : null;
     }
 
     /**
      * グループ・複合パスをたどって、すべてのパスに処理を適用します。
      *
-     * @param {Array<PageItem>} items - 対象のオブジェクト。
+     * @param {Array<PageItem>} pageItems - 対象のオブジェクト。
      * @param {function(PathItem):void} handler - パスごとに呼ぶ処理。
      * @returns {void}
      */
-    function forEachPathItem(items, handler) {
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === "PathItem") {
-                handler(item);
-            } else if (item.typename === "GroupItem") {
-                forEachPathItem(item.pageItems, handler);
-            } else if (item.typename === "CompoundPathItem") {
-                forEachPathItem(item.pathItems, handler);
+    function forEachPathItem(pageItems, handler) {
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (pageItem.typename === "PathItem") {
+                handler(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                forEachPathItem(pageItem.pageItems, handler);
+            } else if (pageItem.typename === "CompoundPathItem") {
+                forEachPathItem(pageItem.pathItems, handler);
             }
         }
     }
@@ -609,10 +621,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 選択範囲のアンカーポイントと直線セグメントを、向きごとに集めます。
      *
-     * @param {Array<PageItem>} items - 選択中のオブジェクト。
+     * @param {Array<PageItem>} pageItems - 選択中のオブジェクト。
      * @returns {{points: Array<Object>, horizontal: Array<Object>, vertical: Array<Object>, diagonal: Array<Object>, top: number, bottom: number}} 解析用のジオメトリ。
      */
-    function collectGeometry(items) {
+    function collectGeometry(pageItems) {
         var geometry = {
             points: [],
             horizontal: [],
@@ -622,7 +634,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             bottom: Infinity
         };
 
-        forEachPathItem(items, function (pathItem) {
+        forEachPathItem(pageItems, function (pathItem) {
             var pathPoints = pathItem.pathPoints;
             var count = pathPoints.length;
             for (var i = 0; i < count; i++) {
@@ -660,20 +672,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * 選択範囲の寸法とジオメトリをまとめた、処理用のコンテキストを作成します。
      *
      * @param {Document} targetDoc - 対象のドキュメント。
-     * @param {Array<PageItem>} items - 選択中のオブジェクト。
+     * @param {Array<PageItem>} selectedItems - 選択中のオブジェクト。
      * @returns {Object|null} コンテキスト。作成できないときは null。
      */
-    function buildContext(targetDoc, items) {
-        var bounds = getSelectionBounds(items);
-        if (!bounds) {
+    function buildGridContext(targetDoc, selectedItems) {
+        var selectionBounds = getSelectionBounds(selectedItems);
+        if (!selectionBounds) {
             alert(getLabel(LABELS.alert.noBounds));
             return null;
         }
 
-        var selLeft = bounds[0];
-        var selTop = bounds[1];
-        var selRight = bounds[2];
-        var selBottom = bounds[3];
+        var selLeft = selectionBounds[0];
+        var selTop = selectionBounds[1];
+        var selRight = selectionBounds[2];
+        var selBottom = selectionBounds[3];
         var selWidth = selRight - selLeft;
         var selHeight = selTop - selBottom;
 
@@ -684,7 +696,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         return {
             doc: targetDoc,
-            items: items,
+            items: selectedItems,
             selLeft: selLeft,
             selTop: selTop,
             selRight: selRight,
@@ -693,7 +705,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             selHeight: selHeight,
             centerX: (selLeft + selRight) / 2,
             centerY: (selTop + selBottom) / 2,
-            geometry: collectGeometry(items),
+            geometry: collectGeometry(selectedItems),
             guideLayer: null,
             createdLayers: []
         };
@@ -715,16 +727,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         for (var i = 0; i < points.length; i++) {
             if (points[i].onHorizontal) onHorizontal = true;
-            var key = points[i].y.toFixed(3);
-            frequency[key] = (frequency[key] || 0) + 1;
+            var yKey = points[i].y.toFixed(3);
+            frequency[yKey] = (frequency[yKey] || 0) + 1;
         }
 
         var bestY = points[0].y;
         var bestCount = -1;
-        for (var key in frequency) {
-            if (frequency.hasOwnProperty(key) && frequency[key] > bestCount) {
-                bestCount = frequency[key];
-                bestY = parseFloat(key);
+        for (var frequencyKey in frequency) {
+            if (frequency.hasOwnProperty(frequencyKey) && frequency[frequencyKey] > bestCount) {
+                bestCount = frequency[frequencyKey];
+                bestY = parseFloat(frequencyKey);
             }
         }
 
@@ -734,20 +746,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 候補のうち、もっとも横線らしい1本を選びます（水平な辺を持つものを優先）。
      *
-     * @param {Array<Object>} lines - 候補の横線。
+     * @param {Array<Object>} candidateLines - 候補の横線。
      * @returns {Object} 選ばれた横線。
      */
-    function pickDominantLine(lines) {
-        var best = lines[0];
+    function pickDominantLine(candidateLines) {
+        var dominantLine = candidateLines[0];
         var bestScore = -Infinity;
-        for (var i = 0; i < lines.length; i++) {
-            var score = lines[i].count + (lines[i].onHorizontal ? 1000 : 0);
+        for (var i = 0; i < candidateLines.length; i++) {
+            var score = candidateLines[i].count + (candidateLines[i].onHorizontal ? 1000 : 0);
             if (score > bestScore) {
                 bestScore = score;
-                best = lines[i];
+                dominantLine = candidateLines[i];
             }
         }
-        return best;
+        return dominantLine;
     }
 
     /**
@@ -758,28 +770,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      */
     function detectTypographicLines(geometry) {
         var tolerance = getClusterTolerance(geometry.top - geometry.bottom);
-        var sorted = geometry.points.slice().sort(function (a, b) { return b.y - a.y; });
-        var clusters = clusterByValue(sorted, function (point) { return point.y; }, tolerance);
+        var sortedPoints = geometry.points.slice().sort(function (a, b) { return b.y - a.y; });
+        var clusters = clusterByValue(sortedPoints, function (point) { return point.y; }, tolerance);
 
-        var lines = [];
+        var anchorLines = [];
         for (var i = 0; i < clusters.length; i++) {
-            lines.push(summarizeAnchorCluster(clusters[i]));
+            anchorLines.push(summarizeAnchorCluster(clusters[i]));
         }
 
-        var ascenderY = lines[0].y;
-        var descenderY = lines[lines.length - 1].y;
+        var ascenderY = anchorLines[0].y;
+        var descenderY = anchorLines[anchorLines.length - 1].y;
         var height = ascenderY - descenderY;
         var middleY = (ascenderY + descenderY) / 2;
 
         /* 上下端から離れた候補だけを、ミーンラインとベースラインの候補にする */
         var upperLines = [];
         var lowerLines = [];
-        for (var j = 1; j < lines.length - 1; j++) {
-            if (Math.abs(ascenderY - lines[j].y) <= tolerance || Math.abs(lines[j].y - descenderY) <= tolerance) continue;
-            if (lines[j].y > middleY) {
-                upperLines.push(lines[j]);
+        for (var j = 1; j < anchorLines.length - 1; j++) {
+            if (Math.abs(ascenderY - anchorLines[j].y) <= tolerance || Math.abs(anchorLines[j].y - descenderY) <= tolerance) continue;
+            if (anchorLines[j].y > middleY) {
+                upperLines.push(anchorLines[j]);
             } else {
-                lowerLines.push(lines[j]);
+                lowerLines.push(anchorLines[j]);
             }
         }
 
@@ -807,10 +819,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * 直線セグメントをクラスタリングし、長さで加重平均した代表位置を返します。
      *
      * @param {Array<Object>} segments - position と length を持つセグメント。
-     * @param {{descending: boolean, dropShort: boolean, span: number}} options - 並び順・短いセグメントの扱い・許容値の基準サイズ。
+     * @param {{descending: boolean, dropShort: boolean, span: number}} clusterOptions - 並び順・短いセグメントの扱い・許容値の基準サイズ。
      * @returns {Array<number>} 線の位置。
      */
-    function getSegmentLinePositions(segments, options) {
+    function getSegmentLinePositions(segments, clusterOptions) {
         if (segments.length === 0) return [];
 
         var minPosition = Infinity;
@@ -822,22 +834,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             totalLength += segments[i].length;
         }
 
-        var targets = segments;
-        if (options.dropShort) {
+        var keptSegments = segments;
+        if (clusterOptions.dropShort) {
             var minLength = getMinSegmentLength(totalLength, segments.length);
-            targets = [];
+            keptSegments = [];
             for (var j = 0; j < segments.length; j++) {
-                if (segments[j].length >= minLength) targets.push(segments[j]);
+                if (segments[j].length >= minLength) keptSegments.push(segments[j]);
             }
-            if (targets.length === 0) return [];
+            if (keptSegments.length === 0) return [];
         }
 
-        var span = (typeof options.span === "number") ? options.span : (maxPosition - minPosition);
-        var descending = !!options.descending;
-        var sorted = targets.slice().sort(function (a, b) {
+        var span = (typeof clusterOptions.span === "number") ? clusterOptions.span : (maxPosition - minPosition);
+        var descending = !!clusterOptions.descending;
+        var sortedSegments = keptSegments.slice().sort(function (a, b) {
             return descending ? (b.position - a.position) : (a.position - b.position);
         });
-        var clusters = clusterByValue(sorted, function (segment) { return segment.position; }, getClusterTolerance(span));
+        var clusters = clusterByValue(sortedSegments, function (segment) { return segment.position; }, getClusterTolerance(span));
 
         var positions = [];
         for (var k = 0; k < clusters.length; k++) {
@@ -870,13 +882,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         }
 
         if (lineMethod === "even") {
-            var lines = [geometry.top];
+            var evenLineYs = [geometry.top];
             var step = (geometry.top - geometry.bottom) / (evenLineCount + 1);
             for (var i = 1; i <= evenLineCount; i++) {
-                lines.push(geometry.top - step * i);
+                evenLineYs.push(geometry.top - step * i);
             }
-            lines.push(geometry.bottom);
-            return lines;
+            evenLineYs.push(geometry.bottom);
+            return evenLineYs;
         }
 
         var zones = detectTypographicLines(geometry);
@@ -1001,10 +1013,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {Array<Object>|null} 選ばれたセグメント群。見つからないときは null。
      */
     function pickDominantAngleCluster(segments) {
-        var sorted = segments.slice().sort(function (a, b) { return a.angle - b.angle; });
-        var clusters = clusterByValue(sorted, function (segment) { return segment.angle; }, DETECTION.diagonalAngleTolerance);
+        var sortedSegments = segments.slice().sort(function (a, b) { return a.angle - b.angle; });
+        var clusters = clusterByValue(sortedSegments, function (segment) { return segment.angle; }, DETECTION.diagonalAngleTolerance);
 
-        var best = null;
+        var dominantCluster = null;
         var bestLength = -1;
         for (var i = 0; i < clusters.length; i++) {
             var totalLength = 0;
@@ -1013,10 +1025,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             }
             if (totalLength > bestLength) {
                 bestLength = totalLength;
-                best = clusters[i];
+                dominantCluster = clusters[i];
             }
         }
-        return best;
+        return dominantCluster;
     }
 
     /**
@@ -1068,30 +1080,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         var segments = filterDiagonalSegments(geometry.diagonal);
         if (segments.length === 0) return [];
 
-        var cluster = pickDominantAngleCluster(segments);
-        if (!cluster) return [];
+        var dominantCluster = pickDominantAngleCluster(segments);
+        if (!dominantCluster) return [];
 
         var totalLength = 0;
-        for (var i = 0; i < cluster.length; i++) {
-            totalLength += cluster[i].length;
+        for (var i = 0; i < dominantCluster.length; i++) {
+            totalLength += dominantCluster[i].length;
         }
-        var angleRad = weightedAverage(cluster,
+        var angleRad = weightedAverage(dominantCluster,
             function (segment) { return segment.angle; },
             function (segment) { return segment.length; }) * Math.PI / 180;
 
-        var midpoints = mergeSegmentMidpoints(cluster, angleRad, getMinSegmentLength(totalLength, cluster.length));
+        var midpoints = mergeSegmentMidpoints(dominantCluster, angleRad, getMinSegmentLength(totalLength, dominantCluster.length));
 
-        var lines = [];
+        var diagonalLines = [];
         var usedKeys = {};
         for (var j = 0; j < midpoints.length; j++) {
-            var line = extendPointAtAngle(midpoints[j], angleRad, left, top, right, bottom);
-            if (!line) continue;
-            var key = makeDiagonalLineKey(line);
+            var diagonalLine = extendPointAtAngle(midpoints[j], angleRad, left, top, right, bottom);
+            if (!diagonalLine) continue;
+            var key = makeDiagonalLineKey(diagonalLine);
             if (usedKeys[key]) continue;
             usedKeys[key] = true;
-            lines.push(line);
+            diagonalLines.push(diagonalLine);
         }
-        return lines;
+        return diagonalLines;
     }
 
     // =========================================
@@ -1192,78 +1204,78 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * ［ラインの決め方］の選択状態を取得します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {string} "none" / "even" / "segment" / "auto"。
      */
-    function getLineMethod(ui) {
-        if (ui.methodNoneRadio.value) return "none";
-        if (ui.methodEvenRadio.value) return "even";
-        if (ui.methodSegmentRadio.value) return "segment";
+    function getLineMethod(dialogUI) {
+        if (dialogUI.methodNoneRadio.value) return "none";
+        if (dialogUI.methodEvenRadio.value) return "even";
+        if (dialogUI.methodSegmentRadio.value) return "segment";
         return "auto";
     }
 
     /**
      * プリセットの1項目を、現在のUIから読み取ります。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @param {string} key - プリセットのキー。
      * @returns {string|boolean} 読み取った値。
      */
-    function readPresetValue(ui, key) {
-        var field = PRESET_FIELDS[key];
-        if (field.kind === "method") return getLineMethod(ui);
-        if (field.kind === "check") return ui[field.control].value;
-        return ui[field.control].text;
+    function readPresetValue(dialogUI, key) {
+        var presetField = PRESET_FIELDS[key];
+        if (presetField.kind === "method") return getLineMethod(dialogUI);
+        if (presetField.kind === "check") return dialogUI[presetField.control].value;
+        return dialogUI[presetField.control].text;
     }
 
     /**
      * プリセットの1項目を、UIに反映します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @param {string} key - プリセットのキー。
      * @param {string|boolean} value - 反映する値。
      * @returns {void}
      */
-    function writePresetValue(ui, key, value) {
-        var field = PRESET_FIELDS[key];
-        if (field.kind === "method") {
-            ui.methodNoneRadio.value = (value === "none");
-            ui.methodAutoRadio.value = (value === "auto");
-            ui.methodSegmentRadio.value = (value === "segment");
-            ui.methodEvenRadio.value = (value === "even");
+    function writePresetValue(dialogUI, key, value) {
+        var presetField = PRESET_FIELDS[key];
+        if (presetField.kind === "method") {
+            dialogUI.methodNoneRadio.value = (value === "none");
+            dialogUI.methodAutoRadio.value = (value === "auto");
+            dialogUI.methodSegmentRadio.value = (value === "segment");
+            dialogUI.methodEvenRadio.value = (value === "even");
             return;
         }
-        if (field.kind === "check") {
-            ui[field.control].value = !!value;
+        if (presetField.kind === "check") {
+            dialogUI[presetField.control].value = !!value;
             return;
         }
-        if (field.kind === "scale") {
-            ui[field.control].text = parseFloat(value).toFixed(1);
+        if (presetField.kind === "scale") {
+            dialogUI[presetField.control].text = parseFloat(value).toFixed(1);
             return;
         }
-        ui[field.control].text = String(value);
+        dialogUI[presetField.control].text = String(value);
     }
 
     /**
      * 選択中のプリセットをUIに反映します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function applyPreset(ui, context) {
-        if (!ui.presetDropdown.selection) return;
-        var preset = PRESET_DEFINITIONS[ui.presetDropdown.selection._key];
-        if (!preset) return;
+    function applyPreset(dialogUI, gridContext) {
+        if (!dialogUI.presetDropdown.selection) return;
+        var presetValues = PRESET_DEFINITIONS[dialogUI.presetDropdown.selection._key];
+        if (!presetValues) return;
 
         for (var key in PRESET_FIELDS) {
             if (PRESET_FIELDS.hasOwnProperty(key)) {
-                writePresetValue(ui, key, preset[key]);
+                writePresetValue(dialogUI, key, presetValues[key]);
             }
         }
 
-        updateClearSpaceState(ui);
-        refreshPreview(ui, context);
+        updateClearSpaceState(dialogUI);
+        refreshPreview(dialogUI, gridContext);
     }
 
     /**
@@ -1279,47 +1291,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 現在の設定を、プリセット定義に貼り付けられる形の文字列にします。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @param {string} presetName - プリセット名。
      * @returns {string} 書き出す文字列。
      */
-    function buildPresetSnippet(ui, presetName) {
-        var lines = ['                "' + presetName + '": {'];
+    function buildPresetSnippet(dialogUI, presetName) {
+        var snippetLines = ['                "' + presetName + '": {'];
 
         for (var i = 0; i < PRESET_FIELD_ROWS.length; i++) {
-            var row = PRESET_FIELD_ROWS[i];
-            var parts = [];
-            for (var j = 0; j < row.length; j++) {
-                parts.push(row[j] + ": " + formatPresetValue(readPresetValue(ui, row[j])));
+            var fieldRow = PRESET_FIELD_ROWS[i];
+            var rowParts = [];
+            for (var j = 0; j < fieldRow.length; j++) {
+                rowParts.push(fieldRow[j] + ": " + formatPresetValue(readPresetValue(dialogUI, fieldRow[j])));
             }
             var isLastRow = (i === PRESET_FIELD_ROWS.length - 1);
-            lines.push("                    " + parts.join(", ") + (isLastRow ? "" : ","));
+            snippetLines.push("                    " + rowParts.join(", ") + (isLastRow ? "" : ","));
         }
 
-        lines.push("                },");
-        return lines.join("\n");
+        snippetLines.push("                },");
+        return snippetLines.join("\n");
     }
 
     /**
      * 現在の設定をプリセットとしてデスクトップに書き出します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function exportPreset(ui) {
+    function exportPreset(dialogUI) {
         var presetName = prompt(getLabel(LABELS.prompt.presetName), "");
         if (!presetName) return;
 
         var fileName = presetName.replace(/[\\\/:*?"<>|]/g, "_") + ".json";
-        var file = new File(Folder.desktop + "/" + fileName);
-        file.encoding = "UTF-8";
-        if (!file.open("w")) {
+        var presetFile = new File(Folder.desktop + "/" + fileName);
+        presetFile.encoding = "UTF-8";
+        if (!presetFile.open("w")) {
             alert(getLabel(LABELS.alert.exportFailed));
             return;
         }
-        file.write(buildPresetSnippet(ui, presetName));
-        file.close();
-        alert(getLabel(LABELS.alert.exported) + file.fsName);
+        presetFile.write(buildPresetSnippet(dialogUI, presetName));
+        presetFile.close();
+        alert(getLabel(LABELS.alert.exported) + presetFile.fsName);
     }
 
     // =========================================
@@ -1329,42 +1341,131 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * パネルの余白と並びを設定します。
      *
-     * @param {Panel} panel - 対象のパネル。
+     * @param {Panel} targetPanel - 対象のパネル。
      * @param {string} horizontalAlign - 子要素の横方向の揃え。
      * @returns {Panel} 設定したパネル。
      */
-    function setupPanel(panel, horizontalAlign) {
-        panel.margins = PANEL_MARGINS;
-        panel.alignChildren = [horizontalAlign || "left", "top"];
-        return panel;
+    function setupPanel(targetPanel, horizontalAlign) {
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.alignChildren = [horizontalAlign || "left", "top"];
+        return targetPanel;
     }
 
     /**
      * 行グループを作成します（横並び・左揃え・天地中央）。
      *
-     * @param {Object} parent - 追加先のコンテナ。
+     * @param {Object} parentGroup - 追加先のコンテナ。
      * @returns {Group} 作成した行グループ。
      */
-    function addRow(parent) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignment = ["left", "top"];
-        row.alignChildren = ["left", "center"];
-        return row;
+    function addRow(parentGroup) {
+        var rowGroup = parentGroup.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignment = ["left", "top"];
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
     }
 
     /**
-     * 設定用のダイアログを作成します。
+     * 縦並びのカラム用グループを作成します。
      *
-     * @returns {Object} ダイアログと各コントロールへの参照。
+     * @param {Group} parentGroup - 追加先のグループ。
+     * @param {string} horizontalAlign - 子要素の横方向の揃え。
+     * @returns {Group} 作成したカラム。
      */
-    function createDialog() {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
+    function addColumn(parentGroup, horizontalAlign) {
+        var columnGroup = parentGroup.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = [horizontalAlign, "top"];
+        return columnGroup;
+    }
 
-        /* プリセット / Presets */
-        var presetRow = dialog.add("group");
+    /**
+     * カラムを横に並べるグループを作成します。
+     *
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @returns {Group} 作成したグループ。
+     */
+    function addColumnsGroup(parentGroup) {
+        var columnsGroup = parentGroup.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        return columnsGroup;
+    }
+
+    /**
+     * tooltip 付きのチェックボックスを追加します。
+     *
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @param {Object} labelSet - 表示名のラベル。
+     * @param {Object} tooltipSet - tooltip のラベル。
+     * @param {boolean} initialValue - 初期値。
+     * @returns {Checkbox} 追加したチェックボックス。
+     */
+    function addCheckbox(parentGroup, labelSet, tooltipSet, initialValue) {
+        var checkbox = parentGroup.add("checkbox", undefined, getLabel(labelSet));
+        checkbox.value = initialValue;
+        checkbox.helpTip = getLabel(tooltipSet);
+        return checkbox;
+    }
+
+    /**
+     * tooltip 付きのラジオボタンを追加します。
+     *
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @param {Object} labelSet - 表示名のラベル。
+     * @param {Object} tooltipSet - tooltip のラベル。
+     * @returns {RadioButton} 追加したラジオボタン。
+     */
+    function addRadio(parentGroup, labelSet, tooltipSet) {
+        var radio = parentGroup.add("radiobutton", undefined, getLabel(labelSet));
+        radio.helpTip = getLabel(tooltipSet);
+        return radio;
+    }
+
+    /**
+     * tooltip 付きの入力欄を追加します。
+     *
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @param {string} initialText - 初期値。
+     * @param {number} characters - 入力欄の幅（文字数）。
+     * @param {Object} tooltipSet - tooltip のラベル。
+     * @returns {EditText} 追加した入力欄。
+     */
+    function addInput(parentGroup, initialText, characters, tooltipSet) {
+        var inputField = parentGroup.add("edittext", undefined, initialText);
+        inputField.characters = characters;
+        inputField.helpTip = getLabel(tooltipSet);
+        return inputField;
+    }
+
+    /**
+     * 「項目名：入力欄［単位］」の行を追加します。
+     *
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @param {Object} labelSet - 項目名のラベル。
+     * @param {string} initialText - 初期値。
+     * @param {number} characters - 入力欄の幅（文字数）。
+     * @param {Object} tooltipSet - tooltip のラベル。
+     * @param {string} [unitText] - 入力欄の後ろに置く単位。
+     * @returns {EditText} 追加した入力欄。
+     */
+    function addLabeledInput(parentGroup, labelSet, initialText, characters, tooltipSet, unitText) {
+        var rowGroup = addRow(parentGroup);
+        rowGroup.add("statictext", undefined, labelText(labelSet));
+        var inputField = addInput(rowGroup, initialText, characters, tooltipSet);
+        if (unitText) rowGroup.add("statictext", undefined, unitText);
+        return inputField;
+    }
+
+    /**
+     * プリセットの選択と書き出しの行を作成します。
+     *
+     * @param {Window} gridDialog - ダイアログ。
+     * @param {Object} dialogUI - コントロールへの参照を書き込む先。
+     * @returns {void}
+     */
+    function addPresetRow(gridDialog, dialogUI) {
+        var presetRow = gridDialog.add("group");
         presetRow.orientation = "row";
         presetRow.alignment = ["center", "top"];
         presetRow.alignChildren = ["left", "center"];
@@ -1373,184 +1474,142 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         var presetDropdown = presetRow.add("dropdownlist");
         presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
         var autoIndex = 0;
-        var presetIndex = 0;
         for (var presetKey in PRESET_DEFINITIONS) {
             if (!PRESET_DEFINITIONS.hasOwnProperty(presetKey)) continue;
+            if (presetKey === "auto") autoIndex = presetDropdown.items.length;
             presetDropdown.add("item", presetKey)._key = presetKey;
-            if (presetKey === "auto") autoIndex = presetIndex;
-            presetIndex++;
         }
-        if (presetDropdown.items.length > 0) presetDropdown.selection = autoIndex;
+        presetDropdown.selection = autoIndex;
 
         var btnExport = presetRow.add("button", undefined, getLabel(LABELS.button.exportPreset));
         btnExport.helpTip = getLabel(LABELS.tooltip.exportPreset);
 
-        /* 共通設定とクリアスペース / Common settings and clear space */
-        var commonPanel = setupPanel(dialog.add("panel", undefined, getLabel(LABELS.panel.common)), "fill");
+        dialogUI.presetDropdown = presetDropdown;
+        dialogUI.btnExport = btnExport;
+    }
 
-        var commonColumns = commonPanel.add("group");
-        commonColumns.orientation = "row";
-        commonColumns.alignChildren = ["fill", "top"];
+    /**
+     * ［共通設定とクリアスペース］パネルを作成します。
+     *
+     * @param {Window} gridDialog - ダイアログ。
+     * @param {Object} dialogUI - コントロールへの参照を書き込む先。
+     * @returns {void}
+     */
+    function addCommonPanel(gridDialog, dialogUI) {
+        var commonPanel = setupPanel(gridDialog.add("panel", undefined, getLabel(LABELS.panel.common)), "fill");
+        var commonColumns = addColumnsGroup(commonPanel);
+        var commonLeftColumn = addColumn(commonColumns, "left");
+        var commonRightColumn = addColumn(commonColumns, "left");
 
-        var commonLeftColumn = commonColumns.add("group");
-        commonLeftColumn.orientation = "column";
-        commonLeftColumn.alignChildren = ["left", "top"];
+        /* 左：分割数・クリアスペース・ガイド化 / Left: divisions, clear space, guides */
+        dialogUI.clearSpaceDivInput = addLabeledInput(commonLeftColumn, LABELS.fieldLabel.divisions, "4",
+            FIELD_WIDTH.count, LABELS.tooltip.divisions);
+        dialogUI.clearSpaceCheck = addCheckbox(addRow(commonLeftColumn),
+            LABELS.checkbox.clearSpace, LABELS.tooltip.clearSpace, false);
+        dialogUI.convertToGuidesCheck = addCheckbox(addRow(commonLeftColumn),
+            LABELS.checkbox.convertToGuides, LABELS.tooltip.convertToGuides, false);
 
-        var commonRightColumn = commonColumns.add("group");
-        commonRightColumn.orientation = "column";
-        commonRightColumn.alignChildren = ["left", "top"];
+        /* 右：線幅・境界線の強調・グループ化 / Right: stroke width, emphasized bounds, grouping */
+        dialogUI.strokeWidthInput = addLabeledInput(commonRightColumn, LABELS.fieldLabel.strokeWidth, "0.25",
+            FIELD_WIDTH.strokeWidth, LABELS.tooltip.strokeWidth, getUnitInfo("strokeUnits").label);
+        dialogUI.emphasizeBoundsCheck = addCheckbox(addRow(commonRightColumn),
+            LABELS.checkbox.emphasizeBounds, LABELS.tooltip.emphasizeBounds, false);
+        dialogUI.groupItemsCheck = addCheckbox(addRow(commonRightColumn),
+            LABELS.checkbox.groupItems, LABELS.tooltip.groupItems, true);
 
-        var clearSpaceDivRow = addRow(commonLeftColumn);
-        clearSpaceDivRow.add("statictext", undefined, labelText(LABELS.fieldLabel.divisions));
-        var clearSpaceDivInput = clearSpaceDivRow.add("edittext", undefined, "4");
-        clearSpaceDivInput.characters = FIELD_WIDTH.count;
-        clearSpaceDivInput.helpTip = getLabel(LABELS.tooltip.divisions);
+        dialogUI.layerNameInput = addLabeledInput(commonPanel, LABELS.fieldLabel.targetLayer, getLabel(LABELS.itemName.layer),
+            FIELD_WIDTH.layerName, LABELS.tooltip.targetLayer);
+    }
 
-        var strokeWidthRow = addRow(commonRightColumn);
-        strokeWidthRow.add("statictext", undefined, labelText(LABELS.fieldLabel.strokeWidth));
-        var strokeWidthInput = strokeWidthRow.add("edittext", undefined, "0.25");
-        strokeWidthInput.characters = FIELD_WIDTH.strokeWidth;
-        strokeWidthInput.helpTip = getLabel(LABELS.tooltip.strokeWidth);
-        strokeWidthRow.add("statictext", undefined, getStrokeUnit().label);
+    /**
+     * ［横線］パネル（［ラインの決め方］を含む）を作成します。
+     *
+     * @param {Group} parentColumn - 追加先のカラム。
+     * @param {Object} dialogUI - コントロールへの参照を書き込む先。
+     * @returns {void}
+     */
+    function addHorizontalPanel(parentColumn, dialogUI) {
+        var horizontalPanel = setupPanel(parentColumn.add("panel", undefined, getLabel(LABELS.panel.horizontal)));
+        dialogUI.horizontalPanel = horizontalPanel;
 
-        var emphasizeBoundsRow = addRow(commonRightColumn);
-        var emphasizeBoundsCheck = emphasizeBoundsRow.add("checkbox", undefined, getLabel(LABELS.checkbox.emphasizeBounds));
-        emphasizeBoundsCheck.value = false;
-        emphasizeBoundsCheck.helpTip = getLabel(LABELS.tooltip.emphasizeBounds);
-
-        var clearSpaceRow = addRow(commonLeftColumn);
-        var clearSpaceCheck = clearSpaceRow.add("checkbox", undefined, getLabel(LABELS.checkbox.clearSpace));
-        clearSpaceCheck.value = false;
-        clearSpaceCheck.helpTip = getLabel(LABELS.tooltip.clearSpace);
-
-        var convertToGuidesRow = addRow(commonLeftColumn);
-        var convertToGuidesCheck = convertToGuidesRow.add("checkbox", undefined, getLabel(LABELS.checkbox.convertToGuides));
-        convertToGuidesCheck.value = false;
-        convertToGuidesCheck.helpTip = getLabel(LABELS.tooltip.convertToGuides);
-
-        var groupItemsRow = addRow(commonRightColumn);
-        var groupItemsCheck = groupItemsRow.add("checkbox", undefined, getLabel(LABELS.checkbox.groupItems));
-        groupItemsCheck.value = true;
-        groupItemsCheck.helpTip = getLabel(LABELS.tooltip.groupItems);
-
-        var layerNameRow = addRow(commonPanel);
-        layerNameRow.add("statictext", undefined, labelText(LABELS.fieldLabel.targetLayer));
-        var layerNameInput = layerNameRow.add("edittext", undefined, getLabel(LABELS.itemName.layer));
-        layerNameInput.characters = FIELD_WIDTH.layerName;
-        layerNameInput.helpTip = getLabel(LABELS.tooltip.targetLayer);
-
-        /* 横線・縦線の2カラム / Two columns for the horizontal and vertical lines */
-        var panelColumns = dialog.add("group");
-        panelColumns.orientation = "row";
-        panelColumns.alignChildren = ["fill", "top"];
-
-        var leftColumn = panelColumns.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-
-        var rightColumn = panelColumns.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ["fill", "top"];
-
-        /* 横線 / Horizontal lines */
-        var horizontalPanel = setupPanel(leftColumn.add("panel", undefined, getLabel(LABELS.panel.horizontal)));
-
-        var widthScaleRow = addRow(horizontalPanel);
-        widthScaleRow.add("statictext", undefined, labelText(LABELS.fieldLabel.widthScale));
-        var widthScaleInput = widthScaleRow.add("edittext", undefined, "140");
-        widthScaleInput.characters = FIELD_WIDTH.scale;
-        widthScaleInput.helpTip = getLabel(LABELS.tooltip.widthScale);
-        widthScaleRow.add("statictext", undefined, "%");
+        dialogUI.widthScaleInput = addLabeledInput(horizontalPanel, LABELS.fieldLabel.widthScale, "140",
+            FIELD_WIDTH.scale, LABELS.tooltip.widthScale, "%");
 
         var extraHLinesRow = addRow(horizontalPanel);
-        var extraHLinesCheck = extraHLinesRow.add("checkbox", undefined, getLabel(LABELS.checkbox.extraHorizontal));
-        extraHLinesCheck.value = false;
-        extraHLinesCheck.helpTip = getLabel(LABELS.tooltip.extraHorizontal);
-        var extraHLinesInput = extraHLinesRow.add("edittext", undefined, "1");
-        extraHLinesInput.characters = FIELD_WIDTH.count;
-        extraHLinesInput.helpTip = getLabel(LABELS.tooltip.extraHorizontal);
+        dialogUI.extraHLinesCheck = addCheckbox(extraHLinesRow,
+            LABELS.checkbox.extraHorizontal, LABELS.tooltip.extraHorizontal, false);
+        dialogUI.extraHLinesInput = addInput(extraHLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.extraHorizontal);
 
-        var extendLeftRow = addRow(horizontalPanel);
-        var extendLeftCheck = extendLeftRow.add("checkbox", undefined, getLabel(LABELS.checkbox.extendLeft));
-        extendLeftCheck.value = false;
-        extendLeftCheck.helpTip = getLabel(LABELS.tooltip.extendLeft);
+        dialogUI.extendLeftCheck = addCheckbox(addRow(horizontalPanel),
+            LABELS.checkbox.extendLeft, LABELS.tooltip.extendLeft, false);
 
         /* ラインの決め方 / Line generation method */
         var lineMethodPanel = setupPanel(horizontalPanel.add("panel", undefined, getLabel(LABELS.panel.lineMethod)));
         lineMethodPanel.helpTip = getLabel(LABELS.tooltip.lineMethod);
 
-        var methodNoneRadio = lineMethodPanel.add("radiobutton", undefined, getLabel(LABELS.radio.lineNone));
-        methodNoneRadio.helpTip = getLabel(LABELS.tooltip.lineNone);
-        var methodAutoRadio = lineMethodPanel.add("radiobutton", undefined, getLabel(LABELS.radio.lineAuto));
-        methodAutoRadio.value = true;
-        methodAutoRadio.helpTip = getLabel(LABELS.tooltip.lineAuto);
-        var methodSegmentRadio = lineMethodPanel.add("radiobutton", undefined, getLabel(LABELS.radio.lineSegment));
-        methodSegmentRadio.helpTip = getLabel(LABELS.tooltip.lineSegment);
+        dialogUI.methodNoneRadio = addRadio(lineMethodPanel, LABELS.radio.lineNone, LABELS.tooltip.lineNone);
+        dialogUI.methodAutoRadio = addRadio(lineMethodPanel, LABELS.radio.lineAuto, LABELS.tooltip.lineAuto);
+        dialogUI.methodAutoRadio.value = true;
+        dialogUI.methodSegmentRadio = addRadio(lineMethodPanel, LABELS.radio.lineSegment, LABELS.tooltip.lineSegment);
 
         var evenLineCountRow = addRow(lineMethodPanel);
-        var methodEvenRadio = evenLineCountRow.add("radiobutton", undefined, getLabel(LABELS.radio.lineEven));
-        methodEvenRadio.helpTip = getLabel(LABELS.tooltip.lineEven);
-        var evenLineCountInput = evenLineCountRow.add("edittext", undefined, "4");
-        evenLineCountInput.characters = FIELD_WIDTH.count;
-        evenLineCountInput.helpTip = getLabel(LABELS.tooltip.lineEven);
+        dialogUI.methodEvenRadio = addRadio(evenLineCountRow, LABELS.radio.lineEven, LABELS.tooltip.lineEven);
+        dialogUI.evenLineCountInput = addInput(evenLineCountRow, "4", FIELD_WIDTH.count, LABELS.tooltip.lineEven);
         evenLineCountRow.add("statictext", undefined, getLabel(LABELS.unit.lines));
+    }
 
-        /* 縦線 / Vertical lines */
-        var verticalPanel = setupPanel(rightColumn.add("panel", undefined, getLabel(LABELS.panel.vertical)));
+    /**
+     * ［縦線］パネル（［オプション］を含む）を作成します。
+     *
+     * @param {Group} parentColumn - 追加先のカラム。
+     * @param {Object} dialogUI - コントロールへの参照を書き込む先。
+     * @returns {void}
+     */
+    function addVerticalPanel(parentColumn, dialogUI) {
+        var verticalPanel = setupPanel(parentColumn.add("panel", undefined, getLabel(LABELS.panel.vertical)));
+        dialogUI.verticalPanel = verticalPanel;
 
-        var heightScaleRow = addRow(verticalPanel);
-        heightScaleRow.add("statictext", undefined, labelText(LABELS.fieldLabel.heightScale));
-        var heightScaleInput = heightScaleRow.add("edittext", undefined, "200");
-        heightScaleInput.characters = FIELD_WIDTH.scale;
-        heightScaleInput.helpTip = getLabel(LABELS.tooltip.heightScale);
-        heightScaleRow.add("statictext", undefined, "%");
+        dialogUI.heightScaleInput = addLabeledInput(verticalPanel, LABELS.fieldLabel.heightScale, "200",
+            FIELD_WIDTH.scale, LABELS.tooltip.heightScale, "%");
 
         var outerVLinesRow = addRow(verticalPanel);
-        var outerVLinesCheck = outerVLinesRow.add("checkbox", undefined, getLabel(LABELS.checkbox.outerVertical));
-        outerVLinesCheck.value = false;
-        outerVLinesCheck.helpTip = getLabel(LABELS.tooltip.outerVertical);
-        var outerVLinesInput = outerVLinesRow.add("edittext", undefined, "1");
-        outerVLinesInput.characters = FIELD_WIDTH.count;
-        outerVLinesInput.helpTip = getLabel(LABELS.tooltip.outerVertical);
+        dialogUI.outerVLinesCheck = addCheckbox(outerVLinesRow,
+            LABELS.checkbox.outerVertical, LABELS.tooltip.outerVertical, false);
+        dialogUI.outerVLinesInput = addInput(outerVLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.outerVertical);
 
-        var extendUpRow = addRow(verticalPanel);
-        var extendUpCheck = extendUpRow.add("checkbox", undefined, getLabel(LABELS.checkbox.extendUp));
-        extendUpCheck.value = false;
-        extendUpCheck.helpTip = getLabel(LABELS.tooltip.extendUp);
+        dialogUI.extendUpCheck = addCheckbox(addRow(verticalPanel),
+            LABELS.checkbox.extendUp, LABELS.tooltip.extendUp, false);
 
         /* オプション / Options */
         var verticalOptionsPanel = setupPanel(verticalPanel.add("panel", undefined, getLabel(LABELS.panel.options)));
 
         var columnDivRow = addRow(verticalOptionsPanel);
-        var columnDivCheck = columnDivRow.add("checkbox", undefined, getLabel(LABELS.checkbox.columnDiv));
-        columnDivCheck.value = false;
-        columnDivCheck.helpTip = getLabel(LABELS.tooltip.columnDiv);
-        var columnDivInput = columnDivRow.add("edittext", undefined, "2");
-        columnDivInput.characters = FIELD_WIDTH.count;
-        columnDivInput.enabled = false;
-        columnDivInput.helpTip = getLabel(LABELS.tooltip.columnDiv);
+        dialogUI.columnDivCheck = addCheckbox(columnDivRow, LABELS.checkbox.columnDiv, LABELS.tooltip.columnDiv, false);
+        dialogUI.columnDivInput = addInput(columnDivRow, "2", FIELD_WIDTH.count, LABELS.tooltip.columnDiv);
+        dialogUI.columnDivInput.enabled = false;
 
-        var verticalElementsRow = addRow(verticalOptionsPanel);
-        var verticalElementsCheck = verticalElementsRow.add("checkbox", undefined, getLabel(LABELS.checkbox.verticalElements));
-        verticalElementsCheck.value = false;
-        verticalElementsCheck.helpTip = getLabel(LABELS.tooltip.verticalElements);
+        dialogUI.verticalElementsCheck = addCheckbox(addRow(verticalOptionsPanel),
+            LABELS.checkbox.verticalElements, LABELS.tooltip.verticalElements, false);
+        dialogUI.diagonalElementsCheck = addCheckbox(addRow(verticalOptionsPanel),
+            LABELS.checkbox.diagonalElements, LABELS.tooltip.diagonalElements, false);
+    }
 
-        var diagonalElementsRow = addRow(verticalOptionsPanel);
-        var diagonalElementsCheck = diagonalElementsRow.add("checkbox", undefined, getLabel(LABELS.checkbox.diagonalElements));
-        diagonalElementsCheck.value = false;
-        diagonalElementsCheck.helpTip = getLabel(LABELS.tooltip.diagonalElements);
-
-        /* ボタンエリア / Button area */
-        var btnRowGroup = dialog.add("group");
+    /**
+     * ［プレビュー］とOK／キャンセルのボタン行を作成します。
+     *
+     * @param {Window} gridDialog - ダイアログ。
+     * @param {Object} dialogUI - コントロールへの参照を書き込む先。
+     * @returns {void}
+     */
+    function addButtonRow(gridDialog, dialogUI) {
+        var btnRowGroup = gridDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = ["fill", "bottom"];
 
         var btnLeftGroup = btnRowGroup.add("group");
         btnLeftGroup.orientation = "row";
         btnLeftGroup.alignChildren = ["left", "center"];
-        var previewCheck = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
-        previewCheck.value = true;
-        previewCheck.helpTip = getLabel(LABELS.tooltip.preview);
+        dialogUI.previewCheck = addCheckbox(btnLeftGroup, LABELS.checkbox.preview, LABELS.tooltip.preview, true);
 
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -1559,43 +1618,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.orientation = "row";
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        dialogUI.btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        dialogUI.btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+    }
 
-        return {
-            dialog: dialog,
-            presetDropdown: presetDropdown,
-            btnExport: btnExport,
-            horizontalPanel: horizontalPanel,
-            verticalPanel: verticalPanel,
-            widthScaleInput: widthScaleInput,
-            extraHLinesCheck: extraHLinesCheck,
-            extraHLinesInput: extraHLinesInput,
-            extendLeftCheck: extendLeftCheck,
-            methodNoneRadio: methodNoneRadio,
-            methodAutoRadio: methodAutoRadio,
-            methodSegmentRadio: methodSegmentRadio,
-            methodEvenRadio: methodEvenRadio,
-            evenLineCountInput: evenLineCountInput,
-            heightScaleInput: heightScaleInput,
-            outerVLinesCheck: outerVLinesCheck,
-            outerVLinesInput: outerVLinesInput,
-            columnDivCheck: columnDivCheck,
-            columnDivInput: columnDivInput,
-            extendUpCheck: extendUpCheck,
-            verticalElementsCheck: verticalElementsCheck,
-            diagonalElementsCheck: diagonalElementsCheck,
-            clearSpaceCheck: clearSpaceCheck,
-            clearSpaceDivInput: clearSpaceDivInput,
-            layerNameInput: layerNameInput,
-            strokeWidthInput: strokeWidthInput,
-            convertToGuidesCheck: convertToGuidesCheck,
-            groupItemsCheck: groupItemsCheck,
-            emphasizeBoundsCheck: emphasizeBoundsCheck,
-            previewCheck: previewCheck,
-            btnCancel: btnCancel,
-            btnOK: btnOK
-        };
+    /**
+     * 設定用のダイアログを作成します。
+     *
+     * @returns {Object} ダイアログ（dialog）と各コントロールへの参照。
+     */
+    function buildDialog() {
+        var gridDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        gridDialog.orientation = "column";
+        gridDialog.alignChildren = ["fill", "top"];
+
+        var dialogUI = { dialog: gridDialog };
+        addPresetRow(gridDialog, dialogUI);
+        addCommonPanel(gridDialog, dialogUI);
+
+        /* 横線・縦線の2カラム / Two columns for the horizontal and vertical lines */
+        var panelColumns = addColumnsGroup(gridDialog);
+        addHorizontalPanel(addColumn(panelColumns, "fill"), dialogUI);
+        addVerticalPanel(addColumn(panelColumns, "fill"), dialogUI);
+
+        addButtonRow(gridDialog, dialogUI);
+        return dialogUI;
     }
 
     // =========================================
@@ -1605,81 +1652,81 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * ［グループ化］の使用可否を、［ガイドに変換する］に合わせます。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function updateGroupState(ui) {
-        ui.groupItemsCheck.enabled = !ui.convertToGuidesCheck.value;
-        if (ui.convertToGuidesCheck.value) ui.groupItemsCheck.value = false;
+    function updateGroupState(dialogUI) {
+        dialogUI.groupItemsCheck.enabled = !dialogUI.convertToGuidesCheck.value;
+        if (dialogUI.convertToGuidesCheck.value) dialogUI.groupItemsCheck.value = false;
     }
 
     /**
      * ［均等分割］の本数入力の使用可否を更新します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function updateColumnDivField(ui) {
-        ui.columnDivInput.enabled = ui.columnDivCheck.enabled && ui.columnDivCheck.value;
+    function updateColumnDivField(dialogUI) {
+        dialogUI.columnDivInput.enabled = dialogUI.columnDivCheck.enabled && dialogUI.columnDivCheck.value;
     }
 
     /**
      * ［分割数］の値と使用可否を、横線の均等分割に合わせます。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function updateClearSpaceDivField(ui) {
-        var evenMode = ui.methodEvenRadio.value;
-        var evenCount = parseInt(ui.evenLineCountInput.text, 10);
+    function updateClearSpaceDivField(dialogUI) {
+        var evenMode = dialogUI.methodEvenRadio.value;
+        var evenCount = parseInt(dialogUI.evenLineCountInput.text, 10);
 
         /* 均等分割の本数＋1がユニット数になる / The unit count follows the even division count */
         if (evenMode && !isNaN(evenCount) && evenCount >= 1) {
-            ui.clearSpaceDivInput.text = String(evenCount + 1);
+            dialogUI.clearSpaceDivInput.text = String(evenCount + 1);
         }
-        ui.clearSpaceDivInput.enabled = ui.clearSpaceCheck.value || !evenMode;
+        dialogUI.clearSpaceDivInput.enabled = dialogUI.clearSpaceCheck.value || !evenMode;
     }
 
     /**
      * 分割にかかわる入力欄の状態をまとめて更新します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function syncDivisionFields(ui) {
-        updateColumnDivField(ui);
-        updateClearSpaceDivField(ui);
+    function syncDivisionFields(dialogUI) {
+        updateColumnDivField(dialogUI);
+        updateClearSpaceDivField(dialogUI);
     }
 
     /**
      * ［クリアスペース］の状態に合わせて、横線・縦線パネルなどの使用可否を更新します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {void}
      */
-    function updateClearSpaceState(ui) {
-        var clearSpace = ui.clearSpaceCheck.value;
+    function updateClearSpaceState(dialogUI) {
+        var clearSpace = dialogUI.clearSpaceCheck.value;
 
         /* 横線・縦線はパネルごとディム / Dim the whole horizontal and vertical panels */
-        ui.horizontalPanel.enabled = !clearSpace;
-        ui.verticalPanel.enabled = !clearSpace;
-        ui.extraHLinesInput.enabled = !clearSpace && ui.extraHLinesCheck.value;
-        ui.evenLineCountInput.enabled = !clearSpace && ui.methodEvenRadio.value;
-        ui.outerVLinesInput.enabled = !clearSpace && ui.outerVLinesCheck.value;
-        ui.columnDivInput.enabled = !clearSpace && ui.columnDivCheck.value;
+        dialogUI.horizontalPanel.enabled = !clearSpace;
+        dialogUI.verticalPanel.enabled = !clearSpace;
+        dialogUI.extraHLinesInput.enabled = !clearSpace && dialogUI.extraHLinesCheck.value;
+        dialogUI.evenLineCountInput.enabled = !clearSpace && dialogUI.methodEvenRadio.value;
+        dialogUI.outerVLinesInput.enabled = !clearSpace && dialogUI.outerVLinesCheck.value;
+        dialogUI.columnDivInput.enabled = !clearSpace && dialogUI.columnDivCheck.value;
 
         /* クリアスペース中は線幅とガイド化を使わず、グループ化はON固定 */
-        ui.strokeWidthInput.enabled = !clearSpace;
-        ui.convertToGuidesCheck.enabled = !clearSpace;
+        dialogUI.strokeWidthInput.enabled = !clearSpace;
+        dialogUI.convertToGuidesCheck.enabled = !clearSpace;
         if (clearSpace) {
-            ui.convertToGuidesCheck.value = false;
-            ui.groupItemsCheck.value = true;
-            ui.groupItemsCheck.enabled = false;
+            dialogUI.convertToGuidesCheck.value = false;
+            dialogUI.groupItemsCheck.value = true;
+            dialogUI.groupItemsCheck.enabled = false;
         } else {
-            updateGroupState(ui);
+            updateGroupState(dialogUI);
         }
 
-        syncDivisionFields(ui);
+        syncDivisionFields(dialogUI);
     }
 
     // =========================================
@@ -1689,129 +1736,129 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 伸張率の入力欄か判定します（小数第1位で表示する欄）。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {EditText} field - 対象の入力欄。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {EditText} inputField - 対象の入力欄。
      * @returns {boolean} 伸張率の入力欄のとき true。
      */
-    function isScaleField(ui, field) {
-        return field === ui.widthScaleInput || field === ui.heightScaleInput;
+    function isScaleField(dialogUI, inputField) {
+        return inputField === dialogUI.widthScaleInput || inputField === dialogUI.heightScaleInput;
     }
 
     /**
      * 正の数として扱える入力か判定します。
      *
-     * @param {string} text - 入力された文字列。
+     * @param {string} inputText - 入力された文字列。
      * @returns {boolean} 正の数のとき true。
      */
-    function isPositiveNumberText(text) {
-        return /^\d+(?:\.\d+)?$/.test(text) && parseFloat(text) > 0;
+    function isPositiveNumberText(inputText) {
+        return /^\d+(?:\.\d+)?$/.test(inputText) && parseFloat(inputText) > 0;
     }
 
     /**
      * 1以上の整数として扱える入力か判定します。
      *
-     * @param {string} text - 入力された文字列。
+     * @param {string} inputText - 入力された文字列。
      * @returns {boolean} 1以上の整数のとき true。
      */
-    function isCountText(text) {
-        return /^\d+$/.test(text) && parseInt(text, 10) >= 1;
+    function isCountText(inputText) {
+        return /^\d+$/.test(inputText) && parseInt(inputText, 10) >= 1;
     }
 
     /**
      * ダイアログの入力内容をそのまま読み取ります。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {Object} 入力内容。
      */
-    function readParams(ui) {
+    function readDialogValues(dialogUI) {
         return {
-            layerName: normalizeLayerNameText(ui.layerNameInput.text),
-            widthScaleText: ui.widthScaleInput.text,
-            heightScaleText: ui.heightScaleInput.text,
-            strokeWidthText: ui.strokeWidthInput.text,
-            lineMethod: getLineMethod(ui),
-            evenLineCountText: ui.evenLineCountInput.text,
-            extraHLines: ui.extraHLinesCheck.value,
-            extraHLineCountText: ui.extraHLinesInput.text,
-            extendLeft: ui.extendLeftCheck.value,
-            outerVLines: ui.outerVLinesCheck.value,
-            outerVLineCountText: ui.outerVLinesInput.text,
-            extendUp: ui.extendUpCheck.value,
-            columnDiv: ui.columnDivCheck.value,
-            columnDivisionsText: ui.columnDivInput.text,
-            verticalElements: ui.verticalElementsCheck.value,
-            diagonalElements: ui.diagonalElementsCheck.value,
-            emphasizeBounds: ui.emphasizeBoundsCheck.value,
-            convertToGuides: ui.convertToGuidesCheck.value,
-            groupItems: ui.groupItemsCheck.value,
-            clearSpace: ui.clearSpaceCheck.value,
-            clearSpaceDivisionsText: ui.clearSpaceDivInput.text
+            layerName: normalizeLayerNameText(dialogUI.layerNameInput.text),
+            widthScaleText: dialogUI.widthScaleInput.text,
+            heightScaleText: dialogUI.heightScaleInput.text,
+            strokeWidthText: dialogUI.strokeWidthInput.text,
+            lineMethod: getLineMethod(dialogUI),
+            evenLineCountText: dialogUI.evenLineCountInput.text,
+            extraHLines: dialogUI.extraHLinesCheck.value,
+            extraHLineCountText: dialogUI.extraHLinesInput.text,
+            extendLeft: dialogUI.extendLeftCheck.value,
+            outerVLines: dialogUI.outerVLinesCheck.value,
+            outerVLineCountText: dialogUI.outerVLinesInput.text,
+            extendUp: dialogUI.extendUpCheck.value,
+            columnDiv: dialogUI.columnDivCheck.value,
+            columnDivisionsText: dialogUI.columnDivInput.text,
+            verticalElements: dialogUI.verticalElementsCheck.value,
+            diagonalElements: dialogUI.diagonalElementsCheck.value,
+            emphasizeBounds: dialogUI.emphasizeBoundsCheck.value,
+            convertToGuides: dialogUI.convertToGuidesCheck.value,
+            groupItems: dialogUI.groupItemsCheck.value,
+            clearSpace: dialogUI.clearSpaceCheck.value,
+            clearSpaceDivisionsText: dialogUI.clearSpaceDivInput.text
         };
     }
 
     /**
      * 入力内容が処理に使える値か検証します。
      *
-     * @param {Object} raw - readParams() の結果。
+     * @param {Object} dialogValues - readDialogValues() の結果。
      * @returns {boolean} すべて正しいとき true。
      */
-    function validateParams(raw) {
-        if (!raw.layerName) return false;
-        if (!isPositiveNumberText(raw.widthScaleText)) return false;
-        if (!isPositiveNumberText(raw.heightScaleText)) return false;
-        if (!isPositiveNumberText(raw.strokeWidthText)) return false;
-        if (!isPositiveNumberText(raw.clearSpaceDivisionsText)) return false;
-        if (raw.lineMethod === "even" && !isCountText(raw.evenLineCountText)) return false;
-        if (raw.extraHLines && !isCountText(raw.extraHLineCountText)) return false;
-        if (raw.outerVLines && !isCountText(raw.outerVLineCountText)) return false;
-        if (raw.columnDiv && !isCountText(raw.columnDivisionsText)) return false;
+    function validateDialogValues(dialogValues) {
+        if (!dialogValues.layerName) return false;
+        if (!isPositiveNumberText(dialogValues.widthScaleText)) return false;
+        if (!isPositiveNumberText(dialogValues.heightScaleText)) return false;
+        if (!isPositiveNumberText(dialogValues.strokeWidthText)) return false;
+        if (!isPositiveNumberText(dialogValues.clearSpaceDivisionsText)) return false;
+        if (dialogValues.lineMethod === "even" && !isCountText(dialogValues.evenLineCountText)) return false;
+        if (dialogValues.extraHLines && !isCountText(dialogValues.extraHLineCountText)) return false;
+        if (dialogValues.outerVLines && !isCountText(dialogValues.outerVLineCountText)) return false;
+        if (dialogValues.columnDiv && !isCountText(dialogValues.columnDivisionsText)) return false;
         return true;
     }
 
     /**
      * 入力内容を、描画で使う単位・型に変換します。
      *
-     * @param {Object} raw - readParams() の結果。
+     * @param {Object} dialogValues - readDialogValues() の結果。
      * @returns {Object|null} 変換した設定。線幅を換算できないときは null。
      */
-    function normalizeParams(raw) {
-        var strokeWidth = toPoints(parseFloat(raw.strokeWidthText));
+    function toGridParams(dialogValues) {
+        var strokeWidth = strokeUnitsToPoints(parseFloat(dialogValues.strokeWidthText));
         if (!(strokeWidth > 0)) return null;
 
         return {
-            layerName: raw.layerName,
-            widthScale: parseFloat(raw.widthScaleText) / 100,
-            heightScale: parseFloat(raw.heightScaleText) / 100,
+            layerName: dialogValues.layerName,
+            widthScale: parseFloat(dialogValues.widthScaleText) / 100,
+            heightScale: parseFloat(dialogValues.heightScaleText) / 100,
             strokeWidth: strokeWidth,
-            lineMethod: raw.lineMethod,
-            evenLineCount: (raw.lineMethod === "even") ? parseInt(raw.evenLineCountText, 10) : 0,
-            extraHLines: raw.extraHLines,
-            extraHLineCount: raw.extraHLines ? parseInt(raw.extraHLineCountText, 10) : 0,
-            extendLeft: raw.extendLeft,
-            outerVLines: raw.outerVLines,
-            outerVLineCount: raw.outerVLines ? parseInt(raw.outerVLineCountText, 10) : 0,
-            extendUp: raw.extendUp,
-            columnDiv: raw.columnDiv,
-            columnDivisions: raw.columnDiv ? parseInt(raw.columnDivisionsText, 10) : 0,
-            verticalElements: raw.verticalElements,
-            diagonalElements: raw.diagonalElements,
-            emphasizeBounds: raw.emphasizeBounds,
-            convertToGuides: raw.convertToGuides,
-            groupItems: raw.groupItems,
-            clearSpace: raw.clearSpace,
-            clearSpaceDivisions: parseFloat(raw.clearSpaceDivisionsText)
+            lineMethod: dialogValues.lineMethod,
+            evenLineCount: (dialogValues.lineMethod === "even") ? parseInt(dialogValues.evenLineCountText, 10) : 0,
+            extraHLines: dialogValues.extraHLines,
+            extraHLineCount: dialogValues.extraHLines ? parseInt(dialogValues.extraHLineCountText, 10) : 0,
+            extendLeft: dialogValues.extendLeft,
+            outerVLines: dialogValues.outerVLines,
+            outerVLineCount: dialogValues.outerVLines ? parseInt(dialogValues.outerVLineCountText, 10) : 0,
+            extendUp: dialogValues.extendUp,
+            columnDiv: dialogValues.columnDiv,
+            columnDivisions: dialogValues.columnDiv ? parseInt(dialogValues.columnDivisionsText, 10) : 0,
+            verticalElements: dialogValues.verticalElements,
+            diagonalElements: dialogValues.diagonalElements,
+            emphasizeBounds: dialogValues.emphasizeBounds,
+            convertToGuides: dialogValues.convertToGuides,
+            groupItems: dialogValues.groupItems,
+            clearSpace: dialogValues.clearSpace,
+            clearSpaceDivisions: parseFloat(dialogValues.clearSpaceDivisionsText)
         };
     }
 
     /**
      * ダイアログの入力内容を、検証したうえで設定にまとめます。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @returns {Object|null} 設定。入力値が不正なときは null。
      */
-    function getParams(ui) {
-        var raw = readParams(ui);
-        return validateParams(raw) ? normalizeParams(raw) : null;
+    function getGridParams(dialogUI) {
+        var dialogValues = readDialogValues(dialogUI);
+        return validateDialogValues(dialogValues) ? toGridParams(dialogValues) : null;
     }
 
     // =========================================
@@ -1821,41 +1868,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 補助線を描く範囲（線の長さとユニットの大きさ）を求めます。
      *
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {Object} params - getParams() が返す設定。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {Object} gridParams - getGridParams() が返す設定。
      * @returns {{left: number, right: number, top: number, bottom: number, unitSize: number}} 描画範囲。
      */
-    function computeFrame(context, params) {
-        var unitSize = context.selHeight / params.clearSpaceDivisions;
+    function computeFrame(gridContext, gridParams) {
+        var unitSize = gridContext.selHeight / gridParams.clearSpaceDivisions;
 
-        var halfWidth = context.selWidth * params.widthScale / 2;
-        var left = context.centerX - halfWidth;
-        var right = context.centerX + halfWidth;
-        if (params.extendLeft) {
+        var halfWidth = gridContext.selWidth * gridParams.widthScale / 2;
+        var left = gridContext.centerX - halfWidth;
+        var right = gridContext.centerX + halfWidth;
+        if (gridParams.extendLeft) {
             /* 右端を選択範囲の右外に固定し、余りを左へ伸ばす / Pin the right end and extend leftward */
-            var shift = right - (context.selRight + context.selHeight / 2);
+            var shift = right - (gridContext.selRight + gridContext.selHeight / 2);
             left -= shift;
             right -= shift;
         }
 
-        var lineHeight = context.selHeight * params.heightScale;
+        var lineHeight = gridContext.selHeight * gridParams.heightScale;
         var top, bottom;
-        if (params.extendUp) {
-            bottom = context.selBottom - unitSize * 2;
+        if (gridParams.extendUp) {
+            bottom = gridContext.selBottom - unitSize * 2;
             top = bottom + lineHeight;
         } else {
-            top = context.centerY + lineHeight / 2;
-            bottom = context.centerY - lineHeight / 2;
+            top = gridContext.centerY + lineHeight / 2;
+            bottom = gridContext.centerY - lineHeight / 2;
         }
 
-        if (!params.clearSpace) {
+        if (!gridParams.clearSpace) {
             /* 外側に追加した線とも必ず交差するよう、線の長さを自動で補正する */
-            var outerOffset = params.outerVLines ? unitSize * (params.outerVLineCount - 1) : 0;
-            var extraOffset = params.extraHLines ? unitSize * (params.extraHLineCount - 1) : 0;
-            left = Math.min(left, context.selLeft - outerOffset);
-            right = Math.max(right, context.selRight + outerOffset);
-            top = Math.max(top, context.selTop + extraOffset);
-            bottom = Math.min(bottom, context.selBottom - extraOffset);
+            var outerOffset = gridParams.outerVLines ? unitSize * (gridParams.outerVLineCount - 1) : 0;
+            var extraOffset = gridParams.extraHLines ? unitSize * (gridParams.extraHLineCount - 1) : 0;
+            left = Math.min(left, gridContext.selLeft - outerOffset);
+            right = Math.max(right, gridContext.selRight + outerOffset);
+            top = Math.max(top, gridContext.selTop + extraOffset);
+            bottom = Math.min(bottom, gridContext.selBottom - extraOffset);
         }
 
         return { left: left, right: right, top: top, bottom: bottom, unitSize: unitSize };
@@ -1864,124 +1911,124 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 直線を1本描きます。
      *
-     * @param {GroupItem} parent - 追加先のグループ。
+     * @param {GroupItem} targetGroup - 追加先のグループ。
      * @param {number} x1 - 始点のX座標。
      * @param {number} y1 - 始点のY座標。
      * @param {number} x2 - 終点のX座標。
      * @param {number} y2 - 終点のY座標。
-     * @param {Object} color - 線のカラー。
+     * @param {Object} strokeColor - 線のカラー。
      * @param {number} strokeWidth - 線幅（pt）。
      * @returns {PathItem} 作成したパス。
      */
-    function drawLine(parent, x1, y1, x2, y2, color, strokeWidth) {
-        var line = parent.pathItems.add();
-        line.setEntirePath([[x1, y1], [x2, y2]]);
-        line.stroked = true;
-        line.filled = false;
-        line.strokeWidth = strokeWidth;
-        line.strokeColor = color;
-        return line;
+    function drawLine(targetGroup, x1, y1, x2, y2, strokeColor, strokeWidth) {
+        var linePath = targetGroup.pathItems.add();
+        linePath.setEntirePath([[x1, y1], [x2, y2]]);
+        linePath.stroked = true;
+        linePath.filled = false;
+        linePath.strokeWidth = strokeWidth;
+        linePath.strokeColor = strokeColor;
+        return linePath;
     }
 
     /**
      * 横線を1本描きます。
      *
-     * @param {GroupItem} parent - 追加先のグループ。
+     * @param {GroupItem} targetGroup - 追加先のグループ。
      * @param {Object} frame - computeFrame() が返す描画範囲。
      * @param {number} y - 描くY座標。
-     * @param {Object} stroke - 線のカラーと線幅。
+     * @param {Object} strokeStyle - 線のカラーと線幅。
      * @param {boolean} onBounds - 選択範囲の境界に重なるか。
      * @returns {void}
      */
-    function drawHorizontalLine(parent, frame, y, stroke, onBounds) {
-        drawLine(parent, frame.left, y, frame.right, y, stroke.color, onBounds ? stroke.bounds : stroke.normal);
+    function drawHorizontalLine(targetGroup, frame, y, strokeStyle, onBounds) {
+        drawLine(targetGroup, frame.left, y, frame.right, y, strokeStyle.color, onBounds ? strokeStyle.bounds : strokeStyle.normal);
     }
 
     /**
      * 縦線を1本描きます。
      *
-     * @param {GroupItem} parent - 追加先のグループ。
+     * @param {GroupItem} targetGroup - 追加先のグループ。
      * @param {Object} frame - computeFrame() が返す描画範囲。
      * @param {number} x - 描くX座標。
-     * @param {Object} stroke - 線のカラーと線幅。
+     * @param {Object} strokeStyle - 線のカラーと線幅。
      * @param {boolean} onBounds - 選択範囲の境界に重なるか。
      * @returns {void}
      */
-    function drawVerticalLine(parent, frame, x, stroke, onBounds) {
-        drawLine(parent, x, frame.top, x, frame.bottom, stroke.color, onBounds ? stroke.bounds : stroke.normal);
+    function drawVerticalLine(targetGroup, frame, x, strokeStyle, onBounds) {
+        drawLine(targetGroup, x, frame.top, x, frame.bottom, strokeStyle.color, onBounds ? strokeStyle.bounds : strokeStyle.normal);
     }
 
     /**
      * 横線（境界線・外側の線・ラインの決め方による線）を描きます。
      *
-     * @param {GroupItem} group - 追加先のグループ。
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {Object} params - getParams() が返す設定。
+     * @param {GroupItem} linesGroup - 追加先のグループ。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {Object} gridParams - getGridParams() が返す設定。
      * @param {Object} frame - computeFrame() が返す描画範囲。
-     * @param {Object} stroke - 線のカラーと線幅。
+     * @param {Object} strokeStyle - 線のカラーと線幅。
      * @returns {void}
      */
-    function drawHorizontalGuides(group, context, params, frame, stroke) {
-        if (params.extraHLines) {
-            drawHorizontalLine(group, frame, context.selTop, stroke, true);
-            drawHorizontalLine(group, frame, context.selBottom, stroke, true);
-            for (var i = 1; i < params.extraHLineCount; i++) {
-                drawHorizontalLine(group, frame, context.selTop + frame.unitSize * i, stroke, false);
-                drawHorizontalLine(group, frame, context.selBottom - frame.unitSize * i, stroke, false);
+    function drawHorizontalGuides(linesGroup, gridContext, gridParams, frame, strokeStyle) {
+        if (gridParams.extraHLines) {
+            drawHorizontalLine(linesGroup, frame, gridContext.selTop, strokeStyle, true);
+            drawHorizontalLine(linesGroup, frame, gridContext.selBottom, strokeStyle, true);
+            for (var i = 1; i < gridParams.extraHLineCount; i++) {
+                drawHorizontalLine(linesGroup, frame, gridContext.selTop + frame.unitSize * i, strokeStyle, false);
+                drawHorizontalLine(linesGroup, frame, gridContext.selBottom - frame.unitSize * i, strokeStyle, false);
             }
         }
 
-        var lineYs = getHorizontalLineYs(context.geometry, params.lineMethod, params.evenLineCount);
+        var lineYs = getHorizontalLineYs(gridContext.geometry, gridParams.lineMethod, gridParams.evenLineCount);
         for (var j = 0; j < lineYs.length; j++) {
-            var onBounds = params.emphasizeBounds &&
-                (isSameCoord(lineYs[j], context.selTop) || isSameCoord(lineYs[j], context.selBottom));
-            drawHorizontalLine(group, frame, lineYs[j], stroke, onBounds);
+            var onBounds = gridParams.emphasizeBounds &&
+                (isSameCoord(lineYs[j], gridContext.selTop) || isSameCoord(lineYs[j], gridContext.selBottom));
+            drawHorizontalLine(linesGroup, frame, lineYs[j], strokeStyle, onBounds);
         }
     }
 
     /**
      * 縦線（境界線・外側の線・均等分割・垂直／斜線エレメント）を描きます。
      *
-     * @param {GroupItem} group - 追加先のグループ。
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {Object} params - getParams() が返す設定。
+     * @param {GroupItem} linesGroup - 追加先のグループ。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {Object} gridParams - getGridParams() が返す設定。
      * @param {Object} frame - computeFrame() が返す描画範囲。
-     * @param {Object} stroke - 線のカラーと線幅。
+     * @param {Object} strokeStyle - 線のカラーと線幅。
      * @returns {void}
      */
-    function drawVerticalGuides(group, context, params, frame, stroke) {
-        if (params.outerVLines) {
-            drawVerticalLine(group, frame, context.selLeft, stroke, true);
-            drawVerticalLine(group, frame, context.selRight, stroke, true);
-            for (var i = 1; i < params.outerVLineCount; i++) {
-                drawVerticalLine(group, frame, context.selLeft - frame.unitSize * i, stroke, false);
-                drawVerticalLine(group, frame, context.selRight + frame.unitSize * i, stroke, false);
+    function drawVerticalGuides(linesGroup, gridContext, gridParams, frame, strokeStyle) {
+        if (gridParams.outerVLines) {
+            drawVerticalLine(linesGroup, frame, gridContext.selLeft, strokeStyle, true);
+            drawVerticalLine(linesGroup, frame, gridContext.selRight, strokeStyle, true);
+            for (var i = 1; i < gridParams.outerVLineCount; i++) {
+                drawVerticalLine(linesGroup, frame, gridContext.selLeft - frame.unitSize * i, strokeStyle, false);
+                drawVerticalLine(linesGroup, frame, gridContext.selRight + frame.unitSize * i, strokeStyle, false);
             }
         }
 
-        if (params.columnDiv && params.columnDivisions > 1) {
-            var step = context.selWidth / params.columnDivisions;
-            for (var j = 1; j < params.columnDivisions; j++) {
-                drawVerticalLine(group, frame, context.selLeft + step * j, stroke, false);
+        if (gridParams.columnDiv && gridParams.columnDivisions > 1) {
+            var step = gridContext.selWidth / gridParams.columnDivisions;
+            for (var j = 1; j < gridParams.columnDivisions; j++) {
+                drawVerticalLine(linesGroup, frame, gridContext.selLeft + step * j, strokeStyle, false);
             }
         }
 
-        if (params.verticalElements) {
-            var elementXs = getVerticalElementXs(context.geometry);
+        if (gridParams.verticalElements) {
+            var elementXs = getVerticalElementXs(gridContext.geometry);
             for (var k = 0; k < elementXs.length; k++) {
-                var onBounds = params.emphasizeBounds &&
-                    (isSameCoord(elementXs[k], context.selLeft) || isSameCoord(elementXs[k], context.selRight));
-                drawVerticalLine(group, frame, elementXs[k], stroke, onBounds);
+                var onBounds = gridParams.emphasizeBounds &&
+                    (isSameCoord(elementXs[k], gridContext.selLeft) || isSameCoord(elementXs[k], gridContext.selRight));
+                drawVerticalLine(linesGroup, frame, elementXs[k], strokeStyle, onBounds);
             }
         }
 
-        if (params.diagonalElements) {
-            var diagonalLines = getDiagonalElementLines(context.geometry, frame.left, frame.top, frame.right, frame.bottom);
-            for (var m = 0; m < diagonalLines.length; m++) {
-                drawLine(group,
-                    diagonalLines[m][0][0], diagonalLines[m][0][1],
-                    diagonalLines[m][1][0], diagonalLines[m][1][1],
-                    stroke.color, stroke.normal);
+        if (gridParams.diagonalElements) {
+            var diagonalLines = getDiagonalElementLines(gridContext.geometry, frame.left, frame.top, frame.right, frame.bottom);
+            for (var lineIndex = 0; lineIndex < diagonalLines.length; lineIndex++) {
+                drawLine(linesGroup,
+                    diagonalLines[lineIndex][0][0], diagonalLines[lineIndex][0][1],
+                    diagonalLines[lineIndex][1][0], diagonalLines[lineIndex][1][1],
+                    strokeStyle.color, strokeStyle.normal);
             }
         }
     }
@@ -1989,110 +2036,110 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * クリアスペースの帯を1つ描きます（塗りと枠線の2枚重ね）。
      *
-     * @param {GroupItem} parent - 追加先のグループ。
+     * @param {GroupItem} targetGroup - 追加先のグループ。
      * @param {number} left - 左端。
      * @param {number} top - 上端。
      * @param {number} width - 幅。
      * @param {number} height - 高さ。
-     * @param {Object} color - 帯のカラー。
+     * @param {Object} bandColor - 帯のカラー。
      * @returns {void}
      */
-    function drawClearSpaceBand(parent, left, top, width, height, color) {
-        var fill = parent.pathItems.rectangle(top, left, width, height);
-        fill.filled = true;
-        fill.fillColor = color;
-        fill.stroked = false;
-        fill.opacity = CLEAR_SPACE_STYLE.fillOpacity;
+    function drawClearSpaceBand(targetGroup, left, top, width, height, bandColor) {
+        var fillRect = targetGroup.pathItems.rectangle(top, left, width, height);
+        fillRect.filled = true;
+        fillRect.fillColor = bandColor;
+        fillRect.stroked = false;
+        fillRect.opacity = CLEAR_SPACE_STYLE.fillOpacity;
 
-        var outline = parent.pathItems.rectangle(top, left, width, height);
-        outline.filled = false;
-        outline.stroked = true;
-        outline.strokeColor = color;
-        outline.strokeWidth = CLEAR_SPACE_STYLE.strokeWidth;
+        var outlineRect = targetGroup.pathItems.rectangle(top, left, width, height);
+        outlineRect.filled = false;
+        outlineRect.stroked = true;
+        outlineRect.strokeColor = bandColor;
+        outlineRect.strokeWidth = CLEAR_SPACE_STYLE.strokeWidth;
     }
 
     /**
      * 選択範囲の四方にクリアスペースを描きます。
      *
-     * @param {GroupItem} group - 追加先のグループ。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {GroupItem} linesGroup - 追加先のグループ。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @param {number} unitSize - ユニット（1単位）の大きさ。
      * @returns {void}
      */
-    function drawClearSpace(group, context, unitSize) {
-        var left = context.selLeft - unitSize;
-        var right = context.selRight + unitSize;
-        var top = context.selTop + unitSize;
+    function drawClearSpace(linesGroup, gridContext, unitSize) {
+        var left = gridContext.selLeft - unitSize;
+        var right = gridContext.selRight + unitSize;
+        var top = gridContext.selTop + unitSize;
         var outerWidth = right - left;
-        var outerHeight = top - (context.selBottom - unitSize);
-        var color = makeCyanColor(CLEAR_SPACE_STYLE.cyan);
+        var outerHeight = top - (gridContext.selBottom - unitSize);
+        var bandColor = makeCyanColor(CLEAR_SPACE_STYLE.cyan);
 
-        var clearSpaceGroup = group.groupItems.add();
+        var clearSpaceGroup = linesGroup.groupItems.add();
         clearSpaceGroup.name = getLabel(LABELS.itemName.clearSpaceGroup);
 
-        drawClearSpaceBand(clearSpaceGroup, left, top, outerWidth, unitSize, color);
-        drawClearSpaceBand(clearSpaceGroup, left, context.selBottom, outerWidth, unitSize, color);
-        drawClearSpaceBand(clearSpaceGroup, left, top, unitSize, outerHeight, color);
-        drawClearSpaceBand(clearSpaceGroup, context.selRight, top, unitSize, outerHeight, color);
+        drawClearSpaceBand(clearSpaceGroup, left, top, outerWidth, unitSize, bandColor);
+        drawClearSpaceBand(clearSpaceGroup, left, gridContext.selBottom, outerWidth, unitSize, bandColor);
+        drawClearSpaceBand(clearSpaceGroup, left, top, unitSize, outerHeight, bandColor);
+        drawClearSpaceBand(clearSpaceGroup, gridContext.selRight, top, unitSize, outerHeight, bandColor);
     }
 
     /**
      * 作成した線をガイドに変換し、グループ化しない設定ならレイヤー直下に移します。
      *
-     * @param {GroupItem} group - 作成した線のグループ。
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {Object} params - getParams() が返す設定。
+     * @param {GroupItem} linesGroup - 作成した線のグループ。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {Object} gridParams - getGridParams() が返す設定。
      * @param {boolean} isPreview - プレビューとして作成したか。
      * @returns {GroupItem|null} 残ったグループ。解除したときは null。
      */
-    function finishGroup(group, context, params, isPreview) {
+    function finalizeLinesGroup(linesGroup, gridContext, gridParams, isPreview) {
         /* プレビューは削除できるようグループのまま残す / Keep previews grouped so they can be removed */
-        if (isPreview) return group;
+        if (isPreview) return linesGroup;
 
-        if (params.convertToGuides) {
-            for (var i = 0; i < group.pathItems.length; i++) {
-                group.pathItems[i].guides = true;
+        if (gridParams.convertToGuides) {
+            for (var i = 0; i < linesGroup.pathItems.length; i++) {
+                linesGroup.pathItems[i].guides = true;
             }
         }
 
-        if (!params.groupItems && !params.convertToGuides) {
-            while (group.pageItems.length > 0) {
-                group.pageItems[0].move(context.guideLayer, ElementPlacement.PLACEATBEGINNING);
+        if (!gridParams.groupItems && !gridParams.convertToGuides) {
+            while (linesGroup.pageItems.length > 0) {
+                linesGroup.pageItems[0].move(gridContext.guideLayer, ElementPlacement.PLACEATBEGINNING);
             }
-            group.remove();
+            linesGroup.remove();
             return null;
         }
 
-        return group;
+        return linesGroup;
     }
 
     /**
      * 設定に従って補助線またはクリアスペースを作成します。
      *
-     * @param {Object} context - buildContext() が返すコンテキスト。
-     * @param {Object} params - getParams() が返す設定。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
+     * @param {Object} gridParams - getGridParams() が返す設定。
      * @param {boolean} isPreview - プレビューとして作成するか。
      * @returns {GroupItem|null} 作成したグループ。グループ化しないときは null。
      */
-    function createLines(context, params, isPreview) {
-        var frame = computeFrame(context, params);
-        var stroke = {
+    function createGridItems(gridContext, gridParams, isPreview) {
+        var frame = computeFrame(gridContext, gridParams);
+        var strokeStyle = {
             color: makeGrayColor(LINE_STYLE.grayTint),
-            normal: params.strokeWidth,
-            bounds: params.emphasizeBounds ? (params.strokeWidth * LINE_STYLE.boundsMultiplier) : params.strokeWidth
+            normal: gridParams.strokeWidth,
+            bounds: gridParams.emphasizeBounds ? (gridParams.strokeWidth * LINE_STYLE.boundsMultiplier) : gridParams.strokeWidth
         };
 
-        var group = context.guideLayer.groupItems.add();
-        group.name = getLabel(isPreview ? LABELS.itemName.previewGroup : LABELS.itemName.guideGroup);
+        var linesGroup = gridContext.guideLayer.groupItems.add();
+        linesGroup.name = getLabel(isPreview ? LABELS.itemName.previewGroup : LABELS.itemName.guideGroup);
 
-        if (params.clearSpace) {
-            drawClearSpace(group, context, frame.unitSize);
+        if (gridParams.clearSpace) {
+            drawClearSpace(linesGroup, gridContext, frame.unitSize);
         } else {
-            drawHorizontalGuides(group, context, params, frame, stroke);
-            drawVerticalGuides(group, context, params, frame, stroke);
+            drawHorizontalGuides(linesGroup, gridContext, gridParams, frame, strokeStyle);
+            drawVerticalGuides(linesGroup, gridContext, gridParams, frame, strokeStyle);
         }
 
-        return finishGroup(group, context, params, isPreview);
+        return finalizeLinesGroup(linesGroup, gridContext, gridParams, isPreview);
     }
 
     // =========================================
@@ -2108,6 +2155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      */
     function removePreview() {
         if (!previewGroup) return;
+        /* 削除済みのときは参照が無効 / The group may already be gone */
         try {
             previewGroup.remove();
         } catch (e) { }
@@ -2118,28 +2166,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     /**
      * 現在の設定でプレビューを作り直します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function updatePreview(ui, context) {
+    function updatePreview(dialogUI, gridContext) {
         removePreview();
-        var params = getParams(ui);
-        if (!params) return;
-        context.guideLayer = ensureGuideLayer(context, params.layerName);
-        previewGroup = createLines(context, params, true);
+        var gridParams = getGridParams(dialogUI);
+        if (!gridParams) return;
+        gridContext.guideLayer = ensureGuideLayer(gridContext, gridParams.layerName);
+        previewGroup = createGridItems(gridContext, gridParams, true);
         app.redraw();
     }
 
     /**
      * ［プレビュー］がONのときだけ、プレビューを作り直します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function refreshPreview(ui, context) {
-        if (ui.previewCheck.value) updatePreview(ui, context);
+    function refreshPreview(dialogUI, gridContext) {
+        if (dialogUI.previewCheck.value) updatePreview(dialogUI, gridContext);
     }
 
     // =========================================
@@ -2151,11 +2199,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      *
      * @param {EditText} editText - 対象の入力欄。
      * @param {boolean} integerOnly - 整数だけを扱うか。
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function changeValueByArrowKey(editText, integerOnly, ui, context) {
+    function changeValueByArrowKey(editText, integerOnly, dialogUI, gridContext) {
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
@@ -2163,153 +2211,153 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             if (isNaN(value)) return;
 
             var isUp = (event.keyName === "Up");
-            var keyboard = ScriptUI.environment.keyboardState;
-            if (keyboard.shiftKey) {
+            var keyboardState = ScriptUI.environment.keyboardState;
+            if (keyboardState.shiftKey) {
                 value = isUp ? (Math.ceil((value + 1) / 10) * 10) : (Math.floor((value - 1) / 10) * 10);
-            } else if (keyboard.altKey && !integerOnly) {
+            } else if (keyboardState.altKey && !integerOnly) {
                 value += isUp ? 0.1 : -0.1;
             } else {
                 value += isUp ? 1 : -1;
             }
 
             if (value < 0) value = 0;
-            value = (keyboard.altKey && !integerOnly) ? (Math.round(value * 10) / 10) : Math.round(value);
+            value = (keyboardState.altKey && !integerOnly) ? (Math.round(value * 10) / 10) : Math.round(value);
 
             event.preventDefault();
-            editText.text = isScaleField(ui, editText) ? value.toFixed(1) : String(value);
+            editText.text = isScaleField(dialogUI, editText) ? value.toFixed(1) : String(value);
 
-            if (editText === ui.evenLineCountInput || editText === ui.columnDivInput) {
-                syncDivisionFields(ui);
+            if (editText === dialogUI.evenLineCountInput || editText === dialogUI.columnDivInput) {
+                syncDivisionFields(dialogUI);
             }
-            refreshPreview(ui, context);
+            refreshPreview(dialogUI, gridContext);
         });
     }
 
     /**
      * ↑↓キーで増減できる入力欄をまとめて設定します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function bindArrowKeyHandlers(ui, context) {
-        changeValueByArrowKey(ui.widthScaleInput, false, ui, context);
-        changeValueByArrowKey(ui.heightScaleInput, false, ui, context);
-        changeValueByArrowKey(ui.strokeWidthInput, false, ui, context);
-        changeValueByArrowKey(ui.clearSpaceDivInput, false, ui, context);
-        changeValueByArrowKey(ui.columnDivInput, true, ui, context);
-        changeValueByArrowKey(ui.extraHLinesInput, true, ui, context);
-        changeValueByArrowKey(ui.outerVLinesInput, true, ui, context);
-        changeValueByArrowKey(ui.evenLineCountInput, true, ui, context);
+    function bindArrowKeyHandlers(dialogUI, gridContext) {
+        changeValueByArrowKey(dialogUI.widthScaleInput, false, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.heightScaleInput, false, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.strokeWidthInput, false, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.clearSpaceDivInput, false, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.columnDivInput, true, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.extraHLinesInput, true, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.outerVLinesInput, true, dialogUI, gridContext);
+        changeValueByArrowKey(dialogUI.evenLineCountInput, true, dialogUI, gridContext);
     }
 
     /**
      * 伸張率の入力欄を、フォーカスが外れたときに小数第1位の表記にそろえます。
      *
-     * @param {EditText} field - 対象の入力欄。
+     * @param {EditText} scaleField - 対象の入力欄。
      * @returns {void}
      */
-    function bindScaleFieldBlur(field) {
-        field.onBlur = function () {
-            var value = parseFloat(field.text);
-            if (!isNaN(value)) field.text = value.toFixed(1);
+    function bindScaleFieldBlur(scaleField) {
+        scaleField.onBlur = function () {
+            var value = parseFloat(scaleField.text);
+            if (!isNaN(value)) scaleField.text = value.toFixed(1);
         };
     }
 
     /**
      * ダイアログのイベントハンドラーを設定します。
      *
-     * @param {Object} ui - createDialog() が返すUI参照。
-     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @param {Object} dialogUI - buildDialog() が返すUI参照。
+     * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function bindEvents(ui, context) {
-        ui.presetDropdown.onChange = function () {
-            applyPreset(ui, context);
+    function bindEvents(dialogUI, gridContext) {
+        dialogUI.presetDropdown.onChange = function () {
+            applyPreset(dialogUI, gridContext);
         };
 
-        ui.btnExport.onClick = function () {
-            exportPreset(ui);
+        dialogUI.btnExport.onClick = function () {
+            exportPreset(dialogUI);
         };
 
-        ui.previewCheck.onClick = function () {
-            if (ui.previewCheck.value) {
-                updatePreview(ui, context);
+        dialogUI.previewCheck.onClick = function () {
+            if (dialogUI.previewCheck.value) {
+                updatePreview(dialogUI, gridContext);
             } else {
                 removePreview();
             }
         };
 
-        ui.widthScaleInput.onChanging = ui.heightScaleInput.onChanging =
-            ui.strokeWidthInput.onChanging = ui.columnDivInput.onChanging =
-            ui.extraHLinesInput.onChanging = ui.outerVLinesInput.onChanging =
-            ui.clearSpaceDivInput.onChanging = function () {
-                refreshPreview(ui, context);
+        dialogUI.widthScaleInput.onChanging = dialogUI.heightScaleInput.onChanging =
+            dialogUI.strokeWidthInput.onChanging = dialogUI.columnDivInput.onChanging =
+            dialogUI.extraHLinesInput.onChanging = dialogUI.outerVLinesInput.onChanging =
+            dialogUI.clearSpaceDivInput.onChanging = function () {
+                refreshPreview(dialogUI, gridContext);
             };
 
-        ui.evenLineCountInput.onChanging = function () {
-            syncDivisionFields(ui);
-            refreshPreview(ui, context);
+        dialogUI.evenLineCountInput.onChanging = function () {
+            syncDivisionFields(dialogUI);
+            refreshPreview(dialogUI, gridContext);
         };
 
-        bindScaleFieldBlur(ui.widthScaleInput);
-        bindScaleFieldBlur(ui.heightScaleInput);
+        bindScaleFieldBlur(dialogUI.widthScaleInput);
+        bindScaleFieldBlur(dialogUI.heightScaleInput);
 
-        ui.layerNameInput.onBlur = function () {
-            ui.layerNameInput.text = normalizeLayerNameText(ui.layerNameInput.text);
+        dialogUI.layerNameInput.onBlur = function () {
+            dialogUI.layerNameInput.text = normalizeLayerNameText(dialogUI.layerNameInput.text);
         };
 
-        ui.methodNoneRadio.onClick = ui.methodAutoRadio.onClick =
-            ui.methodSegmentRadio.onClick = ui.methodEvenRadio.onClick = function () {
-                ui.evenLineCountInput.enabled = ui.methodEvenRadio.value;
-                syncDivisionFields(ui);
-                refreshPreview(ui, context);
+        dialogUI.methodNoneRadio.onClick = dialogUI.methodAutoRadio.onClick =
+            dialogUI.methodSegmentRadio.onClick = dialogUI.methodEvenRadio.onClick = function () {
+                dialogUI.evenLineCountInput.enabled = dialogUI.methodEvenRadio.value;
+                syncDivisionFields(dialogUI);
+                refreshPreview(dialogUI, gridContext);
             };
 
-        ui.extraHLinesCheck.onClick = ui.extendLeftCheck.onClick =
-            ui.outerVLinesCheck.onClick = ui.columnDivCheck.onClick =
-            ui.extendUpCheck.onClick = ui.verticalElementsCheck.onClick =
-            ui.diagonalElementsCheck.onClick = ui.groupItemsCheck.onClick = function () {
-                ui.extraHLinesInput.enabled = ui.extraHLinesCheck.enabled && ui.extraHLinesCheck.value;
-                ui.outerVLinesInput.enabled = ui.outerVLinesCheck.enabled && ui.outerVLinesCheck.value;
-                syncDivisionFields(ui);
-                refreshPreview(ui, context);
+        dialogUI.extraHLinesCheck.onClick = dialogUI.extendLeftCheck.onClick =
+            dialogUI.outerVLinesCheck.onClick = dialogUI.columnDivCheck.onClick =
+            dialogUI.extendUpCheck.onClick = dialogUI.verticalElementsCheck.onClick =
+            dialogUI.diagonalElementsCheck.onClick = dialogUI.groupItemsCheck.onClick = function () {
+                dialogUI.extraHLinesInput.enabled = dialogUI.extraHLinesCheck.enabled && dialogUI.extraHLinesCheck.value;
+                dialogUI.outerVLinesInput.enabled = dialogUI.outerVLinesCheck.enabled && dialogUI.outerVLinesCheck.value;
+                syncDivisionFields(dialogUI);
+                refreshPreview(dialogUI, gridContext);
             };
 
-        ui.clearSpaceCheck.onClick = function () {
-            updateClearSpaceState(ui);
-            refreshPreview(ui, context);
+        dialogUI.clearSpaceCheck.onClick = function () {
+            updateClearSpaceState(dialogUI);
+            refreshPreview(dialogUI, gridContext);
         };
 
-        ui.emphasizeBoundsCheck.onClick = function () {
-            refreshPreview(ui, context);
+        dialogUI.emphasizeBoundsCheck.onClick = function () {
+            refreshPreview(dialogUI, gridContext);
         };
 
-        ui.convertToGuidesCheck.onClick = function () {
-            updateGroupState(ui);
-            refreshPreview(ui, context);
+        dialogUI.convertToGuidesCheck.onClick = function () {
+            updateGroupState(dialogUI);
+            refreshPreview(dialogUI, gridContext);
         };
 
-        ui.btnOK.onClick = function () {
+        dialogUI.btnOK.onClick = function () {
             removePreview();
-            var params = getParams(ui);
-            if (!params) {
+            var gridParams = getGridParams(dialogUI);
+            if (!gridParams) {
                 alert(getLabel(LABELS.alert.invalidInput));
                 return;
             }
-            context.guideLayer = ensureGuideLayer(context, params.layerName);
-            createLines(context, params, false);
-            ui.dialog.close(1);
+            gridContext.guideLayer = ensureGuideLayer(gridContext, gridParams.layerName);
+            createGridItems(gridContext, gridParams, false);
+            dialogUI.dialog.close(1);
         };
 
-        ui.btnCancel.onClick = function () {
+        dialogUI.btnCancel.onClick = function () {
             removePreview();
-            ui.dialog.close(2);
+            dialogUI.dialog.close(2);
         };
 
-        ui.dialog.onClose = function () {
+        dialogUI.dialog.onClose = function () {
             removePreview();
-            removeEmptyCreatedLayers(context);
+            removeEmptyCreatedLayers(gridContext);
         };
     }
 
@@ -2345,17 +2393,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             return;
         }
 
-        var context = buildContext(doc, doc.selection);
-        if (!context) return;
+        var gridContext = buildGridContext(doc, doc.selection);
+        if (!gridContext) return;
 
         previewGroup = null;
         toggleLiveCornerAnnotator();
         try {
-            var ui = createDialog();
-            bindArrowKeyHandlers(ui, context);
-            bindEvents(ui, context);
-            applyPreset(ui, context);
-            ui.dialog.show();
+            var dialogUI = buildDialog();
+            bindArrowKeyHandlers(dialogUI, gridContext);
+            bindEvents(dialogUI, gridContext);
+            applyPreset(dialogUI, gridContext);
+            dialogUI.dialog.show();
         } finally {
             toggleLiveCornerAnnotator();
         }

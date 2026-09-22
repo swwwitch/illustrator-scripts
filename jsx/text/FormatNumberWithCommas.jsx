@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "FormatNumberWithCommas";       /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FormatNumberWithCommas.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FormatNumberWithCommas.md"; /* README (English) */
@@ -85,10 +85,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      * UIの表示言語を返す
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -177,11 +177,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
 
     /**
      * 半角・全角のカンマか
-     * @param {string} character - 1文字
+     * @param {string} charText - 1文字
      * @returns {boolean} カンマなら true
      */
-    function isComma(character) {
-        return character === "," || character === "，";
+    function isComma(charText) {
+        return charText === "," || charText === "，";
     }
 
     /**
@@ -200,12 +200,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      * @returns {string} カンマを入れた文字列
      */
     function insertCommasToDigits(digits, comma) {
-        var result = "";
+        var groupedDigits = "";
         for (var i = 0; i < digits.length; i++) {
-            if (i > 0 && (digits.length - i) % 3 === 0) result += comma;
-            result += digits.charAt(i);
+            if (i > 0 && (digits.length - i) % 3 === 0) groupedDigits += comma;
+            groupedDigits += digits.charAt(i);
         }
-        return result;
+        return groupedDigits;
     }
 
     /**
@@ -216,14 +216,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      */
     function splitNumberToken(token) {
         var sign = /^[+\-＋－]/.test(token) ? token.charAt(0) : "";
-        var body = token.substring(sign.length);
-        var pointIndex = body.search(/[\.．]/);
-        var integerPart = (pointIndex < 0) ? body : body.substring(0, pointIndex);
+        var unsignedText = token.substring(sign.length);
+        var pointIndex = unsignedText.search(/[\.．]/);
+        var integerPart = (pointIndex < 0) ? unsignedText : unsignedText.substring(0, pointIndex);
         return {
             sign: sign,
             integerPart: integerPart,
             integerDigits: removeCommas(integerPart),
-            fraction: (pointIndex < 0) ? "" : body.substring(pointIndex)
+            fraction: (pointIndex < 0) ? "" : unsignedText.substring(pointIndex)
         };
     }
 
@@ -252,11 +252,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      * @returns {string} カンマを入れた文字列
      */
     function formatNumberWithCommas(token) {
-        var parts = splitNumberToken(token);
-        var fullWidth = isFullWidthDigits(parts.integerDigits);
-        return matchSymbolWidth(parts.sign, fullWidth) +
-            insertCommasToDigits(parts.integerDigits, fullWidth ? "，" : ",") +
-            matchSymbolWidth(parts.fraction, fullWidth);
+        var numberParts = splitNumberToken(token);
+        var fullWidth = isFullWidthDigits(numberParts.integerDigits);
+        return matchSymbolWidth(numberParts.sign, fullWidth) +
+            insertCommasToDigits(numberParts.integerDigits, fullWidth ? "，" : ",") +
+            matchSymbolWidth(numberParts.fraction, fullWidth);
     }
 
     /**
@@ -265,10 +265,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      * @returns {boolean} 整数部のカンマが正しい桁区切りと異なれば true
      */
     function needsCommaFix(token) {
-        var parts = splitNumberToken(token);
-        if (parts.integerDigits.length < 4) return false;
-        var comma = isFullWidthDigits(parts.integerDigits) ? "，" : ",";
-        return insertCommasToDigits(parts.integerDigits, comma) !== parts.integerPart;
+        var numberParts = splitNumberToken(token);
+        if (numberParts.integerDigits.length < 4) return false;
+        var comma = isFullWidthDigits(numberParts.integerDigits) ? "，" : ",";
+        return insertCommasToDigits(numberParts.integerDigits, comma) !== numberParts.integerPart;
     }
 
     // =========================================
@@ -449,16 +449,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      * @returns {object} 開始位置をキーにした true の表
      */
     function buildPostalCodeOffsets(text) {
-        var offsets = {};
-        var pattern = /(〒\s*)?(\d{3})-(\d{4})/g;
+        var postalOffsets = {};
+        var postalPattern = /(〒\s*)?(\d{3})-(\d{4})/g;
         var halfWidthText = toHalfWidthDigitsHyphen(text);
         var match;
-        while ((match = pattern.exec(halfWidthText)) !== null) {
+        while ((match = postalPattern.exec(halfWidthText)) !== null) {
             var firstPartOffset = match.index + (match[1] ? match[1].length : 0);
-            offsets[firstPartOffset] = true;      /* 3桁部分 / 3-digit part */
-            offsets[firstPartOffset + 4] = true;  /* ハイフンの後の4桁部分 / 4-digit part after the hyphen */
+            postalOffsets[firstPartOffset] = true;      /* 3桁部分 / 3-digit part */
+            postalOffsets[firstPartOffset + 4] = true;  /* ハイフンの後の4桁部分 / 4-digit part after the hyphen */
         }
-        return offsets;
+        return postalOffsets;
     }
 
     /**
@@ -471,8 +471,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
      */
     function isPostalCodePart(postalOffsets, text, start, end) {
         if (postalOffsets[start]) return true;
-        var around = text.substring(start - 5, end + 6);
-        return /(?:^|[^\d])(?:〒\s*)?\d{3}-\d{4}(?!\d)/.test(toHalfWidthDigitsHyphen(around));
+        var surroundingText = text.substring(start - 5, end + 6);
+        return /(?:^|[^\d])(?:〒\s*)?\d{3}-\d{4}(?!\d)/.test(toHalfWidthDigitsHyphen(surroundingText));
     }
 
     /**
@@ -570,24 +570,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
 
     /**
      * アイテムからテキストフレームを集める。グループ（クリップグループを含む）は中へたどる
-     * @param {PageItem} item - 対象のアイテム
+     * @param {PageItem} pageItem - 対象のアイテム
      * @param {TextFrame[]} textFrames - 集めたテキストフレームを入れる配列
      * @returns {void}
      */
-    function collectTextFramesFromItem(item, textFrames) {
-        if (!item) return;
-        if (item.typename === "TextFrame") {
-            textFrames.push(item);
+    function collectTextFramesFromItem(pageItem, textFrames) {
+        if (!pageItem) return;
+        if (pageItem.typename === "TextFrame") {
+            textFrames.push(pageItem);
             return;
         }
-        if (item.typename !== "GroupItem") return;
+        if (pageItem.typename !== "GroupItem") return;
 
         /* 直下のテキストを集め、入れ子のグループへ再帰する / Take direct text frames, then recurse into nested groups */
-        for (var i = 0; i < item.textFrames.length; i++) {
-            textFrames.push(item.textFrames[i]);
+        for (var i = 0; i < pageItem.textFrames.length; i++) {
+            textFrames.push(pageItem.textFrames[i]);
         }
-        for (var j = 0; j < item.groupItems.length; j++) {
-            collectTextFramesFromItem(item.groupItems[j], textFrames);
+        for (var j = 0; j < pageItem.groupItems.length; j++) {
+            collectTextFramesFromItem(pageItem.groupItems[j], textFrames);
         }
     }
 

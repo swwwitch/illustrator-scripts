@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "DistributeDownFromTop";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeDownFromTop.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeDownFromTop.md"; /* README (English) */
@@ -47,53 +47,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 行送りがこの差以内なら「すでに統一済み」とみなし、再実行で行送りを増やす（pt）
        once leadings are this close, a re-run increases them instead of unifying */
     var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
-
-    // =========================================
-    // メイン処理 / Main
-    // =========================================
-
-    /**
-     * 選択内容に応じて、行送りの調整または縦方向の等間隔配置を行う
-     * @returns {void}
-     */
-    function main() {
-        if (app.documents.length < 1) return;
-
-        /* テキスト範囲（カーソル）を選択しているときは、その story の単一 TextFrame を選択し直す */
-        selectSingleTextFrameFromTextRange();
-
-        var selectedObjects = app.activeDocument.selection;
-        if (selectedObjects.length < 1) return;
-
-        /* 「サイズ／行送り」キー増加（text/sizeIncrement）を表示単位（text/units）込みで pt 換算 */
-        var leadingStepPt = app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo("text/units").pointsPerUnit;
-
-        /* テキストを1つだけ選択 → 行送りを「サイズ／行送り」分増やす */
-        if (selectedObjects.length === 1 && selectedObjects[0].typename === "TextFrame") {
-            shiftLeadingBy([selectedObjects[0]], leadingStepPt);
-            return;
-        }
-
-        if (selectedObjects.length < 2) return;
-
-        /* 全てテキストで、上端Yがほぼ同じ（横並び）→ 位置は動かさず行送りを調整 */
-        if (areAllTextFrames(selectedObjects) && areTopEdgesAligned(selectedObjects, SAME_Y_TOLERANCE_PT)) {
-            if (areLeadingsUniform(selectedObjects, LEADING_UNIFORM_TOLERANCE_PT)) {
-                /* 再実行 → 「複数行の1テキスト」のように全体の行送りを増やす */
-                shiftLeadingBy(selectedObjects, leadingStepPt);
-            } else {
-                /* 初回 → 行送りを平均値に統一 */
-                unifyLeadingToAverage(selectedObjects);
-            }
-            return;
-        }
-
-        /* それ以外（縦積み）→ 最上部を固定し、以降を leadingStepPt ずつ下へ等間隔配置 */
-        var objectsTopToBottom = sortTopToBottom(selectedObjects);
-        for (var i = 1; i < objectsTopToBottom.length; i++) {
-            objectsTopToBottom[i].translate(0, -i * leadingStepPt);
-        }
-    }
 
     // =========================================
     // 単位 / Units
@@ -126,6 +79,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var unit = UNITS[unitCode] || UNITS[2];
         return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
+
+    // =========================================
+    // 判定 / Checks
+    // =========================================
 
     /**
      * 選択がすべて TextFrame かどうかを返す
@@ -174,6 +131,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return (maxLeading - minLeading) <= tolerancePt;
     }
 
+    // =========================================
+    // 行送り / Leading
+    // =========================================
+
     /**
      * 全テキストの行送りを deltaPt 分だけずらす（位置は動かさない）／自動行送り量（％）で適用
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
@@ -196,7 +157,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function unifyLeadingToAverage(textFrames) {
         var totalLeading = 0;
         for (var i = 0; i < textFrames.length; i++) {
-            /* 自動行送りのときは算出値が返る */
+            /* 自動行送りのときは算出値が返る / Auto leading returns the computed value */
             totalLeading += textFrames[i].textRange.characterAttributes.leading;
         }
         var averageLeading = totalLeading / textFrames.length;
@@ -223,7 +184,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var charAttributes = paragraph.characters[0].characterAttributes;
             var fontSizePt = charAttributes.size;
-            var currentLeadingPt = charAttributes.leading; /* 自動行送りのときは算出値が返る */
+            var currentLeadingPt = charAttributes.leading; /* 自動行送りのときは算出値が返る / computed value under auto leading */
             if (isNaN(fontSizePt) || fontSizePt <= 0 || isNaN(currentLeadingPt)) continue;
 
             var targetLeadingPt = resolveTargetLeadingPt(currentLeadingPt);
@@ -237,6 +198,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             textFrame.textRange.leadingType = AutoLeadingType.TOPTOTOP;
         } catch (e) {}
     }
+
+    // =========================================
+    // 選択と並べ替え / Selection and sorting
+    // =========================================
 
     /**
      * 上端Yの降順（上から下）に並べ替えた新しい配列を返す
@@ -265,6 +230,53 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         app.executeMenuCommand("deselectall");  /* 現在の選択を解除 / clear the caret selection */
         app.selection = [textFramesInStory[0]]; /* 該当の TextFrame を選択 / select that frame */
         app.selectTool("Adobe Select Tool");    /* 選択ツールに戻す / back to the selection tool */
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択内容に応じて、行送りの調整または縦方向の等間隔配置を行う
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length < 1) return;
+
+        /* テキスト範囲（カーソル）を選択しているときは、その story の単一 TextFrame を選択し直す / Reselect the single frame of a caret selection */
+        selectSingleTextFrameFromTextRange();
+
+        var selectedObjects = app.activeDocument.selection;
+        if (selectedObjects.length < 1) return;
+
+        /* 「サイズ／行送り」キー増加（text/sizeIncrement）を表示単位（text/units）込みで pt 換算 / Size/Leading increment in points */
+        var leadingStepPt = app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo("text/units").pointsPerUnit;
+
+        /* テキストを1つだけ選択 → 行送りを「サイズ／行送り」分増やす / One text frame: increase its leading by the increment */
+        if (selectedObjects.length === 1 && selectedObjects[0].typename === "TextFrame") {
+            shiftLeadingBy([selectedObjects[0]], leadingStepPt);
+            return;
+        }
+
+        if (selectedObjects.length < 2) return;
+
+        /* 全てテキストで、上端Yがほぼ同じ（横並び）→ 位置は動かさず行送りを調整 / Text frames side by side: adjust leading, keep positions */
+        if (areAllTextFrames(selectedObjects) && areTopEdgesAligned(selectedObjects, SAME_Y_TOLERANCE_PT)) {
+            if (areLeadingsUniform(selectedObjects, LEADING_UNIFORM_TOLERANCE_PT)) {
+                /* 再実行 → 「複数行の1テキスト」のように全体の行送りを増やす / Re-run: increase every leading */
+                shiftLeadingBy(selectedObjects, leadingStepPt);
+            } else {
+                /* 初回 → 行送りを平均値に統一 / First run: unify to the average leading */
+                unifyLeadingToAverage(selectedObjects);
+            }
+            return;
+        }
+
+        /* それ以外（縦積み）→ 最上部を固定し、以降を leadingStepPt ずつ下へ等間隔配置 / Stacked: keep the top one, move the rest down step by step */
+        var objectsTopToBottom = sortTopToBottom(selectedObjects);
+        for (var i = 1; i < objectsTopToBottom.length; i++) {
+            objectsTopToBottom[i].translate(0, -i * leadingStepPt);
+        }
     }
 
     main();

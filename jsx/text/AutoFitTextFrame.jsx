@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AutoFitTextFrame";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md"; /* README (English) */
@@ -107,12 +107,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * パネルを追加し、共通レイアウトを設定する
-     * @param {object} parent - 追加先のウィンドウまたはグループ
+     * @param {object} parentContainer - 追加先のウィンドウまたはグループ
      * @param {object} titleSet - ja/en を持つパネル名
      * @returns {Panel} 追加したパネル
      */
-    function addPanel(parent, titleSet) {
-        var newPanel = parent.add("panel", undefined, getLabel(titleSet));
+    function addPanel(parentContainer, titleSet) {
+        var newPanel = parentContainer.add("panel", undefined, getLabel(titleSet));
         newPanel.orientation = "column";
         newPanel.alignChildren = ["left", "top"];
         newPanel.alignment = ["fill", "top"];
@@ -123,11 +123,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * 字下げした縦並びグループを追加する（入れ子のオプション用）
-     * @param {object} parent - 追加先のパネルまたはグループ
+     * @param {object} parentContainer - 追加先のパネルまたはグループ
      * @returns {Group} 追加したグループ
      */
-    function addIndentedColumn(parent) {
-        var indentedGroup = parent.add("group");
+    function addIndentedColumn(parentContainer) {
+        var indentedGroup = parentContainer.add("group");
         indentedGroup.orientation = "column";
         indentedGroup.alignment = ["left", "top"];
         indentedGroup.alignChildren = ["left", "top"];
@@ -263,6 +263,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     function collectTextFramesFromItem(selectedItem, collectedFrames) {
         if (!selectedItem) return;
 
+        /* 選択の種類によっては parent や pageItems を読めない / Some selections cannot expose parent or pageItems */
         try {
             /* 文字カーソルでの選択はフレームに読み替える / A TextRange selection is read as its frame */
             if (selectedItem.typename === "TextRange") {
@@ -669,6 +670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
         app.loadAction(actionFile);
         actionFile.remove();
 
+        /* 実行に失敗しても読み込んだアクションは必ず外す / Always unload the action, even if it fails */
         try {
             app.doScript("AutoSize", "AreaType", false);
         } finally {
@@ -784,6 +786,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     // =========================================
 
     /**
+     * チェックボックスかラジオボタンを、LABELS のキーで tooltip 付きで追加する
+     * @param {Panel|Group} parentContainer - 追加先のパネルかグループ
+     * @param {string} controlType - "checkbox" / "radiobutton"
+     * @param {string} labelKey - LABELS.checkbox（または LABELS.radio）と LABELS.tooltip のキー
+     * @returns {Checkbox|RadioButton} 追加したコントロール
+     */
+    function addLabeledControl(parentContainer, controlType, labelKey) {
+        var labelCategory = (controlType === "radiobutton") ? LABELS.radio : LABELS.checkbox;
+        var addedControl = parentContainer.add(controlType, undefined, getLabel(labelCategory[labelKey]));
+        addedControl.helpTip = getLabel(LABELS.tooltip[labelKey]);
+        return addedControl;
+    }
+
+    /**
      * ［調整方法］パネルを組み立て、中のコントロールを返す
      * @param {Window} parentWindow - 追加先のダイアログ
      * @param {boolean} hasAreaText - 選択にエリア内文字があるか
@@ -792,26 +808,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     function addProcessingPanel(parentWindow, hasAreaText) {
         var processingPanel = addPanel(parentWindow, LABELS.panel.processing);
 
-        var shrinkCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.shrinkToFit));
-        shrinkCheckbox.helpTip = getLabel(LABELS.tooltip.shrinkToFit);
+        var shrinkCheckbox = addLabeledControl(processingPanel, "checkbox", "shrinkToFit");
         shrinkCheckbox.value = DEFAULT_SHRINK_TO_FIT;
 
-        var maximizeCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maximizeSize));
-        maximizeCheckbox.helpTip = getLabel(LABELS.tooltip.maximizeSize);
+        var maximizeCheckbox = addLabeledControl(processingPanel, "checkbox", "maximizeSize");
         maximizeCheckbox.value = DEFAULT_MAXIMIZE_SIZE;
 
-        var heightModeCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.heightMode));
-        heightModeCheckbox.helpTip = getLabel(LABELS.tooltip.heightMode);
+        var heightModeCheckbox = addLabeledControl(processingPanel, "checkbox", "heightMode");
         heightModeCheckbox.enabled = hasAreaText;
         heightModeCheckbox.value = (hasAreaText && DEFAULT_HEIGHT_MODE);
 
         var heightOptionGroup = addIndentedColumn(processingPanel);
-
-        var adjustHeightRadio = heightOptionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.adjustHeight));
-        adjustHeightRadio.helpTip = getLabel(LABELS.tooltip.adjustHeight);
-
-        var autoSizeRadio = heightOptionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.autoSize));
-        autoSizeRadio.helpTip = getLabel(LABELS.tooltip.autoSize);
+        var adjustHeightRadio = addLabeledControl(heightOptionGroup, "radiobutton", "adjustHeight");
+        var autoSizeRadio = addLabeledControl(heightOptionGroup, "radiobutton", "autoSize");
 
         /* 高さ調整をOFFに戻したとき用に、文字サイズの選択を控える / Remember the font-size choices */
         var previousShrinkState = shrinkCheckbox.value;
@@ -877,23 +886,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * パネルの選択内容を設定にまとめる（選択が足りないときは警告する）
-     * @param {object} controls - ［調整方法］パネルのコントロール
+     * @param {object} processingControls - ［調整方法］パネルのコントロール
      * @returns {object|null} 実行する処理の設定（選択が足りないときは null）
      */
-    function readAdjustSettings(controls) {
-        if (controls.heightModeCheckbox.value) {
-            return { mode: controls.autoSizeRadio.value ? ADJUST_MODE.AUTO_SIZE : ADJUST_MODE.HEIGHT };
+    function readAdjustSettings(processingControls) {
+        if (processingControls.heightModeCheckbox.value) {
+            return { mode: processingControls.autoSizeRadio.value ? ADJUST_MODE.AUTO_SIZE : ADJUST_MODE.HEIGHT };
         }
 
-        if (!controls.shrinkCheckbox.value && !controls.maximizeCheckbox.value) {
+        if (!processingControls.shrinkCheckbox.value && !processingControls.maximizeCheckbox.value) {
             alert(getLabel(LABELS.alert.selectMode));
             return null;
         }
 
         return {
             mode: ADJUST_MODE.FONT_SIZE,
-            doMaximize: controls.maximizeCheckbox.value,
-            doShrink: controls.shrinkCheckbox.value
+            doMaximize: processingControls.maximizeCheckbox.value,
+            doShrink: processingControls.shrinkCheckbox.value
         };
     }
 
@@ -903,23 +912,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
      * @returns {object|null} 実行する処理の設定（キャンセル時は null）
      */
     function showDialog(hasAreaText) {
-        var dialogWindow = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        setupWindow(dialogWindow);
+        var adjustDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(adjustDialog);
 
-        var controls = addProcessingPanel(dialogWindow, hasAreaText);
-        var buttons = addButtonRow(dialogWindow);
+        var processingControls = addProcessingPanel(adjustDialog, hasAreaText);
+        var dialogButtons = addButtonRow(adjustDialog);
         var selectedSettings = null;
 
-        buttons.btnOK.onClick = function() {
-            selectedSettings = readAdjustSettings(controls);
-            if (selectedSettings) dialogWindow.close(1);
+        dialogButtons.btnOK.onClick = function() {
+            selectedSettings = readAdjustSettings(processingControls);
+            if (selectedSettings) adjustDialog.close(1);
         };
 
-        buttons.btnCancel.onClick = function() {
-            dialogWindow.close(0);
+        dialogButtons.btnCancel.onClick = function() {
+            adjustDialog.close(0);
         };
 
-        dialogWindow.show();
+        adjustDialog.show();
         return selectedSettings;
     }
 

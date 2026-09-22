@@ -168,6 +168,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             showPreview: {
                 ja: "ONにすると、作成されるグループの範囲を赤い枠で表示します。枠はダイアログを閉じると消えます。",
                 en: "When on, red frames show where the groups will be created. The frames disappear when the dialog closes."
+            },
+            resultCount: {
+                ja: "［OK］で作成されるグループの数です。クリッピングマスクのモードでは、作成されるクリップグループの数です。",
+                en: "The number of groups OK will create. In the clipping mask modes, the number of clipping groups."
             }
         },
         button: {
@@ -239,35 +243,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
     /**
      * 配置画像または埋め込み画像かどうかを返す
-     * @param {PageItem} item - 判定するオブジェクト
+     * @param {PageItem} targetItem - 判定するオブジェクト
      * @returns {boolean} PlacedItem か RasterItem なら true
      */
-    function isImageItem(item) {
-        return item.typename === "PlacedItem" || item.typename === "RasterItem";
+    function isImageItem(targetItem) {
+        return targetItem.typename === "PlacedItem" || targetItem.typename === "RasterItem";
     }
 
     /**
      * すべてが画像かどうかを返す
-     * @param {PageItem[]} items - 判定するオブジェクト
+     * @param {PageItem[]|null} targetItems - 判定するオブジェクト
      * @returns {boolean} 1つ以上あり、すべてが画像なら true
      */
-    function isAllImages(items) {
-        if (!items || !items.length) return false;
-        for (var i = 0; i < items.length; i++) {
-            if (!isImageItem(items[i])) return false;
+    function isAllImages(targetItems) {
+        if (!targetItems || !targetItems.length) return false;
+        for (var i = 0; i < targetItems.length; i++) {
+            if (!isImageItem(targetItems[i])) return false;
         }
         return true;
     }
 
     /**
      * 選択を解除して、指定のオブジェクトを選択する
-     * @param {PageItem[]} items - 選択するオブジェクト
+     * @param {PageItem[]} itemsToSelect - 選択するオブジェクト
      * @returns {void}
      */
-    function selectOnly(items) {
+    function selectOnly(itemsToSelect) {
         app.activeDocument.selection = null;
-        for (var i = 0; i < items.length; i++) {
-            items[i].selected = true;
+        for (var i = 0; i < itemsToSelect.length; i++) {
+            itemsToSelect[i].selected = true;
         }
     }
 
@@ -285,34 +289,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
     /**
      * 2つの矩形が面積を持って重なっているかを返す
-     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
-     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsA - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsB - geometricBounds [左, 上, 右, 下]
      * @returns {boolean} 重なっていれば true
      */
-    function boundsOverlap(a, b) {
-        var overlapWidth = Math.min(a[2], b[2]) - Math.max(a[0], b[0]);
-        var overlapHeight = Math.min(a[1], b[1]) - Math.max(a[3], b[3]);
+    function boundsOverlap(boundsA, boundsB) {
+        var overlapWidth = Math.min(boundsA[2], boundsB[2]) - Math.max(boundsA[0], boundsB[0]);
+        var overlapHeight = Math.min(boundsA[1], boundsB[1]) - Math.max(boundsA[3], boundsB[3]);
         return overlapWidth > 0 && overlapHeight > 0;
     }
 
     /**
      * 2つの矩形の左右のすき間を返す
-     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
-     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsA - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsB - geometricBounds [左, 上, 右, 下]
      * @returns {number} すき間（pt）。左右の範囲が重なっていれば 0
      */
-    function getHorizontalGap(a, b) {
-        return Math.max(0, b[0] - a[2], a[0] - b[2]);
+    function getHorizontalGap(boundsA, boundsB) {
+        return Math.max(0, boundsB[0] - boundsA[2], boundsA[0] - boundsB[2]);
     }
 
     /**
      * 2つの矩形の上下のすき間を返す
-     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
-     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsA - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsB - geometricBounds [左, 上, 右, 下]
      * @returns {number} すき間（pt）。上下の範囲が重なっていれば 0
      */
-    function getVerticalGap(a, b) {
-        return Math.max(0, a[3] - b[1], b[3] - a[1]);
+    function getVerticalGap(boundsA, boundsB) {
+        return Math.max(0, boundsA[3] - boundsB[1], boundsB[3] - boundsA[1]);
     }
 
     /**
@@ -331,17 +335,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
     /**
      * 2つの矩形を同じまとまりとしてつなぐかどうかを返す
-     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
-     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsA - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} boundsB - geometricBounds [左, 上, 右, 下]
      * @param {ClusterRule} clusterRule - つなぎ方
      * @returns {boolean} つなぐなら true
      */
-    function areNeighbors(a, b, clusterRule) {
-        var horizontalGap = getHorizontalGap(a, b);
-        var verticalGap = getVerticalGap(a, b);
+    function areNeighbors(boundsA, boundsB, clusterRule) {
+        var horizontalGap = getHorizontalGap(boundsA, boundsB);
+        var verticalGap = getVerticalGap(boundsA, boundsB);
         if (clusterRule.direction === "vertical") return areInSameLine(horizontalGap, verticalGap, clusterRule);
         if (clusterRule.direction === "horizontal") return areInSameLine(verticalGap, horizontalGap, clusterRule);
-        return boundsOverlap(a, b) || Math.max(horizontalGap, verticalGap) <= clusterRule.maxGap;
+        return boundsOverlap(boundsA, boundsB) || Math.max(horizontalGap, verticalGap) <= clusterRule.maxGap;
     }
 
     /**
@@ -436,8 +440,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var centerX = (bounds[0] + bounds[2]) / 2;
         var centerY = (bounds[1] + bounds[3]) / 2;
         for (var i = 0; i < artboardRects.length; i++) {
-            var rect = artboardRects[i];
-            if (centerX >= rect[0] && centerX <= rect[2] && centerY <= rect[1] && centerY >= rect[3]) return i;
+            var artboardRect = artboardRects[i];
+            if (centerX >= artboardRect[0] && centerX <= artboardRect[2] && centerY <= artboardRect[1] && centerY >= artboardRect[3]) return i;
         }
         return -1;
     }
@@ -512,15 +516,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
         selectionInfo.itemCount = selectedItems.length;
         for (var i = 0; i < selectedItems.length; i++) {
-            var item = selectedItems[i];
-            selectionInfo.boundsList.push(item.geometricBounds);
-            selectionInfo.isPath.push(item.typename === "PathItem");
+            var selectedItem = selectedItems[i];
+            selectionInfo.boundsList.push(selectedItem.geometricBounds);
+            selectionInfo.isPath.push(selectedItem.typename === "PathItem");
             /* 「配置画像のみをクリップ」の対象：選択中の画像と、クリップグループ直下の画像
                Targets of Clip Placed Images Only: selected images and images directly inside clipping groups */
-            if (isImageItem(item)) {
-                selectionInfo.imageBoundsList.push(item.visibleBounds);
-            } else if (item.typename === "GroupItem" && item.clipped) {
-                var childImages = getChildImages(item);
+            if (isImageItem(selectedItem)) {
+                selectionInfo.imageBoundsList.push(selectedItem.visibleBounds);
+            } else if (selectedItem.typename === "GroupItem" && selectedItem.clipped) {
+                var childImages = getChildImages(selectedItem);
                 for (var j = 0; j < childImages.length; j++) {
                     selectionInfo.imageBoundsList.push(childImages[j].visibleBounds);
                 }
@@ -646,12 +650,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             }
             for (var j = 0; j < resultBounds.length; j++) {
                 var bounds = resultBounds[j];
-                var frame = previewLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
-                frame.filled = false;
-                frame.stroked = true;
-                frame.strokeColor = previewColor;
-                frame.strokeWidth = PREVIEW_STROKE_WIDTH;
-                frame.opacity = PREVIEW_OPACITY;
+                var previewFrame = previewLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
+                previewFrame.filled = false;
+                previewFrame.stroked = true;
+                previewFrame.strokeColor = previewColor;
+                previewFrame.strokeWidth = PREVIEW_STROKE_WIDTH;
+                previewFrame.opacity = PREVIEW_OPACITY;
             }
             app.redraw();
         }
@@ -681,8 +685,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
     function findMaskPath(clusterItems, maskSide) {
         var fromBack = (maskSide === "back");
         for (var i = 0; i < clusterItems.length; i++) {
-            var item = clusterItems[fromBack ? clusterItems.length - 1 - i : i];
-            if (item.typename === "PathItem") return item;
+            var candidateItem = clusterItems[fromBack ? clusterItems.length - 1 - i : i];
+            if (candidateItem.typename === "PathItem") return candidateItem;
         }
         return null;
     }
@@ -762,11 +766,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
      * @returns {Array<PlacedItem|RasterItem>} 画像（前面から背面の順）
      */
     function getChildImages(parentGroup) {
-        var images = [];
+        var childImages = [];
         for (var i = 0; i < parentGroup.pageItems.length; i++) {
-            if (isImageItem(parentGroup.pageItems[i])) images.push(parentGroup.pageItems[i]);
+            if (isImageItem(parentGroup.pageItems[i])) childImages.push(parentGroup.pageItems[i]);
         }
-        return images;
+        return childImages;
     }
 
     /**
@@ -780,10 +784,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         clipGroup.clipped = false;
         if (!isImageItem(oldMask)) oldMask.remove();
 
-        var images = getChildImages(clipGroup);
+        var childImages = getChildImages(clipGroup);
         var maskedGroups = [];
-        for (var j = 0; j < images.length; j++) {
-            maskedGroups.push(maskImageWithBounds(images[j]));
+        for (var j = 0; j < childImages.length; j++) {
+            maskedGroups.push(maskImageWithBounds(childImages[j]));
         }
 
         /* 画像以外が残っていなければ、作成したグループを前面から順に外へ出して元のグループを消す
@@ -805,11 +809,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
     function clipPlacedImages(selectedItems) {
         var maskedGroups = [];
         for (var i = 0; i < selectedItems.length; i++) {
-            var item = selectedItems[i];
-            if (item.typename === "GroupItem" && item.clipped) {
-                maskedGroups = maskedGroups.concat(remaskClipGroup(item));
-            } else if (isImageItem(item)) {
-                maskedGroups.push(maskImageWithBounds(item));
+            var selectedItem = selectedItems[i];
+            if (selectedItem.typename === "GroupItem" && selectedItem.clipped) {
+                maskedGroups = maskedGroups.concat(remaskClipGroup(selectedItem));
+            } else if (isImageItem(selectedItem)) {
+                maskedGroups.push(maskImageWithBounds(selectedItem));
             }
         }
 
@@ -857,24 +861,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
     /**
      * しきい値を表示用の文字列にする
-     * @param {number} value - しきい値（pt）
+     * @param {number} thresholdValue - しきい値（pt）
      * @returns {string} 「10 pt」の形の文字列
      */
-    function formatThreshold(value) {
-        return Math.round(value) + " pt";
+    function formatThreshold(thresholdValue) {
+        return Math.round(thresholdValue) + " pt";
     }
 
     /**
      * モードのラジオボタンを並べたパネルを追加する
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} parentWindow - 追加先のダイアログ
      * @param {string} panelTitle - パネルの見出し
      * @param {string[]} modeKeys - 並べるモードのキー
      * @param {Object} modeRadios - 作成したラジオボタンをモードのキーで登録する先
      * @param {number} [columnCount] - 列の数（省略時は1列）。左上から横へ順に並べる
      * @returns {Panel} 追加したパネル
      */
-    function addModePanel(dialog, panelTitle, modeKeys, modeRadios, columnCount) {
-        var modePanel = dialog.add("panel", undefined, panelTitle);
+    function addModePanel(parentWindow, panelTitle, modeKeys, modeRadios, columnCount) {
+        var modePanel = parentWindow.add("panel", undefined, panelTitle);
         modePanel.orientation = "column";
         modePanel.alignChildren = "left";
         modePanel.margins = PANEL_MARGINS;
@@ -912,21 +916,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
     function addThresholdControls(parentPanel) {
         var thresholdTip = getLabel(LABELS.tooltip.threshold);
 
-        var caption = parentPanel.add("statictext", undefined, labelText(LABELS.fieldLabel.threshold));
-        caption.helpTip = thresholdTip;
+        var thresholdCaption = parentPanel.add("statictext", undefined, labelText(LABELS.fieldLabel.threshold));
+        thresholdCaption.helpTip = thresholdTip;
 
         /* パネルの幅に合わせて伸ばし、値の表示をスライダーの中央に揃える / Stretch to the panel width so the readout stays centered under the slider */
-        var slider = parentPanel.add("slider", undefined, DEFAULT_THRESHOLD, THRESHOLD_MIN, THRESHOLD_MAX);
-        slider.preferredSize.width = SLIDER_WIDTH;
-        slider.alignment = "fill";
-        slider.helpTip = thresholdTip;
+        var thresholdSlider = parentPanel.add("slider", undefined, DEFAULT_THRESHOLD, THRESHOLD_MIN, THRESHOLD_MAX);
+        thresholdSlider.preferredSize.width = SLIDER_WIDTH;
+        thresholdSlider.alignment = "fill";
+        thresholdSlider.helpTip = thresholdTip;
 
-        var valueText = parentPanel.add("statictext", undefined, formatThreshold(DEFAULT_THRESHOLD));
-        valueText.alignment = "center";
-        valueText.characters = VALUE_TEXT_CHARS;
-        valueText.helpTip = thresholdTip;
+        var thresholdValueText = parentPanel.add("statictext", undefined, formatThreshold(DEFAULT_THRESHOLD));
+        thresholdValueText.alignment = "center";
+        thresholdValueText.characters = VALUE_TEXT_CHARS;
+        thresholdValueText.helpTip = thresholdTip;
 
-        return { caption: caption, slider: slider, valueText: valueText };
+        return { caption: thresholdCaption, slider: thresholdSlider, valueText: thresholdValueText };
     }
 
     /**
@@ -945,17 +949,114 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
     /**
      * 選択数と、作成されるグループ数の表示を追加する
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} parentWindow - 追加先のダイアログ
      * @param {number} itemCount - 選択しているオブジェクトの数
      * @returns {StaticText} 作成されるグループ数の表示
      */
-    function addCountReadout(dialog, itemCount) {
-        var countGroup = dialog.add("group");
+    function addCountReadout(parentWindow, itemCount) {
+        var countGroup = parentWindow.add("group");
         countGroup.orientation = "column";
         countGroup.alignment = "fill";
         countGroup.alignChildren = "fill";
         countGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.selectedCount) + itemCount);
-        return countGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.groupCount) + 0);
+        var resultCountText = countGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.groupCount) + 0);
+        resultCountText.helpTip = getLabel(LABELS.tooltip.resultCount);
+        return resultCountText;
+    }
+
+    /**
+     * @typedef {Object} DialogControls ダイアログと、設定を読み書きするコントロール
+     * @property {Window} dialogWindow - ダイアログ
+     * @property {Object} modeRadios - モードのキーで引けるラジオボタン
+     * @property {{caption: StaticText, slider: Slider, valueText: StaticText}} thresholdControls - しきい値の見出し・スライダー・値の表示
+     * @property {Checkbox} splitAtGapsCheckbox - 「間隔が空いたら分ける」
+     * @property {Checkbox} perArtboardCheckbox - 「アートボードごと」
+     * @property {StaticText} resultCountText - 作成されるグループ数の表示
+     * @property {Checkbox} previewCheckbox - 「プレビューを表示」
+     */
+
+    /**
+     * ダイアログを組み立てる（表示はしない）
+     * @param {SelectionInfo} selectionInfo - 選択の情報
+     * @returns {DialogControls} ダイアログとコントロール
+     */
+    function buildDialog(selectionInfo) {
+        var clipAndGroupDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        clipAndGroupDialog.orientation = "column";
+        clipAndGroupDialog.alignChildren = "left";
+        clipAndGroupDialog.margins = DIALOG_MARGINS;
+
+        var modeRadios = {};
+        addModePanel(clipAndGroupDialog, getLabel(LABELS.panel.clip), CLIP_MODES, modeRadios);
+        var groupingPanel = addModePanel(clipAndGroupDialog, getLabel(LABELS.panel.grouping), GROUP_MODES, modeRadios, 2);
+        groupingPanel.alignment = "fill";  /* ダイアログの幅いっぱいに広げる / Stretch to the dialog width */
+        var thresholdControls = addThresholdControls(groupingPanel);
+        var splitAtGapsCheckbox = addOptionCheckbox(groupingPanel, "splitAtGaps", DEFAULT_SPLIT_AT_GAPS);
+        /* 選択が複数のアートボードにまたがるときだけ最初からON / On by default only when the selection spans artboards */
+        var perArtboardCheckbox = addOptionCheckbox(groupingPanel, "perArtboard",
+            selectionInfo.hasMultipleArtboards && spansMultipleArtboards(selectionInfo.artboardIndexes));
+        var resultCountText = addCountReadout(clipAndGroupDialog, selectionInfo.itemCount);
+        var previewCheckbox = addOptionCheckbox(clipAndGroupDialog, "showPreview", DEFAULT_SHOW_PREVIEW);
+
+        /* ボタンエリア（左右中央） / Button row (centered) */
+        var btnRowGroup = clipAndGroupDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        return {
+            dialogWindow: clipAndGroupDialog,
+            modeRadios: modeRadios,
+            thresholdControls: thresholdControls,
+            splitAtGapsCheckbox: splitAtGapsCheckbox,
+            perArtboardCheckbox: perArtboardCheckbox,
+            resultCountText: resultCountText,
+            previewCheckbox: previewCheckbox
+        };
+    }
+
+    /**
+     * 選択中のモードのキーを返す
+     * @param {Object} modeRadios - モードのキーで引けるラジオボタン
+     * @returns {string|null} モードのキー（どれも選ばれていなければ null）
+     */
+    function getSelectedMode(modeRadios) {
+        for (var i = 0; i < ALL_MODES.length; i++) {
+            if (modeRadios[ALL_MODES[i]].value) return ALL_MODES[i];
+        }
+        return null;
+    }
+
+    /**
+     * ダイアログの設定を読み取る（しきい値は表示と実行で同じく整数に丸める）
+     * @param {DialogControls} dialogControls - ダイアログとコントロール
+     * @param {boolean} hasMultipleArtboards - ドキュメントにアートボードが2つ以上あるか
+     * @returns {{threshold: number, splitAtGaps: boolean, perArtboard: boolean}} ダイアログの設定
+     */
+    function readGroupingOptions(dialogControls, hasMultipleArtboards) {
+        return {
+            threshold: Math.round(dialogControls.thresholdControls.slider.value),
+            splitAtGaps: dialogControls.splitAtGapsCheckbox.value,
+            perArtboard: dialogControls.perArtboardCheckbox.value && hasMultipleArtboards
+        };
+    }
+
+    /**
+     * 選んだモードで使う設定だけを有効にする
+     * @param {DialogControls} dialogControls - ダイアログとコントロール
+     * @param {boolean} hasMultipleArtboards - ドキュメントにアートボードが2つ以上あるか
+     * @returns {void}
+     */
+    function updateOptionControls(dialogControls, hasMultipleArtboards) {
+        var usedOptions = MODE_OPTIONS[getSelectedMode(dialogControls.modeRadios)] || {};
+        var thresholdEnabled = usedOptions.threshold === true;
+        dialogControls.thresholdControls.caption.enabled = thresholdEnabled;
+        dialogControls.thresholdControls.slider.enabled = thresholdEnabled;
+        dialogControls.thresholdControls.valueText.enabled = thresholdEnabled;
+        dialogControls.splitAtGapsCheckbox.enabled = usedOptions.splitAtGaps === true;
+        dialogControls.perArtboardCheckbox.enabled = usedOptions.perArtboard === true && hasMultipleArtboards;
     }
 
     /**
@@ -965,77 +1066,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
      * @returns {{mode: string, groupingOptions: Object}|null} キャンセル時は null
      */
     function showDialog(initialMode, selectionInfo) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
-        dialog.margins = DIALOG_MARGINS;
-
-        var modeRadios = {};
-        addModePanel(dialog, getLabel(LABELS.panel.clip), CLIP_MODES, modeRadios);
-        var groupingPanel = addModePanel(dialog, getLabel(LABELS.panel.grouping), GROUP_MODES, modeRadios, 2);
-        groupingPanel.alignment = "fill";  /* ダイアログの幅いっぱいに広げる / Stretch to the dialog width */
-        var thresholdControls = addThresholdControls(groupingPanel);
-        var splitAtGapsCheckbox = addOptionCheckbox(groupingPanel, "splitAtGaps", DEFAULT_SPLIT_AT_GAPS);
-        /* 選択が複数のアートボードにまたがるときだけ最初からON / On by default only when the selection spans artboards */
-        var perArtboardCheckbox = addOptionCheckbox(groupingPanel, "perArtboard",
-            selectionInfo.hasMultipleArtboards && spansMultipleArtboards(selectionInfo.artboardIndexes));
-        var resultCountText = addCountReadout(dialog, selectionInfo.itemCount);
-        var previewCheckbox = addOptionCheckbox(dialog, "showPreview", DEFAULT_SHOW_PREVIEW);
-
-        /* ボタンエリア（左右中央） / Button row (centered) */
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["center", "bottom"];
-        btnRowGroup.alignChildren = ["center", "center"];
-        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        var dialogControls = buildDialog(selectionInfo);
+        var modeRadios = dialogControls.modeRadios;
+        var thresholdControls = dialogControls.thresholdControls;
+        var previewCheckbox = dialogControls.previewCheckbox;
+        var hasMultipleArtboards = selectionInfo.hasMultipleArtboards;
 
         var groupPreview = selectionInfo.itemCount ? createGroupPreview(app.activeDocument) : null;
         previewCheckbox.enabled = (groupPreview !== null);
-
-        /* 選択中のモードのキーを返す / Return the key of the selected mode */
-        function getSelectedMode() {
-            for (var i = 0; i < ALL_MODES.length; i++) {
-                if (modeRadios[ALL_MODES[i]].value) return ALL_MODES[i];
-            }
-            return null;
-        }
-
-        /* ダイアログの設定（しきい値は表示と実行で同じく整数に丸める）
-           Dialog settings; the threshold is rounded the same way for display and execution */
-        function getGroupingOptions() {
-            return {
-                threshold: Math.round(thresholdControls.slider.value),
-                splitAtGaps: splitAtGapsCheckbox.value,
-                perArtboard: perArtboardCheckbox.value && selectionInfo.hasMultipleArtboards
-            };
-        }
-
-        /* 選んだモードで使う設定だけを有効にする / Enable only the settings the selected mode uses */
-        function updateOptionControls() {
-            var usedOptions = MODE_OPTIONS[getSelectedMode()] || {};
-            var thresholdEnabled = usedOptions.threshold === true;
-            thresholdControls.caption.enabled = thresholdEnabled;
-            thresholdControls.slider.enabled = thresholdEnabled;
-            thresholdControls.valueText.enabled = thresholdEnabled;
-            splitAtGapsCheckbox.enabled = usedOptions.splitAtGaps === true;
-            perArtboardCheckbox.enabled = usedOptions.perArtboard === true && selectionInfo.hasMultipleArtboards;
-        }
 
         /* 作成されるグループの数と範囲を表示する（モードか設定が変わったときだけ数え直す）
            Show the number and extent of the groups to be created; recount only when the mode or settings change */
         var lastResultKey = null;
         var lastResultBounds = [];
         function refreshResult() {
-            var mode = getSelectedMode();
-            var groupingOptions = getGroupingOptions();
+            var mode = getSelectedMode(modeRadios);
+            var groupingOptions = readGroupingOptions(dialogControls, hasMultipleArtboards);
             var resultKey = [mode, groupingOptions.threshold, groupingOptions.splitAtGaps, groupingOptions.perArtboard].join(":");
             if (resultKey === lastResultKey) return;
             lastResultKey = resultKey;
 
             lastResultBounds = planResultBounds(selectionInfo, mode, groupingOptions);
             var countLabel = (MASK_SIDES[mode] || mode === "clipPlacedOnly") ? LABELS.fieldLabel.clipCount : LABELS.fieldLabel.groupCount;
-            resultCountText.text = labelText(countLabel) + lastResultBounds.length;
+            dialogControls.resultCountText.text = labelText(countLabel) + lastResultBounds.length;
             updatePreview();
         }
 
@@ -1055,15 +1108,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             for (var i = 0; i < ALL_MODES.length; i++) {
                 modeRadios[ALL_MODES[i]].value = (modeRadios[ALL_MODES[i]] === this);
             }
-            updateOptionControls();
+            updateOptionControls(dialogControls, hasMultipleArtboards);
             refreshResult();
         }
 
         for (var i = 0; i < ALL_MODES.length; i++) {
             modeRadios[ALL_MODES[i]].onClick = selectMode;
         }
-        splitAtGapsCheckbox.onClick = refreshResult;
-        perArtboardCheckbox.onClick = refreshResult;
+        dialogControls.splitAtGapsCheckbox.onClick = refreshResult;
+        dialogControls.perArtboardCheckbox.onClick = refreshResult;
         previewCheckbox.onClick = updatePreview;
         /* 選択が多いときは、ドラッグ中は値の表示だけ更新し、指を離したときに数える
            With a large selection, update only the readout while dragging and recount on release */
@@ -1074,14 +1127,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         thresholdControls.slider.onChange = refreshResult;
 
         modeRadios[initialMode].value = true;
-        updateOptionControls();
+        updateOptionControls(dialogControls, hasMultipleArtboards);
         refreshResult();
 
         /* OK・キャンセルのどちらで閉じても、プレビューは実行前に消す / Remove the preview before running, however the dialog closes */
-        var dialogResult = dialog.show();
+        var dialogReturnCode = dialogControls.dialogWindow.show();
         if (groupPreview) groupPreview.remove();
-        if (dialogResult !== 1) return null;
-        return { mode: getSelectedMode(), groupingOptions: getGroupingOptions() };
+        if (dialogReturnCode !== 1) return null;
+        return {
+            mode: getSelectedMode(modeRadios),
+            groupingOptions: readGroupingOptions(dialogControls, hasMultipleArtboards)
+        };
     }
 
     // =========================================
@@ -1109,11 +1165,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var clusterIndexes = collectSelectionClusters(selectionInfo, clusterRule);
         var clusters = [];
         for (var i = 0; i < clusterIndexes.length; i++) {
-            var cluster = [];
+            var clusterItems = [];
             for (var j = 0; j < clusterIndexes[i].length; j++) {
-                cluster.push(selectionInfo.items[clusterIndexes[i][j]]);
+                clusterItems.push(selectionInfo.items[clusterIndexes[i][j]]);
             }
-            clusters.push(cluster);
+            clusters.push(clusterItems);
         }
 
         if (MASK_SIDES[mode]) {
@@ -1132,8 +1188,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var selectionInfo = readSelection(selectedItems);
         /* すべて画像なら「配置画像のみをクリップ」を初期選択にする / Preselect "Clip Placed Images Only" when every item is an image */
         var initialMode = isAllImages(selectedItems) ? "clipPlacedOnly" : "groupProximity";
-        var dialogResult = showDialog(initialMode, selectionInfo);
-        if (dialogResult) runMode(dialogResult.mode, dialogResult.groupingOptions, selectionInfo);
+        var dialogSettings = showDialog(initialMode, selectionInfo);
+        if (dialogSettings) runMode(dialogSettings.mode, dialogSettings.groupingOptions, selectionInfo);
     }
 
     main();

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "ReplaceTextWithPasteSequential"; /* スクリプト名 / 
 var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md"; /* README (English) */
@@ -47,7 +47,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
     // =========================================
 
     /* 実行環境のロケールから表示言語を決める / Pick the UI language from the locale */
-    var currentLanguage = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
         alert: {
@@ -91,7 +91,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             if (!labelNode) return labelKey;
             labelNode = labelNode[keyParts[i]];
         }
-        return (labelNode && labelNode[currentLanguage]) ? labelNode[currentLanguage] : labelKey;
+        return (labelNode && labelNode[uiLang]) ? labelNode[uiLang] : labelKey;
     }
 
     // =========================================
@@ -132,7 +132,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
         try {
             doc.selection = (itemsToSelect && itemsToSelect.length > 0) ? itemsToSelect : null;
         } catch (e) {
-            // Illustrator が選択を拒む場合は現在の選択のままにする / Keep whatever stays selected
+            /* Illustrator が選択を拒む場合は現在の選択のままにする / Keep whatever stays selected */
         }
     }
 
@@ -153,7 +153,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             if (textRange.parent && textRange.parent.typename === "TextFrame") return textRange.parent;
             if (textRange.story && textRange.story.textFrames.length > 0) return textRange.story.textFrames[0];
         } catch (e) {
-            // 取り出せない場合は編集中として扱わない / Treat it as a normal selection when we cannot tell
+            /* 取り出せない場合は編集中として扱わない / Treat it as a normal selection when we cannot tell */
         }
         return null;
     }
@@ -170,7 +170,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             /* 選択ツールへ切り替えると編集が確定して抜けられる / Switching tools commits the edit and leaves it */
             app.selectTool("Adobe Select Tool");
         } catch (e) {
-            // 切り替えられない場合は次の選択解除に任せる / Leave it to the deselect below
+            /* 切り替えられない場合は次の選択解除に任せる / Leave it to the deselect below */
         }
         setSelection(doc, null);
     }
@@ -188,7 +188,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
                 if (itemsToRemove[i].typename === "TextRange") continue;
                 itemsToRemove[i].remove();
             } catch (e) {
-                // 既に消えているものは無視する / Ignore items that are already gone
+                /* 既に消えているものは無視する / Ignore items that are already gone */
             }
         }
     }
@@ -226,7 +226,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
                 collectTextFrames(childItems[j], collectedFrames);
             }
         } catch (e) {
-            // シンボルやエンベロープなど、中をたどれないものは対象外にする / Skip what we cannot walk into, such as symbols and envelopes
+            /* シンボルやエンベロープなど、中をたどれないものは対象外にする / Skip what we cannot walk into, such as symbols and envelopes */
         }
     }
 
@@ -274,7 +274,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             app.paste();
             app.redraw();
         } catch (e) {
-            // 更新目的なので、失敗しても2回目の結果で判断する / Judge by the second paste even if this one fails
+            /* 更新目的なので、失敗しても2回目の結果で判断する / Judge by the second paste even if this one fails */
         }
         removeItems(captureSelection(doc));
 
@@ -283,6 +283,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
         /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
         app.redraw();
         return captureSelection(doc);
+    }
+
+    /**
+     * ペーストの失敗（例外、または何も貼り付かなかった）を知らせる
+     * @param {string|null} pasteError - ペースト中の例外の文字列。無ければ null
+     * @param {Array<Object>|null} pastedItems - 貼り付いたオブジェクト
+     * @returns {boolean} 失敗を知らせた場合は true
+     */
+    function alertPasteFailure(pasteError, pastedItems) {
+        if (pasteError) {
+            alert(getLabel("alert.clipboardError") + pasteError);
+            return true;
+        }
+        if (!pastedItems || pastedItems.length === 0) {
+            /* ペースト自体が起きなかった場合 / Nothing was pasted at all */
+            alert(getLabel("alert.emptyClipboard"));
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -336,6 +355,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
     }
 
     /**
+     * テキストフレームの内容から空行を落とした文字列を返す。
+     * ここで空行を落としておけば、1行目の取り出しも書き戻しも空行を意識しなくてよい。
+     * @param {TextFrame} textFrame - 読み取るテキストフレーム
+     * @returns {string|null} 空行を除いた文字列。何も残らなければ null
+     */
+    function readNonBlankText(textFrame) {
+        var nonBlankText = removeEmptyLines(textFrame.contents);
+        return (nonBlankText.length > 0) ? nonBlankText : null;
+    }
+
+    /**
      * 一度ペーストして、貼り付けられたテキストフレームから文字列を読み取る。
      * 読み取り後は貼り付けたオブジェクトを削除し、元の選択へ戻す。
      * 貼り付け前に選択を解除するのは、ペーストが実行されなかったときに
@@ -356,12 +386,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
 
             var pastedTextFrame = findFirstTextFrame(pastedItems);
             if (pastedTextFrame) {
-                /* ここで空行を落としておけば、1行目の取り出しも書き戻しも空行を意識しなくてよい / Strip blank lines once, so neither the split nor the write-back has to care */
-                var pastedText = removeEmptyLines(pastedTextFrame.contents);
-                /* 中身が空なら「残りなし」として扱う / Nothing usable means there is nothing left to apply */
-                if (pastedText.length > 0) {
-                    clipboardText = pastedText;
-                }
+                /* 中身が空なら「残りなし」として null のまま / Nothing usable means there is nothing left to apply */
+                clipboardText = readNonBlankText(pastedTextFrame);
             }
         } catch (e) {
             pasteError = String(e);
@@ -371,13 +397,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
         removeItems(pastedItems);
         setSelection(doc, originalSelection);
 
-        /* 画面を元に戻してから知らせる / Report only after the canvas is back to its original state */
-        if (pasteError) {
-            alert(getLabel("alert.clipboardError") + pasteError);
-        } else if (!pastedItems || pastedItems.length === 0) {
-            /* ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する / Tell an unusable clipboard apart from a paste without text */
-            alert(getLabel("alert.emptyClipboard"));
-        } else if (clipboardText === null) {
+        /* 画面を元に戻してから知らせる。ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する
+           Report only after the canvas is restored; tell an unusable clipboard apart from a paste without text */
+        if (!alertPasteFailure(pasteError, pastedItems) && clipboardText === null) {
             alert(getLabel("alert.noTextInClipboard"));
         }
         return clipboardText;
@@ -481,7 +503,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             try {
                 targetItems[i].translate(offsetX, offsetY);
             } catch (e) {
-                // 動かせないものはその位置に残す / Leave behind whatever cannot be moved
+                /* 動かせないものはその位置に残す / Leave behind whatever cannot be moved */
             }
         }
     }
@@ -492,9 +514,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
      * @returns {string|null} 2行目以降の文字列。1行しかなければ空文字、使えるテキストが無ければ null
      */
     function trimPastedTextToFirstLine(pastedTextFrame) {
-        /* ここで空行を落としておけば、1行目の取り出しも書き戻しも空行を意識しなくてよい / Strip blank lines once, so neither the split nor the write-back has to care */
-        var pastedText = removeEmptyLines(pastedTextFrame.contents);
-        if (pastedText.length === 0) return null;
+        var pastedText = readNonBlankText(pastedTextFrame);
+        if (pastedText === null) return null;
 
         var splitResult = splitFirstLine(pastedText);
         pastedTextFrame.contents = splitResult.firstLine;
@@ -523,14 +544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             pasteError = String(e);
         }
 
-        if (pasteError) {
-            alert(getLabel("alert.clipboardError") + pasteError);
-            return;
-        }
-        if (!pastedItems || pastedItems.length === 0) {
-            alert(getLabel("alert.emptyClipboard"));
-            return;
-        }
+        if (alertPasteFailure(pasteError, pastedItems)) return;
 
         /* テキスト以外は取り出す行が無いので、貼り付いたまま中央へ置く / Non-text has no line to take, so leave the paste as it is */
         var pastedTextFrame = findFirstTextFrame(pastedItems);

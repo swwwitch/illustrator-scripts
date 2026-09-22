@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "CirclePathTextRepeat";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-07";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CirclePathTextRepeat.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CirclePathTextRepeat.md"; /* README (English) */
@@ -83,10 +83,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      * 現在の表示言語を取得する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -98,7 +98,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             separator: { ja: "区切り文字", en: "Separator" },
             fontSize:  { ja: "文字サイズ", en: "Font Size" }
         },
-        label: {
+        fieldLabel: {
             repeatCount: { ja: "繰り返し数", en: "Repeat count" },
             separator:   { ja: "種類", en: "Type" },
             spaceCount:  { ja: "スペース数", en: "Spaces" },
@@ -166,18 +166,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             }
         },
         alert: {
-            noDocument: {
-                ja: "ドキュメントが開かれていません。",
-                en: "No document is open."
-            },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             needCircleAndText: {
                 ja: "円のパスとテキストを1つずつ選択してください。",
                 en: "Please select one circle path and one text frame."
             },
-            emptyText: {
-                ja: "テキストが空です。",
-                en: "The text is empty."
-            },
+            emptyText: { ja: "テキストが空です。", en: "The text is empty." },
             invalidCount: {
                 ja: "繰り返し数には1以上の整数を入力してください。",
                 en: "Enter an integer of 1 or more for the repeat count."
@@ -228,21 +222,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     // 単位 / Units
     // =========================================
 
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
-     * 単位コードからラベルと1単位あたりの pt 数を取得する（環境設定の text/units 用）
-     * @param {number} unitCode - 0=inch / 1=mm / 2=pt / 3=pica / 4=cm / 5=Q / 6=px
-     * @returns {{label: string, ptPerUnit: number}} 単位表記と換算係数
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getUnitInfo(unitCode) {
-        switch (unitCode) {
-            case 0: return { label: "in", ptPerUnit: 72 };
-            case 1: return { label: "mm", ptPerUnit: 72 / 25.4 };
-            case 3: return { label: "pica", ptPerUnit: 12 };
-            case 4: return { label: "cm", ptPerUnit: 72 / 2.54 };
-            case 5: return { label: "Q", ptPerUnit: (72 / 25.4) * 0.25 };  /* 1Q = 0.25mm */
-            case 6: return { label: "px", ptPerUnit: 1 };                  /* 72ppi 前提 / assumes 72ppi */
-            default: return { label: "pt", ptPerUnit: 1 };                 /* 2=pt ほか / 2=pt and fallback */
-        }
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -458,33 +470,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     }
 
     // =========================================
-    // メイン処理 / Main
+    // 選択 / Selection
     // =========================================
 
     /**
-     * 選択内容を検証し、ダイアログを開いてパス上文字を作成する
-     * @returns {void}
+     * 選択からテキストフレームと円のパスを振り分ける
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {{sourceTextFrame: TextFrame, circlePath: PathItem}|null} 見つからなければ null
      */
-    function main() {
-
-        if (app.documents.length === 0) {
-            alert(getLabel("alert.noDocument"));
-            return;
-        }
-
-        var activeDoc = app.activeDocument;
-
-        /* 選択数を確認（円とテキストの2つ）/ Ensure exactly two objects are selected */
-        if (activeDoc.selection.length !== 2) {
-            alert(getLabel("alert.needCircleAndText"));
-            return;
-        }
-
-        var selectedItems = activeDoc.selection;
+    function findCircleAndText(selectedItems) {
         var sourceTextFrame = null;
         var circlePath = null;
-
-        /* 選択からテキストフレームと円のパスを振り分け / Pick the text frame and the circle path from the selection */
         for (var i = 0; i < selectedItems.length; i++) {
             if (selectedItems[i].typename === "TextFrame") {
                 sourceTextFrame = selectedItems[i];
@@ -492,70 +488,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
                 circlePath = selectedItems[i];
             }
         }
+        if (sourceTextFrame === null || circlePath === null) return null;
+        return { sourceTextFrame: sourceTextFrame, circlePath: circlePath };
+    }
 
-        if (sourceTextFrame === null || circlePath === null) {
-            alert(getLabel("alert.needCircleAndText"));
-            return;
+    // =========================================
+    // 文字属性のコピー / Copying character attributes
+    // =========================================
+
+    /**
+     * 属性を1つだけ安全にコピーする（1つ失敗しても他へ波及させない）
+     * @param {object} sourceAttributes - コピー元の属性
+     * @param {object} targetAttributes - コピー先の属性
+     * @param {string} attributeName - 属性名
+     * @returns {void}
+     */
+    function safeCopyAttribute(sourceAttributes, targetAttributes, attributeName) {
+        try {
+            targetAttributes[attributeName] = sourceAttributes[attributeName];
+        } catch (e) { }
+    }
+
+    /**
+     * 元テキストの文字属性・段落属性をコピーする
+     * @param {TextFrame} sourceTextFrame - コピー元のテキストフレーム
+     * @param {TextFrame} targetFrame - コピー先のテキストフレーム
+     * @returns {void}
+     */
+    function copySourceAttributes(sourceTextFrame, targetFrame) {
+        var sourceAttributes = sourceTextFrame.textRange.characterAttributes;
+        var targetAttributes = targetFrame.textRange.characterAttributes;
+        var attributeNames = ["size", "textFont", "fillColor", "tracking",
+            "horizontalScale", "verticalScale", "baselineShift"];
+        for (var i = 0; i < attributeNames.length; i++) {
+            safeCopyAttribute(sourceAttributes, targetAttributes, attributeNames[i]);
         }
+        safeCopyAttribute(
+            sourceTextFrame.textRange.paragraphAttributes,
+            targetFrame.textRange.paragraphAttributes,
+            "justification"
+        );
+    }
 
-        if (sourceTextFrame.contents === "") {
-            alert(getLabel("alert.emptyText"));
-            return;
-        }
+    // =========================================
+    // 文字幅の計測 / Measuring text width
+    // =========================================
 
-        /* パス上文字は改行を保持できないため、改行はスペースに置き換える / Path text cannot keep line breaks, so replace them with spaces */
-        var originalText = sourceTextFrame.contents.replace(/[\r\n]/g, " ");
+    /**
+     * 画面外の計測用フレームを1枚だけ使い回して文字幅を測る仕組みを作る
+     * @param {Document} activeDoc - 対象のドキュメント
+     * @param {TextFrame} sourceTextFrame - 書式の元になるテキストフレーム
+     * @returns {{measure: Function, dispose: Function}} measure(text) で計測、dispose() で計測用フレームを削除
+     */
+    function createTextMeasurer(activeDoc, sourceTextFrame) {
+        var measureFrame = null; /* 画面外に常駐させる計測用フレーム / Reusable off-canvas measurement frame */
 
-        var measureFrame = null;      /* 画面外に常駐させる計測用フレーム（使い回し）/ Reusable off-canvas measurement frame */
-        var isUpdatingPreview = false;
-        var isPreviewApplied = false; /* 適用済みで undo が必要か / Whether an applied preview still needs undoing */
-        var hasCommitted = false;     /* OK で確定したか / Whether OK has committed the result */
-
-        // -----------------------------------------
-        // 文字属性のコピー / Copying character attributes
-        // -----------------------------------------
-
-        /**
-         * 属性を1つだけ安全にコピーする（1つ失敗しても他へ波及させない）
-         * @param {object} sourceAttributes - コピー元の属性
-         * @param {object} targetAttributes - コピー先の属性
-         * @param {string} attributeName - 属性名
-         * @returns {void}
-         */
-        function safeCopyAttribute(sourceAttributes, targetAttributes, attributeName) {
-            try {
-                targetAttributes[attributeName] = sourceAttributes[attributeName];
-            } catch (e) { }
-        }
-
-        /**
-         * 元テキストの文字属性・段落属性をコピーする
-         * @param {TextFrame} targetFrame - コピー先のテキストフレーム
-         * @returns {void}
-         */
-        function copySourceAttributes(targetFrame) {
-            var sourceAttributes = sourceTextFrame.textRange.characterAttributes;
-            var targetAttributes = targetFrame.textRange.characterAttributes;
-            var attributeNames = ["size", "textFont", "fillColor", "tracking",
-                "horizontalScale", "verticalScale", "baselineShift"];
-            for (var i = 0; i < attributeNames.length; i++) {
-                safeCopyAttribute(sourceAttributes, targetAttributes, attributeNames[i]);
-            }
-            safeCopyAttribute(
-                sourceTextFrame.textRange.paragraphAttributes,
-                targetFrame.textRange.paragraphAttributes,
-                "justification"
-            );
-        }
-
-        // -----------------------------------------
-        // 文字幅の計測 / Measuring text width
-        // -----------------------------------------
-
-        /**
-         * 計測用フレームがまだ document 上に存在するか調べる
-         * @returns {boolean} 参照できれば true
-         */
+        /* 計測用フレームがまだドキュメント上にあるか（削除済みなら参照で例外）/ Whether the frame still exists (accessing a removed one throws) */
         function isMeasureFrameAlive() {
             if (measureFrame === null) return false;
             try {
@@ -566,10 +554,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             }
         }
 
-        /**
-         * 計測用フレームを1枚だけ用意する（画面外に配置して使い回す）
-         * @returns {TextFrame} 計測用のテキストフレーム
-         */
+        /* 計測用フレームを1枚だけ用意する / Prepare the single measurement frame */
         function ensureMeasureFrame() {
             if (!isMeasureFrameAlive()) {
                 measureFrame = activeDoc.textFrames.add();
@@ -581,298 +566,297 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             return measureFrame;
         }
 
-        /**
-         * 計測用フレームを削除する
-         * @returns {void}
-         */
-        function removeMeasureFrame() {
-            if (isMeasureFrameAlive()) {
-                measureFrame.remove();
-            }
-            measureFrame = null;
-        }
+        return {
+            /* 元テキストの属性を写したフレームで文字幅を測る → {fontSize, width}（pt）/ Measure with the source formatting */
+            measure: function (textToMeasure) {
+                var measureTarget = ensureMeasureFrame();
+                measureTarget.contents = textToMeasure;
+                copySourceAttributes(sourceTextFrame, measureTarget);
 
-        /**
-         * 元テキストの属性を写した使い回しフレームで文字幅を測る
-         * @param {string} textToMeasure - 計測する文字列
-         * @returns {{fontSize: number, width: number}} 計測時の文字サイズと実測幅（pt）
-         */
-        function measureText(textToMeasure) {
-            var measureTarget = ensureMeasureFrame();
-            measureTarget.contents = textToMeasure;
-            copySourceAttributes(measureTarget);
-
-            /* 元テキストのサイズをそのまま基準にする（読めなければ代替値を書き込む）/ Use the source size as the base (write a fallback when unreadable) */
-            var measureAttributes = measureTarget.textRange.characterAttributes;
-            var baseFontSize = measureAttributes.size;
-            if (isNaN(baseFontSize) || baseFontSize <= 0) {
-                baseFontSize = FALLBACK_FONT_SIZE;
-                measureAttributes.size = baseFontSize;
-            }
-
-            /* geometricBounds を正しく更新するため redraw が必要。常駐フレームなので毎回の add/remove は無く、蓄積しない。
-               A redraw is required for geometricBounds to update correctly. The frame is reused (no per-call add/remove), so nothing accumulates. */
-            app.redraw();
-
-            var frameBounds = measureTarget.geometricBounds;
-            return { fontSize: baseFontSize, width: Math.abs(frameBounds[2] - frameBounds[0]) };
-        }
-
-        /**
-         * 文字サイズを Illustrator が受け付ける範囲に収める
-         * @param {number} fontSize - 調整前の文字サイズ（pt）
-         * @returns {number} 範囲内に収めた文字サイズ（pt）
-         */
-        function clampFontSize(fontSize) {
-            if (isNaN(fontSize)) return FALLBACK_FONT_SIZE;
-            if (fontSize < MIN_FONT_SIZE) return MIN_FONT_SIZE;
-            if (fontSize > MAX_FONT_SIZE) return MAX_FONT_SIZE;
-            return fontSize;
-        }
-
-        // -----------------------------------------
-        // 区切り文字 / Separator
-        // -----------------------------------------
-
-        /**
-         * @typedef {object} SeparatorInfo
-         * @property {string} text - 実際に挟む区切り文字列
-         * @property {string} styledChars - スケール・ベースラインを適用する文字（スペースのみなら ""）
-         * @property {number} leadingSpaces - 区切り文字列の先頭にあるスペース数
-         */
-
-        /**
-         * 現在のUI状態から区切り文字の情報を返す
-         * @param {number} spaceCount - 区切り文字の前後に入れる半角スペース数
-         * @returns {SeparatorInfo} 区切り文字の情報
-         */
-        function getSeparatorInfo(spaceCount) {
-            var sideSpaces = buildSpaces(spaceCount);
-            if (!separatorCharRadio.value) {
-                /* スペースのみ（末尾にも付与し、円の折り返し位置の間隔も揃える）/ Spaces only (also trailing, so the wrap-around gap matches) */
-                return { text: sideSpaces, styledChars: "", leadingSpaces: 0 };
-            }
-            /* 入力文字の左右にスペースを付与 / Pad the typed character with spaces on both sides */
-            var separatorChar = separatorCharInput.text;
-            return {
-                text: sideSpaces + separatorChar + sideSpaces,
-                styledChars: separatorChar,
-                leadingSpaces: sideSpaces.length
-            };
-        }
-
-        /**
-         * 区切り文字（スペース以外）だけに水平・垂直比率とベースラインを適用する
-         * 文字の内容ではなく位置で特定するため、元テキストに同じ文字があっても影響しない
-         * @param {TextFrame} pathTypeFrame - 対象のパス上文字
-         * @param {SeparatorInfo} separatorInfo - 区切り文字の情報
-         * @param {number} repeatCount - 繰り返し数（＝区切り文字の個数）
-         * @param {number} scalePercent - 水平・垂直比率（%）
-         * @param {number} baselineShiftPt - ベースラインシフト（pt）
-         * @returns {void}
-         */
-        function applySeparatorStyle(pathTypeFrame, separatorInfo, repeatCount, scalePercent, baselineShiftPt) {
-            var styledLength = separatorInfo.styledChars.length;
-            if (styledLength === 0) return;
-
-            var characters = pathTypeFrame.textRange.characters;
-            var sourceLength = originalText.length;
-            var separatorLength = separatorInfo.text.length;
-
-            for (var i = 0; i < repeatCount; i++) {
-                /* i 番目の区切り文字が始まる位置 / Start index of the i-th separator */
-                var styleStart = sourceLength * (i + 1) + separatorLength * i + separatorInfo.leadingSpaces;
-                for (var j = 0; j < styledLength; j++) {
-                    if (styleStart + j >= characters.length) return;
-                    var attributes = characters[styleStart + j].characterAttributes;
-                    attributes.horizontalScale = scalePercent;
-                    attributes.verticalScale = scalePercent;
-                    attributes.baselineShift = baselineShiftPt;
+                /* 元テキストのサイズをそのまま基準にする（読めなければ代替値を書き込む）/ Use the source size as the base (write a fallback when unreadable) */
+                var measureAttributes = measureTarget.textRange.characterAttributes;
+                var baseFontSize = measureAttributes.size;
+                if (isNaN(baseFontSize) || baseFontSize <= 0) {
+                    baseFontSize = FALLBACK_FONT_SIZE;
+                    measureAttributes.size = baseFontSize;
                 }
-            }
-        }
 
-        // -----------------------------------------
-        // 生成 / Generating
-        // -----------------------------------------
+                /* geometricBounds を正しく更新するため redraw が必要。常駐フレームなので毎回の add/remove は無く、蓄積しない。
+                   A redraw is required for geometricBounds to update correctly. The frame is reused (no per-call add/remove), so nothing accumulates. */
+                app.redraw();
 
-        /**
-         * @typedef {object} RepeatSettings
-         * @property {number|null} repeatCount - 繰り返し数（不正なら null）
-         * @property {number} spaceCount - 区切り文字の前後のスペース数
-         * @property {number} separatorScale - 区切り文字のスケール（%）
-         * @property {number} baselineShiftPt - 区切り文字のベースラインシフト（pt）
-         * @property {number|null} correctionPercent - 円周の補正率（%、不正なら null）
-         * @property {number} rotationAngle - 回転角度（度）
-         * @property {boolean} shouldFit - 文字サイズを円周に合わせるか
-         */
+                var frameBounds = measureTarget.geometricBounds;
+                return { fontSize: baseFontSize, width: Math.abs(frameBounds[2] - frameBounds[0]) };
+            },
 
-        /**
-         * ダイアログの入力値をまとめて読み取る
-         * @returns {RepeatSettings} 現在の設定
-         */
-        function readSettings() {
-            return {
-                repeatCount: parsePositiveInteger(repeatCountInput.text),
-                spaceCount: parsePositiveInteger(spaceCountInput.text) || DEFAULT_SPACE_COUNT,
-                separatorScale: parsePositiveNumber(scaleInput.text) || DEFAULT_SEPARATOR_SCALE,
-                baselineShiftPt: parseNumberOr(baselineInput.text, 0) * textUnitInfo.ptPerUnit,
-                correctionPercent: parsePositiveNumber(correctionInput.text),
-                rotationAngle: parseNumberOr(rotationInput.text, 0),
-                shouldFit: fitSizeCheckbox.value
-            };
-        }
-
-        /**
-         * 必須項目を検証する
-         * @param {RepeatSettings} settings - 検証する設定
-         * @returns {string|null} 不正なら alert のキー、問題なければ null
-         */
-        function validateSettings(settings) {
-            if (settings.repeatCount === null) return "alert.invalidCount";
-            /* 補正率はフィット ON のときだけ必須 / The correction is required only when fitting is on */
-            if (settings.shouldFit && settings.correctionPercent === null) return "alert.invalidCorrection";
-            return null;
-        }
-
-        /**
-         * 円周に合う文字サイズを計算する（計測のため redraw を伴う）
-         * @param {RepeatSettings} settings - 現在の設定
-         * @returns {number|null} 文字サイズ（pt）、フィット OFF なら null
-         */
-        function computeFittedFontSize(settings) {
-            if (!settings.shouldFit) return null;
-
-            var separatorInfo = getSeparatorInfo(settings.spaceCount);
-            var repeatedText = buildRepeatedText(originalText, settings.repeatCount, separatorInfo.text, true);
-            var measured = measureText(repeatedText);
-            if (measured.width <= 0) return measured.fontSize;
-
-            var perimeter = getEllipsePerimeter(circlePath);
-            var correctionRatio = settings.correctionPercent / 100;
-            return clampFontSize(measured.fontSize * ((perimeter * correctionRatio) / measured.width));
-        }
-
-        /**
-         * パス上文字を作成する（計測・redraw は含めない＝1 undo グループにするため）
-         * @param {RepeatSettings} settings - 現在の設定
-         * @param {number|null} fontSize - 適用する文字サイズ（pt）、null ならフィット OFF
-         * @param {boolean} isPreview - プレビューとして作成するか
-         * @returns {TextFrame} 作成したパス上文字
-         */
-        function createPathTypeText(settings, fontSize, isPreview) {
-            var separatorInfo = getSeparatorInfo(settings.spaceCount);
-            var repeatedText = buildRepeatedText(originalText, settings.repeatCount, separatorInfo.text, true);
-
-            var pathTypeFrame = activeDoc.textFrames.pathText(circlePath.duplicate());
-            pathTypeFrame.contents = repeatedText;
-            copySourceAttributes(pathTypeFrame);
-
-            /* 事前計算したフィットサイズを適用（null はフィット OFF）/ Apply the precomputed fit size (null means fitting is off) */
-            if (fontSize !== null) {
-                pathTypeFrame.textRange.characterAttributes.size = fontSize;
-            }
-
-            /* 区切り文字（スペース以外）のスケール・ベースラインを適用 / Apply scale and baseline to the separator's non-space characters */
-            if (settings.separatorScale !== 100 || settings.baselineShiftPt !== 0) {
-                applySeparatorStyle(pathTypeFrame, separatorInfo, settings.repeatCount,
-                    settings.separatorScale, settings.baselineShiftPt);
-            }
-
-            /* 円の中心を基準に回転 / Rotate around the circle center */
-            if (settings.rotationAngle !== 0) {
-                var pathBounds = circlePath.geometricBounds;
-                rotateAroundCenter(pathTypeFrame, settings.rotationAngle,
-                    (pathBounds[0] + pathBounds[2]) / 2, (pathBounds[1] + pathBounds[3]) / 2);
-            }
-
-            /* プレビュー時は元のテキスト・円を一時的に隠す（undo で復帰）/ Hide the originals during preview (restored by undo) */
-            if (isPreview) {
-                sourceTextFrame.hidden = true;
-                circlePath.hidden = true;
-            }
-
-            return pathTypeFrame;
-        }
-
-        // -----------------------------------------
-        // ダイアログ / Dialog
-        // -----------------------------------------
-
-        /* 環境設定のテキスト単位（ベースライン入力に使用）/ Preferences text unit (used by the baseline field) */
-        var textUnitInfo = getUnitInfo(app.preferences.getIntegerPreference("text/units"));
-
-        /* 幅を揃える行ラベル / Row labels to align to one width */
-        var rowLabels = [];
-
-        /**
-         * 行ラベルを追加し、幅揃えの対象に登録する
-         * @param {Group} parentGroup - 追加先のグループ
-         * @param {string} labelKey - ドットでつないだ LABELS のキー
-         * @returns {StaticText} 追加したラベル
-         */
-        function addRowLabel(parentGroup, labelKey) {
-            var rowLabel = parentGroup.add("statictext", undefined, labelText(labelKey));
-            rowLabel.justify = "right";
-            rowLabels.push(rowLabel);
-            return rowLabel;
-        }
-
-        /**
-         * ラベル＋数値入力欄（必要なら単位表記）の行を追加する
-         * @param {Panel} parentPanel - 追加先のパネル
-         * @param {string} labelKey - 項目名の LABELS キー
-         * @param {number} defaultValue - 入力欄の初期値
-         * @param {number} fieldChars - 入力欄の文字数
-         * @param {string} tooltipKey - ツールチップの LABELS キー
-         * @param {string} [suffixText] - 入力欄の右に添える単位表記
-         * @returns {EditText} 追加した入力欄
-         */
-        function addNumberField(parentPanel, labelKey, defaultValue, fieldChars, tooltipKey, suffixText) {
-            var fieldRow = parentPanel.add("group");
-            setupRow(fieldRow);
-            addRowLabel(fieldRow, labelKey);
-
-            var numberField = fieldRow.add("edittext", undefined, String(defaultValue));
-            numberField.characters = fieldChars;
-            /* 数値欄は共通で ↑↓ 操作を案内する / Every number field documents the arrow-key stepping */
-            numberField.helpTip = getLabel(tooltipKey) + "\n" + getLabel("tooltip.arrowKeys");
-
-            if (suffixText) {
-                fieldRow.add("statictext", undefined, suffixText);
-            }
-            return numberField;
-        }
-
-        /**
-         * 全ラベルの幅を最も広いものに揃える
-         * @returns {void}
-         */
-        function alignLabelWidths() {
-            var maxWidth = 0;
-            for (var i = 0; i < rowLabels.length; i++) {
-                if (rowLabels[i].preferredSize.width > maxWidth) {
-                    maxWidth = rowLabels[i].preferredSize.width;
+            /* 計測用フレームを削除する / Remove the measurement frame */
+            dispose: function () {
+                if (isMeasureFrameAlive()) {
+                    measureFrame.remove();
                 }
+                measureFrame = null;
             }
-            for (var j = 0; j < rowLabels.length; j++) {
-                rowLabels[j].preferredSize.width = maxWidth;
+        };
+    }
+
+    /**
+     * 文字サイズを Illustrator が受け付ける範囲に収める
+     * @param {number} fontSize - 調整前の文字サイズ（pt）
+     * @returns {number} 範囲内に収めた文字サイズ（pt）
+     */
+    function clampFontSize(fontSize) {
+        if (isNaN(fontSize)) return FALLBACK_FONT_SIZE;
+        if (fontSize < MIN_FONT_SIZE) return MIN_FONT_SIZE;
+        if (fontSize > MAX_FONT_SIZE) return MAX_FONT_SIZE;
+        return fontSize;
+    }
+
+    // =========================================
+    // 区切り文字 / Separator
+    // =========================================
+
+    /**
+     * @typedef {object} SeparatorInfo
+     * @property {string} text - 実際に挟む区切り文字列
+     * @property {string} styledChars - スケール・ベースラインを適用する文字（スペースのみなら ""）
+     * @property {number} leadingSpaces - 区切り文字列の先頭にあるスペース数
+     */
+
+    /**
+     * 設定から区切り文字の情報を返す
+     * @param {RepeatSettings} repeatSettings - 現在の設定
+     * @returns {SeparatorInfo} 区切り文字の情報
+     */
+    function buildSeparatorInfo(repeatSettings) {
+        var sideSpaces = buildSpaces(repeatSettings.spaceCount);
+        if (!repeatSettings.useCharSeparator) {
+            /* スペースのみ（末尾にも付与し、円の折り返し位置の間隔も揃える）/ Spaces only (also trailing, so the wrap-around gap matches) */
+            return { text: sideSpaces, styledChars: "", leadingSpaces: 0 };
+        }
+        /* 入力文字の左右にスペースを付与 / Pad the typed character with spaces on both sides */
+        var separatorChar = repeatSettings.separatorChar;
+        return {
+            text: sideSpaces + separatorChar + sideSpaces,
+            styledChars: separatorChar,
+            leadingSpaces: sideSpaces.length
+        };
+    }
+
+    /**
+     * 区切り文字（スペース以外）だけに水平・垂直比率とベースラインを適用する
+     * 文字の内容ではなく位置で特定するため、元テキストに同じ文字があっても影響しない
+     * @param {TextFrame} pathTypeFrame - 対象のパス上文字
+     * @param {SeparatorInfo} separatorInfo - 区切り文字の情報
+     * @param {number} sourceLength - 元テキストの文字数
+     * @param {number} repeatCount - 繰り返し数（＝区切り文字の個数）
+     * @param {number} scalePercent - 水平・垂直比率（%）
+     * @param {number} baselineShiftPt - ベースラインシフト（pt）
+     * @returns {void}
+     */
+    function applySeparatorStyle(pathTypeFrame, separatorInfo, sourceLength, repeatCount, scalePercent, baselineShiftPt) {
+        var styledLength = separatorInfo.styledChars.length;
+        if (styledLength === 0) return;
+
+        var frameChars = pathTypeFrame.textRange.characters;
+        var separatorLength = separatorInfo.text.length;
+
+        for (var i = 0; i < repeatCount; i++) {
+            /* i 番目の区切り文字が始まる位置 / Start index of the i-th separator */
+            var styleStart = sourceLength * (i + 1) + separatorLength * i + separatorInfo.leadingSpaces;
+            for (var j = 0; j < styledLength; j++) {
+                if (styleStart + j >= frameChars.length) return;
+                var charAttributes = frameChars[styleStart + j].characterAttributes;
+                charAttributes.horizontalScale = scalePercent;
+                charAttributes.verticalScale = scalePercent;
+                charAttributes.baselineShift = baselineShiftPt;
             }
         }
+    }
+
+    // =========================================
+    // 生成 / Generating
+    // =========================================
+
+    /**
+     * @typedef {object} RepeatSettings
+     * @property {number|null} repeatCount - 繰り返し数（不正なら null）
+     * @property {boolean} useCharSeparator - 区切りに任意の文字を使うか（false ならスペースのみ）
+     * @property {string} separatorChar - 任意の区切り文字
+     * @property {number} spaceCount - 区切り文字の前後のスペース数
+     * @property {number} separatorScale - 区切り文字のスケール（%）
+     * @property {number} baselineShiftPt - 区切り文字のベースラインシフト（pt）
+     * @property {number|null} correctionPercent - 円周の補正率（%、不正なら null）
+     * @property {number} rotationAngle - 回転角度（度）
+     * @property {boolean} shouldFit - 文字サイズを円周に合わせるか
+     */
+
+    /**
+     * @typedef {object} RepeatJob
+     * @property {Document} activeDoc - 対象のドキュメント
+     * @property {TextFrame} sourceTextFrame - 元のテキストフレーム
+     * @property {PathItem} circlePath - 元の円のパス
+     * @property {string} originalText - 改行をスペースにした元のテキスト
+     * @property {{measure: Function, dispose: Function}} textMeasurer - createTextMeasurer() の戻り値
+     */
+
+    /**
+     * 必須項目を検証する
+     * @param {RepeatSettings} repeatSettings - 検証する設定
+     * @returns {string|null} 不正なら alert のキー、問題なければ null
+     */
+    function validateSettings(repeatSettings) {
+        if (repeatSettings.repeatCount === null) return "alert.invalidCount";
+        /* 補正率はフィット ON のときだけ必須 / The correction is required only when fitting is on */
+        if (repeatSettings.shouldFit && repeatSettings.correctionPercent === null) return "alert.invalidCorrection";
+        return null;
+    }
+
+    /**
+     * 円周に合う文字サイズを計算する（計測のため redraw を伴う）
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {RepeatSettings} repeatSettings - 現在の設定
+     * @returns {number|null} 文字サイズ（pt）、フィット OFF なら null
+     */
+    function computeFittedFontSize(repeatJob, repeatSettings) {
+        if (!repeatSettings.shouldFit) return null;
+
+        var separatorInfo = buildSeparatorInfo(repeatSettings);
+        var repeatedText = buildRepeatedText(repeatJob.originalText, repeatSettings.repeatCount, separatorInfo.text, true);
+        var measuredText = repeatJob.textMeasurer.measure(repeatedText);
+        if (measuredText.width <= 0) return measuredText.fontSize;
+
+        var perimeter = getEllipsePerimeter(repeatJob.circlePath);
+        var correctionRatio = repeatSettings.correctionPercent / 100;
+        return clampFontSize(measuredText.fontSize * ((perimeter * correctionRatio) / measuredText.width));
+    }
+
+    /**
+     * パス上文字を作成する（計測・redraw は含めない＝1 undo グループにするため）
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {RepeatSettings} repeatSettings - 現在の設定
+     * @param {number|null} fontSize - 適用する文字サイズ（pt）、null ならフィット OFF
+     * @param {boolean} isPreview - プレビューとして作成するか
+     * @returns {TextFrame} 作成したパス上文字
+     */
+    function createPathTypeText(repeatJob, repeatSettings, fontSize, isPreview) {
+        var circlePath = repeatJob.circlePath;
+        var separatorInfo = buildSeparatorInfo(repeatSettings);
+        var repeatedText = buildRepeatedText(repeatJob.originalText, repeatSettings.repeatCount, separatorInfo.text, true);
+
+        var pathTypeFrame = repeatJob.activeDoc.textFrames.pathText(circlePath.duplicate());
+        pathTypeFrame.contents = repeatedText;
+        copySourceAttributes(repeatJob.sourceTextFrame, pathTypeFrame);
+
+        /* 事前計算したフィットサイズを適用（null はフィット OFF）/ Apply the precomputed fit size (null means fitting is off) */
+        if (fontSize !== null) {
+            pathTypeFrame.textRange.characterAttributes.size = fontSize;
+        }
+
+        /* 区切り文字（スペース以外）のスケール・ベースラインを適用 / Apply scale and baseline to the separator's non-space characters */
+        if (repeatSettings.separatorScale !== 100 || repeatSettings.baselineShiftPt !== 0) {
+            applySeparatorStyle(pathTypeFrame, separatorInfo, repeatJob.originalText.length, repeatSettings.repeatCount,
+                repeatSettings.separatorScale, repeatSettings.baselineShiftPt);
+        }
+
+        /* 円の中心を基準に回転 / Rotate around the circle center */
+        if (repeatSettings.rotationAngle !== 0) {
+            var pathBounds = circlePath.geometricBounds;
+            rotateAroundCenter(pathTypeFrame, repeatSettings.rotationAngle,
+                (pathBounds[0] + pathBounds[2]) / 2, (pathBounds[1] + pathBounds[3]) / 2);
+        }
+
+        /* プレビュー時は元のテキスト・円を一時的に隠す（undo で復帰）/ Hide the originals during preview (restored by undo) */
+        if (isPreview) {
+            repeatJob.sourceTextFrame.hidden = true;
+            circlePath.hidden = true;
+        }
+
+        return pathTypeFrame;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 行ラベルを追加し、幅揃えの対象に登録する
+     * @param {StaticText[]} rowLabels - 幅を揃える行ラベルの一覧
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} labelKey - ドットでつないだ LABELS のキー
+     * @returns {StaticText} 追加したラベル
+     */
+    function addRowLabel(rowLabels, parentGroup, labelKey) {
+        var rowLabel = parentGroup.add("statictext", undefined, labelText(labelKey));
+        rowLabel.justify = "right";
+        rowLabels.push(rowLabel);
+        return rowLabel;
+    }
+
+    /**
+     * ラベル＋数値入力欄（必要なら単位表記）の行を追加する
+     * @param {StaticText[]} rowLabels - 幅を揃える行ラベルの一覧
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelKey - 項目名の LABELS キー
+     * @param {number} defaultValue - 入力欄の初期値
+     * @param {number} fieldChars - 入力欄の文字数
+     * @param {string} tooltipKey - ツールチップの LABELS キー
+     * @param {string} [suffixText] - 入力欄の右に添える単位表記
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberField(rowLabels, parentPanel, labelKey, defaultValue, fieldChars, tooltipKey, suffixText) {
+        var fieldRow = parentPanel.add("group");
+        setupRow(fieldRow);
+        addRowLabel(rowLabels, fieldRow, labelKey);
+
+        var numberField = fieldRow.add("edittext", undefined, String(defaultValue));
+        numberField.characters = fieldChars;
+        /* 数値欄は共通で ↑↓ 操作を案内する / Every number field documents the arrow-key stepping */
+        numberField.helpTip = getLabel(tooltipKey) + "\n" + getLabel("tooltip.arrowKeys");
+
+        if (suffixText) {
+            fieldRow.add("statictext", undefined, suffixText);
+        }
+        return numberField;
+    }
+
+    /**
+     * 全ラベルの幅を最も広いものに揃える
+     * @param {StaticText[]} rowLabels - 幅を揃える行ラベルの一覧
+     * @returns {void}
+     */
+    function alignLabelWidths(rowLabels) {
+        var maxWidth = 0;
+        for (var i = 0; i < rowLabels.length; i++) {
+            if (rowLabels[i].preferredSize.width > maxWidth) {
+                maxWidth = rowLabels[i].preferredSize.width;
+            }
+        }
+        for (var j = 0; j < rowLabels.length; j++) {
+            rowLabels[j].preferredSize.width = maxWidth;
+        }
+    }
+
+    /**
+     * ダイアログを組み立てる（イベントはまだ付けない）
+     * @param {string} textUnitLabel - 環境設定のテキスト単位の表記
+     * @returns {Object} ダイアログと各コントロール
+     */
+    function buildDialog(textUnitLabel) {
+        var rowLabels = []; /* 幅を揃える行ラベル / Row labels to align to one width */
 
         /* タイトルバーにバージョンを表示 / Show the version in the title bar */
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
+        var repeatDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(repeatDialog);
 
-        var repeatPanel = addPanel(dialog, "panel.repeat");
-        var repeatCountInput = addNumberField(repeatPanel, "label.repeatCount", DEFAULT_REPEAT_COUNT, COUNT_FIELD_CHARS, "tooltip.repeatCount");
-        var rotationInput = addNumberField(repeatPanel, "label.rotation", DEFAULT_ROTATION, COUNT_FIELD_CHARS, "tooltip.rotation", "°");
+        var repeatPanel = addPanel(repeatDialog, "panel.repeat");
+        var repeatCountInput = addNumberField(rowLabels, repeatPanel, "fieldLabel.repeatCount", DEFAULT_REPEAT_COUNT, COUNT_FIELD_CHARS, "tooltip.repeatCount");
+        var rotationInput = addNumberField(rowLabels, repeatPanel, "fieldLabel.rotation", DEFAULT_ROTATION, COUNT_FIELD_CHARS, "tooltip.rotation", "°");
 
-        var separatorPanel = addPanel(dialog, "panel.separator");
+        var separatorPanel = addPanel(repeatDialog, "panel.separator");
 
         var separatorRow = separatorPanel.add("group");
         setupRow(separatorRow, "top");
-        addRowLabel(separatorRow, "label.separator");
+        addRowLabel(rowLabels, separatorRow, "fieldLabel.separator");
 
         var separatorRadioGroup = separatorRow.add("group");
         separatorRadioGroup.orientation = "column";
@@ -894,23 +878,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         separatorSpaceRadio.value = false;
         separatorCharRadio.value = true;
 
-        var spaceCountInput = addNumberField(separatorPanel, "label.spaceCount", DEFAULT_SPACE_COUNT, VALUE_FIELD_CHARS, "tooltip.spaceCount");
-        var scaleInput = addNumberField(separatorPanel, "label.scale", DEFAULT_SEPARATOR_SCALE, VALUE_FIELD_CHARS, "tooltip.scale", "%");
+        var spaceCountInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.spaceCount", DEFAULT_SPACE_COUNT, VALUE_FIELD_CHARS, "tooltip.spaceCount");
+        var scaleInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.scale", DEFAULT_SEPARATOR_SCALE, VALUE_FIELD_CHARS, "tooltip.scale", "%");
         /* 単位表記は環境設定のテキスト単位に従う / The unit label follows the preferences text unit */
-        var baselineInput = addNumberField(separatorPanel, "label.baseline", DEFAULT_BASELINE_SHIFT, VALUE_FIELD_CHARS, "tooltip.baseline", textUnitInfo.label);
+        var baselineInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.baseline", DEFAULT_BASELINE_SHIFT, VALUE_FIELD_CHARS, "tooltip.baseline", textUnitLabel);
 
-        var fontSizePanel = addPanel(dialog, "panel.fontSize");
+        var fontSizePanel = addPanel(repeatDialog, "panel.fontSize");
 
         var fitSizeCheckbox = fontSizePanel.add("checkbox", undefined, getLabel("checkbox.fitSize"));
         fitSizeCheckbox.value = true;
         setTooltip(fitSizeCheckbox, "tooltip.fitSize");
 
-        var correctionInput = addNumberField(fontSizePanel, "label.correction", DEFAULT_CORRECTION, VALUE_FIELD_CHARS, "tooltip.correction", "%");
+        var correctionInput = addNumberField(rowLabels, fontSizePanel, "fieldLabel.correction", DEFAULT_CORRECTION, VALUE_FIELD_CHARS, "tooltip.correction", "%");
 
-        alignLabelWidths();
+        alignLabelWidths(rowLabels);
 
         /* メイングループ（横並び）/ Main group (horizontal layout) */
-        var btnRowGroup = dialog.add("group");
+        var btnRowGroup = repeatDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = BUTTON_ROW_MARGINS;
         btnRowGroup.alignment = ["fill", "bottom"];
@@ -933,22 +917,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        // -----------------------------------------
-        // プレビュー / Preview
-        // -----------------------------------------
+        return {
+            dialog: repeatDialog,
+            repeatCountInput: repeatCountInput,
+            rotationInput: rotationInput,
+            separatorSpaceRadio: separatorSpaceRadio,
+            separatorCharRadio: separatorCharRadio,
+            separatorCharInput: separatorCharInput,
+            spaceCountInput: spaceCountInput,
+            scaleInput: scaleInput,
+            baselineInput: baselineInput,
+            fitSizeCheckbox: fitSizeCheckbox,
+            correctionInput: correctionInput,
+            previewCheckbox: previewCheckbox,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
 
-        /**
-         * プレビューを適用して表示する（undo は呼び出し元が行う）
-         * @returns {void}
-         */
+    /**
+     * ダイアログの入力値をまとめて読み取る
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {{pointsPerUnit: number}} textUnitInfo - 環境設定のテキスト単位
+     * @returns {RepeatSettings} 現在の設定
+     */
+    function readSettings(dialogControls, textUnitInfo) {
+        return {
+            repeatCount: parsePositiveInteger(dialogControls.repeatCountInput.text),
+            useCharSeparator: dialogControls.separatorCharRadio.value,
+            separatorChar: dialogControls.separatorCharInput.text,
+            spaceCount: parsePositiveInteger(dialogControls.spaceCountInput.text) || DEFAULT_SPACE_COUNT,
+            separatorScale: parsePositiveNumber(dialogControls.scaleInput.text) || DEFAULT_SEPARATOR_SCALE,
+            baselineShiftPt: parseNumberOr(dialogControls.baselineInput.text, 0) * textUnitInfo.pointsPerUnit,
+            correctionPercent: parsePositiveNumber(dialogControls.correctionInput.text),
+            rotationAngle: parseNumberOr(dialogControls.rotationInput.text, 0),
+            shouldFit: dialogControls.fitSizeCheckbox.value
+        };
+    }
+
+    /**
+     * 区切り文字の選択に合わせて入力欄の有効・無効を切り替える
+     * スケールとベースラインは「文字」のときだけ効く
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @returns {void}
+     */
+    function updateSeparatorFields(dialogControls) {
+        var isCharSelected = dialogControls.separatorCharRadio.value;
+        dialogControls.separatorCharInput.enabled = isCharSelected;
+        dialogControls.scaleInput.enabled = isCharSelected;
+        dialogControls.baselineInput.enabled = isCharSelected;
+    }
+
+    // =========================================
+    // プレビューとイベント / Preview and events
+    // =========================================
+
+    /**
+     * ダイアログにプレビューと各ボタンのイベントを付け、初期状態を反映する
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {{pointsPerUnit: number}} textUnitInfo - 環境設定のテキスト単位
+     * @returns {void}
+     */
+    function bindDialogEvents(dialogControls, repeatJob, textUnitInfo) {
+        var repeatDialog = dialogControls.dialog;
+        var activeDoc = repeatJob.activeDoc;
+        var sourceTextFrame = repeatJob.sourceTextFrame;
+        var circlePath = repeatJob.circlePath;
+        var isUpdatingPreview = false;
+        var isPreviewApplied = false; /* 適用済みで undo が必要か / Whether an applied preview still needs undoing */
+        var hasCommitted = false;     /* OK で確定したか / Whether OK has committed the result */
+
+        /* プレビューを適用して表示する（undo は呼び出し元が行う）/ Apply and show the preview (the caller undoes it) */
         function applyPreview() {
-            if (!previewCheckbox.value) return;
+            if (!dialogControls.previewCheckbox.value) return;
 
-            var settings = readSettings();
-            if (validateSettings(settings) !== null) return;
+            var repeatSettings = readSettings(dialogControls, textUnitInfo);
+            if (validateSettings(repeatSettings) !== null) return;
 
             /* 計測は redraw を含むため適用バッチの前に実行 / Measure before the apply batch (it involves a redraw) */
-            var fontSize = computeFittedFontSize(settings);
+            var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
 
             /* ここから先は必ず undo が要る / Everything past this point must be undone */
             isPreviewApplied = true;
@@ -956,14 +1004,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             /* 仮アイテムで強制的に変化を起こし、undo の空振りを防ぐ。画面外に作り、変数にも保持しない（undo で消える）/ Force a change with an off-canvas dummy so undo cannot misfire (not kept in a variable since undo removes it) */
             activeDoc.pathItems.rectangle(MEASURE_FRAME_OFFSET, MEASURE_FRAME_OFFSET, 1, 1);
 
-            createPathTypeText(settings, fontSize, true);
+            createPathTypeText(repeatJob, repeatSettings, fontSize, true);
             app.redraw();   /* 見せる / show the applied result */
         }
 
-        /**
-         * プレビューを更新する（適用 → redraw → undo。再入と失敗を吸収する）
-         * @returns {void}
-         */
+        /* プレビューを更新する（適用 → redraw → undo。再入と失敗を吸収する）/ Refresh the preview (apply, redraw, undo) */
         function runPreview() {
             if (isUpdatingPreview) return;
             isUpdatingPreview = true;
@@ -983,64 +1028,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             isUpdatingPreview = false;
         }
 
-        // -----------------------------------------
-        // イベント / Events
-        // -----------------------------------------
+        dialogControls.repeatCountInput.onChanging = runPreview;
+        dialogControls.separatorCharInput.onChanging = runPreview;
+        dialogControls.spaceCountInput.onChanging = runPreview;
+        dialogControls.scaleInput.onChanging = runPreview;
+        dialogControls.baselineInput.onChanging = runPreview;
+        dialogControls.correctionInput.onChanging = runPreview;
+        dialogControls.rotationInput.onChanging = runPreview;
 
-        repeatCountInput.onChanging = runPreview;
-        separatorCharInput.onChanging = runPreview;
-        spaceCountInput.onChanging = runPreview;
-        scaleInput.onChanging = runPreview;
-        baselineInput.onChanging = runPreview;
-        correctionInput.onChanging = runPreview;
-        rotationInput.onChanging = runPreview;
+        dialogControls.previewCheckbox.onClick = runPreview;
 
-        previewCheckbox.onClick = runPreview;
-
-        fitSizeCheckbox.onClick = function () {
-            correctionInput.enabled = fitSizeCheckbox.value;
+        dialogControls.fitSizeCheckbox.onClick = function () {
+            dialogControls.correctionInput.enabled = dialogControls.fitSizeCheckbox.value;
             runPreview();
         };
-
-        /**
-         * 区切り文字の選択に合わせて入力欄の有効・無効を切り替える
-         * スケールとベースラインは「文字」のときだけ効く
-         * @returns {void}
-         */
-        function updateSeparatorFields() {
-            var isCharSelected = separatorCharRadio.value;
-            separatorCharInput.enabled = isCharSelected;
-            scaleInput.enabled = isCharSelected;
-            baselineInput.enabled = isCharSelected;
-        }
 
         /* クリックした側を選択し、もう一方を解除（手動排他）/ Select the clicked radio and clear the other (manual exclusivity) */
-        separatorSpaceRadio.onClick = function () {
-            separatorSpaceRadio.value = true;
-            separatorCharRadio.value = false;
-            updateSeparatorFields();
+        dialogControls.separatorSpaceRadio.onClick = function () {
+            dialogControls.separatorSpaceRadio.value = true;
+            dialogControls.separatorCharRadio.value = false;
+            updateSeparatorFields(dialogControls);
             runPreview();
         };
-        separatorCharRadio.onClick = function () {
-            separatorCharRadio.value = true;
-            separatorSpaceRadio.value = false;
-            updateSeparatorFields();
+        dialogControls.separatorCharRadio.onClick = function () {
+            dialogControls.separatorCharRadio.value = true;
+            dialogControls.separatorSpaceRadio.value = false;
+            updateSeparatorFields(dialogControls);
             runPreview();
         };
 
-        btnOK.onClick = function () {
-            var settings = readSettings();
-            var invalidKey = validateSettings(settings);
+        dialogControls.btnOK.onClick = function () {
+            var repeatSettings = readSettings(dialogControls, textUnitInfo);
+            var invalidKey = validateSettings(repeatSettings);
             if (invalidKey !== null) {
                 alert(getLabel(invalidKey));
                 return;
             }
 
             /* 確定：未適用のクリーンな状態から1回だけ適用 / Commit: apply once from the clean state */
-            var fontSize = computeFittedFontSize(settings);
-            removeMeasureFrame();   /* 計測フレームを片付けてから確定 / Clean up the measurement frame before committing */
+            var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
+            repeatJob.textMeasurer.dispose();   /* 計測フレームを片付けてから確定 / Clean up the measurement frame before committing */
 
-            var resultTextFrame = createPathTypeText(settings, fontSize, false);
+            var resultTextFrame = createPathTypeText(repeatJob, repeatSettings, fontSize, false);
 
             sourceTextFrame.remove();
             circlePath.remove();
@@ -1050,44 +1079,94 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
             hasCommitted = true;
             app.redraw();
-            dialog.close();
+            repeatDialog.close();
         };
 
-        btnCancel.onClick = function () {
+        dialogControls.btnCancel.onClick = function () {
             /* 内部は undo 済み。計測フレームを片付け、元の選択へ戻して閉じる / Model already reverted; clean up the measurement frame, restore the selection, and close */
-            removeMeasureFrame();
+            repeatJob.textMeasurer.dispose();
             activeDoc.selection = null;
             sourceTextFrame.selected = true;
             circlePath.selected = true;
             app.redraw();
-            dialog.close();
+            repeatDialog.close();
         };
 
-        dialog.onClose = function () {
+        repeatDialog.onClose = function () {
             /* 計測フレームを片付け、未確定なら未適用状態を画面に反映 / Clean up the measurement frame; if not committed, refresh the screen to the reverted state */
-            removeMeasureFrame();
+            repeatJob.textMeasurer.dispose();
             if (!hasCommitted) {
                 app.redraw();
             }
         };
 
         /* 初期プレビューはウィンドウ表示後に起動（同期実行を避ける）/ Start the initial preview after the window is shown (avoid running it synchronously) */
-        dialog.onShow = function () {
+        repeatDialog.onShow = function () {
             runPreview();
         };
 
         /* 初期状態を反映 / Apply the initial state */
-        correctionInput.enabled = fitSizeCheckbox.value;
-        updateSeparatorFields();
+        dialogControls.correctionInput.enabled = dialogControls.fitSizeCheckbox.value;
+        updateSeparatorFields(dialogControls);
 
-        changeValueByArrowKey(repeatCountInput);
-        changeValueByArrowKey(spaceCountInput);
-        changeValueByArrowKey(scaleInput);
-        changeValueByArrowKey(baselineInput, true);
-        changeValueByArrowKey(correctionInput);
-        changeValueByArrowKey(rotationInput, true);
+        changeValueByArrowKey(dialogControls.repeatCountInput);
+        changeValueByArrowKey(dialogControls.spaceCountInput);
+        changeValueByArrowKey(dialogControls.scaleInput);
+        changeValueByArrowKey(dialogControls.baselineInput, true);
+        changeValueByArrowKey(dialogControls.correctionInput);
+        changeValueByArrowKey(dialogControls.rotationInput, true);
+    }
 
-        dialog.show();
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択内容を検証し、ダイアログを開いてパス上文字を作成する
+     * @returns {void}
+     */
+    function main() {
+
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var activeDoc = app.activeDocument;
+
+        /* 選択数を確認（円とテキストの2つ）/ Ensure exactly two objects are selected */
+        if (activeDoc.selection.length !== 2) {
+            alert(getLabel("alert.needCircleAndText"));
+            return;
+        }
+
+        var selectedPair = findCircleAndText(activeDoc.selection);
+        if (selectedPair === null) {
+            alert(getLabel("alert.needCircleAndText"));
+            return;
+        }
+
+        var sourceTextFrame = selectedPair.sourceTextFrame;
+        if (sourceTextFrame.contents === "") {
+            alert(getLabel("alert.emptyText"));
+            return;
+        }
+
+        var repeatJob = {
+            activeDoc: activeDoc,
+            sourceTextFrame: sourceTextFrame,
+            circlePath: selectedPair.circlePath,
+            /* パス上文字は改行を保持できないため、改行はスペースに置き換える / Path text cannot keep line breaks, so replace them with spaces */
+            originalText: sourceTextFrame.contents.replace(/[\r\n]/g, " "),
+            textMeasurer: createTextMeasurer(activeDoc, sourceTextFrame)
+        };
+
+        /* 環境設定のテキスト単位（ベースライン入力に使用）/ Preferences text unit (used by the baseline field) */
+        var textUnitInfo = getUnitInfo("text/units");
+
+        var dialogControls = buildDialog(textUnitInfo.label);
+        bindDialogEvents(dialogControls, repeatJob, textUnitInfo);
+        dialogControls.dialog.show();
     }
 
     main();

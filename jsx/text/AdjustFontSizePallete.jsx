@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AdjustFontSizePallete";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSizePallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSizePallete.md"; /* README (English) */
@@ -66,10 +66,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * 実行環境のロケールからUIの表示言語を判定する
      * @returns {string} 日本語環境なら "ja"、それ以外は "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
@@ -109,22 +109,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * キーからラベルを現在の言語で取得する（"panel.fontSize" のようにドット区切り）
-     * @param {string} key - カテゴリ名とキー名をドットでつないだラベルキー
+     * @param {string} labelPath - カテゴリ名とキー名をドットでつないだラベルキー
      * @returns {string} 現在の言語のラベル文字列（未定義の場合は英語にフォールバック）
      */
-    function getLabel(key) {
-        var parts = key.split(".");
-        var label = LABELS[parts[0]][parts[1]];
-        return label[currentLanguage] || label.en;
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) {
+                return labelPath;
+            }
+        }
+        return labelNode[uiLang] || labelNode.en;
     }
 
     /**
-     * コロン付きのラベル文字列を取得する（日本語は全角、英語は半角）
-     * @param {string} key - ラベルキー
-     * @returns {string} コロンを付けたラベル文字列
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelSet - ラベルのパス
+     * @returns {string} コロン付きの項目名
      */
-    function getLabelWithColon(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -163,96 +169,100 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    // =========================================
+    // UI部品 / UI helpers
+    // =========================================
+
     /**
      * パネルに共通のレイアウト設定を適用する
-     * @param {Panel} panel - 対象のパネル
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - パネル内の間隔（省略時は既定値）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * グループに共通のレイアウト設定を適用する
-     * @param {Group} group - 対象のグループ
+     * @param {Group} targetGroup - 対象のグループ
      * @param {string} [orientation] - "row" または "column"（省略時は "column"）
      * @param {number} [spacing] - グループ内の間隔（省略時は既定値）
      * @returns {void}
      */
-    function setupGroup(group, orientation, spacing) {
+    function setupGroup(targetGroup, orientation, spacing) {
         var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
+        targetGroup.orientation = groupOrientation;
         /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * ラベル＋入力欄＋単位の行を追加する
-     * @param {Panel|Group} parent - 追加先のコンテナ
+     * @param {Panel|Group} parentContainer - 追加先のコンテナ
      * @param {string} labelKey - ラベルキー
      * @param {string} defaultValue - 入力欄の初期値
      * @param {string} unitText - 単位表示の文字列
      * @returns {{row: Group, label: StaticText, input: EditText, unit: StaticText}} 生成した行の各コントロール
      */
-    function addFieldRow(parent, labelKey, defaultValue, unitText) {
-        var row = parent.add("group");
-        setupGroup(row, "row");
-        var label = row.add("statictext", undefined, getLabelWithColon(labelKey));
-        label.justify = "right";
-        var input = row.add("edittext", undefined, defaultValue);
-        input.characters = 4;
-        input.justify = "right";
-        var unit = row.add("statictext", undefined, unitText);
-        return { row: row, label: label, input: input, unit: unit };
+    function addFieldRow(parentContainer, labelKey, defaultValue, unitText) {
+        var fieldRowGroup = parentContainer.add("group");
+        setupGroup(fieldRowGroup, "row");
+        var fieldLabelText = fieldRowGroup.add("statictext", undefined, labelText(labelKey));
+        fieldLabelText.justify = "right";
+        var valueInput = fieldRowGroup.add("edittext", undefined, defaultValue);
+        valueInput.characters = 4;
+        valueInput.justify = "right";
+        var unitLabelText = fieldRowGroup.add("statictext", undefined, unitText);
+        return { row: fieldRowGroup, label: fieldLabelText, input: valueInput, unit: unitLabelText };
     }
 
     /**
      * ラベル＋表示専用テキスト＋単位の行を追加する
-     * @param {Panel|Group} parent - 追加先のコンテナ
+     * @param {Panel|Group} parentContainer - 追加先のコンテナ
      * @param {string} labelKey - ラベルキー
      * @param {string} unitText - 単位表示の文字列
      * @returns {{row: Group, label: StaticText, value: StaticText, unit: StaticText}} 生成した行の各コントロール
      */
-    function addReadoutRow(parent, labelKey, unitText) {
-        var row = parent.add("group");
-        setupGroup(row, "row");
-        var label = row.add("statictext", undefined, getLabelWithColon(labelKey));
-        label.justify = "right";
-        var value = row.add("statictext", undefined, "--");
-        value.characters = 5;
-        var unit = row.add("statictext", undefined, unitText);
-        return { row: row, label: label, value: value, unit: unit };
+    function addReadoutRow(parentContainer, labelKey, unitText) {
+        var readoutRowGroup = parentContainer.add("group");
+        setupGroup(readoutRowGroup, "row");
+        var fieldLabelText = readoutRowGroup.add("statictext", undefined, labelText(labelKey));
+        fieldLabelText.justify = "right";
+        var valueText = readoutRowGroup.add("statictext", undefined, "--");
+        valueText.characters = 5;
+        var unitLabelText = readoutRowGroup.add("statictext", undefined, unitText);
+        return { row: readoutRowGroup, label: fieldLabelText, value: valueText, unit: unitLabelText };
     }
 
     /**
      * 行（ラベル＋入力／表示＋単位）にまとめてヘルプチップを設定する
      * @param {object} fieldRow - addFieldRow / addReadoutRow が返した行オブジェクト
-     * @param {string} tooltip - 設定するヘルプチップ文字列
+     * @param {string} tooltipText - 設定するヘルプチップ文字列
      * @returns {void}
      */
-    function setFieldTooltip(fieldRow, tooltip) {
-        fieldRow.label.helpTip = tooltip;
-        fieldRow.unit.helpTip = tooltip;
-        if (fieldRow.input) fieldRow.input.helpTip = tooltip;
-        if (fieldRow.value) fieldRow.value.helpTip = tooltip;
+    function setFieldTooltip(fieldRow, tooltipText) {
+        fieldRow.label.helpTip = tooltipText;
+        fieldRow.unit.helpTip = tooltipText;
+        if (fieldRow.input) fieldRow.input.helpTip = tooltipText;
+        if (fieldRow.value) fieldRow.value.helpTip = tooltipText;
     }
 
     /**
      * 複数ラベルの幅を揃える
-     * @param {number} width - 設定する幅（px）
-     * @param {StaticText[]} labels - 幅を揃えるラベルの配列
+     * @param {number} labelWidth - 設定する幅（px）
+     * @param {StaticText[]} labelControls - 幅を揃えるラベルの配列
      * @returns {void}
      */
-    function alignLabelWidths(width, labels) {
-        for (var i = 0; i < labels.length; i++) {
-            labels[i].preferredSize.width = width;
+    function alignLabelWidths(labelWidth, labelControls) {
+        for (var i = 0; i < labelControls.length; i++) {
+            labelControls[i].preferredSize.width = labelWidth;
         }
     }
 
@@ -318,24 +328,96 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      */
     function getTextSelection() {
         var doc = app.activeDocument;
-        var selection = doc.selection;
-        var ranges = [];
-        if (!selection) return ranges;
+        var currentSelection = doc.selection;
+        var textRanges = [];
+        if (!currentSelection) return textRanges;
         /* テキスト編集モードでは selection が配列でなく TextRange になる / In text-edit mode the selection is a TextRange, not an array */
-        if (selection.constructor.name === "TextRange") {
-            ranges.push(selection);
-            return ranges;
+        if (currentSelection.constructor.name === "TextRange") {
+            textRanges.push(currentSelection);
+            return textRanges;
         }
-        if (selection.length === 0) return ranges;
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (item.constructor.name === "TextFrame") {
-                ranges.push(item.textRange);
-            } else if (item.constructor.name === "TextRange") {
-                ranges.push(item);
+        for (var i = 0; i < currentSelection.length; i++) {
+            var selectedItem = currentSelection[i];
+            if (selectedItem.constructor.name === "TextFrame") {
+                textRanges.push(selectedItem.textRange);
+            } else if (selectedItem.constructor.name === "TextRange") {
+                textRanges.push(selectedItem);
             }
         }
-        return ranges;
+        return textRanges;
+    }
+
+    // =========================================
+    // 文字の読み取り・適用 / Read & apply character values
+    // =========================================
+
+    /**
+     * 選択している文字の先頭を取得する
+     * @param {TextRange[]} targetRanges - 選択しているテキスト範囲
+     * @returns {TextRange|null} 最初の文字（選択している文字がなければ null）
+     */
+    function findFirstChar(targetRanges) {
+        for (var i = 0; i < targetRanges.length; i++) {
+            var rangeCharacters = targetRanges[i].characters;
+            if (rangeCharacters.length > 0) return rangeCharacters[0];
+        }
+        return null;
+    }
+
+    /**
+     * 選択している文字すべてにコールバックを適用する
+     * @param {TextRange[]} targetRanges - 選択しているテキスト範囲
+     * @param {function} characterAction - 各文字に対して実行する処理
+     * @returns {void}
+     */
+    function forEachSelectedChar(targetRanges, characterAction) {
+        for (var i = 0; i < targetRanges.length; i++) {
+            var rangeCharacters = targetRanges[i].characters;
+            for (var j = 0; j < rangeCharacters.length; j++) {
+                characterAction(rangeCharacters[j]);
+            }
+        }
+    }
+
+    /**
+     * 選択している文字にフォントサイズと比率を適用する（null の値は変えない）
+     * @param {TextRange[]} targetRanges - 選択しているテキスト範囲
+     * @param {number|null} sizeInPt - フォントサイズ（pt）
+     * @param {number|null} scale - 水平比率・垂直比率（%）
+     * @returns {void}
+     */
+    function applySizeAndScale(targetRanges, sizeInPt, scale) {
+        if (sizeInPt !== null) {
+            forEachSelectedChar(targetRanges, function (character) {
+                character.size = sizeInPt;
+            });
+        }
+        if (scale !== null) {
+            forEachSelectedChar(targetRanges, function (character) {
+                character.characterAttributes.horizontalScale = scale;
+                character.characterAttributes.verticalScale = scale;
+            });
+        }
+    }
+
+    /**
+     * フォントサイズと比率から見かけのサイズを求める
+     * @param {number} size - フォントサイズ
+     * @param {number} scale - 比率（%）
+     * @returns {number} 見かけのサイズ（小数第2位まで）
+     */
+    function calculateApparentSize(size, scale) {
+        return Math.round(size * scale) / 100;
+    }
+
+    /**
+     * 入力欄の数値を読む
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {number|null} 数値（空欄や数値でないときは null）
+     */
+    function readFieldNumber(editText) {
+        var fieldValue = parseFloat(editText.text);
+        return isNaN(fieldValue) ? null : fieldValue;
     }
 
     // =========================================
@@ -347,15 +429,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 同一メッセージの連続表示を抑制してアラートを出す（プレビュー連打によるアラート氾濫を防ぐ）
-     * @param {string} prefix - メッセージの先頭に付ける説明
-     * @param {Error} e - 捕捉した例外
+     * @param {string} messagePrefix - メッセージの先頭に付ける説明
+     * @param {Error} caughtError - 捕捉した例外
      * @returns {void}
      */
-    function reportError(prefix, e) {
-        var message = prefix + String(e);
-        if (message === lastReportedError) return;
-        lastReportedError = message;
-        alert(message);
+    function reportError(messagePrefix, caughtError) {
+        var errorMessage = messagePrefix + String(caughtError);
+        if (errorMessage === lastReportedError) return;
+        lastReportedError = errorMessage;
+        alert(errorMessage);
     }
 
     /**
@@ -384,12 +466,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         /**
          * 変更処理を1ステップとして実行し、Undoの深さを数える
-         * @param {function} func - 実行する変更処理
+         * @param {function} stepAction - 実行する変更処理
          * @returns {void}
          */
-        this.addStep = function (func) {
+        this.addStep = function (stepAction) {
+            /* 文字属性の書き込みは DOM が例外を投げうる / Writing character attributes can throw */
             try {
-                func();
+                stepAction();
                 clearReportedError();
                 this.undoDepth++;
                 app.redraw();
@@ -416,21 +499,79 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          * @returns {void}
          */
         this.confirm = function (finalAction) {
-            if (typeof finalAction === "function") {
-                this.rollback();
-                finalAction();
-            } else {
-                this.undoDepth = 0;
-            }
+            this.rollback();
+            finalAction();
         };
     }
 
-    /* UI入力欄の参照をまとめるオブジェクト / references to UI input controls */
-    var uiElements = {
-        sizeInput: null,
-        scaleInput: null,
-        apparentSizeText: null
-    };
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ダイアログを組み立てる（イベントは main() で結び付ける）
+     * @param {string} unitLabel - フォントサイズの単位表示
+     * @returns {object} ダイアログと各コントロール（fontSizeDialog / sizeInput / scaleInput / apparentRow / convertButton / btnReset / btnOK / btnCancel）
+     */
+    function buildDialog(unitLabel) {
+        var fontSizeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        fontSizeDialog.alignChildren = "fill";
+        fontSizeDialog.opacity = DIALOG_OPACITY;
+
+        /* フォントサイズの調整パネル / font-size adjustment panel */
+        var fontSizePanel = fontSizeDialog.add("panel", undefined, getLabel("panel.fontSize"));
+        setupPanel(fontSizePanel, FIELD_SPACING);
+
+        var sizeField = addFieldRow(fontSizePanel, "fieldLabel.fontSize", "0", unitLabel);
+
+        var scaleField = addFieldRow(fontSizePanel, "fieldLabel.scale", "100", "%");
+        setFieldTooltip(scaleField, getLabel("tooltip.scale"));
+
+        var apparentRow = addReadoutRow(fontSizePanel, "fieldLabel.apparent", unitLabel);
+        setFieldTooltip(apparentRow, getLabel("tooltip.apparent"));
+
+        /* 実サイズ↔見かけのトグルボタン / toggle between actual size and apparent (baked) size */
+        var convertButton = fontSizePanel.add("button", undefined, getLabel("button.toApparent"));
+        convertButton.helpTip = getLabel("tooltip.toApparent");
+        convertButton.alignment = "right";
+        convertButton.preferredSize.width = CONVERT_BUTTON_WIDTH;
+
+        alignLabelWidths(LABEL_WIDTH, [sizeField.label, scaleField.label, apparentRow.label]);
+
+        /* ボタン（下部・3カラム: 左=リセット / 中央=スペーサー / 右=OK・キャンセル）/ buttons (bottom, 3 columns) */
+        var btnRowGroup = fontSizeDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "fill";
+        btnRowGroup.alignChildren = ["fill", "center"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignment = ["left", "center"];
+        btnLeftGroup.spacing = FIELD_SPACING;
+        var btnReset = btnLeftGroup.add("button", undefined, getLabel("button.reset"));
+        btnReset.helpTip = getLabel("tooltip.reset");
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "center"];
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        btnOK.preferredSize.width = BUTTON_WIDTH;
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
+
+        return {
+            fontSizeDialog: fontSizeDialog,
+            sizeInput: sizeField.input,
+            scaleInput: scaleField.input,
+            apparentRow: apparentRow,
+            convertButton: convertButton,
+            btnReset: btnReset,
+            btnOK: btnOK,
+            btnCancel: btnCancel
+        };
+    }
 
     // =========================================
     // メイン処理 / Main
@@ -453,76 +594,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         var previewManager = new PreviewManager();
         var textUnit = getUnitInfo("text/units");
-        var unitLabel = textUnit.label;
         var unitFactor = textUnit.pointsPerUnit;
+        var dialogControls = buildDialog(textUnit.label);
+        var sizeInput = dialogControls.sizeInput;
+        var scaleInput = dialogControls.scaleInput;
+        var apparentRow = dialogControls.apparentRow;
+
+        /* 焼き込み前の状態（順方向で保存→逆方向で復元）。手動でサイズ/比率を変えたら無効化
+           pre-bake state (saved on forward, restored on back); cleared when size/scale is edited by hand */
+        var apparentToggleState = null;
 
         /**
-         * ポイント値をルーラー単位に換算する
-         * @param {number} pt - ポイント値
-         * @returns {number} ルーラー単位の値
+         * ポイント値を文字の単位に換算する（小数第1位まで）
+         * @param {number} sizeInPt - ポイント値
+         * @returns {number} 文字の単位での値
          */
-        function ptToUnit(pt) {
-            return pt / unitFactor;
-        }
-
-        /**
-         * ルーラー単位の値をポイントに換算する
-         * @param {number} value - ルーラー単位の値
-         * @returns {number} ポイント値
-         */
-        function unitToPt(value) {
-            return value * unitFactor;
-        }
-
-        /**
-         * 選択している文字の先頭を取得する
-         * @returns {Characters|null} 最初の文字（選択している文字がなければ null）
-         */
-        function findFirstChar() {
-            for (var i = 0; i < targetRanges.length; i++) {
-                var characters = targetRanges[i].characters;
-                if (characters.length > 0) return characters[0];
-            }
-            return null;
-        }
-
-        /**
-         * フォントサイズと比率から見かけのサイズを求める
-         * @param {number} size - フォントサイズ
-         * @param {number} scale - 比率（%）
-         * @returns {number} 見かけのサイズ（小数第2位まで）
-         */
-        function calculateApparentSize(size, scale) {
-            return Math.round(size * scale) / 100;
-        }
-
-        // ---- 値の取得・適用 / Read & apply values ----
-
-        /**
-         * 選択している文字すべてにコールバックを適用する
-         * @param {function} action - 各文字に対して実行する処理
-         * @returns {void}
-         */
-        function forEachSelectedChar(action) {
-            for (var i = 0; i < targetRanges.length; i++) {
-                var characters = targetRanges[i].characters;
-                for (var j = 0; j < characters.length; j++) {
-                    action(characters[j]);
-                }
-            }
-        }
-
-        /**
-         * 現在のUIの入力値をまとめて取得する（空欄やNaNは null）
-         * @returns {{size: number|null, scale: number|null}} フォントサイズと比率
-         */
-        function getCurrentParams() {
-            var sizeValue = parseFloat(uiElements.sizeInput.text);
-            var scaleValue = parseFloat(uiElements.scaleInput.text);
-            return {
-                size: isNaN(sizeValue) ? null : sizeValue,
-                scale: isNaN(scaleValue) ? null : scaleValue
-            };
+        function roundedSizeInUnit(sizeInPt) {
+            return Math.round(sizeInPt / unitFactor * 10) / 10;
         }
 
         /**
@@ -530,23 +618,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          * @returns {void}
          */
         function applyAllCurrentValues() {
-            var params = getCurrentParams();
-
-            if (params.size !== null) {
-                var sizeInPt = unitToPt(params.size);
-                forEachSelectedChar(function (character) {
-                    character.size = sizeInPt;
-                });
-            }
-            if (params.scale !== null) {
-                forEachSelectedChar(function (character) {
-                    character.characterAttributes.horizontalScale = params.scale;
-                    character.characterAttributes.verticalScale = params.scale;
-                });
-            }
+            var sizeValue = readFieldNumber(sizeInput);
+            applySizeAndScale(targetRanges, (sizeValue !== null) ? sizeValue * unitFactor : null, readFieldNumber(scaleInput));
         }
-
-        // ---- プレビュー / Preview ----
 
         /**
          * Undo履歴を汚さずにプレビューを更新する
@@ -554,27 +628,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          */
         function updatePreview() {
             previewManager.rollback();
-            previewManager.addStep(function () {
-                applyAllCurrentValues();
-            });
+            previewManager.addStep(applyAllCurrentValues);
         }
-
-        // ---- 表示更新 / Display updates ----
 
         /**
          * 見かけサイズの表示を更新する（比率100%のときはディム表示）
          * @returns {void}
          */
         function updateApparentSizeDisplay() {
-            var size = parseFloat(uiElements.sizeInput.text);
-            var scale = parseFloat(uiElements.scaleInput.text);
-            if (isNaN(size) || isNaN(scale)) {
-                uiElements.apparentSizeText.text = "--";
+            var sizeValue = readFieldNumber(sizeInput);
+            var scaleValue = readFieldNumber(scaleInput);
+            if (sizeValue === null || scaleValue === null) {
+                apparentRow.value.text = "--";
             } else {
-                uiElements.apparentSizeText.text = calculateApparentSize(size, scale) + "";
+                apparentRow.value.text = calculateApparentSize(sizeValue, scaleValue) + "";
             }
 
-            var isDimmed = (scale === 100);
+            var isDimmed = (scaleValue === 100);
             apparentRow.label.enabled = !isDimmed;
             apparentRow.value.enabled = !isDimmed;
             apparentRow.unit.enabled = !isDimmed;
@@ -588,21 +658,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             /* 実際の値を読み直すので、焼き込み前の保存状態（トグル）は破棄する
                Reloading the actual values invalidates the saved pre-bake (toggle) state */
             apparentToggleState = null;
-            var firstChar = findFirstChar();
+            var firstChar = findFirstChar(targetRanges);
             if (!firstChar) {
-                uiElements.sizeInput.text = "";
-                uiElements.scaleInput.text = "";
-                uiElements.apparentSizeText.text = "--";
+                sizeInput.text = "";
+                scaleInput.text = "";
+                apparentRow.value.text = "--";
                 return;
             }
-            var sizeInUnit = Math.round(ptToUnit(firstChar.size) * 10) / 10;
             var horizontalScale = Math.round(firstChar.characterAttributes.horizontalScale * 10) / 10;
-            uiElements.sizeInput.text = sizeInUnit + "";
-            uiElements.scaleInput.text = horizontalScale + "";
+            sizeInput.text = roundedSizeInUnit(firstChar.size) + "";
+            scaleInput.text = horizontalScale + "";
             updateApparentSizeDisplay();
         }
-
-        // ---- 値のリセット / Reset values ----
 
         /**
          * 選択している文字すべてを先頭文字のフォントサイズに統一し、比率を100%に揃えて適用する
@@ -610,145 +677,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          */
         function resetToUniformSize() {
             apparentToggleState = null;
-            var firstChar = findFirstChar();
+            var firstChar = findFirstChar(targetRanges);
             if (firstChar) {
-                uiElements.sizeInput.text = Math.round(ptToUnit(firstChar.size) * 10) / 10;
+                sizeInput.text = roundedSizeInUnit(firstChar.size);
             }
-            uiElements.scaleInput.text = "100";
+            scaleInput.text = "100";
             updatePreview();
             updateApparentSizeDisplay();
         }
 
-        // =========================================
-        // UI構築 / Build UI
-        // =========================================
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
-        dialog.opacity = DIALOG_OPACITY;
-
-        /* フォントサイズの調整パネル / font-size adjustment panel */
-        var fontSizePanel = dialog.add("panel", undefined, getLabel("panel.fontSize"));
-        setupPanel(fontSizePanel, FIELD_SPACING);
-
-        var sizeField = addFieldRow(fontSizePanel, "fieldLabel.fontSize", "0", unitLabel);
-        uiElements.sizeInput = sizeField.input;
-
-        var scaleField = addFieldRow(fontSizePanel, "fieldLabel.scale", "100", "%");
-        uiElements.scaleInput = scaleField.input;
-        setFieldTooltip(scaleField, getLabel("tooltip.scale"));
-
-        var apparentRow = addReadoutRow(fontSizePanel, "fieldLabel.apparent", unitLabel);
-        uiElements.apparentSizeText = apparentRow.value;
-        setFieldTooltip(apparentRow, getLabel("tooltip.apparent"));
-
-        /* 焼き込み前の状態（順方向で保存→逆方向で復元）。手動でサイズ/比率を変えたら無効化
-           pre-bake state (saved on forward, restored on back); cleared when size/scale is edited by hand */
-        var apparentToggleState = null;
-
-        /* 実サイズ↔見かけのトグルボタン / toggle between actual size and apparent (baked) size
-           順方向：サイズ×比率を実サイズに焼き込み比率100%へ。逆方向：直前の比率付き状態へ戻す
-           forward: bake size × scale into the actual size at 100%; back: restore the previous scaled state */
-        var convertButton = fontSizePanel.add("button", undefined, getLabel("button.toApparent"));
-        convertButton.helpTip = getLabel("tooltip.toApparent");
-        convertButton.alignment = "right";
-        convertButton.preferredSize.width = CONVERT_BUTTON_WIDTH;
-        convertButton.onClick = function () {
-            var size = parseFloat(uiElements.sizeInput.text);
-            var scale = parseFloat(uiElements.scaleInput.text);
-            if (isNaN(size) || isNaN(scale)) return;
+        /**
+         * 実サイズと見かけサイズを切り替える
+         * 順方向：サイズ×比率を実サイズに焼き込み比率100%へ。逆方向：直前の比率付き状態へ戻す
+         * @returns {void}
+         */
+        function toggleApparentSize() {
+            var sizeValue = readFieldNumber(sizeInput);
+            var scaleValue = readFieldNumber(scaleInput);
+            if (sizeValue === null || scaleValue === null) return;
             if (apparentToggleState !== null) {
                 /* 見かけ→実サイズ：焼き込み前の比率付き状態に戻す / restore the pre-bake scaled state */
-                uiElements.sizeInput.text = apparentToggleState.size + "";
-                uiElements.scaleInput.text = apparentToggleState.scale + "";
+                sizeInput.text = apparentToggleState.size + "";
+                scaleInput.text = apparentToggleState.scale + "";
                 apparentToggleState = null;
             } else {
                 /* 実サイズ→見かけ：比率をサイズへ焼き込み100%に / bake scale into size and reset to 100% */
-                apparentToggleState = { size: size, scale: scale };
-                uiElements.sizeInput.text = calculateApparentSize(size, scale) + "";
-                uiElements.scaleInput.text = "100";
+                apparentToggleState = { size: sizeValue, scale: scaleValue };
+                sizeInput.text = calculateApparentSize(sizeValue, scaleValue) + "";
+                scaleInput.text = "100";
             }
             updatePreview();
             updateApparentSizeDisplay();
-        };
+        }
 
-        alignLabelWidths(LABEL_WIDTH, [sizeField.label, scaleField.label, apparentRow.label]);
-
-        /* 入力欄のイベント / wire input events
-           サイズ・比率は「入力値をそのまま適用」。updateInfoText() で入力欄を読み直すと
-           入力値が丸めで戻る恐れがあるため呼ばない（見かけ表示だけ更新する）
-           apply the typed value as-is; do NOT call updateInfoText() here (re-reading the field
-           could snap the typed value back via rounding). Only refresh the apparent readout */
-        uiElements.sizeInput.onChange = function () {
+        /**
+         * サイズ・比率を手で編集したときの処理（入力値をそのまま適用する）
+         * updateInfoText() で入力欄を読み直すと入力値が丸めで戻る恐れがあるため呼ばない（見かけ表示だけ更新する）
+         * @returns {void}
+         */
+        function handleValueEdited() {
             apparentToggleState = null; /* 手動編集でトグル復元を無効化 / manual edit invalidates the toggle */
             updatePreview();
             updateApparentSizeDisplay();
-        };
-        uiElements.sizeInput.onChanging = function () {
-            updateApparentSizeDisplay();
-        };
-        changeValueByArrowKey(uiElements.sizeInput, { step: 1, shiftStep: 10, altStep: 0.1 });
+        }
 
-        uiElements.scaleInput.onChange = function () {
-            apparentToggleState = null; /* 手動編集でトグル復元を無効化 / manual edit invalidates the toggle */
-            updatePreview();
-            updateApparentSizeDisplay();
-        };
-        uiElements.scaleInput.onChanging = function () {
-            updateApparentSizeDisplay();
-        };
-        changeValueByArrowKey(uiElements.scaleInput, { step: 1, shiftStep: 10, altStep: 5 });
+        /* 入力欄のイベント / wire input events */
+        sizeInput.onChange = handleValueEdited;
+        sizeInput.onChanging = updateApparentSizeDisplay;
+        changeValueByArrowKey(sizeInput, { step: 1, shiftStep: 10, altStep: 0.1 });
 
-        /* ボタン（下部・3カラム: 左=リセット / 中央=スペーサー / 右=OK・キャンセル）/ buttons (bottom, 3 columns) */
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "fill";
-        buttonGroup.alignChildren = ["fill", "center"];
+        scaleInput.onChange = handleValueEdited;
+        scaleInput.onChanging = updateApparentSizeDisplay;
+        changeValueByArrowKey(scaleInput, { step: 1, shiftStep: 10, altStep: 5 });
 
-        var buttonLeft = buttonGroup.add("group");
-        buttonLeft.alignment = ["left", "center"];
-        buttonLeft.spacing = FIELD_SPACING;
-        var resetButton = buttonLeft.add("button", undefined, getLabel("button.reset"));
-        resetButton.helpTip = getLabel("tooltip.reset");
+        dialogControls.convertButton.onClick = toggleApparentSize;
+        dialogControls.btnReset.onClick = resetToUniformSize;
 
-        var buttonCenter = buttonGroup.add("group");
-        buttonCenter.alignment = ["fill", "center"];
-
-        var buttonRight = buttonGroup.add("group");
-        buttonRight.alignment = ["right", "center"];
-        var cancelButton = buttonRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = buttonRight.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-
-        okButton.preferredSize.width = BUTTON_WIDTH;
-        cancelButton.preferredSize.width = BUTTON_WIDTH;
-
-        okButton.onClick = function () {
+        var fontSizeDialog = dialogControls.fontSizeDialog;
+        dialogControls.btnOK.onClick = function () {
             /* プレビューを1回の適用として確定 / commit the preview as a single apply */
-            previewManager.confirm(function () {
-                applyAllCurrentValues();
-            });
-            dialog.close();
+            previewManager.confirm(applyAllCurrentValues);
+            fontSizeDialog.close();
         };
-        cancelButton.onClick = function () {
+        dialogControls.btnCancel.onClick = function () {
             /* 開いてから適用した分をすべて取り消してから閉じる / undo everything applied since open, then close */
             previewManager.rollback();
-            dialog.close(2);
-        };
-        resetButton.onClick = function () {
-            resetToUniformSize();
+            fontSizeDialog.close(2);
         };
 
         /* 初期表示（updateInfoText が先頭文字の実サイズを読み取って各欄を設定）/ initial state (updateInfoText reads the actual size of the first char) */
         updateInfoText();
         updateApparentSizeDisplay();
 
-        dialog.onShow = function () {
-            dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1]];
-            uiElements.scaleInput.active = true;
+        fontSizeDialog.onShow = function () {
+            fontSizeDialog.location = [fontSizeDialog.location[0] + DIALOG_OFFSET_X, fontSizeDialog.location[1]];
+            scaleInput.active = true;
         };
 
         /* 開いた時点では何も適用しない（現在の状態をそのまま保持）。値を変更したときだけプレビュー適用
            apply nothing on open (keep the current state as-is); preview only kicks in once a value changes */
-        dialog.show();
+        fontSizeDialog.show();
     }
 
     main();

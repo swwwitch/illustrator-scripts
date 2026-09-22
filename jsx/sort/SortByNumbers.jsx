@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "SortByNumbers";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortByNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortByNumbers.md"; /* README (English) */
@@ -37,6 +37,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 「指定」の値が読めないときに使う間隔（pt） / Gap used when the custom value cannot be read, in points */
+    var FALLBACK_GAP = 20;
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
         dialog: {
@@ -60,7 +73,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             random:    { ja: "数値と関係なく、順序をシャッフルします。", en: "Shuffles the order regardless of the numbers." },
             fit:       { ja: "現在の並びの間隔を保ったまま詰め直します。", en: "Keeps the current spacing and repacks the objects." },
             custom:    { ja: "間隔を数値で指定します。", en: "Sets the spacing to a value you type." },
-            spacingInput: { ja: "オブジェクト間にあける間隔です。「指定」を選んだときだけ使われます。", en: "Gap left between objects. Used only when Custom is selected." }
+            spacingInput: {
+                ja: "オブジェクト間にあける間隔です。「指定」を選んだときだけ使われます。",
+                en: "Gap left between objects. Used only when Custom is selected."
+            }
         },
         button: {
             ok:     { ja: "ソート", en: "Sort" },
@@ -83,288 +99,264 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
     }
 
-    function getCurrentLang() {
-        return ($.locale === "ja" || $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /**
+     * ドキュメントの定規の単位の表示名と、1単位あたりのポイント数を返す
+     * @param {Document} targetDocument - 対象ドキュメント
+     * @returns {{label: string, pointsPerUnit: number}} 単位の情報（未対応の単位は pt）
+     */
+    function getRulerUnit(targetDocument) {
+        switch (targetDocument.rulerUnits) {
+            case RulerUnits.Millimeters:
+                return { label: "mm", pointsPerUnit: 2.83464567 };
+            case RulerUnits.Centimeters:
+                return { label: "cm", pointsPerUnit: 28.3464567 };
+            case RulerUnits.Inches:
+                return { label: "inch", pointsPerUnit: 72 };
+            case RulerUnits.Pixels:
+                return { label: "px", pointsPerUnit: 1 };
+            case RulerUnits.Picas:
+                return { label: "pica", pointsPerUnit: 12 };
+            default:
+                return { label: "pt", pointsPerUnit: 1 };
+        }
     }
 
-    function main() {
-        if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
-            return;
-        }
+    // =========================================
+    // 数値の収集 / Number collection
+    // =========================================
 
-        var currentSelection = app.activeDocument.selection;
-        if (currentSelection.length === 0) {
-            alert("グループオブジェクトを選択してください。");
-            return;
+    /**
+     * テキストフレームの数値をフォント（ファミリー＋スタイル）ごとに集める（グループは再帰的にたどる）
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @param {Object} fontMap - フォント名 → { value, group } の配列（ここに追加する）
+     * @param {GroupItem} ownerGroup - 数値を持たせるグループ（入れ子のグループではそのグループ）
+     * @param {Object} [firstNumberRef] - 最初に見つかった数値を value に入れる入れ物
+     * @returns {void}
+     */
+    function collectNumbersByFont(pageItem, fontMap, ownerGroup, firstNumberRef) {
+        if (pageItem.typename === "TextFrame") {
+            var numberValue = parseFloat(pageItem.contents.replace(/,/g, ""));
+            var fontName = "不明";
+            try {
+                /* 空のテキストでは textRanges[0] が取れないことがある / textRanges[0] may be missing on empty text */
+                var textFont = pageItem.textRanges[0].characterAttributes.textFont;
+                if (textFont && textFont.family && textFont.style) {
+                    fontName = textFont.family + " " + textFont.style;
+                }
+            } catch (e) {}
+            if (!isNaN(numberValue)) {
+                if (!fontMap[fontName]) fontMap[fontName] = [];
+                fontMap[fontName].push({ value: numberValue, group: ownerGroup });
+                if (firstNumberRef && typeof firstNumberRef.value === "undefined") {
+                    firstNumberRef.value = numberValue;
+                }
+            }
+        } else if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                var childItem = pageItem.pageItems[i];
+                collectNumbersByFont(childItem, fontMap, (childItem.typename === "GroupItem" ? childItem : ownerGroup), firstNumberRef);
+            }
         }
+    }
 
-        var validGroups = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            if (currentSelection[i].typename === "GroupItem") {
-                var dummyMap = {};
-                var firstValue = { value: undefined };
-                collectTextWithFontInfoPerGroup(currentSelection[i], dummyMap, currentSelection[i], firstValue);
-                if (!isNaN(firstValue.value)) {
-                    validGroups.push(currentSelection[i]);
+    /**
+     * 選択の中から、数値のテキストを含むグループだけを取り出す
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {GroupItem[]} 数値を含むグループ
+     */
+    function findNumberedGroups(selectedItems) {
+        var numberedGroups = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (selectedItems[i].typename === "GroupItem") {
+                var firstNumberRef = { value: undefined };
+                collectNumbersByFont(selectedItems[i], {}, selectedItems[i], firstNumberRef);
+                if (!isNaN(firstNumberRef.value)) {
+                    numberedGroups.push(selectedItems[i]);
                 }
             }
         }
-        if (validGroups.length === 0) {
-            alert("数値を含むグループが見つかりません。");
-            return;
-        }
+        return numberedGroups;
+    }
 
-        var fontMap = {};
-        for (var i = 0; i < validGroups.length; i++) {
-            collectTextWithFontInfoPerGroup(validGroups[i], fontMap, validGroups[i]);
-        }
-
-        var fontNames = [];
-        for (var name in fontMap) fontNames.push(name);
-        fontNames.sort();
-
-        if (fontNames.length === 0) {
-            alert("選択されたグループ内に数字テキストが含まれていません。");
-            return;
-        }
-
-        var originalPositions = {};
-        for (var i = 0; i < validGroups.length; i++) {
-            var g = validGroups[i];
-            originalPositions[g.name] = {
-                group: g,
-                bounds: g.visibleBounds.concat()
-            };
-        }
-
-        var selected = showFontChoiceDialog(fontMap, originalPositions);
-        if (!selected) return;
-        var selectedFont = selected.font;
-        var isDescending = selected.descending;
-
-        var entries = fontMap[selectedFont];
-        var groupValueMap = {};
-        var groupCounter = 0;
-        for (var i = 0; i < entries.length; i++) {
-            var g = entries[i].group;
-            var v = entries[i].value;
-
+    /**
+     * 同じグループの重複を除き、グループごとに最初の数値だけを残す
+     * @param {Object[]} fontEntries - collectNumbersByFont() が集めた1フォント分の配列
+     * @returns {Object[]} { group, value } の配列
+     */
+    function getUniqueGroupEntries(fontEntries) {
+        var groupEntries = [];
+        for (var i = 0; i < fontEntries.length; i++) {
             var alreadyExists = false;
-            for (var k in groupValueMap) {
-                if (groupValueMap[k].group === g) {
+            for (var j = 0; j < groupEntries.length; j++) {
+                if (groupEntries[j].group === fontEntries[i].group) {
                     alreadyExists = true;
                     break;
                 }
             }
             if (!alreadyExists) {
-                var key = "g" + groupCounter++;
-                groupValueMap[key] = {
-                    group: g,
-                    value: v
-                };
+                groupEntries.push({ group: fontEntries[i].group, value: fontEntries[i].value });
             }
         }
-        var groupData = [];
-        for (var id in groupValueMap) {
-            groupData.push(groupValueMap[id]);
+        return groupEntries;
+    }
+
+    // =========================================
+    // 並べ替えと配置 / Sorting and placement
+    // =========================================
+
+    /**
+     * 順序をシャッフルする（Fisher–Yates）。先頭が元の先頭のままなら2番目と入れ替える
+     * @param {Object[]} groupEntries - 並べ替える配列（直接書き換える）
+     * @returns {void}
+     */
+    function shuffleGroupEntries(groupEntries) {
+        var originalFirst = groupEntries[0];
+        for (var i = groupEntries.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var swapEntry = groupEntries[i];
+            groupEntries[i] = groupEntries[j];
+            groupEntries[j] = swapEntry;
         }
-
-        if (selected.random) {
-            // Fisher–Yates shuffle。先頭が元の先頭と同じ場合は別の要素と交換
-            var originalFirst = groupData[0];
-            for (var i = groupData.length - 1; i > 0; i--) {
-                var j = Math.floor(Math.random() * (i + 1));
-                var temp = groupData[i];
-                groupData[i] = groupData[j];
-                groupData[j] = temp;
-            }
-            if (groupData.length > 1 && groupData[0].group === originalFirst.group) {
-                var swapIndex = 1;
-                groupData[0] = groupData[swapIndex];
-                groupData[swapIndex] = originalFirst;
-            }
-        } else {
-            groupData.sort(function(a, b) {
-                return isDescending ? b.value - a.value : a.value - b.value;
-            });
+        if (groupEntries.length > 1 && groupEntries[0].group === originalFirst.group) {
+            groupEntries[0] = groupEntries[1];
+            groupEntries[1] = originalFirst;
         }
-
-        var spacing = 20;
-        if (selected.spacingMode === "custom" && !isNaN(selected.spacingValue)) {
-            spacing = selected.spacingValue;
-        }
-
-        // 並び替え開始位置（Y座標）を算出。全グループの上端の最大値を基準にする
-        var boundsList = [];
-        for (var id in originalPositions) {
-            boundsList.push(originalPositions[id].bounds);
-        }
-        var minY = boundsList[0][1];
-        for (var i = 1; i < boundsList.length; i++) {
-            if (boundsList[i][1] < minY) {
-                minY = boundsList[i][1];
-            }
-        }
-        var startTop = minY;
-
-        // 左端は上端がstartTopのグループの左端を使用
-        var originalTopLeft = null;
-        for (var id in originalPositions) {
-            if (originalPositions[id].bounds[1] === startTop) {
-                originalTopLeft = originalPositions[id].bounds[0];
-                break;
-            }
-        }
-        var currentTop = startTop;
-        var startLeft = originalTopLeft;
-
-        // Store the original top-left position before moving groups
-        var beforeTopLeftX = startLeft;
-        var beforeTopLeftY = startTop;
-
-        for (var j = 0; j < groupData.length; j++) {
-            var g = groupData[j].group;
-            g.locked = false;
-            g.hidden = false;
-
-            // move group to currentTop
-            var gBoundsBefore = g.visibleBounds;
-            var gLeft = gBoundsBefore[0];
-            var gTop = gBoundsBefore[1];
-            var dx = startLeft - gLeft;
-            var dy = currentTop - gTop;
-            g.translate(dx, dy);
-
-            // get new height after translation
-            var gBoundsAfter = g.visibleBounds;
-            var height = gBoundsAfter[1] - gBoundsAfter[3];
-
-            if (selected.spacingMode === "fit") {
-                currentTop -= height;
-            } else {
-                currentTop -= (height + spacing);
-            }
-        }
-
-        // 再配置後、最初のグループの位置を元の位置に合わせて全体を調整
-        var firstGroupBounds = groupData[0].group.visibleBounds;
-        var shiftX = beforeTopLeftX - firstGroupBounds[0];
-        var shiftY = beforeTopLeftY - firstGroupBounds[1];
-        for (var i = 0; i < groupData.length; i++) {
-            groupData[i].group.translate(shiftX, shiftY);
-        }
-
-        app.redraw();
     }
 
     /**
-     * 再帰的にテキストフレームから数値を抽出し配列に収集
-     * @param {PageItem} obj - 対象オブジェクト
-     * @param {Array} textFrames - 収集先配列
+     * 並べ始める位置（上端がいちばん低いグループの左上）を求める
+     * グループ名をキーにして控えるため、同じ名前のグループは後のものだけが候補になる
+     * @param {GroupItem[]} numberedGroups - 数値を含むグループ
+     * @returns {{left: number, top: number}} 並べ始める左上の座標
      */
-    function collectTextFramesRecursive(obj, textFrames) {
-        if (obj.typename === "TextFrame") {
-            var text = obj.contents;
-            var cleaned = text.replace(/,/g, "");
-            if (/^\d+(\.\d+)?$/.test(cleaned)) {
-                var number = parseFloat(cleaned);
-                if (!isNaN(number)) {
-                    textFrames.push({
-                        item: obj,
-                        value: number
-                    });
-                }
+    function getStackOrigin(numberedGroups) {
+        var boundsByName = {};
+        for (var i = 0; i < numberedGroups.length; i++) {
+            boundsByName[numberedGroups[i].name] = numberedGroups[i].visibleBounds.concat();
+        }
+        var startTop = null;
+        for (var groupName in boundsByName) {
+            if (startTop === null || boundsByName[groupName][1] < startTop) {
+                startTop = boundsByName[groupName][1];
             }
-        } else if (obj.typename === "GroupItem") {
-            for (var i = 0; i < obj.pageItems.length; i++) {
-                collectTextFramesRecursive(obj.pageItems[i], textFrames);
+        }
+        var startLeft = null;
+        for (var candidateName in boundsByName) {
+            if (boundsByName[candidateName][1] === startTop) {
+                startLeft = boundsByName[candidateName][0];
+                break;
             }
+        }
+        return { left: startLeft, top: startTop };
+    }
+
+    /**
+     * グループを並べた順に、起点から下へ積み上げる
+     * @param {Object[]} groupEntries - { group, value } の配列（並べる順）
+     * @param {{left: number, top: number}} stackOrigin - 起点の左上
+     * @param {boolean} fitsTightly - true なら間隔 0（ぴったり）
+     * @param {number} gap - グループ間の間隔（pt）
+     * @returns {void}
+     */
+    function stackGroups(groupEntries, stackOrigin, fitsTightly, gap) {
+        var currentTop = stackOrigin.top;
+        for (var i = 0; i < groupEntries.length; i++) {
+            var groupItem = groupEntries[i].group;
+            groupItem.locked = false;
+            groupItem.hidden = false;
+
+            var boundsBefore = groupItem.visibleBounds;
+            groupItem.translate(stackOrigin.left - boundsBefore[0], currentTop - boundsBefore[1]);
+
+            /* 移動後の高さで次の上端を決める / next top from the height after moving */
+            var boundsAfter = groupItem.visibleBounds;
+            var groupHeight = boundsAfter[1] - boundsAfter[3];
+            if (fitsTightly) {
+                currentTop -= groupHeight;
+            } else {
+                currentTop -= (groupHeight + gap);
+            }
+        }
+
+        /* 先頭のグループが起点に来るよう全体をずらす / shift everything so the first group sits on the origin */
+        var firstBounds = groupEntries[0].group.visibleBounds;
+        var shiftX = stackOrigin.left - firstBounds[0];
+        var shiftY = stackOrigin.top - firstBounds[1];
+        for (var j = 0; j < groupEntries.length; j++) {
+            groupEntries[j].group.translate(shiftX, shiftY);
         }
     }
 
-    var doc = app.activeDocument;
-    var unitLabel;
-    switch (doc.rulerUnits) {
-        case RulerUnits.Millimeters:
-            unitLabel = "mm";
-            break;
-        case RulerUnits.Centimeters:
-            unitLabel = "cm";
-            break;
-        case RulerUnits.Inches:
-            unitLabel = "inch";
-            break;
-        case RulerUnits.Pixels:
-            unitLabel = "px";
-            break;
-        case RulerUnits.Picas:
-            unitLabel = "pica";
-            break;
-        default:
-            unitLabel = "pt";
-            break;
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 数値のまとまり（フォント）ごとのラジオボタンに出す、先頭3つの数値を返す
+     * @param {Object[]} fontEntries - 1フォント分の { value, group } の配列
+     * @returns {string} "1, 2, 3…" のような表示
+     */
+    function getNumberPreviewLabel(fontEntries) {
+        var numberValues = [];
+        for (var i = 0; i < fontEntries.length; i++) {
+            numberValues.push(fontEntries[i].value);
+        }
+        numberValues.sort(function (a, b) {
+            return a - b;
+        });
+        return (numberValues.length > 3) ? numberValues.slice(0, 3).join(", ") + "…" : numberValues.join(", ");
     }
 
-    main();
+    /**
+     * 数値のまとまり・並び順・間隔を選ぶダイアログを出す
+     * @param {Object} fontMap - フォント名 → 数値の配列
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @returns {Object|null} { font, descending, random, spacingMode, spacingValue }。キャンセル時は null
+     */
+    function showFontChoiceDialog(fontMap, rulerUnit) {
+        var sortDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        sortDialog.orientation = "column";
+        sortDialog.alignChildren = "fill";
 
-    function showFontChoiceDialog(fontMap, originalPositions) {
-        var uiLang = getCurrentLang();
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
+        var numberGroupPanel = sortDialog.add("panel", undefined, getLabel("panel.sortGroup"));
+        numberGroupPanel.orientation = "column";
+        numberGroupPanel.alignChildren = "left";
+        numberGroupPanel.margins = [10, 20, 10, 10];
 
-        var radioGroup = dialog.add("panel", undefined, getLabel("panel.sortGroup"));
-        radioGroup.orientation = "column";
-        radioGroup.alignChildren = "left";
-        radioGroup.margins = [10, 20, 10, 10];
-
-        var radioButtons = [];
-        var fontKeys = [];
-        for (var name in fontMap) {
-            fontKeys.push(name);
+        var fontNames = [];
+        for (var fontName in fontMap) {
+            fontNames.push(fontName);
         }
-        fontKeys.sort();
+        fontNames.sort();
 
-        for (var i = 0; i < fontKeys.length; i++) {
-            var name = fontKeys[i];
-            var values = [];
-            if (fontMap[name] instanceof Array && fontMap[name].length > 0) {
-                for (var v = 0; v < fontMap[name].length; v++) {
-                    values.push(fontMap[name][v].value);
-                }
-                values.sort(function(a, b) {
-                    return a - b;
-                });
-            }
-            var label = (values.length > 0) ?
-                (values.length > 3 ? values.slice(0, 3).join(", ") + "…" : values.join(", ")) :
-                "";
-            var rb = radioGroup.add("radiobutton", undefined, label);
-            rb.helpTip = getLabel("tooltip.sortGroup");
-            radioButtons.push({
-                button: rb,
-                key: name
-            });
+        var fontRadios = [];
+        for (var i = 0; i < fontNames.length; i++) {
+            var fontRadio = numberGroupPanel.add("radiobutton", undefined, getNumberPreviewLabel(fontMap[fontNames[i]]));
+            fontRadio.helpTip = getLabel("tooltip.sortGroup");
+            fontRadios.push({ button: fontRadio, key: fontNames[i] });
         }
-        if (radioButtons.length > 0) {
-            radioButtons[0].button.value = true;
+        if (fontRadios.length > 0) {
+            fontRadios[0].button.value = true;
         }
 
-        var sortPanel = dialog.add("panel", undefined);
-        sortPanel.orientation = "row";
-        sortPanel.alignChildren = "left";
-        sortPanel.margins = [10, 20, 10, 10];
+        var sortOrderPanel = sortDialog.add("panel", undefined);
+        sortOrderPanel.orientation = "row";
+        sortOrderPanel.alignChildren = "left";
+        sortOrderPanel.margins = [10, 20, 10, 10];
 
-        var ascRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.asc"));
+        var ascRadio = sortOrderPanel.add("radiobutton", undefined, getLabel("radio.asc"));
         ascRadio.helpTip = getLabel("tooltip.asc");
-        var descRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.desc"));
+        var descRadio = sortOrderPanel.add("radiobutton", undefined, getLabel("radio.desc"));
         descRadio.helpTip = getLabel("tooltip.desc");
-        var randomRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.random"));
+        var randomRadio = sortOrderPanel.add("radiobutton", undefined, getLabel("radio.random"));
         randomRadio.helpTip = getLabel("tooltip.random");
         ascRadio.value = true;
 
-        var spacingPanel = dialog.add("panel", undefined, getLabel("panel.spacing"));
+        var spacingPanel = sortDialog.add("panel", undefined, getLabel("panel.spacing"));
         spacingPanel.orientation = "row";
         spacingPanel.alignChildren = "left";
         spacingPanel.margins = [10, 20, 10, 10];
@@ -373,91 +365,106 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fitRadio.helpTip = getLabel("tooltip.fit");
         var customRadio = spacingPanel.add("radiobutton", undefined, getLabel("radio.custom"));
         customRadio.helpTip = getLabel("tooltip.custom");
-        var defaultSpacing = (unitLabel === "mm") ? "1" : "20";
-        var spacingInput = spacingPanel.add("edittext", undefined, defaultSpacing);
+        var spacingInput = spacingPanel.add("edittext", undefined, (rulerUnit.label === "mm") ? "1" : "20");
         spacingInput.helpTip = getLabel("tooltip.spacingInput");
         spacingInput.characters = 5;
         spacingInput.enabled = false;
-        var spacingUnit = spacingPanel.add("statictext", undefined, unitLabel);
+        spacingPanel.add("statictext", undefined, rulerUnit.label);
         fitRadio.value = true;
 
-        customRadio.onClick = function() {
+        customRadio.onClick = function () {
             spacingInput.enabled = true;
         };
-        fitRadio.onClick = function() {
+        fitRadio.onClick = function () {
             spacingInput.enabled = false;
         };
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "center";
-        var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"));
-        var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"), {
-            name: "ok"
-        });
-        cancelBtn.alignment = "left";
-        okBtn.alignment = "right";
+        var btnRowGroup = sortDialog.add("group");
+        btnRowGroup.alignment = "center";
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnOk = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnCancel.alignment = "left";
+        btnOk.alignment = "right";
 
-        var result = null;
-        okBtn.onClick = function() {
-            for (var i = 0; i < radioButtons.length; i++) {
-                if (radioButtons[i].button.value) {
-                    var parsed = parseFloat(spacingInput.text);
-                    var factor = 1;
-                    if (unitLabel === "mm") factor = 2.83464567;
-                    else if (unitLabel === "cm") factor = 28.3464567;
-                    else if (unitLabel === "inch") factor = 72;
-                    else if (unitLabel === "pica") factor = 12;
-                    var referenceValue = parsed * factor;
-                    result = {
-                        font: radioButtons[i].key,
+        var sortOptions = null;
+        btnOk.onClick = function () {
+            for (var i = 0; i < fontRadios.length; i++) {
+                if (fontRadios[i].button.value) {
+                    sortOptions = {
+                        font: fontRadios[i].key,
                         descending: descRadio.value,
                         random: randomRadio.value,
                         spacingMode: fitRadio.value ? "fit" : "custom",
-                        spacingValue: referenceValue
+                        spacingValue: parseFloat(spacingInput.text) * rulerUnit.pointsPerUnit
                     };
                     break;
                 }
             }
-            dialog.close();
+            sortDialog.close();
         };
-        cancelBtn.onClick = function() {
-            dialog.close();
+        btnCancel.onClick = function () {
+            sortDialog.close();
         };
 
-        dialog.show();
-        return result;
+        sortDialog.show();
+        return sortOptions;
     }
 
-    function collectTextWithFontInfoPerGroup(obj, result, groupRef, firstValueRef) {
-        if (obj.typename === "TextFrame") {
-            var text = obj.contents;
-            var cleaned = text.replace(/,/g, "");
-            var value = parseFloat(cleaned);
-            var fontName = "不明";
-            try {
-                var font = obj.textRanges[0].characterAttributes.textFont;
-                if (font && font.family && font.style) {
-                    fontName = font.family + " " + font.style;
-                }
-            } catch (e) {}
-            if (!isNaN(value)) {
-                if (!result[fontName]) result[fontName] = [];
-                result[fontName].push({
-                    value: value,
-                    text: text,
-                    item: obj,
-                    group: groupRef
-                });
-                if (firstValueRef && typeof firstValueRef.value === "undefined") {
-                    firstValueRef.value = value;
-                }
-            }
-        } else if (obj.typename === "GroupItem") {
-            for (var i = 0; i < obj.pageItems.length; i++) {
-                var child = obj.pageItems[i];
-                collectTextWithFontInfoPerGroup(child, result, (child.typename === "GroupItem" ? child : groupRef), firstValueRef);
-            }
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 数値を含むグループを選んだ順に並べ替え、縦に積み上げる
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @returns {void}
+     */
+    function main(rulerUnit) {
+        if (app.documents.length === 0) {
+            alert("ドキュメントが開かれていません。");
+            return;
         }
+
+        var docSelection = app.activeDocument.selection;
+        if (docSelection.length === 0) {
+            alert("グループオブジェクトを選択してください。");
+            return;
+        }
+
+        var numberedGroups = findNumberedGroups(docSelection);
+        if (numberedGroups.length === 0) {
+            alert("数値を含むグループが見つかりません。");
+            return;
+        }
+
+        var fontMap = {};
+        for (var i = 0; i < numberedGroups.length; i++) {
+            collectNumbersByFont(numberedGroups[i], fontMap, numberedGroups[i]);
+        }
+        var stackOrigin = getStackOrigin(numberedGroups);
+
+        var sortOptions = showFontChoiceDialog(fontMap, rulerUnit);
+        if (!sortOptions) return;
+
+        var groupEntries = getUniqueGroupEntries(fontMap[sortOptions.font]);
+        if (sortOptions.random) {
+            shuffleGroupEntries(groupEntries);
+        } else {
+            groupEntries.sort(function (a, b) {
+                return sortOptions.descending ? b.value - a.value : a.value - b.value;
+            });
+        }
+
+        var gap = FALLBACK_GAP;
+        if (sortOptions.spacingMode === "custom" && !isNaN(sortOptions.spacingValue)) {
+            gap = sortOptions.spacingValue;
+        }
+        stackGroups(groupEntries, stackOrigin, sortOptions.spacingMode === "fit", gap);
+
+        app.redraw();
     }
+
+    /* 定規の単位はドキュメントの有無を確かめる前に読む（従来どおり） / read before the document check, as before */
+    main(getRulerUnit(app.activeDocument));
 
 })();

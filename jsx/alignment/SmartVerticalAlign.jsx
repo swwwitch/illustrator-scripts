@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartVerticalAlign";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartVerticalAlign.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartVerticalAlign.md"; /* README (English) */
@@ -184,17 +184,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
     /**
      * ラベルを取得する（ドット区切りキー）
-     * @param {string} key - "panel.alignment" のようなドット区切りキー
+     * @param {string} labelPath - "panel.alignment" のようなドット区切りキー
      * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
      */
-    function getLabel(key) {
+    function getLabel(labelPath) {
         var labelNode = LABELS;
-        var keyParts = String(key).split('.');
-        for (var i = 0; i < keyParts.length; i++) {
+        var pathKeys = String(labelPath).split('.');
+        for (var i = 0; i < pathKeys.length; i++) {
             if (labelNode == null) break;
-            labelNode = labelNode[keyParts[i]];
+            labelNode = labelNode[pathKeys[i]];
         }
-        return String((labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : key);
+        return String((labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath);
     }
 
     // =========================================

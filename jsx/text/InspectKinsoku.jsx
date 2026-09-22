@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "InspectKinsoku";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectKinsoku.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKinsoku.md"; /* README (English) */
@@ -36,6 +36,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    /**
+     * コレクションの段落を配列に追加する
+     * @param {Object[]} targetParagraphs - 追加先の配列
+     * @param {Paragraphs} paragraphCollection - 段落のコレクション
+     * @returns {void}
+     */
+    function appendParagraphs(targetParagraphs, paragraphCollection) {
+        for (var i = 0; i < paragraphCollection.length; i++) {
+            targetParagraphs.push(paragraphCollection[i]);
+        }
+    }
+
+    /**
+     * 選択中のテキスト（またはテキストフレーム）の段落を集める
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {TextRange[]} 段落の配列
+     */
     function collectSelectedParagraphs(doc) {
         var currentSelection = doc.selection;
         var targetParagraphs = [];
@@ -44,39 +61,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return targetParagraphs;
         }
 
-        // 文字ツールでテキストを選択した場合
+        /* 文字ツールでテキストを選択した場合 / Text selected with the Type tool */
         if (currentSelection.constructor && currentSelection.constructor.name === "TextRange") {
-            var selectedParagraphs = currentSelection.paragraphs;
-            for (var i = 0; i < selectedParagraphs.length; i++) {
-                targetParagraphs.push(selectedParagraphs[i]);
-            }
+            appendParagraphs(targetParagraphs, currentSelection.paragraphs);
             return targetParagraphs;
         }
 
-        // 選択ツールでオブジェクトを選択した場合（配列）
+        /* 選択ツールでオブジェクトを選択した場合（配列） / Objects selected with the Selection tool (array) */
         for (var i = 0; i < currentSelection.length; i++) {
             var selectedItem = currentSelection[i];
             if (selectedItem.constructor && selectedItem.constructor.name === "TextFrame") {
-                var framedParagraphs = selectedItem.textRange.paragraphs;
-                for (var j = 0; j < framedParagraphs.length; j++) {
-                    targetParagraphs.push(framedParagraphs[j]);
-                }
+                appendParagraphs(targetParagraphs, selectedItem.textRange.paragraphs);
             }
         }
         return targetParagraphs;
     }
 
-    // 段落配列を走査し、検出した禁則値を集合として返す
+    /**
+     * 段落を走査し、検出した禁則の値を集合として返す
+     * @param {TextRange[]} paragraphs - 調べる段落
+     * @returns {Object} 禁則の値をキーにした集合
+     */
     function collectKinsokuValues(paragraphs) {
         var detectedKinsokuSet = {};
 
         for (var i = 0; i < paragraphs.length; i++) {
             try {
-                // 禁則「なし」の段落は kinsoku を読むだけで Error 9563 を投げるため try は必須
+                /* 禁則「なし」の段落は kinsoku を読むだけで Error 9563 を投げるため try は必須
+                   Reading kinsoku on a "None" paragraph throws Error 9563 */
                 var kinsokuValue = paragraphs[i].paragraphAttributes.kinsoku;
                 detectedKinsokuSet[String(kinsokuValue)] = true;
             } catch (e) {
-                // 禁則「なし」の段落は属性が undefined 扱いとなり Error 9563 を投げる
                 if (e.number === 9563) {
                     detectedKinsokuSet["なし"] = true;
                 } else {
@@ -88,7 +103,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return detectedKinsokuSet;
     }
 
-    (function () {
+    /**
+     * 選択段落の禁則の値を集めてアラートで一覧表示する
+     * @returns {void}
+     */
+    function main() {
         var targetParagraphs = collectSelectedParagraphs(app.activeDocument);
         if (!targetParagraphs.length) {
             alert("段落が選択されていません。\nテキスト、またはテキストフレームを選択してください。");
@@ -102,6 +121,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             reportText += "  → \"" + detectedValue + "\"\n";
         }
         alert(reportText);
-    })();
+    }
+
+    main();
 
 })();

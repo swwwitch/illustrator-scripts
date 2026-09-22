@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "ArrangeObjectsAlongPath";      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */
@@ -38,70 +38,281 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-        var LABELS = {
+    /* 配置後、さらに接線方向へ回転する（簡易）/ Also rotate along the tangent after placing (simple) */
+    var ROTATE_ALONG_TANGENT = false;
+    /* true: 始点〜終点を含めて等分 / false: 端を避ける（開いたパス）/ true: include both ends, false: keep off the ends (open paths) */
+    var USE_ENDPOINTS = true;
+    /* 曲線1区間あたりのサンプル数（増やすほど精度が上がり重くなる）/ Samples per Bezier segment (more is precise but slower) */
+    var SAMPLES_PER_SEGMENT = 30;
+    /* ランダム間隔の強さの初期値（ステップに対する比率、0.1〜1.0）/ Initial random spacing strength (ratio of the step, 0.1-1.0) */
+    var DEFAULT_SPACING_JITTER_RATIO = 0.4;
+    /* 複製数の範囲 / Duplicate count range */
+    var DUPLICATE_COUNT_MIN = 2;
+    var DUPLICATE_COUNT_MAX = 20;
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /* プレビュー用の一時レイヤー名 / Name of the temporary preview layer */
+    var PREVIEW_LAYER_NAME = "__PREVIEW_ArrangeAlongPath";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ダイアログの位置と不透明度 / Dialog position and opacity */
+    var DIALOG_OFFSET_X = 300;
+    var DIALOG_OFFSET_Y = 0;
+    var DIALOG_OPACITY = 0.98;
+
+    var COLUMN_SPACING = 15;                        /* 左右カラムの間隔 / Gap between the columns */
+    var OUTER_PANEL_MARGINS = [15, 20, 15, 15];     /* 「対象パス」パネルの余白 / Margins of the Target Path panel */
+    var PANEL_MARGINS = [15, 20, 15, 10];           /* その他のパネルの余白 / Margins of the other panels */
+    var SLIDER_WIDTH = 180;                         /* スライダーの幅 / Slider width */
+
+    /**
+     * 表示時にダイアログを指定量ずらす
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @param {number} offsetX - 横方向のずらし量
+     * @param {number} offsetY - 縦方向のずらし量
+     * @returns {void}
+     */
+    function shiftDialogPosition(targetDialog, offsetX, offsetY) {
+        targetDialog.onShow = function () {
+            var currentX = targetDialog.location[0];
+            var currentY = targetDialog.location[1];
+            targetDialog.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    /**
+     * ダイアログの不透明度を設定する
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @param {number} opacityValue - 不透明度（0〜1）
+     * @returns {void}
+     */
+    function setDialogOpacity(targetDialog, opacityValue) {
+        try {
+            targetDialog.opacity = opacityValue;
+        } catch (e) { /* 環境によっては opacity を持たない / opacity is not supported in some environments */ }
+    }
+
+    /**
+     * 数値欄に ↑↓ キーでの増減を付ける（shift で 10 刻み、option で 0.1 刻み）
+     * @param {EditText} editText - 対象の数値欄
+     * @param {boolean} allowNegative - 負の値を許すか
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, allowNegative) {
+        editText.addEventListener("keydown", function (event) {
+            if (!event || !event.keyName) return;
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                /* shift 押下時は 10 の倍数にスナップ / Snap to multiples of 10 with shift */
+                if (event.keyName == "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                /* option 押下時は 0.1 単位で増減 / Step by 0.1 with option */
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            }
+
+            if (keyboard.altKey) {
+                /* 小数第1位までに丸め / Round to one decimal place */
+                value = Math.round(value * 10) / 10;
+            } else {
+                /* 整数に丸め / Round to an integer */
+                value = Math.round(value);
+            }
+
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+
+            /* 既存の onChange を呼んでプレビューと UI をそろえる / Fire onChange so the preview and UI stay in sync */
+            try {
+                if (typeof editText.onChange === "function") editText.onChange();
+            } catch (e) { /* ハンドラー内の DOM 操作が失敗してもキー操作は止めない / keep key handling alive if the handler's DOM work fails */ }
+        });
+    }
+
+    /**
+     * タイトル付きのパネルを追加する
+     * @param {Group|Panel} parentContainer - 追加先
+     * @param {string} titlePath - パネルタイトルの LABELS パス
+     * @param {string} orientation - "row" または "column"
+     * @param {string|string[]} childAlignment - alignChildren に入れる値
+     * @param {number[]} [panelMargins] - 余白（省略時は PANEL_MARGINS）
+     * @returns {Panel} 追加したパネル
+     */
+    function addOptionPanel(parentContainer, titlePath, orientation, childAlignment, panelMargins) {
+        var optionPanel = parentContainer.add("panel", undefined, getLabel(titlePath));
+        optionPanel.orientation = orientation;
+        optionPanel.alignChildren = childAlignment;
+        optionPanel.margins = panelMargins || PANEL_MARGINS;
+        return optionPanel;
+    }
+
+    /**
+     * 上揃えの縦カラムを追加する
+     * @param {Group} parentGroup - 追加先
+     * @returns {Group} 追加したカラム
+     */
+    function addColumn(parentGroup) {
+        var columnGroup = parentGroup.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = "fill";
+        columnGroup.alignment = "top";
+        return columnGroup;
+    }
+
+    /**
+     * 余りの幅を吸う伸縮スペーサーを追加する
+     * @param {Group} parentGroup - 追加先
+     * @returns {void}
+     */
+    function addStretchSpacer(parentGroup) {
+        var stretchSpacer = parentGroup.add("statictext", undefined, "");
+        stretchSpacer.alignment = "fill";
+        stretchSpacer.minimumSize.width = 10;
+        stretchSpacer.maximumSize.width = 10000;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = detectUILanguage();
+
+    var LABELS = {
         dialog: {
             title: { ja: "パスに沿って配置", en: "Arrange Objects Along Path" }
         },
         panel: {
-            basePath: { ja: "パス処理", en: "Base Path Handling" },
-            pathOrder: { ja: "基準", en: "Base Path" },
             targetPath: { ja: "対象パス", en: "Target Path" },
+            basePathRule: { ja: "基準", en: "Base Path" },
+            basePathHandling: { ja: "パス処理", en: "Base Path Handling" },
             placeObjects: { ja: "配置するオブジェクト", en: "Objects to Arrange" },
-            order: { ja: "順番", en: "Order" },
-            spacing: { ja: "間隔", en: "Spacing" },
             duplicate: { ja: "複製", en: "Duplicate" },
-            rotation: { ja: "回転", en: "Rotation" }
+            rotation: { ja: "回転", en: "Rotation" },
+            order: { ja: "順番", en: "Order" },
+            spacing: { ja: "間隔", en: "Spacing" }
         },
         fieldLabel: {
             duplicateCount: { ja: "複製数", en: "Count" }
         },
         checkbox: {
             rotationFlip180: { ja: "反転", en: "Flip" },
+            groupPlaced: { ja: "グループ化", en: "Group placed objects" },
             allRandom: { ja: "一括ランダム", en: "Random" },
-            preview: { ja: "プレビュー", en: "Preview" },
-            groupPlaced: { ja: "グループ化", en: "Group placed objects" }
+            preview: { ja: "プレビュー", en: "Preview" }
         },
         radio: {
-            spacingEven: { ja: "均等（現状）", en: "Even (Current)" },
-            spacingRandom: { ja: "ランダム", en: "Random" },
-            orderCurrent: { ja: "正順", en: "Current" },
-            orderReverse: { ja: "逆順", en: "Reverse" },
-            orderRandom: { ja: "ランダム", en: "Random" },
-            rotationNone: { ja: "正立", en: "Upright" },
-            rotationPerpendicular: { ja: "それぞれ垂直", en: "Perpendicular" },
-            rotationPathPerpendicular: { ja: "パスに沿う（接線）", en: "Follow Path (Tangent)" },
-            rotationAngle: { ja: "角度指定", en: "Angle" },
-            rotationRandom: { ja: "ランダム", en: "Random" },
             autoLargest: { ja: "自動（面積最大）", en: "Auto (Largest)" },
             frontmost: { ja: "最前面", en: "Frontmost" },
             backmost: { ja: "最背面", en: "Backmost" },
             basePathModeNone: { ja: "何もしない", en: "Do nothing" },
             basePathModeHide: { ja: "「塗り／線」なし", en: "No fill / no stroke" },
-            basePathModeDelete: { ja: "削除", en: "Delete" }
+            basePathModeDelete: { ja: "削除", en: "Delete" },
+            rotationNone: { ja: "正立", en: "Upright" },
+            rotationPerpendicular: { ja: "それぞれ垂直", en: "Perpendicular" },
+            rotationPathPerpendicular: { ja: "パスに沿う（接線）", en: "Follow Path (Tangent)" },
+            rotationRandom: { ja: "ランダム", en: "Random" },
+            rotationAngle: { ja: "角度指定", en: "Angle" },
+            orderCurrent: { ja: "正順", en: "Current" },
+            orderReverse: { ja: "逆順", en: "Reverse" },
+            orderRandom: { ja: "ランダム", en: "Random" },
+            spacingEven: { ja: "均等（現状）", en: "Even (Current)" },
+            spacingRandom: { ja: "ランダム", en: "Random" }
         },
         tooltip: {
-            basePath: { ja: "基準にしたパス（B）を、配置後にどう扱うかを決めます。", en: "What to do with the base path (B) once the objects are placed." },
-            pathOrder: { ja: "選択の中から、どれを基準のパス（B）とみなすかを決めます。", en: "Which of the selected paths is treated as the base path (B)." },
-            order: { ja: "オブジェクトをパスに沿って並べる順序です。", en: "The order the objects are laid along the path." },
-            spacing: { ja: "パス上に配置する間隔の決め方です。", en: "How the objects are spaced along the path." },
+            basePathRule: { ja: "選択の中から、どれを基準のパス（B）とみなすかを決めます。", en: "Which of the selected paths is treated as the base path (B)." },
+            autoLargest: {
+                ja: "面積が最も大きいパスを基準にします。開いたパスは外接矩形の面積で比べます。",
+                en: "Uses the path with the largest area. Open paths are compared by their bounding box."
+            },
+            basePathHandling: { ja: "基準にしたパス（B）を、配置後にどう扱うかを決めます。", en: "What to do with the base path (B) once the objects are placed." },
+            duplicateEnabled: {
+                ja: "オンにすると、それぞれのオブジェクトを「複製数」の数まで増やしてから配置します。選択が2つのときは最初からオンです。",
+                en: "When on, each object is multiplied up to the Count before arranging. Starts on when exactly two objects are selected."
+            },
             duplicateCount: {
                 ja: "選択したオブジェクトを複製して数を増やしてから配置します。1 なら複製しません。",
                 en: "Duplicates the selection to this many copies before arranging. 1 means no duplication."
             },
             rotation: { ja: "配置したオブジェクトの向きの決め方です。", en: "How each placed object is rotated." },
+            rotationPerpendicular: {
+                ja: "基準パスの中心から放射状に、外向きに立つよう回転します。",
+                en: "Rotates each object to stand outward, radiating from the center of the base path."
+            },
+            rotationPathPerpendicular: {
+                ja: "パスの進む向き（接線）に合わせて回転します。",
+                en: "Rotates each object to follow the direction of the path (its tangent)."
+            },
             rotationAngle: { ja: "「角度指定」を選んだときに適用する角度です。", en: "The angle applied when Angle is selected." },
+            rotationFlip180: { ja: "回転に 180° を加えて、向きを反対にします。", en: "Adds 180° to the rotation to turn each object around." },
+            order: { ja: "オブジェクトをパスに沿って並べる順序です。", en: "The order the objects are laid along the path." },
+            orderCurrent: {
+                ja: "重ね順で前面にあるものから、パスの始点側に並べます。",
+                en: "Lays the objects from the start of the path in stacking order, frontmost first."
+            },
+            orderReverse: {
+                ja: "重ね順で背面にあるものから、パスの始点側に並べます。",
+                en: "Lays the objects from the start of the path in stacking order, backmost first."
+            },
+            spacing: { ja: "パス上に配置する間隔の決め方です。", en: "How the objects are spaced along the path." },
+            spacingJitter: {
+                ja: "ランダム間隔のばらつきの強さです。右ほど均等な位置から大きくずれます。「ランダム」のときだけ使えます。",
+                en: "How far the random spacing strays from even spacing; further right strays more. Available only with Random."
+            },
             groupPlaced: { ja: "配置したオブジェクトを1つのグループにまとめます。", en: "Groups the placed objects into a single group." },
+            allRandom: { ja: "順番・間隔・回転をまとめてランダムに設定します。", en: "Sets order, spacing and rotation all to random at once." },
             preview: {
                 ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
                 en: "Shows the result on the canvas. Cancel restores the original state."
-            },
-            allRandom: { ja: "順番・間隔・回転をまとめてランダムに設定します。", en: "Sets order, spacing and rotation all to random at once." }
+            }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -124,1699 +335,1675 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "panel.order" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
     function getLabel(labelPath) {
-      var pathKeys = String(labelPath).split(".");
-      var labelNode = LABELS;
-      for (var i = 0; i < pathKeys.length; i++) {
-        labelNode = labelNode[pathKeys[i]];
-        if (!labelNode) return labelPath;
-      }
-      return labelNode[uiLang] || labelNode.en || labelPath;
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    /* ダイアログ外観設定 / Dialog appearance settings */
-    var DIALOG_OFFSET_X = 300;
-    var DIALOG_OFFSET_Y = 0;
-    var DIALOG_OPACITY = 0.98;
+    // =========================================
+    // 配列と乱数 / Arrays and random numbers
+    // =========================================
 
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-      dlg.onShow = function () {
-        var currentX = dlg.location[0];
-        var currentY = dlg.location[1];
-        dlg.location = [currentX + offsetX, currentY + offsetY];
-      };
+    /**
+     * 配列の浅いコピーを返す
+     * @param {Array} sourceList - 元の配列
+     * @returns {Array} コピー
+     */
+    function copyArray(sourceList) {
+        var copiedList = [];
+        for (var i = 0; i < sourceList.length; i++) copiedList.push(sourceList[i]);
+        return copiedList;
     }
 
-    function setDialogOpacity(dlg, opacityValue) {
-      try {
-        dlg.opacity = opacityValue;
-      } catch (e) {
-        // opacity not supported in some environments
-      }
+    /**
+     * シード付きの乱数関数を作る（xorshift32）
+     * @param {number} seed - シード
+     * @returns {Function} 0 以上 1 未満の数を返す関数
+     */
+    function createSeededRandom(seed) {
+        var state = (seed | 0);
+        if (state === 0) state = 123456789;
+        return function () {
+            state ^= (state << 13);
+            state ^= (state >>> 17);
+            state ^= (state << 5);
+            return (state >>> 0) / 4294967296;
+        };
     }
 
-    // Add arrow-key increment/decrement support for ScriptUI edittext fields
-    function changeValueByArrowKey(editText, allowNegative) {
-      editText.addEventListener("keydown", function (event) {
-        if (!event || !event.keyName) return;
-        if (event.keyName !== "Up" && event.keyName !== "Down") return;
-
-        var value = Number(editText.text);
-        if (isNaN(value)) return;
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
-
-        if (keyboard.shiftKey) {
-          delta = 10;
-          // Shiftキー押下時は10の倍数にスナップ
-          if (event.keyName == "Up") {
-            value = Math.ceil((value + 1) / delta) * delta;
-            event.preventDefault();
-          } else if (event.keyName == "Down") {
-            value = Math.floor((value - 1) / delta) * delta;
-            event.preventDefault();
-          }
-        } else if (keyboard.altKey) {
-          delta = 0.1;
-          // Optionキー押下時は0.1単位で増減
-          if (event.keyName == "Up") {
-            value += delta;
-            event.preventDefault();
-          } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
-          }
-        } else {
-          delta = 1;
-          if (event.keyName == "Up") {
-            value += delta;
-            event.preventDefault();
-          } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
-          }
-        }
-
-        if (keyboard.altKey) {
-          // 小数第1位までに丸め
-          value = Math.round(value * 10) / 10;
-        } else {
-          // 整数に丸め
-          value = Math.round(value);
-        }
-
-        if (!allowNegative && value < 0) value = 0;
-
-        event.preventDefault();
-        editText.text = value;
-
-        // Trigger existing change handlers so preview/UI stays in sync
-        try {
-          if (typeof editText.onChange === "function") editText.onChange();
-        } catch (e) { }
-      });
+    /**
+     * 現在時刻から並べ替え用のシードを作る
+     * @returns {number} シード
+     */
+    function createShuffleSeed() {
+        return (new Date().getTime() & 0x7fffffff) >>> 0;
     }
 
-    (function () {
-      if (app.documents.length === 0) {
-        safeAlertKey('alertNoDocument');
-        return;
-      }
-
-      var doc = app.activeDocument;
-      var currentSelection = doc.selection;
-
-      // Exit early when selection is insufficient (0 or 1) / 選択が0または1の場合はダイアログを出さず終了
-      if (!currentSelection || currentSelection.length < 2) {
-        safeAlertKey('alertNeedSelection');
-        return;
-      }
-
-      // Options (kept as current defaults) / オプション（現状の既定値を維持）
-      var rotateAlongTangent = false; // trueにすると接線方向へ回転（簡易）
-      var useEndpoints = true;        // true: 始点〜終点を含めて等分 / false: 端を避ける
-      var samplesPerSegment = 30;     // 精度（増やすほど重い）
-
-      // Random spacing strength (ratio of step) / ランダム間隔の強さ（ステップに対する比率）
-      // 0.1〜1.0 の範囲で調整
-      var spacingRandomJitterRatio = 0.4;
-      var _spacingJitterDragging = false;
-
-      // Preview internals / プレビュー用内部
-      var PREVIEW_LAYER_NAME = "__PREVIEW_ArrangeAlongPath";
-      var previewLayer = null;
-
-      // Selection snapshot for preview rebuild / プレビュー再構築用の選択スナップショット
-      var previewSelSnapshot = null;
-
-      // Remember last random order so OK matches the latest Preview / ランダム順を保持（プレビューとOKを一致）
-      var lastRandomOrder = null;
-
-      // Remember last random spacing so OK matches the latest Preview / ランダム間隔を保持（プレビューとOKを一致）
-      var lastRandomSpacing = null; // { totalLen: number, ds: number[] }
-
-      // Seeded shuffle for duplicated-items random order / 複製後のランダム順をシードで一致させる
-      var lastRandomOrderSeed = null;
-      var lastRandomOrderSeedLen = null;
-      var lastRandomOrderSeedDup = null;
-
-      // Original visibility backup for preview / プレビュー中の元オブジェクト非表示（退避）
-      var previewHiddenItems = [];
-      var previewHiddenStates = [];
-
-      // Alert guard to prevent stacked/repeated dialogs / アラートの多重表示防止
-      var _alertLock = false;
-      var _alertLastAtByKey = {};
-      var _alertLastSigByKey = {};
-
-      function _getSelectionSignature() {
-        // A lightweight signature to dedupe alerts when the selection/state hasn't changed
-        try {
-          var s = doc && doc.selection ? doc.selection : null;
-          if (!s || s.length === 0) return "sel:0";
-          var counts = {};
-          for (var i = 0; i < s.length; i++) {
-            var t = (s[i] && s[i].typename) ? s[i].typename : "?";
-            counts[t] = (counts[t] || 0) + 1;
-          }
-          var parts = ["sel:" + s.length];
-          for (var k in counts) {
-            if (counts.hasOwnProperty(k)) parts.push(k + ":" + counts[k]);
-          }
-          // also include base-path rule radios (Auto/Front/Back)
-          var rule = (rbAutoLargest && rbAutoLargest.value) ? "auto" : ((rbFrontmost && rbFrontmost.value) ? "front" : "back");
-          parts.push("rule:" + rule);
-          return parts.join("|");
-        } catch (e) {
-          return "sel:?";
+    /**
+     * 配列をその場で並べ替える（Fisher-Yates）
+     * @param {Array} targetList - 並べ替える配列
+     * @param {Function} [randomFn] - 乱数関数（省略時は Math.random）
+     * @returns {void}
+     */
+    function shuffleInPlace(targetList, randomFn) {
+        for (var i = targetList.length - 1; i > 0; i--) {
+            var randomValue = randomFn ? randomFn() : Math.random();
+            var j = Math.floor(randomValue * (i + 1));
+            var swappedItem = targetList[i];
+            targetList[i] = targetList[j];
+            targetList[j] = swappedItem;
         }
-      }
+    }
 
-      function safeAlertKey(labelKey) {
-        if (_alertLock) return;
+    /**
+     * 複製数を範囲内の整数にそろえる
+     * @param {number|string} value - 入力値
+     * @returns {number} DUPLICATE_COUNT_MIN〜DUPLICATE_COUNT_MAX の整数
+     */
+    function clampDuplicateCount(value) {
+        var count = Math.round(Number(value));
+        if (isNaN(count)) count = DUPLICATE_COUNT_MIN;
+        if (count < DUPLICATE_COUNT_MIN) count = DUPLICATE_COUNT_MIN;
+        if (count > DUPLICATE_COUNT_MAX) count = DUPLICATE_COUNT_MAX;
+        return count;
+    }
 
-        var now = new Date().getTime();
-        var lastAt = _alertLastAtByKey[labelKey] || 0;
-        var sig = _getSelectionSignature();
-        var lastSig = _alertLastSigByKey[labelKey] || "";
+    /**
+     * ランダム間隔の強さを 0.1〜1.0 にそろえる
+     * @param {number} value - スライダーの値
+     * @returns {number} 強さ
+     */
+    function clampJitterRatio(value) {
+        var ratio = Number(value);
+        if (isNaN(ratio)) ratio = DEFAULT_SPACING_JITTER_RATIO;
+        if (ratio < 0.1) ratio = 0.1;
+        if (ratio > 1.0) ratio = 1.0;
+        return ratio;
+    }
 
-        // Suppress duplicates for the same key under the same selection/state
-        if (sig === lastSig && (now - lastAt) < 15000) {
-          return;
+    // =========================================
+    // 選択と重ね順 / Selection and stacking order
+    // =========================================
+
+    /**
+     * 2点以上あるパスか
+     * @param {PageItem} candidate - 調べるオブジェクト
+     * @returns {boolean} パスなら true
+     */
+    function isPathItem(candidate) {
+        return candidate && candidate.typename === "PathItem" && candidate.pathPoints && candidate.pathPoints.length >= 2;
+    }
+
+    /**
+     * パスに沿って配置できる種類のオブジェクトか
+     * @param {PageItem} candidate - 調べるオブジェクト
+     * @returns {boolean} 配置できるなら true
+     */
+    function isPlaceableItem(candidate) {
+        if (!candidate) return false;
+        var typeName = candidate.typename;
+        return (
+            typeName === "PathItem" ||
+            typeName === "CompoundPathItem" ||
+            typeName === "GroupItem" ||
+            typeName === "TextFrame" ||
+            typeName === "PlacedItem" ||
+            typeName === "RasterItem" ||
+            typeName === "SymbolItem" ||
+            typeName === "MeshItem"
+        );
+    }
+
+    /**
+     * 選択から、基準パス以外の配置できるオブジェクトを集める
+     * @param {PageItem[]} selectionItems - 選択
+     * @param {PathItem} basePath - 基準パス
+     * @returns {PageItem[]} 配置するオブジェクト
+     */
+    function collectPlaceableItems(selectionItems, basePath) {
+        var placeableItems = [];
+        for (var i = 0; i < selectionItems.length; i++) {
+            if (selectionItems[i] === basePath) continue;
+            if (isPlaceableItem(selectionItems[i])) placeableItems.push(selectionItems[i]);
         }
+        return placeableItems;
+    }
 
-        _alertLastAtByKey[labelKey] = now;
-        _alertLastSigByKey[labelKey] = sig;
+    /**
+     * 重ね順の位置を返す
+     * @param {PageItem} pageItem - 対象
+     * @returns {number|null} zOrderPosition。取れなければ null
+     */
+    function getZOrderPosition(pageItem) {
+        var zOrder = null;
+        try { zOrder = pageItem.zOrderPosition; } catch (e) { /* 取れないオブジェクトがある / not available for some items */ }
+        if (zOrder === null || zOrder === undefined) return null;
+        return zOrder;
+    }
 
-        _alertLock = true;
-        try { alert(getLabel(labelKey)); } catch (e) { }
-        _alertLock = false;
-      }
-
-      function restoreHiddenItems() {
-        if (!previewHiddenItems || previewHiddenItems.length === 0) return;
-        for (var i = 0; i < previewHiddenItems.length; i++) {
-          var it = previewHiddenItems[i];
-          var st = previewHiddenStates[i];
-          try { it.hidden = st; } catch (e) { }
-        }
-        previewHiddenItems = [];
-        previewHiddenStates = [];
-      }
-
-      function hideOriginalItemsForPreview(baseItem, itemsArray) {
-        // reset
-        previewHiddenItems = [];
-        previewHiddenStates = [];
-
-        function pushItem(it) {
-          if (!it) return;
-          // avoid duplicates
-          for (var k = 0; k < previewHiddenItems.length; k++) {
-            if (previewHiddenItems[k] === it) return;
-          }
-          var prevHidden = false;
-          try { prevHidden = !!it.hidden; } catch (e) { prevHidden = false; }
-          previewHiddenItems.push(it);
-          previewHiddenStates.push(prevHidden);
-          try { it.hidden = true; } catch (e) { }
+    /**
+     * 重ね順（最前面→最背面）に並べた配列を返す。重ね順が取れないものは後ろに元の順で並べる
+     * @param {PageItem[]} sourceItems - 並べるオブジェクト
+     * @returns {PageItem[]} 並べ替えた配列
+     */
+    function sortByStackingOrder(sourceItems) {
+        var decoratedItems = [];
+        for (var i = 0; i < sourceItems.length; i++) {
+            var zOrder = getZOrderPosition(sourceItems[i]);
+            decoratedItems.push({ item: sourceItems[i], zOrder: zOrder, hasZOrder: (zOrder !== null), index: i });
         }
 
-        pushItem(baseItem);
-        if (itemsArray && itemsArray.length) {
-          for (var i = 0; i < itemsArray.length; i++) {
-            pushItem(itemsArray[i]);
-          }
-        }
-      }
-
-      function clearPreview() {
-        try {
-          if (previewLayer) {
-            try { previewLayer.locked = false; } catch (e) { }
-            previewLayer.remove();
-          }
-        } catch (e) {
-          // ignore
-        }
-        previewLayer = null;
-        restoreHiddenItems();
-
-        // Restore selection if it was dropped while preview hid originals / プレビューで選択が落ちた場合に復元
-        try {
-          var cur = doc.selection;
-          if ((!cur || cur.length === 0) && previewSelSnapshot && previewSelSnapshot.length) {
-            doc.selection = previewSelSnapshot;
-          }
-        } catch (e) { }
-
-        app.redraw();
-      }
-
-      function buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, showAlerts) {
-        // Always rebuild / 常に作り直す
-        clearPreview();
-
-        var curSel = doc.selection;
-        if (!curSel || curSel.length < 2) {
-          // When originals are hidden, Illustrator may drop the selection.
-          // Use the last snapshot if available.
-          if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
-            curSel = previewSelSnapshot;
-          }
-        }
-        if (!curSel || curSel.length < 2) {
-          if (showAlerts) safeAlertKey('alertNeedSelection');
-          return false;
-        }
-
-        // Save snapshot for subsequent rebuilds while preview is ON
-        previewSelSnapshot = [];
-        for (var si = 0; si < curSel.length; si++) {
-          previewSelSnapshot.push(curSel[si]);
-        }
-
-        var base = rbAutoLargest.value ? getLargestPathItem(curSel) : (rbFrontmost.value ? getFrontmostPathItem(curSel) : getBackmostPathItem(curSel));
-        if (!base) {
-          if (showAlerts) safeAlertKey('alertNoBasePath');
-          return false;
-        }
-
-        var srcItems = [];
-        for (var i = 0; i < curSel.length; i++) {
-          if (curSel[i] === base) continue;
-          if (isPlaceableItem(curSel[i])) srcItems.push(curSel[i]);
-        }
-
-        if (srcItems.length === 0) {
-          if (showAlerts) safeAlertKey('alertNoItems');
-          return false;
-        }
-
-        var orderMode = getOrderMode();
-        var orderedSrcItems = applyOrderToArray(srcItems, orderMode, true);
-
-        var dupCount = 1;
-        try { dupCount = getDupCount(); } catch (e) { dupCount = 1; }
-        if (dupCount < 1) dupCount = 1;
-
-        // Keep current selection (duplication may change selection) / 選択状態を保持
-        var keepSelArr = [];
-        try {
-          for (var ks = 0; ks < curSel.length; ks++) keepSelArr.push(curSel[ks]);
-        } catch (e) { }
-
-        // Create preview layer on top / プレビュー用レイヤーを最前面に作成
-        try {
-          previewLayer = doc.layers.add();
-          previewLayer.name = PREVIEW_LAYER_NAME;
-        } catch (eL) {
-          previewLayer = null;
-          return false;
-        }
-
-        var gPrev = null;
-        try {
-          gPrev = previewLayer.groupItems.add();
-          gPrev.name = "Preview_ArrangedAlongPath";
-        } catch (eG) {
-          try { previewLayer.remove(); } catch (e) { }
-          previewLayer = null;
-          return false;
-        }
-
-        // Duplicate base path for geometry / 形状計算用に基準パスを複製
-        var prevPath = null;
-        try {
-          prevPath = base.duplicate(gPrev, ElementPlacement.PLACEATBEGINNING);
-        } catch (eP) {
-          try { previewLayer.remove(); } catch (e) { }
-          previewLayer = null;
-          return false;
-        }
-
-        // Apply base-path appearance mode to preview only / プレビュー側だけ外観モード反映
-        if (rbHide.value) {
-          try {
-            prevPath.filled = false;
-            prevPath.stroked = false;
-          } catch (e) { }
-        }
-
-        // Duplicate items / 配置対象を複製
-        var prevItems = [];
-        for (var di = 0; di < orderedSrcItems.length; di++) {
-          for (var dc = 0; dc < dupCount; dc++) {
-            try {
-              var dup = orderedSrcItems[di].duplicate(gPrev, ElementPlacement.PLACEATEND);
-              prevItems.push(dup);
-            } catch (e) {
-              // skip
+        decoratedItems.sort(function (a, b) {
+            if (a.hasZOrder && b.hasZOrder) {
+                if (a.zOrder === b.zOrder) return a.index - b.index;
+                return b.zOrder - a.zOrder; /* 大きいほど前面 / larger is frontmost */
             }
-          }
-        }
-
-        if (prevItems.length === 0) {
-          clearPreview();
-          if (showAlerts) safeAlertKey('alertNoItems');
-          return false;
-        }
-
-        // If order is random and duplication is used, shuffle ALL duplicates together.
-        if (orderMode === "random" && dupCount > 1) {
-          var seed = (new Date().getTime() & 0x7fffffff) >>> 0;
-          lastRandomOrderSeed = seed;
-          lastRandomOrderSeedLen = prevItems.length;
-          lastRandomOrderSeedDup = dupCount;
-          shuffleInPlaceWithSeed(prevItems, seed);
-        } else {
-          lastRandomOrderSeed = null;
-          lastRandomOrderSeedLen = null;
-          lastRandomOrderSeedDup = null;
-        }
-
-        // Arrange duplicates / 複製を配置
-        var rot = getRotationSettings();
-        var spacingMode = getSpacingMode();
-        var ok = arrangeAlongPath(prevPath, prevItems, true, rot, spacingMode, true);
-        if (!ok) {
-          clearPreview();
-          return false;
-        }
-
-        // If delete is selected, remove preview path after arranging / 削除選択時は配置後にパスを消す
-        if (rbDelete.value) {
-          try { prevPath.remove(); } catch (e) { }
-        }
-
-        // Hide originals while preview is shown / プレビュー表示中は元オブジェクトを隠す
-        hideOriginalItemsForPreview(base, srcItems);
-
-        // Restore selection / 選択を復元
-        try { doc.selection = keepSelArr; } catch (e) { }
-        app.redraw();
-
-        return true;
-      }
-
-      /* ダイアログ / Dialog */
-      var dlg = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-      dlg.orientation = "column";
-      dlg.alignChildren = "fill";
-
-      // Apply dialog appearance / 外観適用
-      setDialogOpacity(dlg, DIALOG_OPACITY);
-      shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-
-      // Two columns / 2カラム
-      var cols = dlg.add("group");
-      cols.orientation = "row";
-      cols.alignChildren = ["fill", "top"];
-      cols.spacing = 15;
-
-      var leftColumn = cols.add("group");
-      leftColumn.orientation = "column";
-      leftColumn.alignChildren = "fill";
-      leftColumn.alignment = "top";
-
-      var rightColumn = cols.add("group");
-      rightColumn.orientation = "column";
-      rightColumn.alignChildren = "fill";
-      rightColumn.alignment = "top";
-
-      // Target path / 対象パス
-      var targetPathPanel = leftColumn.add("panel", undefined, getLabel('panel.targetPath'));
-      targetPathPanel.orientation = "column";
-      targetPathPanel.alignChildren = "left";
-      targetPathPanel.margins = [15, 20, 15, 15];
-
-      // 対象 / Target
-      var orderPanel = targetPathPanel.add("panel", undefined, getLabel('panel.pathOrder'));
-      orderPanel.helpTip = getLabel('tooltip.pathOrder');
-      orderPanel.orientation = "column";
-      orderPanel.alignChildren = "left";
-      orderPanel.margins = [15, 20, 15, 10];
-
-      var rbAutoLargest = orderPanel.add("radiobutton", undefined, getLabel('radio.autoLargest'));
-      var rbFrontmost = orderPanel.add("radiobutton", undefined, getLabel('radio.frontmost'));
-      var rbBackmost = orderPanel.add("radiobutton", undefined, getLabel('radio.backmost'));
-      rbAutoLargest.value = true; // default: Auto (largest-area)
-
-      // 処理 / Handling
-      var basePathPanel = targetPathPanel.add("panel", undefined, getLabel('panel.basePath'));
-      basePathPanel.helpTip = getLabel('tooltip.basePath');
-      basePathPanel.orientation = "column";
-      basePathPanel.alignChildren = "left";
-      basePathPanel.margins = [15, 20, 15, 10];
-
-      /* 基準パスの扱い（排他） / Base path handling (exclusive) */
-      var rbNone = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeNone'));
-      var rbHide = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeHide'));
-      var rbDelete = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeDelete'));
-      rbHide.value = true; // default（旧「塗り/線をなしに」ON相当）
-
-      // Objects to arrange / 配置するオブジェクト
-      var placeObjPanel = rightColumn.add("panel", undefined, getLabel('panel.placeObjects'));
-      placeObjPanel.orientation = "column";
-      placeObjPanel.alignChildren = "fill";
-      placeObjPanel.margins = [15, 20, 15, 10];
-
-      // Duplicate / 複製
-      var dupPanel = placeObjPanel.add("panel", undefined, getLabel('panel.duplicate'));
-      dupPanel.helpTip = getLabel('tooltip.duplicateCount');
-      dupPanel.orientation = "column";
-      dupPanel.alignChildren = "fill";
-      dupPanel.margins = [15, 20, 15, 10];
-
-      var duplicateTopRow = dupPanel.add("group");
-      duplicateTopRow.orientation = "row";
-      duplicateTopRow.alignChildren = ["left", "center"];
-      duplicateTopRow.spacing = 10;
-
-      var cbDupEnable = duplicateTopRow.add("checkbox", undefined, "");
-      // Default behavior based on initial selection count
-      var initialSelCount = (currentSelection && currentSelection.length) ? currentSelection.length : 0;
-      cbDupEnable.value = (initialSelCount === 2); // ON only when exactly 2 selected
-      cbDupEnable.preferredSize.width = 18;
-
-      var stDup = duplicateTopRow.add("statictext", undefined, getLabel('fieldLabel.duplicateCount'));
-      var etDupCount = duplicateTopRow.add("edittext", undefined, "2");
-      etDupCount.helpTip = getLabel('tooltip.duplicateCount');
-      etDupCount.characters = 4;
-      changeValueByArrowKey(etDupCount, false);
-
-      var duplicateSliderRow = dupPanel.add("group");
-      duplicateSliderRow.orientation = "row";
-      duplicateSliderRow.alignChildren = ["left", "center"];
-
-      var sldDupCount = duplicateSliderRow.add("slider", undefined, 2, 2, 20);
-      sldDupCount.preferredSize.width = 180;
-      if (cbDupEnable.value) {
-        etDupCount.text = "2";
-        sldDupCount.value = 2;
-      }
-
-      function clampDupCount(v) {
-        v = Math.round(Number(v));
-        if (isNaN(v)) v = 2;
-        if (v < 2) v = 2;
-        if (v > 20) v = 20;
-        return v;
-      }
-
-      function getDupCount() {
-        if (!cbDupEnable.value) return 1;
-        return clampDupCount(etDupCount.text);
-      }
-
-      function updateDupUI() {
-        var en = !!cbDupEnable.value;
-        etDupCount.enabled = en;
-        sldDupCount.enabled = en;
-        // Do not reset values when disabling; only disable controls
-      }
-
-      cbDupEnable.onClick = function () {
-        if (cbDupEnable.value) {
-          // ON: set default duplicate count to 2
-          etDupCount.text = "2";
-          sldDupCount.value = 2;
-        }
-        updateDupUI();
-        rebuildPreviewIfNeeded();
-      };
-
-      function syncDupUIFromText(rebuild) {
-        var v = clampDupCount(etDupCount.text);
-        etDupCount.text = String(v);
-        sldDupCount.value = v;
-        // NOTE: duplication logic will be added later
-        if (rebuild) rebuildPreviewIfNeeded();
-      }
-
-      sldDupCount.onChanging = function () {
-        // Update text only while dragging
-        var v = clampDupCount(sldDupCount.value);
-        etDupCount.text = String(v);
-      };
-
-      sldDupCount.onChange = function () {
-        syncDupUIFromText(true);
-      };
-
-      etDupCount.onChange = function () {
-        syncDupUIFromText(true);
-      };
-      updateDupUI();
-
-      // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
-      var rotPanel = placeObjPanel.add("panel", undefined, getLabel('panel.rotation'));
-      rotPanel.helpTip = getLabel('tooltip.rotation');
-      rotPanel.orientation = "column";
-      rotPanel.alignChildren = "left";
-      rotPanel.margins = [15, 20, 15, 10];
-
-      // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
-      var rotationRadioGroup = rotPanel.add("group");
-      rotationRadioGroup.orientation = "column";
-      rotationRadioGroup.alignChildren = "left";
-
-      // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → パスに対して垂直 → ランダム → 角度指定）
-      var rbRotNone = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationNone'));
-      var rbRotPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationPerpendicular'));
-      var rbRotPathPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationPathPerpendicular'));
-      var rbRotRandom = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationRandom'));
-      rbRotNone.value = true; // default
-
-      // Angle (single line) / 角度指定（1行）
-      var rotationAngleRow = rotationRadioGroup.add("group");
-      rotationAngleRow.orientation = "row";
-      rotationAngleRow.alignChildren = ["left", "center"];
-      rotationAngleRow.spacing = 6;
-
-      var rbRotAngle = rotationAngleRow.add("radiobutton", undefined, getLabel('radio.rotationAngle'));
-      var etRotAngle = rotationAngleRow.add("edittext", undefined, "0");
-      etRotAngle.helpTip = getLabel('tooltip.rotationAngle');
-      etRotAngle.characters = 3;
-      changeValueByArrowKey(etRotAngle, true);
-      var stRotDeg = rotationAngleRow.add("statictext", undefined, "°");
-
-      // 180° rotation checkbox
-      var cbRotFlip180 = rotPanel.add("checkbox", undefined, getLabel('checkbox.rotationFlip180'));
-      cbRotFlip180.value = false;
-      cbRotFlip180.onClick = function () { rebuildPreviewIfNeeded(); };
-
-      // Order / 順番
-      var orderModePanel = placeObjPanel.add("panel", undefined, getLabel('panel.order'));
-      orderModePanel.helpTip = getLabel('tooltip.order');
-      orderModePanel.orientation = "row";
-      orderModePanel.alignChildren = ["left", "center"];
-      orderModePanel.margins = [15, 20, 15, 10];
-      orderModePanel.spacing = 12;
-
-      var rbOrderCurrent = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderCurrent'));
-      var rbOrderReverse = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderReverse'));
-      var rbOrderRandom = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderRandom'));
-      rbOrderCurrent.value = true; // default
-
-      // Spacing / 間隔
-      var spacingPanel = placeObjPanel.add("panel", undefined, getLabel('panel.spacing'));
-      spacingPanel.helpTip = getLabel('tooltip.spacing');
-      spacingPanel.orientation = "column";
-      spacingPanel.alignChildren = "fill";
-      spacingPanel.margins = [15, 20, 15, 10];
-
-      // Radios (horizontal) / ラジオ（横並び）
-      var spacingRadioGroup = spacingPanel.add("group");
-      spacingRadioGroup.orientation = "row";
-      spacingRadioGroup.alignChildren = ["left", "center"];
-      spacingRadioGroup.spacing = 12;
-
-      var rbSpacingEven = spacingRadioGroup.add("radiobutton", undefined, getLabel('radio.spacingEven'));
-      var rbSpacingRandom = spacingRadioGroup.add("radiobutton", undefined, getLabel('radio.spacingRandom'));
-      rbSpacingEven.value = true; // default
-
-      // Slider (enabled only when Random) / スライダー（ランダム選択時のみ有効）
-      var spacingSliderRow = spacingPanel.add("group");
-      spacingSliderRow.orientation = "row";
-      spacingSliderRow.alignChildren = ["left", "center"];
-
-      // small indent under radios
-      // var stSpIndent = spacingSliderRow.add("statictext", undefined, "");
-      // stSpIndent.preferredSize.width = 18;
-
-      var sldSpacingJitter = spacingSliderRow.add("slider", undefined, spacingRandomJitterRatio, 0.1, 1.0);
-      sldSpacingJitter.preferredSize.width = 180;
-
-      // Hidden label (kept for logic; no layout space) / 非表示ラベル（ロジック用・余白なし）
-      var stSpacingJitterVal = spacingSliderRow.add("statictext", undefined, "");
-      stSpacingJitterVal.visible = false;
-      stSpacingJitterVal.minimumSize.width = 0;
-      stSpacingJitterVal.maximumSize.width = 0;
-      stSpacingJitterVal.preferredSize.width = 0;
-
-      sldSpacingJitter.enabled = false;
-      stSpacingJitterVal.enabled = false;
-
-      // Grouping / グループ化（右カラム・中央寄せ）
-      var gGroupPlaced = placeObjPanel.add("group");
-      gGroupPlaced.orientation = "row";
-      gGroupPlaced.alignment = "fill";
-      gGroupPlaced.alignChildren = ["center", "center"];
-
-      // left spacer
-      var stGrpSpL = gGroupPlaced.add("statictext", undefined, "");
-      stGrpSpL.alignment = "fill";
-      stGrpSpL.minimumSize.width = 10;
-      stGrpSpL.maximumSize.width = 10000;
-
-      // checkboxes (centered)
-      var groupOptionRow = gGroupPlaced.add("group");
-      groupOptionRow.orientation = "row";
-      groupOptionRow.alignChildren = ["center", "center"];
-      groupOptionRow.spacing = 12;
-
-      var cbGroupPlaced = groupOptionRow.add("checkbox", undefined, getLabel('checkbox.groupPlaced'));
-      cbGroupPlaced.helpTip = getLabel('tooltip.groupPlaced');
-      cbGroupPlaced.value = true; // default ON
-
-      var cbAllRandom = groupOptionRow.add("checkbox", undefined, getLabel('checkbox.allRandom'));
-      cbAllRandom.helpTip = getLabel('tooltip.allRandom');
-      cbAllRandom.value = false;
-
-      // right spacer
-      var stGrpSpR = gGroupPlaced.add("statictext", undefined, "");
-      stGrpSpR.alignment = "fill";
-      stGrpSpR.minimumSize.width = 10;
-      stGrpSpR.maximumSize.width = 10000;
-
-      // Bottom bar (3 columns) / 下部バー（3カラム）
-      var bottomBar = dlg.add("group");
-      bottomBar.orientation = "row";
-      bottomBar.alignment = "fill";
-      bottomBar.alignChildren = ["left", "center"];
-
-      // Left: Preview / 左：プレビュー
-      var footerLeftGroup = bottomBar.add("group");
-      footerLeftGroup.orientation = "row";
-      footerLeftGroup.alignChildren = ["left", "center"];
-      var cbPreview = footerLeftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
-      cbPreview.helpTip = getLabel('tooltip.preview');
-      cbPreview.value = false;
-      footerLeftGroup.margins = [0, 0, 0, 0];
-
-      // Middle: spacer / 中央：スペーサー
-
-      var stSpacer = bottomBar.add("group");
-      stSpacer.alignment = ["fill", "fill"];
-      stSpacer.minimumSize.width = 0;
-
-      // Right: Buttons / 右：ボタン
-      var btnRowGroup = bottomBar.add("group");
-      btnRowGroup.orientation = "row";
-      btnRowGroup.alignment = "right";
-      btnRowGroup.alignChildren = ["right", "center"];
-
-      var btnCancel = btnRowGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
-      var btnOK = btnRowGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
-
-      // Ensure Cancel always closes / キャンセルで必ず閉じる
-      btnCancel.onClick = function () {
-        try { dlg.close(0); } catch (e) { }
-      };
-
-      // Wire preview handlers / プレビュー連動
-      function rebuildPreviewIfNeeded() {
-        if (!cbPreview.value) return;
-        var ok = false;
-        try {
-          ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, false);
-        } catch (e) {
-          ok = false;
-        }
-        if (!ok) {
-          cbPreview.value = false;
-          clearPreview();
-        }
-      }
-
-      function setRotationMode(mode) {
-        rbRotNone.value = (mode === "none");
-        rbRotAngle.value = (mode === "angle");
-        rbRotPerp.value = (mode === "perp");
-        rbRotPathPerp.value = (mode === "path_perp");
-        rbRotRandom.value = (mode === "random");
-        updateRotationUI();
-      }
-
-      function updateRotationUI() {
-        etRotAngle.enabled = !!rbRotAngle.value;
-      }
-
-      function getRotationSettings() {
-        var mode = "none";
-        try {
-          if (rbRotAngle.value) mode = "angle";
-          else if (rbRotPerp.value) mode = "perp";
-          else if (rbRotPathPerp.value) mode = "path_perp";
-          else if (rbRotRandom.value) mode = "random";
-        } catch (e) { mode = "none"; }
-
-        var ang = 0;
-        try {
-          ang = Number(etRotAngle.text);
-          if (isNaN(ang)) ang = 0;
-        } catch (e) { ang = 0; }
-
-        var flip180 = false;
-        try { flip180 = !!cbRotFlip180.value; } catch (e) { flip180 = false; }
-
-        return { mode: mode, angle: ang, flip180: flip180 };
-      }
-
-      function getOrderMode() {
-        try {
-          if (rbOrderReverse.value) return "reverse";
-          if (rbOrderRandom.value) return "random";
-        } catch (e) { }
-        return "current";
-      }
-
-      function getSpacingMode() {
-        try {
-          if (rbSpacingRandom.value) return "random";
-        } catch (e) { }
-        return "even";
-      }
-
-      function updateSpacingUI() {
-        var en = !!rbSpacingRandom.value;
-        sldSpacingJitter.enabled = en;
-        stSpacingJitterVal.enabled = en;
-      }
-
-      function getZOrderPosSafe(it) {
-        var z = null;
-        try { z = it.zOrderPosition; } catch (e) { z = null; }
-        if (z === null || z === undefined) return null;
-        return z;
-      }
-
-      // “現状” = stacking order (frontmost → backmost) / 「現状」＝重ね順（最前面→最背面）
-      function getCurrentOrderedArray(arr) {
-        var deco = [];
-        for (var i = 0; i < arr.length; i++) {
-          var it = arr[i];
-          var z = getZOrderPosSafe(it);
-          deco.push({ it: it, z: z, hasZ: (z !== null), idx: i });
-        }
-
-        deco.sort(function (a, b) {
-          if (a.hasZ && b.hasZ) {
-            if (a.z === b.z) return a.idx - b.idx;
-            return b.z - a.z; // larger = frontmost
-          }
-          if (a.hasZ) return -1;
-          if (b.hasZ) return 1;
-          return a.idx - b.idx;
+            if (a.hasZOrder) return -1;
+            if (b.hasZOrder) return 1;
+            return a.index - b.index;
         });
 
-        var out = [];
-        for (var j = 0; j < deco.length; j++) out.push(deco[j].it);
-        return out;
-      }
+        var sortedItems = [];
+        for (var j = 0; j < decoratedItems.length; j++) sortedItems.push(decoratedItems[j].item);
+        return sortedItems;
+    }
 
-      function applyStoredOrder(baseArr, storedArr) {
-        if (!storedArr || !storedArr.length) return null;
+    /**
+     * 控えておいた順に並べ直す。控えに無いものは後ろに付ける
+     * @param {PageItem[]} baseItems - 並べ直すオブジェクト
+     * @param {PageItem[]|null} storedOrder - 控えておいた順
+     * @returns {PageItem[]|null} 並べ直した配列。1つも一致しなければ null（別の選択とみなす）
+     */
+    function reorderByStoredOrder(baseItems, storedOrder) {
+        if (!storedOrder || !storedOrder.length) return null;
 
-        var used = [];
-        for (var i = 0; i < baseArr.length; i++) used[i] = false;
+        var usedFlags = [];
+        for (var i = 0; i < baseItems.length; i++) usedFlags[i] = false;
 
-        var out = [];
-        var matched = 0;
+        var reorderedItems = [];
+        var matchedCount = 0;
 
-        for (var s = 0; s < storedArr.length; s++) {
-          var target = storedArr[s];
-          for (var i2 = 0; i2 < baseArr.length; i2++) {
-            if (!used[i2] && baseArr[i2] === target) {
-              used[i2] = true;
-              out.push(baseArr[i2]);
-              matched++;
-              break;
+        for (var s = 0; s < storedOrder.length; s++) {
+            for (var j = 0; j < baseItems.length; j++) {
+                if (!usedFlags[j] && baseItems[j] === storedOrder[s]) {
+                    usedFlags[j] = true;
+                    reorderedItems.push(baseItems[j]);
+                    matchedCount++;
+                    break;
+                }
             }
-          }
         }
 
-        // append leftovers
-        for (var k = 0; k < baseArr.length; k++) {
-          if (!used[k]) out.push(baseArr[k]);
+        /* 残りを後ろに付ける / Append the leftovers */
+        for (var k = 0; k < baseItems.length; k++) {
+            if (!usedFlags[k]) reorderedItems.push(baseItems[k]);
         }
 
-        // if nothing matched, treat as invalid (different selection)
-        if (matched === 0) return null;
+        if (matchedCount === 0) return null;
+        return reorderedItems;
+    }
 
-        return out;
-      }
-
-      function applyOrderToArray(arr, mode, isPreview) {
-        var base = getCurrentOrderedArray(arr);
-
-        if (mode === "reverse") {
-          lastRandomOrder = null;
-          base.reverse();
-          return base;
+    /**
+     * 外接矩形の面積を返す（線幅を含む visibleBounds を優先）
+     * @param {PageItem} pageItem - 対象
+     * @returns {number} 面積
+     */
+    function getBoundsArea(pageItem) {
+        var bounds = null;
+        try { bounds = pageItem.visibleBounds; } catch (e) { bounds = null; }
+        if (!bounds) {
+            try { bounds = pageItem.geometricBounds; } catch (e) { bounds = null; }
         }
+        if (!bounds || bounds.length < 4) return 0;
+        var width = Math.abs(bounds[2] - bounds[0]);
+        var height = Math.abs(bounds[1] - bounds[3]);
+        return width * height;
+    }
 
-        if (mode !== "random") {
-          lastRandomOrder = null;
-          return base; // current
-        }
+    /**
+     * 面積が最も大きいパスを返す。開いたパスは外接矩形の面積で比べる
+     * @param {PageItem[]} selectionItems - 選択
+     * @returns {PathItem|null} パス。無ければ null
+     */
+    function getLargestPathItem(selectionItems) {
+        var largestPath = null;
+        var largestArea = null;
 
-        // Random:
-        // If we already have a random order (from Preview), reuse it on OK so it matches.
-        if (!isPreview) {
-          var reused = applyStoredOrder(base, lastRandomOrder);
-          if (reused) return reused;
-        }
+        for (var i = 0; i < selectionItems.length; i++) {
+            var candidate = selectionItems[i];
+            if (!isPathItem(candidate)) continue;
 
-        // New shuffle (Preview builds the latest random order)
-        var out = [];
-        for (var i = 0; i < base.length; i++) out.push(base[i]);
-
-        for (var j = out.length - 1; j > 0; j--) {
-          var r = Math.floor(Math.random() * (j + 1));
-          var tmp = out[j];
-          out[j] = out[r];
-          out[r] = tmp;
-        }
-
-        lastRandomOrder = [];
-        for (var t = 0; t < out.length; t++) lastRandomOrder.push(out[t]);
-
-        return out;
-      }
-
-      function makeRng(seed) {
-        // xorshift32 (ExtendScript friendly)
-        var x = (seed | 0);
-        if (x === 0) x = 123456789;
-        return function () {
-          x ^= (x << 13);
-          x ^= (x >>> 17);
-          x ^= (x << 5);
-          return (x >>> 0) / 4294967296;
-        };
-      }
-
-      function shuffleInPlaceWithSeed(arr, seed) {
-        var rnd = makeRng(seed);
-        for (var i = arr.length - 1; i > 0; i--) {
-          var j = Math.floor(rnd() * (i + 1));
-          var tmp = arr[i];
-          arr[i] = arr[j];
-          arr[j] = tmp;
-        }
-      }
-
-      cbPreview.onClick = function () {
-        if (!cbPreview.value) {
-          clearPreview();
-          return;
-        }
-
-        // Validate selection BEFORE building preview to avoid alert stacking
-        var curSel = doc.selection;
-        if (!curSel || curSel.length < 2) {
-          if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
-            curSel = previewSelSnapshot;
-          }
-        }
-
-        if (!curSel || curSel.length < 2) {
-          safeAlertKey('alertNeedSelection');
-          cbPreview.value = false;
-          clearPreview();
-          return;
-        }
-
-        var base = rbAutoLargest.value ? getLargestPathItem(curSel) : (rbFrontmost.value ? getFrontmostPathItem(curSel) : getBackmostPathItem(curSel));
-        if (!base) {
-          safeAlertKey('alertNoBasePath');
-          cbPreview.value = false;
-          clearPreview();
-          return;
-        }
-
-        var srcItems = [];
-        for (var i = 0; i < curSel.length; i++) {
-          if (curSel[i] === base) continue;
-          if (isPlaceableItem(curSel[i])) srcItems.push(curSel[i]);
-        }
-        if (srcItems.length === 0) {
-          safeAlertKey('alertNoItems');
-          cbPreview.value = false;
-          clearPreview();
-          return;
-        }
-
-        // Build preview (silent inside)
-        var ok = false;
-        try {
-          ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, false);
-        } catch (e) {
-          ok = false;
-        }
-
-        if (!ok) {
-          cbPreview.value = false;
-          clearPreview();
-        }
-      };
-
-      rbNone.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbHide.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbDelete.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbAutoLargest.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbFrontmost.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbBackmost.onClick = function () { rebuildPreviewIfNeeded(); };
-
-      function onRotModeChanged(mode) {
-        setRotationMode(mode);
-
-        // When switching to Angle mode, set default to 10°
-        if (mode === "angle") {
-          etRotAngle.text = "10";
-        }
-
-        // Focus angle field when Angle is selected so ↑↓ works immediately
-        if (mode === "angle") {
-          try { etRotAngle.active = true; } catch (e) { }
-          try { etRotAngle.selection = [0, etRotAngle.text.length]; } catch (e) { }
-        }
-
-        rebuildPreviewIfNeeded();
-      }
-
-      rbRotNone.onClick = function () { onRotModeChanged("none"); };
-      rbRotPerp.onClick = function () { onRotModeChanged("perp"); };
-      rbRotPathPerp.onClick = function () { onRotModeChanged("path_perp"); };
-      rbRotAngle.onClick = function () { onRotModeChanged("angle"); };
-      rbRotRandom.onClick = function () { onRotModeChanged("random"); };
-
-      rbOrderCurrent.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbOrderReverse.onClick = function () { rebuildPreviewIfNeeded(); };
-      rbOrderRandom.onClick = function () { rebuildPreviewIfNeeded(); };
-
-      rbSpacingEven.onClick = function () {
-        lastRandomSpacing = null;
-        updateSpacingUI();
-        rebuildPreviewIfNeeded();
-      };
-      rbSpacingRandom.onClick = function () {
-        updateSpacingUI();
-        rebuildPreviewIfNeeded();
-      };
-
-      sldSpacingJitter.onChanging = function () {
-        _spacingJitterDragging = true;
-
-        // Update label/value, but DO NOT rebuild preview while dragging
-        spacingRandomJitterRatio = Number(sldSpacingJitter.value);
-        if (isNaN(spacingRandomJitterRatio)) spacingRandomJitterRatio = 0.4;
-        if (spacingRandomJitterRatio < 0.1) spacingRandomJitterRatio = 0.1;
-        if (spacingRandomJitterRatio > 1.0) spacingRandomJitterRatio = 1.0;
-        if (stSpacingJitterVal) stSpacingJitterVal.text = spacingRandomJitterRatio.toFixed(2);
-      };
-
-      sldSpacingJitter.onChange = function () {
-        _spacingJitterDragging = false;
-
-        // Apply final value and rebuild preview on mouse release
-        spacingRandomJitterRatio = Number(sldSpacingJitter.value);
-        if (isNaN(spacingRandomJitterRatio)) spacingRandomJitterRatio = 0.4;
-        if (spacingRandomJitterRatio < 0.1) spacingRandomJitterRatio = 0.1;
-        if (spacingRandomJitterRatio > 1.0) spacingRandomJitterRatio = 1.0;
-        if (stSpacingJitterVal) stSpacingJitterVal.text = spacingRandomJitterRatio.toFixed(2);
-
-        // Force regenerate random spacing with new strength
-        lastRandomSpacing = null;
-        rebuildPreviewIfNeeded();
-      };
-
-      etRotAngle.onChange = function () {
-        // Editing angle implies Angle mode
-        setRotationMode("angle");
-        rebuildPreviewIfNeeded();
-      };
-
-      // One-shot: set Rotation/Order/Spacing to Random when checked / チェックで一括ランダム
-      cbAllRandom.onClick = function () {
-        if (cbAllRandom.value) {
-          // ON: set all to Random
-          setRotationMode("random");
-          rbOrderRandom.value = true;
-          rbSpacingRandom.value = true;
-
-          // Refresh UI enable states
-          updateRotationUI();
-          updateSpacingUI();
-
-          // Force regenerate random results
-          lastRandomOrder = null;
-          lastRandomSpacing = null;
-
-          lastRandomOrderSeed = null;
-          lastRandomOrderSeedLen = null;
-          lastRandomOrderSeedDup = null;
-
-          rebuildPreviewIfNeeded();
-          return;
-        }
-
-        // OFF: reset to defaults
-        setRotationMode("none");
-        rbOrderCurrent.value = true;
-        rbSpacingEven.value = true;
-
-        // Refresh UI enable states
-        updateRotationUI();
-        updateSpacingUI();
-
-        // Clear random caches
-        lastRandomOrder = null;
-        lastRandomSpacing = null;
-
-        rebuildPreviewIfNeeded();
-      };
-
-      updateRotationUI();
-      updateSpacingUI();
-
-      // OK / Cancel
-      var dialogResult = dlg.show();
-
-      // Cleanup preview on close (OK/Cancel) / ダイアログ終了時にプレビュー掃除
-      clearPreview();
-
-      if (dialogResult !== 1) {
-        previewSelSnapshot = null;
-        lastRandomOrder = null;
-        lastRandomSpacing = null;
-        return; // Cancel
-      }
-
-      // Re-fetch selection at OK time / OK時に選択を取り直す
-      currentSelection = doc.selection;
-
-      if (!currentSelection || currentSelection.length < 2) {
-        // Fallback to snapshot if selection was dropped during preview
-        if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
-          try { doc.selection = previewSelSnapshot; } catch (e) { }
-          try { currentSelection = doc.selection; } catch (e) { }
-        }
-      }
-
-      if (!currentSelection || currentSelection.length < 2) {
-        safeAlertKey('alertNeedSelection');
-        previewSelSnapshot = null;
-        return;
-      }
-
-      /* B = 選択範囲の中で選択されたルールに従うパス / B = base path by selected rule */
-      var pathItem = rbAutoLargest.value ? getLargestPathItem(currentSelection) : (rbFrontmost.value ? getFrontmostPathItem(currentSelection) : getBackmostPathItem(currentSelection));
-      if (!pathItem) {
-        safeAlertKey('alertNoBasePath');
-        return;
-      }
-
-      /* 基準パスの扱い / Base path handling */
-      if (rbHide.value) {
-        try {
-          pathItem.filled = false;
-          pathItem.stroked = false;
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      /* A = 選択範囲のうち、基準パス（B）以外で配置可能なもの / A = placeable items excluding base path (B) */
-      var items = [];
-      for (var i2 = 0; i2 < currentSelection.length; i2++) {
-        if (currentSelection[i2] === pathItem) continue;
-        if (isPlaceableItem(currentSelection[i2])) items.push(currentSelection[i2]);
-      }
-
-      if (items.length === 0) {
-        safeAlertKey('alertNoItems');
-        return;
-      }
-
-      items = applyOrderToArray(items, getOrderMode(), false);
-
-      // Duplicate items (except target path) / 対象パス以外のオブジェクトを複製
-      var dupCountFinal = 1;
-      try { dupCountFinal = getDupCount(); } catch (e) { dupCountFinal = 1; }
-      if (dupCountFinal < 1) dupCountFinal = 1;
-
-      var orderModeFinal = getOrderMode();
-
-      if (dupCountFinal > 1) {
-        var expanded = [];
-
-        for (var ii = 0; ii < items.length; ii++) {
-          var src = items[ii];
-          expanded.push(src);
-
-          // create (dupCountFinal - 1) duplicates
-          for (var cc = 1; cc < dupCountFinal; cc++) {
-            var dup2 = null;
-            try {
-              dup2 = src.duplicate(src.parent, ElementPlacement.PLACEAFTER);
-            } catch (e) {
-              try {
-                dup2 = src.duplicate(doc.activeLayer, ElementPlacement.PLACEATEND);
-              } catch (e) {
-                dup2 = null;
-              }
+            var area = null;
+            if (!candidate.closed) {
+                area = getBoundsArea(candidate);
+            } else {
+                /* 閉じたパスは area（向きで負になる）を使う / Closed paths use area, which can be negative */
+                try {
+                    area = Math.abs(candidate.area);
+                } catch (e) {
+                    area = null;
+                }
+                if (area === null || area === undefined || isNaN(area) || area <= 0) {
+                    area = getBoundsArea(candidate);
+                }
             }
-            if (dup2) expanded.push(dup2);
-          }
+
+            if (largestArea === null || area > largestArea) {
+                largestArea = area;
+                largestPath = candidate;
+            }
         }
+        return largestPath;
+    }
 
-        items = expanded;
+    /**
+     * 重ね順で最前面または最背面のパスを返す
+     * 重ね順が取れないときは、最前面なら選択の最後、最背面なら選択の最初のパスを返す
+     * @param {PageItem[]} selectionItems - 選択
+     * @param {boolean} wantFrontmost - 最前面なら true、最背面なら false
+     * @returns {PathItem|null} パス。無ければ null
+     */
+    function findPathItemByStacking(selectionItems, wantFrontmost) {
+        var foundPath = null;
+        var foundZOrder = null;
 
-        // If order is random and duplication is used, shuffle ALL duplicates together.
-        if (orderModeFinal === "random") {
-          var seed2 = lastRandomOrderSeed;
-          var canReuse = (seed2 !== null && lastRandomOrderSeedLen === items.length && lastRandomOrderSeedDup === dupCountFinal);
-          if (!canReuse) {
-            seed2 = (new Date().getTime() & 0x7fffffff) >>> 0;
-            lastRandomOrderSeed = seed2;
-            lastRandomOrderSeedLen = items.length;
-            lastRandomOrderSeedDup = dupCountFinal;
-          }
-          shuffleInPlaceWithSeed(items, seed2);
+        for (var i = 0; i < selectionItems.length; i++) {
+            var candidate = selectionItems[i];
+            if (!isPathItem(candidate)) continue;
+
+            var zOrder = getZOrderPosition(candidate);
+            if (zOrder === null) continue;
+
+            if (foundZOrder === null || (wantFrontmost ? zOrder > foundZOrder : zOrder < foundZOrder)) {
+                foundZOrder = zOrder;
+                foundPath = candidate;
+            }
+        }
+        if (foundPath) return foundPath;
+
+        if (wantFrontmost) {
+            for (var j = selectionItems.length - 1; j >= 0; j--) {
+                if (isPathItem(selectionItems[j])) return selectionItems[j];
+            }
         } else {
-          // Not random → clear seed state
-          lastRandomOrderSeed = null;
-          lastRandomOrderSeedLen = null;
-          lastRandomOrderSeedDup = null;
-        }
-      } else {
-        // No duplication → clear duplicated-order seed state
-        lastRandomOrderSeed = null;
-        lastRandomOrderSeedLen = null;
-        lastRandomOrderSeedDup = null;
-      }
-
-      // Arrange actual items / 実体を配置
-      var rotFinal = getRotationSettings();
-      var spacingMode = getSpacingMode();
-      var okActual = arrangeAlongPath(pathItem, items, true, rotFinal, spacingMode, false);
-      if (!okActual) {
-        return;
-      }
-
-      /* グループ化 / Group placed objects (exclude base path) */
-      if (cbGroupPlaced.value) {
-        try {
-          var g = doc.groupItems.add();
-          g.name = "ArrangedAlongPath";
-          for (var gi = 0; gi < items.length; gi++) {
-            items[gi].move(g, ElementPlacement.PLACEATEND);
-          }
-        } catch (eG2) {
-          // ignore
-        }
-      }
-
-      /* 基準パス削除 / Remove base path */
-      if (rbDelete.value) {
-        try {
-          pathItem.remove();
-        } catch (eR) {
-          // ignore
-        }
-      }
-
-      previewSelSnapshot = null;
-      lastRandomOrder = null;
-      lastRandomSpacing = null;
-
-      lastRandomOrderSeed = null;
-      lastRandomOrderSeedLen = null;
-      lastRandomOrderSeedDup = null;
-
-      /* ヘルパー / Helpers */
-
-      function arrangeAlongPath(pathItem, itemsArray, showAlerts, rot, spacingMode, isPreview) {
-        var pts = pathItem.pathPoints;
-        if (!pts || pts.length < 2) {
-          if (showAlerts) safeAlertKey('alertPathTooShort');
-          return false;
-        }
-
-        var poly = buildPolylineFromBezierPath(pathItem, samplesPerSegment); // [{x,y},...]
-        if (poly.length < 2) {
-          if (showAlerts) safeAlertKey('alertPathAnalyzeFailed');
-          return false;
-        }
-
-        var cum = [0];
-        for (var p = 1; p < poly.length; p++) {
-          cum[p] = cum[p - 1] + dist(poly[p - 1], poly[p]);
-        }
-        var totalLen = cum[cum.length - 1];
-        if (totalLen <= 0) {
-          if (showAlerts) safeAlertKey('alertPathLengthZero');
-          return false;
-        }
-
-        var n = itemsArray.length;
-        var ds = [];
-        var isClosedPath = !!pathItem.closed;
-
-        // Base center for perpendicular mode / 「それぞれ垂直」用の中心
-        var baseCenter = getItemCenter(pathItem);
-
-        function getItemRotationDegSafe(it) {
-          try {
-            var m = it.matrix;
-            return Math.atan2(m.mValueB, m.mValueA) * 180 / Math.PI;
-          } catch (e) {
-            return 0;
-          }
-        }
-
-        function rotateToDegSafe(it, desiredDeg) {
-          var cur = getItemRotationDegSafe(it);
-          var delta = desiredDeg - cur;
-          while (delta > 180) delta -= 360;
-          while (delta < -180) delta += 360;
-          try {
-            it.rotate(delta, true, true, true, true, Transformation.CENTER);
-          } catch (e) { }
-        }
-
-        // --- Tangent angle at distance (stable at ends) ---
-        function tangentDegAtDistance(poly, cum, d, isClosed) {
-          var total = cum[cum.length - 1];
-          if (total <= 0) return 0;
-
-          // Clamp d into range
-          if (d < 0) d = 0;
-          if (d > total) d = total;
-
-          // Find segment index where cum[idx] >= d
-          var idx = 1;
-          while (idx < cum.length && cum[idx] < d) idx++;
-
-          // Determine two points to form a local tangent vector
-          var p0 = null;
-          var p1 = null;
-
-          if (idx <= 0) {
-            p0 = poly[0];
-            p1 = poly[1];
-          } else if (idx >= poly.length) {
-            p0 = poly[poly.length - 2];
-            p1 = poly[poly.length - 1];
-          } else {
-            // Prefer the immediate segment direction around idx
-            if (idx >= 1) {
-              p0 = poly[idx - 1];
-              p1 = poly[idx];
-            } else {
-              p0 = poly[0];
-              p1 = poly[1];
+            for (var k = 0; k < selectionItems.length; k++) {
+                if (isPathItem(selectionItems[k])) return selectionItems[k];
             }
-
-            // If the segment is degenerate, try neighbors (helps at sharp/collapsed points)
-            if ((p1.x === p0.x) && (p1.y === p0.y)) {
-              if (idx + 1 < poly.length) {
-                p1 = poly[idx + 1];
-              } else if (isClosed && poly.length > 2) {
-                p1 = poly[1];
-              }
-            }
-          }
-
-          // Final fallback
-          if (!p0 || !p1) {
-            p0 = poly[0];
-            p1 = poly[poly.length - 1];
-          }
-
-          return Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
         }
+        return null;
+    }
 
-        // Random spacing / ランダム間隔
-        if (spacingMode === "random") {
-          // Reuse the last previewed spacing so OK matches Preview
-          if (!isPreview && lastRandomSpacing && lastRandomSpacing.ds && lastRandomSpacing.ds.length === n) {
-            var okReuse = false;
-            try {
-              var diff = Math.abs(Number(lastRandomSpacing.totalLen) - Number(totalLen));
-              okReuse = (diff < 0.01);
-            } catch (e) { okReuse = false; }
+    // =========================================
+    // パスの形状 / Path geometry
+    // =========================================
 
-            if (okReuse) {
-              ds = [];
-              for (var rr = 0; rr < lastRandomSpacing.ds.length; rr++) ds.push(lastRandomSpacing.ds[rr]);
-            }
-          }
-
-          // Generate new if not reusable
-          if (ds.length !== n) {
-            ds = [];
-
-            // Range limits
-            var minD = 0;
-            var maxD = totalLen;
-            if (!isClosedPath && !useEndpoints) {
-              var pad = totalLen * 0.02;
-              if (pad > 0) {
-                minD = pad;
-                maxD = Math.max(pad, totalLen - pad);
-              }
-            }
-
-            // Start from even spacing, then add small jitter (weaker random)
-            var baseDs = [];
-            if (n === 1) {
-              baseDs.push(totalLen / 2);
-            } else {
-              if (isClosedPath) {
-                for (var kc2 = 0; kc2 < n; kc2++) {
-                  baseDs.push((totalLen * kc2) / n);
-                }
-              } else {
-                if (useEndpoints) {
-                  for (var k3 = 0; k3 < n; k3++) {
-                    baseDs.push((totalLen * k3) / (n - 1));
-                  }
-                } else {
-                  for (var k4 = 0; k4 < n; k4++) {
-                    baseDs.push(totalLen * (k4 + 0.5) / n);
-                  }
-                }
-              }
-            }
-
-            // Estimate step for jitter amplitude
-            var step = (n <= 1) ? totalLen : (isClosedPath ? (totalLen / n) : (useEndpoints ? (totalLen / (n - 1)) : (totalLen / n)));
-            var ratio = spacingRandomJitterRatio;
-            if (isNaN(ratio)) ratio = 0.4;
-            if (ratio < 0.1) ratio = 0.1;
-            if (ratio > 1.0) ratio = 1.0;
-            var jitter = step * ratio;
-
-            for (var iR = 0; iR < n; iR++) {
-              var v = baseDs[iR];
-
-              // Keep endpoints stable when open-path & endpoints mode
-              if (!isClosedPath && useEndpoints && n > 1 && (iR === 0 || iR === n - 1)) {
-                // keep v
-              } else {
-                v += (Math.random() * 2 - 1) * jitter;
-              }
-
-              // clamp into range
-              if (v < minD) v = minD;
-              if (v > maxD) v = maxD;
-              ds.push(v);
-            }
-
-            // sort => random gaps but monotonic along the path
-            ds.sort(function (a, b) { return a - b; });
-
-            // store latest random spacing
-            lastRandomSpacing = { totalLen: totalLen, ds: [] };
-            for (var ss = 0; ss < ds.length; ss++) lastRandomSpacing.ds.push(ds[ss]);
-          }
-
-        } else {
-          // Even spacing (current behavior) / 均等（現状）
-          lastRandomSpacing = null;
-
-          if (n === 1) {
-            ds.push(totalLen / 2);
-          } else {
-            if (isClosedPath) {
-              for (var kc = 0; kc < n; kc++) {
-                ds.push((totalLen * kc) / n);
-              }
-            } else {
-              if (useEndpoints) {
-                for (var k = 0; k < n; k++) {
-                  ds.push((totalLen * k) / (n - 1));
-                }
-              } else {
-                for (var k2 = 0; k2 < n; k2++) {
-                  ds.push(totalLen * (k2 + 0.5) / n);
-                }
-              }
-            }
-          }
-        }
-
-        for (var j = 0; j < n; j++) {
-          var d = ds[j];
-          var pos = pointAtDistance(poly, cum, d);
-
-          var c = getItemCenter(itemsArray[j]);
-          var dx = pos.x - c.x;
-          var dy = pos.y - c.y;
-
-          itemsArray[j].translate(dx, dy);
-
-          // Rotation / 回転
-          var add180 = (rot && rot.flip180) ? 180 : 0;
-
-          // Flip should work even when mode is "none" (0°)
-          if (add180 !== 0 && (!rot || !rot.mode || rot.mode === "none")) {
-            try {
-              itemsArray[j].rotate(add180, true, true, true, true, Transformation.CENTER);
-            } catch (e) { }
-          }
-
-          if (rot && rot.mode && rot.mode !== "none") {
-            if (rot.mode === "angle") {
-              var angDeg = rot.angle || 0;
-              try {
-                itemsArray[j].rotate(angDeg + add180, true, true, true, true, Transformation.CENTER);
-              } catch (e) { }
-            } else if (rot.mode === "random") {
-              var angRnd = (Math.random() * 360) - 180;
-              try {
-                itemsArray[j].rotate(angRnd + add180, true, true, true, true, Transformation.CENTER);
-              } catch (e) { }
-            } else if (rot.mode === "perp") {
-              // Perpendicular to center vector (tangent) / 中心へのベクトルに垂直（接線方向）
-              var cc = getItemCenter(itemsArray[j]);
-              var vx = cc.x - baseCenter.x;
-              var vy = cc.y - baseCenter.y;
-              var desired = Math.atan2(vy, vx) * 180 / Math.PI + 270; // flipped
-              rotateToDegSafe(itemsArray[j], desired + add180);
-            } else if (rot.mode === "path_perp") {
-              // Follow path tangent (stable at ends) / パスの接線方向に合わせる（端でも安定）
-              var tanDeg = tangentDegAtDistance(poly, cum, d, isClosedPath);
-              var desiredP = tanDeg;
-              rotateToDegSafe(itemsArray[j], desiredP + add180);
-            }
-          }
-
-          if (rotateAlongTangent) {
-            var pos2 = pointAtDistance(poly, cum, Math.min(totalLen, d + totalLen * 0.001));
-            var ang = Math.atan2(pos2.y - pos.y, pos2.x - pos.x) * 180 / Math.PI;
-            itemsArray[j].rotate(ang, true, true, true, true, Transformation.CENTER);
-          }
-        }
-        return true;
-      }
-
-      function getLargestPathItem(selectionArray) {
-        var best = null;
-        var bestArea = null;
-
-        for (var i = 0; i < selectionArray.length; i++) {
-          var o = selectionArray[i];
-          if (!isPathItem(o)) continue;
-
-          var a = null;
-
-          // For OPEN paths, use bounding-box area (as shown in the example image)
-          if (!o.closed) {
-            a = getBoundsArea(o);
-          } else {
-            try {
-              // Closed paths can use PathItem.area (may be negative depending on direction)
-              a = Math.abs(o.area);
-            } catch (e) {
-              a = null;
-            }
-
-            if (a === null || a === undefined || isNaN(a) || a <= 0) {
-              a = getBoundsArea(o);
-            }
-          }
-
-          if (bestArea === null || a > bestArea) {
-            bestArea = a;
-            best = o;
-          }
-        }
-
-        if (!best) {
-          best = getBackmostPathItem(selectionArray);
-        }
-        return best;
-      }
-
-      function getBoundsArea(item) {
-        var b = null;
-        // Prefer visibleBounds (includes stroke) to match visual area
-        try { b = item.visibleBounds; } catch (e) { b = null; }
-        if (!b) {
-          try { b = item.geometricBounds; } catch (e) { b = null; }
-        }
-        if (!b || b.length < 4) return 0;
-        var w = Math.abs(b[2] - b[0]);
-        var h = Math.abs(b[1] - b[3]);
-        return w * h;
-      }
-
-      function getBackmostPathItem(selectionArray) {
-        var backmost = null;
-        var minZ = null;
-
-        for (var i = 0; i < selectionArray.length; i++) {
-          var o = selectionArray[i];
-          if (!isPathItem(o)) continue;
-
-          var z = null;
-          try { z = o.zOrderPosition; } catch (e) { z = null; }
-          if (z === null || z === undefined) continue;
-
-          if (minZ === null || z < minZ) {
-            minZ = z;
-            backmost = o;
-          }
-        }
-
-        if (!backmost) {
-          for (var j = 0; j < selectionArray.length; j++) {
-            if (isPathItem(selectionArray[j])) return selectionArray[j];
-          }
-        }
-        return backmost;
-      }
-
-      function getFrontmostPathItem(selectionArray) {
-        var frontmost = null;
-        var maxZ = null;
-
-        for (var i = 0; i < selectionArray.length; i++) {
-          var o = selectionArray[i];
-          if (!isPathItem(o)) continue;
-
-          var z = null;
-          try { z = o.zOrderPosition; } catch (e) { z = null; }
-          if (z === null || z === undefined) continue;
-
-          if (maxZ === null || z > maxZ) {
-            maxZ = z;
-            frontmost = o;
-          }
-        }
-
-        // Fallback
-        if (!frontmost) {
-          for (var j = selectionArray.length - 1; j >= 0; j--) {
-            if (isPathItem(selectionArray[j])) return selectionArray[j];
-          }
-        }
-        return frontmost;
-      }
-
-      function isPathItem(o) {
-        return o && o.typename === "PathItem" && o.pathPoints && o.pathPoints.length >= 2;
-      }
-
-      function isPlaceableItem(o) {
-        if (!o) return false;
-        var t = o.typename;
-        return (
-          t === "PathItem" ||
-          t === "CompoundPathItem" ||
-          t === "GroupItem" ||
-          t === "TextFrame" ||
-          t === "PlacedItem" ||
-          t === "RasterItem" ||
-          t === "SymbolItem" ||
-          t === "MeshItem"
-        );
-      }
-
-      function dist(a, b) {
-        var dx = b.x - a.x;
-        var dy = b.y - a.y;
+    /**
+     * 2点間の距離を返す
+     * @param {{x: number, y: number}} pointA - 点A
+     * @param {{x: number, y: number}} pointB - 点B
+     * @returns {number} 距離
+     */
+    function getDistance(pointA, pointB) {
+        var dx = pointB.x - pointA.x;
+        var dy = pointB.y - pointA.y;
         return Math.sqrt(dx * dx + dy * dy);
-      }
+    }
 
-      function buildPolylineFromBezierPath(pItem, samplesPerSeg) {
-        var pts = pItem.pathPoints;
-        var closed = pItem.closed;
-
-        var poly = [];
-        var segCount = closed ? pts.length : (pts.length - 1);
-
-        for (var i = 0; i < segCount; i++) {
-          var p0 = pts[i];
-          var p1 = pts[(i + 1) % pts.length];
-
-          var a = { x: p0.anchor[0], y: p0.anchor[1] };
-          var c1 = { x: p0.rightDirection[0], y: p0.rightDirection[1] };
-          var c2 = { x: p1.leftDirection[0], y: p1.leftDirection[1] };
-          var b = { x: p1.anchor[0], y: p1.anchor[1] };
-
-          for (var s = 0; s <= samplesPerSeg; s++) {
-            if (i > 0 && s === 0) continue;
-            var t = s / samplesPerSeg;
-            var pt = cubicBezier(a, c1, c2, b, t);
-            poly.push(pt);
-          }
-        }
-        return poly;
-      }
-
-      function cubicBezier(a, c1, c2, b, t) {
+    /**
+     * 3次ベジェ曲線上の点を返す
+     * @param {{x: number, y: number}} startPoint - 始点
+     * @param {{x: number, y: number}} control1 - 制御点1
+     * @param {{x: number, y: number}} control2 - 制御点2
+     * @param {{x: number, y: number}} endPoint - 終点
+     * @param {number} t - 媒介変数（0〜1）
+     * @returns {{x: number, y: number}} 曲線上の点
+     */
+    function cubicBezier(startPoint, control1, control2, endPoint, t) {
         var mt = 1 - t;
         var mt2 = mt * mt;
         var t2 = t * t;
 
         var x =
-          a.x * mt2 * mt +
-          3 * c1.x * mt2 * t +
-          3 * c2.x * mt * t2 +
-          b.x * t2 * t;
+            startPoint.x * mt2 * mt +
+            3 * control1.x * mt2 * t +
+            3 * control2.x * mt * t2 +
+            endPoint.x * t2 * t;
         var y =
-          a.y * mt2 * mt +
-          3 * c1.y * mt2 * t +
-          3 * c2.y * mt * t2 +
-          b.y * t2 * t;
+            startPoint.y * mt2 * mt +
+            3 * control1.y * mt2 * t +
+            3 * control2.y * mt * t2 +
+            endPoint.y * t2 * t;
 
         return { x: x, y: y };
-      }
+    }
 
-      function pointAtDistance(poly, cum, d) {
-        if (d <= 0) return { x: poly[0].x, y: poly[0].y };
-        var total = cum[cum.length - 1];
-        if (d >= total) return { x: poly[poly.length - 1].x, y: poly[poly.length - 1].y };
+    /**
+     * ベジェパスを折れ線に分割する
+     * @param {PathItem} pathItem - パス
+     * @param {number} samplesPerSegment - 1区間あたりのサンプル数
+     * @returns {Array<{x: number, y: number}>} 折れ線の点
+     */
+    function buildPolylineFromBezierPath(pathItem, samplesPerSegment) {
+        var pathPoints = pathItem.pathPoints;
+        var isClosed = pathItem.closed;
 
-        var idx = 1;
-        while (idx < cum.length && cum[idx] < d) idx++;
+        var polyline = [];
+        var segmentCount = isClosed ? pathPoints.length : (pathPoints.length - 1);
 
-        var d0 = cum[idx - 1];
-        var d1 = cum[idx];
-        var tt = (d - d0) / (d1 - d0);
+        for (var i = 0; i < segmentCount; i++) {
+            var startAnchor = pathPoints[i];
+            var endAnchor = pathPoints[(i + 1) % pathPoints.length];
 
-        var p0 = poly[idx - 1];
-        var p1 = poly[idx];
+            var startPoint = { x: startAnchor.anchor[0], y: startAnchor.anchor[1] };
+            var control1 = { x: startAnchor.rightDirection[0], y: startAnchor.rightDirection[1] };
+            var control2 = { x: endAnchor.leftDirection[0], y: endAnchor.leftDirection[1] };
+            var endPoint = { x: endAnchor.anchor[0], y: endAnchor.anchor[1] };
+
+            for (var s = 0; s <= samplesPerSegment; s++) {
+                /* 区間のつなぎ目は重複させない / Do not repeat the joint between segments */
+                if (i > 0 && s === 0) continue;
+                polyline.push(cubicBezier(startPoint, control1, control2, endPoint, s / samplesPerSegment));
+            }
+        }
+        return polyline;
+    }
+
+    /**
+     * 折れ線の各点までの累積長を返す
+     * @param {Array<{x: number, y: number}>} polyline - 折れ線
+     * @returns {number[]} 累積長（先頭は 0）
+     */
+    function getCumulativeLengths(polyline) {
+        var cumulativeLengths = [0];
+        for (var i = 1; i < polyline.length; i++) {
+            cumulativeLengths[i] = cumulativeLengths[i - 1] + getDistance(polyline[i - 1], polyline[i]);
+        }
+        return cumulativeLengths;
+    }
+
+    /**
+     * 始点からの距離にある折れ線上の点を返す
+     * @param {Array<{x: number, y: number}>} polyline - 折れ線
+     * @param {number[]} cumulativeLengths - 累積長
+     * @param {number} distance - 始点からの距離
+     * @returns {{x: number, y: number}} 点
+     */
+    function pointAtDistance(polyline, cumulativeLengths, distance) {
+        if (distance <= 0) return { x: polyline[0].x, y: polyline[0].y };
+        var totalLength = cumulativeLengths[cumulativeLengths.length - 1];
+        if (distance >= totalLength) return { x: polyline[polyline.length - 1].x, y: polyline[polyline.length - 1].y };
+
+        var index = 1;
+        while (index < cumulativeLengths.length && cumulativeLengths[index] < distance) index++;
+
+        var startLength = cumulativeLengths[index - 1];
+        var endLength = cumulativeLengths[index];
+        var ratio = (distance - startLength) / (endLength - startLength);
+
+        var startPoint = polyline[index - 1];
+        var endPoint = polyline[index];
 
         return {
-          x: p0.x + (p1.x - p0.x) * tt,
-          y: p0.y + (p1.y - p0.y) * tt
+            x: startPoint.x + (endPoint.x - startPoint.x) * ratio,
+            y: startPoint.y + (endPoint.y - startPoint.y) * ratio
         };
-      }
+    }
 
-      function getItemCenter(item) {
-        var b = item.geometricBounds; // [left, top, right, bottom]
-        var left = b[0], top = b[1], right = b[2], bottom = b[3];
-        return { x: (left + right) / 2, y: (top + bottom) / 2 };
-      }
+    /**
+     * 始点からの距離にある接線の角度を返す（端でも安定させる）
+     * @param {Array<{x: number, y: number}>} polyline - 折れ線
+     * @param {number[]} cumulativeLengths - 累積長
+     * @param {number} distance - 始点からの距離
+     * @param {boolean} isClosed - 閉じたパスか
+     * @returns {number} 角度（度）
+     */
+    function tangentDegAtDistance(polyline, cumulativeLengths, distance, isClosed) {
+        var totalLength = cumulativeLengths[cumulativeLengths.length - 1];
+        if (totalLength <= 0) return 0;
 
-    })();
+        if (distance < 0) distance = 0;
+        if (distance > totalLength) distance = totalLength;
+
+        /* cumulativeLengths[index] >= distance となる区間を探す（distance は全長以下なので index は末尾を超えない）
+           Find the segment where the length reaches the distance; index never passes the last point */
+        var index = 1;
+        while (index < cumulativeLengths.length && cumulativeLengths[index] < distance) index++;
+
+        var startPoint = polyline[index - 1];
+        var endPoint = polyline[index];
+
+        /* 長さ 0 の区間なら隣を使う（尖った点・重なった点で有効）/ Use a neighbor for a zero-length segment */
+        if ((endPoint.x === startPoint.x) && (endPoint.y === startPoint.y)) {
+            if (index + 1 < polyline.length) {
+                endPoint = polyline[index + 1];
+            } else if (isClosed && polyline.length > 2) {
+                endPoint = polyline[1];
+            }
+        }
+
+        return Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x) * 180 / Math.PI;
+    }
+
+    /**
+     * 均等配置の位置（始点からの距離）を返す
+     * @param {number} totalLength - パスの長さ
+     * @param {number} itemCount - 配置する数
+     * @param {boolean} isClosed - 閉じたパスか
+     * @param {boolean} useEndpoints - 開いたパスで始点・終点を含めるか
+     * @returns {number[]} 距離の配列
+     */
+    function computeEvenDistances(totalLength, itemCount, isClosed, useEndpoints) {
+        var distances = [];
+        if (itemCount === 1) {
+            distances.push(totalLength / 2);
+        } else if (isClosed) {
+            for (var i = 0; i < itemCount; i++) distances.push((totalLength * i) / itemCount);
+        } else if (useEndpoints) {
+            for (var j = 0; j < itemCount; j++) distances.push((totalLength * j) / (itemCount - 1));
+        } else {
+            for (var k = 0; k < itemCount; k++) distances.push(totalLength * (k + 0.5) / itemCount);
+        }
+        return distances;
+    }
+
+    /**
+     * 均等配置の位置にばらつきを加えた位置を返す（始点から昇順）
+     * @param {number} totalLength - パスの長さ
+     * @param {number} itemCount - 配置する数
+     * @param {boolean} isClosed - 閉じたパスか
+     * @param {boolean} useEndpoints - 開いたパスで始点・終点を含めるか
+     * @param {number} jitterRatio - ばらつきの強さ（間隔に対する比率）
+     * @returns {number[]} 距離の配列
+     */
+    function computeJitteredDistances(totalLength, itemCount, isClosed, useEndpoints, jitterRatio) {
+        /* 取りうる範囲 / Allowed range */
+        var minDistance = 0;
+        var maxDistance = totalLength;
+        if (!isClosed && !useEndpoints) {
+            var padding = totalLength * 0.02;
+            if (padding > 0) {
+                minDistance = padding;
+                maxDistance = Math.max(padding, totalLength - padding);
+            }
+        }
+
+        /* 均等配置から少しだけずらす / Start from even spacing and add a little jitter */
+        var evenDistances = computeEvenDistances(totalLength, itemCount, isClosed, useEndpoints);
+        var step = (itemCount <= 1) ? totalLength : (isClosed ? (totalLength / itemCount) : (useEndpoints ? (totalLength / (itemCount - 1)) : (totalLength / itemCount)));
+        var jitter = step * jitterRatio;
+
+        var distances = [];
+        for (var i = 0; i < itemCount; i++) {
+            var distance = evenDistances[i];
+            /* 開いたパスで端を含めるときは両端を動かさない / Keep both ends fixed on an open path with endpoints */
+            var isFixedEnd = !isClosed && useEndpoints && itemCount > 1 && (i === 0 || i === itemCount - 1);
+            if (!isFixedEnd) distance += (Math.random() * 2 - 1) * jitter;
+
+            if (distance < minDistance) distance = minDistance;
+            if (distance > maxDistance) distance = maxDistance;
+            distances.push(distance);
+        }
+
+        /* 間隔はばらつくが、並びはパスに沿って昇順 / Random gaps, but monotonic along the path */
+        distances.sort(function (a, b) { return a - b; });
+        return distances;
+    }
+
+    // =========================================
+    // オブジェクトの操作 / Object operations
+    // =========================================
+
+    /**
+     * 外接矩形の中心を返す
+     * @param {PageItem} pageItem - 対象
+     * @returns {{x: number, y: number}} 中心
+     */
+    function getItemCenter(pageItem) {
+        var bounds = pageItem.geometricBounds; /* [left, top, right, bottom] */
+        return { x: (bounds[0] + bounds[2]) / 2, y: (bounds[1] + bounds[3]) / 2 };
+    }
+
+    /**
+     * 現在の回転角を返す
+     * @param {PageItem} pageItem - 対象
+     * @returns {number} 角度（度）。matrix を持たないオブジェクトは 0
+     */
+    function getItemRotationDeg(pageItem) {
+        try {
+            var itemMatrix = pageItem.matrix;
+            return Math.atan2(itemMatrix.mValueB, itemMatrix.mValueA) * 180 / Math.PI;
+        } catch (e) {
+            /* matrix を持つのは配置画像・ラスター・テキストなどだけ / only some item types have a matrix */
+            return 0;
+        }
+    }
+
+    /**
+     * 中心を基準に回転する（失敗しても続行）
+     * @param {PageItem} pageItem - 対象
+     * @param {number} angle - 回転角（度）
+     * @returns {void}
+     */
+    function rotateItemSafely(pageItem, angle) {
+        try {
+            pageItem.rotate(angle, true, true, true, true, Transformation.CENTER);
+        } catch (e) { }
+    }
+
+    /**
+     * 指定の角度になるよう回転する
+     * @param {PageItem} pageItem - 対象
+     * @param {number} desiredDeg - 目標の角度（度）
+     * @returns {void}
+     */
+    function rotateItemToDeg(pageItem, desiredDeg) {
+        var delta = desiredDeg - getItemRotationDeg(pageItem);
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+        rotateItemSafely(pageItem, delta);
+    }
+
+    /**
+     * 塗りと線をなしにする
+     * @param {PathItem} pathItem - 対象
+     * @returns {void}
+     */
+    function clearFillAndStroke(pathItem) {
+        try {
+            pathItem.filled = false;
+            pathItem.stroked = false;
+        } catch (e) { }
+    }
+
+    /**
+     * 回転の設定に従って、配置したオブジェクトを回転する
+     * @param {PageItem} pageItem - 配置したオブジェクト
+     * @param {{mode: string, angle: number, flip180: boolean}} rotationSettings - 回転の設定
+     * @param {{x: number, y: number}} baseCenter - 基準パスの中心
+     * @param {{polyline: Array, cumulativeLengths: number[], isClosed: boolean}} pathGeometry - パスの形状
+     * @param {number} distance - 始点からの距離
+     * @returns {void}
+     */
+    function rotatePlacedItem(pageItem, rotationSettings, baseCenter, pathGeometry, distance) {
+        var flipAngle = rotationSettings.flip180 ? 180 : 0;
+        var mode = rotationSettings.mode;
+
+        if (mode === "angle") {
+            rotateItemSafely(pageItem, (rotationSettings.angle || 0) + flipAngle);
+        } else if (mode === "random") {
+            rotateItemSafely(pageItem, (Math.random() * 360) - 180 + flipAngle);
+        } else if (mode === "perp") {
+            /* 基準パスの中心から外向きに立てる / Stand outward from the center of the base path */
+            var itemCenter = getItemCenter(pageItem);
+            var outwardDeg = Math.atan2(itemCenter.y - baseCenter.y, itemCenter.x - baseCenter.x) * 180 / Math.PI + 270;
+            rotateItemToDeg(pageItem, outwardDeg + flipAngle);
+        } else if (mode === "path_perp") {
+            /* パスの接線方向に合わせる / Follow the path tangent */
+            var tangentDeg = tangentDegAtDistance(pathGeometry.polyline, pathGeometry.cumulativeLengths, distance, pathGeometry.isClosed);
+            rotateItemToDeg(pageItem, tangentDeg + flipAngle);
+        } else if (flipAngle !== 0) {
+            /* 「正立」でも反転は効かせる / Flip still applies in Upright mode */
+            rotateItemSafely(pageItem, flipAngle);
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ダイアログを出し、OK なら選択したオブジェクトをパスに沿って配置する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            showDedupedAlert("alert.noDocument");
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var initialSelection = doc.selection;
+
+        /* 選択が0または1ならダイアログを出さずに終了 / Exit without the dialog when fewer than two objects are selected */
+        if (!initialSelection || initialSelection.length < 2) {
+            showDedupedAlert("alert.needSelection");
+            return;
+        }
+
+        /* ランダム間隔の強さ（スライダーで変わる）/ Random spacing strength, changed by the slider */
+        var spacingJitterRatio = DEFAULT_SPACING_JITTER_RATIO;
+
+        /* プレビューの状態 / Preview state */
+        var previewLayer = null;
+        var previewSelectionSnapshot = null;   /* 元を隠して選択が外れても作り直せるように控える / kept for rebuilds while originals are hidden */
+        var previewHiddenEntries = [];         /* { item, wasHidden } */
+
+        /* ランダムの結果を控え、OK でプレビューと同じ結果にする / Keep random results so OK matches the latest preview */
+        var lastRandomOrder = null;            /* PageItem[] */
+        var lastRandomSpacing = null;          /* { totalLength: number, distances: number[] } */
+        var lastShuffleSeed = null;            /* { seed: number, itemCount: number, duplicateCount: number } 複製込みのランダム順 */
+
+        /* 警告の多重表示を防ぐ / Prevent stacked or repeated alerts */
+        var alertLocked = false;
+        var alertLastTimeByKey = {};
+        var alertLastSignatureByKey = {};
+
+        /* ダイアログのコントロール（buildDialog で作る）/ Dialog controls, created in buildDialog() */
+        var rbAutoLargest, rbFrontmost, rbBackmost;
+        var rbBasePathKeep, rbBasePathHide, rbBasePathDelete;
+        var cbDuplicateEnabled, etDuplicateCount, sldDuplicateCount;
+        var rbRotNone, rbRotPerp, rbRotPathPerp, rbRotRandom, rbRotAngle, etRotAngle, cbRotFlip180;
+        var rbOrderCurrent, rbOrderReverse, rbOrderRandom;
+        var rbSpacingEven, rbSpacingRandom, sldSpacingJitter;
+        var cbGroupPlaced, cbAllRandom, cbPreview;
+
+        var arrangeDialog = buildDialog();
+        bindDialogEvents();
+        updateDuplicateUI();
+        updateRotationUI();
+        updateSpacingUI();
+
+        var dialogResult = arrangeDialog.show();
+
+        /* 閉じたらプレビューを片付ける / Clean up the preview on close */
+        clearPreview();
+
+        if (dialogResult !== 1) return;
+        applyArrangement();
+
+        // -----------------------------------------
+        // 警告 / Alerts
+        // -----------------------------------------
+
+        /**
+         * 警告の重複判定に使う、選択と基準パスの規則の要約を返す
+         * @returns {string} 要約
+         */
+        function getSelectionSignature() {
+            try {
+                var selectionItems = doc && doc.selection ? doc.selection : null;
+                if (!selectionItems || selectionItems.length === 0) return "sel:0";
+                var countsByType = {};
+                for (var i = 0; i < selectionItems.length; i++) {
+                    var typeName = (selectionItems[i] && selectionItems[i].typename) ? selectionItems[i].typename : "?";
+                    countsByType[typeName] = (countsByType[typeName] || 0) + 1;
+                }
+                var signatureParts = ["sel:" + selectionItems.length];
+                for (var typeKey in countsByType) {
+                    if (countsByType.hasOwnProperty(typeKey)) signatureParts.push(typeKey + ":" + countsByType[typeKey]);
+                }
+                /* 基準パスの規則（自動／最前面／最背面）も含める / Include the base path rule */
+                var ruleName = (rbAutoLargest && rbAutoLargest.value) ? "auto" : ((rbFrontmost && rbFrontmost.value) ? "front" : "back");
+                signatureParts.push("rule:" + ruleName);
+                return signatureParts.join("|");
+            } catch (e) {
+                return "sel:?";
+            }
+        }
+
+        /**
+         * 警告を出す。同じ選択で同じ警告は 15 秒間出し直さない
+         * @param {string} labelPath - 警告文の LABELS パス
+         * @returns {void}
+         */
+        function showDedupedAlert(labelPath) {
+            if (alertLocked) return;
+
+            var now = new Date().getTime();
+            var lastTime = alertLastTimeByKey[labelPath] || 0;
+            var signature = getSelectionSignature();
+            var lastSignature = alertLastSignatureByKey[labelPath] || "";
+
+            if (signature === lastSignature && (now - lastTime) < 15000) return;
+
+            alertLastTimeByKey[labelPath] = now;
+            alertLastSignatureByKey[labelPath] = signature;
+
+            alertLocked = true;
+            alert(getLabel(labelPath));
+            alertLocked = false;
+        }
+
+        // -----------------------------------------
+        // ダイアログ / Dialog
+        // -----------------------------------------
+
+        /**
+         * ダイアログを組み立てる
+         * @returns {Window} ダイアログ
+         */
+        function buildDialog() {
+            var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+            dialog.orientation = "column";
+            dialog.alignChildren = "fill";
+
+            setDialogOpacity(dialog, DIALOG_OPACITY);
+            shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+
+            /* 2カラム / Two columns */
+            var columnsGroup = dialog.add("group");
+            columnsGroup.orientation = "row";
+            columnsGroup.alignChildren = ["fill", "top"];
+            columnsGroup.spacing = COLUMN_SPACING;
+
+            var leftColumn = addColumn(columnsGroup);
+            var rightColumn = addColumn(columnsGroup);
+
+            addTargetPathPanel(leftColumn);
+
+            var placeObjectsPanel = addOptionPanel(rightColumn, "panel.placeObjects", "column", "fill");
+            addDuplicatePanel(placeObjectsPanel);
+            addRotationPanel(placeObjectsPanel);
+            addOrderPanel(placeObjectsPanel);
+            addSpacingPanel(placeObjectsPanel);
+            addGroupOptionsRow(placeObjectsPanel);
+
+            addButtonRow(dialog);
+            return dialog;
+        }
+
+        /**
+         * 「対象パス」パネル（基準にするパスとその扱い）を作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {void}
+         */
+        function addTargetPathPanel(parentColumn) {
+            var targetPathPanel = addOptionPanel(parentColumn, "panel.targetPath", "column", "left", OUTER_PANEL_MARGINS);
+
+            /* 基準にするパス / Which path is the base */
+            var basePathRulePanel = addOptionPanel(targetPathPanel, "panel.basePathRule", "column", "left");
+            basePathRulePanel.helpTip = getLabel("tooltip.basePathRule");
+            rbAutoLargest = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.autoLargest"));
+            rbAutoLargest.helpTip = getLabel("tooltip.autoLargest");
+            rbFrontmost = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.frontmost"));
+            rbBackmost = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.backmost"));
+            rbAutoLargest.value = true;
+
+            /* 基準パスの扱い / What to do with the base path */
+            var basePathHandlingPanel = addOptionPanel(targetPathPanel, "panel.basePathHandling", "column", "left");
+            basePathHandlingPanel.helpTip = getLabel("tooltip.basePathHandling");
+            rbBasePathKeep = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeNone"));
+            rbBasePathHide = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeHide"));
+            rbBasePathDelete = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeDelete"));
+            rbBasePathHide.value = true;
+        }
+
+        /**
+         * 「複製」パネルを作る
+         * @param {Panel} parentPanel - 追加先
+         * @returns {void}
+         */
+        function addDuplicatePanel(parentPanel) {
+            var duplicatePanel = addOptionPanel(parentPanel, "panel.duplicate", "column", "fill");
+            duplicatePanel.helpTip = getLabel("tooltip.duplicateCount");
+
+            var duplicateCountRow = duplicatePanel.add("group");
+            duplicateCountRow.orientation = "row";
+            duplicateCountRow.alignChildren = ["left", "center"];
+            duplicateCountRow.spacing = 10;
+
+            cbDuplicateEnabled = duplicateCountRow.add("checkbox", undefined, "");
+            /* 選択がちょうど2つのときだけ最初からオン / On by default only when exactly two objects are selected */
+            cbDuplicateEnabled.value = (initialSelection.length === 2);
+            cbDuplicateEnabled.preferredSize.width = 18;
+            cbDuplicateEnabled.helpTip = getLabel("tooltip.duplicateEnabled");
+
+            duplicateCountRow.add("statictext", undefined, getLabel("fieldLabel.duplicateCount"));
+            etDuplicateCount = duplicateCountRow.add("edittext", undefined, String(DUPLICATE_COUNT_MIN));
+            etDuplicateCount.helpTip = getLabel("tooltip.duplicateCount");
+            etDuplicateCount.characters = 4;
+            changeValueByArrowKey(etDuplicateCount, false);
+
+            var duplicateSliderRow = duplicatePanel.add("group");
+            duplicateSliderRow.orientation = "row";
+            duplicateSliderRow.alignChildren = ["left", "center"];
+
+            sldDuplicateCount = duplicateSliderRow.add("slider", undefined, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MIN, DUPLICATE_COUNT_MAX);
+            sldDuplicateCount.preferredSize.width = SLIDER_WIDTH;
+            sldDuplicateCount.helpTip = getLabel("tooltip.duplicateCount");
+        }
+
+        /**
+         * 「回転」パネルを作る
+         * @param {Panel} parentPanel - 追加先
+         * @returns {void}
+         */
+        function addRotationPanel(parentPanel) {
+            var rotationPanel = addOptionPanel(parentPanel, "panel.rotation", "column", "left");
+            rotationPanel.helpTip = getLabel("tooltip.rotation");
+
+            /* 回転のラジオは1つのグループにまとめる（排他は setRotationMode で管理）/ One group for the rotation radios; exclusivity is handled in setRotationMode() */
+            var rotationRadioGroup = rotationPanel.add("group");
+            rotationRadioGroup.orientation = "column";
+            rotationRadioGroup.alignChildren = "left";
+
+            rbRotNone = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationNone"));
+            rbRotPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationPerpendicular"));
+            rbRotPerp.helpTip = getLabel("tooltip.rotationPerpendicular");
+            rbRotPathPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationPathPerpendicular"));
+            rbRotPathPerp.helpTip = getLabel("tooltip.rotationPathPerpendicular");
+            rbRotRandom = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationRandom"));
+            rbRotNone.value = true;
+
+            /* 角度指定（1行）/ Angle on one row */
+            var rotationAngleRow = rotationRadioGroup.add("group");
+            rotationAngleRow.orientation = "row";
+            rotationAngleRow.alignChildren = ["left", "center"];
+            rotationAngleRow.spacing = 6;
+
+            rbRotAngle = rotationAngleRow.add("radiobutton", undefined, getLabel("radio.rotationAngle"));
+            etRotAngle = rotationAngleRow.add("edittext", undefined, "0");
+            etRotAngle.helpTip = getLabel("tooltip.rotationAngle");
+            etRotAngle.characters = 3;
+            changeValueByArrowKey(etRotAngle, true);
+            rotationAngleRow.add("statictext", undefined, "°");
+
+            cbRotFlip180 = rotationPanel.add("checkbox", undefined, getLabel("checkbox.rotationFlip180"));
+            cbRotFlip180.helpTip = getLabel("tooltip.rotationFlip180");
+            cbRotFlip180.value = false;
+        }
+
+        /**
+         * 「順番」パネルを作る
+         * @param {Panel} parentPanel - 追加先
+         * @returns {void}
+         */
+        function addOrderPanel(parentPanel) {
+            var orderPanel = addOptionPanel(parentPanel, "panel.order", "row", ["left", "center"]);
+            orderPanel.helpTip = getLabel("tooltip.order");
+            orderPanel.spacing = 12;
+
+            rbOrderCurrent = orderPanel.add("radiobutton", undefined, getLabel("radio.orderCurrent"));
+            rbOrderCurrent.helpTip = getLabel("tooltip.orderCurrent");
+            rbOrderReverse = orderPanel.add("radiobutton", undefined, getLabel("radio.orderReverse"));
+            rbOrderReverse.helpTip = getLabel("tooltip.orderReverse");
+            rbOrderRandom = orderPanel.add("radiobutton", undefined, getLabel("radio.orderRandom"));
+            rbOrderCurrent.value = true;
+        }
+
+        /**
+         * 「間隔」パネルを作る
+         * @param {Panel} parentPanel - 追加先
+         * @returns {void}
+         */
+        function addSpacingPanel(parentPanel) {
+            var spacingPanel = addOptionPanel(parentPanel, "panel.spacing", "column", "fill");
+            spacingPanel.helpTip = getLabel("tooltip.spacing");
+
+            var spacingRadioGroup = spacingPanel.add("group");
+            spacingRadioGroup.orientation = "row";
+            spacingRadioGroup.alignChildren = ["left", "center"];
+            spacingRadioGroup.spacing = 12;
+
+            rbSpacingEven = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingEven"));
+            rbSpacingRandom = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingRandom"));
+            rbSpacingEven.value = true;
+
+            /* ばらつきの強さ（「ランダム」のときだけ有効）/ Jitter strength, enabled only with Random */
+            var spacingSliderRow = spacingPanel.add("group");
+            spacingSliderRow.orientation = "row";
+            spacingSliderRow.alignChildren = ["left", "center"];
+
+            sldSpacingJitter = spacingSliderRow.add("slider", undefined, spacingJitterRatio, 0.1, 1.0);
+            sldSpacingJitter.preferredSize.width = SLIDER_WIDTH;
+            sldSpacingJitter.helpTip = getLabel("tooltip.spacingJitter");
+        }
+
+        /**
+         * 「グループ化」「一括ランダム」の行を中央寄せで作る
+         * @param {Panel} parentPanel - 追加先
+         * @returns {void}
+         */
+        function addGroupOptionsRow(parentPanel) {
+            var groupOptionsRow = parentPanel.add("group");
+            groupOptionsRow.orientation = "row";
+            groupOptionsRow.alignment = "fill";
+            groupOptionsRow.alignChildren = ["center", "center"];
+
+            addStretchSpacer(groupOptionsRow);
+
+            var groupOptionsInner = groupOptionsRow.add("group");
+            groupOptionsInner.orientation = "row";
+            groupOptionsInner.alignChildren = ["center", "center"];
+            groupOptionsInner.spacing = 12;
+
+            cbGroupPlaced = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.groupPlaced"));
+            cbGroupPlaced.helpTip = getLabel("tooltip.groupPlaced");
+            cbGroupPlaced.value = true;
+
+            cbAllRandom = groupOptionsInner.add("checkbox", undefined, getLabel("checkbox.allRandom"));
+            cbAllRandom.helpTip = getLabel("tooltip.allRandom");
+            cbAllRandom.value = false;
+
+            addStretchSpacer(groupOptionsRow);
+        }
+
+        /**
+         * 下部のボタンエリア（左：プレビュー、右：キャンセル／OK）を作る
+         * @param {Window} dialog - ダイアログ
+         * @returns {void}
+         */
+        function addButtonRow(dialog) {
+            var btnRowGroup = dialog.add("group");
+            btnRowGroup.orientation = "row";
+            btnRowGroup.alignment = "fill";
+            btnRowGroup.alignChildren = ["left", "center"];
+
+            var btnLeftGroup = btnRowGroup.add("group");
+            btnLeftGroup.orientation = "row";
+            btnLeftGroup.alignChildren = ["left", "center"];
+            cbPreview = btnLeftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+            cbPreview.helpTip = getLabel("tooltip.preview");
+            cbPreview.value = false;
+            btnLeftGroup.margins = [0, 0, 0, 0];
+
+            var spacer = btnRowGroup.add("group");
+            spacer.alignment = ["fill", "fill"];
+            spacer.minimumSize.width = 0;
+
+            var btnRightGroup = btnRowGroup.add("group");
+            btnRightGroup.orientation = "row";
+            btnRightGroup.alignment = "right";
+            btnRightGroup.alignChildren = ["right", "center"];
+
+            var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+            btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+            /* キャンセルで必ず閉じる / Always close on Cancel */
+            btnCancel.onClick = function () {
+                dialog.close(0);
+            };
+        }
+
+        /**
+         * ダイアログのイベントを結び付ける
+         * @returns {void}
+         */
+        function bindDialogEvents() {
+            /* プレビューを作り直すだけのコントロール / Controls that only rebuild the preview */
+            var previewTriggers = [
+                rbAutoLargest, rbFrontmost, rbBackmost,
+                rbBasePathKeep, rbBasePathHide, rbBasePathDelete,
+                cbRotFlip180,
+                rbOrderCurrent, rbOrderReverse, rbOrderRandom
+            ];
+            for (var i = 0; i < previewTriggers.length; i++) {
+                previewTriggers[i].onClick = function () { rebuildPreviewIfNeeded(); };
+            }
+
+            cbDuplicateEnabled.onClick = function () {
+                if (cbDuplicateEnabled.value) {
+                    /* オンにしたら複製数を最小値に戻す / Reset the count when turned on */
+                    etDuplicateCount.text = String(DUPLICATE_COUNT_MIN);
+                    sldDuplicateCount.value = DUPLICATE_COUNT_MIN;
+                }
+                updateDuplicateUI();
+                rebuildPreviewIfNeeded();
+            };
+            sldDuplicateCount.onChanging = function () {
+                /* ドラッグ中は数字だけ更新 / Update only the text while dragging */
+                etDuplicateCount.text = String(clampDuplicateCount(sldDuplicateCount.value));
+            };
+            sldDuplicateCount.onChange = function () { syncDuplicateCountFromText(); };
+            etDuplicateCount.onChange = function () { syncDuplicateCountFromText(); };
+
+            rbRotNone.onClick = function () { onRotationModeClicked("none"); };
+            rbRotPerp.onClick = function () { onRotationModeClicked("perp"); };
+            rbRotPathPerp.onClick = function () { onRotationModeClicked("path_perp"); };
+            rbRotAngle.onClick = function () { onRotationModeClicked("angle"); };
+            rbRotRandom.onClick = function () { onRotationModeClicked("random"); };
+            etRotAngle.onChange = function () {
+                /* 角度を編集したら「角度指定」にする / Editing the angle selects Angle mode */
+                setRotationMode("angle");
+                rebuildPreviewIfNeeded();
+            };
+
+            rbSpacingEven.onClick = function () {
+                lastRandomSpacing = null;
+                updateSpacingUI();
+                rebuildPreviewIfNeeded();
+            };
+            rbSpacingRandom.onClick = function () {
+                updateSpacingUI();
+                rebuildPreviewIfNeeded();
+            };
+            sldSpacingJitter.onChanging = function () {
+                /* ドラッグ中は値だけ更新し、プレビューは作り直さない / Update the value only; no rebuild while dragging */
+                spacingJitterRatio = clampJitterRatio(sldSpacingJitter.value);
+            };
+            sldSpacingJitter.onChange = function () {
+                spacingJitterRatio = clampJitterRatio(sldSpacingJitter.value);
+                /* 新しい強さでランダム間隔を作り直す / Regenerate the random spacing with the new strength */
+                lastRandomSpacing = null;
+                rebuildPreviewIfNeeded();
+            };
+
+            cbAllRandom.onClick = function () { onAllRandomClicked(); };
+            cbPreview.onClick = function () { onPreviewClicked(); };
+        }
+
+        // -----------------------------------------
+        // ダイアログの状態 / Dialog state
+        // -----------------------------------------
+
+        /**
+         * 複製の欄を、チェックボックスに合わせて有効／無効にする（値はそのまま）
+         * @returns {void}
+         */
+        function updateDuplicateUI() {
+            var isEnabled = !!cbDuplicateEnabled.value;
+            etDuplicateCount.enabled = isEnabled;
+            sldDuplicateCount.enabled = isEnabled;
+        }
+
+        /**
+         * 複製数の欄の値を範囲内に直してスライダーにそろえ、プレビューを作り直す
+         * @returns {void}
+         */
+        function syncDuplicateCountFromText() {
+            var count = clampDuplicateCount(etDuplicateCount.text);
+            etDuplicateCount.text = String(count);
+            sldDuplicateCount.value = count;
+            rebuildPreviewIfNeeded();
+        }
+
+        /**
+         * 複製数を返す（複製しないときは 1）
+         * @returns {number} 複製数
+         */
+        function getDuplicateCount() {
+            if (!cbDuplicateEnabled.value) return 1;
+            return clampDuplicateCount(etDuplicateCount.text);
+        }
+
+        /**
+         * 回転モードのラジオを設定する（別グループのラジオも含めて排他にする）
+         * @param {string} mode - "none" / "angle" / "perp" / "path_perp" / "random"
+         * @returns {void}
+         */
+        function setRotationMode(mode) {
+            rbRotNone.value = (mode === "none");
+            rbRotAngle.value = (mode === "angle");
+            rbRotPerp.value = (mode === "perp");
+            rbRotPathPerp.value = (mode === "path_perp");
+            rbRotRandom.value = (mode === "random");
+            updateRotationUI();
+        }
+
+        /**
+         * 角度の欄を「角度指定」のときだけ有効にする
+         * @returns {void}
+         */
+        function updateRotationUI() {
+            etRotAngle.enabled = !!rbRotAngle.value;
+        }
+
+        /**
+         * ばらつきのスライダーを「ランダム」のときだけ有効にする
+         * @returns {void}
+         */
+        function updateSpacingUI() {
+            sldSpacingJitter.enabled = !!rbSpacingRandom.value;
+        }
+
+        /**
+         * 回転の設定を読み取る
+         * @returns {{mode: string, angle: number, flip180: boolean}} 回転の設定
+         */
+        function getRotationSettings() {
+            var mode = "none";
+            if (rbRotAngle.value) mode = "angle";
+            else if (rbRotPerp.value) mode = "perp";
+            else if (rbRotPathPerp.value) mode = "path_perp";
+            else if (rbRotRandom.value) mode = "random";
+
+            var angle = Number(etRotAngle.text);
+            if (isNaN(angle)) angle = 0;
+
+            return { mode: mode, angle: angle, flip180: !!cbRotFlip180.value };
+        }
+
+        /**
+         * 並べる順番のモードを返す
+         * @returns {string} "current" / "reverse" / "random"
+         */
+        function getOrderMode() {
+            if (rbOrderReverse.value) return "reverse";
+            if (rbOrderRandom.value) return "random";
+            return "current";
+        }
+
+        /**
+         * 間隔のモードを返す
+         * @returns {string} "even" / "random"
+         */
+        function getSpacingMode() {
+            return rbSpacingRandom.value ? "random" : "even";
+        }
+
+        /**
+         * 回転のラジオをクリックしたときの処理
+         * @param {string} mode - 回転モード
+         * @returns {void}
+         */
+        function onRotationModeClicked(mode) {
+            setRotationMode(mode);
+
+            if (mode === "angle") {
+                /* 角度指定にしたら 10° を入れ、すぐ ↑↓ で変えられるようにする / Default to 10° and focus the field so ↑↓ works right away */
+                etRotAngle.text = "10";
+                try {
+                    etRotAngle.active = true;
+                    etRotAngle.selection = [0, etRotAngle.text.length];
+                } catch (e) { /* 環境によってフォーカス／選択範囲を設定できない / focus or selection may be unsupported */ }
+            }
+
+            rebuildPreviewIfNeeded();
+        }
+
+        /**
+         * 「一括ランダム」：オンで順番・間隔・回転をランダムに、オフで既定に戻す
+         * @returns {void}
+         */
+        function onAllRandomClicked() {
+            var isAllRandom = !!cbAllRandom.value;
+
+            setRotationMode(isAllRandom ? "random" : "none");
+            if (isAllRandom) {
+                rbOrderRandom.value = true;
+                rbSpacingRandom.value = true;
+            } else {
+                rbOrderCurrent.value = true;
+                rbSpacingEven.value = true;
+            }
+            updateSpacingUI();
+
+            /* ランダムの結果を作り直させる / Force new random results */
+            lastRandomOrder = null;
+            lastRandomSpacing = null;
+            if (isAllRandom) lastShuffleSeed = null;
+
+            rebuildPreviewIfNeeded();
+        }
+
+        // -----------------------------------------
+        // 基準パスと配置対象 / Base path and objects
+        // -----------------------------------------
+
+        /**
+         * 選択されている規則で基準パス（B）を探す
+         * @param {PageItem[]} selectionItems - 選択
+         * @returns {PathItem|null} 基準パス
+         */
+        function findBasePath(selectionItems) {
+            if (rbAutoLargest.value) return getLargestPathItem(selectionItems);
+            return findPathItemByStacking(selectionItems, !!rbFrontmost.value);
+        }
+
+        /**
+         * プレビューに使う選択を返す。元を隠して選択が外れたときは控えを使う
+         * @returns {Array|null} 2つ以上の選択。足りなければ null
+         */
+        function getPreviewSourceSelection() {
+            var sourceSelection = doc.selection;
+            if ((!sourceSelection || sourceSelection.length < 2) && previewSelectionSnapshot && previewSelectionSnapshot.length >= 2) {
+                sourceSelection = previewSelectionSnapshot;
+            }
+            if (!sourceSelection || sourceSelection.length < 2) return null;
+            return sourceSelection;
+        }
+
+        /**
+         * プレビューを作れない理由を返す
+         * @returns {string} 警告文の LABELS パス。作れるなら空文字
+         */
+        function findPreviewProblem() {
+            var sourceSelection = getPreviewSourceSelection();
+            if (!sourceSelection) return "alert.needSelection";
+            var basePath = findBasePath(sourceSelection);
+            if (!basePath) return "alert.noBasePath";
+            if (collectPlaceableItems(sourceSelection, basePath).length === 0) return "alert.noItems";
+            return "";
+        }
+
+        /**
+         * 並べる順番を適用した配列を返す。ランダムは OK のときにプレビューの順を使い回す
+         * @param {PageItem[]} sourceItems - 並べるオブジェクト
+         * @param {string} orderMode - "current" / "reverse" / "random"
+         * @param {boolean} isPreview - プレビューか
+         * @returns {PageItem[]} 並べた配列
+         */
+        function applyOrderToArray(sourceItems, orderMode, isPreview) {
+            var orderedItems = sortByStackingOrder(sourceItems);
+
+            if (orderMode !== "random") {
+                lastRandomOrder = null;
+                if (orderMode === "reverse") orderedItems.reverse();
+                return orderedItems;
+            }
+
+            if (!isPreview) {
+                var reusedItems = reorderByStoredOrder(orderedItems, lastRandomOrder);
+                if (reusedItems) return reusedItems;
+            }
+
+            /* 新しく混ぜる（最新の順はプレビューが作る）/ New shuffle; the preview produces the latest order */
+            var shuffledItems = copyArray(orderedItems);
+            shuffleInPlace(shuffledItems);
+            lastRandomOrder = copyArray(shuffledItems);
+            return shuffledItems;
+        }
+
+        /**
+         * 各オブジェクトを複製して、元を含めて duplicateCount 個ずつにする
+         * @param {PageItem[]} sourceItems - 元のオブジェクト
+         * @param {number} duplicateCount - 1つあたりの個数
+         * @returns {PageItem[]} 元と複製を並べた配列
+         */
+        function expandWithDuplicates(sourceItems, duplicateCount) {
+            var expandedItems = [];
+            for (var i = 0; i < sourceItems.length; i++) {
+                expandedItems.push(sourceItems[i]);
+                for (var copyIndex = 1; copyIndex < duplicateCount; copyIndex++) {
+                    var duplicatedItem = duplicateBeside(sourceItems[i]);
+                    if (duplicatedItem) expandedItems.push(duplicatedItem);
+                }
+            }
+            return expandedItems;
+        }
+
+        /**
+         * オブジェクトを複製する。親の後ろに置けないときは現在のレイヤーの末尾に置く
+         * @param {PageItem} sourceItem - 元のオブジェクト
+         * @returns {PageItem|null} 複製。できなければ null
+         */
+        function duplicateBeside(sourceItem) {
+            try {
+                return sourceItem.duplicate(sourceItem.parent, ElementPlacement.PLACEAFTER);
+            } catch (e) {
+                try {
+                    return sourceItem.duplicate(doc.activeLayer, ElementPlacement.PLACEATEND);
+                } catch (err) {
+                    return null;
+                }
+            }
+        }
+
+        // -----------------------------------------
+        // 配置 / Arrange
+        // -----------------------------------------
+
+        /**
+         * ランダム間隔の位置を返す。OK ではプレビューと同じ位置を使い回す
+         * @param {number} totalLength - パスの長さ
+         * @param {number} itemCount - 配置する数
+         * @param {boolean} isClosed - 閉じたパスか
+         * @param {boolean} isPreview - プレビューか
+         * @returns {number[]} 距離の配列
+         */
+        function getRandomDistances(totalLength, itemCount, isClosed, isPreview) {
+            if (!isPreview && lastRandomSpacing && lastRandomSpacing.distances && lastRandomSpacing.distances.length === itemCount &&
+                Math.abs(Number(lastRandomSpacing.totalLength) - Number(totalLength)) < 0.01) {
+                return copyArray(lastRandomSpacing.distances);
+            }
+            var distances = computeJitteredDistances(totalLength, itemCount, isClosed, USE_ENDPOINTS, clampJitterRatio(spacingJitterRatio));
+            lastRandomSpacing = { totalLength: totalLength, distances: copyArray(distances) };
+            return distances;
+        }
+
+        /**
+         * オブジェクトをパスに沿って配置し、回転する
+         * @param {PathItem} pathItem - 基準パス
+         * @param {PageItem[]} targetItems - 配置するオブジェクト（この順に始点から並べる）
+         * @param {{mode: string, angle: number, flip180: boolean}} rotationSettings - 回転の設定
+         * @param {string} spacingMode - "even" / "random"
+         * @param {boolean} isPreview - プレビューか
+         * @returns {boolean} 配置できたら true
+         */
+        function arrangeAlongPath(pathItem, targetItems, rotationSettings, spacingMode, isPreview) {
+            var pathPoints = pathItem.pathPoints;
+            if (!pathPoints || pathPoints.length < 2) {
+                showDedupedAlert("alert.pathTooShort");
+                return false;
+            }
+
+            var polyline = buildPolylineFromBezierPath(pathItem, SAMPLES_PER_SEGMENT);
+            if (polyline.length < 2) {
+                showDedupedAlert("alert.pathAnalyzeFailed");
+                return false;
+            }
+
+            var cumulativeLengths = getCumulativeLengths(polyline);
+            var totalLength = cumulativeLengths[cumulativeLengths.length - 1];
+            if (totalLength <= 0) {
+                showDedupedAlert("alert.pathLengthZero");
+                return false;
+            }
+
+            var itemCount = targetItems.length;
+            var isClosedPath = !!pathItem.closed;
+            var pathGeometry = { polyline: polyline, cumulativeLengths: cumulativeLengths, isClosed: isClosedPath };
+
+            /* 「それぞれ垂直」の中心 / Center for the Perpendicular mode */
+            var baseCenter = getItemCenter(pathItem);
+
+            var distances;
+            if (spacingMode === "random") {
+                distances = getRandomDistances(totalLength, itemCount, isClosedPath, isPreview);
+            } else {
+                lastRandomSpacing = null;
+                distances = computeEvenDistances(totalLength, itemCount, isClosedPath, USE_ENDPOINTS);
+            }
+
+            for (var j = 0; j < itemCount; j++) {
+                var distance = distances[j];
+                var position = pointAtDistance(polyline, cumulativeLengths, distance);
+
+                var itemCenter = getItemCenter(targetItems[j]);
+                var dx = position.x - itemCenter.x;
+                var dy = position.y - itemCenter.y;
+                targetItems[j].translate(dx, dy);
+
+                rotatePlacedItem(targetItems[j], rotationSettings, baseCenter, pathGeometry, distance);
+
+                if (ROTATE_ALONG_TANGENT) {
+                    var aheadPosition = pointAtDistance(polyline, cumulativeLengths, Math.min(totalLength, distance + totalLength * 0.001));
+                    var tangentAngle = Math.atan2(aheadPosition.y - position.y, aheadPosition.x - position.x) * 180 / Math.PI;
+                    targetItems[j].rotate(tangentAngle, true, true, true, true, Transformation.CENTER);
+                }
+            }
+            return true;
+        }
+
+        // -----------------------------------------
+        // プレビュー / Preview
+        // -----------------------------------------
+
+        /**
+         * プレビュー中に隠したオブジェクトの表示状態を戻す
+         * @returns {void}
+         */
+        function restoreHiddenItems() {
+            for (var i = 0; i < previewHiddenEntries.length; i++) {
+                try {
+                    previewHiddenEntries[i].item.hidden = previewHiddenEntries[i].wasHidden;
+                } catch (e) { /* 既に無いオブジェクト / the item may be gone */ }
+            }
+            previewHiddenEntries = [];
+        }
+
+        /**
+         * プレビュー中だけ元のオブジェクトを隠す（元の表示状態を控える）
+         * @param {PageItem} pageItem - 隠すオブジェクト
+         * @returns {void}
+         */
+        function hideForPreview(pageItem) {
+            if (!pageItem) return;
+            for (var i = 0; i < previewHiddenEntries.length; i++) {
+                if (previewHiddenEntries[i].item === pageItem) return;
+            }
+            var wasHidden = false;
+            try { wasHidden = !!pageItem.hidden; } catch (e) { wasHidden = false; }
+            previewHiddenEntries.push({ item: pageItem, wasHidden: wasHidden });
+            try { pageItem.hidden = true; } catch (e) { }
+        }
+
+        /**
+         * プレビューを消し、隠したオブジェクトと選択を戻す
+         * @returns {void}
+         */
+        function clearPreview() {
+            if (previewLayer) {
+                try {
+                    previewLayer.locked = false;
+                    previewLayer.remove();
+                } catch (e) { /* 既に消えている / already gone */ }
+            }
+            previewLayer = null;
+            restoreHiddenItems();
+
+            /* 元を隠したときに選択が外れていたら戻す / Restore the selection if hiding the originals dropped it */
+            try {
+                var currentSelection = doc.selection;
+                if ((!currentSelection || currentSelection.length === 0) && previewSelectionSnapshot && previewSelectionSnapshot.length) {
+                    doc.selection = previewSelectionSnapshot;
+                }
+            } catch (e) { }
+
+            app.redraw();
+        }
+
+        /**
+         * 作りかけのプレビュー用レイヤーを捨てる
+         * @returns {void}
+         */
+        function discardPreviewLayer() {
+            try { previewLayer.remove(); } catch (e) { }
+            previewLayer = null;
+        }
+
+        /**
+         * 各オブジェクトを duplicateCount 個ずつ、グループの末尾に複製する
+         * @param {PageItem[]} sourceItems - 元のオブジェクト
+         * @param {GroupItem} targetGroup - 複製先のグループ
+         * @param {number} duplicateCount - 1つあたりの複製数
+         * @returns {PageItem[]} 複製
+         */
+        function duplicateIntoGroup(sourceItems, targetGroup, duplicateCount) {
+            var duplicatedItems = [];
+            for (var i = 0; i < sourceItems.length; i++) {
+                for (var copyIndex = 0; copyIndex < duplicateCount; copyIndex++) {
+                    try {
+                        duplicatedItems.push(sourceItems[i].duplicate(targetGroup, ElementPlacement.PLACEATEND));
+                    } catch (e) { /* 複製できないものは飛ばす / skip items that cannot be duplicated */ }
+                }
+            }
+            return duplicatedItems;
+        }
+
+        /**
+         * プレビューを作り直す（複製を最前面の一時レイヤーに並べ、元は隠す）
+         * @returns {boolean} 作れたら true
+         */
+        function buildPreview() {
+            clearPreview();
+
+            var sourceSelection = getPreviewSourceSelection();
+            if (!sourceSelection) return false;
+            previewSelectionSnapshot = copyArray(sourceSelection);
+
+            var basePath = findBasePath(sourceSelection);
+            if (!basePath) return false;
+
+            var sourceItems = collectPlaceableItems(sourceSelection, basePath);
+            if (sourceItems.length === 0) return false;
+
+            var orderMode = getOrderMode();
+            var orderedSourceItems = applyOrderToArray(sourceItems, orderMode, true);
+            var duplicateCount = getDuplicateCount();
+
+            /* プレビュー用レイヤーを最前面に作る / Create the preview layer on top */
+            try {
+                previewLayer = doc.layers.add();
+                previewLayer.name = PREVIEW_LAYER_NAME;
+            } catch (e) {
+                previewLayer = null;
+                return false;
+            }
+
+            /* 形状の計算用に基準パスを複製 / Duplicate the base path for the geometry */
+            var previewGroup = null;
+            var previewPath = null;
+            try {
+                previewGroup = previewLayer.groupItems.add();
+                previewGroup.name = "Preview_ArrangedAlongPath";
+                previewPath = basePath.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
+            } catch (e) {
+                discardPreviewLayer();
+                return false;
+            }
+
+            /* 「塗り／線」なしはプレビュー側だけに反映 / Apply "no fill / no stroke" to the preview copy only */
+            if (rbBasePathHide.value) clearFillAndStroke(previewPath);
+
+            var previewItems = duplicateIntoGroup(orderedSourceItems, previewGroup, duplicateCount);
+            if (previewItems.length === 0) {
+                clearPreview();
+                return false;
+            }
+
+            /* ランダム順で複製ありなら、複製も含めてまとめて混ぜ、OK 用にシードを控える / Shuffle all copies together and keep the seed for OK */
+            if (orderMode === "random" && duplicateCount > 1) {
+                lastShuffleSeed = { seed: createShuffleSeed(), itemCount: previewItems.length, duplicateCount: duplicateCount };
+                shuffleInPlace(previewItems, createSeededRandom(lastShuffleSeed.seed));
+            } else {
+                lastShuffleSeed = null;
+            }
+
+            if (!arrangeAlongPath(previewPath, previewItems, getRotationSettings(), getSpacingMode(), true)) {
+                clearPreview();
+                return false;
+            }
+
+            /* 「削除」なら配置後にプレビューのパスを消す / With Delete, remove the preview path after arranging */
+            if (rbBasePathDelete.value) {
+                try { previewPath.remove(); } catch (e) { }
+            }
+
+            /* プレビュー中は元のオブジェクトを隠す / Hide the originals while previewing */
+            hideForPreview(basePath);
+            for (var h = 0; h < sourceItems.length; h++) hideForPreview(sourceItems[h]);
+
+            /* 選択を戻す（複製で変わることがある）/ Restore the selection, which duplication may change */
+            try { doc.selection = previewSelectionSnapshot; } catch (e) { }
+            app.redraw();
+
+            return true;
+        }
+
+        /**
+         * プレビューがオンなら作り直す。作れなければプレビューをオフにする
+         * @returns {void}
+         */
+        function rebuildPreviewIfNeeded() {
+            if (!cbPreview.value) return;
+            var isBuilt = false;
+            try {
+                isBuilt = buildPreview();
+            } catch (e) { /* 想定外の DOM エラーでもダイアログは閉じない / keep the dialog alive on unexpected DOM errors */ }
+            if (!isBuilt) {
+                cbPreview.value = false;
+                clearPreview();
+            }
+        }
+
+        /**
+         * 「プレビュー」をクリックしたときの処理。作る前に選択を確かめ、警告が重ならないようにする
+         * @returns {void}
+         */
+        function onPreviewClicked() {
+            if (!cbPreview.value) {
+                clearPreview();
+                return;
+            }
+
+            var problemPath = findPreviewProblem();
+            if (problemPath) {
+                showDedupedAlert(problemPath);
+                cbPreview.value = false;
+                clearPreview();
+                return;
+            }
+
+            rebuildPreviewIfNeeded();
+        }
+
+        // -----------------------------------------
+        // 実行 / Apply
+        // -----------------------------------------
+
+        /**
+         * OK で閉じたあと、選択したオブジェクトをパスに沿って配置する
+         * @returns {void}
+         */
+        function applyArrangement() {
+            /* OK の時点の選択を取り直す / Re-read the selection at OK time */
+            var currentSelection = doc.selection;
+
+            if (!currentSelection || currentSelection.length < 2) {
+                /* プレビュー中に選択が外れていたら控えから戻す / Fall back to the snapshot if the preview dropped the selection */
+                if (previewSelectionSnapshot && previewSelectionSnapshot.length >= 2) {
+                    try { doc.selection = previewSelectionSnapshot; } catch (e) { }
+                    try { currentSelection = doc.selection; } catch (e) { }
+                }
+            }
+
+            if (!currentSelection || currentSelection.length < 2) {
+                showDedupedAlert("alert.needSelection");
+                return;
+            }
+
+            /* B = 選ばれた規則で決まる基準パス / B = base path by the chosen rule */
+            var basePath = findBasePath(currentSelection);
+            if (!basePath) {
+                showDedupedAlert("alert.noBasePath");
+                return;
+            }
+
+            if (rbBasePathHide.value) clearFillAndStroke(basePath);
+
+            /* A = 基準パス（B）以外で配置できるもの / A = placeable items other than the base path (B) */
+            var arrangeItems = collectPlaceableItems(currentSelection, basePath);
+            if (arrangeItems.length === 0) {
+                showDedupedAlert("alert.noItems");
+                return;
+            }
+
+            var orderMode = getOrderMode();
+            arrangeItems = applyOrderToArray(arrangeItems, orderMode, false);
+
+            var duplicateCount = getDuplicateCount();
+            if (duplicateCount > 1) {
+                arrangeItems = expandWithDuplicates(arrangeItems, duplicateCount);
+
+                /* ランダム順なら複製も含めて混ぜる。数が同じならプレビューのシードを使う / Shuffle all copies; reuse the preview seed when the counts match */
+                if (orderMode === "random") {
+                    var canReuseSeed = (lastShuffleSeed !== null && lastShuffleSeed.itemCount === arrangeItems.length && lastShuffleSeed.duplicateCount === duplicateCount);
+                    var shuffleSeed = canReuseSeed ? lastShuffleSeed.seed : createShuffleSeed();
+                    shuffleInPlace(arrangeItems, createSeededRandom(shuffleSeed));
+                }
+            }
+
+            if (!arrangeAlongPath(basePath, arrangeItems, getRotationSettings(), getSpacingMode(), false)) return;
+
+            /* 配置したオブジェクトをグループ化（基準パスは含めない）/ Group the placed objects, excluding the base path */
+            if (cbGroupPlaced.value) {
+                try {
+                    var arrangedGroup = doc.groupItems.add();
+                    arrangedGroup.name = "ArrangedAlongPath";
+                    for (var i = 0; i < arrangeItems.length; i++) {
+                        arrangeItems[i].move(arrangedGroup, ElementPlacement.PLACEATEND);
+                    }
+                } catch (e) { }
+            }
+
+            /* 基準パスを削除 / Remove the base path */
+            if (rbBasePathDelete.value) {
+                try { basePath.remove(); } catch (e) { }
+            }
+        }
+    }
+
+    main();
 
 })();

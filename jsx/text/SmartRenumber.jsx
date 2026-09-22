@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartRenumber";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md"; /* README (English) */
@@ -177,11 +177,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 前後の空白を落とします。
      *
-     * @param {string} text - 対象の文字列。
+     * @param {string} sourceText - 対象の文字列。
      * @returns {string} 前後の空白を除いた文字列。
      */
-    function trimText(text) {
-        return String(text).replace(/^\s+|\s+$/g, "");
+    function trimText(sourceText) {
+        return String(sourceText).replace(/^\s+|\s+$/g, "");
     }
 
     /**
@@ -192,22 +192,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      */
     function lettersToIndex(letters) {
         var upperCaseLetters = letters.toUpperCase();
-        var index = 0;
+        var letterIndex = 0;
         for (var i = 0; i < upperCaseLetters.length; i++) {
-            index = index * 26 + (upperCaseLetters.charCodeAt(i) - 64);
+            letterIndex = letterIndex * 26 + (upperCaseLetters.charCodeAt(i) - 64);
         }
-        return index;
+        return letterIndex;
     }
 
     /**
      * 位置を英字に戻します（1=A、26=Z、27=AA）。
      *
-     * @param {number} index - 1から始まる文字順の位置。
+     * @param {number} letterIndex - 1から始まる文字順の位置。
      * @returns {string} 大文字の英字。1以下は "A"。
      */
-    function indexToLetters(index) {
+    function indexToLetters(letterIndex) {
         var letters = "";
-        var remaining = Math.floor(index);
+        var remaining = Math.floor(letterIndex);
         while (remaining > 0) {
             var remainder = (remaining - 1) % 26;
             letters = String.fromCharCode(65 + remainder) + letters;
@@ -259,35 +259,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 数を漢数字に直します（12=十二、203=二百三、10000=一万）。大字では 12=拾弐 になります。
      *
-     * @param {number} value - 0以上の整数。
+     * @param {number} numberValue - 0以上の整数。
      * @param {string} styleKey - "kanji"（通常）または "daiji"（大字）。
      * @returns {string} 漢数字。0以下は "〇"（大字は "零"）。
      */
-    function numberToKanji(value, styleKey) {
-        var style = KANJI_STYLES[styleKey] || KANJI_STYLES.kanji;
-        var remaining = Math.floor(value);
-        if (remaining <= 0) return style.digits[0];
+    function numberToKanji(numberValue, styleKey) {
+        var kanjiStyle = KANJI_STYLES[styleKey] || KANJI_STYLES.kanji;
+        var remaining = Math.floor(numberValue);
+        if (remaining <= 0) return kanjiStyle.digits[0];
 
-        var kanji = "";
+        var kanjiText = "";
 
         /* 万の位から先に切り出す / Take the ten-thousands apart first */
         if (remaining >= 10000) {
-            kanji += numberToKanji(Math.floor(remaining / 10000), styleKey) + "万";
+            kanjiText += numberToKanji(Math.floor(remaining / 10000), styleKey) + "万";
             remaining = remaining % 10000;
-            if (remaining === 0) return kanji;
+            if (remaining === 0) return kanjiText;
         }
 
-        for (var i = 0; i < style.units.length; i++) {
-            var digit = Math.floor(remaining / style.units[i].value);
+        for (var i = 0; i < kanjiStyle.units.length; i++) {
+            var digit = Math.floor(remaining / kanjiStyle.units[i].value);
             if (digit > 0) {
                 /* 十・百・千の「一」は書かない / The leading one is left out for 十, 百 and 千 */
-                if (digit > 1) kanji += style.digits[digit];
-                kanji += style.units[i].character;
-                remaining -= digit * style.units[i].value;
+                if (digit > 1) kanjiText += kanjiStyle.digits[digit];
+                kanjiText += kanjiStyle.units[i].character;
+                remaining -= digit * kanjiStyle.units[i].value;
             }
         }
 
-        return kanji + ((remaining > 0) ? style.digits[remaining] : "");
+        return kanjiText + ((remaining > 0) ? kanjiStyle.digits[remaining] : "");
     }
 
     /**
@@ -367,10 +367,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
 
         while (position < upperCaseText.length) {
             for (var i = 0; i < ROMAN_UNITS.length; i++) {
-                var characters = ROMAN_UNITS[i].characters;
-                if (upperCaseText.substr(position, characters.length) === characters) {
+                var unitCharacters = ROMAN_UNITS[i].characters;
+                if (upperCaseText.substr(position, unitCharacters.length) === unitCharacters) {
                     total += ROMAN_UNITS[i].value;
-                    position += characters.length;
+                    position += unitCharacters.length;
                     break;
                 }
             }
@@ -382,21 +382,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 数をローマ数字に直します（4=IV、12=XII）。
      *
-     * @param {number} value - 1以上の整数。
+     * @param {number} numberValue - 1以上の整数。
      * @returns {string} 大文字のローマ数字。1未満は "I"。
      */
-    function numberToRoman(value) {
-        var remaining = Math.floor(value);
+    function numberToRoman(numberValue) {
+        var remaining = Math.floor(numberValue);
         if (remaining < 1) return "I";
 
-        var roman = "";
+        var romanText = "";
         for (var i = 0; i < ROMAN_UNITS.length; i++) {
             while (remaining >= ROMAN_UNITS[i].value) {
-                roman += ROMAN_UNITS[i].characters;
+                romanText += ROMAN_UNITS[i].characters;
                 remaining -= ROMAN_UNITS[i].value;
             }
         }
-        return roman;
+        return romanText;
     }
 
     /**
@@ -415,28 +415,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     }
 
     /**
-     * ［開始値］から数えて offset 番目の値を文字列で返します。
+     * ［開始値］から数えて sequenceOffset 番目の値を文字列で返します。
      *
      * @param {object} startValue - parseStartValue() の戻り値。
-     * @param {number} offset - ［開始値］からの位置（0が最初）。
+     * @param {number} sequenceOffset - ［開始値］からの位置（0が最初）。
      * @param {number} zeroPadDigits - ゼロ埋めの桁数。0で埋めません。
      * @returns {string} 書き込む文字列。
      */
-    function formatSequenceValue(startValue, offset, zeroPadDigits) {
+    function formatSequenceValue(startValue, sequenceOffset, zeroPadDigits) {
         if (startValue.format === "letter") {
-            var letters = indexToLetters(startValue.index + offset);
+            var letters = indexToLetters(startValue.index + sequenceOffset);
             return startValue.isUpperCase ? letters : letters.toLowerCase();
         }
 
         if (startValue.format === "kanji" || startValue.format === "daiji") {
-            return numberToKanji(startValue.number + offset, startValue.format);
+            return numberToKanji(startValue.number + sequenceOffset, startValue.format);
         }
 
         if (startValue.format === "roman") {
-            return numberToRoman(startValue.number + offset);
+            return numberToRoman(startValue.number + sequenceOffset);
         }
 
-        var assignedNumber = startValue.number + offset;
+        var assignedNumber = startValue.number + sequenceOffset;
         return (zeroPadDigits > 1) ? padWithZeros(assignedNumber, zeroPadDigits) : String(assignedNumber);
     }
 
@@ -445,26 +445,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * ［ゼロ埋め］がONのときは最後の番号の桁数まで広げます。
      *
      * @param {object} startValue - parseStartValue() の戻り値。
-     * @param {number} count - 振り直す個数。
+     * @param {number} targetCount - 振り直す個数。
      * @param {boolean} isZeroPadded - ［ゼロ埋め］がONか。
      * @returns {number} ゼロ埋めする桁数。埋めないときは0。
      */
-    function getSequenceDigits(startValue, count, isZeroPadded) {
+    function getSequenceDigits(startValue, targetCount, isZeroPadded) {
         if (startValue.format !== "number") return 0;
         if (!isZeroPadded) return startValue.digits;
-        return Math.max(startValue.digits, getZeroPadDigits(startValue.number, count));
+        return Math.max(startValue.digits, getZeroPadDigits(startValue.number, targetCount));
     }
 
     /**
      * ［ゼロ埋め］をONにすると桁数が変わるかを返します。ディム判定に使います。
      *
      * @param {object} startValue - parseStartValue() の戻り値。
-     * @param {number} count - 振り直す個数。
+     * @param {number} targetCount - 振り直す個数。
      * @returns {boolean} 桁数が変わるなら true。
      */
-    function willZeroPadApply(startValue, count) {
+    function willZeroPadApply(startValue, targetCount) {
         if (!startValue || startValue.format !== "number") return false;
-        return getZeroPadDigits(startValue.number, count) > startValue.digits;
+        return getZeroPadDigits(startValue.number, targetCount) > startValue.digits;
     }
 
     // =========================================
@@ -476,10 +476,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      *
      * @returns {string} "ja" または "en"。
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* UI文言の定義 / UI string definitions */
     var LABELS = {
@@ -593,7 +593,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * @returns {string} コロン付きの項目名。
      */
     function labelText(labelSet) {
-        return getLabel(labelSet) + ((uiLang === "ja") ? "：" : ": ");
+        return getLabel(labelSet) + ((uiLang === "ja") ? "：" : ":");
     }
 
     // =========================================
@@ -642,22 +642,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
         var renumberTargets = [];
 
         for (var i = 0; i < selectedItems.length; i++) {
-            var item = selectedItems[i];
-            if (item.typename !== "TextFrame") continue;
+            var selectedItem = selectedItems[i];
+            if (selectedItem.typename !== "TextFrame") continue;
 
             /* 中身が数字・英字・漢数字だけのものに限る（"3行目" などは対象外）
                Only text that is nothing but digits, letters, or Japanese numerals */
-            var sortValue = getSortValue(item.contents);
+            var sortValue = getSortValue(selectedItem.contents);
             if (sortValue === null) continue;
 
-            var stackOrderKey = getStackOrderKey(item);
+            var stackOrderKey = getStackOrderKey(selectedItem);
             renumberTargets.push({
-                frame: item,
-                originalContents: item.contents,
-                text: trimText(item.contents),
+                frame: selectedItem,
+                originalContents: selectedItem.contents,
+                text: trimText(selectedItem.contents),
                 sortValue: sortValue,
-                left: item.left,
-                top: item.top,
+                left: selectedItem.left,
+                top: selectedItem.top,
                 layerOrder: stackOrderKey.layerOrder,
                 itemOrder: stackOrderKey.itemOrder,
                 selectionIndex: i
@@ -670,14 +670,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 重ね順の比較に使うキーを返します。値が大きいほど前面です。
      *
-     * @param {PageItem} item - 対象のオブジェクト。
+     * @param {PageItem} pageItem - 対象のオブジェクト。
      * @returns {{layerOrder: number, itemOrder: number}} レイヤーとレイヤー内の重ね順。
      */
-    function getStackOrderKey(item) {
+    function getStackOrderKey(pageItem) {
         /* zOrderPosition を持たないアイテムもあるため、まとめて保護する
            Some items expose no zOrderPosition, so guard the whole lookup */
         try {
-            return { layerOrder: item.layer.zOrderPosition, itemOrder: item.zOrderPosition };
+            return { layerOrder: pageItem.layer.zOrderPosition, itemOrder: pageItem.zOrderPosition };
         } catch (e) {
             return { layerOrder: 0, itemOrder: 0 };
         }
@@ -694,62 +694,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
            Whether OK was used; only a cancel or a close restores the originals */
         var isConfirmed = false;
 
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.spacing = 10;
-        dialog.margins = 20;
-        dialog.opacity = DIALOG_LAYOUT.opacity;
-
-        /* 上段：2カラム / Upper area: two columns */
-        var columnsGroup = dialog.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = ["fill", "top"];
-        columnsGroup.spacing = 20;
-
-        /* 左カラム：基準となる値とオプション / Left column: base value and options */
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.spacing = 15;
-
-        var baseValueControls = addStartValuePanel(leftColumn, getInitialStartValue(renumberTargets));
-        var startValueInput = baseValueControls.startValueInput;
-        var formatRadios = baseValueControls.formatRadios;
-        var renumberOptions = addOptionsPanel(leftColumn);
-
-        /* 右カラム：並び順とテキスト追加 / Right column: sort order and affixes */
-        var rightColumn = columnsGroup.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ["fill", "top"];
-        rightColumn.spacing = 15;
-
-        var sortOrderControls = addSortOrderPanel(rightColumn);
-        var sortOrderRadios = sortOrderControls.radios;
-        var affixInputs = addAffixPanel(rightColumn);
-
-        /* 下段：ボタンエリア / Lower area: buttons */
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["fill", "top"];
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.margins = [0, 5, 0, 0];
-        btnRowGroup.spacing = 0;
-
-        /* 横に伸びる空白でボタンを右へ寄せる / Spacer pushes the buttons to the right */
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-        spacer.maximumSize.height = 0;
-
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.orientation = "row";
-        btnRightGroup.alignment = ["right", "center"];
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.spacing = 10;
-
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        var dialogControls = buildRenumberDialog(getInitialStartValue(renumberTargets));
+        var renumberDialog = dialogControls.renumberDialog;
+        var startValueInput = dialogControls.startValueInput;
+        var formatRadios = dialogControls.formatRadios;
+        var renumberOptions = dialogControls.renumberOptions;
+        var sortOrderRadios = dialogControls.sortOrderControls.radios;
+        var affixInputs = dialogControls.affixInputs;
 
         /* 入力値をまとめて読み取る / Read every input at once */
         function getRenumberSettings() {
@@ -761,7 +712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
                 sortMode: getSelectedSortMode(sortOrderRadios),
                 isReversed: renumberOptions.reverse.value,
                 isZeroPadded: renumberOptions.zeroPad.value,
-                isStackReordered: sortOrderControls.reorderStack.value
+                isStackReordered: dialogControls.sortOrderControls.reorderStack.value
             };
         }
 
@@ -784,28 +735,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
             app.redraw();
         }
 
-        btnCancel.onClick = function () {
-            dialog.close(0);
+        dialogControls.btnCancel.onClick = function () {
+            renumberDialog.close(0);
         };
 
-        btnOK.onClick = function () {
+        dialogControls.btnOK.onClick = function () {
             /* 元に戻してから一度だけ適用する。最後の書き込みがまとまるので、Undoで元の状態まで戻せる
                Restore first, then apply once, so undo lands back on the original text */
             restoreOriginalContents(renumberTargets);
 
-            var settings = getRenumberSettings();
-            var orderedTargets = applyRenumber(renumberTargets, settings);
+            var renumberSettings = getRenumberSettings();
+            var orderedTargets = applyRenumber(renumberTargets, renumberSettings);
             /* 重ね順の並べ替えはプレビューでは行わない（控えた重ね順が狂うため）
                Restacking runs here only: doing it in the preview would stale the cached order */
-            if (orderedTargets && settings.isStackReordered) reorderStackToMatch(orderedTargets);
+            if (orderedTargets && renumberSettings.isStackReordered) reorderStackToMatch(orderedTargets);
 
             isConfirmed = true;
             app.redraw();
-            dialog.close(1);
+            renumberDialog.close(1);
         };
 
         /* キャンセル・×で閉じたときは元の中身に戻す / A cancel or a close puts the originals back */
-        dialog.onClose = function () {
+        renumberDialog.onClose = function () {
             if (!isConfirmed) {
                 restoreOriginalContents(renumberTargets);
                 app.redraw();
@@ -821,8 +772,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
                 updatePreview();
             };
         }
-        for (var f = 0; f < FORMAT_MODES.length; f++) {
-            formatRadios[FORMAT_MODES[f].key].onClick = makeFormatClickHandler(FORMAT_MODES[f].startValue);
+        for (var i = 0; i < FORMAT_MODES.length; i++) {
+            formatRadios[FORMAT_MODES[i].key].onClick = makeFormatClickHandler(FORMAT_MODES[i].startValue);
         }
 
         startValueInput.onChanging = updatePreview;
@@ -830,12 +781,125 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
         affixInputs.suffix.onChanging = updatePreview;
         renumberOptions.reverse.onClick = updatePreview;
         renumberOptions.zeroPad.onClick = updatePreview;
-        for (var i = 0; i < SORT_MODES.length; i++) {
-            sortOrderRadios[SORT_MODES[i]].onClick = updatePreview;
+        for (var j = 0; j < SORT_MODES.length; j++) {
+            sortOrderRadios[SORT_MODES[j]].onClick = updatePreview;
         }
 
         updatePreview();
-        dialog.show();
+        renumberDialog.show();
+    }
+
+    /**
+     * 連番振り直しのダイアログを組み立てます（イベントの配線は showRenumberDialog() で行います）。
+     *
+     * @param {string} initialStartValue - ［開始値］の初期値。
+     * @returns {{renumberDialog: Window, startValueInput: EditText, formatRadios: object,
+     *            renumberOptions: {reverse: Checkbox, zeroPad: Checkbox},
+     *            sortOrderControls: {radios: object, reorderStack: Checkbox},
+     *            affixInputs: {prefix: EditText, suffix: EditText}, btnCancel: Button, btnOK: Button}} 作成したコントロール。
+     */
+    function buildRenumberDialog(initialStartValue) {
+        var renumberDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        renumberDialog.orientation = "column";
+        renumberDialog.alignChildren = ["fill", "top"];
+        renumberDialog.spacing = 10;
+        renumberDialog.margins = 20;
+        renumberDialog.opacity = DIALOG_LAYOUT.opacity;
+
+        /* 上段：2カラム / Upper area: two columns */
+        var columnsGroup = renumberDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = 20;
+
+        /* 左カラム：基準となる値とオプション / Left column: base value and options */
+        var leftColumn = addDialogColumn(columnsGroup);
+        var baseValueControls = addStartValuePanel(leftColumn, initialStartValue);
+        var renumberOptions = addOptionsPanel(leftColumn);
+
+        /* 右カラム：並び順とテキスト追加 / Right column: sort order and affixes */
+        var rightColumn = addDialogColumn(columnsGroup);
+        var sortOrderControls = addSortOrderPanel(rightColumn);
+        var affixInputs = addAffixPanel(rightColumn);
+
+        /* 下段：ボタンエリア / Lower area: buttons */
+        var btnRowGroup = renumberDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "top"];
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.margins = [0, 5, 0, 0];
+        btnRowGroup.spacing = 0;
+
+        /* 横に伸びる空白でボタンを右へ寄せる / Spacer pushes the buttons to the right */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+        spacer.maximumSize.height = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.orientation = "row";
+        btnRightGroup.alignment = ["right", "center"];
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = 10;
+
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        return {
+            renumberDialog: renumberDialog,
+            startValueInput: baseValueControls.startValueInput,
+            formatRadios: baseValueControls.formatRadios,
+            renumberOptions: renumberOptions,
+            sortOrderControls: sortOrderControls,
+            affixInputs: affixInputs,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
+
+    /**
+     * 上段のカラム（パネルを縦に積むグループ）を追加します。
+     *
+     * @param {Group} columnsGroup - 2カラムを並べるグループ。
+     * @returns {Group} 追加したカラム。
+     */
+    function addDialogColumn(columnsGroup) {
+        var dialogColumn = columnsGroup.add("group");
+        dialogColumn.orientation = "column";
+        dialogColumn.alignChildren = ["fill", "top"];
+        dialogColumn.spacing = 15;
+        return dialogColumn;
+    }
+
+    /**
+     * 項目を左揃えで縦に並べるパネルを追加します（［基準となる値］［並び順］［オプション］で共用）。
+     *
+     * @param {Group} parentGroup - 追加先のグループ。
+     * @param {object} titleLabelSet - パネル見出しの文言オブジェクト。
+     * @returns {Panel} 追加したパネル。
+     */
+    function addColumnPanel(parentGroup, titleLabelSet) {
+        var columnPanel = parentGroup.add("panel", undefined, getLabel(titleLabelSet));
+        columnPanel.orientation = "column";
+        columnPanel.alignChildren = ["left", "top"];
+        columnPanel.margins = [15, 20, 15, 10];
+        columnPanel.spacing = 4;
+        return columnPanel;
+    }
+
+    /**
+     * ラジオボタンかチェックボックスを、LABELS のキーで tooltip 付きで追加します。
+     *
+     * @param {Panel|Group} parentContainer - 追加先のパネルかグループ。
+     * @param {string} controlType - "radiobutton" / "checkbox"。
+     * @param {string} labelKey - LABELS.radio（または LABELS.checkbox）と LABELS.tooltip のキー。
+     * @returns {RadioButton|Checkbox} 追加したコントロール。
+     */
+    function addLabeledControl(parentContainer, controlType, labelKey) {
+        var labelCategory = (controlType === "radiobutton") ? LABELS.radio : LABELS.checkbox;
+        var addedControl = parentContainer.add(controlType, undefined, getLabel(labelCategory[labelKey]));
+        addedControl.helpTip = getLabel(LABELS.tooltip[labelKey]);
+        return addedControl;
     }
 
     /**
@@ -846,11 +910,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * @returns {{startValueInput: EditText, formatRadios: object}} 開始値の入力欄と書式のラジオ。
      */
     function addStartValuePanel(parentGroup, initialStartValue) {
-        var baseValuePanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.baseValue));
-        baseValuePanel.orientation = "column";
-        baseValuePanel.alignChildren = ["left", "top"];
-        baseValuePanel.margins = [15, 20, 15, 10];
-        baseValuePanel.spacing = 4;
+        var baseValuePanel = addColumnPanel(parentGroup, LABELS.panel.baseValue);
 
         /* 書式のラジオ（縦並び）。同じ親に入れておくと排他になる
            Format radios in one column; keeping them in one parent keeps them exclusive */
@@ -894,18 +954,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * @returns {{radios: object, reorderStack: Checkbox}} 並び順のラジオと重ね順調整のチェックボックス。
      */
     function addSortOrderPanel(parentGroup) {
-        var sortOrderPanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.sortOrder));
-        sortOrderPanel.orientation = "column";
-        sortOrderPanel.alignChildren = ["left", "top"];
-        sortOrderPanel.margins = [15, 20, 15, 10];
-        sortOrderPanel.spacing = 4;
+        var sortOrderPanel = addColumnPanel(parentGroup, LABELS.panel.sortOrder);
 
         var sortOrderRadios = {};
         for (var i = 0; i < SORT_MODES.length; i++) {
-            var sortMode = SORT_MODES[i];
-            var sortModeRadio = sortOrderPanel.add("radiobutton", undefined, getLabel(LABELS.radio[sortMode]));
-            sortModeRadio.helpTip = getLabel(LABELS.tooltip[sortMode]);
-            sortOrderRadios[sortMode] = sortModeRadio;
+            sortOrderRadios[SORT_MODES[i]] = addLabeledControl(sortOrderPanel, "radiobutton", SORT_MODES[i]);
         }
         sortOrderRadios[SORT_MODES[0]].value = true;
 
@@ -916,8 +969,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
         reorderStackGroup.alignChildren = ["left", "top"];
         reorderStackGroup.margins = [0, DIALOG_LAYOUT.groupTopMargin, 0, 0];
 
-        var reorderStackCheckbox = reorderStackGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.reorderStack));
-        reorderStackCheckbox.helpTip = getLabel(LABELS.tooltip.reorderStack);
+        var reorderStackCheckbox = addLabeledControl(reorderStackGroup, "checkbox", "reorderStack");
         reorderStackCheckbox.value = REORDER_STACK_BY_DEFAULT;
 
         return { radios: sortOrderRadios, reorderStack: reorderStackCheckbox };
@@ -956,19 +1008,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * @returns {{reverse: Checkbox, zeroPad: Checkbox}} 作成したチェックボックス。
      */
     function addOptionsPanel(parentGroup) {
-        var optionsPanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.options));
-        optionsPanel.orientation = "column";
-        optionsPanel.alignChildren = ["left", "top"];
-        optionsPanel.margins = [15, 20, 15, 10];
-        optionsPanel.spacing = 4;
-
-        var reverseCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.reverse));
-        reverseCheckbox.helpTip = getLabel(LABELS.tooltip.reverse);
-
-        var zeroPadCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.zeroPad));
-        zeroPadCheckbox.helpTip = getLabel(LABELS.tooltip.zeroPad);
-
-        return { reverse: reverseCheckbox, zeroPad: zeroPadCheckbox };
+        var optionsPanel = addColumnPanel(parentGroup, LABELS.panel.options);
+        return {
+            reverse: addLabeledControl(optionsPanel, "checkbox", "reverse"),
+            zeroPad: addLabeledControl(optionsPanel, "checkbox", "zeroPad")
+        };
     }
 
     /**
@@ -1013,19 +1057,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 並べ替えた順に連番を書き込みます。プレビューと確定で共用します。
      *
      * @param {Array<object>} renumberTargets - 振り直し対象。
-     * @param {object} settings - getRenumberSettings() が返す設定。
+     * @param {object} renumberSettings - getRenumberSettings() が返す設定。
      * @returns {Array<object>} 番号を振った順に並べた配列。［開始値］が不正なときは null。
      */
-    function applyRenumber(renumberTargets, settings) {
-        var startValue = parseStartValue(settings.startValueText, settings.formatModeKey);
+    function applyRenumber(renumberTargets, renumberSettings) {
+        var startValue = parseStartValue(renumberSettings.startValueText, renumberSettings.formatModeKey);
         if (!startValue) return null;
 
-        var orderedTargets = sortTargets(renumberTargets, settings.sortMode, settings.isReversed);
-        var zeroPadDigits = getSequenceDigits(startValue, orderedTargets.length, settings.isZeroPadded);
+        var orderedTargets = sortTargets(renumberTargets, renumberSettings.sortMode, renumberSettings.isReversed);
+        var zeroPadDigits = getSequenceDigits(startValue, orderedTargets.length, renumberSettings.isZeroPadded);
 
         for (var i = 0; i < orderedTargets.length; i++) {
             var sequenceText = formatSequenceValue(startValue, i, zeroPadDigits);
-            orderedTargets[i].frame.contents = settings.prefix + sequenceText + settings.suffix;
+            orderedTargets[i].frame.contents = renumberSettings.prefix + sequenceText + renumberSettings.suffix;
         }
 
         return orderedTargets;
@@ -1064,40 +1108,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * ゼロ埋めの桁数を返します。最初と最後の番号のうち、桁数の多いほうに合わせます。
      *
      * @param {number} startNumber - 開始番号。
-     * @param {number} count - 振り直す個数。
+     * @param {number} targetCount - 振り直す個数。
      * @returns {number} 整数部の桁数。
      */
-    function getZeroPadDigits(startNumber, count) {
+    function getZeroPadDigits(startNumber, targetCount) {
         var firstDigits = countIntegerDigits(startNumber);
-        var lastDigits = countIntegerDigits(startNumber + count - 1);
+        var lastDigits = countIntegerDigits(startNumber + targetCount - 1);
         return Math.max(firstDigits, lastDigits);
     }
 
     /**
      * 数値の整数部の桁数を返します（符号は数えません）。
      *
-     * @param {number} num - 対象の数値。
+     * @param {number} numberValue - 対象の数値。
      * @returns {number} 桁数。
      */
-    function countIntegerDigits(num) {
-        return String(Math.floor(Math.abs(num))).length;
+    function countIntegerDigits(numberValue) {
+        return String(Math.floor(Math.abs(numberValue))).length;
     }
 
     /**
      * 整数部を指定の桁数までゼロ埋めした文字列を返します。
      *
-     * @param {number} num - 対象の数値。
-     * @param {number} digits - 整数部の桁数。
+     * @param {number} numberValue - 対象の数値。
+     * @param {number} minDigits - 整数部の桁数。
      * @returns {string} ゼロ埋めした文字列。
      */
-    function padWithZeros(num, digits) {
-        var sign = (num < 0) ? "-" : "";
-        var absoluteText = String(Math.abs(num));
+    function padWithZeros(numberValue, minDigits) {
+        var sign = (numberValue < 0) ? "-" : "";
+        var absoluteText = String(Math.abs(numberValue));
         var dotIndex = absoluteText.indexOf(".");
         var integerText = (dotIndex === -1) ? absoluteText : absoluteText.substring(0, dotIndex);
         var decimalText = (dotIndex === -1) ? "" : absoluteText.substring(dotIndex);
 
-        while (integerText.length < digits) {
+        while (integerText.length < minDigits) {
             integerText = "0" + integerText;
         }
         return sign + integerText + decimalText;
@@ -1174,32 +1218,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
             var trimmedText = trimText(editText.text);
             if (trimmedText === "") return;
 
-            var value = Number(trimmedText);
-            if (isNaN(value)) return;
+            var currentValue = Number(trimmedText);
+            if (isNaN(currentValue)) return;
 
             /* 先にキーの既定動作を止める（値を書き換えたあとでは間に合わない環境がある）
                Cancel the default first: some hosts apply it before we finish */
             event.preventDefault();
 
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
             var isUp = (event.keyName === "Up");
-            var isFineStep = !!keyboard.altKey;
+            var isFineStep = !!keyboardState.altKey;
 
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 /* Shiftキー押下時は10の倍数にスナップ / Snap to the nearest ten */
-                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+                currentValue = isUp ? Math.ceil((currentValue + 1) / 10) * 10 : Math.floor((currentValue - 1) / 10) * 10;
             } else {
                 var delta = isFineStep ? 0.1 : 1;
-                value = isUp ? (value + delta) : (value - delta);
+                currentValue = isUp ? (currentValue + delta) : (currentValue - delta);
             }
 
-            if (!allowNegative && value < 0) value = 0;
+            if (!allowNegative && currentValue < 0) currentValue = 0;
 
             /* optionキー押下時は小数第1位まで、それ以外は整数に丸める
                Round to one decimal with option held, otherwise to an integer */
-            value = isFineStep ? (Math.round(value * 10) / 10) : Math.round(value);
+            currentValue = isFineStep ? (Math.round(currentValue * 10) / 10) : Math.round(currentValue);
 
-            editText.text = String(value);
+            editText.text = String(currentValue);
 
             /* keydownでtextを書き換えるとonChangingが発火しないことがあるため明示的に呼ぶ
                Call onChanging by hand: rewriting text from keydown does not always fire it */

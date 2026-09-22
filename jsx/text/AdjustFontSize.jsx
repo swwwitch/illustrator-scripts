@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AdjustFontSize";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSize.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSize.md"; /* README (English) */
@@ -68,10 +68,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * 実行環境のロケールからUIの表示言語を判定する
      * @returns {string} 日本語環境なら "ja"、それ以外は "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
@@ -115,18 +115,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {string} 現在の言語のラベル文字列（未定義の場合は英語にフォールバック）
      */
     function getLabel(key) {
-        var parts = key.split(".");
-        var label = LABELS[parts[0]][parts[1]];
-        return label[currentLanguage] || label.en;
+        var keyParts = key.split(".");
+        var labelEntry = LABELS[keyParts[0]][keyParts[1]];
+        return labelEntry[uiLang] || labelEntry.en;
     }
 
     /**
-     * コロン付きのラベル文字列を取得する（日本語は全角、英語は半角）
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {string} key - ラベルキー
-     * @returns {string} コロンを付けたラベル文字列
+     * @returns {string} コロン付きの項目名
      */
-    function getLabelWithColon(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -175,8 +175,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {number|null} 数値（空欄や数値でない場合は null）
      */
     function readNumber(control) {
-        var value = parseFloat(control.text);
-        return isNaN(value) ? null : value;
+        var parsedValue = parseFloat(control.text);
+        return isNaN(parsedValue) ? null : parsedValue;
     }
 
     /**
@@ -204,32 +204,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * パネルに共通のレイアウト設定を適用する
-     * @param {Panel} panel - 対象のパネル
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - パネル内の間隔（省略時は既定値）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * グループに共通のレイアウト設定を適用する
-     * @param {Group} group - 対象のグループ
+     * @param {Group} targetGroup - 対象のグループ
      * @param {string} [orientation] - "row" または "column"（省略時は "column"）
      * @param {number} [spacing] - グループ内の間隔（省略時は既定値）
      * @returns {void}
      */
-    function setupGroup(group, orientation, spacing) {
+    function setupGroup(targetGroup, orientation, spacing) {
         var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
+        targetGroup.orientation = groupOrientation;
         /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
@@ -242,51 +242,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {{label: StaticText, control: EditText|StaticText, unit: StaticText}} 生成した行の各コントロール
      */
     function addRow(parent, labelKey, controlType, initialText, unitText) {
-        var row = parent.add("group");
-        setupGroup(row, "row");
-        var label = row.add("statictext", undefined, getLabelWithColon(labelKey));
-        label.justify = "right";
+        var rowGroup = parent.add("group");
+        setupGroup(rowGroup, "row");
+        var rowLabel = rowGroup.add("statictext", undefined, labelText(labelKey));
+        rowLabel.justify = "right";
         var isEditable = (controlType === "edittext");
-        var control = row.add(controlType, undefined, initialText);
-        control.characters = isEditable ? EDIT_CHARACTERS : READOUT_CHARACTERS;
-        if (isEditable) control.justify = "right";
-        var unit = row.add("statictext", undefined, unitText);
-        return { label: label, control: control, unit: unit };
+        var valueControl = rowGroup.add(controlType, undefined, initialText);
+        valueControl.characters = isEditable ? EDIT_CHARACTERS : READOUT_CHARACTERS;
+        if (isEditable) valueControl.justify = "right";
+        var unitLabel = rowGroup.add("statictext", undefined, unitText);
+        return { label: rowLabel, control: valueControl, unit: unitLabel };
     }
 
     /**
      * 行（ラベル＋コントロール＋単位）にまとめてヘルプチップを設定する
-     * @param {{label: StaticText, control: EditText|StaticText, unit: StaticText}} row - addRow が返した行オブジェクト
-     * @param {string} tooltip - 設定するヘルプチップ文字列
+     * @param {{label: StaticText, control: EditText|StaticText, unit: StaticText}} rowControls - addRow が返した行オブジェクト
+     * @param {string} tooltipText - 設定するヘルプチップ文字列
      * @returns {void}
      */
-    function setRowTooltip(row, tooltip) {
-        row.label.helpTip = tooltip;
-        row.control.helpTip = tooltip;
-        row.unit.helpTip = tooltip;
+    function setRowTooltip(rowControls, tooltipText) {
+        rowControls.label.helpTip = tooltipText;
+        rowControls.control.helpTip = tooltipText;
+        rowControls.unit.helpTip = tooltipText;
     }
 
     /**
      * 行のラベル・コントロール・単位をまとめて有効／無効にする
-     * @param {{label: StaticText, control: EditText|StaticText, unit: StaticText}} row - addRow が返した行オブジェクト
+     * @param {{label: StaticText, control: EditText|StaticText, unit: StaticText}} rowControls - addRow が返した行オブジェクト
      * @param {boolean} enabled - 有効にするなら true
      * @returns {void}
      */
-    function setRowEnabled(row, enabled) {
-        row.label.enabled = enabled;
-        row.control.enabled = enabled;
-        row.unit.enabled = enabled;
+    function setRowEnabled(rowControls, enabled) {
+        rowControls.label.enabled = enabled;
+        rowControls.control.enabled = enabled;
+        rowControls.unit.enabled = enabled;
     }
 
     /**
      * 複数ラベルの幅を揃える
-     * @param {number} width - 設定する幅（px）
-     * @param {StaticText[]} labels - 幅を揃えるラベルの配列
+     * @param {number} labelWidth - 設定する幅（px）
+     * @param {StaticText[]} labelControls - 幅を揃えるラベルの配列
      * @returns {void}
      */
-    function alignLabelWidths(width, labels) {
-        for (var i = 0; i < labels.length; i++) {
-            labels[i].preferredSize.width = width;
+    function alignLabelWidths(labelWidth, labelControls) {
+        for (var i = 0; i < labelControls.length; i++) {
+            labelControls[i].preferredSize.width = labelWidth;
         }
     }
 
@@ -332,48 +332,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {TextRange[]} 選択されているテキスト範囲の配列（なければ空配列）
      */
     function getTextSelection() {
-        var selection = app.activeDocument.selection;
-        var ranges = [];
-        if (!selection) return ranges;
+        var docSelection = app.activeDocument.selection;
+        var textRanges = [];
+        if (!docSelection) return textRanges;
         /* テキスト編集モードでは selection が配列でなく TextRange になる / In text-edit mode the selection is a TextRange, not an array */
-        if (selection.constructor.name === "TextRange") {
-            ranges.push(selection);
-            return ranges;
+        if (docSelection.constructor.name === "TextRange") {
+            textRanges.push(docSelection);
+            return textRanges;
         }
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (item.constructor.name === "TextFrame") {
-                ranges.push(item.textRange);
-            } else if (item.constructor.name === "TextRange") {
-                ranges.push(item);
+        for (var i = 0; i < docSelection.length; i++) {
+            var selectedItem = docSelection[i];
+            if (selectedItem.constructor.name === "TextFrame") {
+                textRanges.push(selectedItem.textRange);
+            } else if (selectedItem.constructor.name === "TextRange") {
+                textRanges.push(selectedItem);
             }
         }
-        return ranges;
+        return textRanges;
     }
 
     /**
      * テキスト範囲の先頭文字を取得する
-     * @param {TextRange[]} ranges - 対象のテキスト範囲
-     * @returns {Characters|null} 最初の文字（文字がなければ null）
+     * @param {TextRange[]} textRanges - 対象のテキスト範囲
+     * @returns {TextRange|null} 最初の文字（文字がなければ null）
      */
-    function findFirstChar(ranges) {
-        for (var i = 0; i < ranges.length; i++) {
-            if (ranges[i].characters.length > 0) return ranges[i].characters[0];
+    function findFirstChar(textRanges) {
+        for (var i = 0; i < textRanges.length; i++) {
+            if (textRanges[i].characters.length > 0) return textRanges[i].characters[0];
         }
         return null;
     }
 
     /**
      * テキスト範囲のすべての文字にコールバックを適用する
-     * @param {TextRange[]} ranges - 対象のテキスト範囲
-     * @param {function} action - 各文字に対して実行する処理
+     * @param {TextRange[]} textRanges - 対象のテキスト範囲
+     * @param {function} charCallback - 各文字に対して実行する処理
      * @returns {void}
      */
-    function forEachChar(ranges, action) {
-        for (var i = 0; i < ranges.length; i++) {
-            var characters = ranges[i].characters;
+    function forEachChar(textRanges, charCallback) {
+        for (var i = 0; i < textRanges.length; i++) {
+            var characters = textRanges[i].characters;
             for (var j = 0; j < characters.length; j++) {
-                action(characters[j]);
+                charCallback(characters[j]);
             }
         }
     }
@@ -398,12 +398,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         /**
          * 変更処理を1ステップとして実行し、Undoの深さを数える
-         * @param {function} func - 実行する変更処理
+         * @param {function} applyChange - 実行する変更処理
          * @returns {void}
          */
-        this.addStep = function (func) {
+        this.addStep = function (applyChange) {
+            /* 文字属性の書き込みが失敗しうる / writing character attributes can fail */
             try {
-                func();
+                applyChange();
                 lastReportedError = "";
                 this.undoDepth++;
                 app.redraw();
@@ -434,12 +435,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * フォントサイズの調整パネルを構築する（イベントの配線は呼び出し側で行う）
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} parentDialog - 追加先のダイアログ
      * @param {string} unitLabel - サイズ欄に表示する単位ラベル
      * @returns {{sizeRow: object, scaleRow: object, apparentRow: object, convertButton: Button}} 構築したコントロール
      */
-    function buildFontSizePanel(dialog, unitLabel) {
-        var fontSizePanel = dialog.add("panel", undefined, getLabel("panel.fontSize"));
+    function buildFontSizePanel(parentDialog, unitLabel) {
+        var fontSizePanel = parentDialog.add("panel", undefined, getLabel("panel.fontSize"));
         setupPanel(fontSizePanel, FIELD_SPACING);
 
         var sizeRow = addRow(fontSizePanel, "fieldLabel.fontSize", "edittext", "0", unitLabel);
@@ -459,32 +460,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 下部のボタン行を構築する（左＝リセット／右＝キャンセル・OK）
-     * @param {Window} dialog - 追加先のダイアログ
-     * @returns {{resetButton: Button, cancelButton: Button, okButton: Button}} 構築したボタン
+     * @param {Window} parentDialog - 追加先のダイアログ
+     * @returns {{btnReset: Button, btnCancel: Button, btnOK: Button}} 構築したボタン
      */
-    function buildButtonRow(dialog) {
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "fill";
-        buttonGroup.alignChildren = ["fill", "center"];
+    function buildButtonRow(parentDialog) {
+        var btnRowGroup = parentDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "fill";
+        btnRowGroup.alignChildren = ["fill", "center"];
 
-        var leftGroup = buttonGroup.add("group");
-        leftGroup.alignment = ["left", "center"];
-        var resetButton = leftGroup.add("button", undefined, getLabel("button.reset"));
-        resetButton.helpTip = getLabel("tooltip.reset");
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignment = ["left", "center"];
+        var btnReset = btnLeftGroup.add("button", undefined, getLabel("button.reset"));
+        btnReset.helpTip = getLabel("tooltip.reset");
 
         /* 左右のボタンを両端に押し広げるスペーサー / spacer that pushes both sides apart */
-        var spacerGroup = buttonGroup.add("group");
-        spacerGroup.alignment = ["fill", "center"];
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "center"];
 
-        var rightGroup = buttonGroup.add("group");
-        rightGroup.alignment = ["right", "center"];
-        var cancelButton = rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        cancelButton.preferredSize.width = BUTTON_WIDTH;
-        okButton.preferredSize.width = BUTTON_WIDTH;
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
+        btnOK.preferredSize.width = BUTTON_WIDTH;
 
-        return { resetButton: resetButton, cancelButton: cancelButton, okButton: okButton };
+        return { btnReset: btnReset, btnCancel: btnCancel, btnOK: btnOK };
     }
 
     // =========================================
@@ -511,12 +512,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var unitLabel = textUnit.label;
         var unitFactor = textUnit.pointsPerUnit;
 
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
-        dialog.opacity = DIALOG_OPACITY;
+        var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        adjustDialog.alignChildren = "fill";
+        adjustDialog.opacity = DIALOG_OPACITY;
 
-        var fontSizeUI = buildFontSizePanel(dialog, unitLabel);
-        var buttonUI = buildButtonRow(dialog);
+        var fontSizeUI = buildFontSizePanel(adjustDialog, unitLabel);
+        var buttonUI = buildButtonRow(adjustDialog);
         var sizeInput = fontSizeUI.sizeRow.control;
         var scaleInput = fontSizeUI.scaleRow.control;
         var apparentRow = fontSizeUI.apparentRow;
@@ -546,12 +547,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
 
         /**
-         * Undo履歴を汚さずにプレビューを更新する
+         * Undo履歴を汚さずにプレビューを更新し、見かけサイズの表示も更新する
          * @returns {void}
          */
         function updatePreview() {
             previewManager.rollback();
             previewManager.addStep(applyCurrentValues);
+            updateApparentSizeDisplay();
         }
 
         // ---- 表示更新 / Display updates ----
@@ -591,7 +593,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         function onValueChanged() {
             apparentToggleState = null; /* 手動編集でトグル復元を無効化 / manual edit invalidates the toggle */
             updatePreview();
-            updateApparentSizeDisplay();
         }
 
         /* サイズ・比率は「入力値をそのまま適用」。loadValuesFromSelection() で入力欄を読み直すと
@@ -622,47 +623,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 scaleInput.text = "100";
             }
             updatePreview();
-            updateApparentSizeDisplay();
         };
 
-        /* リセット：選択している文字すべてを先頭文字のサイズに統一し、比率100%で適用
-           Reset: unify every selected character to the first character's size and apply at 100% scale */
         /* リセット：プレビューを取り消して開いた直後の状態に戻す。optionキー併用のときは
            そこからさらに、選択している文字すべてを先頭文字のサイズ・比率100%に統一して適用する
            Reset: undo the preview and return to the just-opened state; with the option key,
            also unify every selected character to the first character's size at 100% scale */
-        buttonUI.resetButton.onClick = function () {
+        buttonUI.btnReset.onClick = function () {
             previewManager.rollback();
             loadValuesFromSelection(); /* 調整前の先頭文字の値を読み直す / re-read the pre-adjustment values */
             if (!ScriptUI.environment.keyboardState.altKey) return;
             scaleInput.text = "100";
             updatePreview();
-            updateApparentSizeDisplay();
         };
 
-        buttonUI.okButton.onClick = function () {
+        buttonUI.btnOK.onClick = function () {
             /* プレビュー分を戻し、本適用を1回だけ実行して確定（Undo履歴は1つ）
                undo the preview, then apply once so it lands as a single undo entry */
             previewManager.rollback();
             applyCurrentValues();
-            dialog.close();
+            adjustDialog.close();
         };
 
-        buttonUI.cancelButton.onClick = function () {
+        buttonUI.btnCancel.onClick = function () {
             /* 開いてから適用した分をすべて取り消してから閉じる / undo everything applied since open, then close */
             previewManager.rollback();
-            dialog.close(2);
+            adjustDialog.close(2);
         };
 
-        dialog.onShow = function () {
-            dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1]];
+        adjustDialog.onShow = function () {
+            adjustDialog.location = [adjustDialog.location[0] + DIALOG_OFFSET_X, adjustDialog.location[1]];
             scaleInput.active = true;
         };
 
         /* 開いた時点では何も適用しない（現在の状態をそのまま保持）。値を変更したときだけプレビュー適用
            apply nothing on open (keep the current state as-is); preview only kicks in once a value changes */
         loadValuesFromSelection();
-        dialog.show();
+        adjustDialog.show();
     }
 
     main();

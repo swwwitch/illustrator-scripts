@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "ClearBulletsAndNumbering";     /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearBulletsAndNumbering.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearBulletsAndNumbering.md"; /* README (English) */
@@ -47,59 +47,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
 
     /**
-     * 実行環境の言語コードを取得する
+     * Illustrator の UI 言語から表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         alert: {
-            noDoc: { ja: "ドキュメントが開かれていません。", en: "No document open." },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document open." },
             noSelection: { ja: "テキストオブジェクトを選択してください。", en: "Please select text objects." },
             noTextFrame: { ja: "テキストフレームを選択してください。", en: "Please select text frames." }
         }
     };
 
     /**
-     * ドット区切りキーで現在の言語のラベルを取得する
-     * @param {string} key - LABELS のキー（例: "alert.noDoc"）
+     * ドット区切りのパスで表示言語のラベルを取得する
+     * @param {string} labelPath - LABELS のパス（例: "alert.noDocument"）
      * @returns {string} ラベル文字列
      */
-    function getLabel(key) {
-        var keyParts = key.split(".");
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
-            labelNode = labelNode[keyParts[i]];
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
         }
-        return labelNode[currentLanguage] || labelNode["en"];
+        return labelNode[uiLang] || labelNode.en;
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
-
-    /**
-     * 選択オブジェクトからテキストフレームを集める（グループ内も再帰）
-     * @param {Array<PageItem>} items - 走査対象のオブジェクト配列
-     * @param {Array<TextFrame>} out - 収集先の配列
-     * @returns {Array<TextFrame>} 収集したテキストフレーム
-     */
-    function collectTextFrames(items, out) {
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (!item) continue;
-            if (item.typename === "TextFrame") {
-                out.push(item);
-            } else if (item.typename === "GroupItem") {
-                // グループ内のテキストフレームも対象 / include text frames inside groups
-                collectTextFrames(item.pageItems, out);
-            }
-        }
-        return out;
-    }
 
     main();
 
@@ -108,12 +89,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {void}
      */
     function main() {
-        if (app.documents.length === 0) { alert(getLabel('alert.noDoc')); return; }
-        if (app.selection.length === 0) { alert(getLabel('alert.noSelection')); return; }
+        if (app.documents.length === 0) { alert(getLabel("alert.noDocument")); return; }
+        var selectedItems = app.activeDocument.selection;
+        if (selectedItems.length === 0) { alert(getLabel("alert.noSelection")); return; }
 
-        var targetFrames = collectTextFrames(app.selection, []);
+        var targetFrames = collectTextFrames(selectedItems, []);
         if (targetFrames.length === 0) {
-            alert(getLabel('alert.noTextFrame'));
+            alert(getLabel("alert.noTextFrame"));
             return;
         }
 
@@ -124,22 +106,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     /**
+     * 選択オブジェクトからテキストフレームを集める（グループ内も再帰）
+     * @param {PageItem[]} pageItems - 走査対象のオブジェクト配列
+     * @param {TextFrame[]} collectedFrames - 収集先の配列
+     * @returns {TextFrame[]} 収集したテキストフレーム
+     */
+    function collectTextFrames(pageItems, collectedFrames) {
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (!pageItem) continue;
+            if (pageItem.typename === "TextFrame") {
+                collectedFrames.push(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                /* グループ内のテキストフレームも対象 / include text frames inside groups */
+                collectTextFrames(pageItem.pageItems, collectedFrames);
+            }
+        }
+        return collectedFrames;
+    }
+
+    /**
      * 1フレームの「箇条書きと番号付きリスト」を解除する
      * contents を入れ直すとリスト書式が外れる（同時に文字書式も初期化されるため、控えてから戻す）
-     * @param {TextFrame} frame - 対象のテキストフレーム
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @returns {void}
      */
-    function clearListFormatting(frame) {
-        var state = captureFrameState(frame);
-        if (state.contents == null) return;
+    function clearListFormatting(textFrame) {
+        var frameState = captureFrameState(textFrame);
+        if (frameState.contents == null) return;
 
         try {
-            frame.contents = state.contents;
+            textFrame.contents = frameState.contents;
         } catch (e) {
-            return; // 入れ直せなければ書式も戻さない / leave the frame untouched when the text cannot be reassigned
+            return; /* 入れ直せなければ書式も戻さない / leave the frame untouched when the text cannot be reassigned */
         }
 
-        restoreFrameState(frame, state);
+        restoreFrameState(textFrame, frameState);
     }
 
     // =========================================
@@ -150,56 +152,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * テキストと書式の現状を控える
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @returns {{contents: (string|null), charAttrs: Array<object>, paraFormats: Array<object>}} 控えた状態
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {{contents: (string|null), charSnapshots: object[], paraSnapshots: object[]}} 控えた状態
      */
-    function captureFrameState(frame) {
-        var state = { contents: null, charAttrs: [], paraFormats: [] };
-        try { state.contents = frame.contents; } catch (e) { return state; }
-        state.charAttrs = captureCharAttributes(frame);
-        state.paraFormats = captureParagraphFormats(frame);
-        return state;
+    function captureFrameState(textFrame) {
+        var frameState = { contents: null, charSnapshots: [], paraSnapshots: [] };
+        try { frameState.contents = textFrame.contents; } catch (e) { return frameState; }
+        frameState.charSnapshots = captureCharAttributes(textFrame);
+        frameState.paraSnapshots = captureParagraphFormats(textFrame);
+        return frameState;
     }
 
     /**
      * 控えておいた書式をフレームへ復元する
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @param {{charAttrs: Array<object>, paraFormats: Array<object>}} state - captureFrameState() が返した控え
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {{charSnapshots: object[], paraSnapshots: object[]}} frameState - captureFrameState() が返した控え
      * @returns {void}
      */
-    function restoreFrameState(frame, state) {
-        restoreCharAttributesAll(frame, state.charAttrs);
-        restoreParagraphFormats(frame, state.paraFormats);
+    function restoreFrameState(textFrame, frameState) {
+        restoreAllCharAttributes(textFrame, frameState.charSnapshots);
+        restoreParagraphFormats(textFrame, frameState.paraSnapshots);
     }
 
     /**
      * フレーム内の全文字の文字属性を控える
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @returns {Array<object>} 文字ごとの属性（文字順）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {object[]} 文字ごとの属性（文字順）
      */
-    function captureCharAttributes(frame) {
-        var attrs = [];
+    function captureCharAttributes(textFrame) {
+        var charSnapshots = [];
         try {
-            var characters = frame.textRange.characters;
+            var characters = textFrame.textRange.characters;
             for (var i = 0; i < characters.length; i++) {
-                attrs.push(snapshotCharAttributes(characters[i].characterAttributes));
+                charSnapshots.push(snapshotCharAttributes(characters[i].characterAttributes));
             }
         } catch (e) { }
-        return attrs;
+        return charSnapshots;
     }
 
     /**
      * 控えた文字属性を全文字へ復元する（文字数は不変なので先頭から順に対応づける）
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @param {Array<object>} attrs - captureCharAttributes() が返した控え
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {object[]} charSnapshots - captureCharAttributes() が返した控え
      * @returns {void}
      */
-    function restoreCharAttributesAll(frame, attrs) {
-        if (!attrs || attrs.length === 0) return;
+    function restoreAllCharAttributes(textFrame, charSnapshots) {
+        if (!charSnapshots || charSnapshots.length === 0) return;
         try {
-            var characters = frame.textRange.characters;
-            for (var i = 0; i < characters.length && i < attrs.length; i++) {
-                restoreCharAttributes(characters[i].characterAttributes, attrs[i]);
+            var characters = textFrame.textRange.characters;
+            for (var i = 0; i < characters.length && i < charSnapshots.length; i++) {
+                restoreCharAttributes(characters[i].characterAttributes, charSnapshots[i]);
             }
         } catch (e) { }
     }
@@ -210,75 +212,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {object} 控えた属性
      */
     function snapshotCharAttributes(characterAttr) {
-        var snap = {};
-        // 途中で失敗しても、それまでに読めた属性は snap に残る / attributes read before a failure stay in snap
+        var charSnapshot = {};
+        /* 途中で失敗しても、それまでに読めた属性は残る / attributes read before a failure are kept */
         try {
-            snap.textFont = characterAttr.textFont;
-            snap.size = characterAttr.size;
-            snap.horizontalScale = characterAttr.horizontalScale;
-            snap.verticalScale = characterAttr.verticalScale;
-            snap.baselineShift = characterAttr.baselineShift;
-            snap.tracking = characterAttr.tracking;
-            snap.leading = characterAttr.leading;
-            snap.autoLeading = characterAttr.autoLeading;
-            snap.fillColor = characterAttr.fillColor;
+            charSnapshot.textFont = characterAttr.textFont;
+            charSnapshot.size = characterAttr.size;
+            charSnapshot.horizontalScale = characterAttr.horizontalScale;
+            charSnapshot.verticalScale = characterAttr.verticalScale;
+            charSnapshot.baselineShift = characterAttr.baselineShift;
+            charSnapshot.tracking = characterAttr.tracking;
+            charSnapshot.leading = characterAttr.leading;
+            charSnapshot.autoLeading = characterAttr.autoLeading;
+            charSnapshot.fillColor = characterAttr.fillColor;
         } catch (e) { }
-        return snap;
+        return charSnapshot;
     }
 
     /**
      * 控えた文字属性を1文字へ復元する
      * @param {CharacterAttributes} characterAttr - 復元先の文字属性
-     * @param {object} snap - snapshotCharAttributes() が返した控え
+     * @param {object} charSnapshot - snapshotCharAttributes() が返した控え
      * @returns {void}
      */
-    function restoreCharAttributes(characterAttr, snap) {
-        if (!snap) return;
-        // フォントは失敗しやすいので分けて囲み、他の属性の復元を巻き込まないようにする
-        // Guard the font separately so a failure there does not skip the remaining attributes
-        if (snap.textFont) { try { characterAttr.textFont = snap.textFont; } catch (eFont) { } }
+    function restoreCharAttributes(characterAttr, charSnapshot) {
+        if (!charSnapshot) return;
+        /* フォントは失敗しやすいので分けて囲み、他の属性の復元を巻き込まない
+           Guard the font separately so a failure there does not skip the remaining attributes */
+        if (charSnapshot.textFont) { try { characterAttr.textFont = charSnapshot.textFont; } catch (eFont) { } }
         try {
-            if (snap.size != null) characterAttr.size = snap.size;
-            if (snap.horizontalScale != null) characterAttr.horizontalScale = snap.horizontalScale;
-            if (snap.verticalScale != null) characterAttr.verticalScale = snap.verticalScale;
-            if (snap.baselineShift != null) characterAttr.baselineShift = snap.baselineShift;
-            if (snap.tracking != null) characterAttr.tracking = snap.tracking;
-            // 行送りは自動行送りより先に戻す（先に autoLeading を立てると固定値が入らない）
-            // Restore leading before auto-leading (setting auto-leading first would drop the fixed value)
-            if (snap.leading != null) characterAttr.leading = snap.leading;
-            if (snap.autoLeading != null) characterAttr.autoLeading = snap.autoLeading;
-            if (snap.fillColor) characterAttr.fillColor = snap.fillColor;
+            if (charSnapshot.size != null) characterAttr.size = charSnapshot.size;
+            if (charSnapshot.horizontalScale != null) characterAttr.horizontalScale = charSnapshot.horizontalScale;
+            if (charSnapshot.verticalScale != null) characterAttr.verticalScale = charSnapshot.verticalScale;
+            if (charSnapshot.baselineShift != null) characterAttr.baselineShift = charSnapshot.baselineShift;
+            if (charSnapshot.tracking != null) characterAttr.tracking = charSnapshot.tracking;
+            /* 行送りは自動行送りより先に戻す（先に autoLeading を立てると固定値が入らない）
+               Restore leading before auto-leading (setting auto-leading first would drop the fixed value) */
+            if (charSnapshot.leading != null) characterAttr.leading = charSnapshot.leading;
+            if (charSnapshot.autoLeading != null) characterAttr.autoLeading = charSnapshot.autoLeading;
+            if (charSnapshot.fillColor) characterAttr.fillColor = charSnapshot.fillColor;
         } catch (e) { }
     }
 
     /**
      * 各段落の段落属性を控える
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @returns {Array<object>} 段落ごとの属性（段落順）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {object[]} 段落ごとの属性（段落順）
      */
-    function captureParagraphFormats(frame) {
-        var formats = [];
+    function captureParagraphFormats(textFrame) {
+        var paraSnapshots = [];
         try {
-            var paragraphs = frame.paragraphs;
-            for (var p = 0; p < paragraphs.length; p++) {
-                formats.push(snapshotParagraphAttributes(paragraphs[p].paragraphAttributes));
+            var paragraphs = textFrame.paragraphs;
+            for (var i = 0; i < paragraphs.length; i++) {
+                paraSnapshots.push(snapshotParagraphAttributes(paragraphs[i].paragraphAttributes));
             }
         } catch (e) { }
-        return formats;
+        return paraSnapshots;
     }
 
     /**
      * 控えた段落属性を各段落へ復元する（段落数は不変なので先頭から順に対応づける）
-     * @param {TextFrame} frame - 対象のテキストフレーム
-     * @param {Array<object>} formats - captureParagraphFormats() が返した控え
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {object[]} paraSnapshots - captureParagraphFormats() が返した控え
      * @returns {void}
      */
-    function restoreParagraphFormats(frame, formats) {
-        if (!formats || formats.length === 0) return;
+    function restoreParagraphFormats(textFrame, paraSnapshots) {
+        if (!paraSnapshots || paraSnapshots.length === 0) return;
         try {
-            var paragraphs = frame.paragraphs;
-            for (var p = 0; p < paragraphs.length && p < formats.length; p++) {
-                restoreParagraphAttributes(paragraphs[p].paragraphAttributes, formats[p]);
+            var paragraphs = textFrame.paragraphs;
+            for (var i = 0; i < paragraphs.length && i < paraSnapshots.length; i++) {
+                restoreParagraphAttributes(paragraphs[i].paragraphAttributes, paraSnapshots[i]);
             }
         } catch (e) { }
     }
@@ -289,71 +291,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {object} 控えた属性
      */
     function snapshotParagraphAttributes(paragraphAttr) {
-        var snap = {};
+        var paraSnapshot = {};
         try {
-            snap.justification = paragraphAttr.justification;
-            snap.spaceBefore = paragraphAttr.spaceBefore;
-            snap.spaceAfter = paragraphAttr.spaceAfter;
-            snap.leftIndent = paragraphAttr.leftIndent;
-            snap.rightIndent = paragraphAttr.rightIndent;
-            snap.firstLineIndent = paragraphAttr.firstLineIndent;
-            snap.tabStops = copyTabStops(paragraphAttr.tabStops);
+            paraSnapshot.justification = paragraphAttr.justification;
+            paraSnapshot.spaceBefore = paragraphAttr.spaceBefore;
+            paraSnapshot.spaceAfter = paragraphAttr.spaceAfter;
+            paraSnapshot.leftIndent = paragraphAttr.leftIndent;
+            paraSnapshot.rightIndent = paragraphAttr.rightIndent;
+            paraSnapshot.firstLineIndent = paragraphAttr.firstLineIndent;
+            paraSnapshot.tabStops = copyTabStops(paragraphAttr.tabStops);
         } catch (e) { }
-        return snap;
+        return paraSnapshot;
     }
 
     /**
      * 控えた段落属性を1段落へ復元する
      * @param {ParagraphAttributes} paragraphAttr - 復元先の段落属性
-     * @param {object} snap - snapshotParagraphAttributes() が返した控え
+     * @param {object} paraSnapshot - snapshotParagraphAttributes() が返した控え
      * @returns {void}
      */
-    function restoreParagraphAttributes(paragraphAttr, snap) {
-        if (!snap) return;
+    function restoreParagraphAttributes(paragraphAttr, paraSnapshot) {
+        if (!paraSnapshot) return;
         try {
-            if (snap.justification != null) paragraphAttr.justification = snap.justification;
-            if (snap.spaceBefore != null) paragraphAttr.spaceBefore = snap.spaceBefore;
-            if (snap.spaceAfter != null) paragraphAttr.spaceAfter = snap.spaceAfter;
-            if (snap.leftIndent != null) paragraphAttr.leftIndent = snap.leftIndent;
-            if (snap.rightIndent != null) paragraphAttr.rightIndent = snap.rightIndent;
-            if (snap.firstLineIndent != null) paragraphAttr.firstLineIndent = snap.firstLineIndent;
+            if (paraSnapshot.justification != null) paragraphAttr.justification = paraSnapshot.justification;
+            if (paraSnapshot.spaceBefore != null) paragraphAttr.spaceBefore = paraSnapshot.spaceBefore;
+            if (paraSnapshot.spaceAfter != null) paragraphAttr.spaceAfter = paraSnapshot.spaceAfter;
+            if (paraSnapshot.leftIndent != null) paragraphAttr.leftIndent = paraSnapshot.leftIndent;
+            if (paraSnapshot.rightIndent != null) paragraphAttr.rightIndent = paraSnapshot.rightIndent;
+            if (paraSnapshot.firstLineIndent != null) paragraphAttr.firstLineIndent = paraSnapshot.firstLineIndent;
         } catch (e) { }
-        // タブストップは TabStopInfo を作り直して差し替える / rebuild TabStopInfo objects for the tab stops
-        if (snap.tabStops) {
-            try { paragraphAttr.tabStops = makeTabStops(snap.tabStops); } catch (eTab) { }
+        /* タブストップは TabStopInfo を作り直して差し替える / rebuild TabStopInfo objects for the tab stops */
+        if (paraSnapshot.tabStops) {
+            try { paragraphAttr.tabStops = makeTabStops(paraSnapshot.tabStops); } catch (eTab) { }
         }
     }
 
     /**
      * タブストップを位置と揃えだけの配列として控える
-     * @param {Array<TabStopInfo>} tabStops - 対象のタブストップ
+     * @param {TabStopInfo[]} tabStops - 対象のタブストップ
      * @returns {Array<{position: number, alignment: TabStopAlignment}>|null} 控えた内容（取得できなければ null）
      */
     function copyTabStops(tabStops) {
-        var copied = [];
+        var tabSpecs = [];
         try {
-            for (var t = 0; t < tabStops.length; t++) {
-                copied.push({ position: tabStops[t].position, alignment: tabStops[t].alignment });
+            for (var i = 0; i < tabStops.length; i++) {
+                tabSpecs.push({ position: tabStops[i].position, alignment: tabStops[i].alignment });
             }
         } catch (e) {
             return null;
         }
-        return copied;
+        return tabSpecs;
     }
 
     /**
      * 控えた内容から TabStopInfo の配列を作る
      * @param {Array<{position: number, alignment: TabStopAlignment}>} tabSpecs - 控えたタブストップ
-     * @returns {Array<TabStopInfo>} 生成したタブストップ
+     * @returns {TabStopInfo[]} 生成したタブストップ
      */
     function makeTabStops(tabSpecs) {
-        var tabs = [];
-        for (var t = 0; t < tabSpecs.length; t++) {
-            var tab = new TabStopInfo();
-            tab.alignment = tabSpecs[t].alignment;
-            tab.position = tabSpecs[t].position;
-            tabs.push(tab);
+        var tabStopInfos = [];
+        for (var i = 0; i < tabSpecs.length; i++) {
+            var tabStopInfo = new TabStopInfo();
+            tabStopInfo.alignment = tabSpecs[i].alignment;
+            tabStopInfo.position = tabSpecs[i].position;
+            tabStopInfos.push(tabStopInfo);
         }
-        return tabs;
+        return tabStopInfos;
     }
 })();

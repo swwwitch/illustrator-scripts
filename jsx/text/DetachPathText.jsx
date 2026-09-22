@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "DetachPathText";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DetachPathText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DetachPathText.md"; /* README (English) */
@@ -36,316 +36,409 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 言語判定 / Language detection */
-    function getCurrentLang() {
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS = 18;                   /* ダイアログの余白 / dialog margins */
+    var PANEL_MARGINS = [15, 20, 15, 12];      /* パネルの余白 / panel margins */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI の表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "パス上文字の解除", en: "Detach Path Text" },
-        pnlKeep: { ja: "テキストの書式", en: "Text Formatting" },
-        rbFull: { ja: "完全に保持", en: "Preserve Completely" },
-        rbFast: { ja: "高速に保持", en: "Preserve Quickly" },
-        rbNone: { ja: "削除", en: "Remove" },
-        pnlPath: { ja: "パス", en: "Path" },
-        rbPathBlack: { ja: "1pt黒に設定", en: "Set 1pt Black Stroke" },
-        rbPathNone: { ja: "線なし", en: "No Stroke" },
-        rbPathDelete: { ja: "削除", en: "Delete" },
-        btnCancel: { ja: "閉じる", en: "Close" },
-        btnOk: { ja: "OK", en: "OK" },
-        alertNoDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        alertNoSel: { ja: "パス上文字を選択してください。", en: "Please select path text." },
-        alertNoPath: { ja: "選択範囲にパス上文字が含まれていません。", en: "No path text found in selection." },
-        tipFull: { ja: "1文字ずつ書式を写します。正確ですが、文字数が多いと時間がかかります。", en: "Copies the formatting character by character. Accurate, but slow for long text." },
-        tipFast: { ja: "テキスト全体の書式をまとめて写します。速いかわりに、文字ごとの違いは失われます。", en: "Copies the formatting for the whole text at once. Faster, but per-character differences are lost." },
-        tipNone: { ja: "書式を写さず、文字だけを取り出します。", en: "Takes only the characters, without the formatting." },
-        tipPathBlack: { ja: "残したパスに1ptの黒い線を設定します。", en: "Gives the remaining path a 1 pt black stroke." },
-        tipPathNone: { ja: "残したパスを線なしにします。", en: "Leaves the remaining path without a stroke." },
-        tipPathDelete: { ja: "パスを残さず削除します。", en: "Deletes the path instead of keeping it." }
+        dialog: {
+            title: { ja: "パス上文字の解除", en: "Detach Path Text" }
+        },
+        panel: {
+            textFormat: { ja: "テキストの書式", en: "Text Formatting" },
+            path: { ja: "パス", en: "Path" }
+        },
+        radio: {
+            formatFull: { ja: "完全に保持", en: "Preserve Completely" },
+            formatFast: { ja: "高速に保持", en: "Preserve Quickly" },
+            formatNone: { ja: "削除", en: "Remove" },
+            pathBlackStroke: { ja: "1pt黒に設定", en: "Set 1pt Black Stroke" },
+            pathNoStroke: { ja: "線なし", en: "No Stroke" },
+            pathDelete: { ja: "削除", en: "Delete" }
+        },
+        tooltip: {
+            formatFull: {
+                ja: "1文字ずつ書式を写します。正確ですが、文字数が多いと時間がかかります。",
+                en: "Copies the formatting character by character. Accurate, but slow for long text."
+            },
+            formatFast: {
+                ja: "テキスト全体の書式をまとめて写します。速いかわりに、文字ごとの違いは失われます。",
+                en: "Copies the formatting for the whole text at once. Faster, but per-character differences are lost."
+            },
+            formatNone: { ja: "書式を写さず、文字だけを取り出します。", en: "Takes only the characters, without the formatting." },
+            pathBlackStroke: { ja: "残したパスに1ptの黒い線を設定します。", en: "Gives the remaining path a 1 pt black stroke." },
+            pathNoStroke: { ja: "残したパスを線なしにします。", en: "Leaves the remaining path without a stroke." },
+            pathDelete: { ja: "パスを残さず削除します。", en: "Deletes the path instead of keeping it." }
+        },
+        button: {
+            cancel: { ja: "閉じる", en: "Close" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "パス上文字を選択してください。", en: "Please select path text." },
+            noPathText: { ja: "選択範囲にパス上文字が含まれていません。", en: "No path text found in selection." }
+        }
     };
 
-    /* ラベル取得ヘルパー / Label lookup helper */
-    function getLabel(key) {
-        var entry = LABELS[key];
-        if (!entry) return key;
-        return entry[uiLang] || entry.en || key;
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
     // ==========================================
     // UI: ダイアログ / Dialog
     // ==========================================
-    function showOptionsDialog() {
-        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.margins = 18;
 
-        /* テキストパネル / Text panel */
-        var pnlKeep = dialog.add("panel", undefined, getLabel("pnlKeep"));
-        pnlKeep.orientation = "column";
-        pnlKeep.alignChildren = ["left", "top"];
-        pnlKeep.margins = [15, 20, 15, 12];
-
-        var rbFull = pnlKeep.add("radiobutton", undefined, getLabel("rbFull"));
-        rbFull.helpTip = getLabel("tipFull");
-        var rbFast = pnlKeep.add("radiobutton", undefined, getLabel("rbFast"));
-        rbFast.helpTip = getLabel("tipFast");
-        var rbNone = pnlKeep.add("radiobutton", undefined, getLabel("rbNone"));
-        rbNone.helpTip = getLabel("tipNone");
-        rbFull.value = true;
-
-        /* パスパネル / Path panel */
-        var pnlPath = dialog.add("panel", undefined, getLabel("pnlPath"));
-        pnlPath.orientation = "column";
-        pnlPath.alignChildren = ["left", "top"];
-        pnlPath.margins = [15, 20, 15, 12];
-
-        var rbPathBlack = pnlPath.add("radiobutton", undefined, getLabel("rbPathBlack"));
-        rbPathBlack.helpTip = getLabel("tipPathBlack");
-        var rbPathNone = pnlPath.add("radiobutton", undefined, getLabel("rbPathNone"));
-        rbPathNone.helpTip = getLabel("tipPathNone");
-        var rbPathDelete = pnlPath.add("radiobutton", undefined, getLabel("rbPathDelete"));
-        rbPathDelete.helpTip = getLabel("tipPathDelete");
-        rbPathBlack.value = true; // デフォルト / Default
-
-        /* ボタングループ / Button group */
-        var grpBtns = dialog.add("group");
-        grpBtns.orientation = "row";
-        grpBtns.alignChildren = ["right", "center"];
-        grpBtns.alignment = ["fill", "top"];
-
-        var btnCancel = grpBtns.add("button", undefined, getLabel("btnCancel"));
-        var btnOk = grpBtns.add("button", undefined, getLabel("btnOk"), { name: "ok" });
-
-        var result = null;
-        btnOk.onClick = function () {
-            result = {
-                mode: rbNone.value ? "none" : (rbFull.value ? "full" : "fast"),
-                pathBlack1pt: rbPathBlack.value,
-                pathNoStroke: rbPathNone.value,
-                pathDelete: rbPathDelete.value
-            };
-            dialog.close(1);
-        };
-        btnCancel.onClick = function () {
-            dialog.close(0);
-        };
-
-        var r = dialog.show();
-        return (r === 1) ? result : null;
+    /**
+     * ラジオボタンを縦に並べるパネルを追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {string} titlePath - パネル見出しのラベルパス
+     * @returns {Panel} 追加したパネル
+     */
+    function addRadioPanel(parentWindow, titlePath) {
+        var radioPanel = parentWindow.add("panel", undefined, getLabel(titlePath));
+        radioPanel.orientation = "column";
+        radioPanel.alignChildren = ["left", "top"];
+        radioPanel.margins = PANEL_MARGINS;
+        return radioPanel;
     }
 
-    function main() {
-        if (app.documents.length === 0) {
-            alert(getLabel("alertNoDoc"));
-            return;
+    /**
+     * ツールチップ付きのラジオボタンを追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - ラベルのパス
+     * @param {string} tooltipPath - ツールチップのラベルパス
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addRadioWithTip(parentPanel, labelPath, tooltipPath) {
+        var radioButton = parentPanel.add("radiobutton", undefined, getLabel(labelPath));
+        radioButton.helpTip = getLabel(tooltipPath);
+        return radioButton;
+    }
+
+    /**
+     * 処理方法を選ぶダイアログを表示する
+     * @returns {Object|null} 処理設定（textFormatMode / pathBlackStroke / pathNoStroke / pathDelete）。キャンセル時は null
+     */
+    function showOptionsDialog() {
+        var optionsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        optionsDialog.orientation = "column";
+        optionsDialog.alignChildren = ["fill", "top"];
+        optionsDialog.margins = DIALOG_MARGINS;
+
+        /* テキストパネル / Text panel */
+        var textFormatPanel = addRadioPanel(optionsDialog, "panel.textFormat");
+        var rbFormatFull = addRadioWithTip(textFormatPanel, "radio.formatFull", "tooltip.formatFull");
+        var rbFormatFast = addRadioWithTip(textFormatPanel, "radio.formatFast", "tooltip.formatFast");
+        var rbFormatNone = addRadioWithTip(textFormatPanel, "radio.formatNone", "tooltip.formatNone");
+        rbFormatFull.value = true;
+
+        /* パスパネル / Path panel */
+        var pathPanel = addRadioPanel(optionsDialog, "panel.path");
+        var rbPathBlackStroke = addRadioWithTip(pathPanel, "radio.pathBlackStroke", "tooltip.pathBlackStroke");
+        var rbPathNoStroke = addRadioWithTip(pathPanel, "radio.pathNoStroke", "tooltip.pathNoStroke");
+        var rbPathDelete = addRadioWithTip(pathPanel, "radio.pathDelete", "tooltip.pathDelete");
+        rbPathBlackStroke.value = true; /* デフォルト / Default */
+
+        /* ボタングループ / Button group */
+        var btnRowGroup = optionsDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["right", "center"];
+        btnRowGroup.alignment = ["fill", "top"];
+
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnOk = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        var detachOptions = null;
+        btnOk.onClick = function () {
+            detachOptions = {
+                textFormatMode: rbFormatNone.value ? "none" : (rbFormatFull.value ? "full" : "fast"),
+                pathBlackStroke: rbPathBlackStroke.value,
+                pathNoStroke: rbPathNoStroke.value,
+                pathDelete: rbPathDelete.value
+            };
+            optionsDialog.close(1);
+        };
+        btnCancel.onClick = function () {
+            optionsDialog.close(0);
+        };
+
+        return (optionsDialog.show() === 1) ? detachOptions : null;
+    }
+
+    // ==========================================
+    // 書式の控えと復元 / Formatting snapshot and restore
+    // ==========================================
+
+    /* 控える文字属性（読み取り順） / Character attributes to snapshot, in reading order */
+    var SNAPSHOT_ATTRIBUTE_NAMES = ["textFont", "size", "fillColor", "strokeColor", "strokeWeight", "tracking",
+        "baselineShift", "horizontalScale", "verticalScale", "autoLeading", "leading"];
+
+    /* 線より前・後に書き戻す属性（書き戻し順） / Attributes written back before / after the stroke, in writing order */
+    var ATTRIBUTES_BEFORE_STROKE = ["textFont", "size", "fillColor"];
+    var ATTRIBUTES_AFTER_STROKE = ["tracking", "baselineShift", "horizontalScale", "verticalScale", "autoLeading"];
+
+    /**
+     * パス上文字の1文字ずつの文字属性を控える
+     * @param {TextFrame} pathText - 元のパス上文字
+     * @returns {Object[]} 文字ごとの属性の控え（キーは characterAttributes のプロパティ名）
+     */
+    function snapshotCharacterAttributes(pathText) {
+        var attributeSnapshots = [];
+        for (var c = 0; c < pathText.characters.length; c++) {
+            var sourceAttributes = pathText.characters[c].characterAttributes;
+            var attributeSnapshot = {};
+            for (var n = 0; n < SNAPSHOT_ATTRIBUTE_NAMES.length; n++) {
+                attributeSnapshot[SNAPSHOT_ATTRIBUTE_NAMES[n]] = sourceAttributes[SNAPSHOT_ATTRIBUTE_NAMES[n]];
+            }
+            attributeSnapshots.push(attributeSnapshot);
         }
+        return attributeSnapshots;
+    }
 
-        var opt = showOptionsDialog();
-        if (!opt) return; // キャンセル / Cancelled
-
-        var doc = app.activeDocument;
-        var currentSelection = doc.selection;
-
-        if (currentSelection.length === 0) {
-            alert(getLabel("alertNoSel"));
-            return;
+    /**
+     * 文字属性を1つずつ書き戻す。書けない属性は飛ばして続ける
+     * @param {CharacterAttributes} targetAttributes - 書き戻し先の文字属性
+     * @param {Object} attributeSnapshot - 控えた属性
+     * @param {string[]} attributeNames - 書き戻す属性名（この順で書く）
+     * @returns {void}
+     */
+    function writeAttributesSafely(targetAttributes, attributeSnapshot, attributeNames) {
+        for (var n = 0; n < attributeNames.length; n++) {
+            /* 値によっては DOM が代入を拒む / the DOM may reject some values */
+            try { targetAttributes[attributeNames[n]] = attributeSnapshot[attributeNames[n]]; } catch (e) { }
         }
+    }
 
-        var pathTexts = [];
+    /**
+     * 控えた文字属性を新しいテキストの1文字ずつに書き戻す
+     * @param {TextFrame} newText - 書き戻し先のポイント文字
+     * @param {Object[]} attributeSnapshots - snapshotCharacterAttributes() の結果
+     * @returns {void}
+     */
+    function restoreCharacterAttributes(newText, attributeSnapshots) {
+        for (var c = 0; c < newText.characters.length; c++) {
+            var targetAttributes = newText.characters[c].characterAttributes;
+            var attributeSnapshot = attributeSnapshots[c];
+            if (!attributeSnapshot) break;
 
-        /* 選択からパス上文字を抽出 / Extract path text from selection */
-        for (var i = 0; i < currentSelection.length; i++) {
-            if (currentSelection[i].typename === "TextFrame" && currentSelection[i].kind === TextType.PATHTEXT) {
-                pathTexts.push(currentSelection[i]);
+            writeAttributesSafely(targetAttributes, attributeSnapshot, ATTRIBUTES_BEFORE_STROKE);
+            /* stroke: 元が「なし」の場合は strokeWeight を 0 に / stroke: set weight to 0 if original had no stroke */
+            try {
+                var sourceStrokeColor = attributeSnapshot.strokeColor;
+                targetAttributes.strokeColor = sourceStrokeColor;
+                if (sourceStrokeColor && sourceStrokeColor.typename === "NoColor") {
+                    targetAttributes.strokeWeight = 0;
+                } else {
+                    targetAttributes.strokeWeight = attributeSnapshot.strokeWeight;
+                }
+            } catch (e) { }
+            writeAttributesSafely(targetAttributes, attributeSnapshot, ATTRIBUTES_AFTER_STROKE);
+
+            /* autoLeading が false の場合のみ leading を設定 / Set leading only when autoLeading is false */
+            if (!attributeSnapshot.autoLeading) {
+                writeAttributesSafely(targetAttributes, attributeSnapshot, ["leading"]);
             }
         }
+    }
 
+    // ==========================================
+    // 分離処理 / Detach
+    // ==========================================
+
+    /**
+     * 選択からパス上文字だけを取り出す
+     * @param {Array} selectedItems - ドキュメントの選択
+     * @returns {TextFrame[]} パス上文字
+     */
+    function collectPathTexts(selectedItems) {
+        var pathTexts = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (selectedItems[i].typename === "TextFrame" && selectedItems[i].kind === TextType.PATHTEXT) {
+                pathTexts.push(selectedItems[i]);
+            }
+        }
+        return pathTexts;
+    }
+
+    /**
+     * パス上文字のパスを、アンカーポイントを写して新しいパスとして作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} originalPath - パス上文字の textPath
+     * @param {Object} detachOptions - showOptionsDialog() の結果
+     * @returns {void}
+     */
+    function duplicateTextPath(doc, originalPath, detachOptions) {
+        var newPath = doc.pathItems.add();
+
+        for (var k = 0; k < originalPath.pathPoints.length; k++) {
+            var originalPoint = originalPath.pathPoints[k];
+            var newPoint = newPath.pathPoints.add();
+            newPoint.anchor = originalPoint.anchor;
+            newPoint.leftDirection = originalPoint.leftDirection;
+            newPoint.rightDirection = originalPoint.rightDirection;
+            newPoint.pointType = originalPoint.pointType;
+        }
+        newPath.closed = originalPath.closed;
+        newPath.filled = false;
+
+        if (detachOptions.pathNoStroke) {
+            newPath.stroked = false;
+            return;
+        }
+        newPath.stroked = true;
+
+        if (detachOptions.pathBlackStroke) {
+            var blackColor = new CMYKColor();
+            blackColor.cyan = 0;
+            blackColor.magenta = 0;
+            blackColor.yellow = 0;
+            blackColor.black = 100;
+
+            newPath.strokeColor = blackColor;
+            newPath.strokeWidth = 1;
+        }
+    }
+
+    /**
+     * 1つのパス上文字をポイント文字とパスに分け、元のパス上文字を削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame} pathText - 元のパス上文字
+     * @param {Object} detachOptions - showOptionsDialog() の結果
+     * @returns {void}
+     */
+    function detachPathText(doc, pathText, detachOptions) {
+        var originalPath = pathText.textPath;
+        var textFormatMode = detachOptions.textFormatMode;
+
+        /* 1. テキスト属性のスナップショットを取得（full: 文字ごとの属性まで保持） */
+        /* 1. Snapshot text attributes (full: preserve per-character attributes) */
+        var attributeSnapshots = (textFormatMode === "full") ? snapshotCharacterAttributes(pathText) : null;
+
+        /* 段落属性（先頭段落から取得）/ Paragraph attributes (from first paragraph) */
+        var justification = null;
+        if (pathText.paragraphs.length > 0) {
+            justification = pathText.paragraphs[0].paragraphAttributes.justification;
+        }
+
+        var textContents = pathText.contents; /* 文字列を保存 / Save string contents */
+
+        /* 2. パスを複製 / Duplicate path */
+        if (!detachOptions.pathDelete) {
+            duplicateTextPath(doc, originalPath, detachOptions);
+        }
+
+        /* 3. 新しいポイントテキストを作成し属性を復元 / Create new point text and restore attributes */
+        var newText = doc.textFrames.add();
+
+        /* 位置をパス開始点に合わせる / Align position to path start point */
+        var anchorPoint = originalPath.pathPoints[0].anchor;
+        newText.position = [anchorPoint[0], anchorPoint[1]];
+
+        if (textFormatMode === "fast") {
+            /* fast: textRange を丸ごと複製（内容・書式をまとめて複製）/ fast: duplicate the entire textRange with its formatting */
+            pathText.textRange.duplicate(newText);
+
+            /* 文字色を確実に引き継ぐ / Ensure character colors are carried over */
+            for (var rangeIndex = 0; rangeIndex < pathText.textRanges.length; rangeIndex++) {
+                /* 複製先に同じ番号の範囲が無いことがある / the copy may lack a range with the same index */
+                try {
+                    var sourceRangeAttributes = pathText.textRanges[rangeIndex].characterAttributes;
+                    var targetRangeAttributes = newText.textRanges[rangeIndex].characterAttributes;
+                    targetRangeAttributes.fillColor = sourceRangeAttributes.fillColor;
+                    targetRangeAttributes.strokeColor = sourceRangeAttributes.strokeColor;
+                } catch (eRR) { }
+            }
+        } else if (textFormatMode === "none") {
+            /* none: 内容だけ流し込み / none: insert content only, use default formatting */
+            newText.contents = textContents;
+        } else {
+            /* full: 内容を流し込み、文字ごとの属性を復元 / full: insert content and restore per-character attributes */
+            newText.contents = textContents;
+
+            /* 段落属性の復元 / Restore paragraph attributes */
+            if (justification !== null && newText.paragraphs.length > 0) {
+                newText.paragraphs[0].paragraphAttributes.justification = justification;
+            }
+
+            /* 重要：新規テキストの既定の線を先に消す。元に線があるときだけ、後の文字ごとの復元で戻る */
+            /* Important: clear the default stroke on the new text first; it comes back only where the original had one */
+            try {
+                newText.textRange.characterAttributes.strokeColor = new NoColor();
+                newText.textRange.characterAttributes.strokeWeight = 0;
+            } catch (eClr) { }
+
+            /* 文字属性の復元 / Restore character attributes */
+            restoreCharacterAttributes(newText, attributeSnapshots);
+        }
+
+        /* 4. 元のパス上文字を削除 / Remove original path text */
+        pathText.remove();
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ダイアログで処理方法を選び、選択中のパス上文字をすべて分離する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var detachOptions = showOptionsDialog();
+        if (!detachOptions) return; /* キャンセル / Cancelled */
+
+        var doc = app.activeDocument;
+        var selectedItems = doc.selection;
+
+        if (selectedItems.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+
+        /* 選択からパス上文字を抽出 / Extract path text from selection */
+        var pathTexts = collectPathTexts(selectedItems);
         if (pathTexts.length === 0) {
-            alert(getLabel("alertNoPath"));
+            alert(getLabel("alert.noPathText"));
             return;
         }
 
         /* パス上文字の変換処理 / Convert path text items */
         for (var j = pathTexts.length - 1; j >= 0; j--) {
-            var pathText = pathTexts[j];
-            var originalPath = pathText.textPath;
-
-            // ==========================================
-            // 1. テキスト属性のスナップショットを取得 / Snapshot text attributes
-            // ==========================================
-
-            // full: 文字ごとの属性まで保持 / full: preserve per-character attributes
-            // fast: textRange.duplicate() で高速に保持 / fast: duplicate textRange quickly
-            // none: 書式を削除（デフォルト書式） / none: remove formatting (use defaults)
-            var charAttrs = null;
-            var firstCharAttr = null;
-            if (opt.mode === "full") {
-                charAttrs = [];
-                for (var c = 0; c < pathText.characters.length; c++) {
-                    var ch = pathText.characters[c];
-                    var ca = ch.characterAttributes;
-                    charAttrs.push({
-                        font: ca.textFont,
-                        size: ca.size,
-                        fillColor: ca.fillColor,
-                        strokeColor: ca.strokeColor,
-                        strokeWeight: ca.strokeWeight,
-                        tracking: ca.tracking,
-                        baselineShift: ca.baselineShift,
-                        horizontalScale: ca.horizontalScale,
-                        verticalScale: ca.verticalScale,
-                        autoLeading: ca.autoLeading,
-                        leading: ca.leading
-                    });
-                }
-            } else if (opt.mode === "fast") {
-                // fast（代表値スナップショット：将来の拡張用 / representative snapshot: for future use）
-                if (pathText.characters.length > 0) {
-                    var ca0 = pathText.characters[0].characterAttributes;
-                    firstCharAttr = {
-                        font: ca0.textFont,
-                        size: ca0.size,
-                        fillColor: ca0.fillColor,
-                        strokeColor: ca0.strokeColor,
-                        strokeWeight: ca0.strokeWeight,
-                        tracking: ca0.tracking,
-                        baselineShift: ca0.baselineShift,
-                        horizontalScale: ca0.horizontalScale,
-                        verticalScale: ca0.verticalScale,
-                        autoLeading: ca0.autoLeading,
-                        leading: ca0.leading
-                    };
-                }
-            }
-
-            /* 段落属性（先頭段落から取得）/ Paragraph attributes (from first paragraph) */
-            var justification = null;
-            if (pathText.paragraphs.length > 0) {
-                var paraAttr = pathText.paragraphs[0].paragraphAttributes;
-                justification = paraAttr.justification;
-            }
-
-            var textContents = pathText.contents; // 文字列を保存 / Save string contents
-
-            // ==========================================
-            // 2. パスを複製 / Duplicate path
-            // ==========================================
-            if (!opt.pathDelete) {
-                var newPath = doc.pathItems.add();
-
-                for (var k = 0; k < originalPath.pathPoints.length; k++) {
-                    var origPt = originalPath.pathPoints[k];
-                    var newPt = newPath.pathPoints.add();
-                    newPt.anchor = origPt.anchor;
-                    newPt.leftDirection = origPt.leftDirection;
-                    newPt.rightDirection = origPt.rightDirection;
-                    newPt.pointType = origPt.pointType;
-                }
-                newPath.closed = originalPath.closed;
-                newPath.filled = false;
-
-                if (opt.pathNoStroke) {
-                    newPath.stroked = false;
-                } else {
-                    newPath.stroked = true;
-
-                    if (opt.pathBlack1pt) {
-                        var blackColor = new CMYKColor();
-                        blackColor.cyan = 0;
-                        blackColor.magenta = 0;
-                        blackColor.yellow = 0;
-                        blackColor.black = 100;
-
-                        newPath.strokeColor = blackColor;
-                        newPath.strokeWidth = 1;
-                    }
-                }
-            }
-
-            // ==========================================
-            // 3. 新しいポイントテキストを作成し属性を復元 / Create new point text and restore attributes
-            // ==========================================
-            var newText = doc.textFrames.add();
-
-            /* 位置をパス開始点に合わせる / Align position to path start point */
-            var anchorPoint = originalPath.pathPoints[0].anchor;
-            newText.position = [anchorPoint[0], anchorPoint[1]];
-
-            if (opt.mode === "fast") {
-                // fast: textRange を丸ごと複製（高速）/ fast: duplicate entire textRange
-                // ※内容・書式（段落/文字）をまとめて複製する / ※duplicates content and formatting together
-                pathText.textRange.duplicate(newText);
-
-                /* 文字色を確実に引き継ぐ / Ensure character colors are carried over */
-                for (var rr = 0; rr < pathText.textRanges.length; rr++) {
-                    try {
-                        var srcAttr = pathText.textRanges[rr].characterAttributes;
-                        var dstAttr = newText.textRanges[rr].characterAttributes;
-                        dstAttr.fillColor = srcAttr.fillColor;
-                        dstAttr.strokeColor = srcAttr.strokeColor;
-                    } catch (eRR) { }
-                }
-            } else if (opt.mode === "none") {
-                // none: 内容だけ流し込み / none: insert content only, use default formatting
-                newText.contents = textContents;
-            } else {
-                // full: 内容を流し込み、文字ごとの属性を復元 / full: insert content and restore per-character attributes
-                newText.contents = textContents;
-
-                /* 段落属性の復元 / Restore paragraph attributes */
-                if (justification !== null && newText.paragraphs.length > 0) {
-                    newText.paragraphs[0].paragraphAttributes.justification = justification;
-                }
-
-                // ★重要：新規テキストのデフォルト線を先に消す / ★Important: clear default stroke on new text first
-                // 後続の文字ごとの復元で必要な場合のみ線が復元される / stroke is only restored if the original had one
-                try {
-                    var nc = new NoColor();
-                    newText.textRange.characterAttributes.strokeColor = nc;
-                    newText.textRange.characterAttributes.strokeWeight = 0;
-                } catch (eClr) { }
-            }
-
-            /* 文字属性の復元（full モードのみ）/ Restore character attributes (full mode only) */
-            if (opt.mode === "full" && charAttrs) {
-                for (var c = 0; c < newText.characters.length; c++) {
-                    var targetCa = newText.characters[c].characterAttributes;
-                    var srcCa = charAttrs[c];
-                    if (!srcCa) break;
-
-                    try { targetCa.textFont = srcCa.font; } catch (e) { }
-                    try { targetCa.size = srcCa.size; } catch (e) { }
-                    try { targetCa.fillColor = srcCa.fillColor; } catch (e) { }
-                    /* stroke: 元が「なし」の場合は strokeWeight を 0 に / stroke: set weight to 0 if original had no stroke */
-                    try {
-                        var sc = srcCa.strokeColor;
-                        targetCa.strokeColor = sc;
-                        if (sc && sc.typename === "NoColor") {
-                            targetCa.strokeWeight = 0;
-                        } else {
-                            targetCa.strokeWeight = srcCa.strokeWeight;
-                        }
-                    } catch (e) { }
-                    try { targetCa.tracking = srcCa.tracking; } catch (e) { }
-                    try { targetCa.baselineShift = srcCa.baselineShift; } catch (e) { }
-                    try { targetCa.horizontalScale = srcCa.horizontalScale; } catch (e) { }
-                    try { targetCa.verticalScale = srcCa.verticalScale; } catch (e) { }
-                    try { targetCa.autoLeading = srcCa.autoLeading; } catch (e) { }
-
-                    /* autoLeading が false の場合のみ leading を設定 / Set leading only when autoLeading is false */
-                    if (!srcCa.autoLeading) {
-                        try { targetCa.leading = srcCa.leading; } catch (e) { }
-                    }
-                }
-            }
-
-            // ==========================================
-            // 4. 元のパス上文字を削除 / Remove original path text
-            // ==========================================
-            pathText.remove();
+            detachPathText(doc, pathTexts[j], detachOptions);
         }
     }
 

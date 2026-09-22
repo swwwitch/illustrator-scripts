@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartObjectSorter";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v0.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectSorter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectSorter.md"; /* README (English) */
@@ -42,1060 +42,628 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
 
 (function () {
 
-    // 並べ替え・整列ダイアログの適用処理で再帰的適用を防ぐフラグ
-    var skipApply = false;
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    // 並び方向の初期値（横並び）
-    var defaultAlong = "x";
+    /* 「指定」間隔の初期値（pt） / Initial custom gap in points */
+    var DEFAULT_CUSTOM_GAP = "20";
 
-    // -------------------------------
-    // ラベル定義（日英対応）
-    // -------------------------------
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-    }
+    /* 「数字」で並べるときの上端の送り量（pt） / Top-to-top step for the Number sort, in points */
+    var NUMBER_SORT_STEP = 50;
 
-    // Utility: check if there is a valid selection in the active document
-    function hasValidSelection() {
-        return app.activeDocument &&
-               app.activeDocument.selection &&
-               app.activeDocument.selection.length > 0;
-    }
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
-    // Utility: get center X and Y of given bounds [left, top, right, bottom]
-    function getBoundsCenter(bounds) {
-        var cx = (bounds[0] + bounds[2]) / 2;
-        var cy = (bounds[1] + bounds[3]) / 2;
-        return { x: cx, y: cy };
-    }
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
-    var uiLang = getCurrentLang();
     var LABELS = {
-        dirRandom: {
-            ja: "ランダム",
-            en: "Random"
+        dialog: {
+            title: { ja: "オブジェクトの整列", en: "Object Alignment Tool" }
         },
-        matchMax: {
-            ja: "最大",
-            en: "Max"
+        panel: {
+            sortKey: { ja: "基準", en: "Sort by" },
+            sortOrder: { ja: "ソート順", en: "Sort Order" },
+            vertical: { ja: "縦方向", en: "Vertical" },
+            alignVertical: { ja: "揃え", en: "Align Vertically" },
+            spacingVertical: { ja: "縦間隔", en: "Vertical Spacing" },
+            matchWidth: { ja: "幅を揃える", en: "Match Width" },
+            horizontal: { ja: "横方向", en: "Horizontal" },
+            alignHorizontal: { ja: "揃え", en: "Align Horizontally" },
+            spacingHorizontal: { ja: "横間隔", en: "Horizontal Spacing" },
+            matchHeight: { ja: "高さを揃える", en: "Match Height" }
         },
-        matchMin: {
-            ja: "最小",
-            en: "Min"
+        radio: {
+            alongX: { ja: "横並び", en: "Horizontal" },
+            alongY: { ja: "縦並び", en: "Vertical" },
+            byHeight: { ja: "高さ", en: "Height" },
+            byWidth: { ja: "幅", en: "Width" },
+            byOpacity: { ja: "不透明度", en: "Opacity" },
+            byColor: { ja: "カラー", en: "Color" },
+            byNumber: { ja: "数字", en: "Number" },
+            byZOrder: { ja: "重ね順", en: "Z-Order" },
+            ascending: { ja: "昇順", en: "Ascending" },
+            descending: { ja: "降順", en: "Descending" },
+            random: { ja: "ランダム", en: "Random" },
+            alignLeft: { ja: "左", en: "Left" },
+            alignCenter: { ja: "中央", en: "Center" },
+            alignRight: { ja: "右", en: "Right" },
+            alignTop: { ja: "上", en: "Top" },
+            alignMiddle: { ja: "中央", en: "Middle" },
+            alignBottom: { ja: "下", en: "Bottom" },
+            spacingEven: { ja: "均等", en: "Even" },
+            spacingTight: { ja: "ぴったり", en: "Tight" },
+            spacingCustom: { ja: "指定", en: "Custom" },
+            matchMax: { ja: "最大", en: "Max" },
+            matchMin: { ja: "最小", en: "Min" }
         },
-        dialogTitle: {
-            ja: "オブジェクトの整列",
-            en: "Object Alignment Tool"
+        checkbox: {
+            previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" }
         },
-        alongX: {
-            ja: "横並び",
-            en: "Horizontal"
+        tooltip: {
+            alongX: {
+                ja: "基準とソート順に従って、オブジェクトどうしの横位置を入れ替えます",
+                en: "Swaps the objects' horizontal positions to follow the sort key and order"
+            },
+            alongY: {
+                ja: "基準とソート順に従って、オブジェクトどうしの縦位置を入れ替えます",
+                en: "Swaps the objects' vertical positions to follow the sort key and order"
+            },
+            byColor: {
+                ja: "塗りのカラーをグレースケールに換算した値で並べ替えます",
+                en: "Sorts by the fill color converted to a grayscale value"
+            },
+            byNumber: {
+                ja: "数字だけのテキストを含むグループを数値の順に並べ、上端を50 ptずつずらして縦に配置します",
+                en: "Orders groups that contain a digits-only text by that number and stacks them, each top 50 pt below the previous one"
+            },
+            spacingEven: {
+                ja: "両端のオブジェクトの位置はそのままで、間隔を均等にします",
+                en: "Evens out the gaps while the objects at both ends stay put"
+            },
+            spacingTight: { ja: "間隔を0にして詰めます", en: "Closes the gaps between objects" },
+            customGap: { ja: "オブジェクトの間隔（pt）", en: "Gap between objects, in points" },
+            matchMaxWidth: { ja: "いちばん広い幅に合わせて、幅だけを変えます", en: "Scales only the width to match the widest object" },
+            matchMinWidth: { ja: "いちばん狭い幅に合わせて、幅だけを変えます", en: "Scales only the width to match the narrowest object" },
+            matchMaxHeight: { ja: "いちばん高い高さに合わせて、高さだけを変えます", en: "Scales only the height to match the tallest object" },
+            matchMinHeight: { ja: "いちばん低い高さに合わせて、高さだけを変えます", en: "Scales only the height to match the shortest object" }
         },
-        alongY: {
-            ja: "縦並び",
-            en: "Vertical"
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "実行", en: "Apply" }
         },
-        byTitle: {
-            ja: "基準",
-            en: "Sort by"
-        },
-        byHeight: {
-            ja: "高さ",
-            en: "Height"
-        },
-        byWidth: {
-            ja: "幅",
-            en: "Width"
-        },
-        byOpacity: {
-            ja: "不透明度",
-            en: "Opacity"
-        },
-        byColor: {
-            ja: "カラー",
-            en: "Color"
-        },
-        byNumber: {
-            ja: "数字",
-            en: "Number"
-        },
-        byZOrder: {
-            ja: "重ね順",
-            en: "Z-Order"
-        },
-        directionTitle: {
-            ja: "ソート順",
-            en: "Sort Order"
-        },
-        dirAsc: {
-            ja: "昇順",
-            en: "Ascending"
-        },
-        dirDesc: {
-            ja: "降順",
-            en: "Descending"
-        },
-        btnCancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        btnOk: {
-            ja: "実行",
-            en: "Apply"
-        },
-        alert_fail: {
-            ja: "ファイルを開き、並べ替えるオブジェクトを選択してください。",
-            en: "Open a file and select objects to sort."
-        },
-        alert_zorder_random: {
-            ja: "ランダムと重ね順の組み合わせは安全でないため実行できません。",
-            en: "Random and Z-order combination is unsafe and cannot be executed.",
-        },
-        verticalGroupTitle: {
-            ja: "縦方向",
-            en: "Vertical"
-        },
-        panelAlignVertical: {
-            ja: "揃え",
-            en: "Align Vertically"
-        },
-        alignVerticalLeft: {
-            ja: "左",
-            en: "Left"
-        },
-        alignVerticalCenter: {
-            ja: "中央",
-            en: "Center"
-        },
-        alignVerticalRight: {
-            ja: "右",
-            en: "Right"
-        },
-        panelSpacingVertical: {
-            ja: "縦間隔",
-            en: "Vertical Spacing"
-        },
-        // --- spacingVerticalNone inserted here ---
-        spacingVerticalNone: {
-            ja: "なし",
-            en: "None"
-        },
-        spacingVerticalEven: {
-            ja: "均等",
-            en: "Even"
-        },
-        spacingVerticalZero: {
-            ja: "ぴったり",
-            en: "Tight"
-        },
-        spacingVerticalCustom: {
-            ja: "指定",
-            en: "Custom"
-        },
-        matchWidthTitle: {
-            ja: "幅を揃える",
-            en: "Match Width"
-        },
-        horizontalGroupTitle: {
-            ja: "横方向",
-            en: "Horizontal"
-        },
-        panelAlignHorizontal: {
-            ja: "揃え",
-            en: "Align Horizontally"
-        },
-        alignHorizontalTop: {
-            ja: "上",
-            en: "Top"
-        },
-        alignHorizontalMiddle: {
-            ja: "中央",
-            en: "Middle"
-        },
-        alignHorizontalBottom: {
-            ja: "下",
-            en: "Bottom"
-        },
-        panelSpacingHorizontal: {
-            ja: "横間隔",
-            en: "Horizontal Spacing"
-        },
-        spacingHorizontalEven: {
-            ja: "均等",
-            en: "Even"
-        },
-        spacingHorizontalZero: {
-            ja: "ぴったり",
-            en: "Tight"
-        },
-        spacingHorizontalCustom: {
-            ja: "指定",
-            en: "Custom"
-        },
-        matchHeightTitle: {
-            ja: "高さを揃える",
-            en: "Match Height"
-        },
-        previewBounds: {
-            ja: "プレビュー境界",
-            en: "Preview Bounds"
+        alert: {
+            noSelection: { ja: "ファイルを開き、並べ替えるオブジェクトを選択してください。", en: "Open a file and select objects to sort." }
         }
     };
 
-    // オブジェクト配列を指定方向に揃える
-    function alignObjects(selArr, alignType) {
-        var i, j;
-        switch (alignType) {
-            case "top":
-                // 上揃え：最も上の位置に合わせる
-                var maxTop = -Infinity;
-                for (i = 0; i < selArr.length; i++) {
-                    if (selArr[i].top > maxTop) {
-                        maxTop = selArr[i].top;
-                    }
-                }
-                for (j = 0; j < selArr.length; j++) {
-                    selArr[j].top = maxTop;
-                }
-                break;
-            case "bottom":
-                // 下揃え：最も下の位置に合わせる
-                var minBottom = Infinity;
-                for (i = 0; i < selArr.length; i++) {
-                    var bottom = selArr[i].top - selArr[i].height;
-                    if (bottom < minBottom) {
-                        minBottom = bottom;
-                    }
-                }
-                for (j = 0; j < selArr.length; j++) {
-                    selArr[j].top = minBottom + selArr[j].height;
-                }
-                break;
-            case "left":
-                // 左揃え：最も左の位置に合わせる
-                var minLeft = Infinity;
-                for (i = 0; i < selArr.length; i++) {
-                    if (selArr[i].left < minLeft) {
-                        minLeft = selArr[i].left;
-                    }
-                }
-                for (j = 0; j < selArr.length; j++) {
-                    selArr[j].left = minLeft;
-                }
-                break;
-            case "right":
-                // 右揃え：最も右の位置に合わせる
-                var maxRight = -Infinity;
-                for (i = 0; i < selArr.length; i++) {
-                    var right = selArr[i].left + selArr[i].width;
-                    if (right > maxRight) {
-                        maxRight = right;
-                    }
-                }
-                for (j = 0; j < selArr.length; j++) {
-                    selArr[j].left = maxRight - selArr[j].width;
-                }
-                break;
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "dialog.title" のようなパス
+     * @returns {string} 表示言語のテキスト（見つからなければパスそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
         }
+        return labelNode[uiLang] || labelNode.en;
     }
 
-    var alert_fail, createItemSort, getInterval, numericSort, randomSort, rearrange, revNumericSort, attrParams, sortParams;
+    // =========================================
+    // 並べ替え / Sorting
+    // =========================================
 
-    // 並び替え対象属性のマッピング（UIラジオボタンのhelpTip値と一致）
-    attrParams = {
-        'h': "height", // 高さ
-        'w': "width", // 幅
-        'o': "opacity", // 不透明度
-        'x': "left", // X座標
-        'y': "top", // Y座標
-        'color': "color", // カラー
-        'z': "zOrderPosition", // 重ね順
+    /* 基準・並び方向のキーと、比べる／入れ替えるプロパティ名の対応
+       Option key -> property that is compared or reassigned */
+    var OPTION_PROPERTIES = {
+        h: "height",
+        w: "width",
+        o: "opacity",
+        color: "color",
+        z: "zOrderPosition",
+        x: "left",
+        y: "top"
     };
-    numericSort = function(a, b) {
+
+    /**
+     * 数値を昇順に比べる
+     * @param {number} a - 比べる値
+     * @param {number} b - 比べる値
+     * @returns {number} 並べ替え用の差
+     */
+    function compareAscending(a, b) {
         return a - b;
-    };
-    revNumericSort = function(a, b) {
-        return b - a;
-    };
-    randomSort = function(a, b) {
-        return Math.random() - .5;
-    };
-    sortParams = {
-        's': numericSort,
-        "ns": numericSort,
-        'l': revNumericSort,
-        "ls": revNumericSort
-    };
-
-    // 配列を指定属性・方向で並べ替え、必要に応じて値を再割り当てする
-    rearrange = function(_arr, _byFilter, _sortDirection, _alongParameter, _interpolate) {
-        if (_sortDirection === randomSort && _alongParameter === "zOrderPosition") {
-            return; // Skip dangerous combination
-        }
-        var fin, max, selArrLen, start, tempAtts, _results;
-        _arr.sort(_byFilter);
-        selArrLen = _arr.length;
-        tempAtts = [];
-        while (selArrLen--) {
-            tempAtts.push(_arr[selArrLen][_alongParameter]);
-        }
-        tempAtts.sort(_sortDirection);
-        selArrLen = _arr.length;
-        if (_alongParameter === "zOrderPosition") {
-            if (_sortDirection === randomSort) {
-                return; // Avoid risky random zOrder rearrangement
-            }
-            _results = [];
-            while (selArrLen--) {
-                _results.push((function() {
-                    var _results2 = [];
-                    var maxTries = 100;
-                    var tries = 0;
-                    while (_arr[selArrLen][_alongParameter] !== tempAtts[selArrLen] && tries < maxTries) {
-                        if (_arr[selArrLen][_alongParameter] > tempAtts[selArrLen]) {
-                            _arr[selArrLen].zOrder(ZOrderMethod.SENDBACKWARD);
-                        } else {
-                            _arr[selArrLen].zOrder(ZOrderMethod.BRINGFORWARD);
-                        }
-                        tries++;
-                    }
-                    return _results2;
-                })());
-            }
-            return _results;
-        } else {
-            if (_alongParameter === 'top') {
-                tempAtts.reverse();
-            }
-            start = tempAtts[0];
-            fin = tempAtts[tempAtts.length - 1];
-            max = _arr.length;
-            for (var idx = 0; idx < max; idx++) {
-                _arr[idx][_alongParameter] = (_sortDirection === randomSort || !_interpolate) ?
-                    tempAtts[idx] :
-                    getInterval(start, fin, max - 1, idx);
-            }
-        }
-    };
-
-    // 色のグレースケール値を取得
-    function getGrayScaleValue(breakdown) {
-        if ('Array' !== breakdown.constructor.name)
-            breakdown = getColorChannels(breakdown);
-
-        var gray;
-
-        if (breakdown.length === 4)
-            gray = app.convertSampleColor(ImageColorSpace.CMYK, breakdown, ImageColorSpace.GrayScale, ColorConvertPurpose.defaultpurpose);
-        else if (breakdown.length === 3)
-            gray = app.convertSampleColor(ImageColorSpace.RGB, breakdown, ImageColorSpace.GrayScale, ColorConvertPurpose.defaultpurpose);
-        else if (breakdown.length === 1)
-            gray = breakdown;
-
-        return gray;
     }
 
-    function getColorChannels(col, tintFactor) {
-        tintFactor = tintFactor || 1;
+    /**
+     * 数値を降順に比べる
+     * @param {number} a - 比べる値
+     * @param {number} b - 比べる値
+     * @returns {number} 並べ替え用の差
+     */
+    function compareDescending(a, b) {
+        return b - a;
+    }
 
-        if (col.hasOwnProperty('color'))
-            col = col.color;
+    /**
+     * 並べ替えの順番をランダムにする
+     * @returns {number} -0.5〜0.5 の乱数
+     */
+    function compareRandomly() {
+        return Math.random() - .5;
+    }
 
-        if (col.constructor.name == 'SpotColor')
-            col = col.spot.color;
+    /**
+     * カラーを色成分の配列にする
+     * @param {Color} sourceColor - 対象のカラー
+     * @returns {number[]} CMYK は4つ、RGB は3つ、グレーは1つの成分（その他は [0]）
+     */
+    function getColorChannels(sourceColor) {
+        var color = sourceColor;
+        if (color.hasOwnProperty('color')) color = color.color;
+        if (color.constructor.name == 'SpotColor') color = color.spot.color;
 
-        if (col.constructor.name === 'CMYKColor')
-            return [col.cyan * tintFactor, col.magenta * tintFactor, col.yellow * tintFactor, col.black * tintFactor];
-        else if (col.constructor.name === 'RGBColor')
-            return [col.red * tintFactor, col.green * tintFactor, col.blue * tintFactor];
-        else if (col.constructor.name === 'GrayColor')
-            return [col.gray * tintFactor];
-
+        if (color.constructor.name === 'CMYKColor') return [color.cyan, color.magenta, color.yellow, color.black];
+        if (color.constructor.name === 'RGBColor') return [color.red, color.green, color.blue];
+        if (color.constructor.name === 'GrayColor') return [color.gray];
         return [0];
     }
 
-    function getSortValue(obj, selectedAttr) {
-        if (selectedAttr === "height") {
-            return obj.height;
-        } else if (selectedAttr === "width") {
-            return obj.width;
-        } else if (selectedAttr === "opacity") {
-            return obj.opacity;
-        } else if (selectedAttr === "left") {
-            return obj.left;
-        } else if (selectedAttr === "top") {
-            return obj.top;
-        } else if (selectedAttr === "color") {
-            if (obj.fillColor) {
-                return getGrayScaleValue(obj.fillColor);
-            } else {
-                return 0;
-            }
-        } else if (selectedAttr === "zOrderPosition") {
-            return obj.zOrderPosition;
+    /**
+     * カラーをグレースケールに換算する
+     * @param {Color} sourceColor - 対象のカラー
+     * @returns {number[]} グレースケールの値（要素1つの配列）
+     */
+    function getGrayScaleValue(sourceColor) {
+        var channels = getColorChannels(sourceColor);
+        if (channels.length === 4) {
+            return app.convertSampleColor(ImageColorSpace.CMYK, channels, ImageColorSpace.GrayScale, ColorConvertPurpose.defaultpurpose);
         }
+        if (channels.length === 3) {
+            return app.convertSampleColor(ImageColorSpace.RGB, channels, ImageColorSpace.GrayScale, ColorConvertPurpose.defaultpurpose);
+        }
+        return channels;
+    }
+
+    /**
+     * 「カラー」基準で比べる値（塗りのグレースケール値）を返す
+     * @param {PageItem} item - 対象オブジェクト
+     * @returns {number[]|number} グレースケールの値。塗りが無ければ 0
+     */
+    function getColorSortValue(item) {
+        return item.fillColor ? getGrayScaleValue(item.fillColor) : 0;
+    }
+
+    /**
+     * 指定プロパティでオブジェクトを比べる関数を作る
+     * @param {string} propertyName - 比べるプロパティ名（"color" は塗りの明るさ）
+     * @returns {Function} Array.sort 用の比較関数
+     */
+    function createItemComparator(propertyName) {
+        return function (a, b) {
+            if (propertyName === "color") {
+                return getColorSortValue(a) - getColorSortValue(b);
+            }
+            return Number(a[propertyName]) - Number(b[propertyName]);
+        };
+    }
+
+    /**
+     * オブジェクトを基準の順に並べ、その順に位置の値を割り当て直す
+     * @param {PageItem[]} items - 対象オブジェクト（この配列自体も並べ替える）
+     * @param {Function} compareItems - オブジェクトの比較関数
+     * @param {Function} comparePositions - 位置の値の比較関数（昇順／降順／ランダム）
+     * @param {string} positionProperty - 割り当て直すプロパティ（"left" / "top"）
+     * @returns {void}
+     */
+    function rearrangeItems(items, compareItems, comparePositions, positionProperty) {
+        items.sort(compareItems);
+        var positions = [];
+        for (var i = 0; i < items.length; i++) {
+            positions.push(items[i][positionProperty]);
+        }
+        positions.sort(comparePositions);
+        /* 上端は値が大きいほど上なので逆順に / larger top means higher, so reverse */
+        if (positionProperty === "top") positions.reverse();
+        for (var j = 0; j < items.length; j++) {
+            items[j][positionProperty] = positions[j];
+        }
+    }
+
+    /**
+     * グループ内で最初に見つかった数字だけのテキストを数値で返す（入れ子のグループも探す）
+     * @param {GroupItem} groupItem - 対象グループ
+     * @returns {number} 見つかった数値。無ければ NaN
+     */
+    function findNumberInGroup(groupItem) {
+        var memberItems = groupItem.pageItems;
+        for (var i = 0; i < memberItems.length; i++) {
+            var memberItem = memberItems[i];
+            if (memberItem.typename === "TextFrame") {
+                var frameText = memberItem.contents;
+                if (/^\d+$/.test(frameText)) {
+                    return parseFloat(frameText);
+                }
+            } else if (memberItem.typename === "GroupItem") {
+                var nestedNumber = findNumberInGroup(memberItem);
+                if (!isNaN(nestedNumber)) return nestedNumber;
+            }
+        }
+        return NaN;
+    }
+
+    /**
+     * 数字を含むグループを数値の順に並べ、先頭のグループの位置から縦に配置する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {string} orderKey - ソート順のキー（"l" は降順、それ以外は昇順）
+     * @returns {void}
+     */
+    function arrangeGroupsByNumber(items, orderKey) {
+        var numberedGroups = [];
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].typename === "GroupItem") {
+                var groupNumber = findNumberInGroup(items[i]);
+                if (!isNaN(groupNumber)) {
+                    numberedGroups.push({ group: items[i], value: groupNumber });
+                }
+            }
+        }
+        if (numberedGroups.length === 0) return;
+        if (orderKey === "l") {
+            numberedGroups.sort(function (a, b) { return b.value - a.value; });
+        } else {
+            numberedGroups.sort(function (a, b) { return a.value - b.value; });
+        }
+        var startTop = numberedGroups[0].group.top;
+        var startLeft = numberedGroups[0].group.left;
+        for (var j = 0; j < numberedGroups.length; j++) {
+            numberedGroups[j].group.left = startLeft;
+            numberedGroups[j].group.top = startTop - j * NUMBER_SORT_STEP;
+        }
+    }
+
+    /**
+     * 基準・並び方向・ソート順に従ってオブジェクトを並べ替える
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {string} sortKey - 基準のキー（h / w / o / color / n / z）
+     * @param {string} alongKey - 並び方向のキー（x / y）
+     * @param {string} orderKey - ソート順のキー（s / l / r）
+     * @returns {void}
+     */
+    function applyArrangement(items, sortKey, alongKey, orderKey) {
+        if (sortKey === "n") {
+            arrangeGroupsByNumber(items, orderKey);
+            return;
+        }
+        var comparePositions = compareAscending;
+        if (orderKey === "l") {
+            comparePositions = compareDescending;
+        } else if (orderKey === "r") {
+            comparePositions = compareRandomly;
+        }
+        rearrangeItems(items, createItemComparator(OPTION_PROPERTIES[sortKey]), comparePositions, OPTION_PROPERTIES[alongKey]);
+    }
+
+    // =========================================
+    // 間隔と揃え / Spacing and alignment
+    // =========================================
+
+    /**
+     * 両端の位置を保ったまま均等にするときの間隔を求める
+     * @param {PageItem[]} sortedItems - 並び順に並べたオブジェクト
+     * @param {boolean} isHorizontal - 横方向なら true
+     * @returns {number} オブジェクト間の間隔（pt）
+     */
+    function getEvenGap(sortedItems, isHorizontal) {
+        var firstItem = sortedItems[0];
+        var lastItem = sortedItems[sortedItems.length - 1];
+        var totalSize = 0;
+        for (var i = 0; i < sortedItems.length; i++) {
+            totalSize += isHorizontal ? sortedItems[i].width : sortedItems[i].height;
+        }
+        var totalGap = isHorizontal
+            ? (lastItem.left + lastItem.width) - firstItem.left - totalSize
+            : firstItem.top - (lastItem.top - lastItem.height) - totalSize;
+        return totalGap / (sortedItems.length - 1);
+    }
+
+    /**
+     * 先頭のオブジェクトの位置から、指定の間隔で順に並べる
+     * @param {PageItem[]} sortedItems - 並び順に並べたオブジェクト
+     * @param {boolean} isHorizontal - 横方向なら true
+     * @param {number} gap - オブジェクト間の間隔（pt）
+     * @returns {void}
+     */
+    function placeWithGap(sortedItems, isHorizontal, gap) {
+        var position = isHorizontal ? sortedItems[0].left : sortedItems[0].top;
+        for (var i = 0; i < sortedItems.length; i++) {
+            if (isHorizontal) {
+                sortedItems[i].left = position;
+                position += sortedItems[i].width + gap;
+            } else {
+                sortedItems[i].top = position;
+                position -= sortedItems[i].height + gap;
+            }
+        }
+    }
+
+    /**
+     * 間隔の種類に従ってオブジェクトを並べ直す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {string} spacingType - "even"（均等）/ "zero"（ぴったり）/ "custom"（指定）
+     * @param {EditText} gapInput - 「指定」の間隔の入力欄
+     * @param {boolean} isHorizontal - 横方向なら true
+     * @returns {void}
+     */
+    function applySpacing(items, spacingType, gapInput, isHorizontal) {
+        var sortedItems = items.slice();
+        sortedItems.sort(function (a, b) {
+            return isHorizontal ? a.left - b.left : b.top - a.top;
+        });
+        var gap = 0;
+        if (spacingType === "even") {
+            gap = getEvenGap(sortedItems, isHorizontal);
+        } else if (spacingType === "custom" && gapInput.text !== "") {
+            gap = parseFloat(gapInput.text);
+        }
+        placeWithGap(sortedItems, isHorizontal, gap);
+    }
+
+    /**
+     * 揃えの基準にする位置を、オブジェクトの左端または上端からのずれで返す
+     * @param {number[]} bounds - [左, 上, 右, 下]
+     * @param {string} alignType - "left" / "center" / "right" / "top" / "middle" / "bottom"
+     * @returns {number} 左端（上端）から基準位置までのずれ
+     */
+    function getAlignOffset(bounds, alignType) {
+        var width = bounds[2] - bounds[0];
+        var height = bounds[1] - bounds[3];
+        if (alignType === "center") return width / 2;
+        if (alignType === "right") return width;
+        if (alignType === "middle") return -(height / 2);
+        if (alignType === "bottom") return -height;
         return 0;
     }
 
-    createItemSort = function(attrStr) {
-        var attr = attrStr;
-        return function(a, b) {
-            // If sorting by color, use brightness
-            if (attr === "color") {
-                return getSortValue(a, "color") - getSortValue(b, "color");
-            }
-            return Number(a[attr]) - Number(b[attr]);
-        };
-    };
+    /**
+     * オブジェクトの左端・中央・右端（上端・中央・下端）を揃える
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {string} alignType - "left" / "center" / "right" / "top" / "middle" / "bottom"
+     * @returns {void}
+     */
+    function alignItems(items, alignType) {
+        if (!items || items.length === 0) return;
+        var movesVertically = (alignType === "top" || alignType === "middle" || alignType === "bottom");
 
-    // 均等配置時の間隔計算
-    getInterval = function(start, fin, len, curr) {
-        var f, s;
-        s = start;
-        f = fin;
-        if (start < 0) {
-            s = 0;
-            f = f - start;
+        /* 注意: previewBoundsCheckbox はダイアログ内のローカル変数で、ここからは見えないため常に false
+           Note: previewBoundsCheckbox is local to the dialog, so this is always false here */
+        var usePreviewBounds = (typeof previewBoundsCheckbox !== "undefined" && previewBoundsCheckbox.value);
+
+        var itemBounds = [];
+        var alignPositions = [];
+        for (var i = 0; i < items.length; i++) {
+            itemBounds[i] = usePreviewBounds ? items[i].visibleBounds : items[i].geometricBounds;
+            var edgePosition = movesVertically ? itemBounds[i][1] : itemBounds[i][0];
+            alignPositions.push(edgePosition + getAlignOffset(itemBounds[i], alignType));
         }
-        return start + (((f - s) / len) * curr);
-    };
-    // ファイル未オープンまたは選択なし時のエラーメッセージ
-    alert_fail = LABELS.alert_fail[uiLang];
 
-    var dialog, byGroup, alongGroup, directionGroup;
-
-    // ラジオボタン配列から選択値（helpTip）を取得
-    function getSelectedValue(radioButtons) {
-        for (var i = 0; i < radioButtons.length; i++) {
-            if (radioButtons[i].value) {
-                return radioButtons[i].helpTip;
+        var targetPosition;
+        if (alignType === "top" || alignType === "left") {
+            targetPosition = Math.min.apply(null, alignPositions);
+        } else if (alignType === "bottom" || alignType === "right") {
+            targetPosition = Math.max.apply(null, alignPositions);
+        } else {
+            var positionSum = 0;
+            for (var j = 0; j < alignPositions.length; j++) {
+                positionSum += alignPositions[j];
             }
+            targetPosition = positionSum / alignPositions.length;
+        }
+
+        for (var k = 0; k < items.length; k++) {
+            var alignOffset = getAlignOffset(itemBounds[k], alignType);
+            if (movesVertically) {
+                var dy = items[k].top - itemBounds[k][1];
+                items[k].top = targetPosition - alignOffset + dy;
+            } else {
+                var dx = items[k].left - itemBounds[k][0];
+                items[k].left = targetPosition - alignOffset + dx;
+            }
+        }
+    }
+
+    /**
+     * オブジェクトの幅または高さを、いちばん大きい（小さい）ものに合わせて拡大・縮小する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {string} sizeProperty - "width" / "height"
+     * @param {boolean} useLargest - true なら最大、false なら最小に合わせる
+     * @returns {void}
+     */
+    function matchItemSize(items, sizeProperty, useLargest) {
+        var targetSize = useLargest ? 0 : Infinity;
+        for (var i = 0; i < items.length; i++) {
+            var itemSize = items[i][sizeProperty];
+            if (useLargest ? itemSize > targetSize : itemSize < targetSize) {
+                targetSize = itemSize;
+            }
+        }
+        for (var j = 0; j < items.length; j++) {
+            var scalePercent = targetSize / items[j][sizeProperty] * 100;
+            if (sizeProperty === "width") {
+                items[j].resize(scalePercent, 100);
+            } else {
+                items[j].resize(100, scalePercent);
+            }
+        }
+        app.redraw();
+    }
+
+    // =========================================
+    // 選択と位置 / Selection and positions
+    // =========================================
+
+    /**
+     * 先頭3つのオブジェクトの中心から、横並びか縦並びかを推定する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {string} 縦並びなら "y"、それ以外は "x"
+     */
+    function detectAlongDirection(items) {
+        if (!(items.length >= 3)) return "x";
+        var centers = [];
+        for (var i = 0; i < 3; i++) {
+            var visibleBounds = items[i].visibleBounds;
+            centers.push({ x: (visibleBounds[0] + visibleBounds[2]) / 2, y: (visibleBounds[1] + visibleBounds[3]) / 2 });
+        }
+        var averageDx = (Math.abs(centers[0].x - centers[1].x) + Math.abs(centers[1].x - centers[2].x)) / 2;
+        var averageDy = (Math.abs(centers[0].y - centers[1].y) + Math.abs(centers[1].y - centers[2].y)) / 2;
+        return (averageDx * 1.5 < averageDy) ? "y" : "x";
+    }
+
+    /**
+     * キャンセル時に戻せるよう、オブジェクトの位置を控える
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {Object[]} { item, left, top } の配列
+     */
+    function saveItemPositions(items) {
+        var savedPositions = [];
+        for (var i = 0; i < items.length; i++) {
+            savedPositions.push({ item: items[i], left: items[i].left, top: items[i].top });
+        }
+        return savedPositions;
+    }
+
+    /**
+     * 控えておいた位置へオブジェクトを戻す
+     * @param {Object[]} savedPositions - saveItemPositions() の戻り値
+     * @returns {void}
+     */
+    function restoreItemPositions(savedPositions) {
+        for (var i = 0; i < savedPositions.length; i++) {
+            savedPositions[i].item.left = savedPositions[i].left;
+            savedPositions[i].item.top = savedPositions[i].top;
+        }
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 選択肢のラジオボタンを並べて作る（値は optionKey に持たせる）
+     * @param {Object} parentGroup - 追加先のグループまたはパネル
+     * @param {Object[]} choices - { key, label, tooltip } の配列（label と tooltip は LABELS のパス）
+     * @param {string} selectedKey - 最初に選んでおくキー
+     * @returns {RadioButton[]} 作ったラジオボタン
+     */
+    function addChoiceRadios(parentGroup, choices, selectedKey) {
+        var choiceRadios = [];
+        for (var i = 0; i < choices.length; i++) {
+            var choiceRadio = parentGroup.add("radiobutton", undefined, getLabel(choices[i].label));
+            choiceRadio.optionKey = choices[i].key;
+            choiceRadio.value = (choices[i].key === selectedKey);
+            if (choices[i].tooltip) choiceRadio.helpTip = getLabel(choices[i].tooltip);
+            choiceRadios.push(choiceRadio);
+        }
+        return choiceRadios;
+    }
+
+    /**
+     * 選ばれているラジオボタンのキーを返す
+     * @param {RadioButton[]} choiceRadios - ラジオボタン
+     * @returns {string|null} optionKey。どれも選ばれていなければ null
+     */
+    function getSelectedKey(choiceRadios) {
+        for (var i = 0; i < choiceRadios.length; i++) {
+            if (choiceRadios[i].value) return choiceRadios[i].optionKey;
         }
         return null;
     }
 
-    // 並べ替え・整列の適用
-    function applyArrangement(selArr, byVal, alongVal, distVal, dirVal, alignVal) {
-        if (skipApply) return;
-        if (byVal === "n") {
-            // 数字オプションでグループ内テキストから数値で並べ替え
-            var sortableGroups = [];
-            for (var i = 0; i < selArr.length; i++) {
-                if (selArr[i].typename === "GroupItem") {
-                    var val = extractNumberFromGroup(selArr[i]);
-                    if (!isNaN(val)) {
-                        sortableGroups.push({
-                            group: selArr[i],
-                            value: val
-                        });
-                    }
-                }
-            }
-            if (sortableGroups.length === 0) return;
-            if (dirVal === "l") {
-                sortableGroups.sort(function(a, b) { return b.value - a.value; });
-            } else {
-                sortableGroups.sort(function(a, b) { return a.value - b.value; });
-            }
-            var startTop = sortableGroups[0].group.top;
-            var startLeft = sortableGroups[0].group.left;
-            var spacing = 50;
-            for (var j = 0; j < sortableGroups.length; j++) {
-                sortableGroups[j].group.left = startLeft;
-                sortableGroups[j].group.top = startTop - j * spacing;
-            }
-            return;
-        }
-        if (dirVal === 'r' && alongVal === 'z') {
-            alert(LABELS.alert_zorder_random[uiLang]);
-            return;
-        }
-        var sortFunc;
-        if (dirVal === 's') {
-            sortFunc = numericSort;
-        } else if (dirVal === 'l') {
-            sortFunc = revNumericSort;
-        } else if (dirVal === 'r') {
-            sortFunc = randomSort;
-        } else {
-            sortFunc = numericSort;
-        }
-        rearrange(selArr, createItemSort(attrParams[byVal]), sortFunc, attrParams[alongVal], distVal);
-        // 並び方向に応じて整列処理
-        if (alignVal === "none") {
-            return; // 整列なし
-        }
-        if (alongVal === "y") {
-            if (alignVal === "left") {
-                alignObjects(selArr, "left");
-            } else if (alignVal === "right") {
-                alignObjects(selArr, "right");
-            }
-        } else {
-            alignObjects(selArr, alignVal);
+    /**
+     * 基準・ソート順のパネルを作る
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @param {number} childSpacing - 項目の間隔
+     * @returns {Panel} 作ったパネル
+     */
+    function addOptionPanel(parentGroup, titlePath, childSpacing) {
+        var optionPanel = parentGroup.add("panel", undefined, getLabel(titlePath));
+        optionPanel.orientation = "column";
+        optionPanel.alignChildren = "left";
+        optionPanel.spacing = childSpacing;
+        optionPanel.margins = [15, 20, 15, 10];
+        return optionPanel;
+    }
+
+    /**
+     * 選択肢を横一列に並べるパネルを作る（揃え・幅／高さを揃える）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @returns {Panel} 作ったパネル
+     */
+    function addRowPanel(parentPanel, titlePath) {
+        var rowPanel = parentPanel.add("panel", undefined, getLabel(titlePath));
+        rowPanel.orientation = "row";
+        rowPanel.alignChildren = "center";
+        rowPanel.margins = [10, 20, 10, 10];
+        return rowPanel;
+    }
+
+    /**
+     * 揃えのパネルを作る。ラジオボタンを押すとすぐに揃える
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @param {Object[]} choices - { key, label } の配列（key は alignItems() の揃え方）
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @returns {void}
+     */
+    function addAlignPanel(parentPanel, titlePath, choices, targetItems) {
+        var alignRadios = addChoiceRadios(addRowPanel(parentPanel, titlePath), choices, null);
+        for (var i = 0; i < alignRadios.length; i++) {
+            alignRadios[i].onClick = function () {
+                alignItems(targetItems, this.optionKey);
+                app.redraw();
+            };
         }
     }
 
-    // 並べ替え・整列ダイアログ作成
-
-    // メイン処理
-    function main() {
-        var selArr = app.activeDocument.selection;
-        // ダイアログ起動前に元の位置を保存
-        var originalStates = [];
-        var initialState = null;
-        if (hasValidSelection()) {
-            var selection = app.activeDocument.selection;
-            for (var i = 0; i < selection.length; i++) {
-                var item = selection[i];
-                originalStates.push({
-                    item: item,
-                    left: item.left,
-                    top: item.top
-                });
-            }
-        }
-
-        // 並び方向自動検出を実行（先頭3つの中心位置を使用）
-        if (hasValidSelection() && app.activeDocument.selection.length >= 3) {
-            var selection = app.activeDocument.selection;
-
-            var bounds1 = selection[0].visibleBounds;
-            var bounds2 = selection[1].visibleBounds;
-            var bounds3 = selection[2].visibleBounds;
-            var c1 = getBoundsCenter(bounds1);
-            var c2 = getBoundsCenter(bounds2);
-            var c3 = getBoundsCenter(bounds3);
-
-            var dx1 = Math.abs(c1.x - c2.x);
-            var dx2 = Math.abs(c2.x - c3.x);
-            var dy1 = Math.abs(c1.y - c2.y);
-            var dy2 = Math.abs(c2.y - c3.y);
-
-            var avgDx = (dx1 + dx2) / 2;
-            var avgDy = (dy1 + dy2) / 2;
-
-            if (avgDx * 1.5 < avgDy) {
-                defaultAlong = "y";
-            } else {
-                defaultAlong = "x";
-            }
-        }
-
-        // 縦並びなら基準を「幅」、横並びなら「高さ」に初期化する
-        var defaultBy = (defaultAlong === "y") ? "w" : "h";
-
-        // キャンセル時に元の位置へ戻す処理をダイアログに追加
-        var createDialog = function() {
-            var result = false;
-            if (!app.activeDocument) {
-                alert(LABELS.alert_fail[uiLang]);
-                return false;
-            }
-            var doc = app.activeDocument;
-            var currentSelection = doc.selection;
-            if (currentSelection.length === 0) {
-                alert(LABELS.alert_fail[uiLang]);
-                return false;
-            }
-            selArr = [];
-            for (var i = 0; i < currentSelection.length; i++) {
-                selArr.push(currentSelection[i]);
-            }
-
-            // Use single definition for all controls, matching the main dialog structure
-
-            var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
-
-            dialog.alignChildren = "left";
-            dialog.orientation = "column";
-
-            alongGroup = dialog.add("group");
-            alongGroup.alignment = "center";
-            alongGroup.orientation = "row";
-            alongGroup.spacing = 5;
-            alongGroup.margins = [10, 10, 10, 10];
-            var leftAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongX[uiLang]);
-            var topAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongY[uiLang]);
-            if (defaultAlong === "y") {
-                leftAlignRadio.value = false;
-                topAlignRadio.value = true;
-            } else {
-                leftAlignRadio.value = true;
-                topAlignRadio.value = false;
-            }
-            leftAlignRadio.helpTip = "x";
-            topAlignRadio.helpTip = "y";
-            var alongRadioButtons = [leftAlignRadio, topAlignRadio];
-            var mainGroup = dialog.add("group");
-            mainGroup.orientation = "row";
-            mainGroup.alignChildren = ["fill", "top"];
-            mainGroup.spacing = 10;
-            var leftGroup = mainGroup.add("group");
-            leftGroup.orientation = "column";
-            leftGroup.alignChildren = "fill";
-            leftGroup.spacing = 10;
-            var rightGroup = mainGroup.add("group");
-            rightGroup.orientation = "column";
-            rightGroup.alignChildren = "fill";
-
-            // 並べ替え基準パネル
-            byGroup = leftGroup.add("panel", undefined, LABELS.byTitle[uiLang]);
-            byGroup.orientation = "column";
-            byGroup.alignChildren = "left";
-            byGroup.spacing = 10;
-            byGroup.margins = [15, 20, 15, 10];
-            var heightRadio = byGroup.add("radiobutton", undefined, LABELS.byHeight[uiLang]);
-            heightRadio.value = (defaultBy === "h");
-            heightRadio.helpTip = "h";
-            var widthRadio = byGroup.add("radiobutton", undefined, LABELS.byWidth[uiLang]);
-            widthRadio.value = (defaultBy === "w");
-            widthRadio.helpTip = "w";
-            var opacityRadio = byGroup.add("radiobutton", undefined, LABELS.byOpacity[uiLang]);
-            opacityRadio.value = false;
-            opacityRadio.helpTip = "o";
-            var colorRadio = byGroup.add("radiobutton", undefined, LABELS.byColor[uiLang]);
-            colorRadio.value = false;
-            colorRadio.helpTip = "color";
-            var numberRadio = byGroup.add("radiobutton", undefined, LABELS.byNumber[uiLang]);
-            numberRadio.value = false;
-            numberRadio.helpTip = "n";
-            var zOrderRadio = byGroup.add("radiobutton", undefined, LABELS.byZOrder[uiLang]);
-            zOrderRadio.value = false;
-            zOrderRadio.helpTip = "z";
-            var byRadioButtons = [heightRadio, widthRadio, opacityRadio, colorRadio, numberRadio, zOrderRadio];
-
-            // 並び順パネル
-            directionGroup = leftGroup.add("panel", undefined, LABELS.directionTitle[uiLang]);
-            directionGroup.orientation = "column";
-            directionGroup.alignChildren = "left";
-            directionGroup.spacing = 5;
-            directionGroup.margins = [15, 20, 15, 10];
-            var ascendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirAsc[uiLang]);
-            ascendingRadio.value = true;
-            ascendingRadio.helpTip = "s";
-            var descendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirDesc[uiLang]);
-            descendingRadio.value = false;
-            descendingRadio.helpTip = "l";
-            var randomRadio = directionGroup.add("radiobutton", undefined, LABELS.dirRandom[uiLang]);
-            randomRadio.value = false;
-            randomRadio.helpTip = "r";
-            var directionRadioButtons = [ascendingRadio, descendingRadio, randomRadio];
-
-            // 中央ペイン(panel) - 縦方向
-            var verticalAlignPanelContainer = mainGroup.add("panel", undefined, "");
-            verticalAlignPanelContainer.alignChildren = "fill";
-            verticalAlignPanelContainer.margins = [10, 20, 10, 10];
-            verticalAlignPanelContainer.text = LABELS.verticalGroupTitle[uiLang];
-
-            // 縦方向：揃えパネル
-            var verticalAlignPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignVertical[uiLang]);
-            verticalAlignPanel.orientation = "row";
-            verticalAlignPanel.alignChildren = "center";
-            verticalAlignPanel.margins = [10, 20, 10, 10];
-
-            var alignLeftBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalLeft[uiLang]);
-            var alignCenterBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalCenter[uiLang]);
-            var alignRightBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalRight[uiLang]);
-
-            alignLeftBtnVerticalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "left", false);
-                app.redraw();
-            };
-            alignCenterBtnVerticalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "center", false);
-                app.redraw();
-            };
-            alignRightBtnVerticalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "right", false);
-                app.redraw();
-            };
-
-            // 縦方向: 縦間隔パネル
-            createSpacingControlGroup(verticalAlignPanelContainer, {
-                panelTitle: LABELS.panelSpacingVertical[uiLang],
-                none: LABELS.spacingVerticalNone[uiLang],
-                even: LABELS.spacingVerticalEven[uiLang],
-                zero: LABELS.spacingVerticalZero[uiLang],
-                custom: LABELS.spacingVerticalCustom[uiLang]
-            }, selArr, false);
-
-            // 幅を揃えるパネル
-            var matchWidthPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.matchWidthTitle[uiLang]);
-            matchWidthPanel.orientation = "row";
-            matchWidthPanel.alignChildren = "center";
-            matchWidthPanel.margins = [10, 20, 10, 10];
-
-            var matchMaxWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMax[uiLang]);
-            var matchMinWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMin[uiLang]);
-            matchMaxWidthRadio.value = false;
-            matchMinWidthRadio.value = false;
-
-            // 最大幅で統一
-            matchMaxWidthRadio.onClick = function() {
-                var maxWidth = 0;
-                for (var i = 0; i < selArr.length; i++) {
-                    if (selArr[i].width > maxWidth) {
-                        maxWidth = selArr[i].width;
-                    }
-                }
-                for (var i = 0; i < selArr.length; i++) {
-                    var ratio = maxWidth / selArr[i].width;
-                    selArr[i].resize(ratio * 100, 100);
-                }
-                app.redraw();
-            };
-            // 最小幅で統一
-            matchMinWidthRadio.onClick = function() {
-                var minWidth = Infinity;
-                for (var i = 0; i < selArr.length; i++) {
-                    if (selArr[i].width < minWidth) {
-                        minWidth = selArr[i].width;
-                    }
-                }
-                for (var i = 0; i < selArr.length; i++) {
-                    var ratio = minWidth / selArr[i].width;
-                    selArr[i].resize(ratio * 100, 100);
-                }
-                app.redraw();
-            };
-
-            // 右ペイン(panel) - 横方向
-            var horizontalAlignPanelContainer = mainGroup.add("panel", undefined, "");
-            horizontalAlignPanelContainer.alignChildren = "fill";
-            horizontalAlignPanelContainer.margins = [10, 20, 10, 10];
-            horizontalAlignPanelContainer.text = LABELS.horizontalGroupTitle[uiLang];
-
-            // 横方向：揃えパネル
-            var horizontalAlignPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignHorizontal[uiLang]);
-            horizontalAlignPanel.orientation = "row";
-            horizontalAlignPanel.alignChildren = "center";
-            horizontalAlignPanel.margins = [10, 20, 10, 10];
-
-            var alignTopBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalTop[uiLang]);
-            var alignMiddleBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalMiddle[uiLang]);
-            var alignBottomBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalBottom[uiLang]);
-
-            alignTopBtnHorizontalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "top", true);
-                app.redraw();
-            };
-            alignMiddleBtnHorizontalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "middle", true);
-                app.redraw();
-            };
-            alignBottomBtnHorizontalSmart.onClick = function() {
-                smartPreviewAlignGeneric(selArr, "bottom", true);
-                app.redraw();
-            };
-
-            // 横間隔パネル
-            var horizontalSpacingPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelSpacingHorizontal[uiLang]);
-            horizontalSpacingPanel.orientation = "column";
-            horizontalSpacingPanel.alignChildren = "left";
-            horizontalSpacingPanel.margins = [10, 20, 10, 10];
-
-            var spacingHorizontalRadioGroup = horizontalSpacingPanel.add("group");
-            spacingHorizontalRadioGroup.orientation = "column";
-            spacingHorizontalRadioGroup.alignChildren = "left";
-
-            // Remove "None" option for horizontal spacing
-            var spacingEvenBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalEven[uiLang]);
-            var spacingZeroBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalZero[uiLang]);
-
-            var spacingHorizontalCustomGroup = spacingHorizontalRadioGroup.add("group");
-            spacingHorizontalCustomGroup.orientation = "row";
-            spacingHorizontalCustomGroup.alignChildren = "left";
-            var spacingCustomBtnHorizontalSmart = spacingHorizontalCustomGroup.add("radiobutton", undefined, LABELS.spacingHorizontalCustom[uiLang]);
-            var spacingInputHorizontalSmart = spacingHorizontalCustomGroup.add("edittext", undefined, "20");
-            spacingInputHorizontalSmart.characters = 5;
-            spacingInputHorizontalSmart.enabled = false;
-
-            spacingEvenBtnHorizontalSmart.value = false;
-            spacingZeroBtnHorizontalSmart.value = false;
-            spacingCustomBtnHorizontalSmart.value = false;
-
-            spacingEvenBtnHorizontalSmart.onClick = function() {
-                onSmartSpacingRadioClick(
-                    null,
-                    spacingEvenBtnHorizontalSmart,
-                    spacingZeroBtnHorizontalSmart,
-                    spacingCustomBtnHorizontalSmart,
-                    spacingInputHorizontalSmart,
-                    "even",
-                    selArr,
-                    true
-                );
-            };
-            spacingZeroBtnHorizontalSmart.onClick = function() {
-                onSmartSpacingRadioClick(
-                    null,
-                    spacingEvenBtnHorizontalSmart,
-                    spacingZeroBtnHorizontalSmart,
-                    spacingCustomBtnHorizontalSmart,
-                    spacingInputHorizontalSmart,
-                    "zero",
-                    selArr,
-                    true
-                );
-            };
-            spacingCustomBtnHorizontalSmart.onClick = function() {
-                onSmartSpacingRadioClick(
-                    null,
-                    spacingEvenBtnHorizontalSmart,
-                    spacingZeroBtnHorizontalSmart,
-                    spacingCustomBtnHorizontalSmart,
-                    spacingInputHorizontalSmart,
-                    "custom",
-                    selArr,
-                    true
-                );
-            };
-            spacingInputHorizontalSmart.onChange = function() {
-                if (spacingCustomBtnHorizontalSmart.value) {
-                    smartPreviewSpacingGeneric(selArr, spacingInputHorizontalSmart, "custom", true);
-                    app.redraw();
-                }
-            };
-
-            // 高さを揃えるパネル（ダイアログ下部、キャンセル／OKの直上）
-            var matchHeightPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.matchHeightTitle[uiLang]);
-            matchHeightPanel.orientation = "row";
-            matchHeightPanel.alignChildren = "center";
-            matchHeightPanel.margins = [10, 20, 10, 10];
-
-            var matchMaxHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMax[uiLang]);
-            var matchMinHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMin[uiLang]);
-            matchMaxHeightRadio.value = false;
-            matchMinHeightRadio.value = false;
-
-            // 最大高さで統一（幅はそのまま）
-            matchMaxHeightRadio.onClick = function() {
-                var maxHeight = 0;
-                for (var i = 0; i < selArr.length; i++) {
-                    if (selArr[i].height > maxHeight) {
-                        maxHeight = selArr[i].height;
-                    }
-                }
-                for (var i = 0; i < selArr.length; i++) {
-                    var ratio = maxHeight / selArr[i].height;
-                    selArr[i].resize(100, ratio * 100);
-                }
-                app.redraw();
-            };
-            // 最小高さで統一（幅はそのまま）
-            matchMinHeightRadio.onClick = function() {
-                var minHeight = Infinity;
-                for (var i = 0; i < selArr.length; i++) {
-                    if (selArr[i].height < minHeight) {
-                        minHeight = selArr[i].height;
-                    }
-                }
-                for (var i = 0; i < selArr.length; i++) {
-                    var ratio = minHeight / selArr[i].height;
-                    selArr[i].resize(100, ratio * 100);
-                }
-                app.redraw();
-            };
-
-            // 下部行: スペーサ、キャンセル・OKボタン（previewBoundsCheckboxは中央ペイン下部に移動）
-            var bottomRowGroup = dialog.add("group");
-            bottomRowGroup.orientation = "row";
-            bottomRowGroup.alignment = ["fill", "bottom"];
-            bottomRowGroup.alignChildren = ["left", "center"];
-            bottomRowGroup.margins = [10, 10, 10, 10];
-
-            // プレビュー境界チェックボックスを中央ペイン下部に追加
-            var previewBoundsCheckbox = bottomRowGroup.add("checkbox", undefined, LABELS.previewBounds[uiLang]);
-            previewBoundsCheckbox.value = false;
-
-            // Flexible spacer
-            var spacer = bottomRowGroup.add("group");
-            spacer.alignment = ["fill", "fill"];
-            spacer.minimumSize.width = 100;
-            spacer.maximumSize.height = 0;
-
-            // Cancel button
-            var cancelBtn = bottomRowGroup.add("button", undefined, LABELS.btnCancel[uiLang], {
-                name: "cancel"
-            });
-
-            // OK button
-            var okBtn = bottomRowGroup.add("button", undefined, LABELS.btnOk[uiLang], {
-                name: "ok"
-            });
-            okBtn.active = true;
-
-            function updatePreview(forceRedraw) {
-                var byVal = getSelectedValue(byRadioButtons);
-                var alongVal = getSelectedValue(alongRadioButtons);
-                var distVal = false;
-                var dirVal = getSelectedValue(directionRadioButtons);
-                // No alignment panel, so alignVal is always "none"
-                var alignVal = "none";
-                if (!byVal || !alongVal || dirVal === null) {
-                    return;
-                }
-                applyArrangement(selArr, byVal, alongVal, distVal, dirVal, alignVal);
-                if (forceRedraw !== false) {
-                    app.redraw();
-                }
-            }
-
-            function addListeners(radioButtons) {
-                for (var i = 0; i < radioButtons.length; i++) {
-                    radioButtons[i].onClick = function() {
-                        updatePreview(true);
-                    };
-                }
-            }
-            addListeners(byRadioButtons);
-            addListeners(directionRadioButtons);
-
-            for (var i = 0; i < alongRadioButtons.length; i++) {
-                alongRadioButtons[i].onClick = function() {
-                    updatePreview(true);
-                };
-            }
-            // UIパーツの定義完了後に並び方向の初期状態を反映
-            // updatePreview(true);
-
-            okBtn.onClick = function() {
-                dialog.close(1);
-            };
-            cancelBtn.onClick = function() {
-                for (var i = 0; i < originalStates.length; i++) {
-                    var obj = originalStates[i];
-                    obj.item.left = obj.left;
-                    obj.item.top = obj.top;
-                }
-                app.redraw();
-                dialog.close(0);
-            };
-            dialog.center();
-            var resultShow = dialog.show();
-            if (resultShow === 1) {
-                // すでにプレビューで反映済みなので何もせずtrueを返す
-                return true;
-            } else {
-                return false;
-            }
+    /**
+     * 幅（高さ）を揃えるパネルを作る。ラジオボタンを押すとすぐに拡大・縮小する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {string} sizeProperty - "width" / "height"
+     * @returns {void}
+     */
+    function addMatchSizePanel(parentPanel, titlePath, targetItems, sizeProperty) {
+        var matchesWidth = (sizeProperty === "width");
+        var matchRadios = addChoiceRadios(addRowPanel(parentPanel, titlePath), [
+            { key: "max", label: "radio.matchMax", tooltip: matchesWidth ? "tooltip.matchMaxWidth" : "tooltip.matchMaxHeight" },
+            { key: "min", label: "radio.matchMin", tooltip: matchesWidth ? "tooltip.matchMinWidth" : "tooltip.matchMinHeight" }
+        ], null);
+        matchRadios[0].onClick = function () {
+            matchItemSize(targetItems, sizeProperty, true);
         };
-
-        createDialog();
+        matchRadios[1].onClick = function () {
+            matchItemSize(targetItems, sizeProperty, false);
+        };
     }
 
-    // 間隔プレビュー関数
-    function smartPreviewSpacingGeneric(selArr, spacingInput, spacingType, isHorizontal) {
-        var spacingValue = 0;
-        if (spacingType === "custom" && spacingInput && spacingInput.text !== "") {
-            spacingValue = parseFloat(spacingInput.text);
-        }
-        var currentSelection = selArr.slice();
-        currentSelection.sort(function(a, b) {
-            return isHorizontal ? a.left - b.left : b.top - a.top;
-        });
-
-        // Vertical "even" spacing logic
-        if (!isHorizontal && spacingType === "even") {
-            var sorted = currentSelection.slice();
-            sorted.sort(function(a, b) {
-                return b.top - a.top;
-            });
-
-            var topMost = sorted[0].top;
-            var bottomMost = sorted[sorted.length - 1].top - sorted[sorted.length - 1].height;
-
-            var totalHeight = 0;
-            for (var i = 0; i < sorted.length; i++) {
-                totalHeight += sorted[i].height;
-            }
-
-            var totalGap = topMost - bottomMost - totalHeight;
-            var gap = totalGap / (sorted.length - 1);
-
-            var y = topMost;
-            for (var j = 0; j < sorted.length; j++) {
-                sorted[j].top = y;
-                y -= sorted[j].height + gap;
-            }
-            return;
-        }
-
-        // Horizontal "even" spacing logic
-        if (isHorizontal && spacingType === "even") {
-            var sorted = currentSelection.slice();
-            sorted.sort(function(a, b) {
-                return a.left - b.left;
-            });
-
-            var leftMost = sorted[0].left;
-            var rightMost = sorted[sorted.length - 1].left + sorted[sorted.length - 1].width;
-
-            var totalWidth = 0;
-            for (var i = 0; i < sorted.length; i++) {
-                totalWidth += sorted[i].width;
-            }
-
-            var totalGap = rightMost - leftMost - totalWidth;
-            var gap = totalGap / (sorted.length - 1);
-
-            var x = leftMost;
-            for (var j = 0; j < sorted.length; j++) {
-                sorted[j].left = x;
-                x += sorted[j].width + gap;
-            }
-            return;
-        }
-
-        if (!isHorizontal && spacingType === "custom") {
-            var sorted = currentSelection.slice();
-            sorted.sort(function(a, b) {
-                return b.top - a.top;
-            });
-
-            var y = sorted[0].top;
-            for (var i = 0; i < sorted.length; i++) {
-                sorted[i].top = y;
-                y -= sorted[i].height + spacingValue;
-            }
-            return;
-        }
-
-        var currentPos = isHorizontal ? currentSelection[0].left : currentSelection[0].top;
-        for (var i = 0; i < currentSelection.length; i++) {
-            if (i !== 0) {
-                currentPos += spacingValue;
-            }
-            if (isHorizontal) {
-                currentSelection[i].left = currentPos;
-                currentPos += currentSelection[i].width;
-            } else {
-                currentSelection[i].top = currentPos;
-                currentPos -= currentSelection[i].height;
-            }
-        }
-    }
-
-    // ラジオボタンクリック時の処理関数
-    function onSmartSpacingRadioClick(noneBtn, evenBtn, zeroBtn, customBtn, customInput, type, selArr, isHorizontal) {
-        if (noneBtn) {
-            noneBtn.value = (type === "none");
-        }
-        evenBtn.value = (type === "even");
-        zeroBtn.value = (type === "zero");
-        customBtn.value = (type === "custom");
-        customInput.enabled = (type === "custom");
-
-        if (type === "even" || type === "zero" || type === "custom") {
-            smartPreviewSpacingGeneric(selArr, customInput, type, isHorizontal);
-            app.redraw();
-        }
-    }
-
-    // 間隔制御グループを生成する関数（縦・横共通）
-    function createSpacingControlGroup(parentPanel, labels, selArr, isHorizontal) {
-        var spacingPanel = parentPanel.add("panel", undefined, labels.panelTitle);
+    /**
+     * 間隔のパネル（均等／ぴったり／指定）を作る
+     * 「指定」だけ別のグループに入るので、ラジオボタンの排他は手で管理する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {boolean} isHorizontal - 横方向なら true
+     * @returns {void}
+     */
+    function addSpacingPanel(parentPanel, titlePath, targetItems, isHorizontal) {
+        var spacingPanel = parentPanel.add("panel", undefined, getLabel(titlePath));
         spacingPanel.orientation = "column";
         spacingPanel.alignChildren = "left";
         spacingPanel.margins = [10, 20, 10, 10];
@@ -1103,163 +671,187 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         var spacingRadioGroup = spacingPanel.add("group");
         spacingRadioGroup.orientation = "column";
         spacingRadioGroup.alignChildren = "left";
+        var presetRadios = addChoiceRadios(spacingRadioGroup, [
+            { key: "even", label: "radio.spacingEven", tooltip: "tooltip.spacingEven" },
+            { key: "zero", label: "radio.spacingTight", tooltip: "tooltip.spacingTight" }
+        ], null);
 
-        // Removed: var spacingNoneBtn = spacingRadioGroup.add("radiobutton", undefined, labels.none);
-        var spacingEvenBtn = spacingRadioGroup.add("radiobutton", undefined, labels.even);
-        var spacingZeroBtn = spacingRadioGroup.add("radiobutton", undefined, labels.zero);
+        var customGapGroup = spacingRadioGroup.add("group");
+        customGapGroup.orientation = "row";
+        customGapGroup.alignChildren = "left";
+        var customRadios = addChoiceRadios(customGapGroup, [{ key: "custom", label: "radio.spacingCustom" }], null);
+        var customGapInput = customGapGroup.add("edittext", undefined, DEFAULT_CUSTOM_GAP);
+        customGapInput.characters = 5;
+        customGapInput.enabled = false;
+        customGapInput.helpTip = getLabel("tooltip.customGap");
 
-        var spacingCustomGroup = spacingRadioGroup.add("group");
-        spacingCustomGroup.orientation = "row";
-        spacingCustomGroup.alignChildren = "left";
-
-        var spacingCustomBtn = spacingCustomGroup.add("radiobutton", undefined, labels.custom);
-        var spacingInput = spacingCustomGroup.add("edittext", undefined, "20");
-        spacingInput.characters = 5;
-        spacingInput.enabled = false;
-
-        // Removed: spacingNoneBtn.value = true;
-
-        // Removed: spacingNoneBtn.onClick handler
-
-        spacingEvenBtn.onClick = function() {
-            onSmartSpacingRadioClick(
-                null,
-                spacingEvenBtn,
-                spacingZeroBtn,
-                spacingCustomBtn,
-                spacingInput,
-                "even",
-                selArr,
-                isHorizontal
-            );
-        };
-        spacingZeroBtn.onClick = function() {
-            onSmartSpacingRadioClick(
-                null,
-                spacingEvenBtn,
-                spacingZeroBtn,
-                spacingCustomBtn,
-                spacingInput,
-                "zero",
-                selArr,
-                isHorizontal
-            );
-        };
-        spacingCustomBtn.onClick = function() {
-            onSmartSpacingRadioClick(
-                null,
-                spacingEvenBtn,
-                spacingZeroBtn,
-                spacingCustomBtn,
-                spacingInput,
-                "custom",
-                selArr,
-                isHorizontal
-            );
-        };
-        spacingInput.onChange = function() {
-            if (spacingCustomBtn.value) {
-                smartPreviewSpacingGeneric(selArr, spacingInput, "custom", isHorizontal);
+        var spacingRadios = presetRadios.concat(customRadios);
+        for (var i = 0; i < spacingRadios.length; i++) {
+            spacingRadios[i].onClick = function () {
+                var spacingType = this.optionKey;
+                for (var j = 0; j < spacingRadios.length; j++) {
+                    spacingRadios[j].value = (spacingRadios[j].optionKey === spacingType);
+                }
+                customGapInput.enabled = (spacingType === "custom");
+                applySpacing(targetItems, spacingType, customGapInput, isHorizontal);
+                app.redraw();
+            };
+        }
+        customGapInput.onChange = function () {
+            if (customRadios[0].value) {
+                applySpacing(targetItems, "custom", customGapInput, isHorizontal);
                 app.redraw();
             }
         };
     }
 
-    // 整列方向（横または縦）のプレビュー整列処理関数
-    function smartPreviewAlignGeneric(currentSelection, alignType, isHorizontal) {
-        if (!currentSelection || currentSelection.length === 0) return;
+    /**
+     * 縦方向・横方向のパネル（揃え・間隔・幅／高さを揃える）を作る
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {boolean} isHorizontal - 横方向のパネルなら true
+     * @returns {void}
+     */
+    function addDirectionPanel(parentGroup, targetItems, isHorizontal) {
+        var directionPanel = parentGroup.add("panel", undefined, getLabel(isHorizontal ? "panel.horizontal" : "panel.vertical"));
+        directionPanel.alignChildren = "fill";
+        directionPanel.margins = [10, 20, 10, 10];
+        if (isHorizontal) {
+            addAlignPanel(directionPanel, "panel.alignHorizontal", [
+                { key: "top", label: "radio.alignTop" },
+                { key: "middle", label: "radio.alignMiddle" },
+                { key: "bottom", label: "radio.alignBottom" }
+            ], targetItems);
+            addSpacingPanel(directionPanel, "panel.spacingHorizontal", targetItems, true);
+            addMatchSizePanel(directionPanel, "panel.matchHeight", targetItems, "height");
+        } else {
+            addAlignPanel(directionPanel, "panel.alignVertical", [
+                { key: "left", label: "radio.alignLeft" },
+                { key: "center", label: "radio.alignCenter" },
+                { key: "right", label: "radio.alignRight" }
+            ], targetItems);
+            addSpacingPanel(directionPanel, "panel.spacingVertical", targetItems, false);
+            addMatchSizePanel(directionPanel, "panel.matchWidth", targetItems, "width");
+        }
+    }
 
-        // --- Patch: previewBoundsCheckbox affects positioning ---
-        var usePreviewBounds = (typeof previewBoundsCheckbox !== "undefined" && previewBoundsCheckbox.value);
-        var objBounds = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            objBounds[i] = usePreviewBounds ? currentSelection[i].visibleBounds : currentSelection[i].geometricBounds;
+    /**
+     * 並べ替え・整列のダイアログを開く。操作はその場でオブジェクトに反映し、キャンセルで位置を戻す
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {string} defaultAlong - 最初に選んでおく並び方向（"x" / "y"）
+     * @param {Object[]} savedPositions - キャンセル時に戻す位置
+     * @returns {void}
+     */
+    function showSortDialog(targetItems, defaultAlong, savedPositions) {
+        /* 縦並びなら基準を「幅」、横並びなら「高さ」から始める / start from Width when stacked vertically, Height otherwise */
+        var defaultSortKey = (defaultAlong === "y") ? "w" : "h";
+
+        var sortDialog = new Window("dialog", getLabel("dialog.title"));
+        sortDialog.alignChildren = "left";
+        sortDialog.orientation = "column";
+
+        var alongGroup = sortDialog.add("group");
+        alongGroup.alignment = "center";
+        alongGroup.orientation = "row";
+        alongGroup.spacing = 5;
+        alongGroup.margins = [10, 10, 10, 10];
+        var alongRadios = addChoiceRadios(alongGroup, [
+            { key: "x", label: "radio.alongX", tooltip: "tooltip.alongX" },
+            { key: "y", label: "radio.alongY", tooltip: "tooltip.alongY" }
+        ], defaultAlong);
+
+        var columnsGroup = sortDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = 10;
+
+        var sortColumn = columnsGroup.add("group");
+        sortColumn.orientation = "column";
+        sortColumn.alignChildren = "fill";
+        sortColumn.spacing = 10;
+
+        var sortKeyRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortKey", 10), [
+            { key: "h", label: "radio.byHeight" },
+            { key: "w", label: "radio.byWidth" },
+            { key: "o", label: "radio.byOpacity" },
+            { key: "color", label: "radio.byColor", tooltip: "tooltip.byColor" },
+            { key: "n", label: "radio.byNumber", tooltip: "tooltip.byNumber" },
+            { key: "z", label: "radio.byZOrder" }
+        ], defaultSortKey);
+
+        var sortOrderRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortOrder", 5), [
+            { key: "s", label: "radio.ascending" },
+            { key: "l", label: "radio.descending" },
+            { key: "r", label: "radio.random" }
+        ], "s");
+
+        addDirectionPanel(columnsGroup, targetItems, false);
+        addDirectionPanel(columnsGroup, targetItems, true);
+
+        var btnRowGroup = sortDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.alignChildren = ["left", "center"];
+        btnRowGroup.margins = [10, 10, 10, 10];
+
+        var previewBoundsCheckbox = btnRowGroup.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
+        previewBoundsCheckbox.value = false;
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 100;
+        spacer.maximumSize.height = 0;
+
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOk = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnOk.active = true;
+
+        /* 並び方向・基準・ソート順を変えたらすぐに並べ替える / rearrange as soon as an option changes */
+        var arrangeRadios = alongRadios.concat(sortKeyRadios, sortOrderRadios);
+        for (var i = 0; i < arrangeRadios.length; i++) {
+            arrangeRadios[i].onClick = function () {
+                var sortKey = getSelectedKey(sortKeyRadios);
+                var alongKey = getSelectedKey(alongRadios);
+                var orderKey = getSelectedKey(sortOrderRadios);
+                if (!sortKey || !alongKey || orderKey === null) return;
+                applyArrangement(targetItems, sortKey, alongKey, orderKey);
+                app.redraw();
+            };
         }
 
-        // Compute alignment positions
-        var positions = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            var bounds = objBounds[i];
-            var width = bounds[2] - bounds[0];
-            var height = bounds[1] - bounds[3];
-            if (isHorizontal) {
-                if (alignType === "top") {
-                    positions.push(bounds[1]);
-                } else if (alignType === "middle") {
-                    positions.push(bounds[1] - (height / 2));
-                } else if (alignType === "bottom") {
-                    positions.push(bounds[1] - height);
-                }
-            } else {
-                if (alignType === "left") {
-                    positions.push(bounds[0]);
-                } else if (alignType === "center") {
-                    positions.push(bounds[0] + (width / 2));
-                } else if (alignType === "right") {
-                    positions.push(bounds[0] + width);
-                }
-            }
-        }
+        btnOk.onClick = function () {
+            sortDialog.close(1);
+        };
+        btnCancel.onClick = function () {
+            restoreItemPositions(savedPositions);
+            app.redraw();
+            sortDialog.close(0);
+        };
+        sortDialog.center();
+        sortDialog.show();
+    }
 
-        var targetPos;
-        if (positions.length === 0) return;
-        if (alignType === "top" || alignType === "left") {
-            targetPos = Math.min.apply(null, positions);
-        } else if (alignType === "bottom" || alignType === "right") {
-            targetPos = Math.max.apply(null, positions);
-        } else if (alignType === "middle" || alignType === "center") {
-            var sum = 0;
-            for (var i = 0; i < positions.length; i++) {
-                sum += positions[i];
-            }
-            targetPos = sum / positions.length;
-        }
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-        // --- Patch: apply offsets so previewBoundsCheckbox affects positioning ---
-        for (var k = 0; k < currentSelection.length; k++) {
-            var bounds = objBounds[k];
-            var width = bounds[2] - bounds[0];
-            var height = bounds[1] - bounds[3];
-            var dx = currentSelection[k].left - bounds[0];
-            var dy = currentSelection[k].top - bounds[1];
-
-            if (isHorizontal) {
-                if (alignType === "top") {
-                    currentSelection[k].top = targetPos + dy;
-                } else if (alignType === "middle") {
-                    currentSelection[k].top = targetPos + height / 2 + dy;
-                } else if (alignType === "bottom") {
-                    currentSelection[k].top = targetPos + height + dy;
-                }
-            } else {
-                if (alignType === "left") {
-                    currentSelection[k].left = targetPos + dx;
-                } else if (alignType === "center") {
-                    currentSelection[k].left = targetPos - width / 2 + dx;
-                } else if (alignType === "right") {
-                    currentSelection[k].left = targetPos - width + dx;
-                }
-            }
+    /**
+     * 選択を確かめてダイアログを開く
+     * @returns {void}
+     */
+    function main() {
+        var docSelection = app.activeDocument.selection;
+        if (docSelection.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
         }
+        var targetItems = [];
+        for (var i = 0; i < docSelection.length; i++) {
+            targetItems.push(docSelection[i]);
+        }
+        showSortDialog(targetItems, detectAlongDirection(docSelection), saveItemPositions(docSelection));
     }
 
     main();
-    // グループ内の最初の数字テキストを抽出する関数
-    function extractNumberFromGroup(group) {
-        var items = group.pageItems;
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === "TextFrame") {
-                var text = item.contents;
-                if (/^\d+$/.test(text)) {
-                    return parseFloat(text);
-                }
-            } else if (item.typename === "GroupItem") {
-                var nestedVal = extractNumberFromGroup(item);
-                if (!isNaN(nestedVal)) return nestedVal;
-            }
-        }
-        return NaN;
-    }
 
 })();

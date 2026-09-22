@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
@@ -105,10 +105,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
      * 実行環境のUI言語を返す
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -227,7 +227,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
-    (function () {
+    /**
+     * 選択を検証し、ダイアログでロングシャドウを作る（処理に使う関数はこの中にまとめる）
+     * @returns {void}
+     */
+    function main() {
         if (app.documents.length === 0) {
             alert(getLabel('alert.noDocument'));
             return;
@@ -286,15 +290,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
         /**
          * グループの中身をたどって PathItem を集める
-         * @param {GroupItem} container - 走査対象のグループ
+         * @param {GroupItem} groupItem - 走査対象のグループ
          * @param {PathItem[]} collected - 集めた PathItem を追加する配列
          * @returns {void}
          */
-        function collectSubPathsFromContainer(container, collected) {
-            if (!container) return;
+        function collectSubPathsFromContainer(groupItem, collected) {
+            if (!groupItem) return;
 
-            for (var i = 0; i < container.pageItems.length; i++) {
-                var childItem = container.pageItems[i];
+            for (var i = 0; i < groupItem.pageItems.length; i++) {
+                var childItem = groupItem.pageItems[i];
                 if (!childItem) continue;
 
                 if (childItem.typename === "PathItem") {
@@ -347,6 +351,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
         // -----------------------------------------
 
         /**
+         * プロパティに代入する。受け付けない種類・状態のアイテムでは何もしない
+         * @param {Object} targetItem - 対象のアイテムやレイヤー
+         * @param {string} propertyName - プロパティ名
+         * @param {*} newValue - 代入する値
+         * @returns {void}
+         */
+        function setPropertySafely(targetItem, propertyName, newValue) {
+            /* 名前を持たない種類や、ロック中・無効になったアイテムでは代入が例外になる
+               Assignment throws on item types without the property, or on locked / invalid items */
+            try { targetItem[propertyName] = newValue; } catch (e) { }
+        }
+
+        /**
+         * 親（グループ／レイヤー）を返す。読めないときは null
+         * @param {Object} childItem - 対象のアイテム
+         * @returns {Object|null} 親
+         */
+        function getParentSafely(childItem) {
+            /* 無効になったアイテムでは parent を読めない / parent is unreadable on invalid items */
+            try { return childItem.parent; } catch (e) { return null; }
+        }
+
+        /**
          * 一時ベースとその子要素に名前タグを付け外しする
          * @param {PageItem} pageItem - 対象アイテム
          * @param {string} tagName - 付ける名前（空文字でタグを外す）
@@ -354,15 +381,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          */
         function setTempBaseTag(pageItem, tagName) {
             if (!pageItem) return;
-            /* 名前を持たない種類のアイテムがある / some item types reject a name */
-            try { pageItem.name = tagName; } catch (e) { }
+            setPropertySafely(pageItem, "name", tagName);
 
             if (pageItem.typename === 'GroupItem') {
                 for (var i = 0; i < pageItem.pageItems.length; i++) setTempBaseTag(pageItem.pageItems[i], tagName);
             } else if (pageItem.typename === 'CompoundPathItem') {
-                for (var j = 0; j < pageItem.pathItems.length; j++) {
-                    try { pageItem.pathItems[j].name = tagName; } catch (e) { }
-                }
+                for (var j = 0; j < pageItem.pathItems.length; j++) setPropertySafely(pageItem.pathItems[j], "name", tagName);
             }
         }
 
@@ -372,24 +396,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {void}
          */
         function unlockItemAndAncestors(pageItem) {
-            try { pageItem.locked = false; } catch (e) { }
-            try { pageItem.hidden = false; } catch (e) { }
+            setPropertySafely(pageItem, "locked", false);
+            setPropertySafely(pageItem, "hidden", false);
 
-            var parent = null;
-            try { parent = pageItem.parent; } catch (e) { parent = null; }
-
-            var guard = 0;
-            while (parent && guard++ < 50) {
-                if (parent.typename === 'Layer') {
-                    try { parent.locked = false; } catch (e) { }
-                    try { parent.visible = true; } catch (e) { }
+            var ancestor = getParentSafely(pageItem);
+            var depthGuard = 0;
+            while (ancestor && depthGuard++ < 50) {
+                if (ancestor.typename === 'Layer') {
+                    setPropertySafely(ancestor, "locked", false);
+                    setPropertySafely(ancestor, "visible", true);
                     break;
                 }
-                if (parent.typename === 'GroupItem') {
-                    try { parent.locked = false; } catch (e) { }
-                    try { parent.hidden = false; } catch (e) { }
+                if (ancestor.typename === 'GroupItem') {
+                    setPropertySafely(ancestor, "locked", false);
+                    setPropertySafely(ancestor, "hidden", false);
                 }
-                try { parent = parent.parent; } catch (e) { parent = null; }
+                ancestor = getParentSafely(ancestor);
             }
         }
 
@@ -423,15 +445,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          */
         function removeTempBaseItemsByName() {
             /* 一時ベースはグループであることが多いので先に走査 / temp bases are usually groups */
-            var groups = doc.groupItems;
-            for (var i = groups.length - 1; i >= 0; i--) {
-                if (readItemName(groups[i]) === TEMP_BASE_NAME) forceRemoveItem(groups[i]);
+            var docGroupItems = doc.groupItems;
+            for (var i = docGroupItems.length - 1; i >= 0; i--) {
+                if (readItemName(docGroupItems[i]) === TEMP_BASE_NAME) forceRemoveItem(docGroupItems[i]);
             }
 
             /* 取りこぼし（グループ以外）を掃除 / sweep the non-group leftovers */
-            var items = doc.pageItems;
-            for (var j = items.length - 1; j >= 0; j--) {
-                if (readItemName(items[j]) === TEMP_BASE_NAME) forceRemoveItem(items[j]);
+            var docPageItems = doc.pageItems;
+            for (var j = docPageItems.length - 1; j >= 0; j--) {
+                if (readItemName(docPageItems[j]) === TEMP_BASE_NAME) forceRemoveItem(docPageItems[j]);
             }
         }
 
@@ -488,18 +510,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} 合体結果
          */
         function buildMergedItemFromGroup(groupItem) {
-            var result = { item: null, cleanup: function () { }, ok: false, message: "" };
+            var mergeResult = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!groupItem || groupItem.typename !== "GroupItem") {
-                result.message = getLabel('alert.notGroupItem');
-                return result;
+                mergeResult.message = getLabel('alert.notGroupItem');
+                return mergeResult;
             }
 
-            var tracker = createTempItemTracker();
-            result.cleanup = tracker.disposeAll;
+            var tempTracker = createTempItemTracker();
+            mergeResult.cleanup = tempTracker.disposeAll;
 
             try {
-                var duplicatedGroup = tracker.track(groupItem.duplicate());
+                var duplicatedGroup = tempTracker.track(groupItem.duplicate());
 
                 doc.selection = null;
                 duplicatedGroup.selected = true;
@@ -507,18 +529,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
                 var expandedItems = doc.selection;
                 doc.selection = null;
-                trackAll(tracker, expandedItems);
+                trackAll(tempTracker, expandedItems);
 
                 if (!expandedItems || expandedItems.length === 0) {
-                    result.message = getLabel('alert.mergeResultMissing');
-                    return result;
+                    mergeResult.message = getLabel('alert.mergeResultMissing');
+                    return mergeResult;
                 }
 
                 var mergedItem = expandedItems[0];
 
                 /* 複数残った場合は一度グループ化して再合体 / regroup and merge again when several remain */
                 if (expandedItems.length > 1) {
-                    var regrouped = tracker.track(doc.groupItems.add());
+                    var regrouped = tempTracker.track(doc.groupItems.add());
                     for (var i = 0; i < expandedItems.length; i++) {
                         try { expandedItems[i].move(regrouped, ElementPlacement.PLACEATEND); } catch (e) { }
                     }
@@ -528,32 +550,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
                     var remergedItems = doc.selection;
                     doc.selection = null;
-                    trackAll(tracker, remergedItems);
+                    trackAll(tempTracker, remergedItems);
 
                     if (remergedItems && remergedItems.length > 0) mergedItem = remergedItems[0];
                 }
 
-                tracker.track(mergedItem);
+                tempTracker.track(mergedItem);
                 setTempBaseTag(mergedItem, TEMP_BASE_NAME);
-                result.item = mergedItem;
-                result.ok = true;
-                return result;
+                mergeResult.item = mergedItem;
+                mergeResult.ok = true;
+                return mergeResult;
 
             } catch (e) {
-                result.message = getLabel('alert.groupMergeError') + e;
-                return result;
+                mergeResult.message = getLabel('alert.groupMergeError') + e;
+                return mergeResult;
             }
         }
 
         /**
          * 選択結果の配列をまとめて一時生成物として控える
-         * @param {{track: function}} tracker - 一時生成物の入れ物
-         * @param {PageItem[]} items - 控えるアイテム（null 可）
+         * @param {{track: function}} tempTracker - 一時生成物の入れ物
+         * @param {PageItem[]} trackedItems - 控えるアイテム（null 可）
          * @returns {void}
          */
-        function trackAll(tracker, items) {
-            if (!items || !items.length) return;
-            for (var i = 0; i < items.length; i++) tracker.track(items[i]);
+        function trackAll(tempTracker, trackedItems) {
+            if (!trackedItems || !trackedItems.length) return;
+            for (var i = 0; i < trackedItems.length; i++) tempTracker.track(trackedItems[i]);
         }
 
         /**
@@ -562,46 +584,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} アウトライン化結果
          */
         function buildMergedItemFromText(textFrame) {
-            var result = { item: null, cleanup: function () { }, ok: false, message: "" };
+            var mergeResult = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!textFrame || textFrame.typename !== "TextFrame") {
-                result.message = getLabel('alert.notTextFrame');
-                return result;
+                mergeResult.message = getLabel('alert.notTextFrame');
+                return mergeResult;
             }
 
-            var tracker = createTempItemTracker();
-            result.cleanup = tracker.disposeAll;
+            var tempTracker = createTempItemTracker();
+            mergeResult.cleanup = tempTracker.disposeAll;
 
             try {
                 /* 複製に対してアウトライン化するので、オリジナルは残る
                    createOutline() consumes the duplicate, so the original survives */
-                var duplicatedText = tracker.track(textFrame.duplicate());
+                var duplicatedText = tempTracker.track(textFrame.duplicate());
 
                 var outlinedItem = null;
                 try { outlinedItem = duplicatedText.createOutline(); } catch (e) { outlinedItem = null; }
 
                 if (!outlinedItem) {
-                    result.message = getLabel('alert.outlineFailed');
-                    return result;
+                    mergeResult.message = getLabel('alert.outlineFailed');
+                    return mergeResult;
                 }
 
                 /* 控えるのはアウトライン化で生成されたルートだけにする。子要素まで控えると、
                    後段で移動・合体された要素を巻き込んで生成済みの影が消えることがある
                    Track only the outlined root; tracking its children would delete the finished shadow */
-                tracker.track(outlinedItem);
+                tempTracker.track(outlinedItem);
 
                 /* 選択状態が残ると後段の処理に巻き込まれるので解除 / clear the selection before moving on */
                 doc.selection = null;
-                try { outlinedItem.selected = false; } catch (e) { }
+                setPropertySafely(outlinedItem, "selected", false);
 
                 setTempBaseTag(outlinedItem, TEMP_BASE_NAME);
-                result.item = outlinedItem;
-                result.ok = true;
-                return result;
+                mergeResult.item = outlinedItem;
+                mergeResult.ok = true;
+                return mergeResult;
 
             } catch (e) {
-                result.message = getLabel('alert.textMergeError') + e;
-                return result;
+                mergeResult.message = getLabel('alert.textMergeError') + e;
+                return mergeResult;
             }
         }
 
@@ -652,24 +674,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {number} 0〜1のチャンネル値
          */
         function hueToChannel(lowerBound, upperBound, hueFraction) {
-            var t = hueFraction;
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1 / 6) return lowerBound + (upperBound - lowerBound) * 6 * t;
-            if (t < 1 / 2) return upperBound;
-            if (t < 2 / 3) return lowerBound + (upperBound - lowerBound) * (2 / 3 - t) * 6;
+            var wrappedHue = hueFraction;
+            if (wrappedHue < 0) wrappedHue += 1;
+            if (wrappedHue > 1) wrappedHue -= 1;
+            if (wrappedHue < 1 / 6) return lowerBound + (upperBound - lowerBound) * 6 * wrappedHue;
+            if (wrappedHue < 1 / 2) return upperBound;
+            if (wrappedHue < 2 / 3) return lowerBound + (upperBound - lowerBound) * (2 / 3 - wrappedHue) * 6;
             return lowerBound;
         }
 
         /**
          * 元の塗り色をもとに、彩度を下げた影用の色を作る
          * @param {Color} fillColor - 元の塗り色
-         * @param {number} factor - 彩度の倍率（1=元のまま、0=無彩色）
+         * @param {number} saturationFactor - 彩度の倍率（1=元のまま、0=無彩色）
          * @returns {Color|null} 影用の色。色が無い場合は null
          */
-        function desaturateColorFromFill(fillColor, factor) {
+        function desaturateColorFromFill(fillColor, saturationFactor) {
             if (!fillColor) return null;
-            if (factor === undefined || factor === null) factor = SHADOW_SATURATION_FACTOR;
+            if (saturationFactor === undefined || saturationFactor === null) saturationFactor = SHADOW_SATURATION_FACTOR;
 
             /* グレーはそのまま複製する / gray is copied as-is */
             if (fillColor.typename === "GrayColor") {
@@ -678,13 +700,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
                 return grayCopy;
             }
 
-            var rgb = toRgbComponents(fillColor);
+            var rgbComponents = toRgbComponents(fillColor);
             /* 未対応（NoColor / グラデーション / パターン）はそのまま返す / unsupported fills pass through */
-            if (!rgb) return fillColor;
+            if (!rgbComponents) return fillColor;
 
-            var red = clamp01(rgb.red / 255.0);
-            var green = clamp01(rgb.green / 255.0);
-            var blue = clamp01(rgb.blue / 255.0);
+            var red = clamp01(rgbComponents.red / 255.0);
+            var green = clamp01(rgbComponents.green / 255.0);
+            var blue = clamp01(rgbComponents.blue / 255.0);
 
             var maxChannel = Math.max(red, green, blue);
             var minChannel = Math.min(red, green, blue);
@@ -704,7 +726,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
                 if (hue < 0) hue += 360;
             }
 
-            saturation = clamp01(saturation * factor);
+            saturation = clamp01(saturation * saturationFactor);
 
             var resultRed, resultGreen, resultBlue;
             if (saturation === 0) {
@@ -1007,20 +1029,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
         /**
          * 単純化の対象になるパスを集める
-         * @param {PageItem} container - 走査対象
+         * @param {PageItem} targetItem - 走査対象
          * @param {PageItem[]} collected - 集めたアイテムを追加する配列
          * @returns {void}
          */
-        function collectSimplifyTargets(container, collected) {
-            if (!container) return;
+        function collectSimplifyTargets(targetItem, collected) {
+            if (!targetItem) return;
 
-            if (container.typename === 'PathItem' || container.typename === 'CompoundPathItem') {
-                collected.push(container);
+            if (targetItem.typename === 'PathItem' || targetItem.typename === 'CompoundPathItem') {
+                collected.push(targetItem);
                 return;
             }
-            if (container.typename === 'GroupItem') {
-                for (var i = 0; i < container.pageItems.length; i++) {
-                    collectSimplifyTargets(container.pageItems[i], collected);
+            if (targetItem.typename === 'GroupItem') {
+                for (var i = 0; i < targetItem.pageItems.length; i++) {
+                    collectSimplifyTargets(targetItem.pageItems[i], collected);
                 }
             }
         }
@@ -1038,9 +1060,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
             if (!simplifyTargets.length) return;
 
             doc.selection = null;
-            for (var i = 0; i < simplifyTargets.length; i++) {
-                try { simplifyTargets[i].selected = true; } catch (e) { }
-            }
+            for (var i = 0; i < simplifyTargets.length; i++) setPropertySafely(simplifyTargets[i], "selected", true);
 
             /* このメニューコマンドは単純化ダイアログを開く（Illustratorの制限）
                This menu command opens the Simplify dialog (Illustrator limitation) */
@@ -1060,161 +1080,195 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
            Sync handlers per number field; must exist before the dialog is built */
         var fieldSyncHandlers = [];
 
-        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
+        /* ダイアログのコントロール（buildDialog() で作る）/ Dialog controls, created by buildDialog() */
+        var shadowDialog, presetDropdown;
+        var offsetCheckbox, offsetInput, offsetUnitLabel;
+        var joinRowGroup, joinMiterRadio, joinRoundRadio, joinBevelRadio;
+        var distanceInput, angleInput, scaleInput, simplifyCheckbox;
+        var previewCheckbox, btnCancel, btnOk;
 
-        /* プリセット行（左右中央に配置）/ Preset row, centered in the dialog */
-        var presetRowGroup = dialog.add("group");
-        presetRowGroup.orientation = "row";
-        presetRowGroup.alignChildren = ["center", "center"];
-        presetRowGroup.alignment = "center";
+        /**
+         * パネルに共通レイアウトを適用する
+         * @param {Panel} targetPanel - 対象パネル
+         * @returns {void}
+         */
+        function setupPanel(targetPanel) {
+            targetPanel.orientation = "column";
+            targetPanel.alignChildren = "left";
+            targetPanel.margins = PANEL_MARGINS;
+        }
 
-        var presetGroup = presetRowGroup.add("group");
-        presetGroup.orientation = "row";
-        presetGroup.alignChildren = ["left", "center"];
-        presetGroup.add("statictext", undefined, getLabel('fieldLabel.preset'));
+        /**
+         * 並びの向きと子要素の揃えを指定したグループを追加する
+         * @param {Object} parentGroup - 追加先のコンテナ
+         * @param {string} orientation - "row" または "column"
+         * @param {string[]} childAlignment - 子要素の揃え（alignChildren）
+         * @returns {Group} 追加したグループ
+         */
+        function addLayoutGroup(parentGroup, orientation, childAlignment) {
+            var layoutGroup = parentGroup.add("group");
+            layoutGroup.orientation = orientation;
+            layoutGroup.alignChildren = childAlignment;
+            return layoutGroup;
+        }
 
-        var presetDropdown = presetGroup.add("dropdownlist", undefined, PRESET_ITEMS);
-        presetDropdown.selection = 0;
-        presetDropdown.helpTip = getLabel('tooltip.preset');
+        /**
+         * 右揃え・固定幅の行ラベルを追加する
+         * @param {Object} parentGroup - 追加先のコンテナ
+         * @param {string} labelPath - ラベルキー
+         * @returns {StaticText} 追加したラベル
+         */
+        function addRowLabel(parentGroup, labelPath) {
+            var rowLabel = parentGroup.add("statictext", undefined, getLabel(labelPath));
+            rowLabel.preferredSize.width = ROW_LABEL_WIDTH;
+            rowLabel.justify = "right";
+            return rowLabel;
+        }
 
-        var panelColumnGroup = dialog.add("group");
-        panelColumnGroup.orientation = "column";
-        panelColumnGroup.alignChildren = ["fill", "top"];
-        panelColumnGroup.alignment = "fill";
+        /**
+         * プリセットの行を作る（左右中央に配置）
+         * @returns {void}
+         */
+        function addPresetRow() {
+            var presetRowGroup = addLayoutGroup(shadowDialog, "row", ["center", "center"]);
+            presetRowGroup.alignment = "center";
 
-        var settingsPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.settings'));
-        settingsPanel.orientation = "column";
-        settingsPanel.alignChildren = "left";
-        settingsPanel.margins = PANEL_MARGINS;
+            var presetGroup = addLayoutGroup(presetRowGroup, "row", ["left", "center"]);
+            presetGroup.add("statictext", undefined, getLabel('fieldLabel.preset'));
 
-        var offsetPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.offset'));
-        offsetPanel.orientation = "column";
-        offsetPanel.alignChildren = "left";
-        offsetPanel.margins = PANEL_MARGINS;
+            presetDropdown = presetGroup.add("dropdownlist", undefined, PRESET_ITEMS);
+            presetDropdown.selection = 0;
+            presetDropdown.helpTip = getLabel('tooltip.preset');
+        }
 
-        /* オフセットパネル内は2カラム（左=量／右=角の処理）/ Offset panel holds amount and join columns */
-        var offsetRowGroup = offsetPanel.add("group");
-        offsetRowGroup.orientation = "row";
-        offsetRowGroup.alignChildren = ["fill", "top"];
+        /**
+         * オフセットパネルの中身を作る（左=量／右=角の処理の2カラム）
+         * @param {Panel} offsetPanel - 追加先のパネル
+         * @returns {void}
+         */
+        function addOffsetControls(offsetPanel) {
+            var offsetRowGroup = addLayoutGroup(offsetPanel, "row", ["fill", "top"]);
 
-        var offsetValueGroup = offsetRowGroup.add("group");
-        offsetValueGroup.orientation = "column";
-        offsetValueGroup.alignChildren = ["left", "top"];
+            var offsetValueGroup = addLayoutGroup(offsetRowGroup, "column", ["left", "top"]);
+            var offsetInputGroup = addLayoutGroup(offsetValueGroup, "row", ["left", "center"]);
 
-        var offsetInputGroup = offsetValueGroup.add("group");
-        offsetInputGroup.orientation = "row";
-        offsetInputGroup.alignChildren = ["left", "center"];
+            offsetCheckbox = offsetInputGroup.add("checkbox", undefined, "");
+            offsetCheckbox.helpTip = getLabel('tooltip.offsetEnabled');
+            offsetCheckbox.value = false;
 
-        var offsetCheckbox = offsetInputGroup.add("checkbox", undefined, "");
-        offsetCheckbox.helpTip = getLabel('tooltip.offsetEnabled');
-        offsetCheckbox.value = false;
+            offsetInput = offsetInputGroup.add("edittext", undefined, String(getInitialOffsetPt()));
+            offsetInput.characters = NUMBER_FIELD_CHARS;
+            offsetInput.helpTip = getLabel('tooltip.offsetValue');
 
-        var offsetInput = offsetInputGroup.add("edittext", undefined, String(getInitialOffsetPt()));
-        offsetInput.characters = NUMBER_FIELD_CHARS;
-        offsetInput.helpTip = getLabel('tooltip.offsetValue');
+            offsetUnitLabel = offsetInputGroup.add("statictext", undefined, "pt");
 
-        var offsetUnitLabel = offsetInputGroup.add("statictext", undefined, "pt");
+            var joinColumnGroup = addLayoutGroup(offsetRowGroup, "column", ["fill", "top"]);
+            joinRowGroup = addLayoutGroup(joinColumnGroup, "row", ["left", "top"]);
+            joinRowGroup.margins = [0, 0, 0, 0];
 
-        var joinColumnGroup = offsetRowGroup.add("group");
-        joinColumnGroup.orientation = "column";
-        joinColumnGroup.alignChildren = ["fill", "top"];
+            var joinLabelGroup = addLayoutGroup(joinRowGroup, "column", ["left", "top"]);
+            addRowLabel(joinLabelGroup, 'fieldLabel.join');
 
-        var joinRowGroup = joinColumnGroup.add("group");
-        joinRowGroup.orientation = "row";
-        joinRowGroup.alignChildren = ["left", "top"];
-        joinRowGroup.margins = [0, 0, 0, 0];
+            var joinRadioGroup = addLayoutGroup(joinRowGroup, "column", ["left", "center"]);
+            joinMiterRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinMiter'));
+            joinRoundRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinRound'));
+            joinBevelRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinBevel'));
+            joinMiterRadio.helpTip = joinRoundRadio.helpTip = joinBevelRadio.helpTip = getLabel('tooltip.join');
+            joinRoundRadio.value = true;
+        }
 
-        var joinLabelGroup = joinRowGroup.add("group");
-        joinLabelGroup.orientation = "column";
-        joinLabelGroup.alignChildren = ["left", "top"];
-        var joinLabel = joinLabelGroup.add("statictext", undefined, getLabel('fieldLabel.join'));
-        joinLabel.preferredSize.width = ROW_LABEL_WIDTH;
-        joinLabel.justify = "right";
+        /**
+         * 設定パネルの中身（距離・角度・スケール・パスの単純化）を作る
+         * @param {Panel} settingsPanel - 追加先のパネル
+         * @returns {void}
+         */
+        function addSettingsControls(settingsPanel) {
+            /* 距離の初期値は元のオブジェクトの「幅＋高さ」/ Default distance is width plus height */
+            var sourceBoundsPt = sourceItem.geometricBounds; /* [left, top, right, bottom] */
+            var defaultDistancePt = Math.round((sourceBoundsPt[2] - sourceBoundsPt[0]) + (sourceBoundsPt[1] - sourceBoundsPt[3]));
+            var maxDistancePt = Math.max(DISTANCE_SLIDER_MIN_RANGE, defaultDistancePt * 3);
 
-        var joinRadioGroup = joinRowGroup.add("group");
-        joinRadioGroup.orientation = "column";
-        joinRadioGroup.alignChildren = ["left", "center"];
+            distanceInput = addSliderRow(settingsPanel, 'fieldLabel.distance', 'tooltip.distance',
+                String(defaultDistancePt), "pt", 0, maxDistancePt, defaultDistancePt, false);
+            angleInput = addSliderRow(settingsPanel, 'fieldLabel.angle', 'tooltip.angle',
+                "45", "°", ANGLE_MIN, ANGLE_MAX, 45, true);
+            scaleInput = addSliderRow(settingsPanel, 'fieldLabel.scale', 'tooltip.scale',
+                "100", "%", SCALE_MIN, SCALE_MAX, 100, false);
 
-        var joinMiterRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinMiter'));
-        var joinRoundRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinRound'));
-        var joinBevelRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinBevel'));
-        joinMiterRadio.helpTip = getLabel('tooltip.join');
-        joinRoundRadio.helpTip = getLabel('tooltip.join');
-        joinBevelRadio.helpTip = getLabel('tooltip.join');
-        joinRoundRadio.value = true;
+            var simplifyGroup = addLayoutGroup(settingsPanel, "row", ["center", "center"]);
+            simplifyGroup.alignment = "center";
+            simplifyGroup.margins = SIMPLIFY_ROW_MARGINS;
 
-        offsetCheckbox.onClick = updateOffsetControlsEnabled;
-        updateOffsetControlsEnabled();
+            simplifyCheckbox = simplifyGroup.add("checkbox", undefined, getLabel('checkbox.simplify'));
+            simplifyCheckbox.helpTip = getLabel('tooltip.simplify');
+            simplifyCheckbox.value = true;
+            simplifyCheckbox.alignment = "center";
+        }
 
-        /* 距離の初期値は元のオブジェクトの「幅＋高さ」/ Default distance is width plus height */
-        var sourceBoundsPt = sourceItem.geometricBounds; /* [left, top, right, bottom] */
-        var defaultDistancePt = Math.round((sourceBoundsPt[2] - sourceBoundsPt[0]) + (sourceBoundsPt[1] - sourceBoundsPt[3]));
-        var maxDistancePt = Math.max(DISTANCE_SLIDER_MIN_RANGE, defaultDistancePt * 3);
+        /**
+         * ボタン行を作る（左=プレビュー／中央=スペーサー／右=キャンセル・OK）
+         * @returns {void}
+         */
+        function addButtonRow() {
+            var btnRowGroup = addLayoutGroup(shadowDialog, "row", ["left", "center"]);
+            btnRowGroup.alignment = ["fill", "top"];
 
-        var distanceInput = addSliderRow(settingsPanel, 'fieldLabel.distance', 'tooltip.distance',
-            String(defaultDistancePt), "pt", 0, maxDistancePt, defaultDistancePt, false);
-        var angleInput = addSliderRow(settingsPanel, 'fieldLabel.angle', 'tooltip.angle',
-            "45", "°", ANGLE_MIN, ANGLE_MAX, 45, true);
-        var scaleInput = addSliderRow(settingsPanel, 'fieldLabel.scale', 'tooltip.scale',
-            "100", "%", SCALE_MIN, SCALE_MAX, 100, false);
+            var btnLeftGroup = addLayoutGroup(btnRowGroup, "row", ["left", "center"]);
+            previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
+            previewCheckbox.helpTip = getLabel('tooltip.preview');
+            previewCheckbox.value = true;
 
-        var simplifyGroup = settingsPanel.add("group");
-        simplifyGroup.orientation = "row";
-        simplifyGroup.alignChildren = ["center", "center"];
-        simplifyGroup.alignment = "center";
-        simplifyGroup.margins = SIMPLIFY_ROW_MARGINS;
+            var spacer = btnRowGroup.add("group");
+            spacer.alignment = ["fill", "fill"];
+            spacer.minimumSize.width = 0;
 
-        var simplifyCheckbox = simplifyGroup.add("checkbox", undefined, getLabel('checkbox.simplify'));
-        simplifyCheckbox.helpTip = getLabel('tooltip.simplify');
-        simplifyCheckbox.value = true;
-        simplifyCheckbox.alignment = "center";
+            var btnRightGroup = addLayoutGroup(btnRowGroup, "row", ["right", "center"]);
+            btnRightGroup.alignment = ["right", "center"];
 
-        /* ボタン行（左=プレビュー／中央=スペーサー／右=キャンセル・OK）/ Button row */
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["fill", "top"];
-        btnRowGroup.alignChildren = ["left", "center"];
+            btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+            btnOk = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
+            btnOk.active = true;
+        }
 
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.orientation = "row";
-        btnLeftGroup.alignChildren = ["left", "center"];
+        /**
+         * ダイアログを組み立てる
+         * @returns {void}
+         */
+        function buildDialog() {
+            shadowDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+            shadowDialog.orientation = "column";
+            shadowDialog.alignChildren = "fill";
 
-        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
-        previewCheckbox.helpTip = getLabel('tooltip.preview');
-        previewCheckbox.value = true;
+            addPresetRow();
 
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
+            var panelColumnGroup = addLayoutGroup(shadowDialog, "column", ["fill", "top"]);
+            panelColumnGroup.alignment = "fill";
 
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.orientation = "row";
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.alignment = ["right", "center"];
+            var settingsPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.settings'));
+            setupPanel(settingsPanel);
+            var offsetPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.offset'));
+            setupPanel(offsetPanel);
 
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
-        var btnOk = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
-        btnOk.active = true;
-
-        changeValueByArrowKey(offsetInput, false, false);
+            addOffsetControls(offsetPanel);
+            addSettingsControls(settingsPanel);
+            addButtonRow();
+        }
 
         /**
          * 元のオブジェクトのサイズからオフセットの初期値を求める
          * @returns {number} オフセットの初期値（pt）
          */
         function getInitialOffsetPt() {
-            var bounds = null;
+            var sourceBounds = null;
             /* 種類によって geometricBounds を読めないことがある / geometricBounds is not always readable */
-            try { bounds = sourceItem.geometricBounds; } catch (e) { bounds = null; }
-            if (!bounds) {
-                try { bounds = sourceItem.visibleBounds; } catch (e) { bounds = null; }
+            try { sourceBounds = sourceItem.geometricBounds; } catch (e) { sourceBounds = null; }
+            if (!sourceBounds) {
+                try { sourceBounds = sourceItem.visibleBounds; } catch (e) { sourceBounds = null; }
             }
-            if (!bounds || bounds.length !== 4) return 0;
+            if (!sourceBounds || sourceBounds.length !== 4) return 0;
 
-            var widthPt = Math.abs(bounds[2] - bounds[0]);
-            var heightPt = Math.abs(bounds[1] - bounds[3]);
+            var widthPt = Math.abs(sourceBounds[2] - sourceBounds[0]);
+            var heightPt = Math.abs(sourceBounds[1] - sourceBounds[3]);
             var averageSizePt = (widthPt + heightPt) / 2;
             var offsetBasePt = averageSizePt / OFFSET_SIZE_DIVISOR;
 
@@ -1236,10 +1290,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          */
         function addSliderRow(parentPanel, labelPath, tooltipPath, initialText, unitText, minValue, maxValue, initialValue, allowNegative) {
             var rowGroup = parentPanel.add("group");
-
-            var rowLabel = rowGroup.add("statictext", undefined, getLabel(labelPath));
-            rowLabel.preferredSize.width = ROW_LABEL_WIDTH;
-            rowLabel.justify = "right";
+            addRowLabel(rowGroup, labelPath);
 
             var numberInput = rowGroup.add("edittext", undefined, initialText);
             numberInput.characters = NUMBER_FIELD_CHARS;
@@ -1304,36 +1355,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
         /**
          * 数値欄とスライダーを双方向に同期させる
          * @param {EditText} editText - 数値欄
-         * @param {Slider} slider - スライダー
+         * @param {Slider} rowSlider - スライダー
          * @param {number} minValue - 最小値
          * @param {number} maxValue - 最大値
          * @returns {void}
          */
-        function bindSliderToInput(editText, slider, minValue, maxValue) {
+        function bindSliderToInput(editText, rowSlider, minValue, maxValue) {
             var isSyncing = false;
 
+            /**
+             * スライダーの値を数値欄へ反映し、プレビューを更新する
+             * @returns {void}
+             */
             function setInputFromSlider() {
                 if (isSyncing) return;
                 isSyncing = true;
-                editText.text = String(Math.round(slider.value));
+                editText.text = String(Math.round(rowSlider.value));
                 isSyncing = false;
                 refreshPreviewIfEnabled();
             }
 
+            /**
+             * 数値欄の値を範囲内に丸めてスライダーへ反映する
+             * @returns {void}
+             */
             function setSliderFromInput() {
                 if (isSyncing) return;
                 isSyncing = true;
                 var value = Number(editText.text);
                 if (isNaN(value)) value = 0;
-                slider.value = Math.round(clamp(value, minValue, maxValue));
+                rowSlider.value = Math.round(clamp(value, minValue, maxValue));
                 isSyncing = false;
             }
 
             setSliderFromInput();
             fieldSyncHandlers.push({ input: editText, sync: setSliderFromInput });
 
-            slider.onChanging = setInputFromSlider;
-            slider.onChange = setInputFromSlider;
+            rowSlider.onChanging = setInputFromSlider;
+            rowSlider.onChange = setInputFromSlider;
 
             editText.onChanging = function () {
                 setSliderFromInput();
@@ -1355,13 +1414,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
                 var value = Number(editText.text);
                 if (isNaN(value)) return;
 
-                var keyboard = ScriptUI.environment.keyboardState;
+                var keyboardState = ScriptUI.environment.keyboardState;
                 var isUp = (event.keyName === "Up");
 
-                if (keyboard.shiftKey) {
+                if (keyboardState.shiftKey) {
                     /* Shift押下時は10の倍数にスナップ / snap to multiples of 10 */
                     value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
-                } else if (keyboard.altKey) {
+                } else if (keyboardState.altKey) {
                     /* Option押下時は0.1単位で増減 / step by 0.1 */
                     value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
                 } else {
@@ -1434,7 +1493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
             resizeFromCenter(previewCopy, 100 + (scalePercent - 100) * ratio);
             try { previewCopy.translate(dx * ratio, dy * ratio); } catch (e) { }
             try { previewCopy.move(sourceItem, ElementPlacement.PLACEBEFORE); } catch (e) { }
-            try { previewCopy.opacity = opacityPercent; } catch (e) { }
+            setPropertySafely(previewCopy, "opacity", opacityPercent);
             return previewCopy;
         }
 
@@ -1480,32 +1539,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} 影の元になる形
          */
         function prepareShadowBaseItem(isFinalRun) {
-            var result = { item: sourceItem, cleanup: function () { }, ok: true, message: "" };
+            var sourceBase = { item: sourceItem, cleanup: function () { }, ok: true, message: "" };
 
-            var merged = null;
+            var mergedBase = null;
             if (sourceItem.typename === "GroupItem") {
-                merged = buildMergedItemFromGroup(sourceItem);
-                if (!merged.ok || !merged.item) {
-                    merged.message = merged.message || getLabel('alert.groupBuildFailed');
-                    return merged;
+                mergedBase = buildMergedItemFromGroup(sourceItem);
+                if (!mergedBase.ok || !mergedBase.item) {
+                    mergedBase.message = mergedBase.message || getLabel('alert.groupBuildFailed');
+                    return mergedBase;
                 }
             } else if (isFinalRun && sourceItem.typename === "TextFrame") {
-                merged = buildMergedItemFromText(sourceItem);
-                if (!merged.ok || !merged.item) {
-                    merged.message = merged.message || getLabel('alert.selectClosedPath');
-                    return merged;
+                mergedBase = buildMergedItemFromText(sourceItem);
+                if (!mergedBase.ok || !mergedBase.item) {
+                    mergedBase.message = mergedBase.message || getLabel('alert.selectClosedPath');
+                    return mergedBase;
                 }
             }
 
-            if (!merged) return result;
+            if (!mergedBase) return sourceBase;
 
-            if (!areAllPathsClosed(collectSubPaths(merged.item))) {
-                merged.ok = false;
-                merged.message = (sourceItem.typename === "GroupItem")
+            if (!areAllPathsClosed(collectSubPaths(mergedBase.item))) {
+                mergedBase.ok = false;
+                mergedBase.message = (sourceItem.typename === "GroupItem")
                     ? getLabel('alert.selectClosedGroup')
                     : getLabel('alert.selectClosedPath');
             }
-            return merged;
+            return mergedBase;
         }
 
         /**
@@ -1570,13 +1629,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
         /**
          * 渡された順序のままアイテムを新しいグループにまとめる
-         * @param {PageItem[]} items - まとめるアイテム
+         * @param {PageItem[]} memberItems - まとめるアイテム
          * @returns {GroupItem} 作成したグループ
          */
-        function createGroupFrom(items) {
+        function createGroupFrom(memberItems) {
             var newGroup = doc.groupItems.add();
-            for (var i = 0; i < items.length; i++) {
-                try { items[i].move(newGroup, ElementPlacement.PLACEATEND); } catch (e) { }
+            for (var i = 0; i < memberItems.length; i++) {
+                try { memberItems[i].move(newGroup, ElementPlacement.PLACEATEND); } catch (e) { }
             }
             return newGroup;
         }
@@ -1587,17 +1646,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          * @returns {void}
          */
         function buildLongShadow(isFinalRun) {
-            var params = readShadowParameters();
-            var base = prepareShadowBaseItem(isFinalRun);
+            var shadowParams = readShadowParameters();
+            var shadowBase = prepareShadowBaseItem(isFinalRun);
 
+            /**
+             * 一時ベースと、名前タグの付いた残骸を削除する
+             * @returns {void}
+             */
             function cleanupTempBase() {
-                base.cleanup();
+                shadowBase.cleanup();
                 removeTempBaseItemsByName();
             }
 
-            if (!base.ok) {
+            if (!shadowBase.ok) {
                 cleanupTempBase();
-                alert(base.message);
+                alert(shadowBase.message);
                 return;
             }
 
@@ -1605,8 +1668,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
                The preview stacks translucent copies instead of building the merged shadow */
             if (!isFinalRun) {
                 for (var i = 0; i < PREVIEW_STEPS.length; i++) {
-                    addPreviewCopy(base.item, PREVIEW_STEPS[i].ratio, PREVIEW_STEPS[i].opacity,
-                        params.dx, params.dy, params.scalePercent);
+                    addPreviewCopy(shadowBase.item, PREVIEW_STEPS[i].ratio, PREVIEW_STEPS[i].opacity,
+                        shadowParams.dx, shadowParams.dy, shadowParams.scalePercent);
                 }
                 doc.selection = null;
                 cleanupTempBase();
@@ -1614,7 +1677,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
                 return;
             }
 
-            var shadowGroup = buildShadowFaces(base.item, params.dx, params.dy, params.scalePercent);
+            var shadowGroup = buildShadowFaces(shadowBase.item, shadowParams.dx, shadowParams.dy, shadowParams.scalePercent);
             if (!shadowGroup) {
                 cleanupTempBase();
                 alert(getLabel('alert.selectClosedPath'));
@@ -1641,54 +1704,68 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
         // イベントリスナー / Event listeners
         // -----------------------------------------
 
-        /* プリセット選択時：スケールと角度に反映（距離は変更しない）
-           Presets set the scale and the angle; the distance is left as it is */
-        presetDropdown.onChange = function () {
-            if (!presetDropdown.selection) return;
+        /**
+         * ダイアログのイベントハンドラーを設定する
+         * @returns {void}
+         */
+        function bindDialogEvents() {
+            offsetCheckbox.onClick = updateOffsetControlsEnabled;
+            changeValueByArrowKey(offsetInput, false, false);
 
-            var matched = String(presetDropdown.selection.text)
-                .match(/^\s*(-?\d+(?:\.\d+)?)\s*%\s*\/\s*(-?\d+(?:\.\d+)?)\s*°\s*$/);
-            if (!matched) return;
+            /* プリセット選択時：スケールと角度に反映（距離は変更しない）
+               Presets set the scale and the angle; the distance is left as it is */
+            presetDropdown.onChange = function () {
+                if (!presetDropdown.selection) return;
 
-            scaleInput.text = matched[1];
-            angleInput.text = matched[2];
-            syncFieldToSlider(scaleInput);
-            syncFieldToSlider(angleInput);
+                var matched = String(presetDropdown.selection.text)
+                    .match(/^\s*(-?\d+(?:\.\d+)?)\s*%\s*\/\s*(-?\d+(?:\.\d+)?)\s*°\s*$/);
+                if (!matched) return;
 
-            refreshPreviewIfEnabled();
-        };
+                scaleInput.text = matched[1];
+                angleInput.text = matched[2];
+                syncFieldToSlider(scaleInput);
+                syncFieldToSlider(angleInput);
 
-        simplifyCheckbox.onClick = refreshPreviewIfEnabled;
-        previewCheckbox.onClick = updatePreview;
+                refreshPreviewIfEnabled();
+            };
 
-        btnOk.onClick = function () {
-            /* プレビューを消してから確定実行 / drop the preview before the real run */
-            undoPreview();
-            hasFinished = true;
-            buildLongShadow(true);
-            dialog.close();
-        };
+            simplifyCheckbox.onClick = refreshPreviewIfEnabled;
+            previewCheckbox.onClick = updatePreview;
 
-        btnCancel.onClick = function () {
-            undoPreview();
-            hasFinished = true;
-            removeTempBaseItemsByName();
-            dialog.close();
-        };
+            btnOk.onClick = function () {
+                /* プレビューを消してから確定実行 / drop the preview before the real run */
+                undoPreview();
+                hasFinished = true;
+                buildLongShadow(true);
+                shadowDialog.close();
+            };
 
-        /* 閉じるボタンで閉じられたときもプレビューを後片付けする
-           Clean the preview up when the dialog is dismissed by its close box */
-        dialog.onClose = function () {
-            if (hasFinished) return;
-            undoPreview();
-            removeTempBaseItemsByName();
-            app.redraw();
-        };
+            btnCancel.onClick = function () {
+                undoPreview();
+                hasFinished = true;
+                removeTempBaseItemsByName();
+                shadowDialog.close();
+            };
+
+            /* 閉じるボタンで閉じられたときもプレビューを後片付けする
+               Clean the preview up when the dialog is dismissed by its close box */
+            shadowDialog.onClose = function () {
+                if (hasFinished) return;
+                undoPreview();
+                removeTempBaseItemsByName();
+                app.redraw();
+            };
+        }
+
+        buildDialog();
+        updateOffsetControlsEnabled();
+        bindDialogEvents();
 
         /* ダイアログを開いた時点でプレビューを表示 / show the preview as the dialog opens */
         refreshPreviewIfEnabled();
-        dialog.show();
+        shadowDialog.show();
+    }
 
-    })();
+    main();
 
 })();

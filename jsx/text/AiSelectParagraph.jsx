@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "AiSelectParagraph";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSelectParagraph.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSelectParagraph.md"; /* README (English) */
@@ -59,42 +59,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在の言語を取得 / Get current language */
-    function getCurrentLang() {
+    /**
+     * UI の表示言語を判定する / Detect the UI language
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
-        noDocument: {
-            ja: "ドキュメントを開いてください。",
-            en: "Please open a document."
-        },
-        noTextCursor: {
-            ja: "テキストにカーソルを置いてください。",
-            en: "Please place the text cursor inside a text object."
-        },
-        multipleParagraphs: {
-            ja: "段落をまたいでいます。1つの段落内にカーソルを置いてください。",
-            en: "The selection spans multiple paragraphs. Place the cursor within a single paragraph."
-        },
-        emptyParagraph: {
-            ja: "この段落には選択できる文字がありません。",
-            en: "This paragraph has no selectable characters."
+        alert: {
+            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noTextCursor: { ja: "テキストにカーソルを置いてください。", en: "Please place the text cursor inside a text object." },
+            multipleParagraphs: {
+                ja: "段落をまたいでいます。1つの段落内にカーソルを置いてください。",
+                en: "The selection spans multiple paragraphs. Place the cursor within a single paragraph."
+            },
+            emptyParagraph: { ja: "この段落には選択できる文字がありません。", en: "This paragraph has no selectable characters." }
         }
     };
 
     /**
-     * ラベル文字列を取得する / Get a localized label string
-     * 未定義のキーはキー名をそのまま返す / An unknown key falls back to the key itself
-     * @param {string} labelKey - LABELS のキー / key of LABELS
-     * @returns {string} ローカライズ済み文字列 / localized string
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す / Get a localized label by its dotted path
+     * 未定義のパスはパスをそのまま返す / An unknown path falls back to the path itself
+     * @param {string} labelPath - "alert.noDocument" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト
      */
-    function getLabel(labelKey) {
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
         /* 現在の言語の文言を返し、無ければ英語にフォールバック / Return the string for the current language, falling back to English */
-        var labelEntry = LABELS[labelKey];
-        return labelEntry ? (labelEntry[currentLanguage] || labelEntry.en) : labelKey;
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
     // =========================================
@@ -108,10 +109,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {TextRange|null} テキスト編集中の TextRange、なければ null / the range, or null
      */
     function getActiveTextRange() {
-        var currentSelection = app.selection;
-        /* テキスト編集中のみ app.selection が配列ではなく TextRange になる */
-        /* app.selection is a TextRange (not an array) only while editing text */
-        return (currentSelection && currentSelection.typename === "TextRange") ? currentSelection : null;
+        var docSelection = app.activeDocument.selection;
+        /* テキスト編集中のみ selection が配列ではなく TextRange になる */
+        /* The selection is a TextRange (not an array) only while editing text */
+        return (docSelection && docSelection.typename === "TextRange") ? docSelection : null;
     }
 
     // =========================================
@@ -166,7 +167,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * Assumes spansMultipleParagraphs() has already confirmed the selection stays in one paragraph
      * @param {string} storyText - ストーリー全文 / full story text
      * @param {TextRange} activeTextRange - 現在のテキスト選択 / current text selection
-     * @returns {object} { start: 開始インデックス, end: 排他的な終了インデックス } / { start, exclusive end }
+     * @returns {Object} { start: 開始インデックス, end: 排他的な終了インデックス } / { start, exclusive end }
      */
     function getParagraphRange(storyText, activeTextRange) {
         /* 段落先頭から最初の改行を探す。選択の終了位置から探すと、改行まで選択済みのときに */
@@ -220,14 +221,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function selectCurrentParagraph() {
         /* ドキュメントが無ければ何もできない / Nothing to do without a document */
         if (app.documents.length === 0) {
-            alert(getLabel("noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
         /* テキスト編集中でなければ対象の段落が決まらない / Without a text cursor there is no paragraph to act on */
         var activeTextRange = getActiveTextRange();
         if (!activeTextRange) {
-            alert(getLabel("noTextCursor"));
+            alert(getLabel("alert.noTextCursor"));
             return;
         }
 
@@ -238,7 +239,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 段落をまたぐ選択は対象を特定できない / A selection spanning paragraphs has no single target */
         if (spansMultipleParagraphs(storyText, activeTextRange)) {
-            alert(getLabel("multipleParagraphs"));
+            alert(getLabel("alert.multipleParagraphs"));
             return;
         }
 
@@ -246,7 +247,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* An empty paragraph has nothing to select only when INCLUDE_PARAGRAPH_RETURN is false */
         var paragraphRange = getParagraphRange(storyText, activeTextRange);
         if (paragraphRange.end <= paragraphRange.start) {
-            alert(getLabel("emptyParagraph"));
+            alert(getLabel("alert.emptyParagraph"));
             return;
         }
 

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLauncher.md"; /* README (English) */
@@ -153,7 +153,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /* Illustratorが起動時に作り、終了時に消す空のファイル。作成時刻をセッションのidに使う
        / Illustrator creates this empty file at launch and removes it on quit */
-    var SESSION_LOCK_FILE_NAME = "IllustratorSession.lck$$";
     var SESSION_LOCK_FILE_MASK = "IllustratorSession.lck*";
 
     /* 1回の実行の中でidは変わらないので、調べるのは最初の1回だけにする / Look it up once per run */
@@ -171,15 +170,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * フォルダーの中身を取り出す
-     * @param {Folder} folder - 対象のフォルダー
-     * @param {string} [mask] - 名前のマスク。省略時はすべて
+     * @param {Folder} sourceFolder - 対象のフォルダー
+     * @param {string} [nameMask] - 名前のマスク。省略時はすべて
      * @returns {Array} 見つかった項目。読めなければ空の配列
      */
-    function folderEntries(folder, mask) {
+    function listFolderEntries(sourceFolder, nameMask) {
         try {
             /* getFiles は読めないと null を返す / getFiles returns null when it fails */
-            var entries = (mask === undefined) ? folder.getFiles() : folder.getFiles(mask);
-            return entries ? entries : [];
+            var folderItems = (nameMask === undefined) ? sourceFolder.getFiles() : sourceFolder.getFiles(nameMask);
+            return folderItems ? folderItems : [];
         } catch (e) {
             return [];
         }
@@ -195,18 +194,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
         /* 設定フォルダーの名前はビルドによって変わる（Adobe Illustrator 30 / Adobe Illustrator 30.8.0 Beta Settings）
            ので、メジャーバージョンで始まるものをまとめて見る / The folder name differs between builds */
-        var settingsFolders = folderEntries(adobeFolder, "Adobe Illustrator " + parseInt(app.version, 10) + "*");
+        var settingsFolders = listFolderEntries(adobeFolder, "Adobe Illustrator " + parseInt(app.version, 10) + "*");
         var newestLockFile = null;
 
         for (var i = 0; i < settingsFolders.length; i++) {
             if (!(settingsFolders[i] instanceof Folder)) continue;
 
             /* ロックファイルは言語名のフォルダーの中にある / The lock file sits in the folder named after the language */
-            var localeFolders = folderEntries(settingsFolders[i]);
+            var localeFolders = listFolderEntries(settingsFolders[i]);
             for (var j = 0; j < localeFolders.length; j++) {
                 if (!(localeFolders[j] instanceof Folder)) continue;
 
-                var lockFiles = folderEntries(localeFolders[j], SESSION_LOCK_FILE_MASK);
+                var lockFiles = listFolderEntries(localeFolders[j], SESSION_LOCK_FILE_MASK);
                 for (var k = 0; k < lockFiles.length; k++) {
                     /* 落ちたセッションのロックが残っていることがあるので、いちばん新しいものを選ぶ
                        / A crashed session can leave one behind, so take the newest */
@@ -226,8 +225,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         if (!lockFile) return null;
 
         /* 作られたあとは書き換えられないファイルなので、更新時刻が起動時刻になる / Never written after it is created */
-        var stamp = lockFile.modified || lockFile.created;
-        return stamp ? String(stamp.getTime()) : null;
+        var lockTime = lockFile.modified || lockFile.created;
+        return lockTime ? String(lockTime.getTime()) : null;
     }
 
     /**
@@ -261,6 +260,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     }
 
     /**
+     * 記録の項目を文字列として読む
+     * @param {Object} savedFields - readSessionFields() の結果
+     * @param {string} fieldName - 項目名
+     * @param {string|null} defaultValue - 記録がないときの値
+     * @returns {string|null} 記録された文字列、または defaultValue
+     */
+    function readTextField(savedFields, fieldName, defaultValue) {
+        return (savedFields[fieldName] === undefined) ? defaultValue : savedFields[fieldName];
+    }
+
+    /**
+     * 記録の項目を真偽値として読む（"1" が true）
+     * @param {Object} savedFields - readSessionFields() の結果
+     * @param {string} fieldName - 項目名
+     * @param {boolean} defaultValue - 記録がないときの値
+     * @returns {boolean} 記録された値、または defaultValue
+     */
+    function readFlagField(savedFields, fieldName, defaultValue) {
+        return (savedFields[fieldName] === undefined) ? defaultValue : savedFields[fieldName] === "1";
+    }
+
+    /**
      * このセッションで前回閉じたときの状態を読み出す
      * @returns {{remember: boolean, targetFolder: string|null, keyword: string, includeSubfolders: boolean, showFullPath: boolean, folderPath: string|null, fileName: string|null}} 記録がなければユーザー設定の初期値
      */
@@ -284,30 +305,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
         return {
             /* 「記憶しない」で閉じたあとは初期値だけが書いてあるので、そのまま読めばよい / Defaults were stored */
-            remember: (savedFields.remember === undefined) ? REMEMBER_SETTINGS_DEFAULT : savedFields.remember === "1",
-            targetFolder: (savedFields.targetFolder === undefined) ? null : savedFields.targetFolder,
-            keyword: (savedFields.keyword === undefined) ? "" : savedFields.keyword,
-            includeSubfolders: (savedFields.includeSubfolders === undefined) ? INCLUDE_SUBFOLDERS_DEFAULT : savedFields.includeSubfolders === "1",
-            showFullPath: (savedFields.showFullPath === undefined) ? SHOW_FULL_PATH_DEFAULT : savedFields.showFullPath === "1",
+            remember: readFlagField(savedFields, "remember", defaultState.remember),
+            targetFolder: readTextField(savedFields, "targetFolder", defaultState.targetFolder),
+            keyword: readTextField(savedFields, "keyword", defaultState.keyword),
+            includeSubfolders: readFlagField(savedFields, "includeSubfolders", defaultState.includeSubfolders),
+            showFullPath: readFlagField(savedFields, "showFullPath", defaultState.showFullPath),
 
             /* 「すべて」を選んでいたときは記録しない。空文字はルート直下を指すので区別する / An empty value means the root */
-            folderPath: (savedFields.folderPath === undefined) ? null : savedFields.folderPath,
-            fileName: (savedFields.fileName === undefined) ? null : savedFields.fileName
+            folderPath: readTextField(savedFields, "folderPath", defaultState.folderPath),
+            fileName: readTextField(savedFields, "fileName", defaultState.fileName)
         };
     }
 
     /**
      * このセッションの記憶を書き換える
-     * @param {Object} changes - 書き換える項目だけを持つオブジェクト
+     * @param {Object} changedFields - 書き換える項目だけを持つオブジェクト
      * @returns {void}
      */
-    function saveSessionState(changes) {
+    function saveSessionState(changedFields) {
         var sessionId = readSessionId();
         if (!sessionId) return;
 
         var sessionState = readSessionState();
-        for (var key in changes) {
-            if (changes.hasOwnProperty(key)) sessionState[key] = changes[key];
+        for (var stateKey in changedFields) {
+            if (changedFields.hasOwnProperty(stateKey)) sessionState[stateKey] = changedFields[stateKey];
         }
 
         var savedFields = {
@@ -361,16 +382,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     /**
      * テキストファイルへ書き出す
      * @param {File} textFile - 書き出すファイル
-     * @param {string} text - 書き出す内容
+     * @param {string} fileText - 書き出す内容
      * @returns {boolean} 書き出せたら true
      */
-    function writeTextFile(textFile, text) {
+    function writeTextFile(textFile, fileText) {
         try {
             textFile.encoding = "UTF-8";
             textFile.lineFeed = "Unix";
             if (!textFile.open("w")) return false;
 
-            textFile.write(text);
+            textFile.write(fileText);
             return true;
         } catch (e) {
             return false;
@@ -425,89 +446,89 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * ウィンドウの共通設定を適用する
-     * @param {Window} win - 対象ウィンドウ
+     * @param {Window} targetWindow - 対象ウィンドウ
      * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルの共通設定を適用する
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 行グループの共通設定を適用する（ボタン列など）
-     * @param {Group} group - 対象グループ
+     * @param {Group} rowGroup - 対象グループ
      * @param {string} [alignment] - 配置。省略時は "left"
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = [alignment || "left", "center"];
-        group.alignChildren = ["left", "center"];
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = [alignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 見出し付きのリスト用カラムを作る
-     * @param {Group} parent - 追加先のグループ
+     * @param {Group} parentGroup - 追加先のグループ
      * @param {string} captionText - リストの見出し
      * @returns {Group} 見出しを追加済みのカラムグループ
      */
-    function addListColumn(parent, captionText) {
-        var column = parent.add("group");
-        column.orientation = "column";
-        column.alignChildren = ["fill", "top"];
-        column.spacing = LIST_LABEL_SPACING;
-        column.add("statictext", undefined, captionText);
-        return column;
+    function addListColumn(parentGroup, captionText) {
+        var listColumn = parentGroup.add("group");
+        listColumn.orientation = "column";
+        listColumn.alignChildren = ["fill", "top"];
+        listColumn.spacing = LIST_LABEL_SPACING;
+        listColumn.add("statictext", undefined, captionText);
+        return listColumn;
     }
 
     /**
      * ボタンの寸法をそろえる
-     * @param {Button} button - 対象ボタン
-     * @param {number} width - ボタンの幅
+     * @param {Button} targetButton - 対象ボタン
+     * @param {number} buttonWidth - ボタンの幅
      * @returns {void}
      */
-    function applyButtonSize(button, width) {
-        button.preferredSize = [width, BUTTON_HEIGHT];
-        button.minimumSize = [width, BUTTON_HEIGHT];
+    function applyButtonSize(targetButton, buttonWidth) {
+        targetButton.preferredSize = [buttonWidth, BUTTON_HEIGHT];
+        targetButton.minimumSize = [buttonWidth, BUTTON_HEIGHT];
     }
 
     /**
      * キーワードボタンの寸法を文字幅に合わせて詰める
-     * @param {Button} button - 対象ボタン
+     * @param {Button} presetButton - 対象ボタン
      * @returns {void}
      */
-    function applyPresetButtonSize(button) {
+    function applyPresetButtonSize(presetButton) {
         /* 実測できればそれを使い、駄目なら文字数から概算する / Measure if possible, else estimate */
-        var textWidth = String(button.text).length * PRESET_CHAR_WIDTH;
+        var textWidth = String(presetButton.text).length * PRESET_CHAR_WIDTH;
         try {
-            var measured = button.graphics.measureString(button.text);
-            var measuredWidth = (measured.width !== undefined) ? measured.width : measured[0];
+            var measuredSize = presetButton.graphics.measureString(presetButton.text);
+            var measuredWidth = (measuredSize.width !== undefined) ? measuredSize.width : measuredSize[0];
             /* 環境によっては値が取れずNaNになる。その場合は概算のままにする / Keep the estimate if unusable */
             if (!isNaN(measuredWidth) && measuredWidth > 0) textWidth = measuredWidth;
         } catch (e) {}
 
         var buttonWidth = Math.ceil(textWidth) + PRESET_BUTTON_PADDING;
-        button.preferredSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
-        button.minimumSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
+        presetButton.preferredSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
+        presetButton.minimumSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
     }
 
     /**
@@ -524,82 +545,83 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * クリアボタンの丸と×を描く
-     * @param {Button} button - 対象ボタン
+     * @param {Button} clearButton - 対象ボタン
      * @returns {void}
      */
-    function drawClearButton(button) {
-        var graphics = button.graphics;
-        var size = button.size[0];
+    function drawClearButton(clearButton) {
+        var buttonGraphics = clearButton.graphics;
+        var buttonSize = clearButton.size[0];
         var useLightUI = isLightUI();
 
         /* 主役ではないので、通常時も少し薄めに描く。押している間は濃くして手応えを出す / Slightly muted, darker while pressed */
         var glyphColor = useLightUI ? [0.45, 0.45, 0.45, 1] : [0.72, 0.72, 0.72, 1];
-        if (button.pressed) glyphColor = useLightUI ? [0.20, 0.20, 0.20, 1] : [0.95, 0.95, 0.95, 1];
+        if (clearButton.pressed) glyphColor = useLightUI ? [0.20, 0.20, 0.20, 1] : [0.95, 0.95, 0.95, 1];
 
         /* キーワードが空のときは無効にしてあるので、さらに淡くする / Dim further while disabled */
-        if (button.enabled === false) glyphColor = useLightUI ? [0.78, 0.78, 0.78, 1] : [0.42, 0.42, 0.42, 1];
+        if (clearButton.enabled === false) glyphColor = useLightUI ? [0.78, 0.78, 0.78, 1] : [0.42, 0.42, 0.42, 1];
 
-        /* 前回の描画を消すため、まず親と同じ色で塗りつぶす / Repaint the background first */
+        /* 前回の描画を消すため、まず親と同じ色で塗りつぶす。背景色のブラシを持たない環境では省く
+           / Repaint the background first; skipped where no background brush is available */
         try {
-            graphics.newPath();
-            graphics.rectPath(0, 0, size, size);
-            graphics.fillPath(graphics.backgroundColor);
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(0, 0, buttonSize, buttonSize);
+            buttonGraphics.fillPath(buttonGraphics.backgroundColor);
         } catch (e) {}
 
-        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, CLEAR_STROKE_WIDTH);
-        var circleSize = size - CLEAR_CIRCLE_INSET * 2;
-        graphics.newPath();
-        graphics.ellipsePath(CLEAR_CIRCLE_INSET, CLEAR_CIRCLE_INSET, circleSize, circleSize);
-        graphics.strokePath(pen);
+        var glyphPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, glyphColor, CLEAR_STROKE_WIDTH);
+        var circleSize = buttonSize - CLEAR_CIRCLE_INSET * 2;
+        buttonGraphics.newPath();
+        buttonGraphics.ellipsePath(CLEAR_CIRCLE_INSET, CLEAR_CIRCLE_INSET, circleSize, circleSize);
+        buttonGraphics.strokePath(glyphPen);
 
         var glyphStart = CLEAR_GLYPH_INSET;
-        var glyphEnd = size - CLEAR_GLYPH_INSET;
-        graphics.newPath();
-        graphics.moveTo(glyphStart, glyphStart);
-        graphics.lineTo(glyphEnd, glyphEnd);
-        graphics.strokePath(pen);
-        graphics.newPath();
-        graphics.moveTo(glyphEnd, glyphStart);
-        graphics.lineTo(glyphStart, glyphEnd);
-        graphics.strokePath(pen);
+        var glyphEnd = buttonSize - CLEAR_GLYPH_INSET;
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(glyphStart, glyphStart);
+        buttonGraphics.lineTo(glyphEnd, glyphEnd);
+        buttonGraphics.strokePath(glyphPen);
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(glyphEnd, glyphStart);
+        buttonGraphics.lineTo(glyphStart, glyphEnd);
+        buttonGraphics.strokePath(glyphPen);
     }
 
     /**
      * キーワードを消すクリアボタンを作る
-     * @param {Group} parent - 追加先のグループ
+     * @param {Group} parentGroup - 追加先のグループ
      * @returns {Button} 丸に×を自前描画したボタン
      */
-    function addClearButton(parent) {
-        var button = parent.add("button", undefined, "");
-        button.helpTip = getLabel(LABELS.button.clearKeyword);
-        button.alignment = ["right", "center"];
-        button.preferredSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
-        button.minimumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
-        button.maximumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
-        button.pressed = false;
+    function addClearButton(parentGroup) {
+        var clearButton = parentGroup.add("button", undefined, "");
+        clearButton.helpTip = getLabel(LABELS.tooltip.clearKeyword);
+        clearButton.alignment = ["right", "center"];
+        clearButton.preferredSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        clearButton.minimumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        clearButton.maximumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        clearButton.pressed = false;
 
         /* 実際の状態は呼び出し側が入力欄に合わせる / The caller syncs this with the field */
-        button.enabled = false;
+        clearButton.enabled = false;
 
-        button.onDraw = function () {
+        clearButton.onDraw = function () {
             drawClearButton(this);
         };
-        button.addEventListener("mousedown", function () {
+        clearButton.addEventListener("mousedown", function () {
             this.pressed = true;
             this.notify("onDraw");
         });
-        button.addEventListener("mouseup", function () {
+        clearButton.addEventListener("mouseup", function () {
             this.pressed = false;
             this.notify("onDraw");
         });
         /* ボタンの外でマウスを離したときも押下表示を戻す / Reset the pressed look on mouseout */
-        button.addEventListener("mouseout", function () {
+        clearButton.addEventListener("mouseout", function () {
             if (!this.pressed) return;
             this.pressed = false;
             this.notify("onDraw");
         });
 
-        return button;
+        return clearButton;
     }
 
     /**
@@ -672,51 +694,77 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * UI言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentUILang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLang = getCurrentUILang();
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
-            title:           { ja: "スクリプトランチャー", en: "Script Launcher" },
-            selectFolder:    { ja: "検索対象のスクリプトフォルダーを選択してください", en: "Select the script folder to search" },
-            preferences:     { ja: "環境設定", en: "Preferences" }
+            title: { ja: "スクリプトランチャー", en: "Script Launcher" },
+            selectFolder: { ja: "検索対象のスクリプトフォルダーを選択してください", en: "Select the script folder to search" },
+            preferences: { ja: "環境設定", en: "Preferences" }
         },
         panel: {
-            keyword:        { ja: "絞り込み（%1件）", en: "Filter (%1)" },
-            scriptFolder:   { ja: "対象フォルダー", en: "Target Folder" },
+            keyword: { ja: "絞り込み（%1件）", en: "Filter (%1)" },
+            scriptFolder: { ja: "対象フォルダー", en: "Target Folder" },
             keywordButtons: { ja: "キーワードボタン", en: "Keyword Buttons" }
         },
         listCaption: {
-            folder:   { ja: "フォルダー", en: "Folder" },
+            folder: { ja: "フォルダー", en: "Folder" },
             fileName: { ja: "ファイル名", en: "File Name" }
         },
-        folderRow: {
+        listItem: {
             allFolders: { ja: "（すべて）", en: "(All)" },
             rootFolder: { ja: "（ルート）", en: "(Root)" }
         },
         fieldLabel: {
-            keyword:    { ja: "キーワード", en: "Keyword" },
-            minCount:   { ja: "出現数", en: "Occurrences" },
+            keyword: { ja: "キーワード", en: "Keyword" },
+            minCount: { ja: "出現数", en: "Occurrences" },
             maxButtons: { ja: "キーワード数", en: "Keywords" }
         },
         checkbox: {
             includeSubfolders: { ja: "サブディレクトリを含む", en: "Include subdirectories" },
-            showFullPath:      { ja: "フルパス", en: "Full path" },
-            rememberSettings:  { ja: "検索条件を記憶", en: "Remember the search" }
+            showFullPath: { ja: "フルパス", en: "Full path" },
+            rememberSettings: { ja: "検索条件を記憶", en: "Remember the search" }
         },
         tooltip: {
-            rememberSettings: { ja: "Illustratorを終了するまでのあいだ引き継ぎます", en: "Carried over until Illustrator quits" }
+            rememberSettings: { ja: "Illustratorを終了するまでのあいだ引き継ぎます", en: "Carried over until Illustrator quits" },
+            clearKeyword: { ja: "キーワードをクリア", en: "Clear keyword" },
+            keyword: {
+                ja: "空白で区切ると、すべての語を含むものに絞り込みます。大文字小文字・全角半角・ひらがなとカタカナの違いは区別しません",
+                en: "Separate words with spaces to match all of them. Case, full-width/half-width, and hiragana/katakana differences are ignored"
+            },
+            keywordPreset: {
+                ja: "クリックでキーワードを置き換えます。option＋クリックでキーワードに追加します",
+                en: "Click to replace the keyword. Option-click adds it to the keyword"
+            },
+            folderList: {
+                ja: "ダブルクリックでフォルダーを Finder で開きます。（すべて）と（ルート）は対象フォルダーを開きます",
+                en: "Double-click to open the folder in Finder. (All) and (Root) open the target folder"
+            },
+            scriptList: {
+                ja: "ダブルクリックで実行します。option＋ダブルクリックでは実行せず Finder で表示します",
+                en: "Double-click to run. Option-double-click reveals the file in Finder instead"
+            },
+            includeSubfolders: {
+                ja: "OFF のときは、対象フォルダー直下と、その直下のフォルダーにあるスクリプトだけを表示します",
+                en: "When off, only scripts in the target folder and its immediate subfolders are listed"
+            },
+            showFullPath: { ja: "OFF のときはホームフォルダーを ~ で表示します", en: "When off, the home folder is shown as ~" },
+            minCount: {
+                ja: "この数以上のファイル名に含まれる語をキーワードボタンにします",
+                en: "Words found in at least this many file names become keyword buttons"
+            },
+            maxButtons: { ja: "キーワードボタンを並べる最大数です（%1まで）", en: "Maximum number of keyword buttons (up to %1)" }
         },
         button: {
-            changeFolder:    { ja: "フォルダー変更", en: "Change Folder" },
-            clearKeyword:    { ja: "キーワードをクリア", en: "Clear keyword" },
-            preferences:     { ja: "環境設定", en: "Preferences" },
-            cancel:          { ja: "キャンセル", en: "Cancel" },
-            run:             { ja: "実行", en: "Run" },
-            ok:              { ja: "OK", en: "OK" }
+            changeFolder: { ja: "フォルダー変更", en: "Change Folder" },
+            preferences: { ja: "環境設定", en: "Preferences" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            run: { ja: "実行", en: "Run" },
+            ok: { ja: "OK", en: "OK" }
         },
         alert: {
             noScripts: {
@@ -758,16 +806,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * ラベル内のプレースホルダー（%1, %2 …）を値で置き換える
-     * @param {string} template - プレースホルダーを含む文字列
-     * @param {Array<string>} values - 差し込む値
+     * @param {string} labelTemplate - プレースホルダーを含む文字列
+     * @param {Array<string>} placeholderValues - 差し込む値
      * @returns {string} 置き換え後の文字列
      */
-    function formatLabel(template, values) {
-        var text = template;
-        for (var i = 0; i < values.length; i++) {
-            text = text.split("%" + (i + 1)).join(String(values[i]));
+    function formatLabel(labelTemplate, placeholderValues) {
+        var filledText = labelTemplate;
+        for (var i = 0; i < placeholderValues.length; i++) {
+            filledText = filledText.split("%" + (i + 1)).join(String(placeholderValues[i]));
         }
-        return text;
+        return filledText;
     }
 
     // =========================================
@@ -790,11 +838,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * 前後の空白を取り除く
-     * @param {string} value - 対象の文字列
+     * @param {string} sourceText - 対象の文字列
      * @returns {string} 前後の空白を除いた文字列
      */
-    function trimWhitespace(value) {
-        return String(value).replace(/^\s+|\s+$/g, "");
+    function trimWhitespace(sourceText) {
+        return String(sourceText).replace(/^\s+|\s+$/g, "");
     }
 
     /* 半角カナを全角カタカナへ置き換える並び。U+FF61 から順に対応する / Half-width kana in code point order */
@@ -805,79 +853,79 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     /**
      * カタカナを濁点・半濁点・小書きのない基音へ寄せる
      * 変換表は持たず、Unicodeの並び方から計算する
-     * @param {number} code - カタカナのコードポイント
+     * @param {number} charCode - カタカナのコードポイント
      * @returns {number} 基音のコードポイント。カタカナ以外はそのまま返す
      */
-    function foldKatakana(code) {
+    function foldKatakana(charCode) {
         /* ヴ と ヷヸヹヺ は並びから外れるので個別に扱う / These sit outside the regular rows */
-        if (code === 0x30F4) return 0x30A6;
-        if (code >= 0x30F7 && code <= 0x30FA) return code - 8;
+        if (charCode === 0x30F4) return 0x30A6;
+        if (charCode >= 0x30F7 && charCode <= 0x30FA) return charCode - 8;
 
         /* カ〜ヂ、ツ〜ド は「清音・濁音」の2つ並び。ッ を挟んで並びが一度切れる / Pairs, broken by ッ */
-        if (code >= 0x30AB && code <= 0x30C2 && (code - 0x30AB) % 2 === 1) code -= 1;
-        else if (code >= 0x30C4 && code <= 0x30C9 && (code - 0x30C4) % 2 === 1) code -= 1;
+        if (charCode >= 0x30AB && charCode <= 0x30C2 && (charCode - 0x30AB) % 2 === 1) charCode -= 1;
+        else if (charCode >= 0x30C4 && charCode <= 0x30C9 && (charCode - 0x30C4) % 2 === 1) charCode -= 1;
 
         /* ハ〜ポ は「清音・濁音・半濁音」の3つ並び / The ha row runs in threes */
-        else if (code >= 0x30CF && code <= 0x30DD) code -= (code - 0x30CF) % 3;
+        else if (charCode >= 0x30CF && charCode <= 0x30DD) charCode -= (charCode - 0x30CF) % 3;
 
         /* 小書きは対応する大書きの1つ手前にある / Each small kana sits right before its large form */
-        if (code === 0x30A1 || code === 0x30A3 || code === 0x30A5 || code === 0x30A7 || code === 0x30A9 ||
-            code === 0x30C3 || code === 0x30E3 || code === 0x30E5 || code === 0x30E7 || code === 0x30EE) {
-            code += 1;
+        if (charCode === 0x30A1 || charCode === 0x30A3 || charCode === 0x30A5 || charCode === 0x30A7 || charCode === 0x30A9 ||
+            charCode === 0x30C3 || charCode === 0x30E3 || charCode === 0x30E5 || charCode === 0x30E7 || charCode === 0x30EE) {
+            charCode += 1;
         }
-        return code;
+        return charCode;
     }
 
     /**
      * 比較用の検索キーへ変換する
      * 大文字小文字・全角半角・かなの種類・濁点や小書きの違いを無視して一致させる
-     * @param {string} value - 変換前の文字列
+     * @param {string} sourceText - 変換前の文字列
      * @returns {string} 正規化した文字列
      */
-    function normalizeSearchKey(value) {
-        var source = String(value).toLowerCase();
-        var normalized = "";
+    function normalizeSearchKey(sourceText) {
+        var lowerText = String(sourceText).toLowerCase();
+        var normalizedText = "";
 
-        for (var i = 0; i < source.length; i++) {
-            var currentChar = source.charAt(i);
+        for (var i = 0; i < lowerText.length; i++) {
+            var currentChar = lowerText.charAt(i);
             if (/\s/.test(currentChar)) continue;
 
-            var code = source.charCodeAt(i);
+            var charCode = lowerText.charCodeAt(i);
 
             /* 単独の濁点・半濁点は落とす。濁りは基音へ寄せるので不要 / Standalone voiced marks are dropped */
-            if (code === 0x3099 || code === 0x309A || code === 0x309B || code === 0x309C ||
-                code === 0xFF9E || code === 0xFF9F) continue;
+            if (charCode === 0x3099 || charCode === 0x309A || charCode === 0x309B || charCode === 0x309C ||
+                charCode === 0xFF9E || charCode === 0xFF9F) continue;
 
             /* 全角の英数記号は半角へ / Full-width ASCII to half-width */
-            if (code >= 0xFF01 && code <= 0xFF5E) {
-                normalized += String.fromCharCode(code - 0xFEE0).toLowerCase();
+            if (charCode >= 0xFF01 && charCode <= 0xFF5E) {
+                normalizedText += String.fromCharCode(charCode - 0xFEE0).toLowerCase();
                 continue;
             }
 
             /* 半角カナは全角カタカナへ / Half-width kana to full-width katakana */
-            if (code >= KANA_HALFWIDTH_START && code <= KANA_HALFWIDTH_END) {
-                code = KANA_HALFWIDTH_TABLE.charCodeAt(code - KANA_HALFWIDTH_START);
+            if (charCode >= KANA_HALFWIDTH_START && charCode <= KANA_HALFWIDTH_END) {
+                charCode = KANA_HALFWIDTH_TABLE.charCodeAt(charCode - KANA_HALFWIDTH_START);
             }
 
             /* ひらがなはカタカナへ寄せる / Hiragana to katakana */
-            if (code >= 0x3041 && code <= 0x3096) code += 0x60;
+            if (charCode >= 0x3041 && charCode <= 0x3096) charCode += 0x60;
 
-            normalized += String.fromCharCode(foldKatakana(code));
+            normalizedText += String.fromCharCode(foldKatakana(charCode));
         }
-        return normalized;
+        return normalizedText;
     }
 
     /**
      * 入力文字列を空白区切りの検索語に分解する
-     * @param {string} value - キーワード欄の文字列
+     * @param {string} keywordText - キーワード欄の文字列
      * @returns {Array<string>} 正規化した検索語。空の語は含まない
      */
-    function splitSearchTerms(value) {
-        var rawTerms = String(value).split(/\s+/);
+    function splitSearchTerms(keywordText) {
+        var rawTerms = String(keywordText).split(/\s+/);
         var searchTerms = [];
         for (var i = 0; i < rawTerms.length; i++) {
-            var term = normalizeSearchKey(rawTerms[i]);
-            if (term !== "") searchTerms.push(term);
+            var searchTerm = normalizeSearchKey(rawTerms[i]);
+            if (searchTerm !== "") searchTerms.push(searchTerm);
         }
         return searchTerms;
     }
@@ -918,62 +966,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var homePath = Folder("~").fsName;
         if (homePath && fullPath.indexOf(homePath) === 0) {
             /* 区切りの手前で切れているか確かめる。/Users/tak が /Users/takano に一致しないように */
-            var rest = fullPath.substring(homePath.length);
-            if (rest === "" || rest.charAt(0) === "/" || rest.charAt(0) === "\\") return "~" + rest;
+            var pathAfterHome = fullPath.substring(homePath.length);
+            if (pathAfterHome === "" || pathAfterHome.charAt(0) === "/" || pathAfterHome.charAt(0) === "\\") return "~" + pathAfterHome;
         }
         return fullPath;
     }
 
     /**
      * decodeURI に失敗しても元の文字列を返す
-     * @param {string} value - デコードする文字列
+     * @param {string} encodedText - デコードする文字列
      * @returns {string} デコード結果。失敗時は元の文字列
      */
-    function decodeSafely(value) {
+    function decodeSafely(encodedText) {
         try {
-            return decodeURI(value);
+            return decodeURI(encodedText);
         } catch (e) {
-            return value;
+            return encodedText;
         }
     }
 
     /**
      * フォルダーを再帰的にたどってスクリプトを集める
      * @param {Folder} targetFolder - 走査するフォルダー
-     * @param {Array<ScriptEntry>} collected - 収集結果の追加先
+     * @param {Array<ScriptEntry>} collectedEntries - 収集結果の追加先
      * @param {Folder} rootFolder - 相対パスの基準になる対象フォルダー
      * @returns {void}
      */
-    function collectScriptFiles(targetFolder, collected, rootFolder) {
-        var entries;
+    function collectScriptFiles(targetFolder, collectedEntries, rootFolder) {
+        var folderItems;
         try {
-            entries = targetFolder.getFiles();
+            folderItems = targetFolder.getFiles();
         } catch (e) {
             return;
         }
 
-        for (var i = 0; i < entries.length; i++) {
-            var entry = entries[i];
+        /* ファイルごとに変わらない値は先に1回だけ求める / Compute the per-folder constants once */
+        var launcherPath = File($.fileName).fsName;
+        var rootPath = rootFolder.fsName;
 
-            if (entry instanceof Folder) {
+        for (var i = 0; i < folderItems.length; i++) {
+            var folderItem = folderItems[i];
+
+            if (folderItem instanceof Folder) {
                 /* エイリアスは循環の元になるのでたどらない / Aliases can loop back into an ancestor */
-                if (!entry.alias && !/^\./.test(entry.name)) collectScriptFiles(entry, collected, rootFolder);
+                if (!folderItem.alias && !/^\./.test(folderItem.name)) collectScriptFiles(folderItem, collectedEntries, rootFolder);
                 continue;
             }
 
-            if (!(entry instanceof File) || !SCRIPT_EXT_RE.test(entry.name)) continue;
+            if (!(folderItem instanceof File) || !SCRIPT_EXT_RE.test(folderItem.name)) continue;
 
             /* 対象フォルダー内にこのランチャー自身がある場合は一覧に載せない / Skip this launcher itself */
-            if (File($.fileName).fsName === entry.fsName) continue;
+            if (launcherPath === folderItem.fsName) continue;
 
-            var relativePath = entry.fsName;
-            var rootPath = rootFolder.fsName;
+            var relativePath = folderItem.fsName;
             if (relativePath.indexOf(rootPath) === 0) {
                 relativePath = relativePath.substring(rootPath.length).replace(/^[\\\/]+/, "");
             }
 
-            var decodedFileName = decodeSafely(entry.name);
-            var localizedFileName = entry.displayName || decodedFileName;
+            var decodedFileName = decodeSafely(folderItem.name);
+            var localizedFileName = folderItem.displayName || decodedFileName;
             var decodedRelativePath = decodeSafely(relativePath);
 
             /* リストは左右2本なので、フォルダー部分とファイル名を分けて持つ / Split folder and file name for the two lists */
@@ -983,8 +1034,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             /* 対象フォルダーからの階層の深さ。直下は0、artboard/backup は2 / Depth below the root folder */
             var folderDepth = (decodedFolderPath === "") ? 0 : decodedFolderPath.split(/[\\\/]/).length;
 
-            collected.push({
-                file: entry,
+            collectedEntries.push({
+                file: folderItem,
                 fileName: decodedFileName,
                 localizedFileName: localizedFileName,
                 relativePath: decodedRelativePath,
@@ -1010,16 +1061,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * 入力文字列を1以上の整数として読み取る
-     * @param {string} value - 入力文字列
+     * @param {string} inputText - 入力文字列
      * @param {number} fallbackValue - 数値として読めないときに返す値
      * @param {number} [maxValue] - 上限。超えた場合はこの値に丸める
      * @returns {number} 1以上の整数
      */
-    function parsePositiveInt(value, fallbackValue, maxValue) {
-        var parsed = parseInt(trimWhitespace(value), 10);
-        if (isNaN(parsed) || parsed < 1) return fallbackValue;
-        if (typeof maxValue === "number" && parsed > maxValue) return maxValue;
-        return parsed;
+    function parsePositiveInt(inputText, fallbackValue, maxValue) {
+        var parsedValue = parseInt(trimWhitespace(inputText), 10);
+        if (isNaN(parsedValue) || parsedValue < 1) return fallbackValue;
+        if (typeof maxValue === "number" && parsedValue > maxValue) return maxValue;
+        return parsedValue;
     }
 
     /**
@@ -1043,21 +1094,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var baseName = String(fileName).replace(/\.[^.]+$/, "");
 
         /* 区切り文字と数字を空白にし、続けてキャメルケースの境目を空ける / Split separators, then camel case */
-        var separated = baseName.replace(/[-_\s\d]+/g, " ");
-        separated = separated.replace(/([a-z])([A-Z])/g, "$1 $2");
-        separated = separated.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+        var spacedName = baseName.replace(/[-_\s\d]+/g, " ");
+        spacedName = spacedName.replace(/([a-z])([A-Z])/g, "$1 $2");
+        spacedName = spacedName.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
 
-        var words = [];
-        var parts = separated.split(" ");
-        for (var i = 0; i < parts.length; i++) {
-            var word = parts[i].toLowerCase();
+        var nameWords = [];
+        var nameParts = spacedName.split(" ");
+        for (var i = 0; i < nameParts.length; i++) {
+            var word = nameParts[i].toLowerCase();
             /* 英字だけの語に限る。日本語名や記号混じりはボタンにしない / ASCII words only */
             if (!/^[a-z]+$/.test(word)) continue;
             if (word.length < KEYWORD_MIN_WORD_LENGTH) continue;
             if (isStopWord(word)) continue;
-            words.push(word);
+            nameWords.push(word);
         }
-        return words;
+        return nameWords;
     }
 
     /**
@@ -1084,12 +1135,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     function collectFrequentWords(scriptEntries, minCount, maxButtons, searchTerms) {
         var wordCounts = {};
         for (var i = 0; i < scriptEntries.length; i++) {
-            var words = scriptEntries[i].nameWords;
+            var nameWords = scriptEntries[i].nameWords;
 
             /* 同じ語が1つのファイル名に複数あっても1件と数える / Count each file once per word */
             var seenWords = {};
-            for (var j = 0; j < words.length; j++) {
-                var wordKey = "#" + words[j];
+            for (var j = 0; j < nameWords.length; j++) {
+                var wordKey = "#" + nameWords[j];
                 if (seenWords[wordKey]) continue;
                 seenWords[wordKey] = true;
                 wordCounts[wordKey] = (wordCounts[wordKey] || 0) + 1;
@@ -1134,36 +1185,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * キーワードボタン置き場の高さを固定する（絞り込みのたびにダイアログが伸縮しないようにする）
-     * @param {Group} container - ボタン行を入れるグループ
+     * @param {Group} presetContainer - ボタン行を入れるグループ
      * @param {number} maxButtons - 並べうるボタンの最大個数
      * @returns {void}
      */
-    function reserveKeywordPresetHeight(container, maxButtons) {
+    function reserveKeywordPresetHeight(presetContainer, maxButtons) {
         var rowCount = Math.ceil(maxButtons / KEYWORD_PRESETS_PER_ROW);
-        var height = rowCount * PRESET_BUTTON_HEIGHT + (rowCount - 1) * DENSE_SPACING;
-        container.preferredSize.height = height;
-        container.minimumSize.height = height;
+        var reservedHeight = rowCount * PRESET_BUTTON_HEIGHT + (rowCount - 1) * DENSE_SPACING;
+        presetContainer.preferredSize.height = reservedHeight;
+        presetContainer.minimumSize.height = reservedHeight;
     }
 
     /**
      * 項目名付きの数値入力欄を1行追加する
-     * @param {Window} parent - 追加先のウィンドウ
+     * @param {Panel} parentPanel - 追加先のパネル
      * @param {{ja: string, en: string}} labelSet - 項目名のラベル定義
-     * @param {number} value - 初期値
+     * @param {number} initialValue - 初期値
+     * @param {string} tooltipText - 入力欄の helpTip
      * @returns {EditText} 追加した数値入力欄
      */
-    function addNumberField(parent, labelSet, value) {
-        var row = parent.add("group");
-        setupRow(row, "left", DENSE_SPACING);
+    function addNumberField(parentPanel, labelSet, initialValue, tooltipText) {
+        var fieldRow = parentPanel.add("group");
+        setupRow(fieldRow, "left", DENSE_SPACING);
 
-        var fieldLabel = row.add("statictext", undefined, labelText(labelSet));
+        var fieldLabel = fieldRow.add("statictext", undefined, labelText(labelSet));
         fieldLabel.preferredSize.width = SETTINGS_LABEL_WIDTH;
         fieldLabel.justify = "right";
 
-        var input = row.add("edittext", undefined, String(value));
-        input.preferredSize.width = SETTINGS_INPUT_WIDTH;
-        changeValueByArrowKey(input);
-        return input;
+        var numberInput = fieldRow.add("edittext", undefined, String(initialValue));
+        numberInput.preferredSize.width = SETTINGS_INPUT_WIDTH;
+        numberInput.helpTip = tooltipText;
+        changeValueByArrowKey(numberInput);
+        return numberInput;
     }
 
     /**
@@ -1179,26 +1232,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         setupWindow(settingsDialog, DENSE_SPACING);
 
         var selectedFolder = targetFolder;
-        var folderUI = buildScriptFolderPanel(settingsDialog, selectedFolder, remembersSettings);
-        folderUI.changeButton.onClick = function () {
+        var folderPanelParts = buildScriptFolderPanel(settingsDialog, selectedFolder, remembersSettings);
+        folderPanelParts.btnChangeFolder.onClick = function () {
             var pickedFolder = chooseScriptFolder(selectedFolder);
             if (!pickedFolder) return;
             selectedFolder = pickedFolder;
-            folderUI.refreshPath(selectedFolder);
+            folderPanelParts.refreshPath(selectedFolder);
         };
 
         var keywordButtonPanel = settingsDialog.add("panel", undefined, getLabel(LABELS.panel.keywordButtons));
         setupPanel(keywordButtonPanel, DENSE_SPACING);
-        var minCountInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.minCount, minCount);
-        var maxButtonsInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.maxButtons, maxButtons);
+        var minCountInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.minCount, minCount,
+            getLabel(LABELS.tooltip.minCount));
+        var maxButtonsInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.maxButtons, maxButtons,
+            formatLabel(getLabel(LABELS.tooltip.maxButtons), [KEYWORD_PRESET_LIMIT]));
 
-        var settingsButtonRow = settingsDialog.add("group");
-        setupRow(settingsButtonRow, "right", DENSE_SPACING);
-        settingsButtonRow.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        var settingsCancelButton = settingsButtonRow.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var settingsOkButton = settingsButtonRow.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        applyButtonSize(settingsCancelButton, DIALOG_BUTTON_WIDTH);
-        applyButtonSize(settingsOkButton, DIALOG_BUTTON_WIDTH);
+        var btnRowGroup = settingsDialog.add("group");
+        setupRow(btnRowGroup, "right", DENSE_SPACING);
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
+        applyButtonSize(btnOK, DIALOG_BUTTON_WIDTH);
 
         settingsDialog.center();
         minCountInput.active = true;
@@ -1231,32 +1286,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * 絞り込みパネルを組み立てる
-     * @param {Window} parent - 追加先のウィンドウ
+     * @param {Window} parentWindow - 追加先のウィンドウ
      * @param {string} initialKeyword - 最初に表示するキーワード
      * @param {boolean} remembersSettings - 「検索条件を記憶」の初期状態
-     * @returns {{panel: Panel, input: EditText, clearButton: Button, presetContainer: Group, rememberCheckbox: Checkbox}} パネルの部品
+     * @returns {{keywordPanel: Panel, keywordInput: EditText, clearButton: Button, presetContainer: Group, rememberCheckbox: Checkbox}} パネルの部品
      */
-    function buildKeywordPanel(parent, initialKeyword, remembersSettings) {
-        var panel = parent.add("panel", undefined, formatLabel(getLabel(LABELS.panel.keyword), [0]));
-        setupPanel(panel, DENSE_SPACING);
+    function buildKeywordPanel(parentWindow, initialKeyword, remembersSettings) {
+        var keywordPanel = parentWindow.add("panel", undefined, formatLabel(getLabel(LABELS.panel.keyword), [0]));
+        setupPanel(keywordPanel, DENSE_SPACING);
 
-        var row = panel.add("group");
-        setupRow(row, "fill", DENSE_SPACING);
-        row.add("statictext", undefined, labelText(LABELS.fieldLabel.keyword));
+        var keywordRow = keywordPanel.add("group");
+        setupRow(keywordRow, "fill", DENSE_SPACING);
+        keywordRow.add("statictext", undefined, labelText(LABELS.fieldLabel.keyword));
 
-        var input = row.add("edittext", undefined, initialKeyword);
-        input.alignment = ["fill", "center"];
+        var keywordInput = keywordRow.add("edittext", undefined, initialKeyword);
+        keywordInput.alignment = ["fill", "center"];
+        keywordInput.helpTip = getLabel(LABELS.tooltip.keyword);
 
-        var clearButton = addClearButton(row);
+        var clearButton = addClearButton(keywordRow);
 
         /* ボタンは絞り込みのたびに作り直すので、置き場だけ先に用意する / Reserve the area for the preset buttons */
-        var presetContainer = panel.add("group");
+        var presetContainer = keywordPanel.add("group");
         presetContainer.orientation = "column";
         presetContainer.alignChildren = ["left", "top"];
         presetContainer.alignment = ["fill", "top"];
         presetContainer.spacing = DENSE_SPACING;
 
-        var rememberRow = panel.add("group");
+        var rememberRow = keywordPanel.add("group");
         setupRow(rememberRow, "left", 0);
         rememberRow.margins = [0, REMEMBER_ROW_TOP_MARGIN, 0, 0];
 
@@ -1265,8 +1321,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         rememberCheckbox.value = remembersSettings;
 
         return {
-            panel: panel,
-            input: input,
+            keywordPanel: keywordPanel,
+            keywordInput: keywordInput,
             clearButton: clearButton,
             presetContainer: presetContainer,
             rememberCheckbox: rememberCheckbox
@@ -1275,40 +1331,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /**
      * 対象フォルダーパネルを組み立てる
-     * @param {Window} parent - 追加先のウィンドウ
+     * @param {Window} parentWindow - 追加先のウィンドウ
      * @param {Folder} targetFolder - 最初に表示するフォルダー
      * @param {boolean} remembersSettings - 「フルパス」の状態を覚えるかどうか
-     * @returns {{changeButton: Button, refreshPath: function(Folder): void}} 変更ボタンと表示更新関数
+     * @returns {{btnChangeFolder: Button, refreshPath: function(Folder): void}} 変更ボタンと表示更新関数
      */
-    function buildScriptFolderPanel(parent, targetFolder, remembersSettings) {
+    function buildScriptFolderPanel(parentWindow, targetFolder, remembersSettings) {
         var currentFolder = targetFolder;
         var showFullPath = readSessionState().showFullPath;
 
-        var panel = parent.add("panel", undefined, getLabel(LABELS.panel.scriptFolder));
-        setupPanel(panel, DENSE_SPACING);
+        var folderPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.scriptFolder));
+        setupPanel(folderPanel, DENSE_SPACING);
 
-        var row = panel.add("group");
-        setupRow(row, "fill", DENSE_SPACING);
+        var pathRow = folderPanel.add("group");
+        setupRow(pathRow, "fill", DENSE_SPACING);
 
         /* 入力欄に見せないよう statictext で表示し、長いパスは中央を省略する / Plain text, truncated in the middle */
-        var pathText = row.add("statictext", undefined, formatFolderPath(currentFolder, showFullPath), { truncate: "middle" });
+        var pathText = pathRow.add("statictext", undefined, formatFolderPath(currentFolder, showFullPath), { truncate: "middle" });
         pathText.preferredSize.width = FOLDER_PATH_WIDTH;
 
-        var changeButton = row.add("button", undefined, getLabel(LABELS.button.changeFolder));
-        changeButton.alignment = ["right", "center"];
-        applyButtonSize(changeButton, FOLDER_BUTTON_WIDTH);
+        var btnChangeFolder = pathRow.add("button", undefined, getLabel(LABELS.button.changeFolder));
+        btnChangeFolder.alignment = ["right", "center"];
+        applyButtonSize(btnChangeFolder, FOLDER_BUTTON_WIDTH);
 
-        var fullPathCheckbox = panel.add("checkbox", undefined, getLabel(LABELS.checkbox.showFullPath));
+        var fullPathCheckbox = folderPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.showFullPath));
         fullPathCheckbox.alignment = "left";
         fullPathCheckbox.value = showFullPath;
+        fullPathCheckbox.helpTip = getLabel(LABELS.tooltip.showFullPath);
 
         /**
          * パス表示を今のフォルダーと「フルパス」の状態に合わせる
-         * @param {Folder} [folder] - 新しいフォルダー。省略時は表示だけ更新する
+         * @param {Folder} [newFolder] - 新しいフォルダー。省略時は表示だけ更新する
          * @returns {void}
          */
-        function refreshPath(folder) {
-            if (folder) currentFolder = folder;
+        function refreshPath(newFolder) {
+            if (newFolder) currentFolder = newFolder;
             pathText.text = formatFolderPath(currentFolder, fullPathCheckbox.value);
         }
 
@@ -1317,46 +1374,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             if (remembersSettings) saveSessionState({ showFullPath: fullPathCheckbox.value });
             refreshPath();
         };
-        return { changeButton: changeButton, refreshPath: refreshPath };
+        return { btnChangeFolder: btnChangeFolder, refreshPath: refreshPath };
     }
 
     /**
      * 左右2本のリストを組み立てる
-     * @param {Window} parent - 追加先のウィンドウ
+     * @param {Window} parentWindow - 追加先のウィンドウ
      * @param {boolean} includeSubfolders - 「サブディレクトリを含む」の初期状態
      * @returns {{folderListBox: ListBox, subfoldersCheckbox: Checkbox, scriptListBox: ListBox}} リスト部品
      */
-    function buildListColumns(parent, includeSubfolders) {
+    function buildListColumns(parentWindow, includeSubfolders) {
         /* 左でフォルダーを選び、右にそのフォルダー内のファイル名だけを並べる / Folder on the left, file names on the right */
-        var row = parent.add("group");
-        setupRow(row, "fill", COLUMN_SPACING);
-        row.alignChildren = ["fill", "fill"];
+        var listRow = parentWindow.add("group");
+        setupRow(listRow, "fill", COLUMN_SPACING);
+        listRow.alignChildren = ["fill", "fill"];
 
-        var folderColumn = addListColumn(row, getLabel(LABELS.listCaption.folder));
+        var folderColumn = addListColumn(listRow, getLabel(LABELS.listCaption.folder));
         var folderListBox = folderColumn.add("listbox", undefined, [], { multiselect: false });
         folderListBox.preferredSize = FOLDER_LIST_SIZE;
+        folderListBox.helpTip = getLabel(LABELS.tooltip.folderList);
 
         var checkboxRow = folderColumn.add("group");
         setupRow(checkboxRow, "left", 0);
         checkboxRow.margins = [0, CHECKBOX_TOP_MARGIN, 0, 0];
         var subfoldersCheckbox = checkboxRow.add("checkbox", undefined, getLabel(LABELS.checkbox.includeSubfolders));
         subfoldersCheckbox.value = includeSubfolders;
+        subfoldersCheckbox.helpTip = getLabel(LABELS.tooltip.includeSubfolders);
 
-        var scriptColumn = addListColumn(row, getLabel(LABELS.listCaption.fileName));
+        var scriptColumn = addListColumn(listRow, getLabel(LABELS.listCaption.fileName));
         var scriptListBox = scriptColumn.add("listbox", undefined, [], { multiselect: false });
         scriptListBox.preferredSize = SCRIPT_LIST_SIZE;
+        scriptListBox.helpTip = getLabel(LABELS.tooltip.scriptList);
 
         return { folderListBox: folderListBox, subfoldersCheckbox: subfoldersCheckbox, scriptListBox: scriptListBox };
     }
 
     /**
      * ダイアログ下部のボタン列を組み立てる
-     * @param {Window} parent - 追加先のウィンドウ
-     * @returns {{settings: Button, cancel: Button, run: Button}} 3つのボタン
+     * @param {Window} parentWindow - 追加先のウィンドウ
+     * @returns {{btnPreferences: Button, btnCancel: Button, btnRun: Button}} 3つのボタン
      */
-    function buildDialogButtons(parent) {
+    function buildDialogButtons(parentWindow) {
         /* メイングループ（横並び） / Main group (horizontal layout) */
-        var btnRowGroup = parent.add("group");
+        var btnRowGroup = parentWindow.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         btnRowGroup.alignment = ["fill", "bottom"];
@@ -1382,7 +1442,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
         applyButtonSize(btnRun, DIALOG_BUTTON_WIDTH);
 
-        return { settings: btnPreferences, cancel: btnCancel, run: btnRun };
+        return { btnPreferences: btnPreferences, btnCancel: btnCancel, btnRun: btnRun };
+    }
+
+    /**
+     * Enter / Return でスクリプトを実行し、↓でキーワード欄からファイル名リストへ移るキー操作を組み込む
+     * @param {Window} launcherDialog - ランチャーのダイアログ
+     * @param {EditText} keywordInput - キーワード欄
+     * @param {ListBox} scriptListBox - ファイル名リスト
+     * @param {Function} runSelectedScript - 選択中のスクリプトを実行する関数
+     * @returns {void}
+     */
+    function bindLauncherKeys(launcherDialog, keywordInput, scriptListBox, runSelectedScript) {
+        keywordInput.addEventListener("keydown", function (event) {
+            if (event.keyName === "Down" && scriptListBox.items.length > 0) {
+                scriptListBox.active = true;
+                if (!scriptListBox.selection) scriptListBox.selection = 0;
+                event.preventDefault();
+            } else if (event.keyName === "Enter" || event.keyName === "Return") {
+                /* 絞り込みは onChanging / onChange で済んでいる。ここで組み直すと選択が先頭へ戻る */
+                runSelectedScript();
+                event.preventDefault();
+                if (event.stopPropagation) event.stopPropagation();
+            }
+        });
+
+        scriptListBox.addEventListener("keydown", function (event) {
+            if (event.keyName === "Enter" || event.keyName === "Return") {
+                runSelectedScript();
+                event.preventDefault();
+                if (event.stopPropagation) event.stopPropagation();
+            }
+        });
+
+        /* テンキーEnterを含め、ダイアログ内のどこにフォーカスがあっても実行する / Enter runs from anywhere */
+        launcherDialog.addEventListener("keydown", function (event) {
+            /* ボタンにフォーカスがあるときは、そのボタン自身の動作に任せる */
+            if (event.target && event.target.type === "button") return;
+            if (event.keyName === "Enter" || event.keyName === "Return") {
+                runSelectedScript();
+                event.preventDefault();
+            }
+        });
     }
 
     /**
@@ -1411,12 +1512,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         setupWindow(launcherDialog);
 
         /* 検索欄を最初の操作部品にして、起動時のフォーカスを安定させる / Keep the keyword field first */
-        var keywordUI = buildKeywordPanel(launcherDialog, sessionState.keyword, sessionState.remember);
-        var keywordPanel = keywordUI.panel;
-        var keywordInput = keywordUI.input;
-        var keywordClearButton = keywordUI.clearButton;
-        var keywordPresetContainer = keywordUI.presetContainer;
-        var rememberCheckbox = keywordUI.rememberCheckbox;
+        var keywordParts = buildKeywordPanel(launcherDialog, sessionState.keyword, sessionState.remember);
+        var keywordPanel = keywordParts.keywordPanel;
+        var keywordInput = keywordParts.keywordInput;
+        var keywordClearButton = keywordParts.clearButton;
+        var keywordPresetContainer = keywordParts.presetContainer;
+        var rememberCheckbox = keywordParts.rememberCheckbox;
 
         /* 絞り込み結果によく出る語をワンクリックで入れる / One-click presets from the filtered results */
         var storedSettings = readKeywordSettings();
@@ -1427,15 +1528,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var isDialogShown = false;
         reserveKeywordPresetHeight(keywordPresetContainer, presetMaxButtons);
 
-        var listUI = buildListColumns(launcherDialog, sessionState.includeSubfolders);
-        var folderListBox = listUI.folderListBox;
-        var includeSubfoldersCheckbox = listUI.subfoldersCheckbox;
-        var scriptListBox = listUI.scriptListBox;
+        var listParts = buildListColumns(launcherDialog, sessionState.includeSubfolders);
+        var folderListBox = listParts.folderListBox;
+        var includeSubfoldersCheckbox = listParts.subfoldersCheckbox;
+        var scriptListBox = listParts.scriptListBox;
 
         var dialogButtons = buildDialogButtons(launcherDialog);
-        var btnPreferences = dialogButtons.settings;
-        var btnCancel = dialogButtons.cancel;
-        var btnRun = dialogButtons.run;
+        var btnPreferences = dialogButtons.btnPreferences;
+        var btnCancel = dialogButtons.btnCancel;
+        var btnRun = dialogButtons.btnRun;
 
         var filteredScripts = [];
         var listedScripts = [];
@@ -1453,12 +1554,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
         /**
          * 絞り込み結果に合わせてキーワードボタンを作り直す
-         * @param {Array<ScriptEntry>} entries - 集計対象のスクリプト（現在の絞り込み結果）
+         * @param {Array<ScriptEntry>} filteredEntries - 集計対象のスクリプト（現在の絞り込み結果）
          * @param {Array<string>} searchTerms - 入力済みの検索語。これを含む語はボタンにしない
          * @returns {void}
          */
-        function refreshKeywordPresetButtons(entries, searchTerms) {
-            var presetWords = collectFrequentWords(entries, presetMinCount, presetMaxButtons, searchTerms);
+        function refreshKeywordPresetButtons(filteredEntries, searchTerms) {
+            var presetWords = collectFrequentWords(filteredEntries, presetMinCount, presetMaxButtons, searchTerms);
 
             /* 顔ぶれが変わらないなら作り直さない。1打鍵ごとの再構築を避ける / Skip the rebuild when nothing changed */
             var presetWordsKey = presetWords.join(" ");
@@ -1479,6 +1580,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
                 }
                 var presetButton = presetRow.add("button", undefined, capitalizeWord(presetWords[j]));
                 applyPresetButtonSize(presetButton);
+                presetButton.helpTip = getLabel(LABELS.tooltip.keywordPreset);
                 presetButton.onClick = makeKeywordPresetHandler(presetWords[j]);
             }
 
@@ -1552,9 +1654,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             refreshKeywordPresetButtons(filteredScripts, searchTerms);
 
             folderListBox.removeAll();
-            folderListBox.add("item", getLabel(LABELS.folderRow.allFolders));
+            folderListBox.add("item", getLabel(LABELS.listItem.allFolders));
             for (var j = 0; j < folderPaths.length; j++) {
-                var folderItem = folderListBox.add("item", folderPaths[j] === "" ? getLabel(LABELS.folderRow.rootFolder) : folderPaths[j]);
+                var folderItem = folderListBox.add("item", folderPaths[j] === "" ? getLabel(LABELS.listItem.rootFolder) : folderPaths[j]);
                 folderItem.folderPath = folderPaths[j];
             }
 
@@ -1757,16 +1859,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             handleKeywordChanged();
         };
         btnPreferences.onClick = function () {
-            var settings = showPreferencesDialog(targetFolder, presetMinCount, presetMaxButtons, rememberCheckbox.value);
-            if (!settings) return;
-            presetMinCount = settings.minCount;
-            presetMaxButtons = settings.maxButtons;
+            var preferences = showPreferencesDialog(targetFolder, presetMinCount, presetMaxButtons, rememberCheckbox.value);
+            if (!preferences) return;
+            presetMinCount = preferences.minCount;
+            presetMaxButtons = preferences.maxButtons;
             saveKeywordSettings(presetMinCount, presetMaxButtons);
 
             /* フォルダーが変わったら一覧を作り直すため、ダイアログを開き直す / Reopen the dialog to rescan */
-            if (settings.folder.fsName !== targetFolder.fsName) {
+            if (preferences.folder.fsName !== targetFolder.fsName) {
                 dialogResult.action = "changeFolder";
-                dialogResult.folder = settings.folder;
+                dialogResult.folder = preferences.folder;
                 closeLauncher(2);
                 return;
             }
@@ -1799,36 +1901,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             dialogResult.action = "cancel";
             closeLauncher();
         };
-        keywordInput.addEventListener("keydown", function (event) {
-            if (event.keyName === "Down" && scriptListBox.items.length > 0) {
-                scriptListBox.active = true;
-                if (!scriptListBox.selection) scriptListBox.selection = 0;
-                event.preventDefault();
-            } else if (event.keyName === "Enter" || event.keyName === "Return") {
-                /* 絞り込みは onChanging / onChange で済んでいる。ここで組み直すと選択が先頭へ戻る */
-                runSelectedScript();
-                event.preventDefault();
-                if (event.stopPropagation) event.stopPropagation();
-            }
-        });
-
-        scriptListBox.addEventListener("keydown", function (event) {
-            if (event.keyName === "Enter" || event.keyName === "Return") {
-                runSelectedScript();
-                event.preventDefault();
-                if (event.stopPropagation) event.stopPropagation();
-            }
-        });
-
-        /* テンキーEnterを含め、ダイアログ内のどこにフォーカスがあっても実行する / Enter runs from anywhere */
-        launcherDialog.addEventListener("keydown", function (event) {
-            /* ボタンにフォーカスがあるときは、そのボタン自身の動作に任せる */
-            if (event.target && event.target.type === "button") return;
-            if (event.keyName === "Enter" || event.keyName === "Return") {
-                runSelectedScript();
-                event.preventDefault();
-            }
-        });
+        bindLauncherKeys(launcherDialog, keywordInput, scriptListBox, runSelectedScript);
 
         /* セッションを見分けられない環境では覚えようがないので、操作させない / Nothing to remember without a session id */
         rememberCheckbox.enabled = !!readSessionId();
@@ -1915,9 +1988,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         try {
             $.evalFile(scriptFile);
         } catch (e) {
-            var message = formatLabel(getLabel(LABELS.alert.runFailed), [scriptFile.fsName, e.message]);
-            if (e.line) message += formatLabel(getLabel(LABELS.alert.errorLine), [e.line]);
-            alert(message, getLabel(LABELS.dialog.title));
+            var errorMessage = formatLabel(getLabel(LABELS.alert.runFailed), [scriptFile.fsName, e.message]);
+            if (e.line) errorMessage += formatLabel(getLabel(LABELS.alert.errorLine), [e.line]);
+            alert(errorMessage, getLabel(LABELS.dialog.title));
         }
     }
 

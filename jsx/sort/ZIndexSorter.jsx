@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "ZIndexSorter";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md"; /* README (English) */
@@ -36,269 +36,274 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_OFFSET_X = 300;  /* 表示位置を右へずらす量 / shift the dialog right by this much */
+    var DIALOG_OFFSET_Y = 0;    /* 表示位置を下へずらす量 / shift the dialog down by this much */
+    var DIALOG_OPACITY = 0.97;  /* ダイアログの不透明度 / dialog opacity */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
     var LABELS = {
-        dialogTitle: {
-            ja: "重ね順ソート " + SCRIPT_VERSION,
-            en: "Z-Index Sorter " + SCRIPT_VERSION
+        dialog: {
+            title: { ja: "重ね順ソート", en: "Z-Index Sorter" }
         },
-        sortMethod: {
-            ja: "ソート方法",
-            en: "Sort Method"
+        panel: {
+            sortMethod: { ja: "ソート方法", en: "Sort Method" },
+            orderMethod: { ja: "並び順", en: "Order" }
         },
-        orderMethod: {
-            ja: "並び順",
-            en: "Order"
+        radio: {
+            zOrder: { ja: "現在の重ね順", en: "Current Z-Order" },
+            xAxis: { ja: "X軸", en: "X Axis" },
+            yAxis: { ja: "Y軸", en: "Y Axis" },
+            asc: { ja: "昇順", en: "Ascending" },
+            desc: { ja: "降順", en: "Descending" },
+            random: { ja: "ランダム", en: "Random" }
         },
-        zOrder: {
-            ja: "現在の重ね順",
-            en: "Current Z-Order"
-        },
-        xAxis: {
-            ja: "X軸",
-            en: "X Axis"
-        },
-        yAxis: {
-            ja: "Y軸",
-            en: "Y Axis"
-        },
-        asc: {
-            ja: "昇順",
-            en: "Ascending"
-        },
-        desc: {
-            ja: "降順",
-            en: "Descending"
-        },
-        rand: {
-            ja: "ランダム",
-            en: "Random"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        tipZOrder: { ja: "いまの重ね順をそのまま基準にします。並び順だけを変えたいときに使います。", en: "Uses the current stacking order as the basis. Pick this when only the direction should change." },
-        tipXAxis:  { ja: "X座標を基準に重ね順を組み直します。", en: "Restacks the objects by their X position." },
-        tipYAxis:  { ja: "Y座標を基準に重ね順を組み直します。", en: "Restacks the objects by their Y position." },
-        tipAsc:    { ja: "基準の値が小さいものほど背面にします。", en: "Puts objects with smaller values further back." },
-        tipDesc:   { ja: "基準の値が大きいものほど背面にします。", en: "Puts objects with larger values further back." },
-        tipRand:   { ja: "基準と関係なく、重ね順をシャッフルします。", en: "Shuffles the stacking order regardless of the basis." },
-        errors: {
-            selectMore: {
-                ja: "2つ以上のオブジェクトを選択してください。",
-                en: "Please select two or more objects."
+        tooltip: {
+            zOrder: {
+                ja: "いまの重ね順をそのまま基準にします。並び順だけを変えたいときに使います。",
+                en: "Uses the current stacking order as the basis. Pick this when only the direction should change."
             },
-            noDocument: {
-                ja: "ドキュメントが開かれていません。",
-                en: "No document is open."
-            }
+            xAxis: { ja: "X座標を基準に重ね順を組み直します。", en: "Restacks the objects by their X position." },
+            yAxis: { ja: "Y座標を基準に重ね順を組み直します。", en: "Restacks the objects by their Y position." },
+            asc: { ja: "基準の値が小さいものほど背面にします。", en: "Puts objects with smaller values further back." },
+            desc: { ja: "基準の値が大きいものほど背面にします。", en: "Puts objects with larger values further back." },
+            random: { ja: "基準と関係なく、重ね順をシャッフルします。", en: "Shuffles the stacking order regardless of the basis." }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            selectMore: { ja: "2つ以上のオブジェクトを選択してください。", en: "Please select two or more objects." },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
         }
     };
 
-    function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "dialog.title" のようなパス
+     * @returns {string} 表示言語のテキスト（見つからなければパスそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en;
     }
-    var uiLang = getCurrentLang();
 
-    /* アイテムを基準アイテムの前に順に配置 / Reorder items based on the first element */
-    function reorderItems(items) {
-        var baseItem = items[0];
-        for (var j = items.length - 1; j >= 0; j--) {
-            if (items[j] !== baseItem) {
-                items[j].move(baseItem, ElementPlacement.PLACEBEFORE);
+    // =========================================
+    // 重ね順 / Stacking order
+    // =========================================
+
+    /**
+     * 先頭のオブジェクトの前面へ、末尾から順に移す（配列の先頭ほど背面になる）
+     * @param {PageItem[]} orderedItems - 並べたい順のオブジェクト
+     * @returns {void}
+     */
+    function reorderItems(orderedItems) {
+        var baseItem = orderedItems[0];
+        for (var j = orderedItems.length - 1; j >= 0; j--) {
+            if (orderedItems[j] !== baseItem) {
+                orderedItems[j].move(baseItem, ElementPlacement.PLACEBEFORE);
             }
         }
     }
 
-    /* 選択アイテムの重ね順を逆転 / Reverse Z-order of selected items */
-    function reverseZOrder(currentSelection) {
-        if (!currentSelection || currentSelection.length < 2) {
-            alert(LABELS.errors.selectMore[uiLang]);
-            return;
+    /**
+     * 選択を JavaScript の配列に写す
+     * @param {PageItem[]} docSelection - 選択オブジェクト
+     * @returns {PageItem[]} 写した配列
+     */
+    function copyItems(docSelection) {
+        var copiedItems = [];
+        for (var i = 0; i < docSelection.length; i++) {
+            copiedItems.push(docSelection[i]);
         }
-        var items = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            items.push(currentSelection[i]);
-        }
-        reorderItems(items);
+        return copiedItems;
     }
 
-    /* Fisher-Yatesアルゴリズムで配列をシャッフル / Shuffle array with Fisher-Yates */
-    function fisherYatesShuffle(array) {
-        for (var i = array.length - 1; i > 0; i--) {
+    /**
+     * 配列の順序をシャッフルする（Fisher–Yates、直接書き換える）
+     * @param {PageItem[]} targetItems - 対象の配列
+     * @returns {void}
+     */
+    function shuffleItems(targetItems) {
+        for (var i = targetItems.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
-            var temp = array[i];
-            array[i] = array[j];
-            array[j] = temp;
+            var swapItem = targetItems[i];
+            targetItems[i] = targetItems[j];
+            targetItems[j] = swapItem;
         }
-        return array;
     }
 
-    /* 指定軸で選択アイテムを並べ替え / Sort selected items by specified axis */
-    function sortByAxis(currentSelection, axis, order) {
-        if (!currentSelection || currentSelection.length < 2) {
-            alert(LABELS.errors.selectMore[uiLang]);
-            return;
-        }
-        var items = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            items.push(currentSelection[i]);
-        }
-
+    /**
+     * X 座標または Y 座標（上端）で並べ替えて重ね順を組み直す
+     * @param {PageItem[]} docSelection - 選択オブジェクト（2つ以上）
+     * @param {string} axis - "x" / "y"
+     * @param {string} order - "asc" / "desc" / "rand"
+     * @returns {void}
+     */
+    function sortByAxis(docSelection, axis, order) {
+        var targetItems = copyItems(docSelection);
         if (order === "rand") {
-            items = fisherYatesShuffle(items);
+            shuffleItems(targetItems);
         } else {
-            items.sort(function(a, b) {
-                var aVal = (axis === "x") ? a.geometricBounds[0] : a.geometricBounds[1];
-                var bVal = (axis === "x") ? b.geometricBounds[0] : b.geometricBounds[1];
-                if (axis === "y") {
-                    return (order === "desc") ? aVal - bVal : bVal - aVal;
-                } else {
-                    return (order === "desc") ? bVal - aVal : aVal - bVal;
-                }
+            var boundsIndex = (axis === "x") ? 0 : 1;
+            /* Y は上ほど値が大きいので、X と昇順・降順を逆にする / Y grows upward, so flip the direction for Y */
+            var numericAscending = (axis === "y") ? (order === "desc") : (order !== "desc");
+            targetItems.sort(function (a, b) {
+                var aValue = a.geometricBounds[boundsIndex];
+                var bValue = b.geometricBounds[boundsIndex];
+                return numericAscending ? aValue - bValue : bValue - aValue;
             });
         }
-
-        reorderItems(items);
+        reorderItems(targetItems);
     }
 
-    /* X軸で並べ替え / Sort by X axis */
-    function sortByXAxis(currentSelection, order) {
-        sortByAxis(currentSelection, "x", order);
-    }
-
-    /* Y軸で並べ替え / Sort by Y axis */
-    function sortByYAxis(currentSelection, order) {
-        sortByAxis(currentSelection, "y", order);
-    }
-
-    /* 有効な選択を返す。なければ null / Return valid selection or null */
+    /**
+     * 有効な選択を返す。ドキュメントが無い、または2つ未満なら知らせて null
+     * @returns {PageItem[]|null} 選択オブジェクト
+     */
     function getValidSelection() {
         if (app.documents.length === 0) {
-            alert(LABELS.errors.noDocument[uiLang]);
+            alert(getLabel("alert.noDocument"));
             return null;
         }
-        var doc = app.activeDocument;
-        var currentSelection = doc.selection;
-        if (!currentSelection || currentSelection.length < 2) {
-            alert(LABELS.errors.selectMore[uiLang]);
+        var docSelection = app.activeDocument.selection;
+        if (!docSelection || docSelection.length < 2) {
+            alert(getLabel("alert.selectMore"));
             return null;
         }
-        return currentSelection;
+        return docSelection;
     }
 
-    function main() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
-        dialog.alignChildren = "left";
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-        var doc = app.activeDocument;
-        var currentSelection = doc.selection;
-        var originalOrder = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            originalOrder.push(currentSelection[i]);
+    /**
+     * ラジオボタンのパネルを作る
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {string} titlePath - パネル名の LABELS パス
+     * @param {string[]} radioKeys - radio / tooltip の LABELS キー
+     * @returns {RadioButton[]} 作ったラジオボタン（先頭を選択済み）
+     */
+    function addRadioPanel(parentWindow, titlePath, radioKeys) {
+        var radioPanel = parentWindow.add("panel", undefined, getLabel(titlePath));
+        radioPanel.orientation = "column";
+        radioPanel.alignChildren = "left";
+        radioPanel.margins = [15, 20, 15, 10];
+        var panelRadios = [];
+        for (var i = 0; i < radioKeys.length; i++) {
+            var panelRadio = radioPanel.add("radiobutton", undefined, getLabel("radio." + radioKeys[i]));
+            panelRadio.helpTip = getLabel("tooltip." + radioKeys[i]);
+            panelRadios.push(panelRadio);
         }
+        panelRadios[0].value = true;
+        return panelRadios;
+    }
 
-        var sortPanel = dialog.add("panel", undefined, LABELS.sortMethod[uiLang]);
-        sortPanel.orientation = "column";
-        sortPanel.alignChildren = "left";
-        sortPanel.margins = [15, 20, 15, 10];
-        var rbZOrder = sortPanel.add("radiobutton", undefined, LABELS.zOrder[uiLang]);
-        rbZOrder.helpTip = LABELS.tipZOrder[uiLang];
-        var rbXAxis  = sortPanel.add("radiobutton", undefined, LABELS.xAxis[uiLang]);
-        rbXAxis.helpTip = LABELS.tipXAxis[uiLang];
-        var rbYAxis  = sortPanel.add("radiobutton", undefined, LABELS.yAxis[uiLang]);
-        rbYAxis.helpTip = LABELS.tipYAxis[uiLang];
-        rbZOrder.value = true;
+    /**
+     * ダイアログを開いたときに表示位置をずらす
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @param {number} offsetX - 右へずらす量
+     * @param {number} offsetY - 下へずらす量
+     * @returns {void}
+     */
+    function shiftDialogPosition(targetDialog, offsetX, offsetY) {
+        targetDialog.onShow = function () {
+            var currentX = targetDialog.location[0];
+            var currentY = targetDialog.location[1];
+            targetDialog.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
 
-        var orderPanel = dialog.add("panel", undefined, LABELS.orderMethod[uiLang]);
-        orderPanel.orientation = "column";
-        orderPanel.alignChildren = "left";
-        orderPanel.margins = [15, 20, 15, 10];
-        var rbAsc  = orderPanel.add("radiobutton", undefined, LABELS.asc[uiLang]);
-        rbAsc.helpTip = LABELS.tipAsc[uiLang];
-        var rbDesc = orderPanel.add("radiobutton", undefined, LABELS.desc[uiLang]);
-        rbDesc.helpTip = LABELS.tipDesc[uiLang];
-        var rbRand = orderPanel.add("radiobutton", undefined, LABELS.rand[uiLang]);
-        rbRand.helpTip = LABELS.tipRand[uiLang];
-        rbAsc.value = true;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-        var btnGroup = dialog.add("group");
-        btnGroup.orientation = "row";
-        btnGroup.alignment = ["right", "bottom"];
-        var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[uiLang], {name: "cancel"});
-        var btnOK = btnGroup.add("button", undefined, LABELS.ok[uiLang], {name: "ok"});
+    /**
+     * ダイアログを出し、ラジオボタンを押すたびに重ね順を組み直す。キャンセルで元の順へ戻す
+     * @returns {void}
+     */
+    function main() {
+        var sortDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        sortDialog.alignChildren = "left";
 
-        var currentOrder = "asc";
+        var originalItems = copyItems(app.activeDocument.selection);
 
-        function applyPreviewWithOrder() {
-            if (rbRand.value) {
-                currentOrder = "rand";
-            } else if (rbDesc.value) {
-                currentOrder = "desc";
-            } else {
-                currentOrder = "asc";
+        var methodRadios = addRadioPanel(sortDialog, "panel.sortMethod", ["zOrder", "xAxis", "yAxis"]);
+        var zOrderRadio = methodRadios[0];
+        var xAxisRadio = methodRadios[1];
+        var yAxisRadio = methodRadios[2];
+
+        var orderRadios = addRadioPanel(sortDialog, "panel.orderMethod", ["asc", "desc", "random"]);
+        var descRadio = orderRadios[1];
+        var randomRadio = orderRadios[2];
+
+        var btnRowGroup = sortDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["right", "bottom"];
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOk = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        /**
+         * 選んだ基準と並び順で重ね順を組み直す（ラジオボタンを押すたびに呼ぶ）
+         * @returns {void}
+         */
+        function previewSort() {
+            var order = "asc";
+            if (randomRadio.value) {
+                order = "rand";
+            } else if (descRadio.value) {
+                order = "desc";
             }
 
-            var currentSelection = getValidSelection();
-            if (!currentSelection) return;
+            var docSelection = getValidSelection();
+            if (!docSelection) return;
 
-            switch (true) {
-                case rbZOrder.value:
-                    reverseZOrder(currentSelection);
-                    break;
-                case rbXAxis.value:
-                    sortByXAxis(currentSelection, currentOrder);
-                    break;
-                case rbYAxis.value:
-                    sortByYAxis(currentSelection, currentOrder);
-                    break;
+            if (zOrderRadio.value) {
+                /* 現在の重ね順：押すたびに逆順にする / current order: reverse on every click */
+                reorderItems(copyItems(docSelection));
+            } else if (xAxisRadio.value) {
+                sortByAxis(docSelection, "x", order);
+            } else if (yAxisRadio.value) {
+                sortByAxis(docSelection, "y", order);
             }
             app.redraw();
         }
 
-        rbZOrder.onClick = applyPreviewWithOrder;
-        rbXAxis.onClick  = applyPreviewWithOrder;
-        rbYAxis.onClick  = applyPreviewWithOrder;
-        rbAsc.onClick    = applyPreviewWithOrder;
-        rbDesc.onClick   = applyPreviewWithOrder;
-        rbRand.onClick   = applyPreviewWithOrder;
+        var allRadios = methodRadios.concat(orderRadios);
+        for (var i = 0; i < allRadios.length; i++) {
+            allRadios[i].onClick = previewSort;
+        }
 
-        btnOK.onClick = function() {
-            dialog.close(1);
+        btnOk.onClick = function () {
+            sortDialog.close(1);
         };
-
-        btnCancel.onClick = function() {
-            if (originalOrder.length > 0) {
-                reorderItems(originalOrder);
+        btnCancel.onClick = function () {
+            if (originalItems.length > 0) {
+                reorderItems(originalItems);
                 app.redraw();
             }
-            dialog.close(0);
+            sortDialog.close(0);
         };
 
-        var offsetX = 300;
-        var offsetY = 0;
-        var dialogOpacity = 0.97;
+        sortDialog.opacity = DIALOG_OPACITY;
+        shiftDialogPosition(sortDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
-        function shiftDialogPosition(dialog, offsetX, offsetY) {
-            dialog.onShow = function () {
-                var currentX = dialog.location[0];
-                var currentY = dialog.location[1];
-                dialog.location = [currentX + offsetX, currentY + offsetY];
-            };
-        }
-
-        function setDialogOpacity(dialog, opacityValue) {
-            dialog.opacity = opacityValue;
-        }
-
-        setDialogOpacity(dialog, dialogOpacity);
-        shiftDialogPosition(dialog, offsetX, offsetY);
-
-        dialog.show();
+        sortDialog.show();
     }
 
     main();

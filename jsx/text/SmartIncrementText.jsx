@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md"; /* README (English) */
@@ -70,10 +70,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * UIの表示言語を返す
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -266,11 +267,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {string} 組み立てたテキスト
      */
     function rebuildText(tokens) {
-        var text = literalSegments[0];
+        var rebuiltText = literalSegments[0];
         for (var i = 0; i < tokens.length; i++) {
-            text += String(tokens[i]) + literalSegments[i + 1];
+            rebuiltText += String(tokens[i]) + literalSegments[i + 1];
         }
-        return text;
+        return rebuiltText;
     }
 
     /**
@@ -358,6 +359,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
     var targetDigitLength = String(sourceTokens[targetTokenIndex]).length;
 
+    /* 複製の送りと結合時の行送りの基準にする文字サイズ / font size used for the pitch and the merged leading */
+    var sourceFontSizePt = sourceTextFrame.textRange.characterAttributes.size;
+    if (isNaN(sourceFontSizePt) || sourceFontSizePt <= 0) sourceFontSizePt = FALLBACK_FONT_SIZE_PT;
+
     // =========================================
     // 増分の計算 / Increment helpers
     // =========================================
@@ -369,14 +374,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {string} ゼロ埋めした文字列
      */
     function zeroPad(value, length) {
-        var text = String(value);
+        var digits = String(value);
         var sign = "";
-        if (text.charAt(0) === "-") {
+        if (digits.charAt(0) === "-") {
             sign = "-";
-            text = text.substring(1);
+            digits = digits.substring(1);
         }
-        while (text.length < length) text = "0" + text;
-        return sign + text;
+        while (digits.length < length) digits = "0" + digits;
+        return sign + digits;
     }
 
     /**
@@ -406,9 +411,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {string} 英字1文字
      */
     function numberToAlpha(value, isLowerCase) {
-        var number = Math.floor(Number(value));
-        if (!isFinite(number) || number <= 0) number = 1;
-        var offset = ((number - 1) % 26 + 26) % 26;
+        var letterNumber = Math.floor(Number(value));
+        if (!isFinite(letterNumber) || letterNumber <= 0) letterNumber = 1;
+        var offset = ((letterNumber - 1) % 26 + 26) % 26;
         var alphaToken = String.fromCharCode(65 + offset);
         return isLowerCase ? alphaToken.toLowerCase() : alphaToken;
     }
@@ -428,9 +433,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {{has: boolean, style: string, left: string, right: string}} 曜日の有無と囲み記号
      */
     function detectWeekdayInfo(text) {
-        var matched = text.match(/([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/);
-        if (!matched) return { has: false };
-        return { has: true, style: (matched[2].length === 1) ? "ja" : "en", left: matched[1], right: matched[3] };
+        var weekdayMatch = text.match(/([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/);
+        if (!weekdayMatch) return { has: false };
+        return { has: true, style: (weekdayMatch[2].length === 1) ? "ja" : "en", left: weekdayMatch[1], right: weekdayMatch[3] };
     }
 
     var weekdayInfo = detectWeekdayInfo(sourceText);
@@ -740,9 +745,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {void}
      */
     function applySettingsToSourceText() {
-        var contents = buildSourceContents();
-        if (contents === null) return;
-        setSourceContents(contents);
+        var sourceContents = buildSourceContents();
+        if (sourceContents === null) return;
+        setSourceContents(sourceContents);
     }
 
     /**
@@ -759,16 +764,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
         var pitchPt = sourceFontSizePt + unitValueToPt(gapValue, textUnitInfo);
         var stepValue = getStepValue();
         var baseTokens = buildBaseTokens();
-        var copies = [];
+        var createdCopies = [];
 
         for (var i = 1; i <= copyCount; i++) {
-            var copy = sourceTextFrame.duplicate();
-            copy.top = sourceTextFrame.top - (pitchPt * i);
-            copy.left = sourceTextFrame.left;
-            copy.contents = buildIncrementedText(baseTokens, i * stepValue);
-            copies.push(copy);
+            var textCopy = sourceTextFrame.duplicate();
+            textCopy.top = sourceTextFrame.top - (pitchPt * i);
+            textCopy.left = sourceTextFrame.left;
+            textCopy.contents = buildIncrementedText(baseTokens, i * stepValue);
+            createdCopies.push(textCopy);
         }
-        return copies;
+        return createdCopies;
     }
 
     /**
@@ -777,11 +782,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      */
     function mergeCopiesIntoSource() {
         var savedPosition = getTextFramePosition(sourceTextFrame);
-        var lines = [String(sourceTextFrame.contents)];
+        var mergedLines = [String(sourceTextFrame.contents)];
         for (var i = 0; i < previewItems.length; i++) {
-            lines.push(String(previewItems[i].contents));
+            mergedLines.push(String(previewItems[i].contents));
         }
-        sourceTextFrame.contents = lines.join("\r");
+        sourceTextFrame.contents = mergedLines.join("\r");
 
         /* 行送り＝文字サイズ＋［アキ］ / Leading = font size + the gap field */
         var fontSizePt = sourceTextFrame.textRange.characterAttributes.size;
@@ -861,12 +866,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
         }
         if (!savedValue) return null;
 
-        var parts = savedValue.split(",");
-        if (parts.length !== 2) return null;
-        var x = parseFloat(parts[0]);
-        var y = parseFloat(parts[1]);
-        if (isNaN(x) || isNaN(y)) return null;
-        return [x, y];
+        var positionParts = savedValue.split(",");
+        if (positionParts.length !== 2) return null;
+        var savedX = parseFloat(positionParts[0]);
+        var savedY = parseFloat(positionParts[1]);
+        if (isNaN(savedX) || isNaN(savedY)) return null;
+        return [savedX, savedY];
     }
 
     /**
@@ -875,9 +880,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
      * @returns {void}
      */
     function saveDialogPosition(dialogWindow) {
-        var location = dialogWindow.location;
-        if (!location) return;
-        app.preferences.setStringPreference(DIALOG_POSITION_PREF_KEY, String(location[0]) + "," + String(location[1]));
+        var dialogLocation = dialogWindow.location;
+        if (!dialogLocation) return;
+        app.preferences.setStringPreference(DIALOG_POSITION_PREF_KEY, String(dialogLocation[0]) + "," + String(dialogLocation[1]));
     }
 
     // =========================================
@@ -921,71 +926,90 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
     /**
      * 行の左端に置く項目名を作る
-     * @param {Group} row - 追加先の行
+     * @param {Group} targetRow - 追加先の行
      * @param {object} labelSet - 項目名のラベル定義
      * @returns {StaticText} 作成した項目名
      */
-    function addRowLabel(row, labelSet) {
-        var rowLabel = row.add("statictext", undefined, labelText(labelSet));
+    function addRowLabel(targetRow, labelSet) {
+        var rowLabel = targetRow.add("statictext", undefined, labelText(labelSet));
         rowLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         rowLabel.justify = "right";
         return rowLabel;
     }
 
     /**
+     * 横並びの行（左寄せ・上下中央）を追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @returns {Group} 作成した行
+     */
+    function addRow(parentGroup) {
+        var newRow = parentGroup.add("group");
+        newRow.orientation = "row";
+        newRow.alignChildren = ["left", "center"];
+        return newRow;
+    }
+
+    /**
      * 「項目名＋入力欄」の行を作る
-     * @param {Group} parent - 追加先のグループ
+     * @param {Group} parentGroup - 追加先のグループ
      * @param {object} labelSet - 項目名のラベル定義
      * @param {string} initialValue - 入力欄の初期値
      * @param {number} fieldChars - 入力欄の文字数
      * @param {object} tooltipSet - 入力欄のツールチップ定義
-     * @returns {{row: Group, input: EditText}} 作成した行と入力欄
+     * @returns {{fieldRow: Group, fieldInput: EditText}} 作成した行と入力欄
      */
-    function addFieldRow(parent, labelSet, initialValue, fieldChars, tooltipSet) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        addRowLabel(row, labelSet);
+    function addFieldRow(parentGroup, labelSet, initialValue, fieldChars, tooltipSet) {
+        var fieldRow = addRow(parentGroup);
+        addRowLabel(fieldRow, labelSet);
 
-        var input = row.add("edittext", undefined, initialValue);
-        input.characters = fieldChars;
-        input.helpTip = getLabel(tooltipSet);
-        return { row: row, input: input };
+        var fieldInput = fieldRow.add("edittext", undefined, initialValue);
+        fieldInput.characters = fieldChars;
+        fieldInput.helpTip = getLabel(tooltipSet);
+        return { fieldRow: fieldRow, fieldInput: fieldInput };
     }
 
-    var sourceFontSizePt = sourceTextFrame.textRange.characterAttributes.size;
-    if (isNaN(sourceFontSizePt) || sourceFontSizePt <= 0) sourceFontSizePt = FALLBACK_FONT_SIZE_PT;
+    /**
+     * チェックボックス1つの行を作る
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {object} labelSet - チェックボックスのラベル定義
+     * @param {object} tooltipSet - ツールチップ定義
+     * @returns {{checkboxRow: Group, checkbox: Checkbox}} 作成した行とチェックボックス
+     */
+    function addCheckboxRow(parentGroup, labelSet, tooltipSet) {
+        var checkboxRow = addRow(parentGroup);
+        var rowCheckbox = checkboxRow.add("checkbox", undefined, getLabel(labelSet));
+        rowCheckbox.helpTip = getLabel(tooltipSet);
+        return { checkboxRow: checkboxRow, checkbox: rowCheckbox };
+    }
 
-    var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-    dialog.orientation = "column";
-    dialog.alignChildren = "fill";
+    var incrementDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    incrementDialog.orientation = "column";
+    incrementDialog.alignChildren = "fill";
 
     var savedDialogPosition = readDialogPosition();
-    if (savedDialogPosition) dialog.location = savedDialogPosition;
+    if (savedDialogPosition) incrementDialog.location = savedDialogPosition;
 
-    var settingsGroup = dialog.add("group");
+    var settingsGroup = incrementDialog.add("group");
     settingsGroup.orientation = "column";
     settingsGroup.alignChildren = "left";
 
     /* 複製数 / Copies */
-    var countInput = addFieldRow(settingsGroup, LABELS.fieldLabel.copyCount, String(DEFAULT_COPY_COUNT), NUMBER_FIELD_CHARS, LABELS.tooltip.copyCount).input;
+    var countInput = addFieldRow(settingsGroup, LABELS.fieldLabel.copyCount, String(DEFAULT_COPY_COUNT), NUMBER_FIELD_CHARS, LABELS.tooltip.copyCount).fieldInput;
 
     /* 増分 / Step */
-    var stepInput = addFieldRow(settingsGroup, LABELS.fieldLabel.stepValue, String(DEFAULT_STEP), NUMBER_FIELD_CHARS, LABELS.tooltip.stepValue).input;
+    var stepInput = addFieldRow(settingsGroup, LABELS.fieldLabel.stepValue, String(DEFAULT_STEP), NUMBER_FIELD_CHARS, LABELS.tooltip.stepValue).fieldInput;
 
     /* アキ（文字サイズに足す量） / Gap added on top of the font size */
     var defaultGapPt = sourceFontSizePt * (DEFAULT_PITCH_RATIO - 1);
     if (defaultGapPt < 0) defaultGapPt = 0;
     var gapRow = addFieldRow(settingsGroup, LABELS.fieldLabel.gap, ptToUnitValue(defaultGapPt, textUnitInfo).toFixed(1), NUMBER_FIELD_CHARS, LABELS.tooltip.gap);
-    var gapInput = gapRow.input;
-    gapRow.row.add("statictext", undefined, textUnitInfo.label);
+    var gapInput = gapRow.fieldInput;
+    gapRow.fieldRow.add("statictext", undefined, textUnitInfo.label);
 
     /* 増分対象（候補が複数あるときだけ作る） / Increment target (only when there is a choice) */
     var targetRadios = [];
     if (targetRadioLabels.length > 1) {
-        var targetRow = settingsGroup.add("group");
-        targetRow.orientation = "row";
-        targetRow.alignChildren = ["left", "center"];
+        var targetRow = addRow(settingsGroup);
         addRowLabel(targetRow, LABELS.fieldLabel.incrementTarget);
 
         var targetRadioGroup = targetRow.add("group");
@@ -1001,38 +1025,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     }
 
     /* 開始値 / Start value */
-    var startRow = settingsGroup.add("group");
-    startRow.orientation = "row";
-    startRow.alignChildren = ["left", "center"];
+    var startRow = addCheckboxRow(settingsGroup, LABELS.checkbox.startOverride, LABELS.tooltip.startOverride);
+    var startOverrideCheckbox = startRow.checkbox;
 
-    var startOverrideCheckbox = startRow.add("checkbox", undefined, getLabel(LABELS.checkbox.startOverride));
-    startOverrideCheckbox.helpTip = getLabel(LABELS.tooltip.startOverride);
-
-    var startValueInput = startRow.add("edittext", undefined, String(sourceTokens[targetTokenIndex]));
+    var startValueInput = startRow.checkboxRow.add("edittext", undefined, String(sourceTokens[targetTokenIndex]));
     startValueInput.characters = START_FIELD_CHARS;
     startValueInput.helpTip = getLabel(LABELS.tooltip.startValue);
     startValueInput.enabled = false;
 
     /* ゼロ埋め / Zero padding */
-    var zeroPadRow = settingsGroup.add("group");
-    zeroPadRow.orientation = "row";
-    zeroPadRow.alignChildren = ["left", "center"];
-
-    var zeroPadCheckbox = zeroPadRow.add("checkbox", undefined, getLabel(LABELS.checkbox.zeroPad));
-    zeroPadCheckbox.helpTip = getLabel(LABELS.tooltip.zeroPad);
+    var zeroPadCheckbox = addCheckboxRow(settingsGroup, LABELS.checkbox.zeroPad, LABELS.tooltip.zeroPad).checkbox;
     zeroPadCheckbox.value = DEFAULT_ZERO_PAD;
 
     /* 確定時にテキストを結合 / Merge text on OK */
-    var mergeRow = settingsGroup.add("group");
-    mergeRow.orientation = "row";
-    mergeRow.alignChildren = ["left", "center"];
-
-    var mergeOnOKCheckbox = mergeRow.add("checkbox", undefined, getLabel(LABELS.checkbox.mergeOnOK));
-    mergeOnOKCheckbox.helpTip = getLabel(LABELS.tooltip.mergeOnOK);
+    var mergeOnOKCheckbox = addCheckboxRow(settingsGroup, LABELS.checkbox.mergeOnOK, LABELS.tooltip.mergeOnOK).checkbox;
     mergeOnOKCheckbox.value = DEFAULT_MERGE_ON_OK;
 
     /* ボタンエリア / Buttons */
-    var btnRowGroup = dialog.add("group");
+    var btnRowGroup = incrementDialog.add("group");
     btnRowGroup.orientation = "row";
     btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
     btnRowGroup.alignment = ["fill", "bottom"];
@@ -1086,7 +1096,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     changeValueByArrowKey(startValueInput, false, updatePreview, true);
 
     btnCancel.onClick = function () {
-        dialog.close();
+        incrementDialog.close();
     };
 
     btnOK.onClick = function () {
@@ -1099,17 +1109,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
         /* 複製は確定したので、プレビューの管理対象から外す / keep the copies in the document */
         previewItems = [];
-        dialog.close();
+        incrementDialog.close();
     };
 
     /* タイトルバーの×で閉じたときも、プレビューを消して元のテキストに戻す / Also covers the close box */
-    dialog.onClose = function () {
-        saveDialogPosition(dialog);
+    incrementDialog.onClose = function () {
+        saveDialogPosition(incrementDialog);
         if (closedWithOK) return;
         restoreSourceText();
     };
 
     updatePreview();
-    dialog.show();
+    incrementDialog.show();
 
 })();

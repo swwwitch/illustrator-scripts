@@ -43,7 +43,7 @@ var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -87,52 +87,63 @@ var PALETTES = [
 // =========================================
 // ローカライズ / Localization
 // =========================================
-/* 現在の言語を判定（ロケールが ja 始まりなら日本語）/ Detect UI language (Japanese if locale starts with "ja") */
-function getCurrentLang() {
+/**
+ * UI の表示言語を判定する（ロケールが ja 始まりなら日本語）
+ * @returns {string} "ja" または "en"
+ */
+function detectUILanguage() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var currentLanguage = getCurrentLang();
+var uiLang = detectUILanguage();
 
 var LABELS = {
-    message: {
+    alert: {
         closedSome: { ja: "個のパレットを閉じました:", en: " palette(s) closed:" },
         closedNone: { ja: "開いているパレットはありませんでした。", en: "No open palettes were found." }
     }
 };
 
-/* ラベルノードから現在言語の文言を返す / Resolve a label node to the current language */
-function L(labelNode) {
-    if (!labelNode) return "";
-    return labelNode[currentLanguage] || labelNode.en || "";
+/**
+ * ラベルから表示言語の文言を返す
+ * @param {Object} labelEntry - ja / en を持つラベル
+ * @returns {string} 表示言語の文言（無ければ英語、それも無ければ空文字）
+ */
+function getLabel(labelEntry) {
+    if (!labelEntry) return "";
+    return labelEntry[uiLang] || labelEntry.en || "";
 }
 
 (function () {
 
-    var closedNames = [];   // 実際に閉じたパレット名 / Names of palettes actually closed
-    var bridges = [];       // 応答が返るまで参照を保持（GC 防止）/ Keep references until responses return (prevent GC)
+    var closedNames = [];         // 実際に閉じたパレット名 / Names of palettes actually closed
+    var pendingBridgeTalks = [];  // 応答が返るまで参照を保持（GC 防止）/ Keep references until responses return (prevent GC)
 
-    /* 閉じた結果をまとめて表示 / Show a summary of what was closed */
+    /**
+     * 閉じた結果をまとめて表示する
+     * @returns {void}
+     */
     function showSummary() {
         if (closedNames.length === 0) {
-            alert(L(LABELS.message.closedNone));
+            alert(getLabel(LABELS.alert.closedNone));
             return;
         }
-        alert(closedNames.length + L(LABELS.message.closedSome) + "\n\n" + closedNames.join("\n"));
+        alert(closedNames.length + getLabel(LABELS.alert.closedSome) + "\n\n" + closedNames.join("\n"));
     }
 
-    /* 指定エンジンでパレット参照を閉じる BridgeTalk 本文を組み立て /
-       Build the BridgeTalk body that closes a palette reference in the given engine */
-    /* @param {string} engineName - 受信側の常駐エンジン名 / Target persistent engine name
-       @param {string} globalName - $.global 上のパレット参照名 / Palette reference name on $.global
-       @returns {string} BridgeTalk 本文（先頭に #targetengine ディレクティブ）/ BridgeTalk body (prefixed with the #targetengine directive)
-       戻り値マーカー / Return markers: "CLOSED"=閉じた / "IDLE"=参照はあるが非表示 / "NONE"=参照なし / "ERR"=例外 */
+    /**
+     * 指定エンジンでパレット参照を閉じる BridgeTalk 本文を組み立てる。
+     * 戻り値マーカー："CLOSED"＝閉じた / "IDLE"＝参照はあるが非表示 / "NONE"＝参照なし / "ERR"＝例外
+     * @param {string} engineName - 受信側の常駐エンジン名
+     * @param {string} globalName - $.global 上のパレット参照名
+     * @returns {string} BridgeTalk 本文（先頭に #targetengine ディレクティブ）
+     */
     function buildCloseBody(engineName, globalName) {
         return '#targetengine "' + engineName + '"\n' +
             '(function () {' +
             '    try {' +
             '        var paletteRef = $.global.' + globalName + ';' +
             '        if (!paletteRef) return "NONE";' +
-            /* Window を直接保持する形式と { window: Window } のラッパー形式の両対応 */
+            /* Window を直接保持する形式と { window: Window } のラッパー形式の両対応 / Accept both a bare Window and a { window: Window } wrapper */
             '        var paletteWindow = (paletteRef.close ? paletteRef : (paletteRef.window ? paletteRef.window : null));' +
             '        var wasOpen = false;' +
             '        try { if (paletteWindow && paletteWindow.visible) { wasOpen = true; paletteWindow.close(); } } catch (eClose) {}' +
@@ -142,21 +153,23 @@ function L(labelNode) {
             '})();';
     }
 
-    /* 1 通送って応答が返るまで BridgeTalk.pump() で同期的に待ち、閉じたら名前を記録 /
-       Send one message, block on BridgeTalk.pump() until the response returns, and record the name if closed */
-    /* @param {string} engineName - 受信側の常駐エンジン名 / Target persistent engine name
-       @param {string} globalName - $.global 上のパレット参照名 / Palette reference name on $.global
-       @param {string} paletteName - サマリー表示用の名前 / Display name for the summary */
-    function closeOneAndWait(engineName, globalName, paletteName) {
+    /**
+     * 1 通送って応答が返るまで BridgeTalk.pump() で同期的に待ち、閉じたら名前を記録する
+     * @param {string} engineName - 受信側の常駐エンジン名
+     * @param {string} globalName - $.global 上のパレット参照名
+     * @param {string} paletteName - サマリー表示用の名前
+     * @returns {void}
+     */
+    function closePaletteAndWait(engineName, globalName, paletteName) {
         var responseReceived = false;
         var resultMarker = "TIMEOUT";
-        var bridge = new BridgeTalk();
-        bridge.target = 'illustrator';
-        bridge.body = buildCloseBody(engineName, globalName);
-        bridge.onResult = function (response) { resultMarker = response.body; responseReceived = true; };
-        bridge.onError = function () { resultMarker = "ERR"; responseReceived = true; };
-        bridges.push(bridge); // 応答が返るまで保持 / Retain until the response returns
-        bridge.send();
+        var closeRequest = new BridgeTalk();
+        closeRequest.target = 'illustrator';
+        closeRequest.body = buildCloseBody(engineName, globalName);
+        closeRequest.onResult = function (response) { resultMarker = response.body; responseReceived = true; };
+        closeRequest.onError = function () { resultMarker = "ERR"; responseReceived = true; };
+        pendingBridgeTalks.push(closeRequest); // 応答が返るまで保持 / Retain until the response returns
+        closeRequest.send();
         var elapsedMs = 0;
         while (!responseReceived && elapsedMs < MAX_WAIT_MS) {
             BridgeTalk.pump(); // 保留中のメッセージを処理して onResult/onError を発火 / Process pending messages so onResult/onError fire
@@ -170,8 +183,8 @@ function L(labelNode) {
     // 各エンジンを 1 件ずつ確実に閉じる / Close each engine one at a time, reliably
     // =========================================
     for (var i = 0; i < PALETTES.length; i++) {
-        var palette = PALETTES[i];
-        closeOneAndWait(palette.engine, palette.global, palette.name);
+        var paletteEntry = PALETTES[i];
+        closePaletteAndWait(paletteEntry.engine, paletteEntry.global, paletteEntry.name);
     }
 
     if (SHOW_SUMMARY) showSummary();

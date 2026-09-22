@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "FillSnapper";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillSnapper.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillSnapper.md"; /* README (English) */
@@ -38,71 +38,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-        ui: {
-            dialogTitle: { ja: "塗りを線にスナップ", en: "Snap Fill to Lines" },
-            panelTarget: { ja: "動かす対象", en: "Items to move" },
-            tipFilled: { ja: "塗りのあるオブジェクトを対象にします。", en: "Targets objects that have a fill." },
-            tipGroup: { ja: "グループも対象にします。", en: "Targets groups as well." },
-            tipClipGroup: { ja: "クリップグループも対象にします。", en: "Targets clipping groups as well." },
-            tipStrokedOnly: { ja: "線だけのオブジェクトを、吸着先の基準として使います。", en: "Uses stroke-only objects as the edges to snap to." },
-            tipBlank: { ja: "塗りも線もないオブジェクトも基準に含めます。", en: "Includes objects with neither fill nor stroke as edges." },
-            tipIncludeGuides: { ja: "ガイドも吸着先の基準に含めます。", en: "Includes guides as edges to snap to." },
-            tipIncludeArtboard: { ja: "アートボードの端も吸着先の基準に含めます。", en: "Includes the artboard edges as edges to snap to." },
-            tipUnrotate: { ja: "回転しているオブジェクトを、いったん角度0に戻してから合わせます。", en: "Straightens rotated objects before snapping them." },
-            tipTolerance: { ja: "同じ位置とみなす許容差です。", en: "How far apart two edges can be and still count as aligned." },
-            tipMaxDistance: { ja: "この距離までの基準にだけ吸着します。", en: "Only snaps to edges within this distance." },
-            tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original layout." },
-            cbFilled: { ja: "塗りのあるクローズパス", en: "Filled closed paths" },
-            panelSnapBasis: { ja: "スナップ基準", en: "Snap references" },
-            cbStrokedOnly: { ja: "線だけのパス", en: "Stroke-only paths" },
-            cbBlank: { ja: "塗り／線のないオープンパス", en: "Open paths without fill or stroke" },
-            cbGroup: { ja: "グループ内のパスも対象にする", en: "Include paths inside groups" },
-            cbClipGroup: { ja: "クリップグループ内のパスも対象にする", en: "Include paths inside clipping groups" },
-            panelOption: { ja: "オプション", en: "Options" },
-            cbUnrotate: { ja: "回転補正", en: "Rotation correction" },
-            tolerance: { ja: "線判定の許容差", en: "Line detection tolerance" },
-            maxDistance: { ja: "最大スナップ距離", en: "Max snap distance" },
-            cbIncludeGuides: { ja: "ガイドライン", en: "Guide lines" },
-            cbIncludeArtboard: { ja: "アートボードのエッジ", en: "Artboard edges" },
-            cbPreview: { ja: "プレビュー", en: "Preview" },
-            btnOK: { ja: "OK", en: "OK" },
-            btnCancel: { ja: "キャンセル", en: "Cancel" }
-        },
-        error: {
-            errNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-            errSelect: { ja: "スナップ対象のオブジェクトを選択してください。", en: "Select a snap target object." }, errNoTarget: { ja: "変形対象が見つかりません。", en: "No transformable target found." },
-            errNoLines: { ja: "基準となる罫線や枠（塗りなしパス）が見つかりません。", en: "No reference lines or frames (unfilled paths) found." }
-        }
+    /* ダイアログの初期値（tolerance / maxDistance は pt、maxDistance 0 は距離制限なし）
+       Initial dialog values (tolerance / maxDistance in pt; maxDistance 0 means no limit) */
+    var DEFAULT_SNAP_OPTIONS = {
+        filled: true,
+        strokedOnly: true,
+        blank: true,
+        group: true,
+        clipGroup: false,
+        unrotate: true,
+        tolerance: 0.5,
+        maxDistance: 0,
+        includeGuides: true,
+        includeArtboard: true,
+        preview: true
     };
 
-    /* ラベル取得 / Get localized label */
-    function getLabel(key) {
-        var categories = [LABELS.ui, LABELS.error];
-        for (var i = 0; i < categories.length; i++) {
-            var entry = categories[i][key];
-            if (entry) return entry[uiLang] || entry.en || key;
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS = 16;                /* ダイアログの余白 / Dialog margins */
+    var PANEL_MARGINS = [15, 20, 15, 10];   /* パネル余白 [左,上,右,下] / Panel margins [L,T,R,B] */
+    var OPTION_LABEL_WIDTH = 120;           /* 数値欄の項目名の幅 / Width of the field labels */
+
+    /**
+     * パネルの共通レイアウトを設定する
+     * @param {Panel} targetPanel - 設定するパネル
+     * @param {number} [spacing] - 子要素の間隔
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = "left";
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        if (typeof spacing === "number") {
+            targetPanel.spacing = spacing;
         }
-        return key;
     }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
-    }
-
-    // =========================================
-    // 設定 / Configuration
-    // =========================================
-
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var OPTION_LABEL_WIDTH = 120;
 
     // =========================================
     // 単位 / Units
@@ -143,56 +121,151 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    var pointsPerUnitMap = {
-        0: 72, // in
-        1: 72 / 25.4, // mm
-        2: 1, // pt
-        3: 12, // pica
-        4: 72 / 2.54, // cm
-        5: 2.834645669291339 / 4, // Q/H
-        6: 1, // px: Illustrator generally treats 1 px as 1 pt
-        7: 864, // ft/in
-        8: 72 / 0.0254, // m
-        9: 2592, // yd
-        10: 864 // ft
+    /**
+     * 入力欄に表示するため、数値を小数第3位で丸めて文字列にする
+     * @param {number} value - 表示する数値
+     * @returns {string} 整形した文字列
+     */
+    function formatUnitValue(value) {
+        return String(Math.round(value * 1000) / 1000);
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = detectUILanguage();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "塗りを線にスナップ", en: "Snap Fill to Lines" }
+        },
+        panel: {
+            target: { ja: "動かす対象", en: "Items to move" },
+            snapBasis: { ja: "スナップ基準", en: "Snap references" },
+            option: { ja: "オプション", en: "Options" }
+        },
+        checkbox: {
+            filled: { ja: "塗りのあるクローズパス", en: "Filled closed paths" },
+            group: { ja: "グループ内のパスも対象にする", en: "Include paths inside groups" },
+            clipGroup: { ja: "クリップグループ内のパスも対象にする", en: "Include paths inside clipping groups" },
+            strokedOnly: { ja: "線だけのパス", en: "Stroke-only paths" },
+            blank: { ja: "塗り／線のないオープンパス", en: "Open paths without fill or stroke" },
+            includeGuides: { ja: "ガイドライン", en: "Guide lines" },
+            includeArtboard: { ja: "アートボードのエッジ", en: "Artboard edges" },
+            unrotate: { ja: "回転補正", en: "Rotation correction" },
+            preview: { ja: "プレビュー", en: "Preview" }
+        },
+        fieldLabel: {
+            tolerance: { ja: "線判定の許容差", en: "Line detection tolerance" },
+            maxDistance: { ja: "最大スナップ距離", en: "Max snap distance" }
+        },
+        tooltip: {
+            filled: { ja: "塗りのあるオブジェクトを対象にします。", en: "Targets objects that have a fill." },
+            group: { ja: "グループも対象にします。", en: "Targets groups as well." },
+            clipGroup: { ja: "クリップグループも対象にします。", en: "Targets clipping groups as well." },
+            strokedOnly: {
+                ja: "線だけのオブジェクトを、吸着先の基準として使います。",
+                en: "Uses stroke-only objects as the edges to snap to."
+            },
+            blank: {
+                ja: "塗りも線もないオブジェクトも基準に含めます。",
+                en: "Includes objects with neither fill nor stroke as edges."
+            },
+            includeGuides: { ja: "ガイドも吸着先の基準に含めます。", en: "Includes guides as edges to snap to." },
+            includeArtboard: {
+                ja: "アートボードの端も吸着先の基準に含めます。",
+                en: "Includes the artboard edges as edges to snap to."
+            },
+            unrotate: {
+                ja: "回転しているオブジェクトを、いったん角度0に戻してから合わせます。",
+                en: "Straightens rotated objects before snapping them."
+            },
+            tolerance: {
+                ja: "同じ位置とみなす許容差です。",
+                en: "How far apart two edges can be and still count as aligned."
+            },
+            maxDistance: { ja: "この距離までの基準にだけ吸着します。", en: "Only snaps to edges within this distance." },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+                en: "Shows the result on the canvas. Cancel restores the original layout."
+            }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            selectTarget: { ja: "スナップ対象のオブジェクトを選択してください。", en: "Select a snap target object." },
+            noTarget: { ja: "変形対象が見つかりません。", en: "No transformable target found." },
+            noReferenceLines: {
+                ja: "基準となる罫線や枠（塗りなしパス）が見つかりません。",
+                en: "No reference lines or frames (unfilled paths) found."
+            }
+        }
     };
 
-    /* pt を指定単位へ変換 / Convert points to the specified ruler unit */
-    function pointsToUnit(valuePt, unitCode) {
-        return valuePt / (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) {
+                return labelPath;
+            }
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    /* 指定単位を pt へ変換 / Convert the specified ruler unit to points */
-    function unitToPoints(value, unitCode) {
-        return value * (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
-    }
-
-    /* 入力欄用に数値を整形 / Format numeric value for edit fields */
-    function formatUnitValue(value) {
-        var rounded = Math.round(value * 1000) / 1000;
-        return String(rounded);
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
     // 共通ユーティリティ / Common utilities
     // =========================================
 
-    /* パネルの共通設定 / Apply common panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = "left";
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            panel.spacing = spacing;
+    /**
+     * 配列の末尾に別の配列（またはコレクション）の要素をすべて追加する
+     * @param {Array} targetList - 追加先の配列
+     * @param {Array} sourceList - 追加する要素
+     * @returns {void}
+     */
+    function appendAll(targetList, sourceList) {
+        for (var i = 0; i < sourceList.length; i++) {
+            targetList.push(sourceList[i]);
         }
     }
 
-    /* オプションに応じて処理対象候補を再帰収集 / Recursively collect processable item candidates by options */
-    function collectProcessableItems(pageItems, options) {
-        if (!options) options = {};
-        var includeNormalGroups = (options.includeNormalGroups !== false);
-        var includeClipGroups = (options.includeClipGroups === true);
+    /**
+     * 選択からスナップの処理対象候補を再帰的に集める（グループ・複合パスは中身を展開）
+     * @param {PageItem[]} pageItems - 走査するアイテム
+     * @param {{includeNormalGroups: boolean, includeClipGroups: boolean}} groupOptions - グループを展開するかどうか
+     * @returns {PageItem[]} 処理対象候補
+     */
+    function collectProcessableItems(pageItems, groupOptions) {
+        var includeNormalGroups = (groupOptions.includeNormalGroups !== false);
+        var includeClipGroups = (groupOptions.includeClipGroups === true);
         var processableItems = [];
         for (var i = 0; i < pageItems.length; i++) {
             var pageItem = pageItems[i];
@@ -200,21 +273,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (pageItem.clipped === true) {
                     /* クリップグループ：マスクパスは基準線化しやすいため除外し、中身だけを再帰 / Clip group: skip the clipping mask path and recurse into contents */
                     if (!includeClipGroups) continue;
-                    var clippingGroupItems = pageItem.pageItems;
-                    for (var j = 0; j < clippingGroupItems.length; j++) {
-                        var childItem = clippingGroupItems[j];
+                    var clipGroupChildren = pageItem.pageItems;
+                    for (var j = 0; j < clipGroupChildren.length; j++) {
+                        var childItem = clipGroupChildren[j];
                         if (childItem.typename === "PathItem" && childItem.clipping === true) continue;
-                        var nestedProcessableItems = collectProcessableItems([childItem], options);
-                        for (var k = 0; k < nestedProcessableItems.length; k++) processableItems.push(nestedProcessableItems[k]);
+                        appendAll(processableItems, collectProcessableItems([childItem], groupOptions));
                     }
-                } else {
-                    if (!includeNormalGroups) continue;
-                    var nestedProcessableItems = collectProcessableItems(pageItem.pageItems, options);
-                    for (var m = 0; m < nestedProcessableItems.length; m++) processableItems.push(nestedProcessableItems[m]);
+                } else if (includeNormalGroups) {
+                    appendAll(processableItems, collectProcessableItems(pageItem.pageItems, groupOptions));
                 }
             } else if (pageItem.typename === "CompoundPathItem") {
-                var compoundPathItems = collectProcessableItems(pageItem.pathItems, options);
-                for (var n = 0; n < compoundPathItems.length; n++) processableItems.push(compoundPathItems[n]);
+                appendAll(processableItems, collectProcessableItems(pageItem.pathItems, groupOptions));
             } else {
                 processableItems.push(pageItem);
             }
@@ -222,8 +291,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return processableItems;
     }
 
-    /* アイテムが編集可能かを安全に判定 / Safely check whether an item is editable */
+    /**
+     * アイテムが編集できるかどうかを、親グループとレイヤーのロック・表示までたどって判定する
+     * @param {PageItem} pageItem - 判定するアイテム
+     * @returns {boolean} 編集できるとき true
+     */
     function isEditableItem(pageItem) {
+        /* 親をたどる途中でプロパティを持たない型に当たることがある / some parents may lack these properties */
         try {
             if (!pageItem) return false;
             if (pageItem.locked === true || pageItem.hidden === true) return false;
@@ -243,7 +317,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return true;
     }
 
-    /* プレビュー復元用に元のパス形状を保存 / Capture original path geometry for preview restore */
+    /**
+     * プレビューの復元用に、編集できるパスの元の形状を保存する
+     * @param {PageItem[]} pageItems - 保存する候補
+     * @returns {Object[]} パスとアンカーポイントの座標の組
+     */
     function captureOriginalGeometry(pageItems) {
         var snapshotData = [];
         for (var i = 0; i < pageItems.length; i++) {
@@ -251,26 +329,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (pageItem.typename !== "PathItem") continue;
             if (!isEditableItem(pageItem)) continue;
 
-            var pathPointList;
-            try {
-                pathPointList = pageItem.pathPoints;
-            } catch (e) {
-                continue;
-            }
-
+            /* 読み取れないパスは保存せずに飛ばす / skip paths whose points cannot be read */
             var savedPoints = [];
-            for (var j = 0; j < pathPointList.length; j++) {
-                var pathPoint = pathPointList[j];
-                try {
+            try {
+                var pathPointList = pageItem.pathPoints;
+                for (var j = 0; j < pathPointList.length; j++) {
+                    var pathPoint = pathPointList[j];
                     savedPoints.push({
                         anchor: [pathPoint.anchor[0], pathPoint.anchor[1]],
                         leftDirection: [pathPoint.leftDirection[0], pathPoint.leftDirection[1]],
                         rightDirection: [pathPoint.rightDirection[0], pathPoint.rightDirection[1]]
                     });
-                } catch (e2) {
-                    savedPoints = [];
-                    break;
                 }
+            } catch (e) {
+                savedPoints = [];
             }
             if (savedPoints.length > 0) {
                 snapshotData.push({ item: pageItem, points: savedPoints });
@@ -279,34 +351,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return snapshotData;
     }
 
-    /* 保存した元のパス形状へ戻す / Restore saved original path geometry */
+    /**
+     * 保存した元の形状へ戻す
+     * @param {Object[]} snapshotData - captureOriginalGeometry() の戻り値
+     * @returns {void}
+     */
     function restoreOriginalGeometry(snapshotData) {
         for (var i = 0; i < snapshotData.length; i++) {
             var snapshotEntry = snapshotData[i];
             if (!snapshotEntry || !snapshotEntry.item || !isEditableItem(snapshotEntry.item)) continue;
 
-            var pathPointList;
+            /* 書き戻せないパスはそこで打ち切り、次のパスへ / stop at a path that cannot be written and move on */
             try {
-                pathPointList = snapshotEntry.item.pathPoints;
-            } catch (e) {
-                continue;
-            }
-
-            var limit = Math.min(snapshotEntry.points.length, pathPointList.length);
-            for (var j = 0; j < limit; j++) {
-                var savedPoint = snapshotEntry.points[j];
-                try {
+                var pathPointList = snapshotEntry.item.pathPoints;
+                var pointCount = Math.min(snapshotEntry.points.length, pathPointList.length);
+                for (var j = 0; j < pointCount; j++) {
+                    var savedPoint = snapshotEntry.points[j];
                     pathPointList[j].anchor = savedPoint.anchor;
                     pathPointList[j].leftDirection = savedPoint.leftDirection;
                     pathPointList[j].rightDirection = savedPoint.rightDirection;
-                } catch (e2) {
-                    break;
                 }
+            } catch (e) {
+                /* 続行 / continue with the next path */
             }
         }
     }
 
-    /* 候補値の中から最も近い値を返す（最大距離付き）/ Return the closest value within max distance */
+    /**
+     * 候補値の中から最も近い値を返す（最大距離を超えるときは元の値のまま）
+     * @param {number} targetValue - 基準の値
+     * @param {number[]} candidates - 候補の値
+     * @param {number} maxDistance - 最大距離。0 なら制限なし
+     * @returns {number} 最も近い候補、または targetValue
+     */
     function findClosestCoordinate(targetValue, candidates, maxDistance) {
         if (!candidates || candidates.length === 0) return targetValue;
         var closest = candidates[0];
@@ -322,18 +399,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return closest;
     }
 
-    /* パスのアンカーポイントを指定範囲に直接フィット / Fit path points directly to target bounds */
+    /**
+     * パスのアンカーポイントとハンドルを、指定の範囲に収まるよう直接拡大・縮小して移動する
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {number} left - 範囲の左端
+     * @param {number} top - 範囲の上端
+     * @param {number} right - 範囲の右端
+     * @param {number} bottom - 範囲の下端
+     * @returns {boolean} 変形できたとき true
+     */
     function fitPathItemToTargetBounds(pathItem, left, top, right, bottom) {
-        if (!pathItem || pathItem.typename !== "PathItem") return false;
-        if (!isEditableItem(pathItem)) return false;
-
         var geometricBounds = pathItem.geometricBounds; /* [left, top, right, bottom] */
         var sourceLeft = geometricBounds[0];
         var sourceTop = geometricBounds[1];
-        var sourceRight = geometricBounds[2];
-        var sourceBottom = geometricBounds[3];
-        var sourceWidth = sourceRight - sourceLeft;
-        var sourceHeight = sourceTop - sourceBottom;
+        var sourceWidth = geometricBounds[2] - sourceLeft;
+        var sourceHeight = sourceTop - geometricBounds[3];
         var targetWidthPt = right - left;
         var targetHeightPt = top - bottom;
 
@@ -344,6 +424,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var scaleY = targetHeightPt / sourceHeight;
         var pathPointList = pathItem.pathPoints;
 
+        /**
+         * 元の範囲の座標を、指定の範囲の座標に写す
+         * @param {number[]} pointArray - [x, y]
+         * @returns {number[]} 写した [x, y]
+         */
         function mapPoint(pointArray) {
             return [
                 left + (pointArray[0] - sourceLeft) * scaleX,
@@ -351,6 +436,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ];
         }
 
+        /* アンカーの書き込みに失敗したら失敗扱い / treat a failed anchor write as failure */
         try {
             for (var i = 0; i < pathPointList.length; i++) {
                 var pathPoint = pathPointList[i];
@@ -364,59 +450,84 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return true;
     }
 
-    /* アクティブなアートボードの 4 辺を収集 / Gather edges of the active artboard */
+    /**
+     * 外接矩形から基準線を追加する（細い縦長は左端、細い横長は上端、それ以外は4辺）
+     * @param {number[]} geometricBounds - [left, top, right, bottom]
+     * @param {number} tolerance - 線とみなす幅（pt）
+     * @param {{horizontalLines: number[], verticalLines: number[]}} referenceLines - 追加先
+     * @returns {void}
+     */
+    function addReferenceEdges(geometricBounds, tolerance, referenceLines) {
+        var boundsWidthPt = Math.abs(geometricBounds[2] - geometricBounds[0]);
+        var boundsHeightPt = Math.abs(geometricBounds[1] - geometricBounds[3]);
+        if (boundsWidthPt < tolerance) {
+            referenceLines.verticalLines.push(geometricBounds[0]);
+        } else if (boundsHeightPt < tolerance) {
+            referenceLines.horizontalLines.push(geometricBounds[1]);
+        } else {
+            /* 矩形などは4辺すべてを採用 / Rectangles: use all four sides */
+            referenceLines.horizontalLines.push(geometricBounds[1]);
+            referenceLines.horizontalLines.push(geometricBounds[3]);
+            referenceLines.verticalLines.push(geometricBounds[0]);
+            referenceLines.verticalLines.push(geometricBounds[2]);
+        }
+    }
+
+    /**
+     * アクティブなアートボードの4辺を基準線として返す
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {{horizontalLines: number[], verticalLines: number[]}} 基準線
+     */
     function gatherArtboardEdges(doc) {
-        if (!doc) return { horizontalLines: [], verticalLines: [] };
-        var index;
-        try { index = doc.artboards.getActiveArtboardIndex(); } catch (e) { index = 0; }
-        var rect = doc.artboards[index].artboardRect; /* [left, top, right, bottom] */
+        var artboardIndex;
+        /* 取得できない環境では先頭のアートボード / fall back to the first artboard */
+        try { artboardIndex = doc.artboards.getActiveArtboardIndex(); } catch (e) { artboardIndex = 0; }
+        var artboardRect = doc.artboards[artboardIndex].artboardRect; /* [left, top, right, bottom] */
         return {
-            horizontalLines: [rect[1], rect[3]],
-            verticalLines: [rect[0], rect[2]]
+            horizontalLines: [artboardRect[1], artboardRect[3]],
+            verticalLines: [artboardRect[0], artboardRect[2]]
         };
     }
 
-    /* ドキュメント内のガイドラインから水平線・垂直線を収集 / Gather guide lines from the document */
+    /**
+     * ドキュメント内のガイドから水平線・垂直線を集める
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number} tolerance - 線とみなす幅（pt）
+     * @returns {{horizontalLines: number[], verticalLines: number[]}} 基準線
+     */
     function gatherDocumentGuides(doc, tolerance) {
-        if (tolerance == null) tolerance = 0.5;
-        var horizontalLines = [];
-        var verticalLines = [];
+        var guideLines = { horizontalLines: [], verticalLines: [] };
         var documentPathItems = doc.pathItems;
         for (var i = 0; i < documentPathItems.length; i++) {
             var guidePathItem = documentPathItems[i];
             if (guidePathItem.guides !== true) continue;
-            var geometricBounds = guidePathItem.geometricBounds;
-            var guideWidthPt = Math.abs(geometricBounds[2] - geometricBounds[0]);
-            var guideHeightPt = Math.abs(geometricBounds[1] - geometricBounds[3]);
-            if (guideWidthPt < tolerance) {
-                verticalLines.push(geometricBounds[0]);
-            } else if (guideHeightPt < tolerance) {
-                horizontalLines.push(geometricBounds[1]);
-            } else {
-                /* 矩形ガイドなどは4辺すべてを採用 / Rectangular guide: use all four sides */
-                horizontalLines.push(geometricBounds[1]);
-                horizontalLines.push(geometricBounds[3]);
-                verticalLines.push(geometricBounds[0]);
-                verticalLines.push(geometricBounds[2]);
-            }
+            addReferenceEdges(guidePathItem.geometricBounds, tolerance, guideLines);
         }
-        return { horizontalLines: horizontalLines, verticalLines: verticalLines };
+        return guideLines;
     }
 
     // =========================================
     // 角度・回転補正 / Angle & Rotation correction
     // =========================================
 
-    /* 最初のエッジの角度（度）/ Angle of the first edge in degrees */
-    function getEdgeAngleDeg(item) {
-        var pathPoints = item.pathPoints;
+    /**
+     * パスの最初の辺の角度を返す
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number} 角度（度）。点が2つ未満なら 0
+     */
+    function getEdgeAngleDeg(pathItem) {
+        var pathPoints = pathItem.pathPoints;
         if (!pathPoints || pathPoints.length < 2) return 0;
         var firstAnchor = pathPoints[0].anchor;
         var secondAnchor = pathPoints[1].anchor;
         return Math.atan2(secondAnchor[1] - firstAnchor[1], secondAnchor[0] - firstAnchor[0]) * 180 / Math.PI;
     }
 
-    /* 最寄りの 90 度倍数からのずれ / Offset from nearest right angle */
+    /**
+     * 最寄りの 90 度の倍数からのずれを返す
+     * @param {number} angleDeg - 角度（度）
+     * @returns {number} -45〜45 のずれ（度）
+     */
     function getNearestRightAngleOffset(angleDeg) {
         var modulus = angleDeg % 90;
         if (modulus > 45) modulus -= 90;
@@ -428,15 +539,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // スナップ判定・実行 / Snap classification & execution
     // =========================================
 
-    /* 処理対象候補をスナップ対象と基準線に分類 / Classify processable candidates into targets and reference lines */
-    function classifyTargetsAndReferences(pageItems, tolerance, options) {
-        if (tolerance == null) tolerance = 0.5;
-        if (!options) options = { filled: true, strokedOnly: true, blank: true };
+    /**
+     * 処理対象候補を、動かす対象と基準線に振り分ける
+     * @param {PageItem[]} pageItems - 処理対象候補
+     * @param {Object} snapOptions - ダイアログの設定（readSnapOptions() の戻り値）
+     * @returns {{targets: PathItem[], horizontalLines: number[], verticalLines: number[]}} 振り分けの結果
+     */
+    function classifyTargetsAndReferences(pageItems, snapOptions) {
+        var tolerance = snapOptions.tolerance;
         var classification = { targets: [], horizontalLines: [], verticalLines: [] };
 
         for (var i = 0; i < pageItems.length; i++) {
             var pageItem = pageItems[i];
-            if (pageItem.typename === "TextFrame") continue;
             if (pageItem.typename !== "PathItem") continue;
 
             var geometricBounds = pageItem.geometricBounds; /* [left, top, right, bottom] */
@@ -449,7 +563,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             /* 変形対象：塗りのあるクローズパスのみ / Targets: filled closed paths only */
             if (isFilledClosedPath) {
-                if (!options.filled) continue;
+                if (!snapOptions.filled) continue;
                 if (itemWidthPt > tolerance && itemHeightPt > tolerance) {
                     classification.targets.push(pageItem);
                     continue;
@@ -458,40 +572,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             /* スナップ基準（補助）：トグル OFF 時はスキップ / Snap references (auxiliary): skip if toggle is OFF */
-            if (isStrokedOpenPath && !options.strokedOnly) continue;
-            if (isBlankOpenPath && !options.blank) continue;
+            if (isStrokedOpenPath && !snapOptions.strokedOnly) continue;
+            if (isBlankOpenPath && !snapOptions.blank) continue;
 
             /* 残りはすべて基準線として追加 / Remaining items contribute as reference lines */
-            if (itemWidthPt < tolerance) {
-                classification.verticalLines.push(geometricBounds[0]);
-            } else if (itemHeightPt < tolerance) {
-                classification.horizontalLines.push(geometricBounds[1]);
-            } else {
-                classification.horizontalLines.push(geometricBounds[1]);
-                classification.horizontalLines.push(geometricBounds[3]);
-                classification.verticalLines.push(geometricBounds[0]);
-                classification.verticalLines.push(geometricBounds[2]);
-            }
+            addReferenceEdges(geometricBounds, tolerance, classification);
         }
         return classification;
     }
 
-    /* 1つのスナップ対象を最寄りの基準線に合わせる / Apply snap to one target using nearest reference lines */
-    function applySnapToSingleTarget(pageItem, horizontalLines, verticalLines, options) {
-        if (!isEditableItem(pageItem)) return false;
-        if (options && options.unrotate) {
-            var rotationOffsetDeg = getNearestRightAngleOffset(getEdgeAngleDeg(pageItem));
+    /**
+     * 1つの対象を、最寄りの基準線に合わせて変形する
+     * @param {PathItem} pathItem - 動かす対象
+     * @param {number[]} horizontalLines - 水平の基準線（Y 座標）
+     * @param {number[]} verticalLines - 垂直の基準線（X 座標）
+     * @param {Object} snapOptions - ダイアログの設定
+     * @returns {boolean} 変形できたとき true
+     */
+    function applySnapToSingleTarget(pathItem, horizontalLines, verticalLines, snapOptions) {
+        if (!isEditableItem(pathItem)) return false;
+        if (snapOptions.unrotate) {
+            var rotationOffsetDeg = getNearestRightAngleOffset(getEdgeAngleDeg(pathItem));
             if (Math.abs(rotationOffsetDeg) > 0.001) {
+                /* 回転できないアイテムはスキップ / skip items that cannot be rotated */
                 try {
-                    pageItem.rotate(-rotationOffsetDeg, true, true, true, true, Transformation.CENTER);
+                    pathItem.rotate(-rotationOffsetDeg, true, true, true, true, Transformation.CENTER);
                 } catch (e) {
                     return false;
                 }
             }
         }
 
-        var maxDistance = options ? options.maxDistance : 0;
-        var geometricBounds = pageItem.geometricBounds;
+        var maxDistance = snapOptions.maxDistance;
+        var geometricBounds = pathItem.geometricBounds;
         var nearestTop = findClosestCoordinate(geometricBounds[1], horizontalLines, maxDistance);
         var nearestBottom = findClosestCoordinate(geometricBounds[3], horizontalLines, maxDistance);
         var nearestLeft = findClosestCoordinate(geometricBounds[0], verticalLines, maxDistance);
@@ -502,35 +615,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var left = Math.min(nearestLeft, nearestRight);
         var right = Math.max(nearestLeft, nearestRight);
 
-        var targetWidthPt = Math.abs(right - left);
-        var targetHeightPt = Math.abs(top - bottom);
-        if (targetWidthPt <= 0 || targetHeightPt <= 0) return false;
+        if (Math.abs(right - left) <= 0 || Math.abs(top - bottom) <= 0) return false;
 
-        if (pageItem.typename !== "PathItem") return false;
-        return fitPathItemToTargetBounds(pageItem, left, top, right, bottom);
+        return fitPathItemToTargetBounds(pathItem, left, top, right, bottom);
     }
 
-    /* すべてのスナップ対象へ適用 / Apply snap to all targets */
-    function applySnapToTargets(pageItems, tolerance, options) {
-        var classification = classifyTargetsAndReferences(pageItems, tolerance, options);
+    /**
+     * すべての対象にスナップを適用する
+     * @param {PageItem[]} pageItems - 処理対象候補
+     * @param {Object} snapOptions - ダイアログの設定
+     * @returns {{snapped: number, targets: number, horizontalLines: number, verticalLines: number}} 適用結果の件数
+     */
+    function applySnapToTargets(pageItems, snapOptions) {
+        var classification = classifyTargetsAndReferences(pageItems, snapOptions);
+        var doc = app.activeDocument;
 
         /* ガイドラインを基準線として合算 / Merge document guides as additional reference lines */
-        if (options && options.includeGuides && app.documents.length > 0) {
-            var guideLines = gatherDocumentGuides(app.activeDocument, tolerance);
-            for (var g = 0; g < guideLines.horizontalLines.length; g++) classification.horizontalLines.push(guideLines.horizontalLines[g]);
-            for (var v = 0; v < guideLines.verticalLines.length; v++) classification.verticalLines.push(guideLines.verticalLines[v]);
+        if (snapOptions.includeGuides) {
+            var guideLines = gatherDocumentGuides(doc, snapOptions.tolerance);
+            appendAll(classification.horizontalLines, guideLines.horizontalLines);
+            appendAll(classification.verticalLines, guideLines.verticalLines);
         }
 
         /* アートボードのエッジを基準線として合算 / Merge artboard edges as additional reference lines */
-        if (options && options.includeArtboard && app.documents.length > 0) {
-            var artboardEdges = gatherArtboardEdges(app.activeDocument);
-            for (var ah = 0; ah < artboardEdges.horizontalLines.length; ah++) classification.horizontalLines.push(artboardEdges.horizontalLines[ah]);
-            for (var av = 0; av < artboardEdges.verticalLines.length; av++) classification.verticalLines.push(artboardEdges.verticalLines[av]);
+        if (snapOptions.includeArtboard) {
+            var artboardEdges = gatherArtboardEdges(doc);
+            appendAll(classification.horizontalLines, artboardEdges.horizontalLines);
+            appendAll(classification.verticalLines, artboardEdges.verticalLines);
         }
 
         var snappedTargetCount = 0;
         for (var i = 0; i < classification.targets.length; i++) {
-            if (applySnapToSingleTarget(classification.targets[i], classification.horizontalLines, classification.verticalLines, options)) {
+            if (applySnapToSingleTarget(classification.targets[i], classification.horizontalLines, classification.verticalLines, snapOptions)) {
                 snappedTargetCount++;
             }
         }
@@ -546,140 +662,184 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログ / Dialog
     // =========================================
 
-    function showSnapDialog(defaults, onPreview) {
-        var dialog = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = 16;
-        var currentUnitCode = getUnitInfo().code;
-        var currentUnitLabel = getUnitInfo().label;
+    /**
+     * tooltip 付きのチェックボックスを追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - 表示名の LABELS パス
+     * @param {string} tooltipPath - tooltip の LABELS パス
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addOptionCheckbox(parentPanel, labelPath, tooltipPath, initialValue) {
+        var optionCheckbox = parentPanel.add("checkbox", undefined, getLabel(labelPath));
+        optionCheckbox.helpTip = getLabel(tooltipPath);
+        optionCheckbox.value = initialValue;
+        return optionCheckbox;
+    }
+
+    /**
+     * 「項目名＋数値欄＋単位」の行を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - 項目名の LABELS パス
+     * @param {string} tooltipPath - tooltip の LABELS パス
+     * @param {number} valuePt - 初期値（pt）
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 表示する単位
+     * @returns {EditText} 数値欄
+     */
+    function addUnitField(parentPanel, labelPath, tooltipPath, valuePt, rulerUnit) {
+        var fieldGroup = parentPanel.add("group");
+        var fieldLabel = fieldGroup.add("statictext", undefined, labelText(labelPath));
+        fieldLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
+        var valueInput = fieldGroup.add("edittext", undefined, formatUnitValue(valuePt / rulerUnit.pointsPerUnit));
+        valueInput.helpTip = getLabel(tooltipPath);
+        valueInput.characters = 3;
+        fieldGroup.add("statictext", undefined, rulerUnit.label);
+        return valueInput;
+    }
+
+    /**
+     * ダイアログを組み立てる
+     * @param {Object} initialOptions - 初期値
+     * @param {{label: string, pointsPerUnit: number}} rulerUnit - 数値欄の単位
+     * @returns {Object} ダイアログ（snapDialog）と各コントロール
+     */
+    function buildSnapDialog(initialOptions, rulerUnit) {
+        var snapDialog = new Window("dialog", getLabel("dialog.title") + ' ' + SCRIPT_VERSION);
+        snapDialog.orientation = "column";
+        snapDialog.alignChildren = "fill";
+        snapDialog.margins = DIALOG_MARGINS;
 
         /* 「変形するもの」パネル：動かされる側 / Targets panel: items being moved */
-        var targetPanel = dialog.add("panel", undefined, getLabel('panelTarget'));
+        var targetPanel = snapDialog.add("panel", undefined, getLabel("panel.target"));
         setupPanel(targetPanel, 6);
-        var checkboxFilled = targetPanel.add("checkbox", undefined, getLabel('cbFilled'));
-        checkboxFilled.helpTip = getLabel('tipFilled');
-        checkboxFilled.value = defaults.filled;
-        var checkboxGroup = targetPanel.add("checkbox", undefined, getLabel('cbGroup'));
-        checkboxGroup.helpTip = getLabel('tipGroup');
-        checkboxGroup.value = defaults.group;
-        var checkboxClipGroup = targetPanel.add("checkbox", undefined, getLabel('cbClipGroup'));
-        checkboxClipGroup.helpTip = getLabel('tipClipGroup');
-        checkboxClipGroup.value = defaults.clipGroup;
+        var filledCheckbox = addOptionCheckbox(targetPanel, "checkbox.filled", "tooltip.filled", initialOptions.filled);
+        var groupCheckbox = addOptionCheckbox(targetPanel, "checkbox.group", "tooltip.group", initialOptions.group);
+        var clipGroupCheckbox = addOptionCheckbox(targetPanel, "checkbox.clipGroup", "tooltip.clipGroup", initialOptions.clipGroup);
 
         /* 「スナップ基準」パネル：基準として扱うパス・追加基準 / Snap references panel: paths and extra references */
-        var basisPanel = dialog.add("panel", undefined, getLabel('panelSnapBasis'));
-        setupPanel(basisPanel, 6);
-        var checkboxStrokedOnly = basisPanel.add("checkbox", undefined, getLabel('cbStrokedOnly'));
-        checkboxStrokedOnly.helpTip = getLabel('tipStrokedOnly');
-        checkboxStrokedOnly.value = defaults.strokedOnly;
-        var checkboxBlank = basisPanel.add("checkbox", undefined, getLabel('cbBlank'));
-        checkboxBlank.helpTip = getLabel('tipBlank');
-        checkboxBlank.value = defaults.blank;
-        var checkboxIncludeGuides = basisPanel.add("checkbox", undefined, getLabel('cbIncludeGuides'));
-        checkboxIncludeGuides.helpTip = getLabel('tipIncludeGuides');
-        checkboxIncludeGuides.value = defaults.includeGuides;
-        var checkboxIncludeArtboard = basisPanel.add("checkbox", undefined, getLabel('cbIncludeArtboard'));
-        checkboxIncludeArtboard.helpTip = getLabel('tipIncludeArtboard');
-        checkboxIncludeArtboard.value = defaults.includeArtboard;
+        var snapBasisPanel = snapDialog.add("panel", undefined, getLabel("panel.snapBasis"));
+        setupPanel(snapBasisPanel, 6);
+        var strokedOnlyCheckbox = addOptionCheckbox(snapBasisPanel, "checkbox.strokedOnly", "tooltip.strokedOnly", initialOptions.strokedOnly);
+        var blankCheckbox = addOptionCheckbox(snapBasisPanel, "checkbox.blank", "tooltip.blank", initialOptions.blank);
+        var includeGuidesCheckbox = addOptionCheckbox(snapBasisPanel, "checkbox.includeGuides", "tooltip.includeGuides", initialOptions.includeGuides);
+        var includeArtboardCheckbox = addOptionCheckbox(snapBasisPanel, "checkbox.includeArtboard", "tooltip.includeArtboard", initialOptions.includeArtboard);
 
         /* 「オプション」パネル / Options panel */
-        var optionPanel = dialog.add("panel", undefined, getLabel('panelOption'));
+        var optionPanel = snapDialog.add("panel", undefined, getLabel("panel.option"));
         setupPanel(optionPanel, 6);
-        var checkboxUnrotate = optionPanel.add("checkbox", undefined, getLabel('cbUnrotate'));
-        checkboxUnrotate.helpTip = getLabel('tipUnrotate');
-        checkboxUnrotate.value = defaults.unrotate;
-
-        var toleranceGroup = optionPanel.add("group");
-        var toleranceLabel = toleranceGroup.add("statictext", undefined, labelText('tolerance'));
-        toleranceLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
-        var toleranceInput = toleranceGroup.add("edittext", undefined, formatUnitValue(pointsToUnit(defaults.tolerance, currentUnitCode)));
-        toleranceInput.helpTip = getLabel('tipTolerance');
-        toleranceInput.characters = 3;
-        toleranceGroup.add("statictext", undefined, currentUnitLabel);
-
-        var maxDistanceGroup = optionPanel.add("group");
-        var maxDistanceLabel = maxDistanceGroup.add("statictext", undefined, labelText('maxDistance'));
-        maxDistanceLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
-        var maxDistanceInput = maxDistanceGroup.add("edittext", undefined, formatUnitValue(pointsToUnit(defaults.maxDistance, currentUnitCode))); maxDistanceInput.characters = 3;
-        maxDistanceInput.helpTip = getLabel('tipMaxDistance');
-        maxDistanceGroup.add("statictext", undefined, currentUnitLabel);
+        var unrotateCheckbox = addOptionCheckbox(optionPanel, "checkbox.unrotate", "tooltip.unrotate", initialOptions.unrotate);
+        var toleranceInput = addUnitField(optionPanel, "fieldLabel.tolerance", "tooltip.tolerance", initialOptions.tolerance, rulerUnit);
+        var maxDistanceInput = addUnitField(optionPanel, "fieldLabel.maxDistance", "tooltip.maxDistance", initialOptions.maxDistance, rulerUnit);
 
         /* 下段：左＝プレビュー、中央＝余白、右＝ボタン / Bottom row: left=preview, center=spacer, right=buttons */
-        var bottomGroup = dialog.add("group");
-        bottomGroup.alignment = "fill";
-        bottomGroup.alignChildren = ["fill", "center"];
+        var btnRowGroup = snapDialog.add("group");
+        btnRowGroup.alignment = "fill";
+        btnRowGroup.alignChildren = ["fill", "center"];
 
-        var previewGroup = bottomGroup.add("group");
+        var previewGroup = btnRowGroup.add("group");
         previewGroup.alignment = ["left", "center"];
-        var checkboxPreview = previewGroup.add("checkbox", undefined, getLabel('cbPreview'));
-        checkboxPreview.helpTip = getLabel('tipPreview');
-        checkboxPreview.value = defaults.preview;
+        var previewCheckbox = addOptionCheckbox(previewGroup, "checkbox.preview", "tooltip.preview", initialOptions.preview);
 
-        var spacer = bottomGroup.add("group");
+        var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
 
-        var buttonGroup = bottomGroup.add("group");
-        buttonGroup.alignment = ["right", "center"];
-        buttonGroup.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
-        buttonGroup.add("button", undefined, getLabel('btnOK'), { name: "ok" });
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        /* 現在の入力値を取得 / Collect current input values */
-        function collectOptions() {
-            var parsedTolerance = unitToPoints(parseFloat(toleranceInput.text), currentUnitCode);
-            if (isNaN(parsedTolerance) || parsedTolerance <= 0) parsedTolerance = 0.5;
-            var parsedMaxDistance = unitToPoints(parseFloat(maxDistanceInput.text), currentUnitCode);
-            if (isNaN(parsedMaxDistance) || parsedMaxDistance < 0) parsedMaxDistance = 0;
-            return {
-                filled: checkboxFilled.value,
-                strokedOnly: checkboxStrokedOnly.value,
-                blank: checkboxBlank.value,
-                group: checkboxGroup.value,
-                clipGroup: checkboxClipGroup.value,
-                unrotate: checkboxUnrotate.value,
-                tolerance: parsedTolerance,
-                maxDistance: parsedMaxDistance,
-                includeGuides: checkboxIncludeGuides.value,
-                includeArtboard: checkboxIncludeArtboard.value,
-                preview: checkboxPreview.value
-            };
-        }
+        return {
+            snapDialog: snapDialog,
+            filledCheckbox: filledCheckbox,
+            groupCheckbox: groupCheckbox,
+            clipGroupCheckbox: clipGroupCheckbox,
+            strokedOnlyCheckbox: strokedOnlyCheckbox,
+            blankCheckbox: blankCheckbox,
+            includeGuidesCheckbox: includeGuidesCheckbox,
+            includeArtboardCheckbox: includeArtboardCheckbox,
+            unrotateCheckbox: unrotateCheckbox,
+            toleranceInput: toleranceInput,
+            maxDistanceInput: maxDistanceInput,
+            previewCheckbox: previewCheckbox
+        };
+    }
 
-        /* プレビューコールバックを発火 / Fire preview callback */
+    /**
+     * ダイアログの現在の入力値を読み取る（数値は pt に換算）
+     * @param {Object} dialogControls - buildSnapDialog() の戻り値
+     * @param {{pointsPerUnit: number}} rulerUnit - 数値欄の単位
+     * @returns {Object} スナップの設定
+     */
+    function readSnapOptions(dialogControls, rulerUnit) {
+        var parsedTolerance = parseFloat(dialogControls.toleranceInput.text) * rulerUnit.pointsPerUnit;
+        if (isNaN(parsedTolerance) || parsedTolerance <= 0) parsedTolerance = 0.5;
+        var parsedMaxDistance = parseFloat(dialogControls.maxDistanceInput.text) * rulerUnit.pointsPerUnit;
+        if (isNaN(parsedMaxDistance) || parsedMaxDistance < 0) parsedMaxDistance = 0;
+        return {
+            filled: dialogControls.filledCheckbox.value,
+            strokedOnly: dialogControls.strokedOnlyCheckbox.value,
+            blank: dialogControls.blankCheckbox.value,
+            group: dialogControls.groupCheckbox.value,
+            clipGroup: dialogControls.clipGroupCheckbox.value,
+            unrotate: dialogControls.unrotateCheckbox.value,
+            tolerance: parsedTolerance,
+            maxDistance: parsedMaxDistance,
+            includeGuides: dialogControls.includeGuidesCheckbox.value,
+            includeArtboard: dialogControls.includeArtboardCheckbox.value,
+            preview: dialogControls.previewCheckbox.value
+        };
+    }
+
+    /**
+     * ダイアログを表示し、確定した設定を返す
+     * @param {Object} initialOptions - 初期値
+     * @param {Function} onPreview - 設定が変わるたびに呼ぶ関数（引数は設定）
+     * @returns {Object|null} 確定した設定。キャンセルなら null
+     */
+    function showSnapDialog(initialOptions, onPreview) {
+        var rulerUnit = getUnitInfo();
+        var dialogControls = buildSnapDialog(initialOptions, rulerUnit);
+
+        /**
+         * 現在の設定でプレビューを呼ぶ
+         * @returns {void}
+         */
         function notifyPreview() {
-            if (typeof onPreview === "function") {
-                onPreview(collectOptions());
-            }
+            onPreview(readSnapOptions(dialogControls, rulerUnit));
         }
 
-        checkboxFilled.onClick = notifyPreview;
-        checkboxStrokedOnly.onClick = notifyPreview;
-        checkboxBlank.onClick = notifyPreview;
-        checkboxGroup.onClick = notifyPreview;
-        checkboxClipGroup.onClick = notifyPreview;
-        checkboxUnrotate.onClick = notifyPreview;
-        checkboxIncludeGuides.onClick = notifyPreview;
-        checkboxIncludeArtboard.onClick = notifyPreview;
-        checkboxPreview.onClick = notifyPreview;
-        toleranceInput.onChange = notifyPreview;
-        maxDistanceInput.onChange = notifyPreview;
+        dialogControls.filledCheckbox.onClick = notifyPreview;
+        dialogControls.strokedOnlyCheckbox.onClick = notifyPreview;
+        dialogControls.blankCheckbox.onClick = notifyPreview;
+        dialogControls.groupCheckbox.onClick = notifyPreview;
+        dialogControls.clipGroupCheckbox.onClick = notifyPreview;
+        dialogControls.unrotateCheckbox.onClick = notifyPreview;
+        dialogControls.includeGuidesCheckbox.onClick = notifyPreview;
+        dialogControls.includeArtboardCheckbox.onClick = notifyPreview;
+        dialogControls.previewCheckbox.onClick = notifyPreview;
+        dialogControls.toleranceInput.onChange = notifyPreview;
+        dialogControls.maxDistanceInput.onChange = notifyPreview;
 
-        if (dialog.show() !== 1) return null;
-        return collectOptions();
+        if (dialogControls.snapDialog.show() !== 1) return null;
+        return readSnapOptions(dialogControls, rulerUnit);
     }
 
     // =========================================
     // メイン / Main
     // =========================================
 
-    (function () {
+    /**
+     * プレビュー付きのダイアログで設定を決め、選択中の対象をスナップする
+     * @returns {void}
+     */
+    function main() {
         if (app.documents.length === 0) {
-            alert(getLabel('errNoDoc'));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var selectedPageItems = app.activeDocument.selection;
         if (selectedPageItems.length < 1) {
-            alert(getLabel('errSelect'));
+            alert(getLabel("alert.selectTarget"));
             return;
         }
 
@@ -689,57 +849,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var originalGeometrySnapshot = captureOriginalGeometry(allProcessableItemsForPreviewReset);
         var shouldRestoreOriginalGeometry = true;
 
+        /**
+         * 現在の設定に応じて処理対象候補を集める
+         * @param {Object} snapOptions - スナップの設定
+         * @returns {PageItem[]} 処理対象候補
+         */
+        function collectItemsForOptions(snapOptions) {
+            return collectProcessableItems(selectedPageItems, {
+                includeNormalGroups: snapOptions.group === true,
+                includeClipGroups: snapOptions.clipGroup === true
+            });
+        }
+
+        /**
+         * 元の形状に戻してから、プレビューが ON ならスナップを適用する
+         * @param {Object} snapOptions - スナップの設定
+         * @returns {void}
+         */
+        function applyPreview(snapOptions) {
+            restoreOriginalGeometry(originalGeometrySnapshot);
+            if (snapOptions.preview) {
+                applySnapToTargets(collectItemsForOptions(snapOptions), snapOptions);
+            }
+            app.redraw();
+        }
+
+        /* 途中で抜けたとき（キャンセル・エラー）は元の形状に戻す / restore on cancel or error */
         try {
-            /* 現在のオプションに応じて処理対象を取得 / Resolve items to process under current options */
-            function collectItemsForCurrentOptions(currentOptions) {
-                return collectProcessableItems(selectedPageItems, {
-                    includeNormalGroups: currentOptions.group === true,
-                    includeClipGroups: currentOptions.clipGroup === true
-                });
-            }
-
-            /* プレビュー反映 / Apply preview */
-            function applyPreview(currentOptions) {
-                restoreOriginalGeometry(originalGeometrySnapshot);
-                if (currentOptions.preview) {
-                    applySnapToTargets(collectItemsForCurrentOptions(currentOptions), currentOptions.tolerance, currentOptions);
-                }
-                app.redraw();
-            }
-
-            var defaultDialogOptions = {
-                filled: true,
-                strokedOnly: true,
-                blank: true,
-                group: true,
-                clipGroup: false,
-                unrotate: true,
-                tolerance: 0.5,
-                maxDistance: 0,
-                includeGuides: true,
-                includeArtboard: true,
-                preview: true
-            };
-
             /* 初回プレビュー / Initial preview */
-            applyPreview(defaultDialogOptions);
+            applyPreview(DEFAULT_SNAP_OPTIONS);
 
-            var confirmedDialogOptions = showSnapDialog(defaultDialogOptions, applyPreview);
-            if (!confirmedDialogOptions) {
+            var confirmedOptions = showSnapDialog(DEFAULT_SNAP_OPTIONS, applyPreview);
+            if (!confirmedOptions) {
                 /* キャンセル：状態を巻き戻し / Cancel: roll back to original state */
                 return;
             }
 
             /* OK：スナップショットから本適用 / OK: re-apply cleanly from snapshot */
             restoreOriginalGeometry(originalGeometrySnapshot);
-            var snapApplyResult = applySnapToTargets(collectItemsForCurrentOptions(confirmedDialogOptions), confirmedDialogOptions.tolerance, confirmedDialogOptions);
+            var snapApplyResult = applySnapToTargets(collectItemsForOptions(confirmedOptions), confirmedOptions);
 
             if (snapApplyResult.targets === 0) {
-                alert(getLabel('errNoTarget'));
+                alert(getLabel("alert.noTarget"));
                 return;
             }
             if (snapApplyResult.horizontalLines === 0 && snapApplyResult.verticalLines === 0) {
-                alert(getLabel('errNoLines'));
+                alert(getLabel("alert.noReferenceLines"));
                 return;
             }
 
@@ -750,6 +905,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 app.redraw();
             }
         }
-    })();
+    }
+
+    main();
 
 })();

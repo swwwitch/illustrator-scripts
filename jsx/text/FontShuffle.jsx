@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "FontShuffle";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontShuffle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontShuffle.md"; /* README (English) */
@@ -38,38 +38,108 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var MANIFESTO_TRACKING = 200;  /* 犯行声明文風の字送り（1/1000 em） / tracking for the manifesto style (1/1000 em) */
+    var BG_RECT_PADDING    = 1;    /* 背景長方形を文字の外へ広げる量（pt） / padding around each character (pt) */
+    var BG_RECT_JITTER     = 1;    /* 背景長方形の角を外へずらす最大量（pt） / max outward jitter of each corner (pt) */
+    var BG_GRAY_MIN        = 10;   /* 背景のグレーの最小値（K%） / lightest background gray (K%) */
+    var BG_GRAY_MAX        = 50;   /* 背景のグレーの最大値（K%） / darkest background gray (K%) */
+
+    /* 和文フォントとみなす名前のキーワード / Name keywords treated as Japanese fonts */
+    var JP_FONT_KEYWORDS = ["Pr6N", "Pr6", "AB-", "FOT", "-OTF"];
+
+    /* 背景長方形を置くレイヤーとグループの名前 / Layer and group names for the background rectangles */
+    var BG_LAYER_NAME = "__FontShuffle_BG__";
+    var BG_GROUP_NAME = "__BGRects__";
+
+    /* ダイアログ位置を覚える $.global のキー / $.global key that remembers the dialog position */
+    var DIALOG_KEY = "__FontShuffle_Dialog__";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var DIALOG_OPACITY      = 0.98;  /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_OFFSET_X     = 300;   /* 初回表示の横オフセット / initial horizontal offset */
+    var DIALOG_OFFSET_Y     = 0;     /* 初回表示の縦オフセット / initial vertical offset */
+    var INFO_CHARACTERS     = 52;    /* 説明文の幅（文字数） / width of the description (characters) */
+    var BUTTON_SPACER_WIDTH = 20;    /* ボタン行の中央スペーサーの幅 / width of the button-row spacer */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-      dialogTitle: { ja: "フォントシャッフル", en: "Font Shuffle" },
-      info: {
-        ja: "選択したテキストに対して、1文字ごとにランダムなフォントを適用します。",
-        en: "Applies a random font to each character in the selected text."
-      },
-      limitToJPFonts: { ja: "和文フォントに限る", en: "Limit to JP fonts" },
-      manifestoStyle: { ja: "犯行声明文風", en: "Manifesto style" },
-      rerun: { ja: "再実行", en: "Rerun" },
-      ok: { ja: "OK", en: "OK" },
-      cancel: { ja: "キャンセル", en: "Cancel" },
-      alertNoDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-      alertSelectText: { ja: "テキストオブジェクトを選択してください。", en: "Please select at least one text object." },
-      alertNoJPFonts: { ja: "対象の和文フォント（Pr6 / Pr6N）が見つかりません。", en: "No target JP fonts (Pr6 / Pr6N) were found." },
-      historyPreview: { ja: "FontShuffle プレビュー", en: "FontShuffle Preview" }
+        dialog: {
+            title: { ja: "フォントシャッフル", en: "Font Shuffle" },
+            description: {
+                ja: "選択したテキストに対して、1文字ごとにランダムなフォントを適用します。",
+                en: "Applies a random font to each character in the selected text."
+            }
+        },
+        checkbox: {
+            limitToJPFonts: { ja: "和文フォントに限る", en: "Limit to JP fonts" },
+            manifestoStyle: { ja: "犯行声明文風", en: "Manifesto style" }
+        },
+        tooltip: {
+            limitToJPFonts: {
+                ja: "名前に Pr6／Pr6N／AB-／FOT／-OTF を含むフォントだけから選びます。英数字以外の文字を選択していると最初からオンになります。",
+                en: "Picks only fonts whose names contain Pr6, Pr6N, AB-, FOT or -OTF. Starts on when the selected text contains anything other than letters and digits."
+            },
+            manifestoStyle: {
+                ja: "字送りを 200 にし、1文字ごとにランダムなグレー（K10〜K50）の長方形を背面に敷きます。",
+                en: "Sets tracking to 200 and places a random gray (K10–K50) rectangle behind each character."
+            },
+            rerun: { ja: "フォントを抽選し直してプレビューします。", en: "Reshuffles the fonts and updates the preview." }
+        },
+        button: {
+            rerun: { ja: "再実行", en: "Rerun" },
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noTextSelected: { ja: "テキストオブジェクトを選択してください。", en: "Please select at least one text object." },
+            noJPFonts: { ja: "対象の和文フォント（Pr6 / Pr6N）が見つかりません。", en: "No target JP fonts (Pr6 / Pr6N) were found." }
+        },
+        history: {
+            preview: { ja: "FontShuffle プレビュー", en: "FontShuffle Preview" }
+        }
     };
 
-    function getLabel(key) {
-      try {
-        var o = LABELS[key];
-        if (!o) return String(key);
-        return (o[uiLang] != null) ? o[uiLang] : (o.ja != null ? o.ja : String(key));
-      } catch (e) {
-        return String(key);
-      }
+    /**
+     * ドット区切りのパスで表示言語のラベルを取得する
+     * @param {string} labelPath - "button.ok" のようなドット区切りキー
+     * @returns {string} 表示言語のラベル。見つからない場合はパスをそのまま返す
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        if (labelNode[uiLang] != null) return labelNode[uiLang];
+        return (labelNode.ja != null) ? labelNode.ja : labelPath;
     }
+
+    // =========================================
+    // 共通ユーティリティ / Shared utilities
+    // =========================================
+    // 他のスクリプトと同じ実装を $.global に載せて共有するため、名前と中身はそろえたまま
+    // Shared with other scripts through $.global, so names and bodies are kept identical
 
     /* DialogPersist util (extractable)
      * ダイアログの不透明度・初期位置・位置記憶を共通化
@@ -112,39 +182,73 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
       }
     })($.global);
-    (function () {
-        // ドキュメントが開かれているか確認
-        if (app.documents.length === 0) {
-            alert(getLabel('alertNoDoc'));
-            return;
+
+    /* =========================================
+     * PreviewHistory util (extractable)
+     * ヒストリーを残さないプレビューのための小さなユーティリティ。
+     * 他スクリプトでもこのブロックをコピペすれば再利用できます。
+     * 使い方:
+     *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
+     *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
+     *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
+     *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+     * ========================================= */
+    (function(g){
+        if (!g.PreviewHistory) {
+            g.PreviewHistory = {
+                start: function(){ g.__previewUndoCount = 0; },
+                bump:  function(){ g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+                undo:  function(){
+                    var n = g.__previewUndoCount | 0;
+                    try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) {}
+                    g.__previewUndoCount = 0;
+                },
+                cancelTask: function(taskId){
+                    try { if (taskId) app.cancelTask(taskId); } catch (e) {}
+                }
+            };
         }
+    })($.global);
 
-        var doc = app.activeDocument;
+    // =========================================
+    // 背景長方形 / Background rectangles
+    // =========================================
+    // 1文字ごとの位置はアウトライン化した複製から測る / Per-character bounds come from an outlined duplicate
 
-        // インストールされている全フォントを取得（数が多いと処理に時間がかかる場合があります）
-        var allFonts = app.textFonts;
-
-    var fontCount = allFonts.length;
-
-    // 背景矩形（1文字ごと・アウトライン経由） / Background rectangles (per-character via outline)
-    var BG_LAYER_NAME = '__FontShuffle_BG__';
-    var BG_GROUP_NAME = '__BGRects__';
-
-    function ensureBgLayer() {
-        var lyr = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            try {
-                if (doc.layers[i].name === BG_LAYER_NAME) { lyr = doc.layers[i]; break; }
-            } catch (e) { }
-        }
-        if (!lyr) {
-            lyr = doc.layers.add();
-            lyr.name = BG_LAYER_NAME;
-        }
-        return lyr;
+    /**
+     * 背景用レイヤーを探す
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer|null} 見つかったレイヤー。無ければ null
+     */
+    function findBgLayer(doc) {
+        try {
+            for (var i = 0; i < doc.layers.length; i++) {
+                if (doc.layers[i] && doc.layers[i].name === BG_LAYER_NAME) return doc.layers[i];
+            }
+        } catch (e) { }
+        return null;
     }
 
-    function removeBgGroupIfExists(bgLayer) {
+    /**
+     * 背景用レイヤーを返す（無ければ作る）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} 背景用レイヤー
+     */
+    function ensureBgLayer(doc) {
+        var bgLayer = findBgLayer(doc);
+        if (!bgLayer) {
+            bgLayer = doc.layers.add();
+            bgLayer.name = BG_LAYER_NAME;
+        }
+        return bgLayer;
+    }
+
+    /**
+     * 背景用レイヤーから背景長方形のグループを削除する
+     * @param {Layer} bgLayer - 背景用レイヤー
+     * @returns {void}
+     */
+    function removeBgGroups(bgLayer) {
         try {
             for (var i = bgLayer.groupItems.length - 1; i >= 0; i--) {
                 if (bgLayer.groupItems[i].name === BG_GROUP_NAME) {
@@ -154,125 +258,152 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
     }
 
-    function randInt(min, max) {
+    /**
+     * 背景長方形があれば削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function clearBackgroundRects(doc) {
+        var bgLayer = findBgLayer(doc);
+        if (!bgLayer) return;
+        removeBgGroups(bgLayer);
+    }
+
+    /**
+     * min 以上 max 以下の整数を乱数で返す
+     * @param {number} min - 下限
+     * @param {number} max - 上限
+     * @returns {number} 乱数の整数
+     */
+    function randomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    function makeRandomFill() {
-        var g = new GrayColor();
-        // GrayColor.gray: 0 = white, 100 = black
-        // K10〜K50 の間でランダム
-        g.gray = randInt(10, 50);
-        return g;
-    }
-
-    function setRectStyle(rect) {
+    /**
+     * 背景長方形を塗りだけのランダムなグレーにする
+     * @param {PathItem} bgRect - 対象の長方形
+     * @returns {void}
+     */
+    function applyRandomGrayFill(bgRect) {
         try {
-            rect.stroked = false;
-            rect.filled = true;
-            rect.fillColor = makeRandomFill();
+            bgRect.stroked = false;
+            bgRect.filled = true;
+            /* GrayColor.gray は 0 が白、100 が黒 / GrayColor.gray: 0 = white, 100 = black */
+            var grayColor = new GrayColor();
+            grayColor.gray = randomInt(BG_GRAY_MIN, BG_GRAY_MAX);
+            bgRect.fillColor = grayColor;
         } catch (e) { }
     }
 
-    function jitterRectOutward(rect, maxPt) {
-        if (!rect || rect.typename !== 'PathItem') return;
-        if (!rect.pathPoints || rect.pathPoints.length < 4) return;
+    /**
+     * 長方形の各アンカーを中心から外向きにランダムにずらす（手作り感を出す）
+     * @param {PathItem} bgRect - 対象の長方形
+     * @param {number} maxOffset - ずらす最大量（pt）
+     * @returns {void}
+     */
+    function jitterRectOutward(bgRect, maxOffset) {
+        if (!bgRect || bgRect.typename !== "PathItem") return;
+        if (!bgRect.pathPoints || bgRect.pathPoints.length < 4) return;
 
-        var b;
-        try { b = rect.geometricBounds; } catch (e) { return; }
-        // b: [L, T, R, B]
-        var cx = (b[0] + b[2]) / 2;
-        var cy = (b[1] + b[3]) / 2;
+        var rectBounds;
+        try { rectBounds = bgRect.geometricBounds; } catch (e) { return; }
+        /* rectBounds: [左, 上, 右, 下] / [L, T, R, B] */
+        var centerX = (rectBounds[0] + rectBounds[2]) / 2;
+        var centerY = (rectBounds[1] + rectBounds[3]) / 2;
 
-        for (var i = 0; i < rect.pathPoints.length; i++) {
+        for (var i = 0; i < bgRect.pathPoints.length; i++) {
             try {
-                var pp = rect.pathPoints[i];
-                var ax = pp.anchor[0], ay = pp.anchor[1];
-                var dx = ax - cx;
-                var dy = ay - cy;
-                var len = Math.sqrt(dx * dx + dy * dy);
-                if (!len || len === 0) continue;
+                var pathPoint = bgRect.pathPoints[i];
+                var anchorX = pathPoint.anchor[0], anchorY = pathPoint.anchor[1];
+                var dx = anchorX - centerX;
+                var dy = anchorY - centerY;
+                var distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+                if (!distanceFromCenter) continue;
 
-                // random outward distance
-                var d = Math.random() * maxPt;
-                var ux = dx / len;
-                var uy = dy / len;
-                var ox = ux * d;
-                var oy = uy * d;
+                /* 外向きのランダムな移動量 / random outward distance */
+                var offsetDistance = Math.random() * maxOffset;
+                var offsetX = dx / distanceFromCenter * offsetDistance;
+                var offsetY = dy / distanceFromCenter * offsetDistance;
 
-                // move anchor + handles together to keep corner shape
-                pp.anchor = [ax + ox, ay + oy];
-                pp.leftDirection = [pp.leftDirection[0] + ox, pp.leftDirection[1] + oy];
-                pp.rightDirection = [pp.rightDirection[0] + ox, pp.rightDirection[1] + oy];
+                /* 角の形を保つため、アンカーとハンドルを一緒に動かす / move anchor and handles together to keep the corner shape */
+                pathPoint.anchor = [anchorX + offsetX, anchorY + offsetY];
+                pathPoint.leftDirection = [pathPoint.leftDirection[0] + offsetX, pathPoint.leftDirection[1] + offsetY];
+                pathPoint.rightDirection = [pathPoint.rightDirection[0] + offsetX, pathPoint.rightDirection[1] + offsetY];
             } catch (e) { }
         }
     }
 
-    function addRectFromBounds(bgGroup, b) {
-        // b: [L, T, R, B]
-        var PAD = 1; // 1pt expansion on each side
+    /**
+     * 1文字の範囲に背景長方形を追加する
+     * @param {GroupItem} bgGroup - 追加先のグループ
+     * @param {number[]} charBounds - 文字の geometricBounds [左, 上, 右, 下]
+     * @returns {PathItem|null} 作った長方形。幅か高さが 0 以下なら null
+     */
+    function addBackgroundRect(bgGroup, charBounds) {
+        var left = charBounds[0] - BG_RECT_PADDING;
+        var top = charBounds[1] + BG_RECT_PADDING;
+        var right = charBounds[2] + BG_RECT_PADDING;
+        var bottom = charBounds[3] - BG_RECT_PADDING;
 
-        var L = b[0] - PAD;
-        var T = b[1] + PAD;
-        var R = b[2] + PAD;
-        var B = b[3] - PAD;
+        var rectWidth = right - left;
+        var rectHeight = top - bottom;
+        if (rectWidth <= 0 || rectHeight <= 0) return null;
 
-        var w = R - L;
-        var h = T - B;
-        if (w <= 0 || h <= 0) return null;
-
-        var rect = bgGroup.pathItems.rectangle(T, L, w, h);
-        setRectStyle(rect);
-        // Randomly expand anchors outward (rough, organic feel)
-        jitterRectOutward(rect, 1);
-        return rect;
+        var bgRect = bgGroup.pathItems.rectangle(top, left, rectWidth, rectHeight);
+        applyRandomGrayFill(bgRect);
+        jitterRectOutward(bgRect, BG_RECT_JITTER);
+        return bgRect;
     }
 
-    function collectCharGroupsFromOutlined(outlined, out) {
-        // C: アウトライン結果の「サブレベル groupItems」を 1文字単位として扱う。
-        // 典型例: outlined(GroupItem)
-        //   ├─ groupItems[0] (行/ブロック)
-        //   │    ├─ groupItems[0] (1文字)
-        //   │    ├─ groupItems[1] (1文字)
-        //   │    ...
-        //   ├─ groupItems[1] (行/ブロック)
-        //   ...
-        // 例外ケースに備えてフォールバックも用意。
-        if (!outlined) return;
+    /**
+     * アウトライン化の結果から、1文字ずつのまとまりを集める
+     * 典型的な構造は「outlinedGroup > 行・ブロックのグループ > 1文字のグループ」なので、
+     * 2段目の groupItems を1文字として扱い、それが無い構造にはフォールバックする
+     * @param {PageItem} outlinedGroup - createOutline() の結果
+     * @param {PageItem[]} charUnits - 収集先の配列
+     * @returns {void}
+     */
+    function collectCharGroupsFromOutlined(outlinedGroup, charUnits) {
+        if (!outlinedGroup) return;
 
-        function pushLeafUnits(container) {
+        /**
+         * グループをたどって末端のパスを集める
+         * @param {GroupItem} containerItem - たどるグループ
+         * @returns {void}
+         */
+        function pushLeafUnits(containerItem) {
             try {
-                if (!container || !container.pageItems) return;
-                for (var k = 0; k < container.pageItems.length; k++) {
-                    var it = container.pageItems[k];
-                    if (!it) continue;
-                    if (it.typename === 'GroupItem') {
-                        pushLeafUnits(it);
-                    } else if (it.typename === 'PathItem' || it.typename === 'CompoundPathItem') {
-                        out.push(it);
+                if (!containerItem || !containerItem.pageItems) return;
+                for (var k = 0; k < containerItem.pageItems.length; k++) {
+                    var childItem = containerItem.pageItems[k];
+                    if (!childItem) continue;
+                    if (childItem.typename === "GroupItem") {
+                        pushLeafUnits(childItem);
+                    } else if (childItem.typename === "PathItem" || childItem.typename === "CompoundPathItem") {
+                        charUnits.push(childItem);
                     }
                 }
             } catch (e) { }
         }
 
         try {
-            if (outlined.typename === 'GroupItem') {
+            if (outlinedGroup.typename === "GroupItem") {
                 var hasPushed = false;
 
-                // Prefer: sub-level groupItems (child group -> its groupItems)
-                if (outlined.groupItems && outlined.groupItems.length > 0) {
-                    for (var i = 0; i < outlined.groupItems.length; i++) {
-                        var g1 = outlined.groupItems[i];
-                        if (!g1 || g1.typename !== 'GroupItem') continue;
+                /* 2段目の groupItems を優先する / Prefer the second-level groupItems */
+                if (outlinedGroup.groupItems && outlinedGroup.groupItems.length > 0) {
+                    for (var i = 0; i < outlinedGroup.groupItems.length; i++) {
+                        var lineGroup = outlinedGroup.groupItems[i];
+                        if (!lineGroup || lineGroup.typename !== "GroupItem") continue;
 
-                        if (g1.groupItems && g1.groupItems.length > 0) {
-                            for (var j = 0; j < g1.groupItems.length; j++) {
-                                out.push(g1.groupItems[j]);
+                        if (lineGroup.groupItems && lineGroup.groupItems.length > 0) {
+                            for (var j = 0; j < lineGroup.groupItems.length; j++) {
+                                charUnits.push(lineGroup.groupItems[j]);
                                 hasPushed = true;
                             }
                         } else {
-                            // If the child has no further groups, use it as a unit
-                            out.push(g1);
+                            /* その下にグループが無ければ、それ自体を1単位にする / Use the child itself when it has no further groups */
+                            charUnits.push(lineGroup);
                             hasPushed = true;
                         }
                     }
@@ -280,386 +411,425 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 if (hasPushed) return;
 
-                // Fallback: leaf units so it won't collapse to a single unit
-                pushLeafUnits(outlined);
-                if (out.length > 0) return;
+                /* フォールバック：末端のパスを単位にして、1つにまとまらないようにする / Fallback: leaf paths, so it does not collapse into one unit */
+                pushLeafUnits(outlinedGroup);
+                if (charUnits.length > 0) return;
 
-                // Last resort: whole outlined
-                out.push(outlined);
+                /* 最後の手段：アウトライン全体 / Last resort: the whole outline */
+                charUnits.push(outlinedGroup);
                 return;
             }
 
-            out.push(outlined);
+            charUnits.push(outlinedGroup);
         } catch (e) { }
     }
 
-    function createBackgroundRectsByOutlining(frames) {
-        if (!frames || frames.length === 0) return;
+    /**
+     * テキストフレームを背面に複製してアウトライン化する（元のテキストはそのまま）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {PageItem|null} アウトラインの結果。複製・アウトライン化に失敗したら null
+     */
+    function outlineDuplicateOf(textFrame) {
+        var textDuplicate;
+        try {
+            textDuplicate = textFrame.duplicate();
+            try { textDuplicate.move(textFrame, ElementPlacement.PLACEAFTER); } catch (e) { }
+        } catch (e) {
+            return null;
+        }
 
-        var bgLayer = ensureBgLayer();
-        removeBgGroupIfExists(bgLayer);
+        var outlinedGroup;
+        try {
+            outlinedGroup = textDuplicate.createOutline();
+        } catch (e) {
+            try { textDuplicate.remove(); } catch (eRemove) { }
+            return null;
+        }
+
+        /* createOutline() は複製を消費するので、通常ここは例外になる / createOutline() consumes the duplicate, so this normally throws */
+        try { textDuplicate.remove(); } catch (e) { }
+        return outlinedGroup;
+    }
+
+    /**
+     * 1文字ごとの背景長方形を作り直す（アウトライン化した複製で文字の位置を測る）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function createBackgroundRectsByOutlining(doc, textFrames) {
+        if (!textFrames || textFrames.length === 0) return;
+
+        var bgLayer = ensureBgLayer(doc);
+        removeBgGroups(bgLayer);
         var bgGroup = bgLayer.groupItems.add();
         bgGroup.name = BG_GROUP_NAME;
 
-        for (var i = 0; i < frames.length; i++) {
-            var tf = frames[i];
-            if (!tf || tf.typename !== 'TextFrame') continue;
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
+            if (!textFrame || textFrame.typename !== "TextFrame") continue;
 
-            var dup = null;
-            var outlined = null;
+            var outlinedGroup = outlineDuplicateOf(textFrame);
+            if (!outlinedGroup) continue;
 
-            // A) duplicate behind original
-            try {
-                dup = tf.duplicate();
-                try { dup.move(tf, ElementPlacement.PLACEAFTER); } catch (e) { }
-            } catch (e) {
-                continue;
-            }
+            var charUnits = [];
+            collectCharGroupsFromOutlined(outlinedGroup, charUnits);
 
-            // B) outline the duplicate
-            try {
-                outlined = dup.createOutline();
-            } catch (e) {
-                try { if (dup) dup.remove(); } catch (e) { }
-                continue;
-            }
-
-            // remove duplicate text
-            try { if (dup) dup.remove(); } catch (e) { }
-
-            // C) treat each top-level group as a character group
-            var charGroups = [];
-            collectCharGroupsFromOutlined(outlined, charGroups);
-
-            // D) rectangle per character group, random fill
-            for (var j = 0; j < charGroups.length; j++) {
+            for (var j = 0; j < charUnits.length; j++) {
                 try {
-                    var b = charGroups[j].geometricBounds;
-                    addRectFromBounds(bgGroup, b);
+                    addBackgroundRect(bgGroup, charUnits[j].geometricBounds);
                 } catch (e) { }
             }
 
-            // E) delete outlined artwork (C)
-            try { if (outlined) outlined.remove(); } catch (e) { }
+            /* 測り終えたアウトラインは消す / Remove the outline once measured */
+            try { outlinedGroup.remove(); } catch (e) { }
         }
 
-        // Keep backgrounds behind content
+        /* 背景は内容より背面に置く / Keep backgrounds behind content */
         try { bgGroup.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
         try { bgLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
     }
 
-    function setTrackingForFrames(frames, trackingVal) {
-        if (!frames || frames.length === 0) return;
-        for (var i = 0; i < frames.length; i++) {
-            var item = frames[i];
-            if (!item || item.typename !== 'TextFrame') continue;
+    // =========================================
+    // フォントの適用 / Font assignment
+    // =========================================
+
+    /**
+     * 名前に和文フォントのキーワードを含むか判定する
+     * @param {string} fontName - フォント名
+     * @returns {boolean} 含んでいれば true
+     */
+    function hasJPFontKeyword(fontName) {
+        if (!fontName) return false;
+        for (var i = 0; i < JP_FONT_KEYWORDS.length; i++) {
+            if (fontName.indexOf(JP_FONT_KEYWORDS[i]) !== -1) return true;
+        }
+        return false;
+    }
+
+    /**
+     * インストール済みフォントから、名前で和文フォントと判定できるものを集める
+     * @param {TextFonts} allFonts - app.textFonts
+     * @returns {TextFont[]} 和文フォントの配列
+     */
+    function getJPFonts(allFonts) {
+        var jpFonts = [];
+        for (var i = 0; i < allFonts.length; i++) {
             try {
-                // tracking is in 1/1000 em
-                item.textRange.characterAttributes.tracking = trackingVal;
+                var textFont = allFonts[i];
+                if (!textFont) continue;
+
+                var fullName = textFont.fullName ? String(textFont.fullName) : "";
+                var familyName = textFont.name ? String(textFont.name) : "";
+                var postScriptName = textFont.postScriptName ? String(textFont.postScriptName) : "";
+
+                if (hasJPFontKeyword(fullName) || hasJPFontKeyword(familyName) || hasJPFontKeyword(postScriptName)) {
+                    jpFonts.push(textFont);
+                }
+            } catch (e) { }
+        }
+        return jpFonts;
+    }
+
+    /**
+     * 選択からテキストフレームだけを取り出す（グループの中はたどらない）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {TextFrame[]} 選択中のテキストフレーム
+     */
+    function getSelectedTextFrames(doc) {
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.length === 0) return [];
+        var textFrames = [];
+        for (var i = 0; i < currentSelection.length; i++) {
+            try {
+                if (currentSelection[i] && currentSelection[i].typename === "TextFrame") textFrames.push(currentSelection[i]);
+            } catch (e) { }
+        }
+        return textFrames;
+    }
+
+    /**
+     * テキストに ASCII 英数字と改行以外の文字が含まれるか判定する
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {boolean} 含まれていれば true
+     */
+    function containsNonAlphanumeric(textFrames) {
+        if (!textFrames || textFrames.length === 0) return false;
+
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
+            if (!textFrame || textFrame.typename !== "TextFrame") continue;
+
+            var frameText;
+            try { frameText = textFrame.contents; } catch (e) { continue; }
+            for (var j = 0; j < frameText.length; j++) {
+                var character = frameText.charAt(j);
+                if (/[A-Za-z0-9]/.test(character)) continue;
+                /* 改行は除外 / ignore line breaks */
+                if (character === "\r" || character === "\n") continue;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 各文字にランダムなフォントを適用する（改行と半角スペースは飛ばす）
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {TextFont[]|TextFonts} fontList - 抽選するフォント
+     * @returns {void}
+     */
+    function applyRandomFontsToFrames(textFrames, fontList) {
+        if (!textFrames || textFrames.length === 0) return;
+        if (!fontList || fontList.length === 0) return;
+
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
+            if (!textFrame || textFrame.typename !== "TextFrame") continue;
+
+            var characters = textFrame.textRange.characters;
+            for (var j = 0; j < characters.length; j++) {
+                /* 改行や空白文字はスキップ（エラー回避と見た目のため） / skip returns and spaces */
+                if (characters[j].contents === "\r" || characters[j].contents === " ") continue;
+
+                try {
+                    var randomFontIndex = Math.floor(Math.random() * fontList.length);
+                    characters[j].characterAttributes.textFont = fontList[randomFontIndex];
+                } catch (e) {
+                    /* 特定のフォントが適用できない場合は無視 / ignore fonts that cannot be applied */
+                }
+            }
+        }
+
+        app.redraw();
+    }
+
+    /**
+     * テキストフレーム全体の字送りを設定する
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {number} trackingValue - 字送り（1/1000 em）
+     * @returns {void}
+     */
+    function setTrackingForFrames(textFrames, trackingValue) {
+        if (!textFrames || textFrames.length === 0) return;
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
+            if (!textFrame || textFrame.typename !== "TextFrame") continue;
+            try {
+                textFrame.textRange.characterAttributes.tracking = trackingValue;
             } catch (e) { }
         }
     }
 
-    function getBgLayerIfExists() {
-        try {
-            for (var i = 0; i < doc.layers.length; i++) {
-                if (doc.layers[i] && doc.layers[i].name === BG_LAYER_NAME) return doc.layers[i];
-            }
-        } catch (e) { }
-        return null;
-    }
-
-    function clearBackgroundRectsIfAny() {
-        var lyr = getBgLayerIfExists();
-        if (!lyr) return;
-        removeBgGroupIfExists(lyr);
-    }
-
-        function getMorisawaFonts() {
-            var list = [];
-            var i, f;
-
-            function matchJAKeyword(s) {
-                if (!s) return false;
-                s = String(s);
-                // 和文フォント判定キーワード
-                // Pr6 / Pr6N / AB- / FOT を含むものを対象
-                return (
-                    s.indexOf('Pr6N') !== -1 ||
-                    s.indexOf('Pr6') !== -1 ||
-                    s.indexOf('AB-') !== -1 ||
-                    s.indexOf('FOT') !== -1 ||
-                    s.indexOf('-OTF') !== -1
-                );
-            }
-
-            for (i = 0; i < allFonts.length; i++) {
-                try {
-                    f = allFonts[i];
-                    if (!f) continue;
-
-                    var n1 = f.fullName ? String(f.fullName) : '';
-                    var n2 = f.name ? String(f.name) : '';
-                    var n3 = (f.postScriptName) ? String(f.postScriptName) : '';
-
-                    if (matchJAKeyword(n1) || matchJAKeyword(n2) || matchJAKeyword(n3)) {
-                        list.push(f);
-                    }
-                } catch (e) { }
-            }
-
-            return list;
-        }
-
-        function getSelectionTextFrames() {
-            var currentSelection = doc.selection;
-            if (!currentSelection || currentSelection.length === 0) return [];
-            var frames = [];
-            for (var i = 0; i < currentSelection.length; i++) {
-                try {
-                    if (currentSelection[i] && currentSelection[i].typename === "TextFrame") frames.push(currentSelection[i]);
-                } catch (e) { }
-            }
-            return frames;
-        }
-        function selectionContainsNonAlnum(frames) {
-            if (!frames || frames.length === 0) return false;
-
-            for (var i = 0; i < frames.length; i++) {
-                var tf = frames[i];
-                if (!tf || tf.typename !== 'TextFrame') continue;
-
-                try {
-                    var txt = tf.contents;
-                    for (var j = 0; j < txt.length; j++) {
-                        var ch = txt.charAt(j);
-                        // ASCII英数字のみ許可
-                        if (!(/[A-Za-z0-9]/.test(ch))) {
-                            // 改行は除外
-                            if (ch === '\r' || ch === '\n') continue;
-                            return true;
-                        }
-                    }
-                } catch (e) { }
-            }
-            return false;
-        }
-
-        function applyRandomFontsToFrames(frames, fontList) {
-            if (!frames || frames.length === 0) return;
-            if (!fontList || fontList.length === 0) return;
-
-            for (var i = 0; i < frames.length; i++) {
-                var item = frames[i];
-                if (!item || item.typename !== "TextFrame") continue;
-
-                var chars = item.textRange.characters;
-                for (var j = 0; j < chars.length; j++) {
-                    // 改行や空白文字はスキップ（エラー回避と見た目のため）
-                    if (chars[j].contents === "\r" || chars[j].contents === " ") continue;
-
-                    try {
-                        var randomFontIndex = Math.floor(Math.random() * fontList.length);
-                        chars[j].characterAttributes.textFont = fontList[randomFontIndex];
-                    } catch (e) {
-                        // 特定のフォントが適用できない場合は無視
-                    }
-                }
-            }
-
-            app.redraw();
-        }
-
-        // --- Dialog ---
+    // =========================================
     // ダイアログ / Dialog
-        var DIALOG_KEY = "__FontShuffle_Dialog__";
-        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-        DialogPersist.setOpacity(dlg, 0.98);
-        dlg.onShow = function () {
-            DialogPersist.restorePosition(dlg, DIALOG_KEY, 300, 0);
+    // =========================================
+
+    /**
+     * ダイアログを組み立てる
+     * @returns {{dialogWindow: Window, limitToJPFontsCheckbox: Checkbox, manifestoCheckbox: Checkbox, btnRerun: Button, btnCancel: Button, btnOK: Button}} ダイアログと操作するコントロール
+     */
+    function buildShuffleDialog() {
+        var shuffleDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        DialogPersist.setOpacity(shuffleDialog, DIALOG_OPACITY);
+        shuffleDialog.onShow = function () {
+            DialogPersist.restorePosition(shuffleDialog, DIALOG_KEY, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
         };
-        DialogPersist.rememberOnMove(dlg, DIALOG_KEY);
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
+        DialogPersist.rememberOnMove(shuffleDialog, DIALOG_KEY);
+        shuffleDialog.orientation = "column";
+        shuffleDialog.alignChildren = ["fill", "top"];
 
-        var info = dlg.add('statictext', undefined, getLabel('info'));
-        info.characters = 52;
+        var descriptionText = shuffleDialog.add("statictext", undefined, getLabel("dialog.description"));
+        descriptionText.characters = INFO_CHARACTERS;
 
-        var chkMorisawa = dlg.add('checkbox', undefined, getLabel('limitToJPFonts'));
-        chkMorisawa.value = false;
-        var chkManifesto = dlg.add('checkbox', undefined, getLabel('manifestoStyle'));
-        chkManifesto.value = false;
+        var limitToJPFontsCheckbox = shuffleDialog.add("checkbox", undefined, getLabel("checkbox.limitToJPFonts"));
+        limitToJPFontsCheckbox.helpTip = getLabel("tooltip.limitToJPFonts");
+        limitToJPFontsCheckbox.value = false;
+        var manifestoCheckbox = shuffleDialog.add("checkbox", undefined, getLabel("checkbox.manifestoStyle"));
+        manifestoCheckbox.helpTip = getLabel("tooltip.manifestoStyle");
+        manifestoCheckbox.value = false;
 
-        // 犯行声明文風のON/OFFは、プレビュー済みなら「ランダムを回さず」見た目だけ更新
-        chkManifesto.onClick = function () {
-            if (!_previewApplied) return;
-            // 背景の有無だけ切り替え（ONなら作成、OFFなら削除）。フォントは維持。
-            runPreview(!!(chkManifesto && chkManifesto.value), false);
+        /* 下部ボタン行（左・スペーサー・右） / Bottom bar (left, spacer, right) */
+        var btnRowGroup = shuffleDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.orientation = "row";
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnRerun = btnLeftGroup.add("button", undefined, getLabel("button.rerun"));
+        btnRerun.helpTip = getLabel("tooltip.rerun");
+
+        var spacer = btnRowGroup.add("group");
+        spacer.orientation = "row";
+        spacer.alignment = ["fill", "center"];
+        spacer.add("statictext", undefined, "");
+        spacer.preferredSize.width = BUTTON_SPACER_WIDTH;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.orientation = "row";
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return {
+            dialogWindow: shuffleDialog,
+            limitToJPFontsCheckbox: limitToJPFontsCheckbox,
+            manifestoCheckbox: manifestoCheckbox,
+            btnRerun: btnRerun,
+            btnCancel: btnCancel,
+            btnOK: btnOK
         };
+    }
 
-        // 下部ボタン行（3カラム） / Bottom bar (3 columns)
-        var bottom = dlg.add('group');
-        bottom.orientation = 'row';
-        bottom.alignChildren = ['fill', 'center'];
+    /**
+     * ダイアログを表示し、プレビュー・再抽選・確定・取り消しを受け持つ
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function showShuffleDialog(doc) {
+        /* インストールされている全フォント（数が多いと処理に時間がかかる場合がある） / all installed fonts (can be slow when there are many) */
+        var allFonts = app.textFonts;
+        var dialogControls = buildShuffleDialog();
+        var shuffleDialog = dialogControls.dialogWindow;
+        var limitToJPFontsCheckbox = dialogControls.limitToJPFontsCheckbox;
+        var manifestoCheckbox = dialogControls.manifestoCheckbox;
 
-        // Left
-        var colL = bottom.add('group');
-        colL.orientation = 'row';
-        colL.alignChildren = ['left', 'center'];
-        var btnRerun = colL.add('button', undefined, getLabel('rerun'));
+        /* プレビュー済みかどうか。閉じるときは PreviewHistory で一括 Undo する / whether a preview is applied; undone in one go on close */
+        var isPreviewApplied = false;
 
-        // Center spacer
-        var colC = bottom.add('group');
-        colC.orientation = 'row';
-        colC.alignment = ['fill', 'center'];
-        colC.add('statictext', undefined, '');
-
-        // Right
-        var colR = bottom.add('group');
-        colR.orientation = 'row';
-        colR.alignChildren = ['right', 'center'];
-        var btnCancel = colR.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-        var btnOK = colR.add('button', undefined, getLabel('ok'), { name: 'ok' });
-
-        try { colC.preferredSize.width = 20; } catch (e) { }
-        try { bottom.alignment = ['fill', 'bottom']; } catch (e) { }
-        try { colR.alignment = ['right', 'center']; } catch (e) { }
-
-        // プレビュー状態：プレビュー描画を閉じるときに一括Undo / Preview state: undo all preview steps on close
-        var _previewApplied = false;
-
-        // Preview items (reserved) / プレビュー項目（予約）
-        var __previewItems = [];
-
-        /* =========================================
-         * PreviewHistory util (extractable)
-         * ヒストリーを残さないプレビューのための小さなユーティリティ。
-         * 他スクリプトでもこのブロックをコピペすれば再利用できます。
-         * 使い方:
-         *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
-         *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
-         *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
-         *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
-         * ========================================= */
-        (function(g){
-            if (!g.PreviewHistory) {
-                g.PreviewHistory = {
-                    start: function(){ g.__previewUndoCount = 0; },
-                    bump:  function(){ g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
-                    undo:  function(){
-                        var n = g.__previewUndoCount | 0;
-                        try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) {}
-                        g.__previewUndoCount = 0;
-                    },
-                    cancelTask: function(taskId){
-                        try { if (taskId) app.cancelTask(taskId); } catch (e) {}
-                    }
-                };
-            }
-        })($.global);
-
+        /**
+         * プレビューを描く（フォントの抽選・字送り・背景長方形）
+         * @param {boolean} makeRects - 犯行声明文風のとき背景長方形を作るなら true
+         * @param {boolean} [randomizeFonts] - フォントを抽選し直すなら true（既定 true）
+         * @param {boolean} [countHistory] - PreviewHistory の取り消し段数に数えるなら true（既定 true）
+         * @returns {void}
+         */
         function runPreview(makeRects, randomizeFonts, countHistory) {
-            if (typeof randomizeFonts === 'undefined') randomizeFonts = true;
-            if (typeof countHistory === 'undefined') countHistory = true;
+            if (typeof randomizeFonts === "undefined") randomizeFonts = true;
+            if (typeof countHistory === "undefined") countHistory = true;
 
-            function _do() {
-                var frames = getSelectionTextFrames();
-                if (frames.length === 0) {
-                    alert(getLabel('alertSelectText'));
+            /**
+             * プレビューの各段階を適用する（suspendHistory から文字列で呼べるよう名前付きで定義）
+             * @returns {void}
+             */
+            function applyPreviewSteps() {
+                var textFrames = getSelectedTextFrames(doc);
+                if (textFrames.length === 0) {
+                    alert(getLabel("alert.noTextSelected"));
                     return;
                 }
 
-                // ランダムを走らせる場合のみ、直前プレビューを undo で戻す
-                if (randomizeFonts && _previewApplied) {
+                /* 抽選し直すときだけ、直前のプレビューを undo で戻す / undo the previous preview only when reshuffling */
+                if (randomizeFonts && isPreviewApplied) {
                     try { app.undo(); } catch (e) { }
                 }
 
-                // 1) random fonts (optional)
+                /* 1) フォントの抽選（任意） / random fonts (optional) */
                 if (randomizeFonts) {
-                    var fontList = null;
-                    if (chkMorisawa && chkMorisawa.value) {
-                        fontList = getMorisawaFonts();
-                        if (!fontList || fontList.length === 0) {
-                            alert(getLabel('alertNoJPFonts'));
+                    var fontList = allFonts;
+                    if (limitToJPFontsCheckbox.value) {
+                        fontList = getJPFonts(allFonts);
+                        if (fontList.length === 0) {
+                            alert(getLabel("alert.noJPFonts"));
                             return;
                         }
-                    } else {
-                        fontList = allFonts;
                     }
-
-                    applyRandomFontsToFrames(frames, fontList);
+                    applyRandomFontsToFrames(textFrames, fontList);
                 }
 
-                // 2) 犯行声明文風: tracking=200（ランダムを走らせない場合でも適用可）
-                if (chkManifesto && chkManifesto.value) {
-                    setTrackingForFrames(frames, 200);
+                /* 2) 犯行声明文風：字送り（抽選しない場合も適用） / manifesto style: tracking, also without reshuffling */
+                if (manifestoCheckbox.value) {
+                    setTrackingForFrames(textFrames, MANIFESTO_TRACKING);
                 }
 
-                // 3) Background rectangles: only when requested AND 犯行声明文風 ON
-                if (makeRects && chkManifesto && chkManifesto.value) {
-                    createBackgroundRectsByOutlining(frames);
+                /* 3) 背景長方形：要求があり、かつ犯行声明文風がオンのときだけ / background rectangles only when requested and the style is on */
+                if (makeRects && manifestoCheckbox.value) {
+                    createBackgroundRectsByOutlining(doc, textFrames);
                 } else {
-                    // OFF の場合は背景を付けない（既存があれば消す）
-                    clearBackgroundRectsIfAny();
+                    /* オフなら背景を付けない（既存があれば消す） / otherwise remove any existing background */
+                    clearBackgroundRects(doc);
                 }
 
-                _previewApplied = true;
+                isPreviewApplied = true;
             }
 
-            // Try to keep the operation to a single history step (so undo once works)
+            /* 取り消し1回で戻せるよう1段にまとめたい（Illustrator には suspendHistory が無いので通常は下へ進む）
+               Try a single history step (Illustrator has no suspendHistory, so this normally falls through) */
             try {
                 if (doc && doc.suspendHistory) {
-                    doc.suspendHistory(getLabel('historyPreview'), '_do()');
+                    doc.suspendHistory(getLabel("history.preview"), "applyPreviewSteps()");
                     if (countHistory) PreviewHistory.bump();
                     return;
                 }
             } catch (e) { }
 
-            _do();
+            applyPreviewSteps();
             if (countHistory) PreviewHistory.bump();
         }
 
-        btnRerun.onClick = function () {
-            // プレビュー更新（ランダム再実行）
+        /* 犯行声明文風の切り替えは、プレビュー済みなら抽選せずに背景の有無だけ更新 / toggling the style keeps the fonts and only updates the background */
+        manifestoCheckbox.onClick = function () {
+            if (!isPreviewApplied) return;
+            runPreview(manifestoCheckbox.value, false);
+        };
+
+        dialogControls.btnRerun.onClick = function () {
             runPreview(false, true);
         };
 
-        btnOK.onClick = function () {
-            // プレビューの履歴を消してから最終適用 / Clear preview history before final apply
+        dialogControls.btnOK.onClick = function () {
+            /* プレビューの履歴を消してから最終適用 / Clear preview history before final apply */
             PreviewHistory.undo();
-            // プレビュー未実行ならここで1回適用（犯行声明文風 ON の場合のみ長方形も作る）
-            if (!_previewApplied) {
+            if (!isPreviewApplied) {
+                /* プレビュー未実行ならここで1回適用（犯行声明文風のときだけ長方形も作る） / apply once when never previewed */
                 runPreview(true, true, false);
+            } else if (manifestoCheckbox.value) {
+                /* プレビュー済み：フォントは維持し、背景長方形だけ付ける / keep the fonts and add the background rectangles */
+                runPreview(true, false, false);
             } else {
-                // 既にプレビュー済み：フォントは維持したまま、OK時に必要な見た目だけ確定
-                if (chkManifesto && chkManifesto.value) {
-                    // 背景矩形を付ける（再ランダム化しない）
-                    runPreview(true, false, false);
-                } else {
-                    // OFF の場合は長方形なし（既存があれば消す）
-                    clearBackgroundRectsIfAny();
-                }
+                /* オフなら長方形なし（既存があれば消す） / no rectangles when the style is off */
+                clearBackgroundRects(doc);
             }
-            DialogPersist.savePosition(dlg, DIALOG_KEY);
-            dlg.close(1);
+            DialogPersist.savePosition(shuffleDialog, DIALOG_KEY);
+            shuffleDialog.close(1);
         };
 
-        btnCancel.onClick = function () {
-            // プレビューを戻す（履歴を残さない） / Undo all previews
+        dialogControls.btnCancel.onClick = function () {
+            /* プレビューを戻す（履歴を残さない） / Undo all previews */
             PreviewHistory.undo();
-            DialogPersist.savePosition(dlg, DIALOG_KEY);
-            dlg.close(0);
+            DialogPersist.savePosition(shuffleDialog, DIALOG_KEY);
+            shuffleDialog.close(0);
         };
 
-        // ダイアログ表示前に選択テキストをチェック
-        var _initialFrames = getSelectionTextFrames();
-        if (selectionContainsNonAlnum(_initialFrames)) {
-            chkMorisawa.value = true;
+        /* 英数字以外を含むテキストなら、和文フォントに限る をオンにして開く / start with JP fonts only for non-alphanumeric text */
+        if (containsNonAlphanumeric(getSelectedTextFrames(doc))) {
+            limitToJPFontsCheckbox.value = true;
         }
 
         PreviewHistory.start();
-        dlg.center();
-        dlg.show();
-    })();
+        shuffleDialog.center();
+        shuffleDialog.show();
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ドキュメントを確認してダイアログを開く
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        showShuffleDialog(app.activeDocument);
+    }
+
+    main();
 
 })();

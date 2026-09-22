@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md"; /* README (English) */
@@ -108,6 +108,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
             removeBreaks: { ja: "改行削除", en: "Remove Breaks" }
         },
         tooltip: {
+            appendMode: {
+                ja: "読み込んだテキストを、テキスト欄の末尾に空行を1つ挟んで追加します",
+                en: "Adds the loaded text to the end of the memo, separated by one blank line"
+            },
+            replaceMode: {
+                ja: "読み込んだテキストで、テキスト欄の内容を置き換えます",
+                en: "Replaces the memo with the loaded text"
+            },
             load: {
                 ja: "選択オブジェクトのテキストを読み込みます（モードに従って追加／置き換え）。「追加」モードでは既存テキストとの間に空行を入れます",
                 en: "Load text from the selected objects (append or replace per mode). In Append mode, a blank line is inserted between the existing and new text"
@@ -174,10 +182,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     /**
      * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {Object} labelNode - LABELS 内の { ja, en } ノード
-     * @returns {string} コロンを添えたラベル
+     * @returns {string} コロン付きの項目名
      */
-    function labelTextWithColon(labelNode) {
-        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ": ");
+    function labelText(labelNode) {
+        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -214,37 +222,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
 
     /* テキストの収集・整列・連結 / Collect, sort and join text */
     var WORKER_COLLECTOR =
-        '    var collected = [];' +
+        '    var collectedEntries = [];' +
         // シンボルの読み取り方は呼び出し側で差し替える（未設定ならシンボルは無視）
         '    var readSymbolItem = null;' +
         // 実質的に空のフレームは無視し、テキストと位置（左端・上端）を控える
-        '    function pushFrame(frame) {' +
-        '        var contents = frame.contents;' +
-        '        if (!contents || contents.replace(/[\\r\\n\\x03]/g, "").replace(/\\s+/g, "") === "") return;' +
-        '        var frameBounds = frame.geometricBounds;' +
-        '        collected.push({ text: contents, left: frameBounds[0], top: frameBounds[1] });' +
+        '    function pushFrame(textFrame) {' +
+        '        var frameText = textFrame.contents;' +
+        '        if (!frameText || frameText.replace(/[\\r\\n\\x03]/g, "").replace(/\\s+/g, "") === "") return;' +
+        '        var frameBounds = textFrame.geometricBounds;' +
+        '        collectedEntries.push({ text: frameText, left: frameBounds[0], top: frameBounds[1] });' +
         '    }' +
         // グループ・クリップグループの中もたどる
-        '    function collectFrom(item) {' +
-        '        if (item.typename === "TextFrame") { pushFrame(item); return; }' +
-        '        if (item.typename === "SymbolItem") { if (readSymbolItem) readSymbolItem(item); return; }' +
-        '        if (item.pageItems) { for (var i = 0; i < item.pageItems.length; i++) collectFrom(item.pageItems[i]); }' +
+        '    function collectFrom(pageItem) {' +
+        '        if (pageItem.typename === "TextFrame") { pushFrame(pageItem); return; }' +
+        '        if (pageItem.typename === "SymbolItem") { if (readSymbolItem) readSymbolItem(pageItem); return; }' +
+        '        if (pageItem.pageItems) { for (var i = 0; i < pageItem.pageItems.length; i++) collectFrom(pageItem.pageItems[i]); }' +
         '    }' +
         // カンバス上の位置で上から順（同じ高さは左から右）に並べて連結する
         '    function joinCollected(dedupe) {' +
-        '        collected.sort(function (a, b) {' +
-        '            if (Math.abs(b.top - a.top) <= ' + SAME_ROW_TOLERANCE_PT + ') return a.left - b.left;' +
-        '            return b.top - a.top;' +
+        '        collectedEntries.sort(function (entryA, entryB) {' +
+        '            if (Math.abs(entryB.top - entryA.top) <= ' + SAME_ROW_TOLERANCE_PT + ') return entryA.left - entryB.left;' +
+        '            return entryB.top - entryA.top;' +
         '        });' +
         '        var seenTexts = {};' +
-        '        var texts = [];' +
-        '        for (var i = 0; i < collected.length; i++) {' +
-        '            var seenKey = "k_" + collected[i].text;' +
+        '        var orderedTexts = [];' +
+        '        for (var i = 0; i < collectedEntries.length; i++) {' +
+        '            var seenKey = "k_" + collectedEntries[i].text;' +
         '            if (dedupe && seenTexts[seenKey]) continue;' +
         '            seenTexts[seenKey] = true;' +
-        '            texts.push(collected[i].text);' +
+        '            orderedTexts.push(collectedEntries[i].text);' +
         '        }' +
-        '        return texts.join(String.fromCharCode(10));' +
+        '        return orderedTexts.join(String.fromCharCode(10));' +
         '    }';
 
     /* 選択オブジェクトからテキストを収集する（シンボル内も対象）/ Collect text from the selection (symbols included) */
@@ -264,31 +272,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
         '        return symbolReadLayer;' +
         '    }' +
         // 複製なのでその場で breakLink してよい（入れ子シンボルも多段展開）
-        '    function harvestDuplicate(item) {' +
-        '        if (!item) return;' +
-        '        if (item.typename === "TextFrame") { pushFrame(item); return; }' +
-        '        if (item.typename === "SymbolItem") {' +
+        '    function harvestDuplicate(pageItem) {' +
+        '        if (!pageItem) return;' +
+        '        if (pageItem.typename === "TextFrame") { pushFrame(pageItem); return; }' +
+        '        if (pageItem.typename === "SymbolItem") {' +
         '            try {' +
         '                targetDoc.selection = null;' +
-        '                item.selected = true;' +
-        '                item.breakLink();' +
+        '                pageItem.selected = true;' +
+        '                pageItem.breakLink();' +
         '                var expandedItems = [];' +
         '                for (var i = 0; i < targetDoc.selection.length; i++) expandedItems.push(targetDoc.selection[i]);' +
         '                for (var j = 0; j < expandedItems.length; j++) harvestDuplicate(expandedItems[j]);' +
         '            } catch (err) {}' +
         '            return;' +
         '        }' +
-        '        if (item.pageItems) { for (var k = 0; k < item.pageItems.length; k++) harvestDuplicate(item.pageItems[k]); }' +
+        '        if (pageItem.pageItems) { for (var k = 0; k < pageItem.pageItems.length; k++) harvestDuplicate(pageItem.pageItems[k]); }' +
         '    }' +
         '    readSymbolItem = function (symbolItem) {' +
         '        harvestDuplicate(symbolItem.duplicate(getSymbolReadLayer(), ElementPlacement.PLACEATBEGINNING));' +
         '    };' +
         '    saveSelection();' +
-        '    for (var s = 0; s < savedSelection.length; s++) collectFrom(savedSelection[s]);' +
+        '    for (var i = 0; i < savedSelection.length; i++) collectFrom(savedSelection[i]);' +
         // 一時レイヤーは中身ごと削除する
         '    if (symbolReadLayer) { try { symbolReadLayer.remove(); } catch (err) {} }' +
         '    restoreSelection();' +
-        '    if (collected.length === 0) return "NOTF:";' +
+        '    if (collectedEntries.length === 0) return "NOTF:";' +
         '    return "OK:" + encodeURIComponent(joinCollected(false));' +
         '})();';
 
@@ -312,7 +320,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
         '    for (var j = 0; j < pastedItems.length; j++) collectFrom(pastedItems[j]);' +
         '    for (var k = 0; k < pastedItems.length; k++) { try { pastedItems[k].remove(); } catch (err) {} }' +
         '    restoreSelection();' +
-        '    if (collected.length === 0) return "NOTX:";' +
+        '    if (collectedEntries.length === 0) return "NOTX:";' +
         // pasteInAllArtboard はアートボードごとに複製を作るため重複を除く
         '    return "OK:" + encodeURIComponent(joinCollected(true));' +
         '})();';
@@ -336,7 +344,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
             '    var layerWasLocked = editLayer.locked;' +
             '    var layerWasHidden = !editLayer.visible;' +
             '    var tempFrame = null;' +
-            '    var copied = false;' +
+            '    var copySucceeded = false;' +
             '    try {' +
             '        editLayer.locked = false;' +
             '        editLayer.visible = true;' +
@@ -349,14 +357,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
             '        app.redraw();' +
             '        app.executeMenuCommand("copy");' +
             '        app.redraw();' + // コピー確定前に削除すると空になる
-            '        copied = true;' +
+            '        copySucceeded = true;' +
             '    } catch (err) {}' +
             '    if (tempFrame) { try { tempFrame.remove(); } catch (err) {} }' +
             '    editLayer.locked = layerWasLocked;' +
             '    editLayer.visible = !layerWasHidden;' +
             '    if (usingTempDoc) { try { targetDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (err) {} }' +
             '    else restoreSelection();' +
-            '    return copied ? "OK" : "ERR";' +
+            '    return copySucceeded ? "OK" : "ERR";' +
             '})();';
     }
 
@@ -433,6 +441,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     /* 既にパレットが開いていれば前面に出して終了する（常駐エンジンなので二重に生成しない）/
        If the palette is already open, bring it to the front and stop (avoid a second instance on this persistent engine) */
     if ($.global.__TextMemoWindow) {
+        /* 閉じたパレットの参照は失効していて例外になりうる / a stale reference to a closed palette can throw */
         try {
             if ($.global.__TextMemoWindow.visible) {
                 $.global.__TextMemoWindow.active = true; // 前面へ / Bring to front
@@ -479,10 +488,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     modeSelectGroup.orientation = 'row';
     modeSelectGroup.alignment = ['center', 'top'];      // 左右中央 / horizontally centered
     modeSelectGroup.alignChildren = ['left', 'center']; // 天地中央 / vertically centered
-    modeSelectGroup.add('statictext', undefined, labelTextWithColon(LABELS.fieldLabel.mode));
+    modeSelectGroup.add('statictext', undefined, labelText(LABELS.fieldLabel.mode));
     var appendModeRadio = modeSelectGroup.add('radiobutton', undefined, getLabel(LABELS.radio.append));
     var replaceModeRadio = modeSelectGroup.add('radiobutton', undefined, getLabel(LABELS.radio.replace));
     appendModeRadio.value = true; // デフォルトは追加 / Append by default
+    appendModeRadio.helpTip = getLabel(LABELS.tooltip.appendMode);
+    replaceModeRadio.helpTip = getLabel(LABELS.tooltip.replaceMode);
 
     /* 読み込み行（テキスト欄の上）/ Load row (above the text area) */
     var loadButtonRow = memoPalette.add('group');
@@ -683,8 +694,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     // キー操作 & 閉じる / Keys & close
     // =========================================
     /* Escape でパレットを閉じる / Close the palette with Escape */
-    memoPalette.addEventListener('keydown', function (e) {
-        if (e.keyName === 'Escape') memoPalette.close();
+    memoPalette.addEventListener('keydown', function (keyEvent) {
+        if (keyEvent.keyName === 'Escape') memoPalette.close();
     });
 
     /* 閉じたときの内容を CLEAR_ON_CLOSE で制御（再起動時は触れない）。ウィンドウ位置は常に保持 /
@@ -857,18 +868,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
      * @returns {string} タイムスタンプ文字列
      */
     function getTimeStamp() {
-        var now = new Date();
+        var currentDate = new Date();
 
         /**
          * 2桁になるよう 0 を補う
-         * @param {number} value - 対象の数値
+         * @param {number} numberValue - 対象の数値
          * @returns {string} 2桁の文字列
          */
-        function padZero(value) {
-            return ('0' + value).slice(-2);
+        function padZero(numberValue) {
+            return ('0' + numberValue).slice(-2);
         }
-        return now.getFullYear() + padZero(now.getMonth() + 1) + padZero(now.getDate()) + '_' +
-            padZero(now.getHours()) + padZero(now.getMinutes()) + padZero(now.getSeconds());
+        return currentDate.getFullYear() + padZero(currentDate.getMonth() + 1) + padZero(currentDate.getDate()) + '_' +
+            padZero(currentDate.getHours()) + padZero(currentDate.getMinutes()) + padZero(currentDate.getSeconds());
     }
 
     // =========================================
