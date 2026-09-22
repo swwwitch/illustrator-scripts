@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenkoYoshi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenkoYoshiMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
@@ -115,7 +115,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             standard: { ja: "標準", en: "Standard" },
             noSideRule: { ja: "外側の罫線なし", en: "No outer rules" },
             noCross: { ja: "十字線なし", en: "No crosshairs" },
+            noCrossWithMargin: { ja: "十字線なし（余白つき）", en: "No crosshairs, with margin" },
             rulesOnly: { ja: "シンプル", en: "Simple" },
+            rectangles: { ja: "長方形のマス", en: "Rectangle cells" },
             custom: { ja: "カスタム", en: "Custom" }
         },
         radio: {
@@ -491,10 +493,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             }
         },
         {
+            label: LABELS.preset.noCrossWithMargin,
+            settings: {
+                cellRects: false, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 1, extraLines: 1, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: true,
+                dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
+                crossStyle: "none", crossSegments: 9
+            }
+        },
+        {
             label: LABELS.preset.rulesOnly,
             settings: {
                 cellRects: false, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: 0, showSideRules: false,
                 dashedCellRules: false, emphasisEnabled: false, emphasisEvery: 5,
+                crossStyle: "none", crossSegments: 9
+            }
+        },
+        {
+            label: LABELS.preset.rectangles,
+            settings: {
+                cellRects: true, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 100, autoLeading: 125, extensionMM: null, showSideRules: true,
+                dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
                 crossStyle: "none", crossSegments: 9
             }
         },

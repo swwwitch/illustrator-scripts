@@ -51,7 +51,7 @@ Vertical and horizontal, point and area text are all supported, and the writing 
 
 | Option | Default | Description |
 | --- | --- | --- |
-| Preset | Standard | Standard, No outer rules, No crosshairs, Simple or Custom; editing any value switches to Custom |
+| Preset | Standard | Standard, No outer rules, No crosshairs, No crosshairs with margin, Simple, Rectangle cells or Custom; editing any value switches to Custom |
 | Add | - | Adds the current settings to the preset list and shows the code for them |
 | Draw a rectangle for each character | Off | Creates one rectangle per cell in place of the cell rules and the rules along each line; the emphasis and line-rule options are dimmed |
 | Rule density | 50% | Density of the rules, set with a slider (Shift snaps to steps of 10%) |
@@ -132,5 +132,6 @@ Area text is fitted to its contents with Auto Size when the script starts and ag
 
 ### Change log
 
+- v1.2.0 (2026-09-23): Added the "No crosshairs, with margin" and "Rectangle cells" presets
 - v1.1.0 (2026-09-23): Added "Draw a rectangle for each character"
 - v1.0.0 (2026-09-19): Initial release
