@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4eaa14098858
+
 ### Overview
 
 Generates rules and backgrounds that match the appearance — position, width and line count — of the selected text frame.
@@ -25,93 +28,50 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TableMaker";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4eaa14098858"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-        dialogTitle: {
-            ja: "TableMaker" + ' ' + SCRIPT_VERSION,
-            en: "TableMaker" + ' ' + SCRIPT_VERSION
-        },
-        strokeWidth: {
-            ja: "線幅：",
-            en: "Stroke width:"
-        },
-        shapePanel: {
-            ja: "形状",
-            en: "Shape"
-        },
-        tipWidth: { ja: "表の幅です。", en: "Width of the table." },
-        tipShapeRect: { ja: "表全体を1つの長方形で囲みます。", en: "Frames the whole table with a single rectangle." },
-        tipShapeTopBottom: { ja: "上下のケイ線だけを引きます。", en: "Draws only the top and bottom rules." },
-        tipShapeRowRect: { ja: "行ごとに長方形を作ります。", en: "Creates a rectangle for each row." },
-        tipVerticalLines: { ja: "列の境に縦のケイ線を引きます。", en: "Draws a vertical rule between the columns." },
-        tipHeading: { ja: "1行目を見出し行として扱います。", en: "Treats the first row as a header." },
-        shapeRect: {
-            ja: "外枠は長方形",
-            en: "Rectangle border"
-        },
-        shapeTopBottom: {
-            ja: "外枠なし",
-            en: "No outer border"
-        },
-        shapeRowRect: {
-            ja: "行ごとに長方形",
-            en: "Row rectangles"
-        },
-        verticalLines: {
-            ja: "縦罫",
-            en: "Vertical rules"
-        },
-        heading: {
-            ja: "見出し",
-            en: "Heading"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        }
-    };
+    var MAX_SELECTION_COUNT    = 1000;         /* これ以上の選択では処理しない / skip when this many items are selected */
+    var DEFAULT_SHAPE_MODE     = "topBottom";  /* ［形状］の初期値 "outerRect" / "topBottom" / "rowFills" / initial shape */
+    var DEFAULT_VERTICAL_RULES = false;        /* ［縦罫］の初期値 / initial state of Vertical rules */
+    var DEFAULT_HEADING        = true;         /* ［見出し］の初期値 / initial state of Heading */
+    var HEADING_STROKE_SCALE   = 3;            /* 見出しを強調する罫線の倍率 / stroke multiplier for the heading rules */
+    var RULE_BLACK             = 100;          /* 罫線の濃さ（K%）/ rule color (K%) */
+    var ROW_FILL_BLACK_HEADING = 50;           /* 見出し行の背景（K%）/ heading row fill (K%) */
+    var ROW_FILL_BLACK_ODD     = 30;           /* 1・3・5…行目の背景（K%）/ fill of the 1st, 3rd, 5th… rows (K%) */
+    var ROW_FILL_BLACK_EVEN    = 10;           /* 2・4・6…行目の背景（K%）/ fill of the 2nd, 4th, 6th… rows (K%) */
 
-    function getLabel(key) {
-        var entry = LABELS[key];
-        if (!entry) return key;
-        if (uiLang === 'ja' && entry.ja) return entry.ja;
-        if (entry.en) return entry.en;
-        if (entry.ja) return entry.ja;
-        return key;
-    }
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
-    // ダイアログの表示位置と透明度 / Dialog position & opacity
-    var DIALOG_OFFSET_X = 300;
-    var DIALOG_OFFSET_Y = 0;
-    var DIALOG_OPACITY = 0.98;
+    var DIALOG_OFFSET_X    = 300;               /* ダイアログを右へずらす量 / horizontal dialog offset */
+    var DIALOG_OFFSET_Y    = 0;                 /* ダイアログを下へずらす量 / vertical dialog offset */
+    var DIALOG_OPACITY     = 0.98;              /* ダイアログの不透明度 / dialog opacity */
+    var PANEL_MARGINS      = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] / panel margins */
+    var STROKE_WIDTH_CHARS = 5;                 /* 線幅の入力欄の文字数 / characters for the stroke width field */
 
     /**
-     * ダイアログの表示位置をずらす / Shift dialog position
-     * @param {Window} dlg
-     * @param {Number} offsetX
-     * @param {Number} offsetY
+     * ダイアログの表示位置をずらす
+     * @param {Window} dlg - 対象のダイアログ
+     * @param {number} offsetX - 横方向のずらし量
+     * @param {number} offsetY - 縦方向のずらし量
+     * @returns {void}
      */
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function () {
@@ -122,125 +82,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ダイアログの透明度を設定 / Set dialog opacity
-     * @param {Window} dlg
-     * @param {Number} opacityValue
+     * ダイアログの不透明度を設定する
+     * @param {Window} dlg - 対象のダイアログ
+     * @param {number} opacityValue - 不透明度（0〜1）
+     * @returns {void}
      */
     function setDialogOpacity(dlg, opacityValue) {
         try {
             dlg.opacity = opacityValue;
         } catch (e) {
-            // opacity をサポートしない環境では無視
-        }
-    }
-
-    function main() {
-        try {
-            // ドキュメントがない場合は静かに終了
-            if (!app.documents.length) return;
-
-            var doc = app.activeDocument;
-
-            // 選択がない場合は静かに終了
-            if (!doc.selection || doc.selection.length === 0) return;
-
-            // 大量選択は処理を中断（例：1000個以上）
-            if (doc.selection.length >= 1000) return;
-
-            var selectionInfo = collectSelectionItems(doc.selection);
-            if (selectionInfo.textFrames.length === 0) return;
-
-            var rulerTypeIndex = app.preferences.getIntegerPreference("rulerType");
-            var cursorKeyLengthPt = app.preferences.getRealPreference("cursorKeyLength");
-
-            var unitNames = getRulerUnitNames();
-            var displayUnit = unitNames[rulerTypeIndex];
-
-            var defaultDisplayValue = convertUnit(cursorKeyLengthPt, "pt", displayUnit);
-            var settings = showRuleSettingsDialog(defaultDisplayValue, displayUnit);
-            if (settings === null) return;
-
-            var strokeWidthPt = settings.strokeWidthPt;
-            var shapeMode = settings.shapeMode;
-            var verticalLines = settings.verticalLines;
-            var heading = settings.heading;
-
-            // 選択に含まれるパス（既存の線など）を削除
-            removePathItems(selectionInfo.pathItems);
-
-            // テキストごとに処理
-            var i;
-            for (i = 0; i < selectionInfo.textFrames.length; i++) {
-                buildRulesForTextFrame(selectionInfo.textFrames[i], doc.activeLayer, strokeWidthPt, shapeMode, verticalLines, heading);
-            }
-
-        } catch (e) {
-            // 仕様：不要な場面で alert は出さない
-            try {
-                $.writeln("エラー: " + e);
-            } catch (e) { }
-            return;
+            /* 不透明度を持たない環境では既定のまま / keep the default where opacity is unsupported */
         }
     }
 
     /**
-     * 選択から TextFrame と PathItem を抽出
-     * @param {Array} selection
-     * @returns {{textFrames:Array, pathItems:Array}}
-     */
-    function collectSelectionItems(selection) {
-        var result = { textFrames: [], pathItems: [] };
-        var i;
-
-        for (i = 0; i < selection.length; i++) {
-            if (!selection[i]) continue;
-            if (selection[i].typename === "TextFrame") result.textFrames.push(selection[i]);
-            if (selection[i].typename === "PathItem") result.pathItems.push(selection[i]);
-        }
-
-        return result;
-    }
-
-    /**
-     * PathItem を削除
-     * @param {Array} pathItems
-     */
-    function removePathItems(pathItems) {
-        var i;
-        for (i = 0; i < pathItems.length; i++) {
-            try {
-                pathItems[i].remove();
-            } catch (e) { }
-        }
-    }
-
-    /**
-     * ルーラー単位の表示名（rulerType のインデックス対応）
-     * 0:inch, 1:mm, 2:pt, 3:pica, 4:cm, 5:???（元コード互換で "H" を維持）, 6:px
-     */
-    function getRulerUnitNames() {
-        return ["inch", "mm", "pt", "pica", "cm", "H", "px"];
-    }
-
-    /**
-     * 単位変換（小数第3位まで丸め）
-     * @param {Number} value
-     * @param {String} fromUnit
-     * @param {String} toUnit
-     * @returns {Number}
-     */
-    function convertUnit(value, fromUnit, toUnit) {
-        var uv = new UnitValue(value, fromUnit);
-        var num = uv.as(toUnit);
-        return Math.round(num * 1000) / 1000;
-    }
-
-    /**
-     * ↑↓キーで値を増減（Shift/Option対応） / Change value by arrow keys (with Shift/Option)
+     * ↑↓キーで値を増減する（Shift/Option対応）
      * - ↑↓: ±1
      * - Shift+↑↓: ±10（10の倍数へスナップ）
      * - Option+↑↓: ±0.1
-     * @param {EditText} editText
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
      */
     function changeValueByArrowKey(editText) {
         editText.addEventListener("keydown", function (event) {
@@ -295,397 +156,572 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    /**
-     * 罫線設定ダイアログを表示
-     * @param {Number} defaultValue 表示単位での初期値
-     * @param {String} displayUnit 表示単位文字列
-     * @returns {{strokeWidthPt:Number, shapeMode:String, verticalLines:Boolean, heading:Boolean}|null} キャンセル時は null
-     */
-    function showRuleSettingsDialog(defaultValue, displayUnit) {
-        var dlg = new Window('dialog', getLabel('dialogTitle'));
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-        // ダイアログの透明度と位置 / Dialog opacity & position
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 小数第3位までに丸める
+     * @param {number} value - 丸める値
+     * @returns {number} 丸めた値
+     */
+    function roundToThousandths(value) {
+        return Math.round(value * 1000) / 1000;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境のロケールから表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義。radio と tooltip の形状キーは SHAPE_MODES と同じ名前
+       Categorized Japanese-English labels; shape keys in radio / tooltip match SHAPE_MODES */
+    var LABELS = {
+        dialog: {
+            title: { ja: SCRIPT_NAME + " " + SCRIPT_VERSION, en: SCRIPT_NAME + " " + SCRIPT_VERSION }
+        },
+        panel: {
+            shape: { ja: "形状", en: "Shape" }
+        },
+        fieldLabel: {
+            strokeWidth: { ja: "線幅", en: "Stroke width" }
+        },
+        radio: {
+            outerRect: { ja: "外枠は長方形", en: "Rectangle border" },
+            topBottom: { ja: "外枠なし", en: "No outer border" },
+            rowFills:  { ja: "行ごとに長方形", en: "Row rectangles" }
+        },
+        checkbox: {
+            verticalRules: { ja: "縦罫", en: "Vertical rules" },
+            heading:       { ja: "見出し", en: "Heading" }
+        },
+        tooltip: {
+            strokeWidth:   { ja: "表の幅です。", en: "Width of the table." },
+            outerRect:     { ja: "表全体を1つの長方形で囲みます。", en: "Frames the whole table with a single rectangle." },
+            topBottom:     { ja: "上下のケイ線だけを引きます。", en: "Draws only the top and bottom rules." },
+            rowFills:      { ja: "行ごとに長方形を作ります。", en: "Creates a rectangle for each row." },
+            verticalRules: { ja: "列の境に縦のケイ線を引きます。", en: "Draws a vertical rule between the columns." },
+            heading:       { ja: "1行目を見出し行として扱います。", en: "Treats the first row as a header." }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok:     { ja: "OK", en: "OK" }
+        }
+    };
+
+    /**
+     * 表示言語に応じたラベル文字列を返す
+     * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+     * @returns {string} 表示用の文言
+     */
+    function getLabel(labelNode) {
+        if (!labelNode) return "";
+        return labelNode[uiLang] || labelNode.en || labelNode.ja || "";
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(labelNode) {
+        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /* 形状の選択肢（ラジオボタンの並び順）/ Shape modes in radio button order */
+    var SHAPE_MODES = ["outerRect", "topBottom", "rowFills"];
+
+    /**
+     * 罫線の設定ダイアログを表示する
+     * @param {number} defaultStrokeWidth - 線幅の初期値（定規の単位）
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @returns {{strokeWidthPt: number, shapeMode: string, verticalRules: boolean, heading: boolean}|null} キャンセル時・線幅が数値でないときは null
+     */
+    function showTableSettingsDialog(defaultStrokeWidth, rulerUnit) {
+        var dlg = new Window("dialog", getLabel(LABELS.dialog.title));
         setDialogOpacity(dlg, DIALOG_OPACITY);
         shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
+        dlg.orientation = "column";
+        dlg.alignChildren = ["fill", "top"];
 
-        /* 線幅 / Stroke width */
-        var widthGroup = dlg.add('group');
-        widthGroup.orientation = 'row';
-        widthGroup.alignChildren = ['left', 'center'];
+        var strokeWidthControls = addStrokeWidthRow(dlg, defaultStrokeWidth, rulerUnit.label);
+        var shapeRadios = addShapePanel(dlg);
+        var optionChecks = addOptionRow(dlg);
+        addButtonRow(dlg);
 
-        widthGroup.add('statictext', undefined, getLabel('strokeWidth'));
-        var editText = widthGroup.add('edittext', undefined, String(defaultValue));
-        editText.helpTip = getLabel('tipWidth');
-        editText.characters = 5;
-
-        // ↑↓キーで値を増減 / Change value by arrow keys
-        changeValueByArrowKey(editText);
-        var unitLabel = widthGroup.add('statictext', undefined, displayUnit);
-
-        /* 形状 / Shape */
-        var shapePanel = dlg.add('panel', undefined, getLabel('shapePanel'));
-        shapePanel.orientation = 'column';
-        shapePanel.alignChildren = ['left', 'top'];
-        shapePanel.margins = [15, 20, 15, 10];
-
-        var rbRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRect'));
-        rbRect.helpTip = getLabel('tipShapeRect');
-        var rbTopBottom = shapePanel.add('radiobutton', undefined, getLabel('shapeTopBottom'));
-        rbTopBottom.helpTip = getLabel('tipShapeTopBottom');
-        var rbRowRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRowRect'));
-        rbRowRect.helpTip = getLabel('tipShapeRowRect');
-        rbTopBottom.value = true;
-
-        /* オプション / Options */
-        var optionGroup = dlg.add('group');
-        optionGroup.orientation = 'row';
-        // ダイアログの左右中央に配置
-        optionGroup.alignment = 'center';
-        // グループ内の要素も中央揃え
-        optionGroup.alignChildren = ['center', 'center'];
-
-        var cbVerticalLines = optionGroup.add('checkbox', undefined, getLabel('verticalLines'));
-        cbVerticalLines.helpTip = getLabel('tipVerticalLines');
-        cbVerticalLines.value = false;
-
-        var cbHeading = optionGroup.add('checkbox', undefined, getLabel('heading'));
-        cbHeading.helpTip = getLabel('tipHeading');
-        cbHeading.value = true;
-
-        function updateLineWidthEnabled() {
-            // 行ごとに長方形のときは線幅を使わないためディム表示
-            var enabled = !rbRowRect.value;
-            editText.enabled = enabled;
-            unitLabel.enabled = enabled;
-
-            // 行ごとに長方形が選ばれた場合は縦罫OFFかつディム
-            if (rbRowRect.value) {
-                cbVerticalLines.value = false;
-                cbVerticalLines.enabled = false;
-            } else {
-                cbVerticalLines.enabled = true;
-            }
-
-            // 「見出し」は全モードで使用可能（外枠は長方形/外枠なし/行ごとに長方形）
-            cbHeading.enabled = true;
+        /**
+         * 行ごとに長方形のときは線を引かないので、線幅と縦罫をディム表示にする
+         * @returns {void}
+         */
+        function updateStrokeControls() {
+            var drawsRules = !shapeRadios.rowFills.value;
+            strokeWidthControls.txtStrokeWidth.enabled = drawsRules;
+            strokeWidthControls.lblStrokeUnit.enabled = drawsRules;
+            optionChecks.cbVerticalRules.enabled = drawsRules;
+            if (!drawsRules) optionChecks.cbVerticalRules.value = false;
         }
 
-        rbRect.onClick = updateLineWidthEnabled;
-        rbTopBottom.onClick = updateLineWidthEnabled;
-        rbRowRect.onClick = updateLineWidthEnabled;
-        updateLineWidthEnabled();
-
-        /* ボタン / Buttons */
-        var buttonGroup = dlg.add('group');
-        buttonGroup.orientation = 'row';
-        buttonGroup.alignment = 'right';
-
-        buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-        var okBtn = buttonGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
-        okBtn.active = true; // デフォルトボタンは右側（OK）
-
-        if (dlg.show() !== 1) {
-            return null;
+        for (var i = 0; i < SHAPE_MODES.length; i++) {
+            shapeRadios[SHAPE_MODES[i]].onClick = updateStrokeControls;
         }
+        updateStrokeControls();
 
-        var value = Number(editText.text);
-        if (isNaN(value)) return null;
+        if (dlg.show() !== 1) return null;
+        return readTableSettings(strokeWidthControls, shapeRadios, optionChecks, rulerUnit);
+    }
 
-        var mode = 'rectangle';
-        if (rbTopBottom.value) mode = 'topBottom';
-        if (rbRowRect.value) mode = 'rowRectangles';
+    /**
+     * 線幅の行（項目名・入力欄・単位）を追加する
+     * @param {Window} dlg - 追加先のダイアログ
+     * @param {number} defaultStrokeWidth - 線幅の初期値（定規の単位）
+     * @param {string} unitLabel - 単位の表示名
+     * @returns {{txtStrokeWidth: EditText, lblStrokeUnit: StaticText}} 線幅の入力欄と単位表示
+     */
+    function addStrokeWidthRow(dlg, defaultStrokeWidth, unitLabel) {
+        var strokeWidthRow = dlg.add("group");
+        strokeWidthRow.orientation = "row";
+        strokeWidthRow.alignChildren = ["left", "center"];
+
+        strokeWidthRow.add("statictext", undefined, labelText(LABELS.fieldLabel.strokeWidth));
+        var txtStrokeWidth = strokeWidthRow.add("edittext", undefined, String(defaultStrokeWidth));
+        txtStrokeWidth.helpTip = getLabel(LABELS.tooltip.strokeWidth);
+        txtStrokeWidth.characters = STROKE_WIDTH_CHARS;
+        changeValueByArrowKey(txtStrokeWidth);
+
+        var lblStrokeUnit = strokeWidthRow.add("statictext", undefined, unitLabel);
+        return { txtStrokeWidth: txtStrokeWidth, lblStrokeUnit: lblStrokeUnit };
+    }
+
+    /**
+     * ［形状］パネルを追加する
+     * @param {Window} dlg - 追加先のダイアログ
+     * @returns {Object} 形状名をキーにしたラジオボタンの集まり
+     */
+    function addShapePanel(dlg) {
+        var shapePanel = dlg.add("panel", undefined, getLabel(LABELS.panel.shape));
+        shapePanel.orientation = "column";
+        shapePanel.alignChildren = ["left", "top"];
+        shapePanel.margins = PANEL_MARGINS;
+
+        var shapeRadios = {};
+        for (var i = 0; i < SHAPE_MODES.length; i++) {
+            var shapeMode = SHAPE_MODES[i];
+            var rbShape = shapePanel.add("radiobutton", undefined, getLabel(LABELS.radio[shapeMode]));
+            rbShape.helpTip = getLabel(LABELS.tooltip[shapeMode]);
+            shapeRadios[shapeMode] = rbShape;
+        }
+        /* 設定名が違うときは先頭の形状にする / fall back to the first shape for an unknown name */
+        (shapeRadios[DEFAULT_SHAPE_MODE] || shapeRadios[SHAPE_MODES[0]]).value = true;
+        return shapeRadios;
+    }
+
+    /**
+     * ［縦罫］［見出し］のチェックボックス行を追加する
+     * @param {Window} dlg - 追加先のダイアログ
+     * @returns {{cbVerticalRules: Checkbox, cbHeading: Checkbox}} 追加したチェックボックス
+     */
+    function addOptionRow(dlg) {
+        var optionRow = dlg.add("group");
+        optionRow.orientation = "row";
+        optionRow.alignment = "center";                /* ダイアログの左右中央に置く / center in the dialog */
+        optionRow.alignChildren = ["center", "center"];
+
+        var cbVerticalRules = optionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.verticalRules));
+        cbVerticalRules.helpTip = getLabel(LABELS.tooltip.verticalRules);
+        cbVerticalRules.value = DEFAULT_VERTICAL_RULES;
+
+        var cbHeading = optionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.heading));
+        cbHeading.helpTip = getLabel(LABELS.tooltip.heading);
+        cbHeading.value = DEFAULT_HEADING;
+
+        return { cbVerticalRules: cbVerticalRules, cbHeading: cbHeading };
+    }
+
+    /**
+     * ［キャンセル］［OK］のボタン行を追加する
+     * @param {Window} dlg - 追加先のダイアログ
+     * @returns {void}
+     */
+    function addButtonRow(dlg) {
+        var btnRowGroup = dlg.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["right", "bottom"];
+        btnRowGroup.alignChildren = ["right", "center"];
+
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        btnOK.active = true; /* 既定のボタンは右側の OK / OK on the right is the default */
+    }
+
+    /**
+     * ダイアログの入力内容を設定値にまとめる
+     * @param {{txtStrokeWidth: EditText, lblStrokeUnit: StaticText}} strokeWidthControls - 線幅の入力欄と単位表示
+     * @param {Object} shapeRadios - 形状名をキーにしたラジオボタンの集まり
+     * @param {{cbVerticalRules: Checkbox, cbHeading: Checkbox}} optionChecks - オプションのチェックボックス
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
+     * @returns {{strokeWidthPt: number, shapeMode: string, verticalRules: boolean, heading: boolean}|null} 線幅が数値でないときは null
+     */
+    function readTableSettings(strokeWidthControls, shapeRadios, optionChecks, rulerUnit) {
+        var strokeWidth = Number(strokeWidthControls.txtStrokeWidth.text);
+        if (isNaN(strokeWidth)) return null;
+
+        var selectedShapeMode = SHAPE_MODES[0];
+        for (var i = 0; i < SHAPE_MODES.length; i++) {
+            if (shapeRadios[SHAPE_MODES[i]].value) selectedShapeMode = SHAPE_MODES[i];
+        }
 
         return {
-            strokeWidthPt: convertUnit(value, displayUnit, 'pt'),
-            shapeMode: mode,
-            verticalLines: cbVerticalLines.value,
-            heading: cbHeading.value
+            strokeWidthPt: roundToThousandths(strokeWidth * rulerUnit.pointsPerUnit),
+            shapeMode: selectedShapeMode,
+            verticalRules: optionChecks.cbVerticalRules.value,
+            heading: optionChecks.cbHeading.value
+        };
+    }
+
+    // =========================================
+    // 作図 / Drawing
+    // =========================================
+
+    /**
+     * テキストフレームの見た目に合わせて罫線・背景を作る（テキストには手を加えない）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {{strokeWidthPt: number, shapeMode: string, verticalRules: boolean, heading: boolean}} tableSettings - ダイアログの設定値
+     * @returns {void}
+     */
+    function createTableForTextFrame(textFrame, targetLayer, tableSettings) {
+        textFrame.selected = false;
+
+        var paragraphs = textFrame.paragraphs;
+        if (paragraphs.length === 0) return;
+
+        var tableBox = measureTableBox(textFrame);
+
+        if (tableSettings.shapeMode === "rowFills") {
+            /* 行ごとの背景だけを作り、罫線・縦罫は引かない / fills only, no rules */
+            createRowFills(tableBox, targetLayer, tableSettings.heading);
+            return;
+        }
+
+        var strokeWidthPt = tableSettings.strokeWidthPt;
+        /* 見出しがあるときは、外枠（上下の罫線）と見出しの下の罫線を太くする / thicker outer rules and heading rule */
+        var accentWidthPt = tableSettings.heading ? strokeWidthPt * HEADING_STROKE_SCALE : strokeWidthPt;
+
+        if (tableSettings.shapeMode === "topBottom") {
+            createTopBottomRules(tableBox, targetLayer, accentWidthPt);
+        } else {
+            createOuterRectangle(tableBox, targetLayer, accentWidthPt);
+        }
+        createRowSeparators(tableBox, targetLayer, strokeWidthPt, accentWidthPt);
+
+        if (tableSettings.verticalRules) {
+            createColumnRules(tableBox, targetLayer, getColumnTabPositions(paragraphs), strokeWidthPt);
+        }
+    }
+
+    /**
+     * テキストフレームから表の外形を求める
+     * 1段落を1行とし、行送りと文字サイズの差の半分を上下左右の余白にする
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number, rowHeight: number, rowCount: number}} 表の外形
+     */
+    function measureTableBox(textFrame) {
+        var bounds = textFrame.geometricBounds; /* [左, 上, 右, 下] / [left, top, right, bottom] */
+        var paragraphs = textFrame.paragraphs;
+        var firstAttributes = paragraphs[0].characterAttributes;
+
+        var rowHeight = firstAttributes.leading;
+        var cellPadding = (rowHeight - firstAttributes.size) / 2;
+        var left = bounds[0] - cellPadding;
+        var right = bounds[2] + cellPadding;
+        var top = bounds[1] + cellPadding;
+        var height = rowHeight * paragraphs.length;
+
+        return {
+            left: left,
+            right: right,
+            top: top,
+            bottom: top - height,
+            width: right - left,
+            height: height,
+            rowHeight: rowHeight,
+            rowCount: paragraphs.length
         };
     }
 
     /**
-     * テキストフレームの見た目に基づいて描画
-     * ※テキストには一切手を加えない
-     * @param {TextFrame} textFrame
-     * @param {Layer} targetLayer
-     * @param {Number} strokeWidthPt
-     * @param {String} shapeMode 'rectangle' | 'topBottom' | 'rowRectangles'
-     * @param {Boolean} verticalLines 縦罫線を描くかどうか
-     * @param {Boolean} heading 見出しの強調を行うかどうか
+     * 表全体を囲む長方形を作る
+     * @param {Object} tableBox - measureTableBox() の戻り値
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @returns {void}
      */
-    function buildRulesForTextFrame(textFrame, targetLayer, strokeWidthPt, shapeMode, verticalLines, heading) {
-        try { textFrame.selected = false; } catch (e) { }
+    function createOuterRectangle(tableBox, targetLayer, strokeWidthPt) {
+        var outerRect = targetLayer.pathItems.rectangle(tableBox.top, tableBox.left, tableBox.width, tableBox.height);
+        applyRuleStyle(outerRect, strokeWidthPt);
+    }
 
-        var bounds = textFrame.geometricBounds; // [left, top, right, bottom]
-        var paragraphs = textFrame.paragraphs;
-        if (!paragraphs || paragraphs.length === 0) return;
+    /**
+     * 表の上端と下端に罫線を引く
+     * @param {Object} tableBox - measureTableBox() の戻り値
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @returns {void}
+     */
+    function createTopBottomRules(tableBox, targetLayer, strokeWidthPt) {
+        createRuleLine(targetLayer, [tableBox.left, tableBox.top], [tableBox.right, tableBox.top], strokeWidthPt);
+        createRuleLine(targetLayer, [tableBox.left, tableBox.bottom], [tableBox.right, tableBox.bottom], strokeWidthPt);
+    }
 
-        var fontSize = paragraphs[0].size;
-        var leading = paragraphs[0].leading;
-        var halfGap = (leading - fontSize) / 2;
-        var totalHeight = leading * paragraphs.length;
-
-        var width = textFrame.width;
-
-        if (shapeMode === 'rowRectangles') {
-            createRowFills(bounds, width, halfGap, leading, paragraphs.length, targetLayer, heading);
-            // 行ごとに長方形の場合は縦罫は描かない
-            return;
-        }
-
-        if (shapeMode === 'topBottom') {
-            // 外枠なし：上下の罫線のみ作成（外枠の長方形は作らない）
-            createOuterTopBottom(bounds, width, halfGap, totalHeight, targetLayer, strokeWidthPt, heading);
-        } else {
-            // 外枠は長方形：外枠（長方形）を作成
-            var outerW = strokeWidthPt;
-            if (heading === true && shapeMode === 'rectangle') outerW = strokeWidthPt * 3;
-            createOuterRectangle(bounds, width, halfGap, totalHeight, targetLayer, outerW);
-        }
-
-        // 横線（行区切り）を生成（2行目以降）
-        createHorizontalLines(bounds, halfGap, leading, paragraphs.length, targetLayer, strokeWidthPt, shapeMode, heading);
-
-        // 縦罫線（参照のみ）：既存のタブストップ位置を使って縦線を引く（テキストは変更しない）
-        if (verticalLines === true && shapeMode !== 'rowRectangles') {
-            var tabPositions = getTabPositionsFromParagraphTabStops(paragraphs);
-            if (tabPositions && tabPositions.length > 0) {
-                createVerticalLines(bounds, tabPositions, halfGap, totalHeight, targetLayer, strokeWidthPt);
-            }
+    /**
+     * 行の区切りに横罫を引く（1行目と2行目の間は firstWidthPt）
+     * @param {Object} tableBox - measureTableBox() の戻り値
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @param {number} firstWidthPt - 1本目の区切りの線幅（pt）
+     * @returns {void}
+     */
+    function createRowSeparators(tableBox, targetLayer, strokeWidthPt, firstWidthPt) {
+        for (var row = 1; row < tableBox.rowCount; row++) {
+            var separatorY = tableBox.top - tableBox.rowHeight * row;
+            var separatorWidthPt = (row === 1) ? firstWidthPt : strokeWidthPt;
+            createRuleLine(targetLayer, [tableBox.left, separatorY], [tableBox.right, separatorY], separatorWidthPt);
         }
     }
 
     /**
-     * 外枠（長方形）を作成
+     * タブ位置に縦罫を引く
+     * @param {Object} tableBox - measureTableBox() の戻り値
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {number[]} tabPositions - 表の左端からの距離の配列
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @returns {void}
      */
-    function createOuterRectangle(textBounds, textWidth, halfGap, totalHeight, targetLayer, strokeWidthPt) {
-        var topY = textBounds[1] + halfGap;
-        var leftX = textBounds[0] - halfGap;
-
-        var width = textWidth + (halfGap * 2);
-        var height = totalHeight;
-
-        var rect = targetLayer.pathItems.rectangle(topY, leftX, width, height);
-        applyStrokeAttributes(rect, strokeWidthPt);
-    }
-
-    /**
-     * 外側を「上下のみ」で作成
-     */
-    function createOuterTopBottom(textBounds, textWidth, halfGap, totalHeight, targetLayer, strokeWidthPt, heading) {
-        var leftX = textBounds[0] - halfGap;
-        var rightX = leftX + (textWidth + (halfGap * 2));
-
-        var topY = textBounds[1] + halfGap;
-        var bottomY = topY - totalHeight;
-
-        var w = (heading === true) ? (strokeWidthPt * 3) : strokeWidthPt;
-
-        // 上
-        createLine(targetLayer, [leftX, topY], [rightX, topY], w);
-
-        // 下
-        createLine(targetLayer, [leftX, bottomY], [rightX, bottomY], w);
-    }
-
-    /**
-     * 行ごとの背景（塗り）を作成
-     * 上から奇数行はK10、偶数行はK30
-     * @param {Array} textBounds
-     * @param {Number} textWidth
-     * @param {Number} halfGap
-     * @param {Number} leading
-     * @param {Number} rowCount
-     * @param {Layer} targetLayer
-     * @param {Boolean} heading
-     */
-    function createRowFills(textBounds, textWidth, halfGap, leading, rowCount, targetLayer, heading) {
-        var leftX = textBounds[0] - halfGap;
-        var width = textWidth + (halfGap * 2);
-
-        var row;
-        for (row = 0; row < rowCount; row++) {
-            var topY = textBounds[1] + halfGap - (leading * row);
-            var rect = targetLayer.pathItems.rectangle(topY, leftX, width, leading);
-
-            rect.stroked = false;
-            rect.filled = true;
-
-            var k;
-            // 「見出し」ON の場合：1つ目の長方形のみ K50
-            if (heading === true && row === 0) {
-                k = 50;
-            } else {
-                // 1行目（row=0）を K30、2行目（row=1）を K10 にする
-                k = (row % 2 === 0) ? 30 : 10;
-            }
-            rect.fillColor = createCmykColor(0, 0, 0, k);
-
-            try { rect.selected = true; } catch (e) { }
-            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (e) { }
+    function createColumnRules(tableBox, targetLayer, tabPositions, strokeWidthPt) {
+        for (var i = 0; i < tabPositions.length; i++) {
+            var ruleX = tableBox.left + tabPositions[i];
+            createRuleLine(targetLayer, [ruleX, tableBox.top], [ruleX, tableBox.bottom], strokeWidthPt);
         }
     }
 
     /**
-     * 横罫線を作成（2行目以降）
-     * @param {Array} textBounds
-     * @param {Number} halfGap
-     * @param {Number} leading
-     * @param {Number} rowCount
-     * @param {Layer} targetLayer
-     * @param {Number} strokeWidthPt
-     * @param {String} shapeMode
-     * @param {Boolean} heading
+     * 行ごとの背景（塗りの長方形）を作る
+     * @param {Object} tableBox - measureTableBox() の戻り値
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {boolean} heading - 1行目を見出しの濃さにするか
+     * @returns {void}
      */
-    function createHorizontalLines(textBounds, halfGap, leading, rowCount, targetLayer, strokeWidthPt, shapeMode, heading) {
-        var row;
-        for (row = 1; row < rowCount; row++) {
-            var y = textBounds[1] + halfGap - (leading * row);
-            var leftX = textBounds[0] - halfGap;
-            var rightX = textBounds[2] + halfGap;
+    function createRowFills(tableBox, targetLayer, heading) {
+        for (var row = 0; row < tableBox.rowCount; row++) {
+            var rowTop = tableBox.top - tableBox.rowHeight * row;
+            var rowRect = targetLayer.pathItems.rectangle(rowTop, tableBox.left, tableBox.width, tableBox.rowHeight);
+            rowRect.stroked = false;
+            rowRect.filled = true;
 
-            var w = strokeWidthPt;
+            /* row は0始まりなので、偶数の row が1・3・5…行目 / row is 0-based: even rows are the 1st, 3rd, 5th… */
+            var fillBlack = (row % 2 === 0) ? ROW_FILL_BLACK_ODD : ROW_FILL_BLACK_EVEN;
+            if (heading && row === 0) fillBlack = ROW_FILL_BLACK_HEADING;
+            rowRect.fillColor = createBlackColor(fillBlack);
 
-            // 「外枠なし」＋「見出し」ON：
-            // - 1本目（上罫）と最終（下罫）は createOuterTopBottom() 側で太くする
-            // - 2本目（最初の行区切り横罫＝row=1）だけここで太くする
-            if (heading === true && shapeMode === 'topBottom') {
-                if (row === 1) {
-                    w = strokeWidthPt * 3;
-                }
-            }
-
-            // 「外枠は長方形」＋「見出し」ON：上から2本目（最初の行区切り横罫＝row=1）を太くする
-            if (heading === true && shapeMode === 'rectangle') {
-                if (row === 1) {
-                    w = strokeWidthPt * 3;
-                }
-            }
-
-            createLine(targetLayer, [leftX, y], [rightX, y], w);
+            selectAndSendToBack(rowRect);
         }
     }
 
     /**
-     * 線分 PathItem を作成
+     * 2点を結ぶ罫線を作る
+     * @param {Layer} targetLayer - 作図先のレイヤー
+     * @param {number[]} startPoint - 始点 [x, y]
+     * @param {number[]} endPoint - 終点 [x, y]
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @returns {void}
      */
-    function createLine(targetLayer, startPoint, endPoint, strokeWidthPt) {
-        var line = targetLayer.pathItems.add();
-        line.setEntirePath([startPoint, endPoint]);
-        applyStrokeAttributes(line, strokeWidthPt);
+    function createRuleLine(targetLayer, startPoint, endPoint, strokeWidthPt) {
+        var ruleLine = targetLayer.pathItems.add();
+        ruleLine.setEntirePath([startPoint, endPoint]);
+        applyRuleStyle(ruleLine, strokeWidthPt);
     }
 
     /**
-     * 線・枠の共通属性を適用
+     * 罫線の見た目（塗りなし・黒の線）を適用する
+     * @param {PathItem} ruleItem - 対象のパス
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @returns {void}
      */
-    function applyStrokeAttributes(item, strokeWidthPt) {
-        item.filled = false;
-        item.stroked = true;
-        item.strokeWidth = strokeWidthPt;
-        item.strokeColor = createCmykColor(0, 0, 0, 100);
-
-        try { item.selected = true; } catch (e) { }
-        try { item.move(item.layer, ElementPlacement.PLACEATEND); } catch (e) { }
+    function applyRuleStyle(ruleItem, strokeWidthPt) {
+        ruleItem.filled = false;
+        ruleItem.stroked = true;
+        ruleItem.strokeWidth = strokeWidthPt;
+        ruleItem.strokeColor = createBlackColor(RULE_BLACK);
+        selectAndSendToBack(ruleItem);
     }
 
     /**
-     * CMYKColor を生成
+     * 作ったパスを選択し、レイヤーの最背面へ送る（テキストの背面に置くため）
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
      */
-    function createCmykColor(c, m, y, k) {
-        var col = new CMYKColor();
-        col.cyan = c;
-        col.magenta = m;
-        col.yellow = y;
-        col.black = k;
-        return col;
-    }
-
-    function collectOutlineItemsFlatRecursive(parent, outItems) {
-        if (!parent) return;
-
-        // createOutline() は CompoundPathItem を多用するため、ここで拾う
-        if (parent.typename === "PathItem" || parent.typename === "CompoundPathItem") {
-            outItems.push(parent);
-            return;
-        }
-
-        if (parent.pageItems && parent.pageItems.length > 0) {
-            var i;
-            for (i = 0; i < parent.pageItems.length; i++) {
-                collectOutlineItemsFlatRecursive(parent.pageItems[i], outItems);
-            }
-        }
+    function selectAndSendToBack(pathItem) {
+        pathItem.selected = true;
+        pathItem.move(pathItem.layer, ElementPlacement.PLACEATEND);
     }
 
     /**
-     * 既存のタブストップ位置を参照して、縦罫用の位置（左端からの距離）を取得
-     * ※テキストは変更しない（参照のみ）
-     * @param {Object} paragraphs textFrame.paragraphs
-     * @returns {Array|null} タブ位置配列（positionの配列）。取得できない場合は null
+     * K だけの CMYK カラーを作る
+     * @param {number} blackPercent - K の値（0〜100）
+     * @returns {CMYKColor} 作ったカラー
      */
-    function getTabPositionsFromParagraphTabStops(paragraphs) {
-        if (!paragraphs || paragraphs.length === 0) return null;
+    function createBlackColor(blackPercent) {
+        var blackColor = new CMYKColor();
+        blackColor.cyan = 0;
+        blackColor.magenta = 0;
+        blackColor.yellow = 0;
+        blackColor.black = blackPercent;
+        return blackColor;
+    }
 
-        // 行ごとにタブストップが異なる可能性があるため、列ごとに最大値を取る
+    /**
+     * 段落のタブストップから縦罫の位置（テキストフレーム左端からの距離）を集める
+     * 段落ごとにタブストップが違うことがあるので、列ごとに最も右の位置を取る（テキストは読むだけ）
+     * @param {Paragraphs} paragraphs - textFrame.paragraphs
+     * @returns {number[]} タブ位置の配列（無ければ空）
+     */
+    function getColumnTabPositions(paragraphs) {
         var maxPositions = [];
-        var found = false;
+        for (var p = 0; p < paragraphs.length; p++) {
+            var tabStops = [];
+            try {
+                tabStops = paragraphs[p].paragraphAttributes.tabStops || [];
+            } catch (e) {
+                /* 段落属性を読めない段落は飛ばす（旧実装の防御を踏襲）/ skip paragraphs whose attributes cannot be read */
+            }
 
-        var p;
-        for (p = 0; p < paragraphs.length; p++) {
-            var ts = null;
-            try { ts = paragraphs[p].tabStops; } catch (e) { ts = null; }
-
-            if (!ts || ts.length === 0) continue;
-            found = true;
-
-            var i;
-            for (i = 0; i < ts.length; i++) {
-                var pos = null;
-                try { pos = ts[i].position; } catch (e) { pos = null; }
-                if (pos === null || pos === undefined) continue;
-                if (pos <= 0) continue;
-
-                if (i >= maxPositions.length) {
-                    maxPositions[i] = pos;
-                } else {
-                    if (pos > maxPositions[i]) maxPositions[i] = pos;
-                }
+            for (var i = 0; i < tabStops.length; i++) {
+                var tabPosition = tabStops[i].position;
+                if (!(tabPosition > 0)) continue;
+                if (maxPositions[i] === undefined || tabPosition > maxPositions[i]) maxPositions[i] = tabPosition;
             }
         }
 
-        if (!found) return null;
-
-        // 末尾の未定義を詰める
-        var out = [];
-        var j;
-        for (j = 0; j < maxPositions.length; j++) {
-            if (maxPositions[j] !== undefined && maxPositions[j] !== null) out.push(maxPositions[j]);
+        /* 0以下しかない列は穴になるので詰める / drop holes left by columns without a positive stop */
+        var tabPositions = [];
+        for (var j = 0; j < maxPositions.length; j++) {
+            if (maxPositions[j] !== undefined) tabPositions.push(maxPositions[j]);
         }
+        return tabPositions;
+    }
 
-        if (out.length === 0) return null;
-        return out;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択からテキストフレームとパスを振り分ける
+     * @param {Array} selectedObjects - doc.selection
+     * @returns {{textFrames: TextFrame[], pathItems: PathItem[]}} 種類ごとの配列
+     */
+    function collectTextFramesAndPaths(selectedObjects) {
+        var selectedItems = { textFrames: [], pathItems: [] };
+        for (var i = 0; i < selectedObjects.length; i++) {
+            var selectedItem = selectedObjects[i];
+            /* 文字の編集中は selection が TextRange になり、要素を持たない / a TextRange selection has no items */
+            if (!selectedItem) continue;
+            if (selectedItem.typename === "TextFrame") selectedItems.textFrames.push(selectedItem);
+            if (selectedItem.typename === "PathItem") selectedItems.pathItems.push(selectedItem);
+        }
+        return selectedItems;
     }
 
     /**
-     * 縦罫線を描画（タブ位置＝左端からの累積幅）
-     * @param {Array} textBounds テキストフレームのジオメトリックバウンズ [left, top, right, bottom]
-     * @param {Array} tabPositions 左端からの累積幅の配列
-     * @param {Number} halfGap
-     * @param {Number} totalHeight
-     * @param {Layer} targetLayer
-     * @param {Number} strokeWidthPt
+     * 選択に含まれていたパス（前回の罫線など）を削除する
+     * @param {PathItem[]} pathItems - 削除するパス
+     * @returns {void}
      */
-    function createVerticalLines(textBounds, tabPositions, halfGap, totalHeight, targetLayer, strokeWidthPt) {
-        var leftX = textBounds[0] - halfGap;
-        var topY = textBounds[1] + halfGap;
-        var bottomY = topY - totalHeight;
+    function removeSelectedPaths(pathItems) {
+        for (var i = 0; i < pathItems.length; i++) {
+            pathItems[i].remove();
+        }
+    }
 
-        var i;
-        for (i = 0; i < tabPositions.length; i++) {
-            var x = leftX + tabPositions[i];
-            createLine(targetLayer, [x, topY], [x, bottomY], strokeWidthPt);
+    /**
+     * メイン処理
+     * ドキュメント・選択・テキストフレームが無いときは何も表示せずに終了する
+     * @returns {void}
+     */
+    function main() {
+        try {
+            if (!app.documents.length) return;
+            var doc = app.activeDocument;
+
+            var selectedObjects = doc.selection;
+            if (!selectedObjects || selectedObjects.length === 0) return;
+            if (selectedObjects.length >= MAX_SELECTION_COUNT) return;
+
+            var selectedItems = collectTextFramesAndPaths(selectedObjects);
+            if (selectedItems.textFrames.length === 0) return;
+
+            /* 線幅の初期値は［キー入力］の移動距離 / the default stroke width is the keyboard increment */
+            var rulerUnit = getUnitInfo("rulerType");
+            var cursorKeyLengthPt = app.preferences.getRealPreference("cursorKeyLength");
+            var defaultStrokeWidth = roundToThousandths(cursorKeyLengthPt / rulerUnit.pointsPerUnit);
+
+            var tableSettings = showTableSettingsDialog(defaultStrokeWidth, rulerUnit);
+            if (tableSettings === null) return;
+
+            removeSelectedPaths(selectedItems.pathItems);
+
+            for (var i = 0; i < selectedItems.textFrames.length; i++) {
+                createTableForTextFrame(selectedItems.textFrames[i], doc.activeLayer, tableSettings);
+            }
+        } catch (e) {
+            /* 仕様：alert は出さず、コンソールにだけ書く / by design, log to the console instead of an alert */
+            $.writeln("エラー: " + e);
         }
     }
 

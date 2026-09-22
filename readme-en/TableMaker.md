@@ -29,6 +29,11 @@ The text itself, including tabs, styles and tab stops, is never touched.
 
 - Because the text is untouched, the rules do not follow later text edits — regenerate them instead.
 
+### Article
+
+https://note.com/dtp_tranist/n/n4eaa14098858
+
 ### Update History
 
 - v1.0 (2026-01-24)
+- v1.0.2 (2026-09-22): Fixed the stroke width not being converted, so no rules were created, when the ruler unit was H, ft and similar units. Fixed Vertical rules skipping some columns when a paragraph had a tab stop at 0. Internal cleanup

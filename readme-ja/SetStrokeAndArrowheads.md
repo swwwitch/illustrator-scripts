@@ -1,6 +1,6 @@
 # 線幅と矢印をまとめて設定
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SetStrokeAndArrowheads.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SetStrokeAndArrowheads.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SetStrokeAndArrowheads.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/single-function/SetStrokeAndArrowheads.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetStrokeAndArrowheads.md)
 
