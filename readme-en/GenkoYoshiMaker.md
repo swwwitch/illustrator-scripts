@@ -25,6 +25,7 @@ Vertical and horizontal, point and area text are all supported, and the writing 
 - Several lines, with the gutter set by the auto leading (125% by default = a quarter of a cell)
 - Square cells the size of the font, so the scaled-down glyphs do not narrow the grid
 - Solid or dashed cell rules, thickened at a given character interval
+- One rectangle per cell instead of the rules, when that suits the artwork better
 - Rules along both sides of every line, with an adjustable extension and projecting caps
 - An emphasis weight given as a ratio, applied to the line rules, the interval cell rules or both
 - One more rule outside the outermost line, at the same distance as the gutter
@@ -52,6 +53,7 @@ Vertical and horizontal, point and area text are all supported, and the writing 
 | --- | --- | --- |
 | Preset | Standard | Standard, No outer rules, No crosshairs, Simple or Custom; editing any value switches to Custom |
 | Add | - | Adds the current settings to the preset list and shows the code for them |
+| Draw a rectangle for each character | Off | Creates one rectangle per cell in place of the cell rules and the rules along each line; the emphasis and line-rule options are dimmed |
 | Rule density | 50% | Density of the rules, set with a slider (Shift snaps to steps of 10%) |
 | Emphasis ratio | 250% | Weight of the emphasized rules, as a ratio of the normal ones (0.1mm) |
 | Emphasis applies to | Both | Which rules use the ratio: the rules along each line, and the cell rules at the given interval |
@@ -78,6 +80,7 @@ Numeric fields step with the up and down arrow keys (Shift steps by 10 and snaps
 | Cell rules | 0.1mm | Rule density |
 | Emphasized cell rules | 0.25mm when emphasized (0.1mm × ratio), 0.1mm otherwise | Rule density |
 | Outer rules | Same as the rules along each line | Rule density |
+| Cell rectangles | 0.1mm | Rule density |
 | Crosshairs | 0.1mm | 30% (`LAYOUT.crossGray`) |
 
 In vertical text the line rules run vertically and the cell rules horizontally; in horizontal text it is the other way around, and the dialog panels swap accordingly. The line rules and the outer rules are drawn with projecting caps.
@@ -120,6 +123,7 @@ Area text is fitted to its contents with Auto Size when the script starts and ag
 - The leading is set through auto leading (the percentage is set in the dialog), so it follows the font size, but the original leading setting is not kept.
 - The kerning at the start of each line is applied after the grid is measured, so that the rules do not shift with the text.
 - Tracking is measured in 1/1000 em, so it does not change with the font size; it is recalculated only when the scale changes.
+- With "Draw a rectangle for each character" on, the cell rules and the rules along each line (including the outer one) are left out, and one unfilled, stroked rectangle is drawn per cell. The style (solid or dashed) and the density follow the rule settings, and the crosshairs follow the Crosshairs panel.
 - Running the script again rebuilds only the `Rules` group drawn for that text; grids drawn for other text objects are left alone.
 - While the dialog is open the script shows a copy of the selected text and toggles the selection edges. Cancelling restores the original state.
 - The frame of an area text is fitted with Auto Size as soon as the script runs, and cancelling does not restore its former size.
@@ -128,4 +132,5 @@ Area text is fitted to its contents with Auto Size when the script starts and ag
 
 ### Change log
 
+- v1.1.0 (2026-09-23): Added "Draw a rectangle for each character"
 - v1.0.0 (2026-09-19): Initial release

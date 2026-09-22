@@ -30,10 +30,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenkoYoshi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenkoYoshiMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenkoYoshiMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenkoYoshiMaker.md"; /* README (English) */
@@ -106,6 +106,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             emphasisSuffix: { ja: "文字ごとに太く", en: "characters" }
         },
         checkbox: {
+            cellRects: { ja: "文字ごとに長方形を作成", en: "Draw a rectangle for each character" },
             adjustSize: { ja: "文字の比率を調整", en: "Adjust the character scale" },
             sideRule: { ja: "いちばん外に1本追加", en: "Add one more outside" },
             preview: { ja: "プレビュー", en: "Preview" }
@@ -126,6 +127,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             preset: {
                 ja: "設定をまとめて切り替えます。値を手で変えると「カスタム」になります。",
                 en: "Fills the whole dialog at once. Editing any value switches to Custom."
+            },
+            cellRects: {
+                ja: "1マスにつき長方形を1つ作ります。マスの区切りと行の両側の罫線は引きません。罫線の濃度・線種と、十字線の設定はそのまま使います。",
+                en: "Creates one rectangle per cell instead of the cell rules and the rules along each line. The rule density, the cell-rule style and the crosshairs still apply."
             },
             lineColor: {
                 ja: "罫線の濃度。shiftを押しながらドラッグすると10%刻みになります。十字線の濃度は別（30%）です。",
@@ -285,6 +290,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
 
     /* ダイアログの初期値 / Dialog defaults */
     var DEFAULTS = {
+        cellRects: false,        /* マスを1つずつ長方形にするか / draw one rectangle per cell instead of the rules */
         strokeGray: 50,          /* 罫線の濃度（%、100で黒）/ rule density (%, 100 is black) */
         emphasisRatio: 250,      /* 太罫の太さ（ふつうの罫線に対する%）/ weight of the emphasized rules (% of the normal ones) */
         emphasizeLineRules: true,/* 行の両側の罫線を太罫にするか / use the emphasis ratio for the rules along each line */
@@ -471,7 +477,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.noSideRule,
             settings: {
-                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: false,
+                cellRects: false, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: false,
                 dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
                 crossStyle: "dashed", crossSegments: 9
             }
@@ -479,7 +485,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.noCross,
             settings: {
-                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: true,
+                cellRects: false, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: true,
                 dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
                 crossStyle: "none", crossSegments: 9
             }
@@ -487,7 +493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.rulesOnly,
             settings: {
-                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: 0, showSideRules: false,
+                cellRects: false, strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: 0, showSideRules: false,
                 dashedCellRules: false, emphasisEnabled: false, emphasisEvery: 5,
                 crossStyle: "none", crossSegments: 9
             }
@@ -1205,6 +1211,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     }
 
     /**
+     * マスの区切りの破線パターンを求める
+     * @param {object} settings ダイアログで決めた設定
+     * @return {array} 破線パターン（実線は空配列）
+     */
+    function getCellDashes(settings) {
+        if (!settings.dashedCellRules) {
+            return [];
+        }
+
+        return [mmToPt(LAYOUT.cellDashMM[0]), mmToPt(LAYOUT.cellDashMM[1])];
+    }
+
+    /**
+     * ブロック1つ分のマスを、1マスにつき1つの長方形として作る
+     * @param {GroupItem} group 罫線を入れるグループ
+     * @param {object} rect ブロックの矩形 { left, right, top, bottom }
+     * @param {object} grid 前後のマスを足した寸法
+     * @param {object} settings ダイアログで決めた設定
+     * @param {object} color 罫線の色
+     * @return {void}
+     */
+    function drawCellRects(group, rect, grid, settings, color) {
+        var cellSize = grid.cellSize;
+        var strokeWidth = getRuleWidth(settings, false);
+        var dashes = getCellDashes(settings);
+
+        var columnCount = Math.round((rect.right - rect.left) / cellSize);
+        var rowCount = Math.round((rect.top - rect.bottom) / cellSize);
+
+        for (var column = 0; column < columnCount; column++) {
+            var left = rect.left + cellSize * column;
+
+            for (var i = 0; i < rowCount; i++) {
+                var top = rect.top - cellSize * i;
+                var cellRect = group.pathItems.rectangle(top, left, cellSize, cellSize);
+
+                cellRect.filled = false;
+                cellRect.stroked = true;
+                cellRect.strokeWidth = strokeWidth;
+                cellRect.strokeDashes = dashes;
+                cellRect.strokeColor = color;
+            }
+        }
+    }
+
+    /**
      * マスの区切りを引く（縦組みでは横罫、横組みでは縦罫）
      * @param {GroupItem} group 罫線を入れるグループ
      * @param {object} rect ブロックの矩形
@@ -1216,9 +1268,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     function drawCellRules(group, rect, grid, settings, color) {
         var cellWidth = getRuleWidth(settings, false);
         var emphasisWidth = getRuleWidth(settings, settings.emphasizeCellRules);
-
-        var dashes = settings.dashedCellRules ?
-            [mmToPt(LAYOUT.cellDashMM[0]), mmToPt(LAYOUT.cellDashMM[1])] : [];
+        var dashes = getCellDashes(settings);
 
         /* 誤差を溜めないよう、都度 原点から引いた位置を使う。
            太くする位置は、前後に足したマスではなく1文字目から数える
@@ -1321,11 +1371,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
                 drawCrosshairs(group, rect, grid, settings, colors.cross);
             }
 
+            /* 長方形にするときは、マスの区切りも行の両側の罫線も長方形が兼ねる
+               / The rectangles stand in for both the cell rules and the rules along each line */
+            if (settings.cellRects) {
+                drawCellRects(group, rect, grid, settings, colors.rule);
+                continue;
+            }
+
             drawCellRules(group, rect, grid, settings, colors.rule);
             drawLineRules(group, rect, grid, settings, colors.rule);
         }
 
-        if (settings.showSideRules) {
+        if (settings.showSideRules && !settings.cellRects) {
             drawSideRules(group, getBlocksRect(grid, linePositions), grid, settings, colors.rule);
         }
     }
@@ -1809,6 +1866,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     function addOverallPanel(dialog, isVertical) {
         var overallPanel = addPanel(dialog, LABELS.panel.overall);
 
+        var cellRectsCheckbox = addIndentedCheckbox(overallPanel, LABELS.checkbox.cellRects, DEFAULTS.cellRects, LABELS.tooltip.cellRects);
+
         var colorRow = addRow(overallPanel);
         var colorLabel = addRowLabel(colorRow, LABELS.label.lineColor);
 
@@ -1842,9 +1901,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var extraLinesRow = addNumberRow(overallPanel, LABELS.label.extraLines, DEFAULTS.extraLines, LABELS.unit.lines, LABELS.tooltip.extraLines);
 
         return {
+            cellRectsCheckbox: cellRectsCheckbox,
             colorSlider: colorSlider,
             colorValueLabel: colorValueLabel,
+            emphasisRatioRow: emphasisRatioRow.row,
             emphasisRatioInput: emphasisRatioRow.input,
+            emphasisTargetRow: emphasisTargetRow,
             emphasizeLineRulesCheckbox: emphasizeLineRulesCheckbox,
             emphasizeCellRulesCheckbox: emphasizeCellRulesCheckbox,
             extraCellsInput: extraCellsRow.input,
@@ -1886,6 +1948,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var sideRuleCheckbox = addIndentedCheckbox(linePanel, LABELS.checkbox.sideRule, DEFAULTS.showSideRules, LABELS.tooltip.sideRule);
 
         return {
+            linePanel: linePanel,
             extensionInput: extensionRow.input,
             sideRuleCheckbox: sideRuleCheckbox
         };
@@ -1924,6 +1987,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         return {
             cellSolidRadio: styleRow.radios[0],
             cellDashedRadio: styleRow.radios[1],
+            emphasisRow: emphasisRow,
             emphasisCheckbox: emphasisCheckbox,
             emphasisInput: emphasisInput
         };
@@ -2002,9 +2066,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         return {
             presetDropdown: preset.presetDropdown,
             saveButton: preset.saveButton,
+            cellRectsCheckbox: overall.cellRectsCheckbox,
             colorSlider: overall.colorSlider,
             colorValueLabel: overall.colorValueLabel,
+            emphasisRatioRow: overall.emphasisRatioRow,
             emphasisRatioInput: overall.emphasisRatioInput,
+            emphasisTargetRow: overall.emphasisTargetRow,
             emphasizeLineRulesCheckbox: overall.emphasizeLineRulesCheckbox,
             emphasizeCellRulesCheckbox: overall.emphasizeCellRulesCheckbox,
             extraCellsInput: overall.extraCellsInput,
@@ -2013,10 +2080,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             scaleRow: text.scaleRow,
             scaleInput: text.scaleInput,
             autoLeadingInput: text.autoLeadingInput,
+            linePanel: lineRule.linePanel,
             extensionInput: lineRule.extensionInput,
             sideRuleCheckbox: lineRule.sideRuleCheckbox,
             cellSolidRadio: cellRule.cellSolidRadio,
             cellDashedRadio: cellRule.cellDashedRadio,
+            emphasisRow: cellRule.emphasisRow,
             emphasisCheckbox: cellRule.emphasisCheckbox,
             emphasisInput: cellRule.emphasisInput,
             crossNoneRadio: cross.crossNoneRadio,
@@ -2047,6 +2116,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function updateDialogState(controls) {
+        /* 長方形にすると太罫も行の両側の罫線も出番がなくなる
+           / The rectangles leave no room for the emphasis or the rules along each line */
+        var usesRules = !controls.cellRectsCheckbox.value;
+
+        controls.emphasisRatioRow.enabled = usesRules;
+        controls.emphasisTargetRow.enabled = usesRules;
+        controls.linePanel.enabled = usesRules;
+        controls.emphasisRow.enabled = usesRules;
+
         controls.scaleRow.enabled = controls.adjustSizeCheckbox.value;
         controls.emphasisInput.enabled = controls.emphasisCheckbox.value;
         controls.crossSegmentsRow.enabled = controls.crossDashedRadio.value;
@@ -2059,6 +2137,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      */
     function readPresetValues(controls) {
         return {
+            cellRects: controls.cellRectsCheckbox.value,
             strokeGray: Math.round(controls.colorSlider.value),
             emphasisRatio: readNumberField(controls.emphasisRatioInput, 1, DEFAULTS.emphasisRatio, false),
             emphasizeLineRules: controls.emphasizeLineRulesCheckbox.value,
@@ -2087,6 +2166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var values = readPresetValues(controls);
 
         return {
+            cellRects: values.cellRects,
             strokeGray: values.strokeGray,
             emphasisRatio: values.emphasisRatio,
             emphasizeLineRules: values.emphasizeLineRules,
@@ -2113,6 +2193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function applyPresetValues(controls, values, defaultExtensionMM) {
+        controls.cellRectsCheckbox.value = values.cellRects;
         controls.colorSlider.value = values.strokeGray;
         controls.colorValueLabel.text = formatDensity(values.strokeGray);
         controls.emphasisRatioInput.text = String(values.emphasisRatio);
@@ -2190,6 +2271,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         }
 
         var toggles = [
+            controls.cellRectsCheckbox,
             controls.emphasizeLineRulesCheckbox,
             controls.emphasizeCellRulesCheckbox,
             controls.adjustSizeCheckbox,
