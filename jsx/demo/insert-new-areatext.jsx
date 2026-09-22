@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "InsertNewAreaText";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewAreaText.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewAreaText.md"; /* README (English) */
@@ -89,22 +89,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      */
     function getFirstEditableLayer(doc) {
         for (var i = 0; i < doc.layers.length; i++) {
-            var layer = doc.layers[i];
-            if (!layer.locked && layer.visible) return layer;
+            var candidateLayer = doc.layers[i];
+            if (!candidateLayer.locked && candidateLayer.visible) return candidateLayer;
         }
         return null;
     }
 
     /**
      * 指定座標を中心とする矩形を作成する
-     * @param {Layer} layer - 作成先レイヤー
-     * @param {{x: number, y: number}} center - 中心座標
+     * @param {Layer} targetLayer - 作成先レイヤー
+     * @param {{x: number, y: number}} centerPoint - 中心座標
      * @param {number} width - 幅
      * @param {number} height - 高さ
      * @returns {PathItem} 作成した矩形
      */
-    function createCenteredRect(layer, center, width, height) {
-        return layer.pathItems.rectangle(center.y + height / 2, center.x - width / 2, width, height);
+    function createCenteredRect(targetLayer, centerPoint, width, height) {
+        return targetLayer.pathItems.rectangle(centerPoint.y + height / 2, centerPoint.x - width / 2, width, height);
     }
 
     /**
@@ -177,16 +177,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         if (app.documents.length === 0) return; /* ドキュメントがなければ終了 / Abort without a document */
 
         var doc = app.activeDocument;
-        var layer = getFirstEditableLayer(doc);
-        if (!layer) return; /* すべてロック／非表示なら中断 / Abort if every layer is locked or hidden */
+        var targetLayer = getFirstEditableLayer(doc);
+        if (!targetLayer) return; /* すべてロック／非表示なら中断 / Abort if every layer is locked or hidden */
 
-        var center = getViewCenter(doc);
+        var viewCenter = getViewCenter(doc);
 
         /* エリア用の矩形を中心に作成 / Create the area rectangle at the center */
-        var areaRect = createCenteredRect(layer, center, AREA_WIDTH, AREA_HEIGHT);
+        var areaRect = createCenteredRect(targetLayer, viewCenter, AREA_WIDTH, AREA_HEIGHT);
 
         /* エリア内文字フレームを作成 / Create the area text frame */
-        var textFrame = layer.textFrames.areaText(areaRect);
+        var textFrame = targetLayer.textFrames.areaText(areaRect);
 
         /* テキストと体裁を適用 / Apply contents and style */
         textFrame.contents = SAMPLE_TEXT;

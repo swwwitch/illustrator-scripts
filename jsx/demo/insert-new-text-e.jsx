@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "InsertNewTextE";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewTextE.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewTextE.md"; /* README (English) */
@@ -99,14 +99,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
     /**
      * 実測バウンズの中心が指定座標に来るように移動する（position はベースライン基準のため）
      * @param {TextFrame} textFrame - 移動するテキストフレーム
-     * @param {number[]} center - 合わせ先の中心座標 [x, y]
+     * @param {number[]} targetCenter - 合わせ先の中心座標 [x, y]
      * @returns {void}
      */
-    function centerOnPoint(textFrame, center) {
-        var bounds = textFrame.visibleBounds; /* [left, top, right, bottom] */
+    function centerOnPoint(textFrame, targetCenter) {
+        var frameBounds = textFrame.visibleBounds; /* [left, top, right, bottom] */
         textFrame.translate(
-            center[0] - (bounds[0] + bounds[2]) / 2,
-            center[1] - (bounds[1] + bounds[3]) / 2
+            targetCenter[0] - (frameBounds[0] + frameBounds[2]) / 2,
+            targetCenter[1] - (frameBounds[1] + frameBounds[3]) / 2
         );
     }
 

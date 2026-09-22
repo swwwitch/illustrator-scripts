@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "ConvertToAreaTypeLikeButton";  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md"; /* README (English) */
@@ -41,8 +41,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* ボタン風の拡大倍率 / Button-style expansion ratios */
-    var BUTTON_WIDTH_RATIO = 1.2;   // 元の幅に対する倍率 / Ratio of original width
-    var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
+    var BUTTON_WIDTH_RATIO  = 1.2;  /* 元の幅に対する倍率 / Ratio of original width */
+    var BUTTON_HEIGHT_RATIO = 1.6;  /* 元の高さに対する倍率 / Ratio of original height */
 
     // =========================================
     // レイアウト / Layout
@@ -236,7 +236,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択にポイント文字（パス上文字を含む）・エリア内文字・パスが含まれるかを調べる
-     * @param {Array} selectedItems - 選択オブジェクト
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
      * @returns {{hasPointText: boolean, hasAreaText: boolean, hasPathItem: boolean}} 含まれる種類
      */
     function classifySelection(selectedItems) {
@@ -256,7 +256,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択から最初のエリア内文字を返す
-     * @param {Array} selectedItems - 選択オブジェクト
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
      * @returns {TextFrame|null} 最初のエリア内文字（無ければ null）
      */
     function findFirstAreaText(selectedItems) {
@@ -272,7 +272,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 関数を実行し、例外は握りつぶす（属性ごとに失敗しても残りを続けるため）
-     * @param {function} attemptAction - 実行する処理
+     * @param {Function} attemptAction - 実行する処理
      * @returns {*} 処理の戻り値（例外時は undefined）
      */
     function runIgnoringErrors(attemptAction) {
@@ -282,7 +282,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 文字ごとの属性を控える
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {Array<object>} 文字ごとの属性
+     * @returns {Object[]} 文字ごとの属性
      */
     function snapshotCharacterAttributes(textFrame) {
         var attributeSnapshots = [];
@@ -304,7 +304,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 控えた文字属性を書き戻す（ベースライン移動と比率はリセット）。属性ごとに失敗しても続ける
      * @param {TextFrame} textFrame - 書き戻し先のテキストフレーム
-     * @param {Array<object>} attributeSnapshots - snapshotCharacterAttributes() の戻り値
+     * @param {Object[]} attributeSnapshots - snapshotCharacterAttributes() の戻り値
      * @returns {void}
      */
     function restoreCharacterAttributes(textFrame, attributeSnapshots) {
@@ -339,7 +339,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var createdPointTexts = [];
         if (!doc || !pathTextFrames || !pathTextFrames.length) return createdPointTexts;
 
-        // 新規テキストだけ選べるよう選択を解除 / Clear selection
+        /* 新規テキストだけ選べるよう選択を解除 / Clear selection */
         runIgnoringErrors(function () { doc.selection = null; });
 
         for (var j = pathTextFrames.length - 1; j >= 0; j--) {
@@ -350,7 +350,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             runIgnoringErrors(function () { originalPath = pathText.textPath; });
             if (!originalPath) continue;
 
-            // 1) 文字ごとの属性を退避 / Snapshot per-character attributes
+            /* 1) 文字ごとの属性を退避 / Snapshot per-character attributes */
             var attributeSnapshots = snapshotCharacterAttributes(pathText);
 
             var textContents = "";
@@ -363,7 +363,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             });
 
-            // 2) パス始点にポイント文字を新規作成 / Create new point text at path start anchor
+            /* 2) パス始点にポイント文字を新規作成 / Create new point text at path start anchor */
             var pointText = doc.textFrames.add();
             var anchorPoint = null;
             runIgnoringErrors(function () {
@@ -381,19 +381,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 runIgnoringErrors(function () { pointText.paragraphs[0].paragraphAttributes.justification = justification; });
             }
 
-            // 既定の線を一旦消し、後で文字ごとに復元 / Clear default stroke, restore per-character later
+            /* 既定の線を一旦消し、後で文字ごとに復元 / Clear default stroke, restore per-character later */
             runIgnoringErrors(function () {
                 pointText.textRange.characterAttributes.strokeColor = new NoColor();
                 pointText.textRange.characterAttributes.strokeWeight = 0;
             });
 
-            // 文字ごとの属性を復元 / Restore per-character attributes
+            /* 文字ごとの属性を復元 / Restore per-character attributes */
             restoreCharacterAttributes(pointText, attributeSnapshots);
 
-            // 3) 元のパス上文字を削除（パスも一緒に消える）/ Remove original path text
+            /* 3) 元のパス上文字を削除（パスも一緒に消える）/ Remove original path text */
             runIgnoringErrors(function () { pathText.remove(); });
 
-            // 4) 新規テキストを選択して返す / Select and return new text
+            /* 4) 新規テキストを選択して返す / Select and return new text */
             runIgnoringErrors(function () { pointText.selected = true; });
             createdPointTexts.push(pointText);
         }
@@ -404,8 +404,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 選択内のパス上文字をポイント文字へ置き換え、置き換えた選択配列を返す
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} currentSelection - 現在の選択
-     * @returns {Array} 置き換え後の選択（パス上文字が無ければ元の選択）
+     * @param {PageItem[]} currentSelection - 現在の選択
+     * @returns {PageItem[]} 置き換え後の選択（パス上文字が無ければ元の選択）
      */
     function preprocessPathTextSelection(doc, currentSelection) {
         if (!doc || !currentSelection || !currentSelection.length) return currentSelection;
@@ -423,7 +423,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var createdPointTexts = detachPathTextToPointText(doc, pathTexts);
         if (!createdPointTexts.length) return currentSelection;
 
-        // パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array
+        /* パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array */
         var replacedSelection = [];
         for (var j = 0; j < currentSelection.length; j++) {
             var remainingItem = currentSelection[j];
@@ -532,11 +532,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var upperSize = textFrame.textRange.characterAttributes.size;
         var lowerSize = 0.1;
 
-        // 最小でもあふれるならそのまま終了 / If even lowerSize overflows, keep min size
+        /* 最小でもあふれるならそのまま終了 / If even lowerSize overflows, keep min size */
         setFontSizeKeepingLeading(textFrame, lowerSize, leadingInfo);
         if (isOversetFrame(textFrame)) return;
 
-        // 二分探索 / Binary search
+        /* 二分探索 / Binary search */
         for (var i = 0; i < 40; i++) {
             var middleSize = (lowerSize + upperSize) / 2;
             setFontSizeKeepingLeading(textFrame, middleSize, leadingInfo);
@@ -548,7 +548,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (upperSize - lowerSize < 0.1) break;
         }
 
-        // あふれない側（lowerSize）に確定 / Settle on the non-overset side
+        /* あふれない側（lowerSize）に確定 / Settle on the non-overset side */
         setFontSizeKeepingLeading(textFrame, lowerSize, leadingInfo);
     }
 
@@ -585,18 +585,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} setName - アクションセット名
      * @param {string} internalName - イベントの内部名
      * @param {string} localizedNameHex - ローカライズ名（長さと16進。空なら省略）
-     * @param {number} paramKeyInt - パラメーターのキー
-     * @param {Array<{name: string, value: number}>} actionDefs - アクション名と値の組
+     * @param {number} parameterKey - パラメーターのキー
+     * @param {Array<{name: string, value: number}>} actionDefinitions - アクション名と値の組
      * @returns {string} .aia 形式のアクションセット定義
      */
-    function buildActionSetAia(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
+    function buildActionSetAia(setName, internalName, localizedNameHex, parameterKey, actionDefinitions) {
         var aiaText = "/version 3" +
             buildActionNameBlock(setName) +
             "/isOpen 1" +
-            "/actionCount " + actionDefs.length;
+            "/actionCount " + actionDefinitions.length;
 
-        for (var i = 0; i < actionDefs.length; i++) {
-            var actionDef = actionDefs[i];
+        for (var i = 0; i < actionDefinitions.length; i++) {
+            var actionDef = actionDefinitions[i];
             aiaText += "/action-" + (i + 1) + " {" +
                 " " + buildActionNameBlock(actionDef.name) +
                 " /keyIndex 0" +
@@ -612,7 +612,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 " /hasDialog 0" +
                 " /parameterCount 1" +
                 " /parameter-1 {" +
-                " /key " + paramKeyInt +
+                " /key " + parameterKey +
                 " /showInPalette 4294967295" +
                 " /type (integer)" +
                 " /value " + actionDef.value +
@@ -665,16 +665,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function loadAreaTextActions() {
-        var actionDefs = [];
+        var actionDefinitions = [];
         for (var i = 0; i < FRAME_ALIGNMENT_ACTIONS.length; i++) {
-            actionDefs.push({ name: FRAME_ALIGNMENT_ACTIONS[i], value: i });
+            actionDefinitions.push({ name: FRAME_ALIGNMENT_ACTIONS[i], value: i });
         }
         var aiaText = buildActionSetAia(
             AREA_TEXT_ACTION_SET,
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
             1717660782,
-            actionDefs
+            actionDefinitions
         );
         loadActionSet(AREA_TEXT_ACTION_SET, aiaText);
     }
@@ -705,13 +705,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function applyAreaTextFrameAlignment(areaTextFrame, alignValue, forPreview) {
-        // app.doScript はプレビュー中に呼ぶと不安定なためスキップ / Unstable during preview, so skip
+        /* app.doScript はプレビュー中に呼ぶと不安定なためスキップ / Unstable during preview, so skip */
         if (forPreview) return;
         try {
             var doc = app.activeDocument;
             doc.selection = null;
             doc.selection = [areaTextFrame];
-            app.redraw(); // 選択状態を確定 / Commit the selection
+            app.redraw(); /* 選択状態を確定 / Commit the selection */
             runFrameAlignmentAction(alignValue);
         } catch (e) { }
     }
@@ -724,7 +724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ↑↓キーで値を増減する（Shift=10 / Alt=0.1）
      * @param {EditText} editText - 対象の入力欄
      * @param {boolean} allowNegative - 負の値を許すか
-     * @param {function} [onChangeCallback] - 値を変えたあとに呼ぶ処理
+     * @param {Function} [onChangeCallback] - 値を変えたあとに呼ぶ処理
      * @returns {void}
      */
     function changeValueByArrowKey(editText, allowNegative, onChangeCallback) {
@@ -732,9 +732,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
 
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 var delta = 10;
                 if (event.keyName == "Up") {
                     value = Math.ceil((value + 1) / delta) * delta;
@@ -743,7 +743,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     value = Math.floor((value - 1) / delta) * delta;
                     event.preventDefault();
                 }
-            } else if (keyboard.altKey) {
+            } else if (keyboardState.altKey) {
                 if (event.keyName == "Up") {
                     value += 0.1;
                     event.preventDefault();
@@ -761,7 +761,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
 
-            value = keyboard.altKey ? Math.round(value * 10) / 10 : Math.round(value);
+            value = keyboardState.altKey ? Math.round(value * 10) / 10 : Math.round(value);
             if (!allowNegative && value < 0) value = 0;
 
             editText.text = value;
@@ -841,7 +841,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 選択からモードを判定して変換し、調整ダイアログを開く
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} currentSelection - 現在の選択
+     * @param {PageItem[]} currentSelection - 現在の選択
      * @returns {void}
      */
     function convertToAreaTypeAndAdjust(doc, currentSelection) {
@@ -850,7 +850,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var updatedSelection = doc.selection;
         if (!updatedSelection || updatedSelection.length === 0) { return; }
 
-        // 選択内容に応じてモードを決定（ポイント文字は常にボタン風）/ Decide mode (point text is always button style)
+        /* 選択内容に応じてモードを決定（ポイント文字は常にボタン風）/ Decide mode (point text is always button style) */
         var selectionKinds = classifySelection(updatedSelection);
         if (!selectionKinds.hasPointText) return;
 
@@ -867,7 +867,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 選択したテキストと閉じたパスから、エリア内文字を1つ作る
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} selectedItems - 選択オブジェクト
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
      * @returns {TextFrame[]} 作成したエリア内文字（作れなければ空）
      */
     function createAreaTextFromTextAndShape(doc, selectedItems) {
@@ -898,7 +898,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * ポイント文字ごとに、幅×BUTTON_WIDTH_RATIO・高さ×BUTTON_HEIGHT_RATIO の枠で中央揃えのエリア内文字を作る
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} selectedItems - 選択オブジェクト
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
      * @returns {TextFrame[]} 作成したエリア内文字
      */
     function createButtonAreaTexts(doc, selectedItems) {
@@ -919,9 +919,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var areaTextFrame = doc.textFrames.areaText(buttonRect);
                 areaTextFrame.contents = textContents;
                 applyFontAndSize(areaTextFrame, sourceStyle);
-                // 行揃えを中央に / Horizontal center
+                /* 行揃えを中央に / Horizontal center */
                 try { areaTextFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
-                // 縦位置はDOMで不安定なためアクションで中央 / Vertical center via dynamic action (unreliable via DOM)
+                /* 縦位置はDOMで不安定なためアクションで中央 / Vertical center via dynamic action (unreliable via DOM) */
                 applyAreaTextFrameAlignment(areaTextFrame, 1, false);
                 createdFrames.push(areaTextFrame);
                 pointText.remove();
@@ -986,7 +986,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 調整ダイアログを組み立てる（イベントは showAdjustDialog() で結び付ける）
      * @param {string} unitLabel - ルーラー単位の表示
-     * @returns {object} ダイアログと各コントロール
+     * @returns {Object} ダイアログと各コントロール
      */
     function buildAdjustDialog(unitLabel) {
         var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -1020,7 +1020,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* インデント / Indent */
         var indentPanel = mainColumnGroup.add("panel", undefined, getLabel("panel.indent"));
         setupPanel(indentPanel);
-        // 連動チェックを右側に並べるため行方向へ上書き / Override to row so "Link" sits to the right
+        /* 連動チェックを右側に並べるため行方向へ上書き / Override to row so "Link" sits to the right */
         indentPanel.orientation = "row";
         indentPanel.alignChildren = ["left", "top"];
         var indentFieldsColumn = indentPanel.add("group");
@@ -1087,14 +1087,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rulerUnit = getUnitInfo("rulerType");
         var pointsPerUnit = rulerUnit.pointsPerUnit;
 
-        // 受け取った変換結果を確実に対象にする / Make the passed frames the active target
+        /* 受け取った変換結果を確実に対象にする / Make the passed frames the active target */
         var framesToSelect = (targetFrames && targetFrames.length) ? targetFrames : (initialFrame ? [initialFrame] : null);
         if (framesToSelect) {
             try { doc.selection = framesToSelect; } catch (e) { }
         }
         app.redraw();
 
-        // モーダル中は selection が変動するため、渡された配列を優先して固定 / Pin targets (selection drifts in modal)
+        /* モーダル中は selection が変動するため、渡された配列を優先して固定 / Pin targets (selection drifts in modal) */
         var fixedTargets = null;
         if (targetFrames && targetFrames.length) {
             fixedTargets = targetFrames.slice(0);
@@ -1123,10 +1123,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var marginInput = dialogControls.marginInput;
         var marginUnitLabel = dialogControls.marginUnitLabel;
 
-        // 状態変数 / State
+        /* 状態変数 / State */
         var isPreviewActive = false;
 
-        // 入力バリデーション用の最終正常値（ルーラー単位）/ Last valid values for validation (ruler units)
+        /* 入力バリデーション用の最終正常値（ルーラー単位）/ Last valid values for validation (ruler units) */
         var lastValidWidth = null;
         var lastValidHeight = null;
 
@@ -1197,7 +1197,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var originalSelection = doc.selection;
             for (var j = 0; j < originalSelection.length; j++) { savedSelection.push(originalSelection[j]); }
 
-            // 固定ターゲットを優先 / Prefer pinned targets
+            /* 固定ターゲットを優先 / Prefer pinned targets */
             if (!(fixedTargets && fixedTargets.length)) { fixedTargets = collectSelectedAreaTexts(doc); }
             var adjustTargets = fixedTargets && fixedTargets.length ? fixedTargets : doc.selection;
 
@@ -1205,7 +1205,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var targetFrame = adjustTargets[i];
                 if (!isAreaTextFrame(targetFrame)) continue;
                 try { targetFrame.spacing = marginPt; } catch (e) { }
-                // 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values
+                /* 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values */
                 var widthInRulerUnits = validateSizeField(widthInput, lastValidWidth, pointsPerUnit);
                 var heightInRulerUnits = validateSizeField(heightInput, lastValidHeight, pointsPerUnit);
                 if (widthInRulerUnits !== null) { lastValidWidth = widthInRulerUnits; try { targetFrame.textPath.width = widthInRulerUnits * pointsPerUnit; } catch (e) { } }
@@ -1240,7 +1240,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function updatePreview() {
             if (isPreviewActive) {
                 undoPreview();
-                // undo 後は参照が無効化されるため対象を取り直す / Refresh targets after undo
+                /* undo 後は参照が無効化されるため対象を取り直す / Refresh targets after undo */
                 fixedTargets = collectSelectedAreaTexts(doc);
             }
             if (!(fixedTargets && fixedTargets.length)) { fixedTargets = collectSelectedAreaTexts(doc); }
@@ -1293,7 +1293,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             onWidthChange();
         }
 
-        // --- イベントハンドラ / Event handlers ---
+        /* --- イベントハンドラ / Event handlers --- */
         dialogControls.btnFixOverset.onClick = function () { runAdjust(false, true); };
         marginCheckbox.onClick = function () {
             marginInput.enabled = marginCheckbox.value;
@@ -1345,10 +1345,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             adjustDialog.close(0);
         };
 
-        // 初期値読み込み / Load initial values
+        /* 初期値読み込み / Load initial values */
         if (initialFrame) { loadValuesFromFrame(initialFrame); }
 
-        // 開いたらプレビュー実行（常時ON）/ Run preview on open (always on)
+        /* 開いたらプレビュー実行（常時ON）/ Run preview on open (always on) */
         updatePreview();
 
         adjustDialog.show();
@@ -1380,14 +1380,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        // アクションを実行時に読み込み、終了時に破棄 / Load actions at start, unload on exit
+        /* アクションを実行時に読み込み、終了時に破棄 / Load actions at start, unload on exit */
         loadAreaTextActions();
         try {
             if (selectionKinds.hasPointText || selectionKinds.hasPathItem) {
-                // ポイント文字 または 図形 → 変換（常にボタン風）してダイアログ / Point or shape → convert then dialog
+                /* ポイント文字 または 図形 → 変換（常にボタン風）してダイアログ / Point or shape → convert then dialog */
                 convertToAreaTypeAndAdjust(doc, currentSelection);
             } else {
-                // エリア内文字のみ → 調整ダイアログ / Area type only → adjust dialog
+                /* エリア内文字のみ → 調整ダイアログ / Area type only → adjust dialog */
                 showAdjustDialog(doc, findFirstAreaText(currentSelection), null);
             }
         } finally {

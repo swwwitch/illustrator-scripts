@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "InsertNewRectangle5Times";     /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle5Times.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle5Times.md"; /* README (English) */
@@ -94,18 +94,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      */
     function getBlackFillColor(doc) {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = 0;
-            cmyk.magenta = 0;
-            cmyk.yellow = 0;
-            cmyk.black = 100;
-            return cmyk;
+            var blackCmyk = new CMYKColor();
+            blackCmyk.cyan = 0;
+            blackCmyk.magenta = 0;
+            blackCmyk.yellow = 0;
+            blackCmyk.black = 100;
+            return blackCmyk;
         }
-        var rgb = new RGBColor();
-        rgb.red = 0;
-        rgb.green = 0;
-        rgb.blue = 0;
-        return rgb;
+        var blackRgb = new RGBColor();
+        blackRgb.red = 0;
+        blackRgb.green = 0;
+        blackRgb.blue = 0;
+        return blackRgb;
     }
 
     /**
@@ -115,8 +115,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      */
     function getUnlockedVisibleLayer(doc) {
         for (var i = 0; i < doc.layers.length; i++) {
-            var layer = doc.layers[i];
-            if (!layer.locked && layer.visible) return layer;
+            var candidateLayer = doc.layers[i];
+            if (!candidateLayer.locked && candidateLayer.visible) return candidateLayer;
         }
         return null;
     }
@@ -154,12 +154,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
 
     /**
      * 元の位置を起点にランダム移動を繰り返し、互いに重ならない位置へ配置する
-     * @param {Array<{item: PageItem, position: number[]}>} states - 対象と元の位置の組
+     * @param {Array<{item: PageItem, position: number[]}>} itemPlacements - 対象と元の位置の組
      * @param {object} placementOptions - PLACEMENT_OPTIONS と同じ形の探索条件
      * @returns {boolean} 全件を配置できたら true
      */
-    function placeItemsAvoidOverlap(states, placementOptions) {
-        if (!states || states.length === 0) return false;
+    function placeItemsAvoidOverlap(itemPlacements, placementOptions) {
+        if (!itemPlacements || itemPlacements.length === 0) return false;
 
         var scaleFactor = 1;
 
@@ -167,32 +167,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
             var placedBounds = [];
             var allPlaced = true;
 
-            for (var i = 0; i < states.length; i++) {
-                var state = states[i];
-                var placed = false;
+            for (var i = 0; i < itemPlacements.length; i++) {
+                var placement = itemPlacements[i];
+                var isPlaced = false;
 
                 for (var attempt = 0; attempt < placementOptions.attemptsPerItem; attempt++) {
                     var randX = (Math.random() * 2 - 1) * placementOptions.baseX * scaleFactor;
                     var randY = (Math.random() * 2 - 1) * placementOptions.baseY * scaleFactor;
-                    state.item.position = [state.position[0] + randX, state.position[1] + randY];
+                    placement.item.position = [placement.position[0] + randX, placement.position[1] + randY];
 
-                    var bounds = state.item.visibleBounds;
-                    var overlap = false;
+                    var candidateBounds = placement.item.visibleBounds;
+                    var hasOverlap = false;
                     for (var j = 0; j < placedBounds.length; j++) {
-                        if (isOverlapping(bounds, placedBounds[j], placementOptions.padding)) {
-                            overlap = true;
+                        if (isOverlapping(candidateBounds, placedBounds[j], placementOptions.padding)) {
+                            hasOverlap = true;
                             break;
                         }
                     }
 
-                    if (!overlap) {
-                        placedBounds.push(bounds);
-                        placed = true;
+                    if (!hasOverlap) {
+                        placedBounds.push(candidateBounds);
+                        isPlaced = true;
                         break;
                     }
                 }
 
-                if (!placed) {
+                if (!isPlaced) {
                     allPlaced = false;
                     break;
                 }
@@ -209,15 +209,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
 
     /**
      * 中央に残っている同じサイズ・同じ位置の長方形を削除する
-     * @param {Layer} layer - 対象レイヤー
+     * @param {Layer} targetLayer - 対象レイヤー
      * @param {number} rectTop - 判定する上端座標
      * @param {number} rectLeft - 判定する左端座標
      * @param {number} rectSize - 判定する一辺の長さ
      * @returns {void}
      */
-    function removeExistingCenterRect(layer, rectTop, rectLeft, rectSize) {
-        for (var i = layer.pathItems.length - 1; i >= 0; i--) {
-            var pathItem = layer.pathItems[i];
+    function removeExistingCenterRect(targetLayer, rectTop, rectLeft, rectSize) {
+        for (var i = targetLayer.pathItems.length - 1; i >= 0; i--) {
+            var pathItem = targetLayer.pathItems[i];
             if (Math.abs(pathItem.top - rectTop) < 1 && Math.abs(pathItem.left - rectLeft) < 1 &&
                 Math.abs(pathItem.width - rectSize) < 1 && Math.abs(pathItem.height - rectSize) < 1) {
                 try {
@@ -253,41 +253,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         }
 
         /* 表示領域の中心座標を取得 / Get view center */
-        var viewCenterX = doc.activeView.centerPoint[0];
-        var viewCenterY = doc.activeView.centerPoint[1];
+        var viewCenter = doc.activeView.centerPoint;
+        var viewCenterX = viewCenter[0];
+        var viewCenterY = viewCenter[1];
 
         /* 中央に残っている既存の長方形を削除 / Remove the existing center rectangle if any */
         removeExistingCenterRect(targetLayer, viewCenterY + RECT_SIZE / 2, viewCenterX - RECT_SIZE / 2, RECT_SIZE);
 
         /* いったん表示中心付近に作成し、後で重なり回避で再配置する / Create near the center, reposition later */
-        var rects = [];
+        var blackColor = getBlackFillColor(doc);
+        var squares = [];
+        var itemPlacements = [];
         for (var i = 0; i < RECT_COUNT; i++) {
             var offsetX = Math.random() * SCATTER_RANGE * 2 - SCATTER_RANGE;
             var offsetY = Math.random() * SCATTER_RANGE * 2 - SCATTER_RANGE;
 
-            var rect = targetLayer.pathItems.rectangle(
+            var square = targetLayer.pathItems.rectangle(
                 viewCenterY + offsetY + RECT_SIZE / 2,
                 viewCenterX + offsetX - RECT_SIZE / 2,
                 RECT_SIZE,
                 RECT_SIZE
             );
-            rect.fillColor = getBlackFillColor(doc);
-            rect.stroked = false;
-            rect.opacity = Math.random() * (OPACITY_MAX - OPACITY_MIN) + OPACITY_MIN;
-            rects.push(rect);
+            square.fillColor = blackColor;
+            square.stroked = false;
+            square.opacity = Math.random() * (OPACITY_MAX - OPACITY_MIN) + OPACITY_MIN;
+            squares.push(square);
+            itemPlacements.push({ item: square, position: square.position }); /* position: [left, top] */
         }
 
         /* 重ならないように配置 / Place without overlapping */
-        var states = [];
-        for (var s = 0; s < rects.length; s++) {
-            states.push({ item: rects[s], position: rects[s].position }); /* position: [left, top] */
-        }
-        placeItemsAvoidOverlap(states, PLACEMENT_OPTIONS);
+        placeItemsAvoidOverlap(itemPlacements, PLACEMENT_OPTIONS);
 
         /* 作成した正方形だけを選択 / Select the created squares only */
         doc.selection = null;
-        for (var k = 0; k < rects.length; k++) {
-            rects[k].selected = true;
+        for (var k = 0; k < squares.length; k++) {
+            squares[k].selected = true;
         }
 
         /* 選択オブジェクトにコマンドを適用 / Apply commands to the selection */

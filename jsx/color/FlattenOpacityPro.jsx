@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "FlattenOpacityPro";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenOpacityPro.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenOpacityPro.md"; /* README (English) */
@@ -38,208 +38,450 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    // --- Geometry tolerance (for grouping "same shape") ---
-    // Quantize values to reduce tiny float jitter after Pathfinder/Expand.
-    var GEOM_TOL_PT = 0.1;        // position/size tolerance in points
-    var AREA_TOL = 0.01;          // area tolerance in document units (PathItem.area is in square points)
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    // --- Blending mode ---
-    // If true: convert to RGB and blend in linear light (can better match on-screen opacity compositing,
-    // but may shift colors due to color profile conversions).
-    // If false: blend directly in the source color space (previous behavior; preserves original hues better).
+    /* 「同じ形」とみなす許容値。パスファインダー・分割後の小さな誤差を丸める
+       Tolerances for grouping "same shape"; quantize to absorb float jitter after Pathfinder/Expand */
+    var GEOM_TOL_PT = 0.1;        /* 位置・サイズの許容値（pt） / position/size tolerance in points */
+    var AREA_TOL = 0.01;          /* 面積の許容値（PathItem.area は平方ポイント） / area tolerance (PathItem.area is in square points) */
+
+    /* true: RGB に変換してリニア光で合成する（画面上の不透明度の見え方に近いが、カラープロファイルの変換で色がずれることがある）
+       false: 元のカラースペースのまま合成する（従来の挙動。元の色相を保ちやすい）
+       If true: convert to RGB and blend in linear light (closer to on-screen compositing, but profile conversion may shift colors).
+       If false: blend directly in the source color space (previous behavior; preserves original hues better). */
     var USE_GAMMA_CORRECT_BLEND = false;
-    // If true: when flattening a single item (opacity over white), composite in RGB (linear light) to better match on-screen appearance.
-    // This avoids the common "too dark" result from naive CMYK ink scaling.
+
+    /* true: 単体を白と合成するとき RGB（リニア光）で合成する。CMYK のインキを単純に掛けたときの「暗すぎる」結果を避ける
+       If true: when flattening a single item (opacity over white), composite in RGB (linear light)
+       to avoid the common "too dark" result from naive CMYK ink scaling. */
     var USE_RGB_WHITE_COMPOSITE = false;
 
-    // Convert a value to an integer "tick" based on step.
-    // Using ticks avoids float-string instability in geometry keys.
-    function toTick(v, step) {
-        if (!step || step <= 0) return v;
-        return Math.round(v / step);
+    // =========================================
+    // 形の判定 / Shape keys
+    // =========================================
+
+    /**
+     * 値を刻み幅の整数（tick）に丸める。浮動小数の文字列化の揺れを避けるため、形のキーは tick で作る
+     * @param {number} value - 元の値
+     * @param {number} step - 刻み幅
+     * @returns {number} tick（step が 0 以下なら value のまま）
+     */
+    function toTick(value, step) {
+        if (!step || step <= 0) return value;
+        return Math.round(value / step);
     }
 
-    function main() {
-        if (app.documents.length === 0) return;
-        var doc = app.activeDocument;
+    /**
+     * 親（グループまたはレイヤー）の中での重なり順の番号を返す（0 が最前面）
+     * zOrderPosition よりバージョン間で確実
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @returns {number|null} 番号（求められないときは null）
+     */
+    function getStackIndexInParent(targetItem) {
+        if (!targetItem) return null;
+        try {
+            var parentContainer = targetItem.parent;
+            if (!parentContainer) return null;
+            var siblingItems = parentContainer.pageItems;
+            if (!siblingItems) return null;
+            for (var i = 0; i < siblingItems.length; i++) {
+                if (siblingItems[i] === targetItem) return i;
+            }
+        } catch (e) { /* 親や兄弟を読めないときは不明とする / unknown when the parent cannot be read */ }
+        return null;
+    }
 
-        if (doc.selection.length < 1) {
-            alert("オブジェクトを選択してください。");
-            return;
+    /**
+     * コンテナ内のパスを再帰的に集める（グループの中もたどる）
+     * @param {Object} container - GroupItem など pageItems を持つもの
+     * @param {PathItem[]} outPathItems - パスを追加する配列
+     * @returns {void}
+     */
+    function getAllPathItems(container, outPathItems) {
+        var childItems = container.pageItems;
+        for (var i = 0; i < childItems.length; i++) {
+            var childItem = childItems[i];
+            if (childItem.typename === "PathItem") {
+                outPathItems.push(childItem);
+            } else if (childItem.typename === "GroupItem") {
+                getAllPathItems(childItem, outPathItems);
+            }
         }
+    }
 
-        // 1. 線が含まれる場合は OffsetPath を実行
-        if (selectionHasStroke(doc.selection)) {
-            app.executeMenuCommand('OffsetPath v22');
-            // 再選択（念のため）
+    /**
+     * 分割後のパスから、形のキー・不透明度・塗り・重なり順を読み出す（読めないパスは飛ばす）
+     * @param {PathItem[]} dividedPaths - 分割後のパス（[0] が最前面）
+     * @returns {Object[]} パスごとの情報
+     */
+    function collectPathEntries(dividedPaths) {
+        var pathEntries = [];
+        for (var i = 0; i < dividedPaths.length; i++) {
+            var pathItem = dividedPaths[i];
             try {
-                var currentSel = doc.selection;
-                doc.selection = null;
-                doc.selection = currentSel;
-            } catch (e) {}
-        }
+                var bounds = pathItem.geometricBounds; /* [left, top, right, bottom] */
+                var zOrderPos = null;
+                try { zOrderPos = pathItem.zOrderPosition; } catch (e) { zOrderPos = null; }
+                var stackIndex = getStackIndexInParent(pathItem);
 
-        // If only one object is selected, there is no overlap to merge.
-        // Bake its opacity directly to avoid Divide/Expand collapsing transparency (e.g., CMYK K100 @ 50% becoming K100).
-        if (doc.selection && doc.selection.length === 1) {
-            try {
-                bakeOpacityIntoFillRecursive(doc.selection[0], 1.0, doc);
-            } catch (e) { }
-            alert('処理が完了しました。');
-            return;
-        }
+                pathEntries.push({
+                    pathItem: pathItem,
 
-        // 2. 分割コマンドの実行
-        app.executeMenuCommand('group');
-        app.executeMenuCommand('Live Pathfinder Divide');
-        app.executeMenuCommand('expandStyle');
+                    /* 向き（時計回り・反時計回り）で符号が変わらないよう絶対値の面積を tick に / Absolute area as ticks */
+                    areaTick: toTick(Math.abs(pathItem.area), AREA_TOL),
 
-        // --- 安定化のための処理 ---
-        app.redraw(); // 描画を強制更新
-        var workGroup = doc.selection[0];
-        if (!workGroup || workGroup.typename !== "GroupItem") return;
+                    /* left/top だけより安定する geometricBounds を tick に / geometricBounds as ticks */
+                    leftTick: toTick(bounds[0], GEOM_TOL_PT),
+                    topTick: toTick(bounds[1], GEOM_TOL_PT),
+                    rightTick: toTick(bounds[2], GEOM_TOL_PT),
+                    bottomTick: toTick(bounds[3], GEOM_TOL_PT),
 
-        // パスアイテムをすべて抽出（この時点ではまだプロパティに深くアクセスしない）
-        var rawItems = [];
-        getAllPathItems(workGroup, rawItems);
+                    pointCount: pathItem.pathPoints.length,
+                    opacity: pathItem.opacity,
+                    fillColor: pathItem.filled ? pathItem.fillColor : null,
 
-        // 2. 情報を「安全な形式」で抽出する
-        // Illustratorのアイテムは [0]が一番上、[last]が一番下
-        var dataStack = [];
-        for (var i = 0; i < rawItems.length; i++) {
-            var item = rawItems[i];
-            try {
-                var gb = item.geometricBounds; // [left, top, right, bottom]
-                var zpos = null;
-                try { zpos = item.zOrderPosition; } catch (e) { zpos = null; }
-                var stackIdx = getStackIndexInParent(item);
-
-                dataStack.push({
-                    obj: item,
-
-                    // Use absolute area to avoid sign flips (CW/CCW). Store as integer ticks for stable keys.
-                    areaTick: toTick(Math.abs(item.area), AREA_TOL),
-
-                    // Use geometricBounds (more stable than left/top alone). Store as integer ticks for stable keys.
-                    gbLTick: toTick(gb[0], GEOM_TOL_PT),
-                    gbTTick: toTick(gb[1], GEOM_TOL_PT),
-                    gbRTick: toTick(gb[2], GEOM_TOL_PT),
-                    gbBTick: toTick(gb[3], GEOM_TOL_PT),
-
-                    points: item.pathPoints.length,
-                    opacity: item.opacity,
-                    fillColor: item.filled ? item.fillColor : null,
-
-                    // Depth: prefer actual parent stacking index (0=frontmost). Fallback to zOrderPosition, then extraction order.
-                    // We will sort by this so that larger value means "more back".
-                    depth: (stackIdx !== null) ? stackIdx : ((zpos !== null) ? zpos : i)
+                    /* 奥行き: 親の中の重なり順（0 が最前面）→ zOrderPosition → 取り出し順の順で使う。大きいほど背面
+                       Depth: parent stacking index, then zOrderPosition, then extraction order. Larger means more back */
+                    depth: (stackIndex !== null) ? stackIndex : ((zOrderPos !== null) ? zOrderPos : i)
                 });
             } catch (e) {
-                // エラーが出るアイテムはスキップ
+                /* エラーが出るアイテムはスキップ / skip items that throw */
             }
         }
-
-        // 3. 幾何学キーでグループ化
-        var geometryMap = {};
-        for (var j = 0; j < dataStack.length; j++) {
-            var d = dataStack[j];
-            var key = d.areaTick + "_" + d.gbLTick + "_" + d.gbTTick + "_" + d.gbRTick + "_" + d.gbBTick + "_" + d.points;
-            if (!geometryMap[key]) geometryMap[key] = [];
-            geometryMap[key].push(d);
-        }
-
-        // Composite a color over white using the same RGB linear-light path (used for overlap stacks).
-        // This is used ONLY for the bottom-most item in an overlap group so its own opacity is respected.
-        function blendOverWhiteForOverlap(col, alpha, doc) {
-            if (!col) return col;
-            if (!doc) return col;
-
-            // If fully opaque, keep as-is to avoid unnecessary color conversions.
-            if (alpha >= 0.999) return col;
-
-            // Fast-path for CMYK neutral (pure K / gray axis): avoid RGB roundtrip which can distort K.
-            // Example: K100 @ 50% should become roughly K50 over white.
-            if (doc.documentColorSpace === DocumentColorSpace.CMYK && col.typename === 'CMYKColor') {
-                var tol = 1e-6;
-                if (Math.abs(col.cyan) < tol && Math.abs(col.magenta) < tol && Math.abs(col.yellow) < tol) {
-                    var cmyk = new CMYKColor();
-                    cmyk.cyan = 0;
-                    cmyk.magenta = 0;
-                    cmyk.yellow = 0;
-                    cmyk.black = col.black * alpha;
-                    return cmyk;
-                }
-            }
-
-            var rgb = colorToRGB8(col);
-            if (!rgb) return col;
-
-            var rgb255 = [
-                Math.max(0, Math.min(255, rgb[0])),
-                Math.max(0, Math.min(255, rgb[1])),
-                Math.max(0, Math.min(255, rgb[2]))
-            ];
-            var white = [255, 255, 255];
-            var out = blendRGB8_linear(rgb255, white, alpha); // col over white
-            return rgb8ToDocColor(doc, out);
-        }
-
-        // 4. 合成処理
-        for (var k in geometryMap) {
-            var group = geometryMap[k];
-
-            // 深度（depth）が大きい順（＝背面→前面の順で処理できるように）にソート
-            group.sort(function (a, b) { return b.depth - a.depth; });
-
-            if (group.length > 1) {
-                // 【重なりあり】
-                // NOTE: Z-order preservation
-                // ここでは「最前面（frontmost）」のオブジェクトを残すことで、周囲のオブジェクトとの前後関係が変わらないようにします。
-                // 色の合成自体は背面→前面の順で行い、最終色を survivor（最前面）へ適用します。
-
-                var backData = group[0];                 // 背面（backmost）
-                var survivor = group[group.length - 1]; // 最前面（frontmost）
-
-                // Respect the backmost object's own opacity by first compositing it over white.
-                var baseColor = backData.fillColor;
-                if (baseColor) {
-                    baseColor = blendOverWhiteForOverlap(baseColor, backData.opacity / 100, doc);
-                }
-
-                // Composite back→front
-                for (var n = 1; n < group.length; n++) {
-                    var topData = group[n];
-                    if (baseColor && topData.fillColor) {
-                        baseColor = blendColors(topData.fillColor, baseColor, topData.opacity / 100, doc);
-                    }
-                }
-
-                // Apply final color to the survivor (frontmost), set opacity to 100
-                try {
-                    survivor.obj.fillColor = baseColor;
-                } catch (e) {}
-                try {
-                    survivor.obj.opacity = 100;
-                } catch (e) {}
-
-                // Remove all others (keep survivor to preserve stacking order)
-                for (var m = 0; m < group.length; m++) {
-                    if (group[m] === survivor) continue;
-                    try { group[m].obj.remove(); } catch (e) {}
-                }
-
-            } else {
-                // 【重なりなし（単品）】
-                var single = group[0];
-                if (single.fillColor) {
-                    single.obj.fillColor = blendWithWhite(single.fillColor, single.opacity / 100, doc);
-                }
-                single.obj.opacity = 100;
-            }
-        }
-
-        alert("処理が完了しました。");
+        return pathEntries;
     }
+
+    /**
+     * 同じ形（面積・境界・アンカー数が同じ）のパスごとにまとめる
+     * @param {Object[]} pathEntries - collectPathEntries() の結果
+     * @returns {Object} 形のキー → そのキーのパス情報の配列
+     */
+    function groupByGeometry(pathEntries) {
+        var geometryGroups = {};
+        for (var i = 0; i < pathEntries.length; i++) {
+            var pathEntry = pathEntries[i];
+            var geometryKey = pathEntry.areaTick + "_" + pathEntry.leftTick + "_" + pathEntry.topTick + "_" +
+                pathEntry.rightTick + "_" + pathEntry.bottomTick + "_" + pathEntry.pointCount;
+            if (!geometryGroups[geometryKey]) geometryGroups[geometryKey] = [];
+            geometryGroups[geometryKey].push(pathEntry);
+        }
+        return geometryGroups;
+    }
+
+    // =========================================
+    // 色の変換 / Color conversion
+    // =========================================
+
+    /* Illustrator の不透明度の合成は実質 RGB の表示空間で行われる。チャンネル値を直接合成すると
+       （特に CMYK やガンマ補正なしの sRGB では）見た目より暗くなりがち。そのため RGB に変換して
+       リニア光で合成し、ドキュメントのカラースペースに戻す方法も用意している
+       Illustrator opacity compositing is effectively done in RGB display space. Blending channel values
+       directly tends to look darker, so we can convert to RGB, blend in linear light, then convert back. */
+
+    /**
+     * 値を範囲内に収める
+     * @param {number} value - 元の値
+     * @param {number} minValue - 下限
+     * @param {number} maxValue - 上限
+     * @returns {number} 範囲内に収めた値
+     */
+    function clampValue(value, minValue, maxValue) {
+        return Math.max(minValue, Math.min(maxValue, value));
+    }
+
+    /**
+     * K だけの CMYK カラーを作る
+     * @param {number} blackValue - K の値
+     * @returns {CMYKColor} C・M・Y が 0 のカラー
+     */
+    function createKOnlyCMYK(blackValue) {
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = 0;
+        cmykColor.magenta = 0;
+        cmykColor.yellow = 0;
+        cmykColor.black = blackValue;
+        return cmykColor;
+    }
+
+    /**
+     * RGB 値（0〜255）から RGBColor を作る
+     * @param {number[]} rgb8 - [r, g, b]
+     * @returns {RGBColor} RGB カラー
+     */
+    function createRGBColor(rgb8) {
+        var rgbColor = new RGBColor();
+        rgbColor.red = rgb8[0];
+        rgbColor.green = rgb8[1];
+        rgbColor.blue = rgb8[2];
+        return rgbColor;
+    }
+
+    /**
+     * K だけの CMYK（無彩色）かを判定する
+     * @param {Color} color - 判定する色
+     * @returns {boolean} C・M・Y がほぼ 0 の CMYK なら true
+     */
+    function isNeutralCMYK(color) {
+        if (!color || color.typename !== 'CMYKColor') return false;
+        var tolerance = 1e-6;
+        return (Math.abs(color.cyan) < tolerance && Math.abs(color.magenta) < tolerance && Math.abs(color.yellow) < tolerance);
+    }
+
+    /**
+     * K だけの CMYK を sRGB のグレー値に写す（プロファイル変換なし。K=0 → 255 白、K=100 → 0 黒）
+     * @param {CMYKColor} color - K だけの CMYK
+     * @returns {number} グレー値（0〜255）
+     */
+    function neutralCMYKToGray255(color) {
+        var blackValue = clampValue(color.black, 0, 100);
+        return 255 * (1 - blackValue / 100);
+    }
+
+    /**
+     * sRGB のグレー値を K だけの CMYK に戻す
+     * @param {number} gray255 - グレー値（0〜255）
+     * @returns {CMYKColor} K だけの CMYK
+     */
+    function gray255ToNeutralCMYK(gray255) {
+        var grayValue = clampValue(gray255, 0, 255);
+        var blackValue = 100 * (1 - grayValue / 255);
+        return createKOnlyCMYK(clampValue(blackValue, 0, 100));
+    }
+
+    /**
+     * sRGB の 8bit 値をリニア光（0〜1）にする（ガンマ 2.2 の近似）
+     * @param {number} srgb8 - 0〜255
+     * @returns {number} 0〜1
+     */
+    function srgb8ToLinear01(srgb8) {
+        return Math.pow(srgb8 / 255, 2.2);
+    }
+
+    /**
+     * リニア光（0〜1）を sRGB の 8bit 値にする
+     * @param {number} linear01 - 0〜1
+     * @returns {number} 0〜255 の整数
+     */
+    function linear01ToSrgb8(linear01) {
+        return Math.round(Math.pow(clampValue(linear01, 0, 1), 1 / 2.2) * 255);
+    }
+
+    /**
+     * 色を RGB（0〜255）の配列にする
+     * @param {Color} color - RGB または CMYK の色
+     * @returns {number[]|null} [r, g, b]（スポット・パターン・グラデーションなどは null）
+     */
+    function colorToRGB8(color) {
+        if (!color) return null;
+
+        if (color.typename === "RGBColor") {
+            return [color.red, color.green, color.blue];
+        }
+        if (color.typename === "CMYKColor") {
+            try {
+                /* convertSampleColor は変換先の値域で返す（RGB: 0〜255） / returns values in the target range */
+                var convertedRGB = app.convertSampleColor(
+                    ImageColorSpace.CMYK,
+                    [color.cyan, color.magenta, color.yellow, color.black],
+                    ImageColorSpace.RGB,
+                    ColorConvertPurpose.defaultpurpose
+                );
+                return [convertedRGB[0], convertedRGB[1], convertedRGB[2]];
+            } catch (e) {
+                /* 変換できないときの簡易換算 / naive fallback conversion */
+                var red = 255 * (1 - color.cyan / 100) * (1 - color.black / 100);
+                var green = 255 * (1 - color.magenta / 100) * (1 - color.black / 100);
+                var blue = 255 * (1 - color.yellow / 100) * (1 - color.black / 100);
+                return [red, green, blue];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * RGB（0〜255）をドキュメントのカラースペースの色にする（CMYK ドキュメントなら CMYKColor、RGB なら RGBColor）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]} rgb8 - [r, g, b]
+     * @returns {Color|null} 色（rgb8 が無ければ null）
+     */
+    function rgb8ToDocColor(doc, rgb8) {
+        if (!rgb8) return null;
+
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            try {
+                var convertedCMYK = app.convertSampleColor(
+                    ImageColorSpace.RGB,
+                    [rgb8[0], rgb8[1], rgb8[2]],
+                    ImageColorSpace.CMYK,
+                    ColorConvertPurpose.defaultpurpose
+                );
+                var cmykColor = new CMYKColor();
+                cmykColor.cyan = convertedCMYK[0];
+                cmykColor.magenta = convertedCMYK[1];
+                cmykColor.yellow = convertedCMYK[2];
+                cmykColor.black = convertedCMYK[3];
+                return cmykColor;
+            } catch (e) {
+                /* 変換できないときは RGB のまま渡す（Illustrator が内部で変換する） / let Illustrator convert RGB */
+                return createRGBColor(rgb8);
+            }
+        }
+        return createRGBColor(rgb8);
+    }
+
+    // =========================================
+    // 色の合成 / Color blending
+    // =========================================
+
+    /**
+     * RGB 同士をリニア光で合成する（out = top * alpha + bottom * (1 - alpha)）
+     * @param {number[]} topRGB8 - 前面の [r, g, b]
+     * @param {number[]} bottomRGB8 - 背面の [r, g, b]
+     * @param {number} alpha - 前面の不透明度（0〜1）
+     * @returns {number[]} 合成した [r, g, b]（0〜255 の整数）
+     */
+    function blendRGB8Linear(topRGB8, bottomRGB8, alpha) {
+        var inverseAlpha = 1.0 - alpha;
+        var blended = [];
+        for (var i = 0; i < 3; i++) {
+            var topLinear = srgb8ToLinear01(topRGB8[i]);
+            var bottomLinear = srgb8ToLinear01(bottomRGB8[i]);
+            blended.push(linear01ToSrgb8(topLinear * alpha + bottomLinear * inverseAlpha));
+        }
+        return blended;
+    }
+
+    /**
+     * 色を白の上にリニア光で合成し、ドキュメントのカラースペースの色にする
+     * @param {Color} color - 合成する色
+     * @param {number} alpha - 不透明度（0〜1）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color|null} 合成した色（RGB に変換できない種類は null）
+     */
+    function compositeOverWhiteLinear(color, alpha, doc) {
+        var rgb8 = colorToRGB8(color);
+        if (!rgb8) return null;
+
+        var clampedRGB8 = [clampValue(rgb8[0], 0, 255), clampValue(rgb8[1], 0, 255), clampValue(rgb8[2], 0, 255)];
+        return rgb8ToDocColor(doc, blendRGB8Linear(clampedRGB8, [255, 255, 255], alpha));
+    }
+
+    /**
+     * 重なりの最背面の色を、自身の不透明度で白の上に合成する（RGB リニア光。K だけの CMYK は K を掛けるだけ）
+     * @param {Color} color - 最背面の塗り
+     * @param {number} alpha - 不透明度（0〜1）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color} 合成した色（不透明・未対応の種類は元の色）
+     */
+    function blendOverWhiteForOverlap(color, alpha, doc) {
+        if (!color) return color;
+        if (!doc) return color;
+
+        /* 不透明なら余計な変換をしない / keep as-is when fully opaque */
+        if (alpha >= 0.999) return color;
+
+        /* CMYK の無彩色（K だけ）は RGB を経由せずに K を掛ける（例: K100 の 50% → K50）
+           Neutral CMYK: avoid the RGB roundtrip that can distort K */
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK && isNeutralCMYK(color)) {
+            return createKOnlyCMYK(color.black * alpha);
+        }
+
+        return compositeOverWhiteLinear(color, alpha, doc) || color;
+    }
+
+    /**
+     * 前面の色を背面の色に不透明度で合成する
+     * 既定は同じカラースペースのまま合成（USE_GAMMA_CORRECT_BLEND が true なら RGB リニア光）
+     * @param {Color} topColor - 前面の色
+     * @param {Color} bottomColor - 背面の色
+     * @param {number} alpha - 前面の不透明度（0〜1）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color} 合成した色（未対応の種類は前面の色）
+     */
+    function blendColors(topColor, bottomColor, alpha, doc) {
+        var inverseAlpha = 1.0 - alpha;
+
+        if (!topColor) return bottomColor;
+        if (!bottomColor) return topColor;
+
+        /* CMYK の無彩色同士はグレーの RGB で合成して重ねすぎの暗さを避ける / Neutral CMYK: blend as gray in linear light */
+        if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK && isNeutralCMYK(topColor) && isNeutralCMYK(bottomColor)) {
+            var topGray = neutralCMYKToGray255(topColor);
+            var bottomGray = neutralCMYKToGray255(bottomColor);
+            var blendedGray = blendRGB8Linear([topGray, topGray, topGray], [bottomGray, bottomGray, bottomGray], alpha);
+            return gray255ToNeutralCMYK(blendedGray[0]);
+        }
+
+        if (!USE_GAMMA_CORRECT_BLEND) {
+            if (topColor.typename === "CMYKColor" && bottomColor.typename === "CMYKColor") {
+                var cmykColor = new CMYKColor();
+                cmykColor.cyan = topColor.cyan * alpha + bottomColor.cyan * inverseAlpha;
+                cmykColor.magenta = topColor.magenta * alpha + bottomColor.magenta * inverseAlpha;
+                cmykColor.yellow = topColor.yellow * alpha + bottomColor.yellow * inverseAlpha;
+                cmykColor.black = topColor.black * alpha + bottomColor.black * inverseAlpha;
+                return cmykColor;
+            } else if (topColor.typename === "RGBColor" && bottomColor.typename === "RGBColor") {
+                var rgbColor = new RGBColor();
+                rgbColor.red = Math.round(topColor.red * alpha + bottomColor.red * inverseAlpha);
+                rgbColor.green = Math.round(topColor.green * alpha + bottomColor.green * inverseAlpha);
+                rgbColor.blue = Math.round(topColor.blue * alpha + bottomColor.blue * inverseAlpha);
+                return rgbColor;
+            }
+            /* 種類が違う・未対応なら前面の色 / keep the top color for other types */
+            return topColor;
+        }
+
+        /* RGB リニア光で合成してドキュメントのカラースペースに戻す / gamma-correct blend in RGB */
+        if (!doc) return topColor;
+
+        var topRGB8 = colorToRGB8(topColor);
+        var bottomRGB8 = colorToRGB8(bottomColor);
+        if (!topRGB8 || !bottomRGB8) return topColor;
+
+        return rgb8ToDocColor(doc, blendRGB8Linear(topRGB8, bottomRGB8, alpha));
+    }
+
+    /**
+     * 色を白の上に不透明度で合成する（重なりの無い単体用）
+     * @param {Color} color - 合成する色
+     * @param {number} alpha - 不透明度（0〜1）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Color} 合成した色（未対応の種類は元の色）
+     */
+    function blendWithWhite(color, alpha, doc) {
+        var inverseAlpha = 1.0 - alpha;
+        if (!color) return color;
+
+        if (USE_RGB_WHITE_COMPOSITE && doc) {
+            var composited = compositeOverWhiteLinear(color, alpha, doc);
+            if (composited) return composited;
+            /* RGB にできない種類は下の従来の方法へ / fall through for unsupported types */
+        }
+
+        /* 従来の方法（色相は保つが、CMYK では見た目より暗くなることがある） / previous direct method */
+        if (color.typename === "CMYKColor") {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = color.cyan * alpha;
+            cmykColor.magenta = color.magenta * alpha;
+            cmykColor.yellow = color.yellow * alpha;
+            cmykColor.black = color.black * alpha;
+            return cmykColor;
+        } else if (color.typename === "RGBColor") {
+            var rgbColor = new RGBColor();
+            rgbColor.red = Math.round(color.red * alpha + 255 * inverseAlpha);
+            rgbColor.green = Math.round(color.green * alpha + 255 * inverseAlpha);
+            rgbColor.blue = Math.round(color.blue * alpha + 255 * inverseAlpha);
+            return rgbColor;
+        }
+        return color;
+    }
+
+    // =========================================
+    // 不透明度の焼き込み / Baking opacity
+    // =========================================
+
     /**
      * オブジェクトの不透明度を 0〜1 の比率で返す
      * 種類によっては opacity を持たず例外になるため、その場合は 1（不透明）として扱う。
@@ -265,314 +507,177 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {}
     }
 
-    // Bake opacity into fills recursively for a single selection (no overlap case).
-    // This avoids menu operations (Divide/Expand) that can collapse transparency and lose opacity values.
+    /**
+     * 1つだけ選択したとき（重なりなし）に、親の不透明度も掛け合わせて塗りに焼き込む（再帰）
+     * 分割・分割拡張のメニュー操作で透明が潰れて不透明度が失われるのを避ける。線はそのまま、テキストや配置画像は対象外
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {number} parentAlpha - 親から受け継ぐ不透明度（0〜1）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
     function bakeOpacityIntoFillRecursive(item, parentAlpha, doc) {
         if (!item) return;
         if (parentAlpha === undefined || parentAlpha === null) parentAlpha = 1.0;
 
-        var t = item.typename;
+        var typeName = item.typename;
 
-        if (t === 'GroupItem') {
-            var groupAlpha = parentAlpha * getItemOpacityRatio(item);
-
-            // Recurse into children
+        if (typeName === 'GroupItem' || typeName === 'CompoundPathItem') {
+            var containerAlpha = parentAlpha * getItemOpacityRatio(item);
             try {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    bakeOpacityIntoFillRecursive(item.pageItems[i], groupAlpha, doc);
-                }
-            } catch (e) { }
-
-            resetItemOpacity(item);
-            return;
-        }
-
-        if (t === 'CompoundPathItem') {
-            // CompoundPathItem contains pathItems
-            var compoundAlpha = parentAlpha * getItemOpacityRatio(item);
-            try {
-                for (var j = 0; j < item.pathItems.length; j++) {
-                    bakeOpacityIntoFillRecursive(item.pathItems[j], compoundAlpha, doc);
+                var childItems = (typeName === 'GroupItem') ? item.pageItems : item.pathItems;
+                for (var i = 0; i < childItems.length; i++) {
+                    bakeOpacityIntoFillRecursive(childItems[i], containerAlpha, doc);
                 }
             } catch (e) { }
             resetItemOpacity(item);
             return;
         }
 
-        if (t === 'PathItem') {
+        if (typeName === 'PathItem') {
             var pathAlpha = parentAlpha * getItemOpacityRatio(item);
-
-            // Only bake fill; keep stroke as-is (this script focuses on fill flattening)
+            /* 塗りだけ焼き込み、線はそのまま / bake the fill only */
             try {
                 if (item.filled && item.fillColor) {
                     item.fillColor = blendWithWhite(item.fillColor, pathAlpha, doc);
                 }
             } catch (e) { }
-
             resetItemOpacity(item);
+        }
+    }
+
+    /**
+     * 同じ形で重なったパスを背面→前面の順に合成し、最前面の1つに最終色を適用して残りを削除する
+     * 最前面を残すことで、周囲のオブジェクトとの前後関係を変えない
+     * @param {Object[]} sameShapeEntries - 背面→前面の順に並べたパス情報
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function mergeOverlappingEntries(sameShapeEntries, doc) {
+        var backEntry = sameShapeEntries[0];                             /* 最背面 / backmost */
+        var survivorEntry = sameShapeEntries[sameShapeEntries.length - 1]; /* 最前面 / frontmost */
+
+        /* 最背面は自身の不透明度で白の上に合成してから始める / start from the backmost composited over white */
+        var baseColor = backEntry.fillColor;
+        if (baseColor) {
+            baseColor = blendOverWhiteForOverlap(baseColor, backEntry.opacity / 100, doc);
+        }
+
+        /* 背面→前面の順に合成 / Composite back to front */
+        for (var i = 1; i < sameShapeEntries.length; i++) {
+            var frontEntry = sameShapeEntries[i];
+            if (baseColor && frontEntry.fillColor) {
+                baseColor = blendColors(frontEntry.fillColor, baseColor, frontEntry.opacity / 100, doc);
+            }
+        }
+
+        /* 最前面に最終色を適用して不透明度 100 に / Apply the final color to the frontmost */
+        try {
+            survivorEntry.pathItem.fillColor = baseColor;
+        } catch (e) {}
+        try {
+            survivorEntry.pathItem.opacity = 100;
+        } catch (e) {}
+
+        /* 残りは削除（最前面は残して重なり順を保つ） / Remove the others */
+        for (var j = 0; j < sameShapeEntries.length; j++) {
+            if (sameShapeEntries[j] === survivorEntry) continue;
+            try { sameShapeEntries[j].pathItem.remove(); } catch (e) {}
+        }
+    }
+
+    /**
+     * 同じ形のパスの組を平坦化する（重なりありなら合成、単品なら白と合成）
+     * @param {Object[]} sameShapeEntries - 同じ形のパス情報
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function flattenGeometryGroup(sameShapeEntries, doc) {
+        /* 奥行きの大きい順（背面→前面）に並べる / Sort back to front */
+        sameShapeEntries.sort(function (a, b) { return b.depth - a.depth; });
+
+        if (sameShapeEntries.length > 1) {
+            mergeOverlappingEntries(sameShapeEntries, doc);
             return;
         }
 
-        // Other types (TextFrame, PlacedItem, etc.) are ignored.
-    }
-
-    // Get stacking index within the immediate parent (GroupItem or Layer).
-    // Illustrator’s pageItems are ordered with [0] as frontmost and [last] as backmost.
-    // Using this index is more reliable than zOrderPosition across versions.
-    function getStackIndexInParent(it) {
-        if (!it) return null;
-        var p = null;
-        try { p = it.parent; } catch (e) { p = null; }
-        if (!p) return null;
-
-        var items = null;
-        try { items = p.pageItems; } catch (e) { items = null; }
-        if (!items) return null;
-
-        try {
-            for (var i = 0; i < items.length; i++) {
-                if (items[i] === it) return i;
-            }
-        } catch (e) {
-            // ignore
+        /* 重なりなし（単品） / No overlap */
+        var singleEntry = sameShapeEntries[0];
+        if (singleEntry.fillColor) {
+            singleEntry.pathItem.fillColor = blendWithWhite(singleEntry.fillColor, singleEntry.opacity / 100, doc);
         }
-        return null;
+        singleEntry.pathItem.opacity = 100;
     }
 
-    // 再帰的にパスを取得
-    function getAllPathItems(container, resultAry) {
-        var items = container.pageItems;
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === "PathItem") {
-                resultAry.push(item);
-            } else if (item.typename === "GroupItem") {
-                getAllPathItems(item, resultAry);
-            }
-        }
-    }
-
-    // --- Color conversion & gamma-correct compositing ---
-    // Illustrator opacity compositing is effectively done in RGB display space.
-    // If we blend channel values directly (especially in CMYK, or sRGB without gamma correction),
-    // results tend to look darker than Illustrator’s visual result.
-    // We therefore convert to RGB, blend in linear light, then convert back to document space.
-
-    // --- Neutral CMYK (K-only) blending helpers ---
-    function _isNeutralCMYK(col) {
-        if (!col || col.typename !== 'CMYKColor') return false;
-        var tol = 1e-6;
-        return (Math.abs(col.cyan) < tol && Math.abs(col.magenta) < tol && Math.abs(col.yellow) < tol);
-    }
-
-    function _neutralCMYK_to_gray255(col) {
-        // Map K-only CMYK to sRGB gray (no profile roundtrip): K=0 -> 255 (white), K=100 -> 0 (black)
-        var k = Math.max(0, Math.min(100, col.black));
-        return 255 * (1 - k / 100);
-    }
-
-    function _gray255_to_neutralCMYK(g255) {
-        var g = Math.max(0, Math.min(255, g255));
-        var k = 100 * (1 - g / 255);
-        var cmyk = new CMYKColor();
-        cmyk.cyan = 0;
-        cmyk.magenta = 0;
-        cmyk.yellow = 0;
-        cmyk.black = Math.max(0, Math.min(100, k));
-        return cmyk;
-    }
-
-    function _srgb8_to_linear01(v8) {
-        var v = v8 / 255;
-        // Simple gamma 2.2 approximation (good enough for this use case)
-        return Math.pow(v, 2.2);
-    }
-    function _linear01_to_srgb8(v01) {
-        var v = Math.max(0, Math.min(1, v01));
-        return Math.round(Math.pow(v, 1 / 2.2) * 255);
-    }
-
-    function colorToRGB8(col) {
-        // Returns [r,g,b] in 0..255
-        if (!col) return null;
-
-        if (col.typename === "RGBColor") {
-            return [col.red, col.green, col.blue];
-        }
-        if (col.typename === "CMYKColor") {
-            try {
-                // convertSampleColor returns numbers in target space ranges (RGB: 0..255)
-                var rgb = app.convertSampleColor(
-                    ImageColorSpace.CMYK,
-                    [col.cyan, col.magenta, col.yellow, col.black],
-                    ImageColorSpace.RGB,
-                    ColorConvertPurpose.defaultpurpose
-                );
-                return [rgb[0], rgb[1], rgb[2]];
-            } catch (e) {
-                // Fallback: naive conversion (rarely used)
-                var r = 255 * (1 - col.cyan / 100) * (1 - col.black / 100);
-                var g = 255 * (1 - col.magenta / 100) * (1 - col.black / 100);
-                var b = 255 * (1 - col.yellow / 100) * (1 - col.black / 100);
-                return [r, g, b];
-            }
-        }
-        // Unsupported color types (Spot/Pattern/Gradient etc.)
-        return null;
-    }
-
-    function rgb8ToDocColor(doc, rgb8) {
-        // Returns a Color object matching the document color space (CMYK doc => CMYKColor, RGB doc => RGBColor)
-        if (!rgb8) return null;
-
-        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            try {
-                var cmyk = app.convertSampleColor(
-                    ImageColorSpace.RGB,
-                    [rgb8[0], rgb8[1], rgb8[2]],
-                    ImageColorSpace.CMYK,
-                    ColorConvertPurpose.defaultpurpose
-                );
-                var c = new CMYKColor();
-                c.cyan = cmyk[0];
-                c.magenta = cmyk[1];
-                c.yellow = cmyk[2];
-                c.black = cmyk[3];
-                return c;
-            } catch (e) {
-                // Fallback: assign RGB (Illustrator will convert internally)
-                var r = new RGBColor();
-                r.red = rgb8[0]; r.green = rgb8[1]; r.blue = rgb8[2];
-                return r;
-            }
-        } else {
-            var r2 = new RGBColor();
-            r2.red = rgb8[0]; r2.green = rgb8[1]; r2.blue = rgb8[2];
-            return r2;
-        }
-    }
-
-    function blendRGB8_linear(topRGB8, bottomRGB8, alpha) {
-        // Alpha compositing in linear light: out = top*alpha + bottom*(1-alpha)
-        var inv = 1.0 - alpha;
-
-        var tr = _srgb8_to_linear01(topRGB8[0]);
-        var tg = _srgb8_to_linear01(topRGB8[1]);
-        var tb = _srgb8_to_linear01(topRGB8[2]);
-
-        var br = _srgb8_to_linear01(bottomRGB8[0]);
-        var bg = _srgb8_to_linear01(bottomRGB8[1]);
-        var bb = _srgb8_to_linear01(bottomRGB8[2]);
-
-        var or = tr * alpha + br * inv;
-        var og = tg * alpha + bg * inv;
-        var ob = tb * alpha + bb * inv;
-
-        return [_linear01_to_srgb8(or), _linear01_to_srgb8(og), _linear01_to_srgb8(ob)];
-    }
-
-    // 色の合成（通常）
-    function blendColors(topCol, bottomCol, alpha, doc) {
-        // Default: direct blending in the same color space (previous behavior).
-        // Optional: gamma-correct RGB blending if USE_GAMMA_CORRECT_BLEND is true.
-        var inv = 1.0 - alpha;
-
-        if (!topCol) return bottomCol;
-        if (!bottomCol) return topCol;
-
-        // CMYK neutral (K-only) fast path: blend in gray RGB space to avoid overly-dark stacking.
-        if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK && _isNeutralCMYK(topCol) && _isNeutralCMYK(bottomCol)) {
-            var topGray = _neutralCMYK_to_gray255(topCol);
-            var bottomGray = _neutralCMYK_to_gray255(bottomCol);
-            // Blend gray as RGB triplet in linear light
-            var out = blendRGB8_linear([topGray, topGray, topGray], [bottomGray, bottomGray, bottomGray], alpha);
-            // out is [r,g,b] (float-ish). Use the red channel as gray.
-            return _gray255_to_neutralCMYK(out[0]);
-        }
-
-        if (!USE_GAMMA_CORRECT_BLEND) {
-            if (topCol.typename === "CMYKColor" && bottomCol.typename === "CMYKColor") {
-                var c = new CMYKColor();
-                c.cyan = topCol.cyan * alpha + bottomCol.cyan * inv;
-                c.magenta = topCol.magenta * alpha + bottomCol.magenta * inv;
-                c.yellow = topCol.yellow * alpha + bottomCol.yellow * inv;
-                c.black = topCol.black * alpha + bottomCol.black * inv;
-                return c;
-            } else if (topCol.typename === "RGBColor" && bottomCol.typename === "RGBColor") {
-                var r = new RGBColor();
-                r.red = Math.round(topCol.red * alpha + bottomCol.red * inv);
-                r.green = Math.round(topCol.green * alpha + bottomCol.green * inv);
-                r.blue = Math.round(topCol.blue * alpha + bottomCol.blue * inv);
-                return r;
-            }
-            // Unsupported/other types -> keep top
-            return topCol;
-        }
-
-        // Gamma-correct blend in RGB, then convert back to doc space.
-        // `doc` is required for proper output color space.
-        if (!doc) return topCol;
-
-        var topRGB8 = colorToRGB8(topCol);
-        var bottomRGB8 = colorToRGB8(bottomCol);
-        if (!topRGB8 || !bottomRGB8) {
-            // Unsupported color types -> fall back to keeping the top color
-            return topCol;
-        }
-
-        var outRGB8 = blendRGB8_linear(topRGB8, bottomRGB8, alpha);
-        return rgb8ToDocColor(doc, outRGB8);
-    }
-
-    // 白との合成
-    function blendWithWhite(col, alpha, doc) {
-        var inv = 1.0 - alpha;
-        if (!col) return col;
-
-        if (USE_RGB_WHITE_COMPOSITE && doc) {
-            // Composite in RGB linear light: out = col*alpha + white*(1-alpha)
-            var rgb = colorToRGB8(col);
-            if (rgb) {
-                // Ensure numbers are within 0..255
-                var rgb8 = [
-                    Math.max(0, Math.min(255, rgb[0])),
-                    Math.max(0, Math.min(255, rgb[1])),
-                    Math.max(0, Math.min(255, rgb[2]))
-                ];
-                var white = [255, 255, 255];
-                var out = blendRGB8_linear(rgb8, white, alpha);
-                return rgb8ToDocColor(doc, out);
-            }
-            // If unsupported color type, fall through to direct method below.
-        }
-
-        // Fallback: previous direct method (keeps hues stable, but can be visually darker for CMYK)
-        if (col.typename === "CMYKColor") {
-            var c = new CMYKColor();
-            c.cyan = col.cyan * alpha;
-            c.magenta = col.magenta * alpha;
-            c.yellow = col.yellow * alpha;
-            c.black = col.black * alpha;
-            return c;
-        } else if (col.typename === "RGBColor") {
-            var r = new RGBColor();
-            r.red = Math.round(col.red * alpha + 255 * inv);
-            r.green = Math.round(col.green * alpha + 255 * inv);
-            r.blue = Math.round(col.blue * alpha + 255 * inv);
-            return r;
-        }
-        return col;
-    }
-
-    // Helper function to check if selection has any stroke
-    function selectionHasStroke(selection) {
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (item.stroked && item.strokeWidth > 0) {
+    /**
+     * 選択に線のあるオブジェクトが含まれるかを調べる（最上位のオブジェクトだけ）
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {boolean} 線幅が 0 より大きい線があれば true
+     */
+    function selectionHasStroke(selectedItems) {
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (selectedItem.stroked && selectedItem.strokeWidth > 0) {
                 return true;
             }
         }
         return false;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択の不透明度を塗りの色に焼き込んで不透明にする
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
+        var doc = app.activeDocument;
+
+        if (doc.selection.length < 1) {
+            alert("オブジェクトを選択してください。");
+            return;
+        }
+
+        /* 1. 線が含まれる場合は「パスのアウトライン」を実行 / Outline strokes first */
+        if (selectionHasStroke(doc.selection)) {
+            app.executeMenuCommand('OffsetPath v22');
+            /* 再選択（念のため） / Reselect just in case */
+            try {
+                var outlinedSelection = doc.selection;
+                doc.selection = null;
+                doc.selection = outlinedSelection;
+            } catch (e) {}
+        }
+
+        /* 1つだけなら重なりが無いので、分割せずに直接焼き込む（分割で透明が潰れ、K100 の 50% が K100 になるのを避ける）
+           Single object: bake directly to avoid Divide/Expand collapsing transparency */
+        if (doc.selection && doc.selection.length === 1) {
+            bakeOpacityIntoFillRecursive(doc.selection[0], 1.0, doc);
+            alert('処理が完了しました。');
+            return;
+        }
+
+        /* 2. 分割 / Divide */
+        app.executeMenuCommand('group');
+        app.executeMenuCommand('Live Pathfinder Divide');
+        app.executeMenuCommand('expandStyle');
+
+        app.redraw(); /* 描画を強制更新 / force a redraw */
+        var workGroup = doc.selection[0];
+        if (!workGroup || workGroup.typename !== "GroupItem") return;
+
+        /* 3. パスの情報を読み出し、同じ形ごとにまとめて合成（[0] が最前面、[last] が最背面）
+           Read path info, group by shape, and composite ([0] is frontmost) */
+        var dividedPaths = [];
+        getAllPathItems(workGroup, dividedPaths);
+        var geometryGroups = groupByGeometry(collectPathEntries(dividedPaths));
+        for (var geometryKey in geometryGroups) {
+            flattenGeometryGroup(geometryGroups[geometryKey], doc);
+        }
+
+        alert("処理が完了しました。");
     }
 
     main();

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
@@ -43,145 +43,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
 (function () {
 
     // =========================================
-    // バージョンとローカライズ
-    // Version and localization
+    // レイアウト / Layout
     // =========================================
 
-    /* 現在の言語コードを取得 / Detect current UI language */
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    var PANEL_SPACING = 8;
+
+    /**
+     * パネルに共通のレイアウトを適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 子の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ['fill', 'top'];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
-    var currentLanguage = getCurrentLang();
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-
-        // UI
-        dialogTitle: {
-            ja: "塗りと線の調整",
-            en: "Fill and Stroke Adjustments"
-        },
-        convertPanelTitle: {
-            ja: "変換",
-            en: "Convert"
-        },
-        removePanelTitle: {
-            ja: "消去",
-            en: "Erase"
-        },
-        modeSwap: {
-            ja: "塗り↔線",
-            en: "Fill ↔ Stroke"
-        },
-        modeFillToStroke: {
-            ja: "塗り→線",
-            en: "Fill → Stroke"
-        },
-        modeStrokeToFill: {
-            ja: "線→塗り",
-            en: "Stroke → Fill"
-        },
-        modeSwapBetween: {
-            ja: "2つのオブジェクト間で交換",
-            en: "Swap Between 2 Objects"
-        },
-        modeFillNone: {
-            ja: "塗りを消去",
-            en: "Erase Fill"
-        },
-        modeStrokeNone: {
-            ja: "線を消去",
-            en: "Erase Stroke"
-        },
-        modeFillStrokeNone: {
-            ja: "塗りと線を消去",
-            en: "Erase Fill and Stroke"
-        },
-        preview: {
-            ja: "プレビュー",
-            en: "Preview"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-
-        // Help tips
-        modeSwapTip: {
-            ja: "選択オブジェクトごとに、塗りと線を入れ替えます。",
-            en: "Swaps fill and stroke within each selected object."
-        },
-        modeFillToStrokeTip: {
-            ja: "塗りの色を線に適用します。必要に応じて線幅を補完します。",
-            en: "Applies the fill color to the stroke. Adds a stroke width when needed."
-        },
-        modeStrokeToFillTip: {
-            ja: "線の色を塗りに適用します。",
-            en: "Applies the stroke color to the fill."
-        },
-        modeSwapBetweenTip: {
-            ja: "選択した2つのオブジェクトの塗りと線の見た目を交換します。",
-            en: "Swaps the fill and stroke appearance between the two selected objects."
-        },
-        modeFillNoneTip: {
-            ja: "選択オブジェクトの塗りをなしにします。",
-            en: "Removes the fill from selected objects."
-        },
-        modeStrokeNoneTip: {
-            ja: "選択オブジェクトの線をなしにします。",
-            en: "Removes the stroke from selected objects."
-        },
-        modeFillStrokeNoneTip: {
-            ja: "選択オブジェクトの塗りと線をどちらもなしにします。",
-            en: "Removes both fill and stroke from selected objects."
-        },
-        previewTip: {
-            ja: "結果を一時的に表示します。キャンセル時は元に戻します。",
-            en: "Temporarily shows the result. Restores the original appearance when canceled."
-        },
-
-        // Alerts
-        noSelection: {
-            ja: "オブジェクトを選択してください",
-            en: "Please select at least one object."
-        },
-        tooManyObjects: {
-            ja: "オブジェクトは 2 つまでにしてください",
-            en: "Please select up to two objects."
-        },
-        noDocument: {
-            ja: "ドキュメントが開かれていません",
-            en: "No document is open."
-        },
-        pathFailures: {
-            ja: "パス処理の失敗",
-            en: "Path processing failures"
-        },
-        textFailures: {
-            ja: "テキスト処理の失敗",
-            en: "Text processing failures"
-        },
-        selectionRestoreFailures: {
-            ja: "選択の復元失敗",
-            en: "Selection restoration failures"
-        },
-        details: {
-            ja: "詳細：",
-            en: "Details:"
-        }
-    };
-
-    /* キーから現在言語のラベルを取得 / Look up a localized label */
-    function getLabel(key) {
-        if (!LABELS[key]) {
-            return key;
-        }
-        return LABELS[key][currentLanguage] || LABELS[key].en || key;
-    }
+    // =========================================
+    // 処理モード / Processing modes
+    // =========================================
 
     var MODE_SWAP = "swap";
     var MODE_FILL_TO_STROKE = "fillToStroke";
@@ -191,19 +75,109 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
     var MODE_STROKE_NONE = "strokeNone";
     var MODE_FILL_AND_STROKE_NONE = "fillAndStrokeNone";
 
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
-    /* パネルに共通のレイアウトを適用 / Apply shared layout settings to a panel */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ['fill', 'top'];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /**
+     * 表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "塗りと線の調整", en: "Fill and Stroke Adjustments" }
+        },
+        panel: {
+            convert: { ja: "変換", en: "Convert" },
+            erase: { ja: "消去", en: "Erase" }
+        },
+        radio: {
+            swap: { ja: "塗り↔線", en: "Fill ↔ Stroke" },
+            fillToStroke: { ja: "塗り→線", en: "Fill → Stroke" },
+            strokeToFill: { ja: "線→塗り", en: "Stroke → Fill" },
+            swapBetween: { ja: "2つのオブジェクト間で交換", en: "Swap Between 2 Objects" },
+            fillNone: { ja: "塗りを消去", en: "Erase Fill" },
+            strokeNone: { ja: "線を消去", en: "Erase Stroke" },
+            fillStrokeNone: { ja: "塗りと線を消去", en: "Erase Fill and Stroke" }
+        },
+        checkbox: {
+            preview: { ja: "プレビュー", en: "Preview" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        tooltip: {
+            swap: { ja: "選択オブジェクトごとに、塗りと線を入れ替えます。", en: "Swaps fill and stroke within each selected object." },
+            fillToStroke: {
+                ja: "塗りの色を線に適用します。必要に応じて線幅を補完します。",
+                en: "Applies the fill color to the stroke. Adds a stroke width when needed."
+            },
+            strokeToFill: { ja: "線の色を塗りに適用します。", en: "Applies the stroke color to the fill." },
+            swapBetween: {
+                ja: "選択した2つのオブジェクトの塗りと線の見た目を交換します。",
+                en: "Swaps the fill and stroke appearance between the two selected objects."
+            },
+            fillNone: { ja: "選択オブジェクトの塗りをなしにします。", en: "Removes the fill from selected objects." },
+            strokeNone: { ja: "選択オブジェクトの線をなしにします。", en: "Removes the stroke from selected objects." },
+            fillStrokeNone: {
+                ja: "選択オブジェクトの塗りと線をどちらもなしにします。",
+                en: "Removes both fill and stroke from selected objects."
+            },
+            preview: {
+                ja: "結果を一時的に表示します。キャンセル時は元に戻します。",
+                en: "Temporarily shows the result. Restores the original appearance when canceled."
+            }
+        },
+        alert: {
+            noSelection: { ja: "オブジェクトを選択してください", en: "Please select at least one object." },
+            tooManyObjects: { ja: "オブジェクトは 2 つまでにしてください", en: "Please select up to two objects." },
+            noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open." },
+            pathFailures: { ja: "パス処理の失敗", en: "Path processing failures" },
+            textFailures: { ja: "テキスト処理の失敗", en: "Text processing failures" },
+            selectionRestoreFailures: { ja: "選択の復元失敗", en: "Selection restoration failures" },
+            details: { ja: "詳細", en: "Details" }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "radio.swap" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    /* 処理結果の集計オブジェクトを生成 / Create a fresh processing-stats object */
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // 失敗の集計 / Failure stats
+    // =========================================
+
+    /**
+     * 処理結果の集計オブジェクトを作る
+     * @returns {{pathFailureCount: number, textFailureCount: number, selectionRestoreFailureCount: number, failureDetails: string[]}} 空の集計
+     */
     function createProcessStats() {
         return {
             pathFailureCount: 0,
@@ -213,82 +187,126 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         };
     }
 
-    /* 失敗の詳細を集計に追加 / Append a failure detail entry to stats */
-    function addFailureDetail(stats, category, item, error) {
-        if (!stats || !stats.failureDetails) {
-            return;
-        }
-        if (stats.failureDetails.length >= 8) {
-            return;
-        }
+    /**
+     * 失敗の詳細を集計に追加する（最大 8 件）
+     * @param {Object|null} processStats - 集計（null なら何もしない）
+     * @param {string} category - 失敗の分類（"Path" など）
+     * @param {PageItem|null} failedItem - 失敗したオブジェクト
+     * @param {Error} error - 発生した例外
+     * @returns {void}
+     */
+    function addFailureDetail(processStats, category, failedItem, error) {
+        if (!processStats || !processStats.failureDetails) return;
+        if (processStats.failureDetails.length >= 8) return;
 
-        var typename = 'Unknown';
-        var name = '';
-        var message = 'Unknown error';
+        var itemTypeName = 'Unknown';
+        var itemName = '';
+        var errorMessage = 'Unknown error';
         try {
-            if (item && item.typename) typename = item.typename;
-            if (item && item.name) name = String(item.name);
+            if (failedItem && failedItem.typename) itemTypeName = failedItem.typename;
+            if (failedItem && failedItem.name) itemName = String(failedItem.name);
             if (error && error.message) {
-                message = String(error.message);
+                errorMessage = String(error.message);
             } else if (error) {
-                message = String(error);
+                errorMessage = String(error);
             }
-        } catch (e) { }
+        } catch (e) { /* 削除済みのオブジェクトはプロパティを読めない / removed items cannot be read */ }
 
-        var detail = category + ': ' + typename;
-        if (name !== '') {
-            detail += ' [' + name + ']';
+        var detail = category + ': ' + itemTypeName;
+        if (itemName !== '') detail += ' [' + itemName + ']';
+        detail += ' - ' + errorMessage;
+
+        processStats.failureDetails.push(detail);
+    }
+
+    /**
+     * 失敗を数えて詳細を記録する
+     * @param {Object|null} processStats - 集計（null なら何もしない）
+     * @param {string} counterKey - 増やすカウンター（"pathFailureCount" など）
+     * @param {string} category - 失敗の分類（"Path" など）
+     * @param {PageItem|null} failedItem - 失敗したオブジェクト
+     * @param {Error} error - 発生した例外
+     * @returns {void}
+     */
+    function recordFailure(processStats, counterKey, category, failedItem, error) {
+        if (processStats) processStats[counterKey]++;
+        addFailureDetail(processStats, category, failedItem, error);
+    }
+
+    /**
+     * 集計から、失敗を知らせるメッセージを作る
+     * @param {Object} processStats - 集計
+     * @returns {string} メッセージ（失敗が無ければ空文字）
+     */
+    function buildFailureMessage(processStats) {
+        var messageLines = [];
+        if (processStats.pathFailureCount > 0) {
+            messageLines.push(getLabel('alert.pathFailures') + ': ' + processStats.pathFailureCount);
         }
-        detail += ' - ' + message;
-
-        stats.failureDetails.push(detail);
+        if (processStats.textFailureCount > 0) {
+            messageLines.push(getLabel('alert.textFailures') + ': ' + processStats.textFailureCount);
+        }
+        if (processStats.selectionRestoreFailureCount > 0) {
+            messageLines.push(getLabel('alert.selectionRestoreFailures') + ': ' + processStats.selectionRestoreFailureCount);
+        }
+        if (processStats.failureDetails.length > 0) {
+            messageLines.push('');
+            messageLines.push(labelText('alert.details'));
+            for (var i = 0; i < processStats.failureDetails.length; i++) {
+                messageLines.push('- ' + processStats.failureDetails[i]);
+            }
+        }
+        return messageLines.join('\n');
     }
 
     // =========================================
-    // 色処理
-    // Color handling
+    // 色処理 / Color handling
     // =========================================
 
-    /* 色を安全にコピー / Safely clone color */
+    /**
+     * 色を複製する（未対応の種類は null）
+     * @param {Color} color - 元の色
+     * @returns {Color|null} 複製した色
+     */
     function cloneColor(color) {
         if (!color) return null;
 
         switch (color.typename) {
 
             case "RGBColor":
-                var rgb = new RGBColor();
-                rgb.red = color.red;
-                rgb.green = color.green;
-                rgb.blue = color.blue;
-                return rgb;
+                var rgbColor = new RGBColor();
+                rgbColor.red = color.red;
+                rgbColor.green = color.green;
+                rgbColor.blue = color.blue;
+                return rgbColor;
 
             case "CMYKColor":
-                var cmyk = new CMYKColor();
-                cmyk.cyan = color.cyan;
-                cmyk.magenta = color.magenta;
-                cmyk.yellow = color.yellow;
-                cmyk.black = color.black;
-                return cmyk;
+                var cmykColor = new CMYKColor();
+                cmykColor.cyan = color.cyan;
+                cmykColor.magenta = color.magenta;
+                cmykColor.yellow = color.yellow;
+                cmykColor.black = color.black;
+                return cmykColor;
 
             case "GrayColor":
-                var gray = new GrayColor();
-                gray.gray = color.gray;
-                return gray;
+                var grayColor = new GrayColor();
+                grayColor.gray = color.gray;
+                return grayColor;
 
             case "SpotColor":
-                var spot = new SpotColor();
-                spot.spot = color.spot;
-                spot.tint = color.tint;
-                return spot;
+                var spotColor = new SpotColor();
+                spotColor.spot = color.spot;
+                spotColor.tint = color.tint;
+                return spotColor;
 
             case "GradientColor":
-                var gradient = new GradientColor();
-                gradient.gradient = color.gradient;
-                gradient.angle = color.angle;
-                gradient.length = color.length;
-                gradient.origin = color.origin;
-                gradient.matrix = color.matrix;
-                return gradient;
+                var gradientColor = new GradientColor();
+                gradientColor.gradient = color.gradient;
+                gradientColor.angle = color.angle;
+                gradientColor.length = color.length;
+                gradientColor.origin = color.origin;
+                gradientColor.matrix = color.matrix;
+                return gradientColor;
 
             case "NoColor":
                 return new NoColor();
@@ -298,17 +316,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         }
     }
 
-    /* NoColor を生成 / Create a NoColor instance */
+    /**
+     * 「なし」の色を作る
+     * @returns {NoColor} 「なし」の色
+     */
     function createNoColor() {
         return new NoColor();
     }
 
-    /* テキスト用に有効な色か判定 / Check if color is usable for text */
+    /**
+     * テキストに使える色（「なし」以外）かを判定する
+     * @param {Color|null} color - 判定する色
+     * @returns {boolean} 使える色なら true
+     */
     function isUsableTextColor(color) {
         return color && color.typename && color.typename !== "NoColor";
     }
 
-    /* TextRange の塗り色を安全取得 / Safely read fillColor from a text range */
+    /**
+     * TextRange の塗りの色を読む
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @returns {Color|null} 塗りの色（読めないときは null）
+     */
     function getTextRangeFillColor(textRange) {
         try {
             return textRange.characterAttributes.fillColor;
@@ -317,7 +346,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         }
     }
 
-    /* TextRange の線色を安全取得 / Safely read strokeColor from a text range */
+    /**
+     * TextRange の線の色を読む
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @returns {Color|null} 線の色（読めないときは null）
+     */
     function getTextRangeStrokeColor(textRange) {
         try {
             return textRange.characterAttributes.strokeColor;
@@ -326,52 +359,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         }
     }
 
-    /* TextRange が有効な塗りを持つか / Does the text range have a usable fill */
+    /**
+     * TextRange が有効な塗りを持つか
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @returns {boolean} 持っていれば true
+     */
     function hasTextRangeFill(textRange) {
         return isUsableTextColor(getTextRangeFillColor(textRange));
     }
 
-    /* TextRange が有効な線を持つか / Does the text range have a usable stroke */
+    /**
+     * TextRange が有効な線を持つか
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @returns {boolean} 持っていれば true
+     */
     function hasTextRangeStroke(textRange) {
         return isUsableTextColor(getTextRangeStrokeColor(textRange));
     }
 
-    /* TextRange にモードに応じた塗り/線処理を適用 / Apply mode to a text range */
+    /**
+     * テキストの1文字ずつ（文字が取れなければ全体）に処理を適用する
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {Function} applyToRange - TextRange を受け取る関数
+     * @returns {void}
+     */
+    function forEachCharacterRange(textFrame, applyToRange) {
+        var textRange = textFrame.textRange;
+        var textCharacters = null;
+        try { textCharacters = textRange.characters; } catch (eC) { textCharacters = null; }
+
+        if (textCharacters && textCharacters.length > 0) {
+            for (var i = 0; i < textCharacters.length; i++) {
+                applyToRange(textCharacters[i]);
+            }
+        } else {
+            applyToRange(textRange);
+        }
+    }
+
+    /**
+     * TextRange に処理モードに応じた塗り・線の変更を適用する
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @param {string} mode - 処理モード（MODE_*）
+     * @returns {void}
+     */
     function applyTextFillAndStrokeToRange(textRange, mode) {
-        var attrs = textRange.characterAttributes;
+        var charAttributes = textRange.characterAttributes;
         var hasFill = hasTextRangeFill(textRange);
         var hasStroke = hasTextRangeStroke(textRange);
 
-        var fill = hasFill ? cloneColor(getTextRangeFillColor(textRange)) : null;
-        var stroke = hasStroke ? cloneColor(getTextRangeStrokeColor(textRange)) : null;
+        var fillCopy = hasFill ? cloneColor(getTextRangeFillColor(textRange)) : null;
+        var strokeCopy = hasStroke ? cloneColor(getTextRangeStrokeColor(textRange)) : null;
 
         switch (mode) {
             case MODE_FILL_TO_STROKE:
-                if (hasFill && fill) {
-                    attrs.strokeColor = fill;
-                    if (!hasStroke || !attrs.strokeWeight || attrs.strokeWeight <= 0) {
-                        attrs.strokeWeight = 1;
+                if (hasFill && fillCopy) {
+                    charAttributes.strokeColor = fillCopy;
+                    if (!hasStroke || !charAttributes.strokeWeight || charAttributes.strokeWeight <= 0) {
+                        charAttributes.strokeWeight = 1;
                     }
                 }
                 break;
 
             case MODE_STROKE_TO_FILL:
-                if (hasStroke && stroke) {
-                    attrs.fillColor = stroke;
+                if (hasStroke && strokeCopy) {
+                    charAttributes.fillColor = strokeCopy;
                 }
                 break;
 
             case MODE_FILL_NONE:
-                attrs.fillColor = createNoColor();
+                charAttributes.fillColor = createNoColor();
                 break;
 
             case MODE_STROKE_NONE:
-                attrs.strokeColor = createNoColor();
+                charAttributes.strokeColor = createNoColor();
                 break;
 
             case MODE_FILL_AND_STROKE_NONE:
-                attrs.fillColor = createNoColor();
-                attrs.strokeColor = createNoColor();
+                charAttributes.fillColor = createNoColor();
+                charAttributes.strokeColor = createNoColor();
                 break;
 
             case MODE_SWAP:
@@ -380,544 +446,600 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
                     return;
                 }
 
-                if (hasStroke && stroke) {
-                    attrs.fillColor = stroke;
+                if (hasStroke && strokeCopy) {
+                    charAttributes.fillColor = strokeCopy;
                 } else {
-                    attrs.fillColor = createNoColor();
+                    charAttributes.fillColor = createNoColor();
                 }
 
-                if (hasFill && fill) {
-                    attrs.strokeColor = fill;
-                    if (!hasStroke || !attrs.strokeWeight || attrs.strokeWeight <= 0) {
-                        attrs.strokeWeight = 1;
+                if (hasFill && fillCopy) {
+                    charAttributes.strokeColor = fillCopy;
+                    if (!hasStroke || !charAttributes.strokeWeight || charAttributes.strokeWeight <= 0) {
+                        charAttributes.strokeWeight = 1;
                     }
                 } else {
-                    attrs.strokeColor = createNoColor();
+                    charAttributes.strokeColor = createNoColor();
                 }
                 break;
         }
     }
 
-    /* ラジオボタンの排他選択を実現 / Make one radio exclusively selected in a group */
-    function setExclusiveRadio(selectedRadio, radioButtons) {
-        for (var i = 0; i < radioButtons.length; i++) {
-            radioButtons[i].value = (radioButtons[i] === selectedRadio);
-        }
-    }
-
-    /* 選択中のラジオボタンから処理モードを取得 / Get the mode from selected radio buttons */
-    function getModeFromRadios(radios) {
-        if (radios.fillToStrokeRadio.value) return MODE_FILL_TO_STROKE;
-        if (radios.strokeToFillRadio.value) return MODE_STROKE_TO_FILL;
-        if (radios.swapBetweenObjectsRadio.value) return MODE_SWAP_BETWEEN;
-        if (radios.eraseFillRadio.value) return MODE_FILL_NONE;
-        if (radios.eraseStrokeRadio.value) return MODE_STROKE_NONE;
-        if (radios.eraseFillAndStrokeRadio.value) return MODE_FILL_AND_STROKE_NONE;
-        return MODE_SWAP;
-    }
-
-    /* ラジオボタンの選択とプレビュー更新を接続 / Bind radio selection and preview refresh */
-    function bindModeRadioEvents(radioButtons, refreshPreview) {
-        function bindExclusiveRadio(radio) {
-            radio.onClick = function () {
-                setExclusiveRadio(radio, radioButtons);
-                refreshPreview();
-            };
-        }
-
-        for (var i = 0; i < radioButtons.length; i++) {
-            bindExclusiveRadio(radioButtons[i]);
-        }
-    }
-
     // =========================================
-    // メイン処理
-    // Main processing
+    // 処理モードの適用 / Applying the mode
     // =========================================
 
-    /* パスに処理モードを適用 / Apply the processing mode to a path */
-    function applyPathFillStrokeMode(item, mode, stats) {
+    /**
+     * パスに処理モードを適用する（失敗は集計に記録）
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {string} mode - 処理モード（MODE_*）
+     * @param {Object|null} processStats - 集計（プレビュー時は null）
+     * @returns {void}
+     */
+    function applyPathFillStrokeMode(pathItem, mode, processStats) {
         try {
-            var hasFill = item.filled;
-            var hasStroke = item.stroked;
+            var hasFill = pathItem.filled;
+            var hasStroke = pathItem.stroked;
 
-            var fill = hasFill ? cloneColor(item.fillColor) : null;
-            var stroke = hasStroke ? cloneColor(item.strokeColor) : null;
+            var fillCopy = hasFill ? cloneColor(pathItem.fillColor) : null;
+            var strokeCopy = hasStroke ? cloneColor(pathItem.strokeColor) : null;
 
             switch (mode) {
                 case MODE_FILL_TO_STROKE:
-                    if (hasFill && fill) {
-                        item.stroked = true;
-                        item.strokeColor = fill;
+                    if (hasFill && fillCopy) {
+                        pathItem.stroked = true;
+                        pathItem.strokeColor = fillCopy;
                         if (!hasStroke) {
-                            item.strokeWidth = 1;
+                            pathItem.strokeWidth = 1;
                         }
                     }
                     break;
 
                 case MODE_STROKE_TO_FILL:
-                    if (hasStroke && stroke) {
-                        item.filled = true;
-                        item.fillColor = stroke;
+                    if (hasStroke && strokeCopy) {
+                        pathItem.filled = true;
+                        pathItem.fillColor = strokeCopy;
                     }
                     break;
 
                 case MODE_FILL_NONE:
-                    item.filled = false;
-                    item.fillColor = createNoColor();
+                    pathItem.filled = false;
+                    pathItem.fillColor = createNoColor();
                     break;
 
                 case MODE_STROKE_NONE:
-                    item.stroked = false;
-                    item.strokeColor = createNoColor();
+                    pathItem.stroked = false;
+                    pathItem.strokeColor = createNoColor();
                     break;
 
                 case MODE_FILL_AND_STROKE_NONE:
-                    item.filled = false;
-                    item.stroked = false;
-                    item.fillColor = createNoColor();
-                    item.strokeColor = createNoColor();
+                    pathItem.filled = false;
+                    pathItem.stroked = false;
+                    pathItem.fillColor = createNoColor();
+                    pathItem.strokeColor = createNoColor();
                     break;
 
                 case MODE_SWAP:
                 default:
                     if (!hasFill && !hasStroke) break;
-                    item.filled = hasStroke;
-                    item.fillColor = (hasStroke && stroke) ? stroke : createNoColor();
-                    item.stroked = hasFill;
-                    if (hasFill && fill) {
-                        item.strokeColor = fill;
-                        if (!hasStroke || !item.strokeWidth || item.strokeWidth <= 0) {
-                            item.strokeWidth = 1;
+                    pathItem.filled = hasStroke;
+                    pathItem.fillColor = (hasStroke && strokeCopy) ? strokeCopy : createNoColor();
+                    pathItem.stroked = hasFill;
+                    if (hasFill && fillCopy) {
+                        pathItem.strokeColor = fillCopy;
+                        if (!hasStroke || !pathItem.strokeWidth || pathItem.strokeWidth <= 0) {
+                            pathItem.strokeWidth = 1;
                         }
                     } else {
-                        item.strokeColor = createNoColor();
+                        pathItem.strokeColor = createNoColor();
                     }
                     break;
             }
         } catch (e) {
-            if (stats) {
-                stats.pathFailureCount++;
-            }
-            addFailureDetail(stats, 'Path', item, e);
+            recordFailure(processStats, 'pathFailureCount', 'Path', pathItem, e);
         }
     }
 
-    /* テキストに処理モードを適用 / Apply the processing mode to text */
-    function applyTextFillStrokeMode(textFrame, mode, stats) {
+    /**
+     * テキストの各文字に処理モードを適用する（失敗は集計に記録）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {string} mode - 処理モード（MODE_*）
+     * @param {Object|null} processStats - 集計（プレビュー時は null）
+     * @returns {void}
+     */
+    function applyTextFillStrokeMode(textFrame, mode, processStats) {
         try {
-            var textRange = textFrame.textRange;
-            var characters = null;
-            try { characters = textRange.characters; } catch (eC) { characters = null; }
-
-            if (characters && characters.length > 0) {
-                for (var i = 0; i < characters.length; i++) {
-                    applyTextFillAndStrokeToRange(characters[i], mode);
-                }
-            } else {
+            forEachCharacterRange(textFrame, function (textRange) {
                 applyTextFillAndStrokeToRange(textRange, mode);
-            }
+            });
         } catch (e) {
-            if (stats) {
-                stats.textFailureCount++;
+            recordFailure(processStats, 'textFailureCount', 'Text', textFrame, e);
+        }
+    }
+
+    /**
+     * 選択オブジェクトに処理モードを適用する（グループ・複合パスは再帰）
+     * @param {PageItem[]} targetItems - 対象のオブジェクト
+     * @param {string} mode - 処理モード（MODE_*）
+     * @param {Object|null} processStats - 集計（プレビュー時は null）
+     * @returns {void}
+     */
+    function processItems(targetItems, mode, processStats) {
+        for (var i = 0; i < targetItems.length; i++) {
+            var targetItem = targetItems[i];
+
+            switch (targetItem.typename) {
+
+                case "GroupItem":
+                    processItems(targetItem.pageItems, mode, processStats);
+                    break;
+
+                case "PathItem":
+                    applyPathFillStrokeMode(targetItem, mode, processStats);
+                    break;
+
+                case "CompoundPathItem":
+                    processItems(targetItem.pathItems, mode, processStats);
+                    break;
+
+                case "TextFrame":
+                    applyTextFillStrokeMode(targetItem, mode, processStats);
+                    break;
             }
-            addFailureDetail(stats, 'Text', textFrame, e);
         }
     }
 
     // =========================================
-    // 状態の取得と適用
-    // State capture and apply
+    // 見た目の取得と適用 / Appearance capture and apply
     // =========================================
 
-    /* PathItem の塗り/線スタイルを取得 / Capture path appearance */
-    function capturePathAppearance(path) {
+    /**
+     * パスの塗り・線の見た目を控える
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {{filled: boolean, stroked: boolean, fill: Color, stroke: Color, strokeWidth: number}} 見た目
+     */
+    function capturePathAppearance(pathItem) {
         return {
-            filled: path.filled,
-            stroked: path.stroked,
-            fill: path.filled ? cloneColor(path.fillColor) : null,
-            stroke: path.stroked ? cloneColor(path.strokeColor) : null,
-            strokeWidth: path.strokeWidth
+            filled: pathItem.filled,
+            stroked: pathItem.stroked,
+            fill: pathItem.filled ? cloneColor(pathItem.fillColor) : null,
+            stroke: pathItem.stroked ? cloneColor(pathItem.strokeColor) : null,
+            strokeWidth: pathItem.strokeWidth
         };
     }
 
-    /* TextRange の塗り/線スタイルを取得 / Capture text range appearance */
+    /**
+     * TextRange の塗り・線の見た目を控える
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @returns {{filled: boolean, stroked: boolean, fill: Color, stroke: Color, strokeWidth: number}} 見た目
+     */
     function captureTextRangeAppearance(textRange) {
-        var attrs = textRange.characterAttributes;
         var hasFill = hasTextRangeFill(textRange);
         var hasStroke = hasTextRangeStroke(textRange);
-        var weight = attrs.strokeWeight;
         return {
             filled: hasFill,
             stroked: hasStroke,
             fill: hasFill ? cloneColor(getTextRangeFillColor(textRange)) : null,
             stroke: hasStroke ? cloneColor(getTextRangeStrokeColor(textRange)) : null,
-            strokeWidth: weight
+            strokeWidth: textRange.characterAttributes.strokeWeight
         };
     }
 
-    /* PathItem に塗り/線スタイルを適用 / Apply appearance to path */
-    function applyPathAppearance(path, appearance) {
-        path.filled = appearance.filled;
-        path.fillColor = (appearance.filled && appearance.fill) ? appearance.fill : createNoColor();
-        path.stroked = appearance.stroked;
+    /**
+     * パスに見た目を適用する
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Object} appearance - capturePathAppearance() などで控えた見た目
+     * @returns {void}
+     */
+    function applyPathAppearance(pathItem, appearance) {
+        pathItem.filled = appearance.filled;
+        pathItem.fillColor = (appearance.filled && appearance.fill) ? appearance.fill : createNoColor();
+        pathItem.stroked = appearance.stroked;
         if (appearance.stroked && appearance.stroke) {
-            path.strokeColor = appearance.stroke;
+            pathItem.strokeColor = appearance.stroke;
             if (appearance.strokeWidth && appearance.strokeWidth > 0) {
-                path.strokeWidth = appearance.strokeWidth;
+                pathItem.strokeWidth = appearance.strokeWidth;
             }
         } else {
-            path.strokeColor = createNoColor();
+            pathItem.strokeColor = createNoColor();
         }
     }
 
-    /* TextRange に塗り/線スタイルを適用 / Apply appearance to text range */
+    /**
+     * TextRange に見た目を適用する
+     * @param {TextRange} textRange - 対象の文字範囲
+     * @param {Object} appearance - captureTextRangeAppearance() などで控えた見た目
+     * @returns {void}
+     */
     function applyTextRangeAppearance(textRange, appearance) {
-        var attrs = textRange.characterAttributes;
-        attrs.fillColor = (appearance.filled && appearance.fill) ? appearance.fill : createNoColor();
+        var charAttributes = textRange.characterAttributes;
+        charAttributes.fillColor = (appearance.filled && appearance.fill) ? appearance.fill : createNoColor();
         if (appearance.stroked && appearance.stroke) {
-            attrs.strokeColor = appearance.stroke;
+            charAttributes.strokeColor = appearance.stroke;
             if (appearance.strokeWidth && appearance.strokeWidth > 0) {
-                attrs.strokeWeight = appearance.strokeWidth;
+                charAttributes.strokeWeight = appearance.strokeWidth;
             }
         } else {
-            attrs.strokeColor = createNoColor();
+            charAttributes.strokeColor = createNoColor();
         }
     }
 
-    /* 単一の見た目をスナップショット / Snapshot a single overall appearance */
-    function snapshotAppearance(item) {
-        var typename = item.typename;
-        if (typename === "PathItem") return capturePathAppearance(item);
-        if (typename === "CompoundPathItem") {
-            if (!item.pathItems || item.pathItems.length === 0) {
+    /**
+     * オブジェクトの代表の見た目を1つ控える（複合パスは最初のパス、テキストは全体）
+     * @param {PageItem} sourceItem - 対象のオブジェクト
+     * @returns {Object} 見た目
+     */
+    function snapshotAppearance(sourceItem) {
+        var typeName = sourceItem.typename;
+        if (typeName === "PathItem") return capturePathAppearance(sourceItem);
+        if (typeName === "CompoundPathItem") {
+            if (!sourceItem.pathItems || sourceItem.pathItems.length === 0) {
                 throw new Error("CompoundPathItem has no pathItems");
             }
-            return capturePathAppearance(item.pathItems[0]);
+            return capturePathAppearance(sourceItem.pathItems[0]);
         }
-        if (typename === "TextFrame") return captureTextRangeAppearance(item.textRange);
-        throw new Error("Unsupported type for swap: " + typename);
+        if (typeName === "TextFrame") return captureTextRangeAppearance(sourceItem.textRange);
+        throw new Error("Unsupported type for swap: " + typeName);
     }
 
-    /* 単一の見た目を要素全体に均一適用 / Apply a single appearance uniformly to an item */
-    function applyAppearance(item, appearance) {
-        var typename = item.typename;
-        if (typename === "PathItem") {
-            applyPathAppearance(item, appearance);
+    /**
+     * 1つの見た目をオブジェクト全体に均一に適用する
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @param {Object} appearance - 適用する見た目
+     * @returns {void}
+     */
+    function applyAppearance(targetItem, appearance) {
+        var typeName = targetItem.typename;
+        if (typeName === "PathItem") {
+            applyPathAppearance(targetItem, appearance);
             return;
         }
-        if (typename === "CompoundPathItem") {
-            for (var i = 0; i < item.pathItems.length; i++) {
-                applyPathAppearance(item.pathItems[i], appearance);
+        if (typeName === "CompoundPathItem") {
+            for (var i = 0; i < targetItem.pathItems.length; i++) {
+                applyPathAppearance(targetItem.pathItems[i], appearance);
             }
             return;
         }
-        if (typename === "TextFrame") {
-            var range = item.textRange;
-            var chars = null;
-            try { chars = range.characters; } catch (eC) { chars = null; }
-            if (chars && chars.length > 0) {
-                for (var j = 0; j < chars.length; j++) {
-                    applyTextRangeAppearance(chars[j], appearance);
-                }
-            } else {
-                applyTextRangeAppearance(range, appearance);
-            }
+        if (typeName === "TextFrame") {
+            forEachCharacterRange(targetItem, function (textRange) {
+                applyTextRangeAppearance(textRange, appearance);
+            });
             return;
         }
-        throw new Error("Unsupported type for swap: " + typename);
+        throw new Error("Unsupported type for swap: " + typeName);
     }
 
-    /* 2つのオブジェクト間で塗りと線をスワップ / Swap fill and stroke between two items */
-    function swapAppearanceBetween(itemA, itemB, stats) {
+    /**
+     * 2つのオブジェクトの塗りと線の見た目を交換する（失敗は集計に記録）
+     * @param {PageItem} itemA - 1つ目のオブジェクト
+     * @param {PageItem} itemB - 2つ目のオブジェクト
+     * @param {Object|null} processStats - 集計（プレビュー時は null）
+     * @returns {void}
+     */
+    function swapAppearanceBetween(itemA, itemB, processStats) {
         try {
-            var snapA = snapshotAppearance(itemA);
-            var snapB = snapshotAppearance(itemB);
-            applyAppearance(itemA, snapB);
-            applyAppearance(itemB, snapA);
+            var appearanceA = snapshotAppearance(itemA);
+            var appearanceB = snapshotAppearance(itemB);
+            applyAppearance(itemA, appearanceB);
+            applyAppearance(itemB, appearanceA);
         } catch (e) {
-            if (stats) {
-                stats.pathFailureCount++;
-            }
-            addFailureDetail(stats, 'SwapBetween', itemA, e);
-        }
-    }
-
-    /* 選択オブジェクトを再帰処理 / Process selected items recursively */
-    function processItems(items, mode, stats) {
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-
-            switch (item.typename) {
-
-                case "GroupItem":
-                    processItems(item.pageItems, mode, stats);
-                    break;
-
-                case "PathItem":
-                    applyPathFillStrokeMode(item, mode, stats);
-                    break;
-
-                case "CompoundPathItem":
-                    processItems(item.pathItems, mode, stats);
-                    break;
-
-                case "TextFrame":
-                    applyTextFillStrokeMode(item, mode, stats);
-                    break;
-            }
+            recordFailure(processStats, 'pathFailureCount', 'SwapBetween', itemA, e);
         }
     }
 
     // =========================================
-    // プレビュー用スナップショット
-    // Preview snapshot
+    // プレビュー用スナップショット / Preview snapshot
     // =========================================
 
-    /* プレビュー用に1要素の状態をスナップショット / Snapshot a leaf item for preview restore */
-    function snapshotLeafForPreview(item) {
-        var typename = item.typename;
-        if (typename === "PathItem") {
-            var snap = capturePathAppearance(item);
-            snap.kind = "path";
-            snap.item = item;
-            return snap;
+    /**
+     * プレビューの取り消し用に、パス・テキスト1つの状態を控える
+     * @param {PageItem} leafItem - パスまたはテキスト
+     * @returns {Object|null} 控えた状態（対象外の種類は null）
+     */
+    function snapshotLeafForPreview(leafItem) {
+        var typeName = leafItem.typename;
+        if (typeName === "PathItem") {
+            var pathSnapshot = capturePathAppearance(leafItem);
+            pathSnapshot.kind = "path";
+            pathSnapshot.item = leafItem;
+            return pathSnapshot;
         }
-        if (typename === "TextFrame") {
-            var textSnap = { kind: "text", item: item, characters: [] };
+        if (typeName === "TextFrame") {
+            var textSnapshot = { kind: "text", item: leafItem, characters: [] };
             try {
-                var chars = item.textRange.characters;
-                for (var i = 0; i < chars.length; i++) {
-                    textSnap.characters.push(captureTextRangeAppearance(chars[i]));
+                var textCharacters = leafItem.textRange.characters;
+                for (var i = 0; i < textCharacters.length; i++) {
+                    textSnapshot.characters.push(captureTextRangeAppearance(textCharacters[i]));
                 }
-            } catch (e) { }
-            return textSnap;
+            } catch (e) { /* 読めた文字までで止める / keep the characters read so far */ }
+            return textSnapshot;
         }
         return null;
     }
 
-    /* 選択中のリーフ要素を再帰的にスナップショット / Recursively snapshot selection leaves */
-    function captureLeafSnapshots(items, snapshots) {
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            switch (item.typename) {
+    /**
+     * 選択の中のパス・テキストを再帰的にたどって状態を控える
+     * @param {PageItem[]} sourceItems - 対象のオブジェクト
+     * @param {Object[]} leafSnapshots - 控えた状態を追加する配列
+     * @returns {void}
+     */
+    function captureLeafSnapshots(sourceItems, leafSnapshots) {
+        for (var i = 0; i < sourceItems.length; i++) {
+            var sourceItem = sourceItems[i];
+            switch (sourceItem.typename) {
                 case "GroupItem":
-                    captureLeafSnapshots(item.pageItems, snapshots);
+                    captureLeafSnapshots(sourceItem.pageItems, leafSnapshots);
                     break;
                 case "PathItem":
                 case "TextFrame":
-                    var snap = snapshotLeafForPreview(item);
-                    if (snap) snapshots.push(snap);
+                    var leafSnapshot = snapshotLeafForPreview(sourceItem);
+                    if (leafSnapshot) leafSnapshots.push(leafSnapshot);
                     break;
                 case "CompoundPathItem":
-                    captureLeafSnapshots(item.pathItems, snapshots);
+                    captureLeafSnapshots(sourceItem.pathItems, leafSnapshots);
                     break;
             }
         }
     }
 
-    /* 選択全体のスナップショットを作成 / Capture full selection state */
-    function captureSelectionState(items) {
-        var snapshots = [];
-        captureLeafSnapshots(items, snapshots);
-        return snapshots;
+    /**
+     * 選択全体の状態を控える
+     * @param {PageItem[]} sourceItems - 対象のオブジェクト
+     * @returns {Object[]} 控えた状態
+     */
+    function captureSelectionState(sourceItems) {
+        var leafSnapshots = [];
+        captureLeafSnapshots(sourceItems, leafSnapshots);
+        return leafSnapshots;
     }
 
-    /* 1要素をスナップショットから復元 / Restore a single leaf from its snapshot */
-    function restoreLeafSnapshot(snap) {
-        if (snap.kind === "path") {
-            applyPathAppearance(snap.item, snap);
+    /**
+     * 控えた状態からパス・テキスト1つを元に戻す
+     * @param {Object} leafSnapshot - snapshotLeafForPreview() の結果
+     * @returns {void}
+     */
+    function restoreLeafSnapshot(leafSnapshot) {
+        if (leafSnapshot.kind === "path") {
+            applyPathAppearance(leafSnapshot.item, leafSnapshot);
             return;
         }
-        if (snap.kind === "text") {
-            var chars = null;
-            try { chars = snap.item.textRange.characters; } catch (eC) { return; }
-            if (!chars) return;
-            var pairCount = chars.length < snap.characters.length ? chars.length : snap.characters.length;
+        if (leafSnapshot.kind === "text") {
+            var textCharacters = null;
+            try { textCharacters = leafSnapshot.item.textRange.characters; } catch (eC) { return; }
+            if (!textCharacters) return;
+            var pairCount = (textCharacters.length < leafSnapshot.characters.length) ? textCharacters.length : leafSnapshot.characters.length;
             for (var i = 0; i < pairCount; i++) {
-                try { applyTextRangeAppearance(chars[i], snap.characters[i]); } catch (eR) { }
+                try { applyTextRangeAppearance(textCharacters[i], leafSnapshot.characters[i]); } catch (eR) { }
             }
         }
     }
 
-    /* スナップショットから選択を一括復元 / Restore selection from snapshots */
-    function restoreSelectionState(snapshots) {
-        for (var i = 0; i < snapshots.length; i++) {
-            var snap = snapshots[i];
-            if (!snap) continue;
-            try { restoreLeafSnapshot(snap); } catch (e) { }
+    /**
+     * 控えた状態から選択全体を元に戻す
+     * @param {Object[]} leafSnapshots - captureSelectionState() の結果
+     * @returns {void}
+     */
+    function restoreSelectionState(leafSnapshots) {
+        for (var i = 0; i < leafSnapshots.length; i++) {
+            if (!leafSnapshots[i]) continue;
+            try { restoreLeafSnapshot(leafSnapshots[i]); } catch (e) { }
         }
     }
 
-    /* 選択オブジェクトを復元 / Restore selected objects */
-    function restoreSelectedItems(items, stats) {
+    /**
+     * 選択を元のオブジェクトに戻す（失敗は集計に記録）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} originalItems - 元の選択
+     * @param {Object} processStats - 集計
+     * @returns {void}
+     */
+    function restoreSelectedItems(doc, originalItems, processStats) {
         var restoredItems = [];
-        for (var i = 0; i < items.length; i++) {
-            try {
-                if (items[i]) {
-                    restoredItems.push(items[i]);
-                }
-            } catch (e) {
-                if (stats) {
-                    stats.selectionRestoreFailureCount++;
-                }
-                addFailureDetail(stats, 'Selection', items[i], e);
-            }
+        for (var i = 0; i < originalItems.length; i++) {
+            if (originalItems[i]) restoredItems.push(originalItems[i]);
         }
 
         try {
-            app.selection = restoredItems;
+            doc.selection = restoredItems;
         } catch (eR) {
-            if (stats) {
-                stats.selectionRestoreFailureCount++;
-            }
-            addFailureDetail(stats, 'Selection', null, eR);
+            recordFailure(processStats, 'selectionRestoreFailureCount', 'Selection', null, eR);
         }
     }
 
-    /* プレビュー：選択中の要素に処理モードを適用 / Apply mode for live preview */
-    function applyPreview(items, mode) {
+    /**
+     * プレビューとして選択中のオブジェクトに処理モードを適用する
+     * @param {PageItem[]} targetItems - 対象のオブジェクト
+     * @param {string} mode - 処理モード（MODE_*）
+     * @returns {void}
+     */
+    function applyPreview(targetItems, mode) {
         if (mode === MODE_SWAP_BETWEEN) {
-            if (items.length === 2) {
-                swapAppearanceBetween(items[0], items[1], null);
+            if (targetItems.length === 2) {
+                swapAppearanceBetween(targetItems[0], targetItems[1], null);
             }
             return;
         }
-        processItems(items, mode, null);
+        processItems(targetItems, mode, null);
     }
 
     // =========================================
-    // ダイアログ
-    // Dialog
+    // ダイアログ / Dialog
     // =========================================
 
-    /* 処理モード選択ダイアログ / Show the processing mode dialog */
+    /**
+     * ラジオボタンを1つだけ選択状態にする（パネルをまたぐので手動で排他にする）
+     * @param {RadioButton} selectedRadio - 選択するラジオボタン
+     * @param {Object[]} modeRadioEntries - {radio, mode} の一覧
+     * @returns {void}
+     */
+    function setExclusiveRadio(selectedRadio, modeRadioEntries) {
+        for (var i = 0; i < modeRadioEntries.length; i++) {
+            modeRadioEntries[i].radio.value = (modeRadioEntries[i].radio === selectedRadio);
+        }
+    }
+
+    /**
+     * 選択中のラジオボタンから処理モードを返す
+     * @param {Object[]} modeRadioEntries - {radio, mode} の一覧
+     * @returns {string} 処理モード（どれも選ばれていなければ MODE_SWAP）
+     */
+    function getModeFromRadios(modeRadioEntries) {
+        for (var i = 0; i < modeRadioEntries.length; i++) {
+            if (modeRadioEntries[i].radio.value) return modeRadioEntries[i].mode;
+        }
+        return MODE_SWAP;
+    }
+
+    /**
+     * ラジオボタンのクリックに排他選択とプレビュー更新をつなぐ
+     * @param {Object[]} modeRadioEntries - {radio, mode} の一覧
+     * @param {Function} refreshPreview - プレビューを更新する関数
+     * @returns {void}
+     */
+    function bindModeRadioEvents(modeRadioEntries, refreshPreview) {
+        /**
+         * 1つのラジオボタンにクリック時の処理をつなぐ
+         * @param {RadioButton} modeRadio - 対象のラジオボタン
+         * @returns {void}
+         */
+        function bindExclusiveRadio(modeRadio) {
+            modeRadio.onClick = function () {
+                setExclusiveRadio(modeRadio, modeRadioEntries);
+                refreshPreview();
+            };
+        }
+
+        for (var i = 0; i < modeRadioEntries.length; i++) {
+            bindExclusiveRadio(modeRadioEntries[i].radio);
+        }
+    }
+
+    /**
+     * 処理モードのラジオボタンを追加する（ラベルと tooltip は radio.<key> / tooltip.<key>）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelKey - LABELS のキー
+     * @param {string} mode - このラジオボタンの処理モード（MODE_*）
+     * @param {Object[]} modeRadioEntries - {radio, mode} を追加する一覧
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addModeRadio(parentPanel, labelKey, mode, modeRadioEntries) {
+        var modeRadio = parentPanel.add('radiobutton', undefined, getLabel('radio.' + labelKey));
+        modeRadio.helpTip = getLabel('tooltip.' + labelKey);
+        modeRadioEntries.push({ radio: modeRadio, mode: mode });
+        return modeRadio;
+    }
+
+    /**
+     * 処理モード選択ダイアログを表示する。キャンセル時はプレビューを取り消す
+     * @param {PageItem[]} originalSelection - 元の選択
+     * @returns {{mode: string, previewApplied: boolean}|null} 選んだモードとプレビュー適用済みか（キャンセル時は null）
+     */
     function showModeDialog(originalSelection) {
-        var snapshots = captureSelectionState(originalSelection);
+        var leafSnapshots = captureSelectionState(originalSelection);
+        var isPairSelected = (originalSelection && originalSelection.length === 2);
 
-        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = 'column';
-        dialog.alignChildren = ['fill', 'top'];
+        var modeDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        modeDialog.orientation = 'column';
+        modeDialog.alignChildren = ['fill', 'top'];
 
-        var panelsGroup = dialog.add('group');
-        panelsGroup.orientation = 'row';
-        panelsGroup.alignChildren = ['fill', 'fill'];
+        var modePanelsGroup = modeDialog.add('group');
+        modePanelsGroup.orientation = 'row';
+        modePanelsGroup.alignChildren = ['fill', 'fill'];
 
-        var convertPanel = panelsGroup.add('panel', undefined, getLabel('convertPanelTitle'));
+        var convertPanel = modePanelsGroup.add('panel', undefined, getLabel('panel.convert'));
         setupPanel(convertPanel);
 
-        var removePanel = panelsGroup.add('panel', undefined, getLabel('removePanelTitle'));
-        setupPanel(removePanel);
+        var erasePanel = modePanelsGroup.add('panel', undefined, getLabel('panel.erase'));
+        setupPanel(erasePanel);
 
-        var swapRadio = convertPanel.add('radiobutton', undefined, getLabel('modeSwap'));
-        swapRadio.helpTip = getLabel('modeSwapTip');
-        var fillToStrokeRadio = convertPanel.add('radiobutton', undefined, getLabel('modeFillToStroke'));
-        fillToStrokeRadio.helpTip = getLabel('modeFillToStrokeTip');
-        var strokeToFillRadio = convertPanel.add('radiobutton', undefined, getLabel('modeStrokeToFill'));
-        strokeToFillRadio.helpTip = getLabel('modeStrokeToFillTip');
-        var swapBetweenObjectsRadio = convertPanel.add('radiobutton', undefined, getLabel('modeSwapBetween'));
-        swapBetweenObjectsRadio.helpTip = getLabel('modeSwapBetweenTip');
-        swapBetweenObjectsRadio.enabled = (originalSelection && originalSelection.length === 2);
+        /* 2つのパネルにまたがるラジオボタン / Radio buttons spread across two panels */
+        var modeRadioEntries = [];
+        var swapRadio = addModeRadio(convertPanel, 'swap', MODE_SWAP, modeRadioEntries);
+        addModeRadio(convertPanel, 'fillToStroke', MODE_FILL_TO_STROKE, modeRadioEntries);
+        addModeRadio(convertPanel, 'strokeToFill', MODE_STROKE_TO_FILL, modeRadioEntries);
+        var swapBetweenRadio = addModeRadio(convertPanel, 'swapBetween', MODE_SWAP_BETWEEN, modeRadioEntries);
+        swapBetweenRadio.enabled = isPairSelected;
+        addModeRadio(erasePanel, 'fillNone', MODE_FILL_NONE, modeRadioEntries);
+        addModeRadio(erasePanel, 'strokeNone', MODE_STROKE_NONE, modeRadioEntries);
+        addModeRadio(erasePanel, 'fillStrokeNone', MODE_FILL_AND_STROKE_NONE, modeRadioEntries);
 
-        var eraseFillRadio = removePanel.add('radiobutton', undefined, getLabel('modeFillNone'));
-        eraseFillRadio.helpTip = getLabel('modeFillNoneTip');
-        var eraseStrokeRadio = removePanel.add('radiobutton', undefined, getLabel('modeStrokeNone'));
-        eraseStrokeRadio.helpTip = getLabel('modeStrokeNoneTip');
-        var eraseFillAndStrokeRadio = removePanel.add('radiobutton', undefined, getLabel('modeFillStrokeNone'));
-        eraseFillAndStrokeRadio.helpTip = getLabel('modeFillStrokeNoneTip');
-
-        var allRadios = [
-            swapRadio,
-            fillToStrokeRadio,
-            strokeToFillRadio,
-            swapBetweenObjectsRadio,
-            eraseFillRadio,
-            eraseStrokeRadio,
-            eraseFillAndStrokeRadio
-        ];
-
-        var modeRadios = {
-            swapRadio: swapRadio,
-            fillToStrokeRadio: fillToStrokeRadio,
-            strokeToFillRadio: strokeToFillRadio,
-            swapBetweenObjectsRadio: swapBetweenObjectsRadio,
-            eraseFillRadio: eraseFillRadio,
-            eraseStrokeRadio: eraseStrokeRadio,
-            eraseFillAndStrokeRadio: eraseFillAndStrokeRadio
-        };
-
+        /**
+         * プレビューをいったん元に戻し、ON なら選んだモードで掛け直す
+         * @returns {void}
+         */
         function refreshPreview() {
-            restoreSelectionState(snapshots);
+            restoreSelectionState(leafSnapshots);
             if (previewCheckbox.value) {
-                applyPreview(originalSelection, getModeFromRadios(modeRadios));
+                applyPreview(originalSelection, getModeFromRadios(modeRadioEntries));
             }
             app.redraw();
         }
 
-        bindModeRadioEvents(allRadios, refreshPreview);
+        bindModeRadioEvents(modeRadioEntries, refreshPreview);
+        setExclusiveRadio(isPairSelected ? swapBetweenRadio : swapRadio, modeRadioEntries);
 
-        var defaultRadio = (originalSelection && originalSelection.length === 2) ? swapBetweenObjectsRadio : swapRadio;
-        setExclusiveRadio(defaultRadio, allRadios);
+        /* ボタン行（左にプレビュー、右に OK／キャンセル） / Button row: preview on the left, OK/Cancel on the right */
+        var btnRowGroup = modeDialog.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignment = ['fill', 'center'];
+        btnRowGroup.alignChildren = ['fill', 'center'];
 
-        var buttonGroup = dialog.add('group');
-        buttonGroup.orientation = 'row';
-        buttonGroup.alignment = ['fill', 'center'];
-        buttonGroup.alignChildren = ['fill', 'center'];
-
-        var leftCol = buttonGroup.add('group');
-        leftCol.orientation = 'row';
-        leftCol.alignment = ['left', 'center'];
-        var previewCheckbox = leftCol.add('checkbox', undefined, getLabel('preview'));
-        previewCheckbox.helpTip = getLabel('previewTip');
+        var btnLeftGroup = btnRowGroup.add('group');
+        btnLeftGroup.orientation = 'row';
+        btnLeftGroup.alignment = ['left', 'center'];
+        var previewCheckbox = btnLeftGroup.add('checkbox', undefined, getLabel('checkbox.preview'));
+        previewCheckbox.helpTip = getLabel('tooltip.preview');
         previewCheckbox.onClick = refreshPreview;
 
-        var spacerCol = buttonGroup.add('group');
-        spacerCol.alignment = ['fill', 'center'];
+        var spacer = btnRowGroup.add('group');
+        spacer.alignment = ['fill', 'center'];
 
-        var rightCol = buttonGroup.add('group');
-        rightCol.orientation = 'row';
-        rightCol.alignment = ['right', 'center'];
-        rightCol.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-        rightCol.add('button', undefined, getLabel('ok'), { name: 'ok' });
+        var btnRightGroup = btnRowGroup.add('group');
+        btnRightGroup.orientation = 'row';
+        btnRightGroup.alignment = ['right', 'center'];
+        btnRightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        btnRightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
-        if (dialog.show() !== 1) {
-            restoreSelectionState(snapshots);
+        if (modeDialog.show() !== 1) {
+            restoreSelectionState(leafSnapshots);
             app.redraw();
             return null;
         }
 
         return {
-            mode: getModeFromRadios(modeRadios),
+            mode: getModeFromRadios(modeRadioEntries),
             previewApplied: previewCheckbox.value
         };
     }
 
     // =========================================
-    // 実行
-    // Run
+    // メイン処理 / Main
     // =========================================
 
-    /* エントリポイント / Entry point */
+    /**
+     * エントリポイント
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel('noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
-        if (app.selection.length === 0) {
-            alert(getLabel('noSelection'));
+        var doc = app.activeDocument;
+        if (doc.selection.length === 0) {
+            alert(getLabel('alert.noSelection'));
             return;
         }
 
-        if (app.selection.length > 2) {
-            alert(getLabel('tooManyObjects'));
+        if (doc.selection.length > 2) {
+            alert(getLabel('alert.tooManyObjects'));
             return;
         }
 
-        var stats = createProcessStats();
+        var processStats = createProcessStats();
         var originalSelection = [];
-        for (var i = 0; i < app.selection.length; i++) {
-            originalSelection.push(app.selection[i]);
+        for (var i = 0; i < doc.selection.length; i++) {
+            originalSelection.push(doc.selection[i]);
         }
 
         var dialogResult = showModeDialog(originalSelection);
@@ -925,40 +1047,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
             return;
         }
 
-        var mode = dialogResult.mode;
-        var alreadyApplied = dialogResult.previewApplied;
-
         try {
-            if (!alreadyApplied) {
-                if (mode === MODE_SWAP_BETWEEN) {
-                    swapAppearanceBetween(originalSelection[0], originalSelection[1], stats);
+            /* プレビューで適用済みなら掛け直さない / Skip when the preview already applied it */
+            if (!dialogResult.previewApplied) {
+                if (dialogResult.mode === MODE_SWAP_BETWEEN) {
+                    swapAppearanceBetween(originalSelection[0], originalSelection[1], processStats);
                 } else {
-                    processItems(originalSelection, mode, stats);
+                    processItems(originalSelection, dialogResult.mode, processStats);
                 }
             }
         } finally {
-            restoreSelectedItems(originalSelection, stats);
+            restoreSelectedItems(doc, originalSelection, processStats);
         }
 
-        var messages = [];
-        if (stats.pathFailureCount > 0) {
-            messages.push(getLabel('pathFailures') + ': ' + stats.pathFailureCount);
-        }
-        if (stats.textFailureCount > 0) {
-            messages.push(getLabel('textFailures') + ': ' + stats.textFailureCount);
-        }
-        if (stats.selectionRestoreFailureCount > 0) {
-            messages.push(getLabel('selectionRestoreFailures') + ': ' + stats.selectionRestoreFailureCount);
-        }
-        if (stats.failureDetails.length > 0) {
-            messages.push('');
-            messages.push(getLabel('details'));
-            for (var j = 0; j < stats.failureDetails.length; j++) {
-                messages.push('- ' + stats.failureDetails[j]);
-            }
-        }
-        if (messages.length > 0) {
-            alert(messages.join('\n'));
+        var failureMessage = buildFailureMessage(processStats);
+        if (failureMessage !== '') {
+            alert(failureMessage);
         }
     }
 

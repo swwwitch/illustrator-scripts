@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "export200";                    /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-04-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export200.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export200.md"; /* README (English) */
@@ -38,9 +38,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    main();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var EXPORT_SCALE      = 200;                            /* 書き出し倍率（%）/ Export scale (%) */
+    var GUIDES_LAYER_NAME = "Guides Preview for Trim View"; /* 書き出し中に隠すレイヤー / Layer hidden during export */
 
-    /* メイン処理：アクティブアートボードを PNG 書き出し / Main: export the active artboard as PNG */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * アクティブなアートボードを背景白の PNG24 としてドキュメントと同じフォルダーへ書き出す
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
             return;
@@ -50,48 +61,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var exportFolder = doc.fullName.parent;
         var documentBaseName = doc.name.replace(/\.ai$/i, "");
 
-        var hiddenGuidesLayer = hideLayerByName(doc, "Guides Preview for Trim View");
+        var hiddenGuidesLayer = hideLayerByName(doc, GUIDES_LAYER_NAME);
 
         var pngExportOptions = new ExportOptionsPNG24();
         pngExportOptions.artBoardClipping = true;
         pngExportOptions.antiAliasing = true;
-        pngExportOptions.transparency = false; // 背景：白
-        pngExportOptions.horizontalScale = 200;
-        pngExportOptions.verticalScale = 200;
+        pngExportOptions.transparency = false; /* 背景：白 / White background */
+        pngExportOptions.horizontalScale = EXPORT_SCALE;
+        pngExportOptions.verticalScale = EXPORT_SCALE;
 
-        var exportFileName = documentBaseName + ".png";
-        var exportFile = new File(exportFolder + "/" + exportFileName);
+        var exportFile = new File(exportFolder + "/" + documentBaseName + ".png");
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
 
+        /* 書き出しの失敗は知らせ、隠したレイヤーは必ず戻す / Report export errors and always restore the hidden layer */
         try {
             doc.exportFile(exportFile, ExportType.PNG24, pngExportOptions);
 
             if (Folder.fs === "Macintosh") {
-                exportFolder.execute(); // Finder で保存先を開く
+                exportFolder.execute(); /* Finder で保存先を開く / Open the destination in Finder */
             }
         } catch (e) {
             alert("書き出し中にエラーが発生しました：\n" + e.message);
         } finally {
             if (hiddenGuidesLayer) {
-                hiddenGuidesLayer.visible = true; // 書き出し後に再表示
+                hiddenGuidesLayer.visible = true; /* 書き出し後に再表示 / Show it again after export */
             }
         }
 
         app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
-
-        return exportFolder + "/" + exportFileName;
     }
 
-    /* 指定名のレイヤーを非表示にして返す（なければ null） / Hide the layer with the given name and return it (null if absent) */
+    /**
+     * 指定名のレイヤーを非表示にして返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer|null} 非表示にしたレイヤー（見つからなければ null）
+     */
     function hideLayerByName(doc, layerName) {
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === layerName) {
-                doc.layers[i].visible = false;
-                return doc.layers[i];
+            var candidateLayer = doc.layers[i];
+            if (candidateLayer.name === layerName) {
+                candidateLayer.visible = false;
+                return candidateLayer;
             }
         }
         return null;
     }
+
+    main();
 
 })();

@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "InsertNewRectangle";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle.md"; /* README (English) */
@@ -81,18 +81,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      */
     function getBlackFillColor(doc) {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = 0;
-            cmyk.magenta = 0;
-            cmyk.yellow = 0;
-            cmyk.black = 100;
-            return cmyk;
+            var blackCmyk = new CMYKColor();
+            blackCmyk.cyan = 0;
+            blackCmyk.magenta = 0;
+            blackCmyk.yellow = 0;
+            blackCmyk.black = 100;
+            return blackCmyk;
         }
-        var rgb = new RGBColor();
-        rgb.red = 0;
-        rgb.green = 0;
-        rgb.blue = 0;
-        return rgb;
+        var blackRgb = new RGBColor();
+        blackRgb.red = 0;
+        blackRgb.green = 0;
+        blackRgb.blue = 0;
+        return blackRgb;
     }
 
     /**
@@ -102,8 +102,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      */
     function getUnlockedVisibleLayer(doc) {
         for (var i = 0; i < doc.layers.length; i++) {
-            var layer = doc.layers[i];
-            if (!layer.locked && layer.visible) return layer;
+            var candidateLayer = doc.layers[i];
+            if (!candidateLayer.locked && candidateLayer.visible) return candidateLayer;
         }
         return null;
     }
@@ -149,24 +149,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         }
 
         /* 表示領域の中心座標を取得 / Get view center */
-        var viewCenterX = doc.activeView.centerPoint[0];
-        var viewCenterY = doc.activeView.centerPoint[1];
+        var viewCenter = doc.activeView.centerPoint;
 
         /* 正方形を作成 / Create the square */
-        var rect = targetLayer.pathItems.rectangle(
-            viewCenterY + RECT_SIZE / 2,
-            viewCenterX - RECT_SIZE / 2,
+        var square = targetLayer.pathItems.rectangle(
+            viewCenter[1] + RECT_SIZE / 2,
+            viewCenter[0] - RECT_SIZE / 2,
             RECT_SIZE,
             RECT_SIZE
         );
 
         /* カラーモードに応じた黒を設定し、線はなしに / Fill with black, no stroke */
-        rect.fillColor = getBlackFillColor(doc);
-        rect.stroked = false;
+        square.fillColor = getBlackFillColor(doc);
+        square.stroked = false;
 
         /* 作成した正方形だけを選択 / Select the created square only */
         doc.selection = null;
-        rect.selected = true;
+        square.selected = true;
 
         /* 選択オブジェクトにコマンドを適用 / Apply commands to the selection */
         app.executeMenuCommand("Convert to Shape");

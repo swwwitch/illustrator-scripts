@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "AiArtboardScaler";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiArtboardScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboardScaler.md"; /* README (English) */
@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     // =========================================
-    // ユーザー設定セクション / User settings
+    // レイアウト / Layout
     // =========================================
 
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
@@ -47,33 +47,101 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var OPTION_PANEL_SPACING = 6;            /* 対象・サイズパネル内の要素間隔 / spacing inside the target and size panels */
+    var FIELD_LABEL_WIDTH = 64;              /* ラベル幅を揃えるための固定幅（「スケール:」が収まる幅）/ fixed label width (fits "Scale:") */
+    var NUMBER_FIELD_CHARS = 4;              /* スケール・幅・高さ欄の文字数 / width of the scale, width and height fields */
+    var SELECTION_FIELD_CHARS = 8;           /* 「指定」欄の文字数（通常の2倍）/ width of the Specify field (twice the usual) */
+    var SCALE_COLUMN_GAP = 16;               /* 入力欄の列と基準点の列の間隔 / gap between the field column and the anchor column */
+    var CHECKBOX_GROUP_MARGINS = [0, 10, 0, 0]; /* チェックボックス群の余白（上に10px）/ checkbox group margins (10px on top) */
+    var ANCHOR_WIDGET_SIZE = 66;             /* 基準点ウィジェットの一辺 / side of the anchor widget */
 
-    /* ウィンドウの共通設定 / Apply shared window layout */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    /**
+     * ウィンドウに共通のレイアウト設定を適用する
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /**
+     * パネルに共通のレイアウト設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 数値を小数2桁に丸めて文字列で返す / Round a number to 2 decimals and return as string
+     * @param {number} value - 丸める値
+     * @returns {string} 表示用の文字列
+     */
+    function formatNumber(value) {
+        return "" + (Math.round(value * 100) / 100);
     }
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在のUI言語を返す / Return current UI language */
+    /**
+     * 現在のUI言語を返す / Return current UI language
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
@@ -89,21 +157,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             specify: { ja: "指定", en: "Specify" }
         },
         checkbox: {
-            scaleObjects: {
-                ja: "オブジェクトと一緒に拡大・縮小",
-                en: "Scale objects together"
-            },
-            pixelGrid: {
-                ja: "ピクセルグリッドに最適化",
-                en: "Optimize for pixel grid"
-            }
+            scaleObjects: { ja: "オブジェクトと一緒に拡大・縮小", en: "Scale objects together" },
+            pixelGrid: { ja: "ピクセルグリッドに最適化", en: "Optimize for pixel grid" }
         },
-        field: {
+        fieldLabel: {
             scale:  { ja: "スケール", en: "Scale" },
             width:  { ja: "幅", en: "Width" },
-            height: { ja: "高さ", en: "Height" }
-        },
-        label: {
+            height: { ja: "高さ", en: "Height" },
             anchor: { ja: "基準点", en: "Anchor" }
         },
         tooltip: {
@@ -145,108 +205,122 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /**
-     * ドット区切りパスでラベルを取得しローカライズする（キー欠落時は path を返す）
+     * ドット区切りパスでラベルを取得しローカライズする（キー欠落時は labelPath を返す）
      * Resolve a localized label by dot path (returns the path itself if a key is missing)
-     * @param {string} path 例 "panel.target"
-     * @returns {string} ローカライズ済み文字列（見つからなければ path）
+     * @param {string} labelPath - 例 "panel.target"
+     * @returns {string} ローカライズ済み文字列（見つからなければ labelPath）
      */
-    function getLabel(path) {
-        var parts = path.split(".");
-        var node = LABELS;
-        /* 各階層を安全に辿る（途中で欠落したら path を返す） / Walk each level safely; return path if anything is missing */
-        for (var i = 0; i < parts.length; i++) {
-            if (node === null || typeof node !== "object" || !node.hasOwnProperty(parts[i])) {
-                return path;
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        /* 各階層を安全に辿る（途中で欠落したら labelPath を返す） / Walk each level safely; return the path if anything is missing */
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            if (labelNode === null || typeof labelNode !== "object" || !labelNode.hasOwnProperty(labelPathKeys[i])) {
+                return labelPath;
             }
-            node = node[parts[i]];
+            labelNode = labelNode[labelPathKeys[i]];
         }
         /* 現在言語→英語→日本語の順にフォールバック / Fall back current language → English → Japanese */
-        var text = node[currentLanguage];
-        if (text === undefined || text === null) { text = node.en; }
-        if (text === undefined || text === null) { text = node.ja; }
-        if (typeof text !== "string") { return path; } /* どの言語値も無ければ path / no language value → path */
-        return text.replace(/\{slash\}/g, "/");
+        var localizedText = labelNode[uiLang];
+        if (localizedText === undefined || localizedText === null) { localizedText = labelNode.en; }
+        if (localizedText === undefined || localizedText === null) { localizedText = labelNode.ja; }
+        if (typeof localizedText !== "string") { return labelPath; } /* どの言語値も無ければ labelPath / no language value → path */
+        return localizedText.replace(/\{slash\}/g, "/");
     }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(path) {
-        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
-    // =========================================
-    // 単位 / Unit
-    // =========================================
-
-    // =========================================
-    // 単位 / Units
-    // =========================================
-
-    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
-       Unit code -> display label and points per unit */
-    var UNITS = [
-        { label: "in",    pointsPerUnit: 72 },                /* 0 */
-        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
-        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
-        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
-        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
-        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
-        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
-        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
-        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
-        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
-        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
-    ];
 
     /**
-     * 環境設定キーの単位を返す
-     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
      */
-    function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
-        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
-        var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /* 数値を小数2桁に丸めて文字列で返す / Round a number to 2 decimals and return as string */
-    function formatNumber(value) {
-        return "" + (Math.round(value * 100) / 100);
+    // =========================================
+    // 対象指定の解析 / Target spec parsing
+    // =========================================
+
+    /**
+     * 前後の空白を除去する（ES3にString.trimが無いため） / Trim whitespace (ES3 has no String.trim)
+     * @param {string} sourceText - 対象の文字列
+     * @returns {string} 前後の空白を除いた文字列
+     */
+    function trimWhitespace(sourceText) {
+        return ("" + sourceText).replace(/^\s+/, "").replace(/\s+$/, "");
+    }
+
+    /**
+     * 「3, 4」「3-5」形式の指定を0始まりのアートボード索引配列に厳密変換する
+     * Strictly parse a "3, 4" / "3-5" style spec into 0-based artboard indices
+     * 各トークンを正規表現で完全一致検証し、"3abc"・"1-2-3"・空トークン(",")等は不正扱い。
+     * @param {string} selectionText - 入力文字列（1始まり）
+     * @param {number} artboardCount - アートボード総数
+     * @returns {number[]|null} 索引配列。不正な場合は null
+     */
+    function parseArtboardSelection(selectionText, artboardCount) {
+        var singlePattern = /^\d+$/;                 /* 単一番号 / single number */
+        var rangePattern = /^\d+\s*-\s*\d+$/;        /* 範囲（前後の空白可） / range (spaces allowed) */
+        var artboardIndices = [];
+        var seenIndices = {};
+        var tokens = ("" + selectionText).split(",");
+        for (var i = 0; i < tokens.length; i++) {
+            var token = trimWhitespace(tokens[i]);
+            /* 空トークン（"1," ",2" "1,,2" 等）は不正扱い / empty token (from "1," ",2" "1,,2") is invalid */
+            if (token === "") { return null; }
+
+            var rangeStart, rangeEnd;
+            if (rangePattern.test(token)) {
+                var dashPosition = token.indexOf("-");
+                rangeStart = parseInt(trimWhitespace(token.substring(0, dashPosition)), 10);
+                rangeEnd = parseInt(trimWhitespace(token.substring(dashPosition + 1)), 10);
+            } else if (singlePattern.test(token)) {
+                rangeStart = rangeEnd = parseInt(token, 10);
+            } else {
+                return null; /* 形式不一致（"3abc" "1-2-3" 等） / format mismatch */
+            }
+            if (rangeStart > rangeEnd) { var swappedStart = rangeStart; rangeStart = rangeEnd; rangeEnd = swappedStart; } /* 逆順は入れ替え / swap reversed range */
+
+            for (var artboardNumber = rangeStart; artboardNumber <= rangeEnd; artboardNumber++) {
+                if (artboardNumber < 1 || artboardNumber > artboardCount) { return null; } /* 範囲外は不正 / out of range is invalid */
+                var artboardIndex = artboardNumber - 1;
+                if (!seenIndices[artboardIndex]) { seenIndices[artboardIndex] = true; artboardIndices.push(artboardIndex); } /* 重複は1回だけ / dedupe */
+            }
+        }
+        return artboardIndices.length ? artboardIndices : null;
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
 
-    /* ラベル幅を揃えるための固定幅（px。「スケール:」が収まる幅） / Fixed label width to align rows (fits "Scale:") */
-    var FIELD_LABEL_WIDTH = 64;
-
     /**
      * 「ラベル: [入力欄] 単位」の1行を生成する / Build one "label: [input] unit" row
-     * @param {Panel} parent 追加先パネル
-     * @param {string} labelText ラベル文字列
-     * @param {string} defaultValue 入力欄の初期値
-     * @param {string} unitLabel 入力欄の後ろに表示する単位
-     * @param {string} [tooltipText] 入力欄に付けるツールチップ
+     * @param {Group} parentGroup - 追加先
+     * @param {string} captionText - コロン付きの項目名
+     * @param {string} defaultValue - 入力欄の初期値
+     * @param {string} unitLabel - 入力欄の後ろに表示する単位
+     * @param {string} [tooltipText] - 入力欄に付けるツールチップ
      * @returns {EditText} 生成した入力欄
      */
-    function addSizeField(parent, labelText, defaultValue, unitLabel, tooltipText) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        var label = row.add("statictext", undefined, labelText);
-        label.preferredSize.width = FIELD_LABEL_WIDTH; /* ラベル幅を固定して揃える / Fix width to align labels */
-        label.justify = "right";                       /* 右揃え / Right-align the label */
-        var input = row.add("edittext", undefined, defaultValue);
-        if (tooltipText) input.helpTip = tooltipText;
-        input.characters = 4;
-        row.add("statictext", undefined, unitLabel); /* 入力欄の後ろに単位 / Unit after the input */
-        return input;
+    function addSizeField(parentGroup, captionText, defaultValue, unitLabel, tooltipText) {
+        var fieldRow = parentGroup.add("group");
+        fieldRow.orientation = "row";
+        var captionLabel = fieldRow.add("statictext", undefined, captionText);
+        captionLabel.preferredSize.width = FIELD_LABEL_WIDTH; /* ラベル幅を固定して揃える / Fix width to align labels */
+        captionLabel.justify = "right";                       /* 右揃え / Right-align the label */
+        var valueInput = fieldRow.add("edittext", undefined, defaultValue);
+        if (tooltipText) valueInput.helpTip = tooltipText;
+        valueInput.characters = NUMBER_FIELD_CHARS;
+        fieldRow.add("statictext", undefined, unitLabel); /* 入力欄の後ろに単位 / Unit after the input */
+        return valueInput;
     }
 
     /**
      * テキストフィールドで↑↓キーによる値の増減を有効にする / Enable arrow-key value change on a text field
      * ↑↓で±1、Shift併用で±10（10の倍数にスナップ）。optionキーは使わない。
-     * @param {EditText} editText 対象の入力欄（数値を保持していること）
+     * @param {EditText} editText - 対象の入力欄（数値を保持していること）
+     * @returns {void}
      */
     function changeValueByArrowKey(editText) {
         editText.addEventListener("keydown", function (event) {
@@ -276,107 +350,258 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    /* 前後の空白を除去する（ES3にString.trimが無いため） / Trim whitespace (ES3 has no String.trim) */
-    function trim(text) {
-        return ("" + text).replace(/^\s+/, "").replace(/\s+$/, "");
-    }
-
     /**
-     * 「3, 4」「3-5」形式の指定を0始まりのアートボード索引配列に厳密変換する
-     * Strictly parse a "3, 4" / "3-5" style spec into 0-based artboard indices
-     * 各トークンを正規表現で完全一致検証し、"3abc"・"1-2-3"・空トークン(",")等は不正扱い。
-     * @param {string} text 入力文字列（1始まり）
-     * @param {number} count アートボード総数
-     * @returns {array} 索引配列。不正な場合は null
+     * プレビュー更新を要求する（コントローラ未接続なら何もしない） / Request a preview refresh (no-op until wired)
+     * @param {Window} resizeDialog - onPreview を持つダイアログ
+     * @returns {void}
      */
-    function parseArtboardSelection(text, count) {
-        var singlePattern = /^\d+$/;                 /* 単一番号 / single number */
-        var rangePattern = /^\d+\s*-\s*\d+$/;        /* 範囲（前後の空白可） / range (spaces allowed) */
-        var indices = [];
-        var seen = {};
-        var tokens = ("" + text).split(",");
-        for (var i = 0; i < tokens.length; i++) {
-            var token = trim(tokens[i]);
-            /* 空トークン（"1," ",2" "1,,2" 等）は不正扱い / empty token (from "1," ",2" "1,,2") is invalid */
-            if (token === "") { return null; }
-
-            var start, end;
-            if (rangePattern.test(token)) {
-                var dash = token.indexOf("-");
-                start = parseInt(trim(token.substring(0, dash)), 10);
-                end = parseInt(trim(token.substring(dash + 1)), 10);
-            } else if (singlePattern.test(token)) {
-                start = end = parseInt(token, 10);
-            } else {
-                return null; /* 形式不一致（"3abc" "1-2-3" 等） / format mismatch */
-            }
-            if (start > end) { var swap = start; start = end; end = swap; } /* 逆順は入れ替え / swap reversed range */
-
-            for (var n = start; n <= end; n++) {
-                if (n < 1 || n > count) { return null; } /* 範囲外は不正 / out of range is invalid */
-                var idx = n - 1;
-                if (!seen[idx]) { seen[idx] = true; indices.push(idx); } /* 重複は1回だけ / dedupe */
-            }
-        }
-        return indices.length ? indices : null;
+    function requestPreview(resizeDialog) {
+        if (resizeDialog.onPreview) { resizeDialog.onPreview(); }
     }
 
     /**
      * 対象パネル（現在のアートボード／すべてのアートボード／指定）を構築する
      * Build the target panel (Current artboard / All artboards / Specify)
-     * @param {Window} dialog 追加先ダイアログ
-     * @param {string} defaultSelection 指定入力欄の初期値（例: "1-6"）
+     * @param {Window} resizeDialog - 追加先ダイアログ（コントロールをプロパティとして公開する）
+     * @param {string} defaultSelection - 指定入力欄の初期値（例: "1-6"）
+     * @returns {void}
      */
-    function addTargetPanel(dialog, defaultSelection) {
-        var panel = dialog.add("panel", undefined, getLabel("panel.target"));
-        setupPanel(panel, 6);
+    function addTargetPanel(resizeDialog, defaultSelection) {
+        var targetPanel = resizeDialog.add("panel", undefined, getLabel("panel.target"));
+        setupPanel(targetPanel, OPTION_PANEL_SPACING);
+
+        /**
+         * パネルに左寄せの行を追加する
+         * @returns {Group} 追加した行
+         */
+        function addLeftRow() {
+            var radioRow = targetPanel.add("group");
+            radioRow.orientation = "row";
+            radioRow.alignment = "left";
+            return radioRow;
+        }
 
         /* 「現在のアートボード」ラジオ / "Current artboard" radio */
-        var currentRow = panel.add("group");
-        currentRow.orientation = "row";
-        currentRow.alignment = "left";
-        var currentRadio = currentRow.add("radiobutton", undefined, getLabel("radio.current"));
+        var currentRadio = addLeftRow().add("radiobutton", undefined, getLabel("radio.current"));
         currentRadio.helpTip = getLabel("tooltip.current");
 
         /* 「すべてのアートボード」ラジオ / "All artboards" radio */
-        var allRow = panel.add("group");
-        allRow.orientation = "row";
-        allRow.alignment = "left";
-        var allRadio = allRow.add("radiobutton", undefined, getLabel("radio.all"));
+        var allRadio = addLeftRow().add("radiobutton", undefined, getLabel("radio.all"));
         allRadio.helpTip = getLabel("tooltip.all");
 
         /* 「指定」ラジオ＋範囲入力 / "Specify" radio with range input */
-        var specifyRow = panel.add("group");
-        specifyRow.orientation = "row";
-        specifyRow.alignment = "left";
+        var specifyRow = addLeftRow();
         var specifyRadio = specifyRow.add("radiobutton", undefined, getLabel("radio.specify"));
         specifyRadio.helpTip = getLabel("tooltip.specify");
         var selectInput = specifyRow.add("edittext", undefined, defaultSelection);
         selectInput.helpTip = getLabel("tooltip.specify");
-        selectInput.characters = 8; /* 通常のフィールドの2倍幅 / Twice the usual field width */
+        selectInput.characters = SELECTION_FIELD_CHARS;
 
-        var radios = [currentRadio, allRadio, specifyRadio];
+        var targetRadios = [currentRadio, allRadio, specifyRadio];
 
-        /* ラジオは親が異なると排他にならないため手動で同期 / Sync manually since radios in different parents are not exclusive */
-        function selectTarget(active) {
-            for (var i = 0; i < radios.length; i++) { radios[i].value = (radios[i] === active); }
-            selectInput.enabled = (active === specifyRadio); /* 入力欄は「指定」時のみ有効 / input enabled only for "Specify" */
-            requestPreview(dialog);
+        /**
+         * ラジオは親が異なると排他にならないため手動で同期する / Sync manually since radios in different parents are not exclusive
+         * @param {RadioButton} activeRadio - 選ばれたラジオ
+         * @returns {void}
+         */
+        function selectTarget(activeRadio) {
+            for (var i = 0; i < targetRadios.length; i++) { targetRadios[i].value = (targetRadios[i] === activeRadio); }
+            selectInput.enabled = (activeRadio === specifyRadio); /* 入力欄は「指定」時のみ有効 / input enabled only for "Specify" */
+            requestPreview(resizeDialog);
         }
         currentRadio.onClick = function () { selectTarget(currentRadio); };
         allRadio.onClick = function () { selectTarget(allRadio); };
         specifyRadio.onClick = function () { selectTarget(specifyRadio); };
-        selectInput.onChanging = function () { requestPreview(dialog); };
+        selectInput.onChanging = function () { requestPreview(resizeDialog); };
 
         /* 初期状態は「すべてのアートボード」 / Default to "All artboards" */
         allRadio.value = true;
         selectInput.enabled = false;
 
-        dialog.currentRadio = currentRadio;
-        dialog.allRadio = allRadio;
-        dialog.specifyRadio = specifyRadio;
-        dialog.selectInput = selectInput;
+        resizeDialog.currentRadio = currentRadio;
+        resizeDialog.allRadio = allRadio;
+        resizeDialog.specifyRadio = specifyRadio;
+        resizeDialog.selectInput = selectInput;
     }
+
+    /**
+     * サイズ・スケール統合パネルを構築する / Build the merged size & scale panel
+     * スケール%を一意の倍率とし、幅・高さ（現在の定規単位）はアクティブアートボードの現在サイズ基準で相互連動する。
+     * The scale % is a single uniform ratio; width/height (in the current ruler unit) are linked to the active artboard's current size.
+     * @param {Window} resizeDialog - 追加先ダイアログ（コントロールをプロパティとして公開する）
+     * @param {string} unitLabel - 幅・高さの単位ラベル（例: "mm"）
+     * @param {number} baseWidth - 幅の基準値：アクティブアートボードの現在幅を現在の定規単位へ変換済み（ptではない）
+     * @param {number} baseHeight - 高さの基準値：アクティブアートボードの現在高さを現在の定規単位へ変換済み（ptではない）
+     * @returns {void}
+     */
+    function addScalePanel(resizeDialog, unitLabel, baseWidth, baseHeight) {
+        var scalePanel = resizeDialog.add("panel", undefined, getLabel("panel.scale"));
+        setupPanel(scalePanel, OPTION_PANEL_SPACING);
+
+        /* 2列レイアウト：左=スケール/幅/高さの3行、右=基準点グリッド / Two columns: left has scale/width/height rows, right holds the anchor grid */
+        var columnsRow = scalePanel.add("group");
+        columnsRow.orientation = "row";
+        columnsRow.alignChildren = ["left", "center"];
+        columnsRow.spacing = SCALE_COLUMN_GAP;
+
+        var fieldColumn = columnsRow.add("group");
+        fieldColumn.orientation = "column";
+        fieldColumn.alignChildren = ["left", "top"];
+        fieldColumn.spacing = OPTION_PANEL_SPACING;
+        resizeDialog.scaleInput = addSizeField(fieldColumn, labelText("fieldLabel.scale"), "100", "%", getLabel("tooltip.scale"));
+        resizeDialog.widthInput = addSizeField(fieldColumn, labelText("fieldLabel.width"), formatNumber(baseWidth), unitLabel, getLabel("tooltip.size"));
+        resizeDialog.heightInput = addSizeField(fieldColumn, labelText("fieldLabel.height"), formatNumber(baseHeight), unitLabel, getLabel("tooltip.size"));
+
+        /* 基準点グリッド（2列目） / Anchor reference-point grid (second column) */
+        addAnchorWidget(resizeDialog, columnsRow);
+
+        /* チェックボックス群（上に10pxの余白） / Checkbox group (10px top margin) */
+        var checkboxGroup = scalePanel.add("group");
+        checkboxGroup.orientation = "column";
+        checkboxGroup.alignChildren = ["left", "top"];
+        checkboxGroup.margins = CHECKBOX_GROUP_MARGINS;
+
+        /* オブジェクトも一緒に拡大・縮小するか / Whether to scale the objects along with the artboard */
+        var scaleObjectsCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.scaleObjects"));
+        scaleObjectsCheckbox.helpTip = getLabel("tooltip.scaleObjects");
+        scaleObjectsCheckbox.value = true;
+
+        /* アートボードのX/Y/W/Hを整数化してピクセルグリッドに合わせる / Round artboard X/Y/W/H to integers for the pixel grid */
+        var pixelGridCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.pixelGrid"));
+        pixelGridCheckbox.helpTip = getLabel("tooltip.pixelGrid");
+        pixelGridCheckbox.value = false;
+
+        linkScaleFields(resizeDialog, baseWidth, baseHeight);
+        scaleObjectsCheckbox.onClick = function () {
+            requestPreview(resizeDialog);
+        };
+        pixelGridCheckbox.onClick = function () {
+            requestPreview(resizeDialog);
+        };
+
+        resizeDialog.scaleObjectsCheckbox = scaleObjectsCheckbox;
+        resizeDialog.pixelGridCheckbox = pixelGridCheckbox;
+    }
+
+    /**
+     * スケール・幅・高さの3欄を連動させる（入力中は相互に更新し、確定時に正規化する）
+     * Link the scale, width and height fields (update each other while typing, normalize on commit)
+     * @param {Window} resizeDialog - scaleInput / widthInput / heightInput を持つダイアログ
+     * @param {number} baseWidth - 幅の基準値（定規単位）
+     * @param {number} baseHeight - 高さの基準値（定規単位）
+     * @returns {void}
+     */
+    function linkScaleFields(resizeDialog, baseWidth, baseHeight) {
+        var scaleInput = resizeDialog.scaleInput;
+        var widthInput = resizeDialog.widthInput;
+        var heightInput = resizeDialog.heightInput;
+
+        /**
+         * スケール%から幅・高さ(現在サイズ×%)を再計算する / Recalc width/height (current size × %) from the scale
+         * @returns {void}
+         */
+        function applyScaleToSize() {
+            var percent = parseFloat(scaleInput.text);
+            if (isNaN(percent)) { return; }
+            widthInput.text = formatNumber(baseWidth * percent / 100);
+            heightInput.text = formatNumber(baseHeight * percent / 100);
+        }
+
+        /**
+         * 編集中の寸法欄からスケール%を逆算し、スケール欄ともう一方の寸法欄だけ更新する
+         * Derive the scale from the edited size field, updating only the scale field and the OTHER size field
+         * （編集中の欄自身は書き換えない＝小数点入力が消える不具合を防ぐ / never rewrite the field being edited, so decimals can be typed）
+         * @param {number} editedValue - 編集中の欄の値
+         * @param {number} editedBase - 編集中の欄の基準サイズ
+         * @param {EditText} otherField - もう一方（連動更新する）寸法欄
+         * @param {number} otherBase - もう一方の基準サイズ
+         * @returns {void}
+         */
+        function applySizeToScale(editedValue, editedBase, otherField, otherBase) {
+            if (isNaN(editedValue) || editedBase === 0) { return; }
+            var percent = editedValue / editedBase * 100;
+            scaleInput.text = formatNumber(percent);
+            otherField.text = formatNumber(otherBase * percent / 100);
+        }
+
+        /* 直近の有効なスケール%（入力強化の復帰先） / Last valid scale % (fallback for input hardening) */
+        var lastValidScale = 100;
+
+        /**
+         * 確定時に3欄をスケール基準へ正規化する（不正値は直近の有効値へ復帰） / On commit, canonicalize all three fields to the scale (invalid → last valid)
+         * @returns {void}
+         */
+        function normalizeFields() {
+            var percent = parseFloat(scaleInput.text);
+            if (isNaN(percent) || percent <= 0) {
+                percent = lastValidScale; /* 空・0・負・非数値は直近の有効値へ / empty/0/negative/NaN falls back */
+            } else {
+                lastValidScale = percent;
+            }
+            scaleInput.text = formatNumber(percent);
+            widthInput.text = formatNumber(baseWidth * percent / 100);
+            heightInput.text = formatNumber(baseHeight * percent / 100);
+            requestPreview(resizeDialog);
+        }
+
+        scaleInput.onChanging = function () {
+            applyScaleToSize();
+            requestPreview(resizeDialog);
+        };
+        widthInput.onChanging = function () {
+            applySizeToScale(parseFloat(widthInput.text), baseWidth, heightInput, baseHeight);
+            requestPreview(resizeDialog);
+        };
+        heightInput.onChanging = function () {
+            applySizeToScale(parseFloat(heightInput.text), baseHeight, widthInput, baseWidth);
+            requestPreview(resizeDialog);
+        };
+        /* 確定（Enter/フォーカスアウト）で正規化 / Normalize on commit (Enter / focus-out) */
+        scaleInput.onChange = normalizeFields;
+        widthInput.onChange = normalizeFields;
+        heightInput.onChange = normalizeFields;
+    }
+
+    /**
+     * サイズ入力ダイアログを構築する / Build the size-input dialog
+     * @param {string} unitLabel - 表示する単位ラベル（例: "mm"）
+     * @param {string} defaultWidth - 幅入力欄の初期値
+     * @param {string} defaultHeight - 高さ入力欄の初期値
+     * @param {number} artboardCount - アートボード総数（選択の初期値に使用）
+     * @returns {Window} ダイアログウィンドウ（各入力コントロールを公開）
+     */
+    function createResizeDialog(unitLabel, defaultWidth, defaultHeight, artboardCount) {
+        /* 基準点ウィジェットの配色をUI明暗に合わせる / Match the anchor widget colors to the light/dark UI */
+        initAnchorColors();
+
+        /* タイトルバーにバージョンを表示 / Show version in the title bar */
+        var resizeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(resizeDialog);
+
+        /* 対象パネル / Target panel */
+        addTargetPanel(resizeDialog, "1-" + artboardCount);
+
+        /* サイズ・スケール統合パネル（アクティブアートボードの現在サイズを基準に） / Merged size & scale panel (based on the active artboard's current size) */
+        addScalePanel(resizeDialog, unitLabel, parseFloat(defaultWidth), parseFloat(defaultHeight));
+
+        /* 数値入力欄に↑↓キーでの増減を付与 / Enable arrow-key value change on the numeric fields */
+        changeValueByArrowKey(resizeDialog.scaleInput);
+        changeValueByArrowKey(resizeDialog.widthInput);
+        changeValueByArrowKey(resizeDialog.heightInput);
+
+        /* ボタン類はパネル幅いっぱいには広げず右寄せ / Keep buttons right-aligned, not full width */
+        var btnRowGroup = resizeDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "right";
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
+        btnRowGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
+
+        return resizeDialog;
+    }
+
+    // =========================================
+    // 基準点ウィジェット / Anchor widget
+    // =========================================
 
     /**
      * UI明度(0..1)を取得する（失敗時は1=明るい） / Get UI brightness (0..1); 1 on failure
@@ -393,7 +618,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 明るいUIかどうか / Whether the UI is light */
+    /**
+     * 明るいUIかどうか / Whether the UI is light
+     * @returns {boolean} 明るいUIなら true
+     */
     function isLightUI() {
         return getUIBrightness() > 0.5;
     }
@@ -402,17 +630,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ANCHOR_LINE_COLOR = [0.6, 0.6, 0.6, 1];      /* 枠・ケイ線：薄いグレー / border & rules: light gray */
     var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];   /* 選択セルの塗り / fill of the selected cell */
 
-    /* UI明暗に合わせて選択セルの塗り色を決める（表示前に呼ぶ） / Decide the selected-cell fill from the light/dark UI (call before showing) */
+    /**
+     * UI明暗に合わせて選択セルの塗り色を決める（表示前に呼ぶ） / Decide the selected-cell fill from the light/dark UI (call before showing)
+     * @returns {void}
+     */
     function initAnchorColors() {
         ANCHOR_SELECTED_FILL = isLightUI() ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
     }
 
-    /* コントロールを再描画（notifyは環境により例外を投げ得るので保護） / Redraw a control (notify can throw in some environments) */
+    /**
+     * コントロールを再描画する（notifyは環境により例外を投げ得るので保護） / Redraw a control (notify can throw in some environments)
+     * @param {Object} control - 再描画するコントロール
+     * @returns {void}
+     */
     function redrawControl(control) {
         try { control.notify("onDraw"); } catch (e) {}
     }
 
-    /* 正方形のサブパスを1つ作る / Build one square subpath */
+    /**
+     * 正方形のサブパスを1つ作る / Build one square subpath
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} x - 左上のX
+     * @param {number} y - 左上のY
+     * @param {number} size - 一辺
+     * @returns {void}
+     */
     function squarePath(graphics, x, y, size) {
         graphics.newPath();
         graphics.moveTo(x, y);
@@ -422,7 +664,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         graphics.closePath();
     }
 
-    /* 基準点セルの□を1つ描画（選択時のみ塗り、枠は常時） / Draw one anchor-cell square (fill only when selected, always bordered) */
+    /**
+     * 基準点セルの□を1つ描画する（選択時のみ塗り、枠は常時） / Draw one anchor-cell square (fill only when selected, always bordered)
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} x - 左上のX
+     * @param {number} y - 左上のY
+     * @param {number} size - 一辺
+     * @param {boolean} selected - 選択中のセルなら true
+     * @returns {void}
+     */
     function drawAnchorCell(graphics, x, y, size, selected) {
         if (selected) {
             squarePath(graphics, x, y, size);
@@ -433,7 +683,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, ANCHOR_LINE_COLOR, 1));
     }
 
-    /* 9軸ウィジェットを描画（外周の□をケイ線でつなぐ・中央は独立） / Draw the 9-axis widget (outer squares joined by rules; center stands alone) */
+    /**
+     * 9軸ウィジェットを描画する（外周の□をケイ線でつなぐ・中央は独立） / Draw the 9-axis widget (outer squares joined by rules; center stands alone)
+     * @param {Button} widget - 描画するウィジェット（anchorIndex を持つ）
+     * @returns {void}
+     */
     function drawAnchorWidget(widget) {
         var graphics = widget.graphics;
         var width = widget.size[0];
@@ -452,7 +706,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var originX = Math.round((width - gridSize) / 2);
         var originY = Math.round((height - gridSize) / 2);
 
+        /**
+         * セルの左上X / Left X of a cell
+         * @param {number} index - セル番号（0..8）
+         * @returns {number} X座標
+         */
         function anchorCellX(index) { return originX + (index % 3) * cellStep; }
+
+        /**
+         * セルの左上Y / Top Y of a cell
+         * @param {number} index - セル番号（0..8）
+         * @returns {number} Y座標
+         */
         function anchorCellY(index) { return originY + Math.floor(index / 3) * cellStep; }
 
         /* 中央(4)を除く外周の□どうしをケイ線でつなぐ / Join the outer squares (except center 4) with rules */
@@ -483,221 +748,73 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 3×3の基準点ウィジェット（onDrawで描画するproxy）を構築する / Build a 3×3 anchor proxy widget drawn via onDraw
-     * 選択に応じて dialog.anchorX / dialog.anchorY に 0/0.5/1 の割合を設定する（既定=左上）。
-     * @param {Window} dialog 割合を書き込むダイアログ
-     * @param {Group} parent 追加先グループ
+     * 選択に応じて resizeDialog.anchorX / resizeDialog.anchorY に 0/0.5/1 の割合を設定する（既定=左上）。
+     * @param {Window} resizeDialog - 割合を書き込むダイアログ
+     * @param {Group} parentGroup - 追加先グループ
+     * @returns {void}
      */
-    function addAnchorGrid(dialog, parent) {
-        var column = parent.add("group");
-        column.orientation = "column";
-        column.alignChildren = ["center", "top"];
-        column.spacing = 4;
-        column.add("statictext", undefined, getLabel("label.anchor"));
+    function addAnchorWidget(resizeDialog, parentGroup) {
+        var anchorColumn = parentGroup.add("group");
+        anchorColumn.orientation = "column";
+        anchorColumn.alignChildren = ["center", "top"];
+        anchorColumn.spacing = 4;
+        anchorColumn.add("statictext", undefined, getLabel("fieldLabel.anchor"));
 
-        var widget = column.add("button", undefined, "");
-        widget.helpTip = getLabel("tooltip.anchor");
-        widget.preferredSize = [66, 66];
-        widget.minimumSize = [66, 66];
-        widget.maximumSize = [66, 66];
-        widget.anchorIndex = 0; /* 0..8 行優先（0=左上, 4=中央, 8=右下）/ 0..8 row-major (0=top-left, 4=center, 8=bottom-right) */
-        widget.onDraw = function () { drawAnchorWidget(this); };
-        widget.onClick = function () {}; /* セル判定は mousedown 側 / hit-testing happens in mousedown */
+        var anchorWidget = anchorColumn.add("button", undefined, "");
+        anchorWidget.helpTip = getLabel("tooltip.anchor");
+        anchorWidget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        anchorWidget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        anchorWidget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        anchorWidget.anchorIndex = 0; /* 0..8 行優先（0=左上, 4=中央, 8=右下）/ 0..8 row-major (0=top-left, 4=center, 8=bottom-right) */
+        anchorWidget.onDraw = function () { drawAnchorWidget(this); };
+        anchorWidget.onClick = function () {}; /* セル判定は mousedown 側 / hit-testing happens in mousedown */
 
-        /* 選択索引を割合(0/0.5/1)に変換して dialog に反映 / Map the index to fractions and store on the dialog */
+        /**
+         * 選択索引を割合(0/0.5/1)に変換して resizeDialog に反映する / Map the index to fractions and store on the dialog
+         * @returns {void}
+         */
         function commitAnchor() {
-            dialog.anchorX = (widget.anchorIndex % 3) * 0.5;
-            dialog.anchorY = Math.floor(widget.anchorIndex / 3) * 0.5;
+            resizeDialog.anchorX = (anchorWidget.anchorIndex % 3) * 0.5;
+            resizeDialog.anchorY = Math.floor(anchorWidget.anchorIndex / 3) * 0.5;
         }
         commitAnchor(); /* 既定=左上 / default: top-left */
 
         /* クリックした3×3のセルを基準点に設定（座標はコントロール基準）/ Set the anchor from the clicked 3x3 cell (control-relative coords) */
         try {
-            widget.addEventListener("mousedown", function (event) {
-                var col = Math.floor(event.clientX / (widget.size[0] / 3));
-                var row = Math.floor(event.clientY / (widget.size[1] / 3));
-                if (col < 0) { col = 0; }
-                if (col > 2) { col = 2; }
-                if (row < 0) { row = 0; }
-                if (row > 2) { row = 2; }
-                widget.anchorIndex = row * 3 + col;
+            anchorWidget.addEventListener("mousedown", function (event) {
+                var cellColumn = Math.floor(event.clientX / (anchorWidget.size[0] / 3));
+                var cellRow = Math.floor(event.clientY / (anchorWidget.size[1] / 3));
+                if (cellColumn < 0) { cellColumn = 0; }
+                if (cellColumn > 2) { cellColumn = 2; }
+                if (cellRow < 0) { cellRow = 0; }
+                if (cellRow > 2) { cellRow = 2; }
+                anchorWidget.anchorIndex = cellRow * 3 + cellColumn;
                 commitAnchor();
-                redrawControl(widget);
-                requestPreview(dialog);
+                redrawControl(anchorWidget);
+                requestPreview(resizeDialog);
             });
         } catch (e) {}
     }
 
-    /**
-     * サイズ・スケール統合パネルを構築する / Build the merged size & scale panel
-     * スケール%を一意の倍率とし、幅・高さ（現在の定規単位）はアクティブアートボードの現在サイズ基準で相互連動する。
-     * The scale % is a single uniform ratio; width/height (in the current ruler unit) are linked to the active artboard's current size.
-     * @param {Window} dialog 追加先ダイアログ
-     * @param {string} unitLabel 幅・高さの単位ラベル（例: "mm"）
-     * @param {number} baseWidth 幅の基準値：アクティブアートボードの現在幅を現在の定規単位へ変換済み（ptではない） / active artboard current width, converted to the current ruler unit (not pt)
-     * @param {number} baseHeight 高さの基準値：アクティブアートボードの現在高さを現在の定規単位へ変換済み（ptではない） / active artboard current height, converted to the current ruler unit (not pt)
-     */
-    function addScalePanel(dialog, unitLabel, baseWidth, baseHeight) {
-        var panel = dialog.add("panel", undefined, getLabel("panel.scale"));
-        setupPanel(panel, 6);
-
-        /* 2列レイアウト：左=スケール/幅/高さの3行、右=基準点グリッド / Two columns: left has scale/width/height rows, right holds the anchor grid */
-        var gridRow = panel.add("group");
-        gridRow.orientation = "row";
-        gridRow.alignChildren = ["left", "center"];
-        gridRow.spacing = 16;
-
-        var fieldColumn = gridRow.add("group");
-        fieldColumn.orientation = "column";
-        fieldColumn.alignChildren = ["left", "top"];
-        fieldColumn.spacing = 6;
-        var scaleInput = addSizeField(fieldColumn, labelText("field.scale"), "100", "%", getLabel("tooltip.scale"));
-        var widthInput = addSizeField(fieldColumn, labelText("field.width"), formatNumber(baseWidth), unitLabel, getLabel("tooltip.size"));
-        var heightInput = addSizeField(fieldColumn, labelText("field.height"), formatNumber(baseHeight), unitLabel, getLabel("tooltip.size"));
-
-        /* 基準点グリッド（2列目） / Anchor reference-point grid (second column) */
-        addAnchorGrid(dialog, gridRow);
-
-        /* チェックボックス群（上に10pxの余白） / Checkbox group (10px top margin) */
-        var checkboxGroup = panel.add("group");
-        checkboxGroup.orientation = "column";
-        checkboxGroup.alignChildren = ["left", "top"];
-        checkboxGroup.margins = [0, 10, 0, 0];
-
-        /* オブジェクトも一緒に拡大・縮小するか / Whether to scale the objects along with the artboard */
-        var scaleObjectsCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.scaleObjects"));
-        scaleObjectsCheckbox.helpTip = getLabel("tooltip.scaleObjects");
-        scaleObjectsCheckbox.value = true;
-
-        /* アートボードのX/Y/W/Hを整数化してピクセルグリッドに合わせる / Round artboard X/Y/W/H to integers for the pixel grid */
-        var pixelGridCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.pixelGrid"));
-        pixelGridCheckbox.helpTip = getLabel("tooltip.pixelGrid");
-        pixelGridCheckbox.value = false;
-
-        /* スケール%から幅・高さ(現在サイズ×%)を再計算する / Recalc width/height (current size × %) from the scale */
-        function applyScaleToSize() {
-            var percent = parseFloat(scaleInput.text);
-            if (isNaN(percent)) { return; }
-            widthInput.text = formatNumber(baseWidth * percent / 100);
-            heightInput.text = formatNumber(baseHeight * percent / 100);
-        }
-
-        /**
-         * 編集中の寸法欄からスケール%を逆算し、スケール欄ともう一方の寸法欄だけ更新する
-         * Derive the scale from the edited size field, updating only the scale field and the OTHER size field
-         * （編集中の欄自身は書き換えない＝小数点入力が消える不具合を防ぐ / never rewrite the field being edited, so decimals can be typed）
-         * @param {number} editedValue 編集中の欄の値
-         * @param {number} editedBase 編集中の欄の基準サイズ
-         * @param {EditText} otherField もう一方（連動更新する）寸法欄
-         * @param {number} otherBase もう一方の基準サイズ
-         */
-        function applySizeToScale(editedValue, editedBase, otherField, otherBase) {
-            if (isNaN(editedValue) || editedBase === 0) { return; }
-            var percent = editedValue / editedBase * 100;
-            scaleInput.text = formatNumber(percent);
-            otherField.text = formatNumber(otherBase * percent / 100);
-        }
-
-        /* 直近の有効なスケール%（入力強化の復帰先） / Last valid scale % (fallback for input hardening) */
-        var lastValidScale = 100;
-
-        /* 確定時に3欄をスケール基準へ正規化する（不正値は直近の有効値へ復帰） / On commit, canonicalize all three fields to the scale (invalid → last valid) */
-        function normalizeFields() {
-            var percent = parseFloat(scaleInput.text);
-            if (isNaN(percent) || percent <= 0) {
-                percent = lastValidScale; /* 空・0・負・非数値は直近の有効値へ / empty/0/negative/NaN falls back */
-            } else {
-                lastValidScale = percent;
-            }
-            scaleInput.text = formatNumber(percent);
-            widthInput.text = formatNumber(baseWidth * percent / 100);
-            heightInput.text = formatNumber(baseHeight * percent / 100);
-            requestPreview(dialog);
-        }
-
-        scaleInput.onChanging = function () {
-            applyScaleToSize();
-            requestPreview(dialog);
-        };
-        widthInput.onChanging = function () {
-            applySizeToScale(parseFloat(widthInput.text), baseWidth, heightInput, baseHeight);
-            requestPreview(dialog);
-        };
-        heightInput.onChanging = function () {
-            applySizeToScale(parseFloat(heightInput.text), baseHeight, widthInput, baseWidth);
-            requestPreview(dialog);
-        };
-        /* 確定（Enter/フォーカスアウト）で正規化 / Normalize on commit (Enter / focus-out) */
-        scaleInput.onChange = normalizeFields;
-        widthInput.onChange = normalizeFields;
-        heightInput.onChange = normalizeFields;
-        scaleObjectsCheckbox.onClick = function () {
-            requestPreview(dialog);
-        };
-        pixelGridCheckbox.onClick = function () {
-            requestPreview(dialog);
-        };
-
-        dialog.scaleInput = scaleInput;
-        dialog.widthInput = widthInput;
-        dialog.heightInput = heightInput;
-        dialog.scaleObjectsCheckbox = scaleObjectsCheckbox;
-        dialog.pixelGridCheckbox = pixelGridCheckbox;
-    }
-
-    /**
-     * サイズ入力ダイアログを構築する / Build the size-input dialog
-     * @param {string} unitLabel 表示する単位ラベル（例: "mm"）
-     * @param {string} defaultWidth 幅入力欄の初期値
-     * @param {string} defaultHeight 高さ入力欄の初期値
-     * @param {number} artboardCount アートボード総数（選択の初期値に使用）
-     * @returns {Window} ダイアログウィンドウ（各入力コントロールを公開）
-     */
-    function createResizeDialog(unitLabel, defaultWidth, defaultHeight, artboardCount) {
-        /* 基準点ウィジェットの配色をUI明暗に合わせる / Match the anchor widget colors to the light/dark UI */
-        initAnchorColors();
-
-        /* タイトルバーにバージョンを表示 / Show version in the title bar */
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
-
-        /* 対象パネル / Target panel */
-        addTargetPanel(dialog, "1-" + artboardCount);
-
-        /* サイズ・スケール統合パネル（アクティブアートボードの現在サイズを基準に） / Merged size & scale panel (based on the active artboard's current size) */
-        addScalePanel(dialog, unitLabel, parseFloat(defaultWidth), parseFloat(defaultHeight));
-
-        /* 数値入力欄に↑↓キーでの増減を付与 / Enable arrow-key value change on the numeric fields */
-        changeValueByArrowKey(dialog.scaleInput);
-        changeValueByArrowKey(dialog.widthInput);
-        changeValueByArrowKey(dialog.heightInput);
-
-        /* ボタン類はパネル幅いっぱいには広げず右寄せ / Keep buttons right-aligned, not full width */
-        var btnGroup = dialog.add("group");
-        btnGroup.orientation = "row";
-        btnGroup.alignment = "right";
-        btnGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
-        btnGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
-
-        return dialog;
-    }
-
     // =========================================
-    // メイン処理 / Main
+    // オブジェクトの拡縮 / Object scaling
     // =========================================
 
-    /* プレビュー更新を要求する（コントローラ未接続なら何もしない） / Request a preview refresh (no-op until wired) */
-    function requestPreview(dialog) {
-        if (dialog.onPreview) { dialog.onPreview(); }
-    }
-
-    /* 1アイテムを基準点基準に逆拡縮して元へ戻す（rollback用） / Inverse-scale one item about the anchor to undo it (for rollback) */
-    function inverseResizeItem(item, ratioX, ratioY, anchorX, anchorY, originalPosition) {
+    /**
+     * 1アイテムを逆拡縮して元の位置へ戻す（rollback用） / Inverse-scale one item and put it back (for rollback)
+     * @param {PageItem} pageItem - 戻すアイテム
+     * @param {number} ratioX - 掛けた横の倍率
+     * @param {number} ratioY - 掛けた縦の倍率
+     * @param {number[]} originalPosition - 元の position [左, 上]
+     * @returns {void}
+     */
+    function inverseResizeItem(pageItem, ratioX, ratioY, originalPosition) {
         try {
             var inverseX = (1 / ratioX) * 100;
             var inverseY = (1 / ratioY) * 100;
             /* 第7引数(changeLineWidths)は線幅拡縮のパーセント値を渡す（参考実装準拠） / 7th arg is the line-width scale percentage (per the reference) */
-            item.resize(inverseX, inverseY, true, true, true, true, inverseX, Transformation.TOPLEFT);
-            item.position = [originalPosition[0], originalPosition[1]];
+            pageItem.resize(inverseX, inverseY, true, true, true, true, inverseX, Transformation.TOPLEFT);
+            pageItem.position = [originalPosition[0], originalPosition[1]];
         } catch (e) {}
     }
 
@@ -706,33 +823,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * [For commit] Scale items about the anchor once (also scales line width); on mid-way failure, fully reverts its own items
      * artboardsResizeWithObjects.jsx(Alexander Ladygin) を参考にした resize()+position 方式。
      * resize() でサイズ・線幅を拡縮（アイテム左上基準）し、position で基準点からのオフセットを拡縮して再配置する。
-     * オブジェクトごとに { item, originalPosition, resized } を記録し、失敗時はこの呼び出しで変形済みの分を確実に戻す。
-     * @returns {object} { success:boolean, transformedItems:array[, error:Error] }
+     * オブジェクトごとに { pageItem, originalPosition, resized } を記録し、失敗時はこの呼び出しで変形済みの分を確実に戻す。
+     * @param {PageItem[]} targetItems - 拡縮するアイテム
+     * @param {number} ratioX - 横の倍率
+     * @param {number} ratioY - 縦の倍率
+     * @param {number} anchorX - 基準点のX
+     * @param {number} anchorY - 基準点のY
+     * @returns {object} { success:boolean, transformedItems:PageItem[][, error:Error] }
      */
-    function resizeItemsAbout(items, ratioX, ratioY, anchorX, anchorY) {
+    function resizeItemsAbout(targetItems, ratioX, ratioY, anchorX, anchorY) {
         var transformedItems = [];
-        if (!items || !items.length) { return { success: true, transformedItems: transformedItems }; }
-        var states = []; /* {item, originalPosition, resized} 途中失敗時の復元用 / for rollback on failure */
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var originalPosition = item.position; // [左, 上]（ドキュメント座標） / [left, top] in document coordinates
-            var state = { item: item, originalPosition: [originalPosition[0], originalPosition[1]], resized: false };
-            states.push(state);
+        if (!targetItems || !targetItems.length) { return { success: true, transformedItems: transformedItems }; }
+        var resizeStates = []; /* {pageItem, originalPosition, resized} 途中失敗時の復元用 / for rollback on failure */
+        for (var i = 0; i < targetItems.length; i++) {
+            var pageItem = targetItems[i];
+            var originalPosition = pageItem.position; // [左, 上]（ドキュメント座標） / [left, top] in document coordinates
+            var resizeState = { pageItem: pageItem, originalPosition: [originalPosition[0], originalPosition[1]], resized: false };
+            resizeStates.push(resizeState);
             try {
                 /* サイズ・線幅を拡縮（アイテム左上基準）。第7引数=線幅拡縮のパーセント値（参考実装準拠） / Scale size & line width about the item's top-left; 7th arg = line-width scale percentage (per the reference) */
-                item.resize(ratioX * 100, ratioY * 100, true, true, true, true, ratioX * 100, Transformation.TOPLEFT);
-                state.resized = true; /* resize成功。以降のpositionで失敗しても逆resizeで戻せる / resize done; still recoverable if position fails */
+                pageItem.resize(ratioX * 100, ratioY * 100, true, true, true, true, ratioX * 100, Transformation.TOPLEFT);
+                resizeState.resized = true; /* resize成功。以降のpositionで失敗しても逆resizeで戻せる / resize done; still recoverable if position fails */
                 /* 基準点からのオフセットを拡縮して再配置 / Reposition by scaling the offset from the anchor point */
-                item.position = [
+                pageItem.position = [
                     anchorX + (originalPosition[0] - anchorX) * ratioX,
                     anchorY + (originalPosition[1] - anchorY) * ratioY
                 ];
-                transformedItems.push(item);
+                transformedItems.push(pageItem);
             } catch (e) {
                 /* 途中失敗：この呼び出しで resize 済み（position前後どちらも）を確実に復元 / mid-way failure: revert every item resized in this call */
-                for (var r = states.length - 1; r >= 0; r--) {
-                    if (states[r].resized) {
-                        inverseResizeItem(states[r].item, ratioX, ratioY, anchorX, anchorY, states[r].originalPosition);
+                for (var j = resizeStates.length - 1; j >= 0; j--) {
+                    if (resizeStates[j].resized) {
+                        inverseResizeItem(resizeStates[j].pageItem, ratioX, ratioY, resizeStates[j].originalPosition);
                     }
                 }
                 return { success: false, transformedItems: [], error: e };
@@ -741,59 +863,81 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { success: true, transformedItems: transformedItems };
     }
 
+    // =========================================
+    // オブジェクトの所属 / Object ownership
+    // =========================================
+
     /**
      * 指定アートボード上の編集可能オブジェクトを安全に取得する（selection/active が途中例外でも壊れない）
      * Safely collect editable objects on the given artboard (selection/active stay consistent even if an exception occurs)
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} artboardIndex - アートボードの索引
+     * @returns {PageItem[]} アートボード上のオブジェクト
      */
-    function getObjectsOnArtboard(doc, index) {
-        var items = [];
+    function getObjectsOnArtboard(doc, artboardIndex) {
+        var artboardItems = [];
         try {
             doc.selection = null;
-            doc.artboards.setActiveArtboardIndex(index);
+            doc.artboards.setActiveArtboardIndex(artboardIndex);
             doc.selectObjectsOnActiveArtboard();
-            var selection = doc.selection;
+            var currentSelection = doc.selection;
             /* selection が null/未定義相当や配列でない場合も安全に扱う / Handle null / non-array selection safely */
-            if (selection && typeof selection.length === "number") {
-                for (var i = 0; i < selection.length; i++) { items.push(selection[i]); }
+            if (currentSelection && typeof currentSelection.length === "number") {
+                for (var i = 0; i < currentSelection.length; i++) { artboardItems.push(currentSelection[i]); }
             }
         } finally {
             /* 例外の有無に関わらず選択を解除する / clear the selection whether or not an exception occurred */
             try { doc.selection = null; } catch (e) {}
         }
-        return items;
+        return artboardItems;
     }
 
-    /* オブジェクトの一意識別子を返す（uuid優先、無ければ null） / Return an object's unique id (prefer uuid; null if unavailable) */
-    function getItemUuid(item) {
+    /**
+     * オブジェクトの一意識別子を返す（uuid優先、無ければ null） / Return an object's unique id (prefer uuid; null if unavailable)
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @returns {string|null} uuid
+     */
+    function getItemUuid(pageItem) {
         try {
-            if (item.uuid) { return item.uuid; }
+            if (pageItem.uuid) { return pageItem.uuid; }
         } catch (e) {}
         return null;
     }
 
-    /* 点(x,y)がアートボード矩形[左,上,右,下]の内側か / Whether point (x,y) is inside the artboard rect [L,T,R,B] */
-    function rectContainsPoint(rect, x, y) {
-        return x >= rect[0] && x <= rect[2] && y <= rect[1] && y >= rect[3];
+    /**
+     * 点(x,y)がアートボード矩形[左,上,右,下]の内側か / Whether point (x,y) is inside the artboard rect [L,T,R,B]
+     * @param {number[]} artboardRect - アートボードの矩形
+     * @param {number} x - 点のX
+     * @param {number} y - 点のY
+     * @returns {boolean} 内側なら true
+     */
+    function rectContainsPoint(artboardRect, x, y) {
+        return x >= artboardRect[0] && x <= artboardRect[2] && y <= artboardRect[1] && y >= artboardRect[3];
     }
 
-    /* オブジェクト境界[左,上,右,下]とアートボード矩形の重なり面積 / Overlap area between object bounds [L,T,R,B] and an artboard rect */
-    function overlapArea(bounds, rect) {
-        var overlapWidth = Math.min(bounds[2], rect[2]) - Math.max(bounds[0], rect[0]);
-        var overlapHeight = Math.min(bounds[1], rect[1]) - Math.max(bounds[3], rect[3]);
+    /**
+     * オブジェクト境界[左,上,右,下]とアートボード矩形の重なり面積 / Overlap area between object bounds [L,T,R,B] and an artboard rect
+     * @param {number[]} itemBounds - オブジェクトの境界
+     * @param {number[]} artboardRect - アートボードの矩形
+     * @returns {number} 重なり面積（重ならなければ 0）
+     */
+    function overlapArea(itemBounds, artboardRect) {
+        var overlapWidth = Math.min(itemBounds[2], artboardRect[2]) - Math.max(itemBounds[0], artboardRect[0]);
+        var overlapHeight = Math.min(itemBounds[1], artboardRect[1]) - Math.max(itemBounds[3], artboardRect[3]);
         return (overlapWidth > 0 && overlapHeight > 0) ? overlapWidth * overlapHeight : 0;
     }
 
     /**
      * オブジェクトの所属アートボードを決める（中心点包含→重なり最大→番号が小さい方）
      * Decide which artboard owns an object (center containment → max overlap → smallest index)
-     * @param {array} bounds オブジェクト境界 [左,上,右,下]
-     * @param {array} sortedTargets 昇順の対象アートボード索引
-     * @param {object} rectByIndex index→矩形
+     * @param {number[]} itemBounds - オブジェクト境界 [左,上,右,下]
+     * @param {number[]} sortedTargets - 昇順の対象アートボード索引
+     * @param {object} rectByIndex - index→矩形
      * @returns {number} 所属アートボード索引（どこにも重ならなければ -1）
      */
-    function pickOwnerArtboard(bounds, sortedTargets, rectByIndex) {
-        var centerX = (bounds[0] + bounds[2]) / 2;
-        var centerY = (bounds[1] + bounds[3]) / 2;
+    function pickOwnerArtboard(itemBounds, sortedTargets, rectByIndex) {
+        var centerX = (itemBounds[0] + itemBounds[2]) / 2;
+        var centerY = (itemBounds[1] + itemBounds[3]) / 2;
         /* 1. 中心点が含まれるアートボード（昇順で最初） / center-point containment (first in ascending order) */
         for (var i = 0; i < sortedTargets.length; i++) {
             if (rectContainsPoint(rectByIndex[sortedTargets[i]], centerX, centerY)) { return sortedTargets[i]; }
@@ -802,7 +946,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var bestIndex = -1;
         var bestArea = 0;
         for (var j = 0; j < sortedTargets.length; j++) {
-            var area = overlapArea(bounds, rectByIndex[sortedTargets[j]]);
+            var area = overlapArea(itemBounds, rectByIndex[sortedTargets[j]]);
             if (area > bestArea) { bestArea = area; bestIndex = sortedTargets[j]; }
         }
         return bestArea > 0 ? bestIndex : -1;
@@ -811,39 +955,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 対象アートボード群から、重複を排除して所属先ごとにオブジェクトをまとめる
      * Collect objects across target artboards, deduped and grouped by owning artboard
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]} sortedTargets - 昇順の対象アートボード索引
+     * @param {object} rectByIndex - index→元の矩形
      * @returns {object} index→[所属オブジェクト] / index → owned items
      */
     function collectOwnedObjectsByArtboard(doc, sortedTargets, rectByIndex) {
-        var owners = {};
-        for (var t = 0; t < sortedTargets.length; t++) { owners[sortedTargets[t]] = []; }
+        var ownedItemsByIndex = {};
+        for (var i = 0; i < sortedTargets.length; i++) { ownedItemsByIndex[sortedTargets[i]] = []; }
 
         /* 重複判定はオブジェクト参照で行う（uuid優先、無ければ === 比較） / Dedupe by object identity (uuid first; === fallback) */
         var seenUuids = {};
         var seenItems = [];
-        function alreadySeen(item) {
-            var uuid = getItemUuid(item);
+
+        /**
+         * 既に処理したオブジェクトか判定し、未処理なら記録する
+         * @param {PageItem} pageItem - 対象のオブジェクト
+         * @returns {boolean} 既に処理済みなら true
+         */
+        function alreadySeen(pageItem) {
+            var uuid = getItemUuid(pageItem);
             if (uuid !== null) {
                 if (seenUuids[uuid]) { return true; }
                 seenUuids[uuid] = true;
                 return false;
             }
             for (var k = 0; k < seenItems.length; k++) {
-                if (seenItems[k] === item) { return true; } /* 同一参照なら重複 / same reference = duplicate */
+                if (seenItems[k] === pageItem) { return true; } /* 同一参照なら重複 / same reference = duplicate */
             }
-            seenItems.push(item);
+            seenItems.push(pageItem);
             return false;
         }
 
-        for (var s = 0; s < sortedTargets.length; s++) {
-            var items = getObjectsOnArtboard(doc, sortedTargets[s]);
-            for (var i = 0; i < items.length; i++) {
-                if (alreadySeen(items[i])) { continue; }
-                var owner = pickOwnerArtboard(items[i].geometricBounds, sortedTargets, rectByIndex);
-                if (owner !== -1) { owners[owner].push(items[i]); }
+        for (var j = 0; j < sortedTargets.length; j++) {
+            var artboardItems = getObjectsOnArtboard(doc, sortedTargets[j]);
+            for (var k = 0; k < artboardItems.length; k++) {
+                if (alreadySeen(artboardItems[k])) { continue; }
+                var ownerIndex = pickOwnerArtboard(artboardItems[k].geometricBounds, sortedTargets, rectByIndex);
+                if (ownerIndex !== -1) { ownedItemsByIndex[ownerIndex].push(artboardItems[k]); }
             }
         }
-        return owners;
+        return ownedItemsByIndex;
     }
+
+    // =========================================
+    // 設定の読み取りと寸法計算 / Settings & geometry
+    // =========================================
 
     /**
      * 基準点を固定したまま新しいアートボード矩形を算出する（ピクセルグリッド時は幅高さと基準点を整数化）
@@ -857,20 +1014,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      *
      * effectiveRatioX/Y は整数化後の実効倍率（オブジェクト変形はこれを使い、アートボードと一致させる）。
      * effectiveRatioX/Y are the post-rounding effective ratios; object scaling uses them so objects match the artboard.
+     * @param {number[]} originalRect - 元のアートボード矩形 [左,上,右,下]
+     * @param {object} scaleSettings - readScaleSettings() の戻り値
      * @returns {object} { rect:[左,上,右,下], pivotX, pivotY, effectiveRatioX, effectiveRatioY }
      */
-    function computeNewGeometry(rect, settings) {
-        var width = rect[2] - rect[0];
-        var height = rect[1] - rect[3];
+    function computeNewGeometry(originalRect, scaleSettings) {
+        var width = originalRect[2] - originalRect[0];
+        var height = originalRect[1] - originalRect[3];
         /* 1. 元の矩形から基準点（固定される点）を計算 / pivot (fixed point) from the original rect */
-        var pivotX = rect[0] + settings.anchorFx * width;
-        var pivotY = rect[1] - settings.anchorFy * height;
+        var pivotX = originalRect[0] + scaleSettings.anchorFx * width;
+        var pivotY = originalRect[1] - scaleSettings.anchorFy * height;
 
         /* 2. 新しい幅・高さ / new width & height */
-        var newWidth = width * settings.ratioX;
-        var newHeight = height * settings.ratioY;
+        var newWidth = width * scaleSettings.ratioX;
+        var newHeight = height * scaleSettings.ratioY;
 
-        if (settings.pixelGrid) {
+        if (scaleSettings.pixelGrid) {
             /* 3. 幅・高さを整数化（0以下防止） / integerize size (prevent <= 0) */
             newWidth = Math.round(newWidth);
             newHeight = Math.round(newHeight);
@@ -882,8 +1041,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 5. 基準点を固定して矩形を再計算（Y座標は下方向がマイナス） / rebuild the rect keeping the pivot fixed (Y grows downward negative) */
-        var newLeft = pivotX - settings.anchorFx * newWidth;
-        var newTop = pivotY + settings.anchorFy * newHeight;
+        var newLeft = pivotX - scaleSettings.anchorFx * newWidth;
+        var newTop = pivotY + scaleSettings.anchorFy * newHeight;
         return {
             rect: [newLeft, newTop, newLeft + newWidth, newTop - newHeight],
             pivotX: pivotX,
@@ -894,68 +1053,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
     }
 
-    /* ダイアログの対象指定から処理するアートボード索引配列を得る（不正は null） / Resolve target artboard indices (null if invalid) */
-    function resolveTargetIndices(dialog, count) {
-        if (dialog.currentRadio.value) {
+    /**
+     * ダイアログの対象指定から処理するアートボード索引配列を得る / Resolve target artboard indices
+     * @param {Window} resizeDialog - 設定を読むダイアログ
+     * @param {number} artboardCount - アートボード総数
+     * @returns {number[]|null} 索引配列（不正は null）
+     */
+    function resolveTargetIndices(resizeDialog, artboardCount) {
+        if (resizeDialog.currentRadio.value) {
             /* 現在（起動時）のアクティブアートボードのみ / only the active artboard at launch */
-            return [dialog.currentArtboardIndex];
+            return [resizeDialog.currentArtboardIndex];
         }
-        if (dialog.allRadio.value) {
-            var all = [];
-            for (var i = 0; i < count; i++) { all.push(i); }
-            return all;
+        if (resizeDialog.allRadio.value) {
+            var allIndices = [];
+            for (var i = 0; i < artboardCount; i++) { allIndices.push(i); }
+            return allIndices;
         }
-        return parseArtboardSelection(dialog.selectInput.text, count);
-    }
-
-    /* ダイアログの現在値を読み取る（不正なら null） / Read the current dialog settings (null if invalid) */
-    function readSettings(dialog, count) {
-        var indices = resolveTargetIndices(dialog, count);
-        if (!indices) { return null; }
-        var scale = parseFloat(dialog.scaleInput.text);
-        if (isNaN(scale) || scale <= 0) { return null; }
-        var ratio = scale / 100; /* スケールは一意（縦横同率） / Uniform scale (same ratio for both axes) */
-        return {
-            indices: indices,
-            ratioX: ratio,
-            ratioY: ratio,
-            anchorFx: dialog.anchorX, /* 0=左,0.5=中央,1=右 / 0=left,0.5=center,1=right */
-            anchorFy: dialog.anchorY, /* 0=上,0.5=中央,1=下 / 0=top,0.5=center,1=bottom */
-            scaleObjects: dialog.scaleObjectsCheckbox.value,
-            pixelGrid: dialog.pixelGridCheckbox.value
-        };
+        return parseArtboardSelection(resizeDialog.selectInput.text, artboardCount);
     }
 
     /**
-     * コントローラを生成する / Create the controller
+     * ダイアログの現在値を読み取る / Read the current dialog settings
+     * @param {Window} resizeDialog - 設定を読むダイアログ
+     * @param {number} artboardCount - アートボード総数
+     * @returns {object|null} indices / ratioX / ratioY / anchorFx / anchorFy / scaleObjects / pixelGrid（不正なら null）
+     */
+    function readScaleSettings(resizeDialog, artboardCount) {
+        var targetIndices = resolveTargetIndices(resizeDialog, artboardCount);
+        if (!targetIndices) { return null; }
+        var scalePercent = parseFloat(resizeDialog.scaleInput.text);
+        if (isNaN(scalePercent) || scalePercent <= 0) { return null; }
+        var scaleRatio = scalePercent / 100; /* スケールは一意（縦横同率） / Uniform scale (same ratio for both axes) */
+        return {
+            indices: targetIndices,
+            ratioX: scaleRatio,
+            ratioY: scaleRatio,
+            anchorFx: resizeDialog.anchorX, /* 0=左,0.5=中央,1=右 / 0=left,0.5=center,1=right */
+            anchorFy: resizeDialog.anchorY, /* 0=上,0.5=中央,1=下 / 0=top,0.5=center,1=bottom */
+            scaleObjects: resizeDialog.scaleObjectsCheckbox.value,
+            pixelGrid: resizeDialog.pixelGridCheckbox.value
+        };
+    }
+
+    // =========================================
+    // プレビューと確定 / Preview & commit
+    // =========================================
+
+    /**
+     * プレビューと確定を行うコントローラを生成する / Create the preview & commit controller
      * プレビューはアートボード矩形のみを更新（完全可逆・線幅に無関係）。オブジェクトはOK確定時に一度だけ resize() する。
      * The live preview updates artboard rectangles only (fully reversible, unrelated to line width);
      * objects are scaled once with resize() at commit. Initial state is the baseline for restore/re-apply to limit drift.
      * オブジェクトは複数アートボードにまたがっても所属ルールで一意化し1回だけ変形する。
-     * @param {Document} doc 対象ドキュメント
-     * @param {Window} dialog 設定を読むダイアログ
-     * @param {number} count アートボード総数
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Window} resizeDialog - 設定を読むダイアログ
+     * @param {number} artboardCount - アートボード総数
      * @returns {object} { update, commit, restore, restoreSelectionAndActive, hasError }
      */
-    function createController(doc, dialog, count) {
+    function createPreviewController(doc, resizeDialog, artboardCount) {
         /* 初期状態を保存（キャンセル・確定時に復元） / Save initial state (restored on cancel/commit) */
         var originalActiveIndex = doc.artboards.getActiveArtboardIndex();
         var originalSelection = [];
         var initialSelection = doc.selection;
         if (initialSelection && typeof initialSelection.length === "number") {
-            for (var s = 0; s < initialSelection.length; s++) { originalSelection.push(initialSelection[s]); }
+            for (var i = 0; i < initialSelection.length; i++) { originalSelection.push(initialSelection[i]); }
         }
 
         var capturedRects = {};  /* index -> [元rect] / index -> original rect */
         var lastError = null;    /* 直近のエラー / last error */
 
-        /* アートボードの元rectを一度だけ保存する / Capture an artboard's original rect once */
-        function captureRect(index) {
-            if (!capturedRects[index]) {
-                var rect = doc.artboards[index].artboardRect;
-                capturedRects[index] = [rect[0], rect[1], rect[2], rect[3]];
+        /**
+         * アートボードの元rectを一度だけ保存する / Capture an artboard's original rect once
+         * @param {number} artboardIndex - アートボードの索引
+         * @returns {number[]} 元の矩形
+         */
+        function captureRect(artboardIndex) {
+            if (!capturedRects[artboardIndex]) {
+                var artboardRect = doc.artboards[artboardIndex].artboardRect;
+                capturedRects[artboardIndex] = [artboardRect[0], artboardRect[1], artboardRect[2], artboardRect[3]];
             }
-            return capturedRects[index];
+            return capturedRects[artboardIndex];
         }
 
         /**
@@ -975,7 +1152,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        /* 元の選択状態とアクティブアートボードを可能な範囲で復元する / Restore the original selection and active artboard as far as possible */
+        /**
+         * 元の選択状態とアクティブアートボードを可能な範囲で復元する / Restore the original selection and active artboard as far as possible
+         * @returns {void}
+         */
         function restoreSelectionAndActive() {
             try { doc.selection = null; } catch (e0) {}
             for (var i = 0; i < originalSelection.length; i++) {
@@ -985,27 +1165,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { doc.artboards.setActiveArtboardIndex(originalActiveIndex); } catch (e2) {}
         }
 
-        /* 昇順の対象索引配列を返す（所属ルールのタイブレーク用） / Return target indices sorted ascending (for ownership tie-breaks) */
-        function sortedTargetsOf(settings) {
-            var sorted = settings.indices.concat();
-            sorted.sort(function (a, b) { return a - b; });
-            return sorted;
+        /**
+         * 昇順の対象索引配列を返す（所属ルールのタイブレーク用） / Return target indices sorted ascending (for ownership tie-breaks)
+         * @param {object} scaleSettings - readScaleSettings() の戻り値
+         * @returns {number[]} 昇順の索引
+         */
+        function sortedTargetsOf(scaleSettings) {
+            var sortedIndices = scaleSettings.indices.concat();
+            sortedIndices.sort(function (indexA, indexB) { return indexA - indexB; });
+            return sortedIndices;
         }
 
-        /* プレビュー：対象アートボードの矩形だけを更新する（オブジェクトは触らない） / Preview: update only the target artboard rectangles (objects untouched) */
+        /**
+         * プレビュー：対象アートボードの矩形だけを更新する（オブジェクトは触らない） / Preview: update only the target artboard rectangles (objects untouched)
+         * @returns {void}
+         */
         function update() {
             lastError = null;
             try {
                 restore(); /* まず矩形を初期状態へ / reset rects to the initial state first */
 
-                var settings = readSettings(dialog, count);
-                if (!settings) { app.redraw(); return; } /* 不正入力中は何も適用しない / apply nothing while input is invalid */
+                var scaleSettings = readScaleSettings(resizeDialog, artboardCount);
+                if (!scaleSettings) { app.redraw(); return; } /* 不正入力中は何も適用しない / apply nothing while input is invalid */
 
-                var sortedTargets = sortedTargetsOf(settings);
-                for (var t = 0; t < sortedTargets.length; t++) {
-                    var index = sortedTargets[t];
-                    captureRect(index);
-                    doc.artboards[index].artboardRect = computeNewGeometry(capturedRects[index], settings).rect;
+                var sortedTargets = sortedTargetsOf(scaleSettings);
+                for (var i = 0; i < sortedTargets.length; i++) {
+                    var artboardIndex = sortedTargets[i];
+                    captureRect(artboardIndex);
+                    doc.artboards[artboardIndex].artboardRect = computeNewGeometry(capturedRects[artboardIndex], scaleSettings).rect;
                 }
             } catch (e) {
                 lastError = e;
@@ -1017,6 +1204,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /**
          * 確定：矩形を初期状態へ戻し、初期状態から一度だけ「矩形＋オブジェクト」を適用する（線幅も正しく拡縮・累積誤差なし）
          * Commit: reset rects, then apply "rects + objects" once from the initial state (correct line width, no drift)
+         * @returns {void}
          */
         function commit() {
             lastError = null;
@@ -1026,31 +1214,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 restore(); /* プレビューの矩形変更を初期状態へ戻す / reset the preview rects to the initial state */
 
-                var settings = readSettings(dialog, count);
-                if (!settings) { app.redraw(); return; }
+                var scaleSettings = readScaleSettings(resizeDialog, artboardCount);
+                if (!scaleSettings) { app.redraw(); return; }
 
-                var sortedTargets = sortedTargetsOf(settings);
-                var t;
-                for (t = 0; t < sortedTargets.length; t++) { captureRect(sortedTargets[t]); }
-                var ownedObjects = settings.scaleObjects
+                var sortedTargets = sortedTargetsOf(scaleSettings);
+                var i;
+                for (i = 0; i < sortedTargets.length; i++) { captureRect(sortedTargets[i]); }
+                var ownedObjects = scaleSettings.scaleObjects
                     ? collectOwnedObjectsByArtboard(doc, sortedTargets, capturedRects)
                     : {};
 
-                var committed = []; /* 失敗時のベストエフォート巻き戻し用 / for best-effort rollback on failure */
-                for (t = 0; t < sortedTargets.length; t++) {
-                    var index = sortedTargets[t];
-                    var geometry = computeNewGeometry(capturedRects[index], settings);
+                var committedResizes = []; /* 失敗時のベストエフォート巻き戻し用 / for best-effort rollback on failure */
+                for (i = 0; i < sortedTargets.length; i++) {
+                    var artboardIndex = sortedTargets[i];
+                    var geometry = computeNewGeometry(capturedRects[artboardIndex], scaleSettings);
 
                     /* オブジェクトはアートボードと同じ基準点・実効倍率（整数化後）で拡縮 / Objects use the artboard's pivot and post-rounding effective ratio */
-                    if (settings.scaleObjects) {
-                        var owned = ownedObjects[index] || [];
-                        var result = resizeItemsAbout(owned, geometry.effectiveRatioX, geometry.effectiveRatioY, geometry.pivotX, geometry.pivotY);
-                        committed.push({ items: result.transformedItems, ratioX: geometry.effectiveRatioX, ratioY: geometry.effectiveRatioY, pivotX: geometry.pivotX, pivotY: geometry.pivotY });
-                        if (!result.success) {
+                    if (scaleSettings.scaleObjects) {
+                        var ownedItems = ownedObjects[artboardIndex] || [];
+                        var resizeResult = resizeItemsAbout(ownedItems, geometry.effectiveRatioX, geometry.effectiveRatioY, geometry.pivotX, geometry.pivotY);
+                        committedResizes.push({ items: resizeResult.transformedItems, ratioX: geometry.effectiveRatioX, ratioY: geometry.effectiveRatioY, pivotX: geometry.pivotX, pivotY: geometry.pivotY });
+                        if (!resizeResult.success) {
                             /* 途中失敗：確定済みを逆拡縮し、矩形を戻して中止 / mid-way failure: inverse-resize committed items, reset rects, and stop */
-                            lastError = result.error;
-                            for (var c = committed.length - 1; c >= 0; c--) {
-                                resizeItemsAbout(committed[c].items, 1 / committed[c].ratioX, 1 / committed[c].ratioY, committed[c].pivotX, committed[c].pivotY);
+                            lastError = resizeResult.error;
+                            for (var j = committedResizes.length - 1; j >= 0; j--) {
+                                resizeItemsAbout(committedResizes[j].items, 1 / committedResizes[j].ratioX, 1 / committedResizes[j].ratioY, committedResizes[j].pivotX, committedResizes[j].pivotY);
                             }
                             restore();
                             app.redraw();
@@ -1058,7 +1246,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         }
                     }
 
-                    doc.artboards[index].artboardRect = geometry.rect;
+                    doc.artboards[artboardIndex].artboardRect = geometry.rect;
                 }
             } catch (e) {
                 lastError = e;
@@ -1079,7 +1267,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
     }
 
-    /* エントリポイント：ダイアログを出し、アートボードサイズをプレビューしつつ確定でオブジェクトも拡縮する / Entry point: show dialog, preview artboard size, scale objects on commit */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * キャンセル・失敗時の後始末：矩形と選択・アクティブアートボードを戻して再描画する
+     * @param {object} previewController - createPreviewController() の戻り値
+     * @returns {object} 矩形の復元結果 { success:boolean[, error:Error] }
+     */
+    function revertAll(previewController) {
+        var restoreResult = previewController.restore();
+        previewController.restoreSelectionAndActive();
+        app.redraw();
+        return restoreResult;
+    }
+
+    /**
+     * エントリポイント：ダイアログを出し、アートボードサイズをプレビューしつつ確定でオブジェクトも拡縮する
+     * Entry point: show dialog, preview artboard size, scale objects on commit
+     * @returns {void}
+     */
     function resizeArtboards() {
         if (app.documents.length === 0) {
             alert(getLabel("alert.noDocument"));
@@ -1087,59 +1295,50 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var doc = app.activeDocument;
-        var unit = getUnitInfo();
-        var count = doc.artboards.length;
+        var rulerUnit = getUnitInfo();
+        var artboardCount = doc.artboards.length;
 
         /* アクティブアートボードの現在サイズを初期値にする / Use the active artboard's current size as defaults */
         var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        var defaultWidth = formatNumber((activeRect[2] - activeRect[0]) / unit.pointsPerUnit);
-        var defaultHeight = formatNumber((activeRect[1] - activeRect[3]) / unit.pointsPerUnit);
+        var defaultWidth = formatNumber((activeRect[2] - activeRect[0]) / rulerUnit.pointsPerUnit);
+        var defaultHeight = formatNumber((activeRect[1] - activeRect[3]) / rulerUnit.pointsPerUnit);
 
-        var dialog = createResizeDialog(unit.label, defaultWidth, defaultHeight, count);
+        var resizeDialog = createResizeDialog(rulerUnit.label, defaultWidth, defaultHeight, artboardCount);
         /* 「現在のアートボード」対象用に起動時のアクティブ索引を保持 / Remember the launch-time active index for the "Current artboard" target */
-        dialog.currentArtboardIndex = doc.artboards.getActiveArtboardIndex();
+        resizeDialog.currentArtboardIndex = doc.artboards.getActiveArtboardIndex();
 
         /* プレビュー配線（矩形のみ）＋表示時にスケール欄へフォーカス / Wire up the preview (rects only) and focus the scale field on show */
-        var controller = createController(doc, dialog, count);
-        dialog.onPreview = controller.update;
-        dialog.onShow = function () {
-            controller.update();
-            dialog.scaleInput.active = true;
+        var previewController = createPreviewController(doc, resizeDialog, artboardCount);
+        resizeDialog.onPreview = previewController.update;
+        resizeDialog.onShow = function () {
+            previewController.update();
+            resizeDialog.scaleInput.active = true;
         };
 
-        var result = dialog.show();
-
-        if (result !== 1) {
+        if (resizeDialog.show() !== 1) {
             /* キャンセル：矩形を復元（失敗は通知）し、選択・アクティブアートボードを戻す / Cancel: restore rects (notify on failure), restore selection & active artboard */
-            var cancelRestore = controller.restore();
-            controller.restoreSelectionAndActive();
-            app.redraw();
-            if (!cancelRestore.success) { alert(getLabel("alert.restoreError")); }
+            if (!revertAll(previewController).success) { alert(getLabel("alert.restoreError")); }
             return;
         }
 
         /* OK：不正値は矩形を戻してエラー表示 / OK: revert rects and report on invalid input */
-        if (!readSettings(dialog, count)) {
-            controller.restore();
-            controller.restoreSelectionAndActive();
-            app.redraw();
-            alert(resolveTargetIndices(dialog, count) ? getLabel("alert.invalidNumber") : getLabel("alert.invalidSelection"));
+        if (!readScaleSettings(resizeDialog, artboardCount)) {
+            revertAll(previewController);
+            alert(resolveTargetIndices(resizeDialog, artboardCount) ? getLabel("alert.invalidNumber") : getLabel("alert.invalidSelection"));
             return;
         }
 
         /* 確定：矩形を戻し、resize()で「矩形＋オブジェクト」を一度だけ適用 / Commit: reset rects, then apply rects + objects once via resize() */
-        controller.commit();
-        if (controller.hasError()) {
+        previewController.commit();
+        if (previewController.hasError()) {
             /* 変形失敗時は確定せず、矩形と選択・アクティブを復元 / on failure, do not commit; restore rects, selection & active */
-            controller.restore();
-            controller.restoreSelectionAndActive();
-            app.redraw();
+            revertAll(previewController);
             alert(getLabel("alert.transformError"));
             return;
         }
 
         /* 適用済みの状態を確定。選択・アクティブアートボードのみ復元（完了メッセージは表示しない） / Keep the applied result; restore only selection & active artboard (no completion message) */
-        controller.restoreSelectionAndActive();
+        previewController.restoreSelectionAndActive();
         app.redraw();
     }
 

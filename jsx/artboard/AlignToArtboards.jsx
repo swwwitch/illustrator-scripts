@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md"; /* README (English) */
@@ -46,18 +46,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     // ユーザー設定 / User Settings
     // =========================================
 
-    /* パネル共通レイアウト / Common panel layout */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    /* 整列先パネルは左右・上下とも余白を詰める（9軸ウィジェットの余白調整）
-       The anchor panel uses tighter padding on all sides to fit the 9-axis widget */
-    var ANCHOR_PANEL_MARGINS = [9, 13, 9, 4];
-    var MARGIN_FIELD_CHARACTERS = 4;
-
-    /* 9軸ウィジェットの寸法（onDrawで描画） / 9-axis widget metrics (drawn via onDraw) */
-    var ANCHOR_WIDGET_SIZE = 66;
-    var ANCHOR_CELL_SIZE = 9;
-    var ANCHOR_CELL_GAP = 7.5;
-
     /* ダイアログの初期値。必要に応じて編集 / Dialog defaults; edit as needed */
     var DEFAULT_SETTINGS = {
         useActiveArtboardAsReference: true, /* 「アクティブを基準」を初期選択 / Start in active-artboard reference mode */
@@ -66,6 +54,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         linkMargins: true,                  /* 左右の値を上下にも反映 / Mirror horizontal margin to vertical */
         useVisibleBounds: true              /* プレビュー境界で整列 / Align by visible bounds */
     };
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* パネル共通レイアウト / Common panel layout */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    /* 整列先パネルは左右・上下とも余白を詰める（9軸ウィジェットの余白調整）
+       The anchor panel uses tighter padding on all sides to fit the 9-axis widget */
+    var ANCHOR_PANEL_MARGINS = [9, 13, 9, 4];
+    var MARGIN_FIELD_CHARACTERS = 4;
+    var BOUNDS_OPTION_MARGINS = [4, 4, 4, 4];  /* プレビュー境界の行の余白 / margins of the preview-bounds row */
+
+    /* 9軸ウィジェットの寸法（onDrawで描画） / 9-axis widget metrics (drawn via onDraw) */
+    var ANCHOR_WIDGET_SIZE = 66;
+    var ANCHOR_CELL_SIZE = 9;
+    var ANCHOR_CELL_GAP = 7.5;
+
+    // =========================================
+    // 整列先の定義 / Anchor definitions
+    // =========================================
 
     /* 9点アンカーの定義。ratioX/ratioY は矩形内の相対位置（0=左/上, 0.5=中央, 1=右/下）
        Nine anchor points; ratioX/ratioY are relative positions inside a rectangle */
@@ -104,16 +113,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* 単位ラベル → UnitValue に渡す単位名 / Ruler unit label to the unit name passed to UnitValue */
@@ -221,21 +237,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
      */
     function getLabel(labelPath) {
-        var pathKeys = labelPath.split(".");
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < pathKeys.length; i++) {
-            labelNode = labelNode[pathKeys[i]];
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
             if (!labelNode) return labelPath;
         }
         return labelNode[uiLang] || labelNode["en"] || labelPath;
     }
 
     /**
-     * 表示言語に合わせたコロンを返す（日本語＝全角、英語＝半角）
-     * @returns {string} コロン
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
      */
-    function getLocalizedColon() {
-        return (uiLang === "ja") ? "：" : ":";
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -249,13 +266,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * アイテムの整列用バウンディングボックスを返す
-     * @param {PageItem} item - 対象アイテム
+     * @param {PageItem} pageItem - 対象アイテム
      * @returns {number[]} [左, 上, 右, 下]。取得できない場合は null
      */
-    function getItemBounds(item) {
+    function getItemBounds(pageItem) {
         /* 文字編集中の TextRange など、境界を持たない選択は対象外 / Skip selections without bounds (e.g. TextRange) */
         try {
-            return useVisibleBounds ? item.visibleBounds : item.geometricBounds;
+            return useVisibleBounds ? pageItem.visibleBounds : pageItem.geometricBounds;
         } catch (e) {
             return null;
         }
@@ -263,13 +280,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * 複数アイテムを包含する最小バウンディングを返す
-     * @param {Array} items - 対象アイテムの配列
+     * @param {PageItem[]} targetItems - 対象アイテムの配列
      * @returns {number[]} [左, 上, 右, 下]。取得できない場合は null
      */
-    function getUnionBounds(items) {
+    function getUnionBounds(targetItems) {
         var unionBounds = null;
-        for (var i = 0; i < items.length; i++) {
-            var itemBounds = getItemBounds(items[i]);
+        for (var i = 0; i < targetItems.length; i++) {
+            var itemBounds = getItemBounds(targetItems[i]);
             if (!itemBounds) continue;
             if (!unionBounds) {
                 unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
@@ -307,19 +324,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * アイテムまたは親階層がロック／非表示か判定する
-     * @param {PageItem} item - 対象アイテム
+     * @param {PageItem} pageItem - 対象アイテム
      * @returns {boolean} ロックまたは非表示なら true
      */
-    function isLockedOrHidden(item) {
-        if (item.locked || item.hidden) return true;
-        var container = item.parent;
-        while (container && container.typename !== "Document") {
-            if (container.typename === "Layer") {
-                if (container.locked || !container.visible) return true;
-            } else if (container.locked || container.hidden) {
+    function isLockedOrHidden(pageItem) {
+        if (pageItem.locked || pageItem.hidden) return true;
+        var ancestor = pageItem.parent;
+        while (ancestor && ancestor.typename !== "Document") {
+            if (ancestor.typename === "Layer") {
+                if (ancestor.locked || !ancestor.visible) return true;
+            } else if (ancestor.locked || ancestor.hidden) {
                 return true;
             }
-            container = container.parent;
+            ancestor = ancestor.parent;
         }
         return false;
     }
@@ -345,16 +362,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * アイテムを中心点が属するアートボードごとに振り分ける
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} items - 振り分けるアイテムの配列
+     * @param {PageItem[]} targetItems - 振り分けるアイテムの配列
      * @returns {Object} アートボードインデックスをキーにしたアイテム配列
      */
-    function groupItemsByArtboard(doc, items) {
+    function groupItemsByArtboard(doc, targetItems) {
         var itemsByArtboard = {};
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var itemBounds = getItemBounds(item);
+        for (var i = 0; i < targetItems.length; i++) {
+            var pageItem = targetItems[i];
+            var itemBounds = getItemBounds(pageItem);
             if (!itemBounds) continue;
-            if (isLockedOrHidden(item)) continue;
+            if (isLockedOrHidden(pageItem)) continue;
 
             var centerX = (itemBounds[0] + itemBounds[2]) / 2;
             var centerY = (itemBounds[1] + itemBounds[3]) / 2;
@@ -362,7 +379,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             if (artboardIndex === -1) continue;
 
             if (!itemsByArtboard[artboardIndex]) itemsByArtboard[artboardIndex] = [];
-            itemsByArtboard[artboardIndex].push(item);
+            itemsByArtboard[artboardIndex].push(pageItem);
         }
         return itemsByArtboard;
     }
@@ -373,13 +390,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * プレビュー状態を作成する（移動量を記録して巻き戻せるようにする）
-     * @param {Array} items - プレビュー対象のアイテム
+     * @param {PageItem[]} targetItems - プレビュー対象のアイテム
      * @returns {Object} プレビュー状態
      */
-    function createPreviewState(items) {
+    function createPreviewState(targetItems) {
         var previewState = { items: [], offsetsX: [], offsetsY: [] };
-        for (var i = 0; i < items.length; i++) {
-            previewState.items.push(items[i]);
+        for (var i = 0; i < targetItems.length; i++) {
+            previewState.items.push(targetItems[i]);
             previewState.offsetsX.push(0);
             previewState.offsetsY.push(0);
         }
@@ -389,15 +406,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * プレビュー状態にアイテムの移動量を積算する
      * @param {Object} previewState - プレビュー状態。null のときは何もしない
-     * @param {PageItem} item - 移動したアイテム
+     * @param {PageItem} pageItem - 移動したアイテム
      * @param {number} dx - X方向の移動量
      * @param {number} dy - Y方向の移動量
      * @returns {void}
      */
-    function recordPreviewTranslation(previewState, item, dx, dy) {
+    function recordPreviewTranslation(previewState, pageItem, dx, dy) {
         if (!previewState) return;
         for (var i = 0; i < previewState.items.length; i++) {
-            if (previewState.items[i] !== item) continue;
+            if (previewState.items[i] !== pageItem) continue;
             previewState.offsetsX[i] += dx;
             previewState.offsetsY[i] += dy;
             return;
@@ -424,11 +441,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     // 整列処理 / Alignment
     // =========================================
 
-    /* アンカーコードから定義を引くためのマップ / Lookup map from anchor code to definition */
-    var anchorDefinitionByCode = {};
-    for (var anchorIndex = 0; anchorIndex < ANCHOR_DEFINITIONS.length; anchorIndex++) {
-        anchorDefinitionByCode[ANCHOR_DEFINITIONS[anchorIndex].code] = ANCHOR_DEFINITIONS[anchorIndex];
+    /**
+     * アンカーコードから定義を引くためのマップを作る / Build the lookup map from anchor code to definition
+     * @returns {Object} アンカーコードをキーにした ANCHOR_DEFINITIONS の要素
+     */
+    function buildAnchorDefinitionMap() {
+        var definitionByCode = {};
+        for (var i = 0; i < ANCHOR_DEFINITIONS.length; i++) {
+            definitionByCode[ANCHOR_DEFINITIONS[i].code] = ANCHOR_DEFINITIONS[i];
+        }
+        return definitionByCode;
     }
+    var anchorDefinitionByCode = buildAnchorDefinitionMap();
 
     /**
      * 矩形上の9点アンカー座標を返す
@@ -437,9 +461,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {number[]} [X座標, Y座標]
      */
     function getAnchorPoint(bounds, anchorCode) {
-        var anchor = anchorDefinitionByCode[anchorCode] || anchorDefinitionByCode[DEFAULT_SETTINGS.anchorCode];
+        var anchorDefinition = anchorDefinitionByCode[anchorCode] || anchorDefinitionByCode[DEFAULT_SETTINGS.anchorCode];
         var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
-        return [left + (right - left) * anchor.ratioX, top - (top - bottom) * anchor.ratioY];
+        return [left + (right - left) * anchorDefinition.ratioX, top - (top - bottom) * anchorDefinition.ratioY];
     }
 
     /**
@@ -455,40 +479,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * アイテムを移動し、プレビュー中は移動量を記録する
-     * @param {PageItem} item - 対象アイテム
+     * @param {PageItem} pageItem - 対象アイテム
      * @param {number} dx - X方向の移動量
      * @param {number} dy - Y方向の移動量
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function translateItem(item, dx, dy, previewState) {
+    function translateItem(pageItem, dx, dy, previewState) {
         if (dx === 0 && dy === 0) return;
         /* クリッピングマスクなど、移動できないアイテムは無視 / Ignore items that cannot be moved */
         try {
-            item.translate(dx, dy);
+            pageItem.translate(dx, dy);
         } catch (e) {
             return;
         }
-        recordPreviewTranslation(previewState, item, dx, dy);
+        recordPreviewTranslation(previewState, pageItem, dx, dy);
     }
 
     /**
      * アイテム群をまとめて同じ量だけ移動する
-     * @param {Array} items - 対象アイテムの配列
+     * @param {PageItem[]} targetItems - 対象アイテムの配列
      * @param {number} dx - X方向の移動量
      * @param {number} dy - Y方向の移動量
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function translateItems(items, dx, dy, previewState) {
-        for (var i = 0; i < items.length; i++) {
-            translateItem(items[i], dx, dy, previewState);
+    function translateItems(targetItems, dx, dy, previewState) {
+        for (var i = 0; i < targetItems.length; i++) {
+            translateItem(targetItems[i], dx, dy, previewState);
         }
     }
 
     /**
      * 各アイテムを個別に、アートボード上のアンカーへ整列する
-     * @param {Array} items - 対象アイテムの配列
+     * @param {PageItem[]} targetItems - 対象アイテムの配列
      * @param {number[]} artboardRect - アートボードの矩形 [左, 上, 右, 下]
      * @param {string} anchorCode - アンカーコード
      * @param {number} marginX - 左右のマージン（pt）
@@ -496,34 +520,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function alignItemsToArtboardAnchor(items, artboardRect, anchorCode, marginX, marginY, previewState) {
+    function alignItemsToArtboardAnchor(targetItems, artboardRect, anchorCode, marginX, marginY, previewState) {
         var targetPoint = getAnchorPoint(insetBounds(artboardRect, marginX, marginY), anchorCode);
-        for (var i = 0; i < items.length; i++) {
-            var itemBounds = getItemBounds(items[i]);
+        for (var i = 0; i < targetItems.length; i++) {
+            var itemBounds = getItemBounds(targetItems[i]);
             if (!itemBounds) continue;
             var itemAnchor = getAnchorPoint(itemBounds, anchorCode);
-            translateItem(items[i], targetPoint[0] - itemAnchor[0], targetPoint[1] - itemAnchor[1], previewState);
+            translateItem(targetItems[i], targetPoint[0] - itemAnchor[0], targetPoint[1] - itemAnchor[1], previewState);
         }
     }
 
     /**
      * アイテム群の相対位置を保ったまま、アートボード上のアンカー＋オフセット位置へ整列する
-     * @param {Array} items - 対象アイテムの配列
+     * @param {PageItem[]} targetItems - 対象アイテムの配列
      * @param {number[]} artboardRect - アートボードの矩形 [左, 上, 右, 下]
      * @param {string} anchorCode - アンカーコード
-     * @param {Object} offset - アンカーからの相対位置 {x, y}
+     * @param {Object} groupOffset - アンカーからの相対位置 {x, y}
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function alignItemGroupToArtboardAnchor(items, artboardRect, anchorCode, offset, previewState) {
-        var groupBounds = getUnionBounds(items);
+    function alignItemGroupToArtboardAnchor(targetItems, artboardRect, anchorCode, groupOffset, previewState) {
+        var groupBounds = getUnionBounds(targetItems);
         if (!groupBounds) return;
         var artboardAnchor = getAnchorPoint(artboardRect, anchorCode);
         var groupAnchor = getAnchorPoint(groupBounds, anchorCode);
         translateItems(
-            items,
-            artboardAnchor[0] + offset.x - groupAnchor[0],
-            artboardAnchor[1] + offset.y - groupAnchor[1],
+            targetItems,
+            artboardAnchor[0] + groupOffset.x - groupAnchor[0],
+            artboardAnchor[1] + groupOffset.y - groupAnchor[1],
             previewState
         );
     }
@@ -566,7 +590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
            Relative position of the reference group as seen from the artboard anchor */
         var referenceAnchor = getAnchorPoint(activeArtboardRect, anchorCode);
         var groupAnchor = getAnchorPoint(referenceBounds, anchorCode);
-        var offset = { x: groupAnchor[0] - referenceAnchor[0], y: groupAnchor[1] - referenceAnchor[1] };
+        var referenceOffset = { x: groupAnchor[0] - referenceAnchor[0], y: groupAnchor[1] - referenceAnchor[1] };
 
         for (var artboardIndex in itemsByArtboard) {
             if (!itemsByArtboard.hasOwnProperty(artboardIndex)) continue;
@@ -576,7 +600,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 itemsByArtboard[artboardIndex],
                 doc.artboards[targetIndex].artboardRect,
                 anchorCode,
-                offset,
+                referenceOffset,
                 previewState
             );
         }
@@ -585,21 +609,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * 設定に従って整列を実行する（プレビューと確定で共用）
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} items - 整列するアイテムの配列
-     * @param {Object} settings - 整列設定 {anchorCode, useActiveArtboardAsReference, marginX, marginY}
+     * @param {PageItem[]} targetItems - 整列するアイテムの配列
+     * @param {Object} alignSettings - 整列設定 {anchorCode, useActiveArtboardAsReference, marginX, marginY}
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function alignItems(doc, items, settings, previewState) {
-        var itemsByArtboard = groupItemsByArtboard(doc, items);
+    function alignItems(doc, targetItems, alignSettings, previewState) {
+        var itemsByArtboard = groupItemsByArtboard(doc, targetItems);
 
-        if (settings.useActiveArtboardAsReference) {
+        if (alignSettings.useActiveArtboardAsReference) {
             alignUsingActiveArtboardReference(
                 doc,
                 itemsByArtboard,
-                settings.anchorCode,
-                settings.marginX,
-                settings.marginY,
+                alignSettings.anchorCode,
+                alignSettings.marginX,
+                alignSettings.marginY,
                 previewState
             );
             return;
@@ -610,9 +634,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             alignItemsToArtboardAnchor(
                 itemsByArtboard[artboardIndex],
                 doc.artboards[parseInt(artboardIndex, 10)].artboardRect,
-                settings.anchorCode,
-                settings.marginX,
-                settings.marginY,
+                alignSettings.anchorCode,
+                alignSettings.marginX,
+                alignSettings.marginY,
                 previewState
             );
         }
@@ -834,13 +858,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * パネルの共通レイアウトを適用する
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {string} orientation - "column" または "row"
      * @returns {void}
      */
-    function applyPanelLayout(panel, orientation) {
-        panel.orientation = orientation;
-        panel.margins = PANEL_MARGINS;
+    function applyPanelLayout(targetPanel, orientation) {
+        targetPanel.orientation = orientation;
+        targetPanel.margins = PANEL_MARGINS;
     }
 
     /**
@@ -926,9 +950,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         /* クリックした3×3のセルを整列先にする（座標はウィジェット基準）
            Set the anchor from the clicked 3x3 cell (coordinates are widget-relative) */
         anchorWidget.addEventListener("mousedown", function (event) {
-            var column = clampGridIndex(Math.floor(event.clientX / (anchorWidget.size[0] / 3)));
-            var row = clampGridIndex(Math.floor(event.clientY / (anchorWidget.size[1] / 3)));
-            selectAnchorAt(row * 3 + column);
+            var cellColumn = clampGridIndex(Math.floor(event.clientX / (anchorWidget.size[0] / 3)));
+            var cellRow = clampGridIndex(Math.floor(event.clientY / (anchorWidget.size[1] / 3)));
+            selectAnchorAt(cellRow * 3 + cellColumn);
             onSettingsChanged();
         });
 
@@ -975,7 +999,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             var fieldGroup = fieldColumn.add("group");
             fieldGroup.orientation = "row";
             fieldGroup.alignChildren = ["left", "center"];
-            var fieldLabel = fieldGroup.add("statictext", undefined, getLabel(fieldLabelPath) + getLocalizedColon());
+            var fieldLabel = fieldGroup.add("statictext", undefined, labelText(fieldLabelPath));
             fieldLabel.helpTip = marginPanel.helpTip;
             var marginField = fieldGroup.add("edittext", undefined, DEFAULT_SETTINGS.marginText);
             marginField.characters = MARGIN_FIELD_CHARACTERS;
@@ -1069,12 +1093,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 horizontalField.active = true;
                 horizontalField.selection = [0, horizontalField.text.length];
             },
-            bindEnterKey: function (okButton) {
+            bindEnterKey: function (btnOK) {
                 var marginFields = [horizontalField, verticalField];
                 for (var i = 0; i < marginFields.length; i++) {
                     marginFields[i].addEventListener("keydown", function (event) {
                         if (event.keyName !== "Enter" && event.keyName !== "Return") return;
-                        okButton.notify();
+                        btnOK.notify();
                         event.preventDefault();
                     });
                 }
@@ -1089,12 +1113,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {void}
      */
     function buildBoundsOptionRow(parentContainer, onSettingsChanged) {
-        var optionGroup = parentContainer.add("group");
-        optionGroup.orientation = "row";
-        optionGroup.alignment = ["left", "top"];
-        optionGroup.margins = [4, 4, 4, 4];
+        var boundsOptionGroup = parentContainer.add("group");
+        boundsOptionGroup.orientation = "row";
+        boundsOptionGroup.alignment = ["left", "top"];
+        boundsOptionGroup.margins = BOUNDS_OPTION_MARGINS;
 
-        var boundsCheckbox = optionGroup.add("checkbox", undefined, getLabel("checkbox.useVisibleBounds"));
+        var boundsCheckbox = boundsOptionGroup.add("checkbox", undefined, getLabel("checkbox.useVisibleBounds"));
         boundsCheckbox.value = useVisibleBounds;
         boundsCheckbox.helpTip = getLabel("tooltip.useVisibleBounds");
         boundsCheckbox.onClick = function () {
@@ -1109,25 +1133,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {Button} OKボタン
      */
     function buildDialogButtonRow(parentContainer) {
-        var buttonGroup = parentContainer.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignChildren = ["center", "center"];
-        buttonGroup.alignment = ["center", "bottom"];
+        var btnRowGroup = parentContainer.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.alignment = ["center", "bottom"];
 
-        buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        return buttonGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        return btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
     }
 
     /**
      * ダイアログのショートカットキー（1/2＝整列の基準、q〜c＝整列先）を登録する
-     * @param {Window} dialog - 対象ダイアログ
+     * @param {Window} targetDialog - 対象ダイアログ
      * @param {Object} baseControls - 整列の基準パネルのインターフェース
      * @param {Object} anchorControls - 整列先パネルのインターフェース
      * @param {Function} onSettingsChanged - 選択が変わったときに呼ぶ関数
      * @returns {void}
      */
-    function registerShortcutKeys(dialog, baseControls, anchorControls, onSettingsChanged) {
-        dialog.addEventListener("keydown", function (event) {
+    function registerShortcutKeys(targetDialog, baseControls, anchorControls, onSettingsChanged) {
+        targetDialog.addEventListener("keydown", function (event) {
             /* テキスト入力中はショートカットを無効化 / Skip shortcuts while typing in edittext */
             if (event.target && event.target.type === "edittext") return;
             if (!event.keyName) return;
@@ -1152,17 +1176,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {void}
      */
     function showAlignmentDialog(doc) {
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
+        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        alignDialog.orientation = "column";
+        alignDialog.alignChildren = ["fill", "top"];
 
         var unitLabel = getUnitInfo().label;
         var previewState = createPreviewState(doc.selection);
         initAnchorColors();
 
-        var baseControls = buildAlignmentBasePanel(dialog, doc.artboards.length, handleSettingsChanged);
+        var baseControls = buildAlignmentBasePanel(alignDialog, doc.artboards.length, handleSettingsChanged);
 
-        var contentGroup = dialog.add("group");
+        var contentGroup = alignDialog.add("group");
         contentGroup.orientation = "row";
         contentGroup.alignChildren = ["fill", "top"];
 
@@ -1177,11 +1201,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         marginColumn.alignment = ["right", "top"];
         var marginControls = buildMarginPanel(marginColumn, unitLabel, handleSettingsChanged);
 
-        buildBoundsOptionRow(dialog, handleSettingsChanged);
-        var okButton = buildDialogButtonRow(dialog);
-        dialog.defaultElement = okButton;
-        marginControls.bindEnterKey(okButton);
-        registerShortcutKeys(dialog, baseControls, anchorControls, handleSettingsChanged);
+        buildBoundsOptionRow(alignDialog, handleSettingsChanged);
+        var btnOK = buildDialogButtonRow(alignDialog);
+        alignDialog.defaultElement = btnOK;
+        marginControls.bindEnterKey(btnOK);
+        registerShortcutKeys(alignDialog, baseControls, anchorControls, handleSettingsChanged);
 
         /**
          * ダイアログの入力から整列設定を読み取る
@@ -1192,13 +1216,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             var useActiveArtboardAsReference = baseControls.usesActiveArtboard();
             /* 中央整列時はマージンを使わない / Margins are unused for the center anchor */
             var marginIsAvailable = (anchorCode !== CENTER_ANCHOR_CODE);
-            var margin = marginIsAvailable ? marginControls.getMarginInPoints() : { x: 0, y: 0 };
+            var marginPoints = marginIsAvailable ? marginControls.getMarginInPoints() : { x: 0, y: 0 };
             return {
                 anchorCode: anchorCode,
                 useActiveArtboardAsReference: useActiveArtboardAsReference,
                 marginIsAvailable: marginIsAvailable,
-                marginX: margin.x,
-                marginY: margin.y
+                marginX: marginPoints.x,
+                marginY: marginPoints.y
             };
         }
 
@@ -1207,16 +1231,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
          * @returns {void}
          */
         function handleSettingsChanged() {
-            var settings = readSettingsFromDialog();
-            marginControls.panel.enabled = settings.marginIsAvailable;
-            marginControls.linkCheckbox.enabled = settings.marginIsAvailable;
+            var alignSettings = readSettingsFromDialog();
+            marginControls.panel.enabled = alignSettings.marginIsAvailable;
+            marginControls.linkCheckbox.enabled = alignSettings.marginIsAvailable;
 
             revertPreview(previewState);
-            alignItems(doc, previewState.items, settings, previewState);
+            alignItems(doc, previewState.items, alignSettings, previewState);
             app.redraw();
         }
 
-        dialog.onShow = function () {
+        alignDialog.onShow = function () {
             marginControls.focusHorizontalField();
         };
 
@@ -1224,7 +1248,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         handleSettingsChanged();
 
         /* OKのときはプレビューの位置をそのまま確定 / OK keeps the previewed positions as the result */
-        if (dialog.show() === 1) return;
+        if (alignDialog.show() === 1) return;
 
         revertPreview(previewState);
         app.redraw();
@@ -1236,9 +1260,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     if (app.documents.length === 0) return;
 
-    var documentRef = app.activeDocument;
-    if (!documentRef.selection || documentRef.selection.length === 0) return;
+    var doc = app.activeDocument;
+    if (!doc.selection || doc.selection.length === 0) return;
 
-    showAlignmentDialog(documentRef);
+    showAlignmentDialog(doc);
 
 })();

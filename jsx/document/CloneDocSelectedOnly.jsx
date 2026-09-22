@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "CloneDocSelectedOnly";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-12-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSelectedOnly.md"; /* README (English) */
@@ -38,128 +38,176 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var REMOVE_LOCKED_ITEMS = false; /* true: ロックされたオブジェクトやレイヤーも削除 / Remove locked items and layers if true */
 
-    // -------------------------------
-    // 日英ラベル定義 Define labels
-    // -------------------------------
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-    }
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+    var uiLang = ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 
-    var uiLang = getCurrentLang();
     var LABELS = {
-        noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
-        notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
-        noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
+        alert: {
+            noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
+            notSaved: {
+                ja: "ドキュメントが一度も保存されていません。先に保存してください。",
+                en: "The document has never been saved. Please save it first."
+            },
+            noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
+        }
     };
 
-    // スクリプト開始 // Script start
+    /**
+     * 現在のUI言語に合わせた文言を返す
+     * @param {Object} labelEntry - ja / en を持つラベル定義
+     * @returns {string} 表示する文言
+     */
+    function getLabel(labelEntry) {
+        return labelEntry[uiLang] || labelEntry.en;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 元ドキュメントを一時ファイルに保存して開き、選択外の非表示オブジェクトを削除する
+     * @returns {void}
+     */
     function main() {
-        if (app.documents.length > 0) {
-            var originalDoc = app.activeDocument;
-            // Check if the document has been saved at least once
-            if (!originalDoc.saved) {
-                alert(LABELS.notSaved[uiLang]);
-                return;
-            }
-            var originalFilePath = originalDoc.fullName;
-            var originalFileName = originalDoc.name;
-
-            var selectedItems = getSelectedItems(originalDoc);
-            if (selectedItems.length === 0) {
-                alert(LABELS.noSelection[uiLang]);
-            } else {
-                var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
-                var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
-
-                originalDoc.saveAs(tempFilePath);
-                var duplicateDoc = app.open(tempFilePath);
-
-                removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
-            }
-        } else {
-            alert(LABELS.noDocument[uiLang]);
+        if (app.documents.length === 0) {
+            alert(getLabel(LABELS.alert.noDocument));
+            return;
         }
-    }
-    // スクリプト終了 // Script end
 
-    // 選択されているオブジェクトを配列で取得 // Get selected items as array
+        var originalDoc = app.activeDocument;
+        /* 一度でも保存されているか / Check if the document has been saved at least once */
+        if (!originalDoc.saved) {
+            alert(getLabel(LABELS.alert.notSaved));
+            return;
+        }
+
+        var selectedItems = getSelectedItems(originalDoc);
+        if (selectedItems.length === 0) {
+            alert(getLabel(LABELS.alert.noSelection));
+            return;
+        }
+
+        var tempFile = getUniqueTempFile(originalDoc.fullName, originalDoc.name);
+        originalDoc.saveAs(tempFile);
+        var duplicateDoc = app.open(tempFile);
+
+        removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
+    }
+
+    // =========================================
+    // 選択と削除 / Selection and removal
+    // =========================================
+
+    /**
+     * 選択されているオブジェクトを配列で返す
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {PageItem[]} 選択オブジェクトの配列
+     */
     function getSelectedItems(doc) {
-        var items = [];
+        var selectedItems = [];
         for (var i = 0; i < doc.selection.length; i++) {
-            items.push(doc.selection[i]);
+            selectedItems.push(doc.selection[i]);
         }
-        return items;
+        return selectedItems;
     }
 
-    // 選択されていない非表示のアイテムを削除 // Remove unselected and hidden items
+    /**
+     * 選択されていない非表示のオブジェクトを削除する（ロック中のものは設定に応じて削除）
+     * @param {Layers} layers - 対象ドキュメントのレイヤー
+     * @param {PageItem[]} selectedItems - 残す選択オブジェクト
+     * @returns {void}
+     */
     function removeUnselectedHiddenItems(layers, selectedItems) {
         for (var i = layers.length - 1; i >= 0; i--) {
-            var layer = layers[i];
+            var currentLayer = layers[i];
 
-            if (layer.locked) {
+            if (currentLayer.locked) {
                 if (REMOVE_LOCKED_ITEMS) {
-                    layer.locked = false;
-                    layer.remove();
-                    continue;
-                } else {
-                    continue;
+                    currentLayer.locked = false;
+                    currentLayer.remove();
                 }
-            }
-            if (!layer.visible) {
                 continue;
             }
+            if (!currentLayer.visible) continue;
 
-            for (var j = layer.pageItems.length - 1; j >= 0; j--) {
-                var item = layer.pageItems[j];
-                if (item.locked) {
+            for (var j = currentLayer.pageItems.length - 1; j >= 0; j--) {
+                var pageItem = currentLayer.pageItems[j];
+                if (pageItem.locked) {
                     if (REMOVE_LOCKED_ITEMS) {
-                        item.locked = false;
-                        item.remove();
+                        pageItem.locked = false;
+                        pageItem.remove();
                     }
                     continue;
                 }
-                if (!isItemSelected(item, selectedItems) && !item.visible) {
-                    item.remove();
+                if (!isItemSelected(pageItem, selectedItems) && !pageItem.visible) {
+                    pageItem.remove();
                 }
             }
         }
     }
 
-    // アイテムが選択されているか判定 // Check if item is selected
-    function isItemSelected(item, selectedItems) {
+    /**
+     * オブジェクトが選択オブジェクトの中にあるか判定する
+     * @param {PageItem} pageItem - 判定するオブジェクト
+     * @param {PageItem[]} selectedItems - 選択オブジェクトの配列
+     * @returns {boolean} 含まれていれば true
+     */
+    function isItemSelected(pageItem, selectedItems) {
         for (var i = 0; i < selectedItems.length; i++) {
-            if (item === selectedItems[i]) {
-                return true;
-            }
+            if (pageItem === selectedItems[i]) return true;
         }
         return false;
     }
 
-    // ファイル名のベース部分を取得 // Get base part of file name
+    // =========================================
+    // 一時ファイル / Temporary file
+    // =========================================
+
+    /**
+     * ファイル名の最初のドットより前を返す
+     * @param {string} fileName - ファイル名
+     * @returns {string} ベース名
+     */
     function getBaseName(fileName) {
-        var parts = fileName.split('.');
-        return parts[0];
+        return fileName.split('.')[0];
     }
 
-    // ファイル名の拡張子を取得（ドット含む） // Get file extension (with dot)
+    /**
+     * ファイル名の拡張子をドット付きで返す（無ければ空文字）
+     * @param {string} fileName - ファイル名
+     * @returns {string} 拡張子
+     */
     function getExtension(fileName) {
-        var parts = fileName.split('.');
-        return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
+        var nameParts = fileName.split('.');
+        return nameParts.length > 1 ? '.' + nameParts[nameParts.length - 1] : '';
     }
 
-    // 一時ファイル名を生成 // Generate temporary file name
-    function generateTempFileName(originalFilePath, baseName, extension) {
-        var tempFileNameBase = "temp-" + baseName;
+    /**
+     * 元ファイルと同じフォルダーに、既存と重ならない「temp-<名前>」のファイルを返す
+     * @param {File} originalFile - 元ドキュメントのファイル
+     * @param {string} fileName - 元ドキュメントのファイル名
+     * @returns {File} 一時ファイル
+     */
+    function getUniqueTempFile(originalFile, fileName) {
+        var folderPath = originalFile.path + "/";
+        var tempFileNameBase = "temp-" + getBaseName(fileName);
+        var extension = getExtension(fileName);
         var tempFileName = tempFileNameBase + extension;
         var counter = 1;
 
-        while (File(originalFilePath.path + "/" + tempFileName).exists) {
+        while (File(folderPath + tempFileName).exists) {
             tempFileName = tempFileNameBase + "-" + counter + extension;
             counter++;
         }
-        return tempFileName;
+        return new File(folderPath + tempFileName);
     }
 
     main();

@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "InsertNewTextELong";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewTextELong.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewTextELong.md"; /* README (English) */
@@ -141,7 +141,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         doc.selection = null;
 
         /* 表示中心取得 / Get view center */
-        var center = getViewCenter(doc);
+        var viewCenter = getViewCenter(doc);
 
         /* テキストフレーム作成 / Create text frame */
         var textFrame = createTextFrame(doc, TEXT_CONTENTS);
@@ -161,7 +161,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         textRange.paragraphAttributes.justification = Justification.CENTER;
 
         /* 中央配置 / Position to center */
-        textFrame.position = [center.x - textFrame.width / 2, center.y + textFrame.height / 2];
+        textFrame.position = [viewCenter.x - textFrame.width / 2, viewCenter.y + textFrame.height / 2];
 
         /* 作成オブジェクトを選択 / Select created object */
         textFrame.selected = true;

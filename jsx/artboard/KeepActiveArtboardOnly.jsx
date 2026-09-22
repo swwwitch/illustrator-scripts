@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "KeepActiveArtboardOnly";       /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepActiveArtboardOnly.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepActiveArtboardOnly.md"; /* README (English) */
@@ -47,9 +47,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 空のアートボードを探すとき、非表示のレイヤー・オブジェクトを無視するか / Ignore hidden layers and objects while looking for empty artboards */
     var DEFAULT_IGNORE_HIDDEN = true;
-
-    /* 共線とみなす外積の許容値 / Cross product below this counts as collinear */
-    var COLLINEAR_EPSILON = 1e-6;
 
     // =========================================
     // レイアウト / Layout
@@ -142,17 +139,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * コロン付きラベルを返す（日本語は全角、英語は半角）
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {string} labelPath - ドット区切りのキー
-     * @returns {string} コロンを付けたラベル
+     * @returns {string} コロン付きの項目名
      */
     function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ': ');
+        return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // =========================================
     // 重なり判定 / Hit testing
     // =========================================
+
+    /* 共線とみなす外積の許容値 / Cross product below this counts as collinear */
+    var COLLINEAR_EPSILON = 1e-6;
 
     /**
      * 点が矩形の内側（境界を含む）にあるか判定する
@@ -307,7 +307,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {object[]} stateLog - 状態の控え
      * @returns {void}
      */
-    function collectLayerStates(layer, stateLog) {
+    function captureAndUnlockLayer(layer, stateLog) {
         stateLog.push({
             type: 'Layer',
             ref: layer,
@@ -321,12 +321,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (layer.template === true) layer.template = false;
 
         for (var i = 0; i < layer.layers.length; i++) {
-            collectLayerStates(layer.layers[i], stateLog);
+            captureAndUnlockLayer(layer.layers[i], stateLog);
         }
         for (var j = 0; j < layer.groupItems.length; j++) {
-            collectGroupStates(layer.groupItems[j], stateLog);
+            captureAndUnlockGroup(layer.groupItems[j], stateLog);
         }
-        collectItemStates(layer, stateLog);
+        captureAndUnlockItems(layer, stateLog);
     }
 
     /**
@@ -335,7 +335,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {object[]} stateLog - 状態の控え
      * @returns {void}
      */
-    function collectGroupStates(groupItem, stateLog) {
+    function captureAndUnlockGroup(groupItem, stateLog) {
         stateLog.push({
             type: 'Group',
             ref: groupItem,
@@ -347,9 +347,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupItem.visible = true;
 
         for (var i = 0; i < groupItem.groupItems.length; i++) {
-            collectGroupStates(groupItem.groupItems[i], stateLog);
+            captureAndUnlockGroup(groupItem.groupItems[i], stateLog);
         }
-        collectItemStates(groupItem, stateLog);
+        captureAndUnlockItems(groupItem, stateLog);
     }
 
     /**
@@ -358,7 +358,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {object[]} stateLog - 状態の控え
      * @returns {void}
      */
-    function collectItemStates(container, stateLog) {
+    function captureAndUnlockItems(container, stateLog) {
         try {
             var pageItems = container.pageItems;
             for (var i = 0; i < pageItems.length; i++) {
@@ -383,7 +383,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function captureAndUnlockStructure(doc) {
         var stateLog = [];
         for (var i = 0; i < doc.layers.length; i++) {
-            collectLayerStates(doc.layers[i], stateLog);
+            captureAndUnlockLayer(doc.layers[i], stateLog);
         }
         return stateLog;
     }
@@ -395,19 +395,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function restoreStructure(savedStates) {
         for (var i = savedStates.length - 1; i >= 0; i--) {
-            var state = savedStates[i];
+            var savedState = savedStates[i];
+            /* 削除済みのオブジェクトは参照できない / deleted objects can no longer be restored */
             try {
-                if (state.type === 'Layer') {
-                    state.ref.locked = state.locked;
-                    state.ref.visible = state.visible;
-                    state.ref.template = state.template;
-                } else if (state.type === 'Group') {
-                    state.ref.locked = state.locked;
-                    state.ref.visible = state.visible;
-                } else if (state.type === 'Item') {
-                    state.ref.locked = state.locked;
-                    state.ref.hidden = state.hidden;
+                savedState.ref.locked = savedState.locked;
+                if (savedState.type === 'Item') {
+                    savedState.ref.hidden = savedState.hidden;
+                } else {
+                    savedState.ref.visible = savedState.visible;
                 }
+                if (savedState.type === 'Layer') savedState.ref.template = savedState.template;
             } catch (e) { }
         }
     }
@@ -423,14 +420,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function isItemVisible(pageItem) {
         try {
-            var node = pageItem;
-            while (node && node.typename !== "Document") {
-                if (node.typename === "Layer") {
-                    if (node.visible === false) return false;
-                } else if (node.hidden) {
+            var ancestorNode = pageItem;
+            while (ancestorNode && ancestorNode.typename !== "Document") {
+                if (ancestorNode.typename === "Layer") {
+                    if (ancestorNode.visible === false) return false;
+                } else if (ancestorNode.hidden) {
                     return false;
                 }
-                node = node.parent;
+                ancestorNode = ancestorNode.parent;
             }
         } catch (err) {
             return false;
@@ -578,18 +575,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * ボタン行（右寄せの キャンセル／OK）を作る
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {{btnOK: Button, btnCancel: Button}} ボタン
+     */
+    function addButtonRow(parentWindow) {
+        var btnRowGroup = parentWindow.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignChildren = ['left', 'center'];
+        btnRowGroup.alignment = ['fill', 'center'];
+
+        /* スペーサー（右側のボタンを押し出す）/ Spacer that pushes the buttons to the right */
+        var spacer = btnRowGroup.add('group');
+        spacer.alignment = ['fill', 'fill'];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add('group');
+        btnRightGroup.alignment = ['right', 'center'];
+        var btnCancel = btnRightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var btnOK = btnRightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
+        btnOK.preferredSize.width = BUTTON_WIDTH;
+        return { btnOK: btnOK, btnCancel: btnCancel };
+    }
+
+    /**
      * オプションダイアログを表示する
      * @param {object} artboardStats - { total: number, emptyIgnoreHidden: number, emptyAll: number }
      * @returns {object|null} 選択内容。キャンセル時は null
      */
     function showOptionsDialog(artboardStats) {
-        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = 'column';
-        dialog.alignChildren = 'fill';
-        dialog.margins = DIALOG_MARGINS;
-        dialog.spacing = DIALOG_SPACING;
+        var removeDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        removeDialog.orientation = 'column';
+        removeDialog.alignChildren = 'fill';
+        removeDialog.margins = DIALOG_MARGINS;
+        removeDialog.spacing = DIALOG_SPACING;
 
-        var modePanel = dialog.add('panel', undefined, getLabel('panel.mode'));
+        var modePanel = removeDialog.add('panel', undefined, getLabel('panel.mode'));
         modePanel.orientation = 'column';
         modePanel.alignChildren = 'left';
         modePanel.alignment = 'fill';
@@ -624,22 +646,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             emptyRadio.helpTip = getLabel('tooltip.singleArtboard');
         }
 
-        var btnRowGroup = dialog.add('group');
-        btnRowGroup.orientation = 'row';
-        btnRowGroup.alignChildren = ['left', 'center'];
-        btnRowGroup.alignment = ['fill', 'center'];
-
-        /* スペーサー（右側のボタンを押し出す）/ Spacer that pushes the buttons to the right */
-        var spacer = btnRowGroup.add('group');
-        spacer.alignment = ['fill', 'fill'];
-        spacer.minimumSize.width = 0;
-
-        var btnRightGroup = btnRowGroup.add('group');
-        btnRightGroup.alignment = ['right', 'center'];
-        var btnCancel = btnRightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-        var btnOK = btnRightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
-        btnCancel.preferredSize.width = BUTTON_WIDTH;
-        btnOK.preferredSize.width = BUTTON_WIDTH;
+        var btnOK = addButtonRow(removeDialog).btnOK;
 
         /**
          * モードに応じてオプションの活性・件数表示・OKの活性を更新する
@@ -653,7 +660,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ignoreHiddenCheckbox.enabled = emptyModeSelected;
 
             var emptyCount = ignoreHiddenCheckbox.value ? artboardStats.emptyIgnoreHidden : artboardStats.emptyAll;
-            emptyCountText.text = labelText('fieldLabel.removalTarget') + emptyCount;
+            /* 英語はコロンのあとに空白を入れる / add a space after the colon in English */
+            emptyCountText.text = labelText('fieldLabel.removalTarget') + (uiLang === 'ja' ? '' : ' ') + emptyCount;
 
             /* 空アートボードが0枚のときは実行できない / Nothing to do when no artboard is empty */
             btnOK.enabled = emptyModeSelected ? (emptyCount > 0) : true;
@@ -665,7 +673,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ignoreHiddenCheckbox.onClick = syncDialogState;
         syncDialogState();
 
-        if (dialog.show() !== 1) return null;
+        if (removeDialog.show() !== 1) return null;
 
         return {
             mode: keepActiveRadio.value ? 'keepActive' : 'empty',
@@ -695,17 +703,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var emptyIndicesIgnoreHidden = findEmptyArtboardIndices(doc, true);
         var emptyIndicesAll = findEmptyArtboardIndices(doc, false);
 
-        var options = showOptionsDialog({
+        var removalOptions = showOptionsDialog({
             total: doc.artboards.length,
             emptyIgnoreHidden: emptyIndicesIgnoreHidden.length,
             emptyAll: emptyIndicesAll.length
         });
-        if (!options) return;
+        if (!removalOptions) return;
 
-        if (options.mode === 'keepActive') {
-            keepActiveArtboardOnly(doc, options.deleteOutsideObjects);
+        if (removalOptions.mode === 'keepActive') {
+            keepActiveArtboardOnly(doc, removalOptions.deleteOutsideObjects);
         } else {
-            removeArtboardsByIndices(doc, options.ignoreHidden ? emptyIndicesIgnoreHidden : emptyIndicesAll);
+            removeArtboardsByIndices(doc, removalOptions.ignoreHidden ? emptyIndicesIgnoreHidden : emptyIndicesAll);
         }
     }
 

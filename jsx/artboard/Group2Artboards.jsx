@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "Group2Artboards";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Group2Artboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Group2Artboards.md"; /* README (English) */
@@ -38,19 +38,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
+    /* ダイアログの初期値 / Dialog defaults */
+    var DIALOG_DEFAULTS = {
+        previewBounds: true,        /* プレビュー境界 / preview bounds */
+        margin: "0",                /* マージン（定規単位の表示） / margin */
+        deleteArtboards: true,      /* 既存のアートボードを削除 / delete existing artboards */
+        useFileName: false,         /* ファイル名を参照 / use the file name */
+        prefix: "",                 /* 接頭辞 / prefix */
+        startNumber: "01",          /* 開始番号 / start number */
+        zeroPadding: true           /* ゼロ埋め / zero padding */
+    };
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS = [15, 20, 15, 10];          /* ダイアログの余白 / dialog margins */
+    var DIALOG_SPACING = 10;                        /* ダイアログ内の間隔 / dialog spacing */
+    var OPTION_GROUP_MARGINS = [15, 5, 15, 10];     /* 上部オプションの余白 / top option group margins */
+    var OPTION_GROUP_SPACING = 10;                  /* 上部オプションの間隔 / top option group spacing */
+    var NAME_PANEL_MARGINS = [15, 25, 15, 10];      /* 「アートボード名」パネルの余白 / name panel margins */
+    var BUTTON_ROW_MARGINS = [0, 10, 0, 10];        /* ボタン行の余白 / button row margins */
+    var NUMBER_FIELD_CHARACTERS = 5;                /* マージン・開始番号欄の桁数 / margin & start number field width */
+    var PREFIX_FIELD_CHARACTERS = 15;               /* 接頭辞欄の桁数 / prefix field width */
+    var NAME_EXAMPLE_CHARACTERS = 20;               /* 名前の例の表示幅 / name example width */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の UI 言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
-
     var LABELS = {
         dialog: {
             title: { ja: "アートボード化", en: "Artboard" }
         },
         panel: {
-            artboard: { ja: "グループをアートボードに", en: "Convert Groups to Artboards" },
             name:     { ja: "アートボード名", en: "Artboard Name" }
         },
         fieldLabel: {
@@ -106,12 +141,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {string} labelPath - ラベルのドット区切りキー
      * @returns {string} コロン付きの項目名
      */
     function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -153,279 +188,321 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* アートボード名を生成する共通関数 / Common function to build artboard name */
-    function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNameNoExt, padLen) {
-        var seqNum = parseInt(seq, 10);
-        if (isNaN(seqNum)) seqNum = 1;
-        var numStr = seqNum.toString();
-        if (zeroPadding && padLen > 0) {
-            while (numStr.length < padLen) numStr = "0" + numStr;
+    // =========================================
+    // アートボード名 / Artboard names
+    // =========================================
+
+    /**
+     * アートボード名を生成する
+     * @param {string} prefix - 接頭辞
+     * @param {string} symbol - 区切り記号（"-" / "_" / ""）
+     * @param {number|string} sequenceValue - 連番
+     * @param {boolean} zeroPadding - ゼロ埋めするか
+     * @param {boolean} useFileName - ファイル名を先頭に付けるか
+     * @param {string} fileNameNoExt - 拡張子を除いたファイル名
+     * @param {number} padLength - ゼロ埋めの桁数
+     * @returns {string} アートボード名
+     */
+    function buildArtboardName(prefix, symbol, sequenceValue, zeroPadding, useFileName, fileNameNoExt, padLength) {
+        var sequenceNumber = parseInt(sequenceValue, 10);
+        if (isNaN(sequenceNumber)) sequenceNumber = 1;
+        var numberText = sequenceNumber.toString();
+        if (zeroPadding && padLength > 0) {
+            while (numberText.length < padLength) numberText = "0" + numberText;
         }
         if (useFileName) {
             if (prefix === "") {
-                return fileNameNoExt + symbol + numStr;
-            } else {
-                return fileNameNoExt + symbol + prefix + symbol + numStr;
+                return fileNameNoExt + symbol + numberText;
             }
+            return fileNameNoExt + symbol + prefix + symbol + numberText;
         }
-        return prefix + symbol + numStr;
+        return prefix + symbol + numberText;
     }
 
+    /**
+     * ドキュメントのファイル名から拡張子を除く
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {string} 拡張子を除いたファイル名（名前が無ければ空文字）
+     */
+    function getFileNameWithoutExtension(targetDocument) {
+        if (!targetDocument || !targetDocument.name) return "";
+        var documentName = targetDocument.name;
+        var lastDot = documentName.lastIndexOf(".");
+        return lastDot > 0 ? documentName.substring(0, lastDot) : documentName;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ↑↓キーで数値を増減し、入力欄の onChanging を呼ぶ
+     * ↑↓で±1、Shift+↑↓で10の倍数にスナップ、Option+↑↓で±0.1（↑↓以外のキーでも値を丸め直す）。
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText) {
-        editText.addEventListener("keydown", function(event) {
+        editText.addEventListener("keydown", function (event) {
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
             var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
+            var isUp = (event.keyName == "Up");
+            if (isUp || event.keyName == "Down") {
+                if (keyboard.shiftKey) {
+                    /* Shiftキー押下時は10の倍数にスナップ / snap to multiples of 10 with Shift */
+                    value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.max(0, Math.floor((value - 1) / 10) * 10);
+                } else if (keyboard.altKey) {
+                    /* Optionキー押下時は0.1単位で増減 / change by 0.1 with Option */
+                    value += isUp ? 0.1 : -0.1;
+                } else {
+                    value = isUp ? value + 1 : Math.max(0, value - 1);
                 }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                // Optionキー押下時は0.1単位で増減
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
+                event.preventDefault();
             }
 
-            if (keyboard.altKey) {
-                // 小数第1位までに丸め
-                value = Math.round(value * 10) / 10;
-            } else {
-                // 整数に丸め
-                value = Math.round(value);
-            }
-
+            /* Option 時は小数第1位、それ以外は整数に丸める / round to 0.1 with Option, otherwise to an integer */
+            value = keyboard.altKey ? Math.round(value * 10) / 10 : Math.round(value);
             editText.text = value;
 
-            // 追加：プレビュー等の即時反映（onChanging があれば呼ぶ）
-            try { if (typeof editText.onChanging === 'function') editText.onChanging(); } catch (e) {}
+            /* プレビュー等の即時反映（onChanging があれば呼ぶ） / refresh the preview through onChanging */
+            if (typeof editText.onChanging === 'function') editText.onChanging();
         });
     }
 
-    function showDialog() {
-        var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = [15, 20, 15, 10];
-        dialog.spacing = 10;
+    /**
+     * 「項目名：」付きの横並びの行を追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} labelPath - 項目名のラベルのパス
+     * @returns {Group} 行のグループ
+     */
+    function addLabeledRow(parentGroup, labelPath) {
+        var labeledRow = parentGroup.add("group");
+        labeledRow.orientation = "row";
+        labeledRow.alignChildren = "center";
+        labeledRow.add("statictext", undefined, labelText(labelPath));
+        return labeledRow;
+    }
 
-        var rulerUnit = getUnitInfo("rulerType").label;
-
-        var controlGroup = dialog.add("group");
-        controlGroup.orientation = "column";
-        controlGroup.alignChildren = "left";
-        controlGroup.margins = [15, 5, 15, 10];
-        controlGroup.spacing = 10;
-
-        var previewBoundsCheck = controlGroup.add("checkbox", undefined, getLabel('checkbox.previewBounds'));
-        previewBoundsCheck.helpTip = getLabel('tooltip.previewBounds');
-        previewBoundsCheck.value = true;
-
-        var marginGroup = controlGroup.add("group");
-        marginGroup.orientation = "row";
-        marginGroup.alignChildren = "center";
-        marginGroup.add("statictext", undefined, labelText('fieldLabel.margin'));
-        var marginInput = marginGroup.add("edittext", undefined, "0");
-        marginInput.helpTip = getLabel('tooltip.margin');
-        marginInput.characters = 5;
-        marginGroup.add("statictext", undefined, rulerUnit);
-        changeValueByArrowKey(marginInput);
-
-        var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, getLabel('checkbox.deleteArtboards'));
-        deleteArtboardsCheck.helpTip = getLabel('tooltip.deleteArtboards');
-        deleteArtboardsCheck.value = true;
-
-        /* アートボード名パネル / Artboard name panel */
-        var namePanel = dialog.add("panel");
+    /**
+     * 「アートボード名」パネルを作る
+     * @param {Window} group2ArtboardsDialog - ダイアログ
+     * @returns {Object} パネル内のコントロール
+     */
+    function buildNamePanel(group2ArtboardsDialog) {
+        var namePanel = group2ArtboardsDialog.add("panel");
         namePanel.text = getLabel('panel.name');
         namePanel.orientation = "row";
         namePanel.alignChildren = "center";
-        namePanel.margins = [15, 25, 15, 10];
+        namePanel.margins = NAME_PANEL_MARGINS;
 
-        var nameGroup = namePanel.add("group");
-        nameGroup.orientation = "column";
-        nameGroup.alignChildren = "left";
+        var nameColumn = namePanel.add("group");
+        nameColumn.orientation = "column";
+        nameColumn.alignChildren = "left";
 
-        var useFileNameCheck = nameGroup.add("checkbox", undefined, getLabel('checkbox.useFileName'));
-        useFileNameCheck.helpTip = getLabel('tooltip.useFileName');
-        useFileNameCheck.value = false;
+        var nameControls = {};
+        nameControls.useFileNameCheck = nameColumn.add("checkbox", undefined, getLabel('checkbox.useFileName'));
+        nameControls.useFileNameCheck.helpTip = getLabel('tooltip.useFileName');
+        nameControls.useFileNameCheck.value = DIALOG_DEFAULTS.useFileName;
 
-        var prefixRow = nameGroup.add("group");
-        prefixRow.orientation = "row";
-        prefixRow.alignChildren = "center";
-        prefixRow.add("statictext", undefined, labelText('fieldLabel.prefix'));
-        var nameInput = prefixRow.add("edittext", undefined, "");
-        nameInput.helpTip = getLabel('tooltip.prefix');
-        nameInput.characters = 15;
+        var prefixRow = addLabeledRow(nameColumn, 'fieldLabel.prefix');
+        nameControls.prefixInput = prefixRow.add("edittext", undefined, DIALOG_DEFAULTS.prefix);
+        nameControls.prefixInput.helpTip = getLabel('tooltip.prefix');
+        nameControls.prefixInput.characters = PREFIX_FIELD_CHARACTERS;
 
-        var symbolGroup = nameGroup.add("group");
-        symbolGroup.orientation = "row";
-        symbolGroup.alignChildren = "center";
-        symbolGroup.add("statictext", undefined, labelText('fieldLabel.symbol'));
-        var radioDash = symbolGroup.add("radiobutton", undefined, getLabel('radio.dash'));
-        radioDash.helpTip = getLabel('tooltip.symbol');
-        var radioUnderscore = symbolGroup.add("radiobutton", undefined, getLabel('radio.underscore'));
-        radioUnderscore.helpTip = getLabel('tooltip.symbol');
-        var radioNone = symbolGroup.add("radiobutton", undefined, getLabel('radio.none'));
-        radioNone.helpTip = getLabel('tooltip.symbol');
-        radioDash.value = true;
+        var symbolRow = addLabeledRow(nameColumn, 'fieldLabel.symbol');
+        nameControls.dashRadio = symbolRow.add("radiobutton", undefined, getLabel('radio.dash'));
+        nameControls.dashRadio.helpTip = getLabel('tooltip.symbol');
+        nameControls.underscoreRadio = symbolRow.add("radiobutton", undefined, getLabel('radio.underscore'));
+        nameControls.underscoreRadio.helpTip = getLabel('tooltip.symbol');
+        nameControls.noSymbolRadio = symbolRow.add("radiobutton", undefined, getLabel('radio.none'));
+        nameControls.noSymbolRadio.helpTip = getLabel('tooltip.symbol');
+        nameControls.dashRadio.value = true;
 
-        var seqRow = nameGroup.add("group");
-        seqRow.orientation = "row";
-        seqRow.alignChildren = "center";
-        seqRow.add("statictext", undefined, labelText('fieldLabel.startNumber'));
-        var seqInput = seqRow.add("edittext", undefined, "01");
-        seqInput.helpTip = getLabel('tooltip.startNumber');
-        seqInput.characters = 5;
-        changeValueByArrowKey(seqInput);
-        var zeroPaddingCheck = seqRow.add("checkbox", undefined, getLabel('checkbox.zeroPadding'));
-        zeroPaddingCheck.helpTip = getLabel('tooltip.zeroPadding');
-        zeroPaddingCheck.value = true;
+        var startNumberRow = addLabeledRow(nameColumn, 'fieldLabel.startNumber');
+        nameControls.startNumberInput = startNumberRow.add("edittext", undefined, DIALOG_DEFAULTS.startNumber);
+        nameControls.startNumberInput.helpTip = getLabel('tooltip.startNumber');
+        nameControls.startNumberInput.characters = NUMBER_FIELD_CHARACTERS;
+        changeValueByArrowKey(nameControls.startNumberInput);
+        nameControls.zeroPaddingCheck = startNumberRow.add("checkbox", undefined, getLabel('checkbox.zeroPadding'));
+        nameControls.zeroPaddingCheck.helpTip = getLabel('tooltip.zeroPadding');
+        nameControls.zeroPaddingCheck.value = DIALOG_DEFAULTS.zeroPadding;
 
-        var previewText = nameGroup.add("statictext", undefined, "");
-        previewText.alignment = "left";
-        previewText.characters = 20;
+        nameControls.nameExampleText = nameColumn.add("statictext", undefined, "");
+        nameControls.nameExampleText.alignment = "left";
+        nameControls.nameExampleText.characters = NAME_EXAMPLE_CHARACTERS;
+        return nameControls;
+    }
 
-        /* プレビュー更新 / Update preview */
-        function updatePreview() {
-            var prefix = nameInput.text;
-            var symbol = radioDash.value ? "-" : (radioUnderscore.value ? "_" : "");
-            var seq = seqInput.text;
-            var zeroPadding = zeroPaddingCheck.value;
-            var fileNameNoExt = "";
-            if (useFileNameCheck.value && app && app.activeDocument && app.activeDocument.name) {
-                var docName = app.activeDocument.name;
-                var lastDot = docName.lastIndexOf(".");
-                fileNameNoExt = lastDot > 0 ? docName.substring(0, lastDot) : docName;
-            }
-            previewText.text = getLabel('fieldLabel.example') + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
+    /**
+     * 選んでいる区切り記号を返す
+     * @param {Object} nameControls - 「アートボード名」パネルのコントロール
+     * @returns {string} "-" / "_" / ""
+     */
+    function getSelectedSymbol(nameControls) {
+        if (nameControls.dashRadio.value) return "-";
+        return nameControls.underscoreRadio.value ? "_" : "";
+    }
+
+    /**
+     * 設定ダイアログを表示する
+     * @returns {Object|null} 設定。キャンセル時は null
+     */
+    function showDialog() {
+        var group2ArtboardsDialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
+        group2ArtboardsDialog.orientation = "column";
+        group2ArtboardsDialog.alignChildren = "fill";
+        group2ArtboardsDialog.margins = DIALOG_MARGINS;
+        group2ArtboardsDialog.spacing = DIALOG_SPACING;
+
+        var rulerUnit = getUnitInfo("rulerType").label;
+
+        var optionGroup = group2ArtboardsDialog.add("group");
+        optionGroup.orientation = "column";
+        optionGroup.alignChildren = "left";
+        optionGroup.margins = OPTION_GROUP_MARGINS;
+        optionGroup.spacing = OPTION_GROUP_SPACING;
+
+        var previewBoundsCheck = optionGroup.add("checkbox", undefined, getLabel('checkbox.previewBounds'));
+        previewBoundsCheck.helpTip = getLabel('tooltip.previewBounds');
+        previewBoundsCheck.value = DIALOG_DEFAULTS.previewBounds;
+
+        var marginRow = addLabeledRow(optionGroup, 'fieldLabel.margin');
+        var marginInput = marginRow.add("edittext", undefined, DIALOG_DEFAULTS.margin);
+        marginInput.helpTip = getLabel('tooltip.margin');
+        marginInput.characters = NUMBER_FIELD_CHARACTERS;
+        marginRow.add("statictext", undefined, rulerUnit);
+        changeValueByArrowKey(marginInput);
+
+        var deleteArtboardsCheck = optionGroup.add("checkbox", undefined, getLabel('checkbox.deleteArtboards'));
+        deleteArtboardsCheck.helpTip = getLabel('tooltip.deleteArtboards');
+        deleteArtboardsCheck.value = DIALOG_DEFAULTS.deleteArtboards;
+
+        /* アートボード名パネル / Artboard name panel */
+        var nameControls = buildNamePanel(group2ArtboardsDialog);
+
+        /* 名前の例を更新 / Update the name example */
+        function updateNameExample() {
+            var startText = nameControls.startNumberInput.text;
+            var useFileName = nameControls.useFileNameCheck.value;
+            var fileNameNoExt = useFileName ? getFileNameWithoutExtension(app.activeDocument) : "";
+            var exampleName = buildArtboardName(nameControls.prefixInput.text, getSelectedSymbol(nameControls), startText,
+                nameControls.zeroPaddingCheck.value, useFileName, fileNameNoExt, startText.length);
+            /* 英語はコロンのあとに空白を入れる / add a space after the colon in English */
+            nameControls.nameExampleText.text = labelText('fieldLabel.example') + (uiLang === "ja" ? "" : " ") + exampleName;
         }
 
         /* イベント登録 / Register events */
-        nameInput.onChanging = updatePreview;
-        radioDash.onClick = updatePreview;
-        radioUnderscore.onClick = updatePreview;
-        radioNone.onClick = updatePreview;
-        seqInput.onChanging = updatePreview;
-        zeroPaddingCheck.onClick = updatePreview;
-        useFileNameCheck.onClick = updatePreview;
-        updatePreview();
+        nameControls.prefixInput.onChanging = updateNameExample;
+        nameControls.dashRadio.onClick = updateNameExample;
+        nameControls.underscoreRadio.onClick = updateNameExample;
+        nameControls.noSymbolRadio.onClick = updateNameExample;
+        nameControls.startNumberInput.onChanging = updateNameExample;
+        nameControls.zeroPaddingCheck.onClick = updateNameExample;
+        nameControls.useFileNameCheck.onClick = updateNameExample;
+        updateNameExample();
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "right";
-        buttonGroup.margins = [0, 10, 0, 10];
-        var cancelBtn = buttonGroup.add("button", undefined, getLabel('button.cancel'));
-        var okBtn = buttonGroup.add("button", undefined, getLabel('button.ok'), {
+        var btnRowGroup = group2ArtboardsDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "right";
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel('button.cancel'));
+        var btnOK = btnRowGroup.add("button", undefined, getLabel('button.ok'), {
             name: "ok"
         });
 
         var dialogResult = null;
-        cancelBtn.onClick = function() {
-            dialog.close();
+        btnCancel.onClick = function () {
+            group2ArtboardsDialog.close();
         };
-        okBtn.onClick = function() {
-            var selectedSymbol = radioDash.value ? "-" : (radioUnderscore.value ? "_" : "");
+        btnOK.onClick = function () {
             dialogResult = {
                 marginValue: marginInput.text,
                 deleteArtboards: deleteArtboardsCheck.value,
                 usePreviewBounds: previewBoundsCheck.value,
-                artboardName: nameInput.text,
-                sequentialText: seqInput.text,
-                zeroPadding: zeroPaddingCheck.value,
-                symbol: selectedSymbol,
-                useFileName: useFileNameCheck.value
+                artboardName: nameControls.prefixInput.text,
+                sequentialText: nameControls.startNumberInput.text,
+                zeroPadding: nameControls.zeroPaddingCheck.value,
+                symbol: getSelectedSymbol(nameControls),
+                useFileName: nameControls.useFileNameCheck.value
             };
-            dialog.close(1);
+            group2ArtboardsDialog.close(1);
         };
-        if (dialog.show() !== 1) return null;
+        if (group2ArtboardsDialog.show() !== 1) return null;
         return dialogResult;
     }
 
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * グループからアートボードにする範囲を求める
+     * プレビュー境界でクリップグループのときはマスクパスの幾何境界を使う。
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @param {boolean} usePreviewBounds - プレビュー境界を使うか
+     * @param {number} margin - マージン
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getGroupArtboardRect(groupItem, usePreviewBounds, margin) {
+        var bounds;
+        if (usePreviewBounds && groupItem.clipped) {
+            /* クリップグループの場合はマスクパスのジオメトリを使う / For clipped groups, use mask path geometry */
+            bounds = groupItem.pageItems[0].geometricBounds;
+        } else {
+            bounds = usePreviewBounds ? groupItem.visibleBounds : groupItem.geometricBounds;
+        }
+        return [bounds[0] - margin, bounds[1] + margin, bounds[2] + margin, bounds[3] - margin];
+    }
+
+    /**
+     * 選択したグループごとにアートボードを追加する
+     * @returns {void}
+     */
     function main() {
         if (!app.documents.length) return;
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length === 0) return;
+        var doc = app.activeDocument;
+        var selectedItems = doc.selection;
+        if (!selectedItems || selectedItems.length === 0) return;
 
         var dialogResult = showDialog();
         if (!dialogResult) return;
 
-        var doc = app.activeDocument;
         var margin = parseFloat(dialogResult.marginValue);
         if (isNaN(margin)) margin = 0;
         var initialCount = doc.artboards.length;
 
-        var seqText = dialogResult.sequentialText;
-        var seqNum = parseInt(seqText, 10);
-        if (isNaN(seqNum)) seqNum = 1;
+        var startText = dialogResult.sequentialText;
+        var sequenceNumber = parseInt(startText, 10);
+        if (isNaN(sequenceNumber)) sequenceNumber = 1;
 
-        var seqPadding = 0;
+        var padLength = 0;
         if (dialogResult.zeroPadding) {
-            seqPadding = seqText.length > 1 ? seqText.length : (seqNum + selection.length - 1).toString().length;
+            padLength = startText.length > 1 ? startText.length : (sequenceNumber + selectedItems.length - 1).toString().length;
         }
 
-        var fileNameNoExt = "";
-        if (dialogResult.useFileName && doc && doc.name) {
-            var lastDot = doc.name.lastIndexOf(".");
-            fileNameNoExt = lastDot > 0 ? doc.name.substring(0, lastDot) : doc.name;
-        }
+        var fileNameNoExt = dialogResult.useFileName ? getFileNameWithoutExtension(doc) : "";
 
         /* 選択されたグループごとにアートボードを追加 / Add artboards for each selected group */
-        for (var i = 0; i < selection.length; i++) {
-            if (selection[i].typename === "GroupItem") {
-                var bounds;
-                if (dialogResult.usePreviewBounds && selection[i].clipped) {
-                    /* クリップグループの場合はマスクパスのジオメトリを使う / For clipped groups, use mask path geometry */
-                    var maskItem = selection[i].pageItems[0];
-                    bounds = maskItem.geometricBounds;
-                } else {
-                    bounds = dialogResult.usePreviewBounds ? selection[i].visibleBounds : selection[i].geometricBounds;
-                }
+        for (var i = 0; i < selectedItems.length; i++) {
+            var groupItem = selectedItems[i];
+            if (groupItem.typename !== "GroupItem") continue;
 
-                var left = bounds[0] - margin;
-                var top = bounds[1] + margin;
-                var right = bounds[2] + margin;
-                var bottom = bounds[3] - margin;
-                try {
-                    doc.artboards.add([left, top, right, bottom]);
-                    var newName = buildArtboardName(
-                        dialogResult.artboardName,
-                        dialogResult.symbol,
-                        seqNum,
-                        dialogResult.zeroPadding,
-                        dialogResult.useFileName,
-                        fileNameNoExt,
-                        seqPadding
-                    );
-                    doc.artboards[doc.artboards.length - 1].name = newName;
-                    seqNum++;
-                } catch (e) {}
-            }
+            var artboardRect = getGroupArtboardRect(groupItem, dialogResult.usePreviewBounds, margin);
+            /* 追加できない範囲（キャンバス外など）はスキップ / skip rects Illustrator refuses (off-canvas, etc.) */
+            try {
+                doc.artboards.add(artboardRect);
+                doc.artboards[doc.artboards.length - 1].name = buildArtboardName(
+                    dialogResult.artboardName,
+                    dialogResult.symbol,
+                    sequenceNumber,
+                    dialogResult.zeroPadding,
+                    dialogResult.useFileName,
+                    fileNameNoExt,
+                    padLength
+                );
+                sequenceNumber++;
+            } catch (e) {}
         }
 
         /* 既存アートボードを削除（新規追加後に実行）/ Delete existing artboards (after adding new ones) */

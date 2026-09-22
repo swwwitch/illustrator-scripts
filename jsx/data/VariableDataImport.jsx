@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "VariableDataImport";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VariableDataImport.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDataImport.md"; /* README (English) */
@@ -42,21 +42,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
 (function () {
 
-    var MAX_ARTBOARD_COUNT = 1000;              /* 生成できるアートボードの上限 / artboard count limit */
-    var CANVAS_MAX_SIZE = 16383;                /* Illustratorのカンバス最大寸法（pt） / max canvas size in pt */
-    var ARTBOARD_GAP_STEP = 10;                 /* アートボード間隔の丸め単位（pt） / gap rounding step in pt */
-    var ARTBOARD_GAP_DIVISOR = 5;               /* 間隔の初期値＝雛形幅/この値 / gap default divisor */
-    var DATA_FILE_PATTERN = /\.(txt|csv)$/i;    /* データファイルとして拾う拡張子 / data file extensions */
-    var ARTBOARD_NAME_PREFIX = "Data_";         /* 名前が空のときのアートボード名 / fallback artboard name */
-    var DEFAULT_FILE_SUFFIX = "";               /* ファイル名に挟む既定の文字列（既定は挟まない）/ default file-name suffix (none) */
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var DATA_FILE_PATTERN = /\.(txt|csv)$/i; /* データファイルとして拾う拡張子 / data file extensions */
+    var ARTBOARD_NAME_PREFIX = "Data_";      /* 名前が空のときのアートボード名 / fallback artboard name */
+    var DEFAULT_FILE_SUFFIX = "";            /* ファイル名に挟む既定の文字列（既定は挟まない）/ default file-name suffix (none) */
+    var ARTBOARD_GAP_STEP = 10;              /* アートボード間隔の丸め単位（pt） / gap rounding step in pt */
+    var ARTBOARD_GAP_DIVISOR = 5;            /* 間隔の初期値＝雛形幅/この値 / gap default divisor */
+    var TAX_RATE = 0.1;                      /* 消費税率（税込金額からの逆算に使う）/ consumption tax rate */
+    /* アートボード名に使いたい列名（先に書いたものほど優先）/ Preferred artboard-name columns, most preferred first */
+    var ARTBOARD_NAME_KEYWORDS = ["名前", "御中", "宛先", "様", "会社名"];
+    /* 税込金額が入っていそうな列名 / Column names that look like a tax-included amount */
+    var TAX_INCLUDED_COLUMN_PATTERN = /税込|金額|価格|料金|定価|合計|price|amount|total|cost|fee/i;
+
+    // =========================================
+    // 上限と制約 / Limits
+    // =========================================
+    var MAX_ARTBOARD_COUNT = 1000;   /* 生成できるアートボードの上限 / artboard count limit */
+    var CANVAS_MAX_SIZE = 16383;     /* Illustratorのカンバス最大寸法（pt） / max canvas size in pt */
+    var MAX_TAG_REPLACEMENTS = 1000; /* 1フレーム内で同一タグを置換する上限 / replacement guard */
     /* ファイル名に使えない文字 / Characters not allowed in a file name */
     var FILE_NAME_FORBIDDEN_PATTERN = /[\\\/:*?"<>|]/g;
-    var MAX_TAG_REPLACEMENTS = 1000;            /* 1フレーム内で同一タグを置換する上限 / replacement guard */
 
     // =========================================
     // レイアウト / Layout
     // =========================================
-
     var DIALOG_MARGINS = 15;                        /* ダイアログの余白 / dialog margins */
     var DIALOG_SPACING = 10;                        /* ダイアログの行間 / dialog spacing */
     var PANEL_MARGINS = 15;                         /* パネルの余白 / panel margins */
@@ -68,29 +79,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
     var SAMPLE_VALUE_WIDTH = 150;                   /* 対応行に出す実データの表示幅 / sample value width */
     var SAMPLE_VALUE_MAX_CHARS = 18;                /* 対応行に出す実データの表示文字数 / sample value length */
     var SAMPLE_VALUE_COLOR = [0.45, 0.45, 0.45, 1]; /* 実データの文字色（補助表示）/ sample value colour */
-    var TAX_RATE = 0.1;                             /* 消費税率（税込金額からの逆算に使う）/ consumption tax rate */
-    /* アートボード名に使いたい列名（先に書いたものほど優先）/ Preferred artboard-name columns, most preferred first */
-    var ARTBOARD_NAME_KEYWORDS = ["名前", "御中", "宛先", "様", "会社名"];
-    /* 税込金額が入っていそうな列名 / Column names that look like a tax-included amount */
-    var TAX_INCLUDED_COLUMN_PATTERN = /税込|金額|価格|料金|定価|合計|price|amount|total|cost|fee/i;
     var ARTBOARD_GAP_INPUT_SIZE = [60, 25];         /* 間隔入力欄 / gap input field */
     var ARTBOARD_COLUMN_INPUT_SIZE = [60, 25];      /* 列数入力欄 / column count input field */
     var FILE_SUFFIX_INPUT_SIZE = [120, 25];         /* 接尾辞の入力欄 / file suffix input field */
     var DATA_LIST_BOUNDS = [0, 0, 550, 180];        /* データ一覧リスト / data list box */
     var PROGRESS_BAR_WIDTH = 300;                   /* 進捗バーの幅 / progress bar width */
 
+    /**
+     * 入力欄で↑↓キーによる値の増減を有効にする
+     * ↑↓で±1、shift併用で10の倍数へスナップ、option併用で±0.1
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function(event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                // Shiftキー押下時は10の倍数にスナップ
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName === "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                // Optionキー押下時は0.1単位で増減
+                if (event.keyName === "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName === "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName === "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName === "Down") {
+                    value -= delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            }
+
+            if (keyboard.altKey) {
+                // 小数第1位までに丸め
+                value = Math.round(value * 10) / 10;
+            } else {
+                // 整数に丸め
+                value = Math.round(value);
+            }
+
+            editText.text = value;
+        });
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
-
-    /**
-     * 実行環境のロケールから表示言語を判定する
-     * @returns {string} "ja" または "en"
-     */
-    function detectUILang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = detectUILang();
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -287,98 +344,587 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         return getLabel(labelKey) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /**
-     * 文字列先頭のBOM（U+FEFF / 65279）と前後の空白を除去する
-     * @param {string} text - 対象の文字列
-     * @returns {string} 整形後の文字列
-     */
-    /**
-     * 入力欄で↑↓キーによる値の増減を有効にする
-     * ↑↓で±1、shift併用で10の倍数へスナップ、option併用で±0.1
-     * @param {EditText} editText - 対象の入力欄
-     * @returns {void}
-     */
-    function changeValueByArrowKey(editText) {
-        editText.addEventListener("keydown", function(event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
-
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ
-                if (event.keyName === "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName === "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                // Optionキー押下時は0.1単位で増減
-                if (event.keyName === "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName === "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName === "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName === "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            }
-
-            if (keyboard.altKey) {
-                // 小数第1位までに丸め
-                value = Math.round(value * 10) / 10;
-            } else {
-                // 整数に丸め
-                value = Math.round(value);
-            }
-
-            editText.text = value;
-        });
-    }
+    // =========================================
+    // ユーティリティ / Utilities
+    // =========================================
 
     /**
      * 文字列の前後の空白を取り除き、先頭のBOM（U+FEFF）があれば除去する
-     * @param {string} text - 対象の文字列
+     * @param {string} rawText - 対象の文字列
      * @returns {string} BOMと前後の空白を取り除いた文字列
      */
-    function trimAndStripBom(text) {
-        text = String(text);
-        if (text.length && text.charCodeAt(0) === 65279) text = text.substring(1);
-        return text.replace(/^\s+|\s+$/g, "");
+    function trimAndStripBom(rawText) {
+        var cleanedText = String(rawText);
+        if (cleanedText.length && cleanedText.charCodeAt(0) === 65279) cleanedText = cleanedText.substring(1);
+        return cleanedText.replace(/^\s+|\s+$/g, "");
+    }
+
+    /**
+     * 補助表示用に、長い文字列を切り詰める
+     * @param {string} fullText - 対象の文字列
+     * @returns {string} 表示用の文字列
+     */
+    function truncateForDisplay(fullText) {
+        var displayText = String(fullText);
+        return (displayText.length > SAMPLE_VALUE_MAX_CHARS) ? (displayText.substring(0, SAMPLE_VALUE_MAX_CHARS) + "…") : displayText;
+    }
+
+    /**
+     * データ行から表示用のセル文字列を取り出す（"0" を空扱いしない）
+     * @param {string[]} cellValues - 1行分のデータ値
+     * @param {number} cellIndex - 取り出す列の番号
+     * @returns {string} セルの文字列（無ければ空文字）
+     */
+    function cellText(cellValues, cellIndex) {
+        return (cellValues[cellIndex] != null) ? String(cellValues[cellIndex]) : "";
+    }
+
+    /**
+     * 1桁の数値を0詰めで2桁にする
+     * @param {number} numberValue - 対象の数値
+     * @returns {string} 2桁の文字列
+     */
+    function padTwoDigits(numberValue) {
+        return (numberValue < 10 ? "0" : "") + String(numberValue);
+    }
+
+    /**
+     * 現在の日付を YYYYMMDD の形にする
+     * @returns {string} 日付の文字列
+     */
+    function buildDateStamp() {
+        var now = new Date();
+        return String(now.getFullYear()) + padTwoDigits(now.getMonth() + 1) + padTwoDigits(now.getDate());
+    }
+
+    /**
+     * 現在の時刻を HHMMSS の形にする
+     * @returns {string} 時刻の文字列
+     */
+    function buildTimeStamp() {
+        var now = new Date();
+        return padTwoDigits(now.getHours()) + padTwoDigits(now.getMinutes()) + padTwoDigits(now.getSeconds());
+    }
+
+    /**
+     * ファイル名に使えない文字と前後の空白を取り除く
+     * @param {string} namePart - 対象の文字列
+     * @returns {string} ファイル名に使える文字列
+     */
+    function sanitizeFileNamePart(namePart) {
+        return String(namePart).replace(FILE_NAME_FORBIDDEN_PATTERN, "").replace(/^\s+|\s+$/g, "");
+    }
+
+    /**
+     * 名前を照合用に正規化する（空白・アンダースコア・ハイフンを除いて小文字化）
+     * @param {string} nameText - 対象の文字列
+     * @returns {string} 正規化した文字列
+     */
+    function normalizeNameForMatch(nameText) {
+        return String(nameText).replace(/[\s\u3000_\-]/g, "").toLowerCase();
+    }
+
+    /**
+     * グリッド全体の外形サイズを求める
+     * @param {number} columnCount - 列数
+     * @param {number} rowCount - 行数
+     * @param {number} cellWidth - 1セルの幅（pt）
+     * @param {number} cellHeight - 1セルの高さ（pt）
+     * @param {number} artboardGap - アートボード間隔（pt）
+     * @returns {{width: number, height: number}} グリッド全体の幅と高さ
+     */
+    function calcGridSize(columnCount, rowCount, cellWidth, cellHeight, artboardGap) {
+        return {
+            width: columnCount * cellWidth + (columnCount - 1) * artboardGap,
+            height: rowCount * cellHeight + (rowCount - 1) * artboardGap
+        };
+    }
+
+    // =========================================
+    // ダイアログ部品 / Dialog helpers
+    // =========================================
+
+    /**
+     * 設定パネル用に、一定幅のコロン付きラベルを追加して項目を縦に揃える
+     * @param {Group} parentGroup - ラベルを追加するグループ
+     * @param {string} labelKey - ラベルの階層キー
+     * @returns {StaticText} 追加したラベル
+     */
+    function addFieldLabel(parentGroup, labelKey) {
+        /* justify は生成時にしか効かない / justify only takes effect at creation time */
+        var fieldLabel = parentGroup.add("statictext", undefined, labelText(labelKey), { justify: "right" });
+        fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH[uiLang] || FIELD_LABEL_WIDTH.en;
+        return fieldLabel;
+    }
+
+    /**
+     * 実データ（データの1件目）を出す補助表示を、行の右端に足す
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} sampleText - 表示する文字列
+     * @param {string} tooltipKey - ヘルプチップの階層キー
+     * @returns {StaticText} 追加した補助表示
+     */
+    function addSampleValueLabel(parentGroup, sampleText, tooltipKey) {
+        var sampleValueLabel = parentGroup.add("statictext", undefined, sampleText);
+        sampleValueLabel.preferredSize.width = SAMPLE_VALUE_WIDTH;
+        sampleValueLabel.helpTip = getLabel(tooltipKey);
+        applySampleValueColor(sampleValueLabel);
+        return sampleValueLabel;
+    }
+
+    /**
+     * 補助表示であることが分かるよう、文字色を淡くする
+     * @param {StaticText} targetLabel - 対象の表示
+     * @returns {void}
+     */
+    function applySampleValueColor(targetLabel) {
+        var labelGraphics = targetLabel.graphics;
+        labelGraphics.foregroundColor = labelGraphics.newPen(labelGraphics.PenType.SOLID_COLOR, SAMPLE_VALUE_COLOR, 1);
+    }
+
+    /**
+     * ドロップダウンの表示を、onChangeを発火させずに選び直す
+     * @param {DropDownList} targetDropdown - 対象のドロップダウン
+     * @param {number} itemIndex - 選び直す項目の番号
+     * @returns {void}
+     */
+    function setDropdownSelectionSilently(targetDropdown, itemIndex) {
+        if (itemIndex == null || itemIndex < 0 || itemIndex >= targetDropdown.items.length) return;
+        var savedOnChange = targetDropdown.onChange;
+        targetDropdown.onChange = null;
+        if (!targetDropdown.selection || targetDropdown.selection.index !== itemIndex) {
+            targetDropdown.selection = itemIndex;
+        }
+        targetDropdown.onChange = savedOnChange;
+    }
+
+    // =========================================
+    // CSV / TSV の解析 / CSV / TSV parsing
+    // =========================================
+
+    /**
+     * データ1行を区切り文字で分割する（CSVは引用符・""エスケープも解釈）
+     * @param {string} dataLine - 1行分の文字列
+     * @param {string} delimiter - 区切り文字（"," または "\t"）
+     * @returns {string[]} 分割したフィールド
+     */
+    function parseDataLine(dataLine, delimiter) {
+        if (delimiter === "\t") return dataLine.split("\t");
+        var parsedFields = [], currentField = "", inQuotes = false;
+        for (var i = 0; i < dataLine.length; i++) {
+            var currentChar = dataLine.charAt(i);
+            if (inQuotes) {
+                if (currentChar !== '"') currentField += currentChar;
+                else if (dataLine.charAt(i + 1) === '"') { currentField += '"'; i++; } /* "" は引用符1つ / escaped quote */
+                else inQuotes = false;
+            } else if (currentChar === '"') {
+                inQuotes = true;
+            } else if (currentChar === delimiter) {
+                parsedFields.push(currentField);
+                currentField = "";
+            } else {
+                currentField += currentChar;
+            }
+        }
+        parsedFields.push(currentField);
+        return parsedFields;
+    }
+
+    /**
+     * バイト列がUTF-8として妥当か判定する
+     * @param {string} byteString - 1バイト＝1文字で読み込んだ文字列（BINARY読み）
+     * @returns {boolean} UTF-8として解釈できればtrue
+     */
+    function isValidUtf8(byteString) {
+        var i = 0, byteCount = byteString.length;
+        while (i < byteCount) {
+            var leadByte = byteString.charCodeAt(i);
+            if (leadByte <= 0x7F) { i++; continue; }
+            var followByteCount;
+            if (leadByte >= 0xC2 && leadByte <= 0xDF) followByteCount = 1;
+            else if (leadByte >= 0xE0 && leadByte <= 0xEF) followByteCount = 2;
+            else if (leadByte >= 0xF0 && leadByte <= 0xF4) followByteCount = 3;
+            else return false;
+            if (i + followByteCount >= byteCount) return false;
+            for (var j = 1; j <= followByteCount; j++) {
+                var followByte = byteString.charCodeAt(i + j);
+                if (followByte < 0x80 || followByte > 0xBF) return false;
+            }
+            i += followByteCount + 1;
+        }
+        return true;
+    }
+
+    /**
+     * データファイルを読み込む（UTF-8として解釈できなければShift-JISで読み直す）
+     * @param {File} dataFile - 読み込むファイル
+     * @returns {string} ファイル全体の文字列（読み込めなければnull）
+     */
+    function readDataFileText(dataFile) {
+        /* まずバイト列として読み、エンコーディングを判定 / Read raw bytes to detect the encoding */
+        var rawByteString = readFileWithEncoding(dataFile, "BINARY");
+        if (rawByteString === null) return null;
+        return readFileWithEncoding(dataFile, isValidUtf8(rawByteString) ? "UTF-8" : "SJIS");
+    }
+
+    /**
+     * 指定のエンコーディングでファイル全体を読む
+     * @param {File} dataFile - 読み込むファイル
+     * @param {string} encoding - ExtendScriptのエンコーディング名（"BINARY" / "UTF-8" / "SJIS"）
+     * @returns {string} ファイル全体の文字列（開けなければnull）
+     */
+    function readFileWithEncoding(dataFile, encoding) {
+        dataFile.encoding = encoding;
+        if (!dataFile.open("r")) return null;
+        var fileContent = dataFile.read();
+        dataFile.close();
+        return fileContent;
+    }
+
+    /**
+     * ヘッダー行を解析し、BOM・前後空白を除いた列名を返す
+     * @param {string} headerLine - ヘッダー行の文字列
+     * @param {string} delimiter - 区切り文字
+     * @returns {string[]} 正規化した列名
+     */
+    function parseColumnNames(headerLine, delimiter) {
+        var columnNames = parseDataLine(headerLine, delimiter);
+        for (var i = 0; i < columnNames.length; i++) {
+            columnNames[i] = trimAndStripBom(columnNames[i]);
+        }
+        return columnNames;
+    }
+
+    /**
+     * 列名がひとつでも入っているか判定する（空ファイル対策）
+     * @param {string[]} columnNames - 列名の配列
+     * @returns {boolean} ひとつでも空でなければtrue
+     */
+    function hasAnyColumnName(columnNames) {
+        for (var i = 0; i < columnNames.length; i++) {
+            if (columnNames[i] !== "") return true;
+        }
+        return false;
+    }
+
+    /**
+     * ヘッダー行より後を解析し、前後空白を除いたデータ行の配列を返す
+     * @param {string[]} fileLines - ファイルを行分割した配列
+     * @param {string} delimiter - 区切り文字
+     * @returns {Array<string[]>} データ行の配列
+     */
+    function parseDataRows(fileLines, delimiter) {
+        var parsedRows = [];
+        for (var i = 1; i < fileLines.length; i++) {
+            if (fileLines[i] === "") continue;
+            var cellValues = parseDataLine(fileLines[i], delimiter);
+            for (var j = 0; j < cellValues.length; j++) {
+                cellValues[j] = String(cellValues[j]).replace(/^\s+|\s+$/g, "");
+            }
+            parsedRows.push(cellValues);
+        }
+        return parsedRows;
+    }
+
+    // =========================================
+    // 金額と消費税 / Amounts and tax
+    // =========================================
+
+    /**
+     * 金額の文字列を数値にする（3桁区切り・通貨記号・全角数字を許容する）
+     * @param {string} amountText - 対象の文字列
+     * @returns {number} 金額（数値として読めなければnull）
+     */
+    function parseAmount(amountText) {
+        var normalizedText = String(amountText).replace(/[０-９]/g, function (fullWidthDigit) {
+            return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFEE0);
+        });
+        normalizedText = normalizedText.replace(/[,\s\u3000\u00A5\uFFE5$円]/g, "");
+        if (!/^-?\d+(\.\d+)?$/.test(normalizedText)) return null;
+        return Number(normalizedText);
+    }
+
+    /**
+     * 金額を文字列にする（元の値が3桁区切りなら、区切りも付け直す）
+     * @param {number} amount - 金額
+     * @param {string} sourceText - 元になった文字列
+     * @returns {string} 表示用の文字列
+     */
+    function formatAmount(amount, sourceText) {
+        var amountText = String(amount);
+        if (String(sourceText).indexOf(",") === -1) return amountText;
+
+        var sign = (amountText.charAt(0) === "-") ? "-" : "";
+        var digits = sign ? amountText.substring(1) : amountText;
+        var groupedDigits = "";
+        while (digits.length > 3) {
+            groupedDigits = "," + digits.substring(digits.length - 3) + groupedDigits;
+            digits = digits.substring(0, digits.length - 3);
+        }
+        return sign + digits + groupedDigits;
+    }
+
+    /**
+     * 列の値を取り出す（本体・税は税込金額から逆算する）
+     * 本体は端数を四捨五入し、税は税込との差にするため、本体＋税は必ず税込に一致する
+     * @param {{columnIndex: number, valueKind: string}} columnSource - 対応づけた列
+     * @param {string[]} rowValues - 1行分のデータ値
+     * @returns {string} 流し込む文字列
+     */
+    function resolveSourceValue(columnSource, rowValues) {
+        var rawText = cellText(rowValues, columnSource.columnIndex);
+        if (columnSource.valueKind === "raw") return rawText;
+
+        var taxIncludedAmount = parseAmount(rawText);
+        if (taxIncludedAmount === null) return rawText; /* 金額として読めなければそのまま / leave as-is */
+
+        var netAmount = Math.round(taxIncludedAmount / (1 + TAX_RATE));
+        var resolvedAmount = (columnSource.valueKind === "tax") ? (taxIncludedAmount - netAmount) : netAmount;
+        return formatAmount(resolvedAmount, rawText);
+    }
+
+    // =========================================
+    // ドキュメント操作 / Document helpers
+    // =========================================
+
+    /**
+     * Illustratorの最大カンバス範囲を取得する（一時レイヤーで原点を測定）
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getCanvasBounds() {
+        var measuredDocument = app.activeDocument;
+        var wasModified = measuredDocument.modified; /* 計測前の変更フラグを退避 / remember the flag before measuring */
+        var probeLayer = measuredDocument.layers.add();
+        var probeTextFrame = probeLayer.textFrames.add();
+        var canvasLeft = probeTextFrame.matrix.mValueTX;
+        var canvasTop = probeTextFrame.matrix.mValueTY;
+        probeLayer.remove();
+        measuredDocument.modified = wasModified; /* 一時レイヤーで立った変更フラグを元に戻す / restore the flag */
+        return [canvasLeft, canvasTop, canvasLeft + CANVAS_MAX_SIZE, canvasTop - CANVAS_MAX_SIZE];
+    }
+
+    /**
+     * アートボード0上の雛形オブジェクトを集める
+     * 選択は複製操作で変化しうるので、配列に控えてから返す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {PageItem[]} 雛形オブジェクト（見つからなければ空配列）
+     */
+    function collectTemplateItems(targetDocument) {
+        targetDocument.artboards.setActiveArtboardIndex(0);
+        targetDocument.selectObjectsOnActiveArtboard();
+        var selectedItems = targetDocument.selection;
+        var templateItems = [];
+        if (!selectedItems) return templateItems;
+        for (var i = 0; i < selectedItems.length; i++) {
+            templateItems.push(selectedItems[i]);
+        }
+        return templateItems;
+    }
+
+    /**
+     * オブジェクトを再帰的に走査し、テキスト内の `<変数名>` を重複なく集める
+     * @param {PageItem} pageItem - 走査対象のオブジェクト
+     * @param {string[]} tagNames - 見つかった変数名を追加する配列
+     * @param {Object} seenTagNames - 既出判定に使う辞書
+     * @returns {void}
+     */
+    function collectTagNamesFromItem(pageItem, tagNames, seenTagNames) {
+        if (!pageItem) return;
+
+        if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                collectTagNamesFromItem(pageItem.pageItems[i], tagNames, seenTagNames);
+            }
+            return;
+        }
+        if (pageItem.typename !== "TextFrame") return;
+
+        var textContents = pageItem.contents;
+        if (textContents == null) return;
+
+        var tagPattern = /<([^<>\r\n]+)>/g;
+        var tagMatch;
+        while ((tagMatch = tagPattern.exec(String(textContents))) !== null) {
+            var tagName = trimAndStripBom(tagMatch[1]);
+            if (tagName === "") continue;
+            /* Objectの既定プロパティと衝突しないよう接頭辞を付ける / prefix to avoid built-in keys */
+            var seenKey = "tag:" + tagName;
+            if (seenTagNames[seenKey]) continue;
+            seenTagNames[seenKey] = true;
+            tagNames.push(tagName);
+        }
+    }
+
+    /**
+     * 雛形（アートボード1）のテキストに含まれる変数名を集める
+     * 選択とアクティブアートボードは、走査前の状態へ戻す
+     * @param {Document} targetDocument - 走査するドキュメント
+     * @returns {string[]} 出現順に並べた変数名
+     */
+    function collectTemplateTagNames(targetDocument) {
+        var savedSelection = [];
+        try {
+            var currentSelection = targetDocument.selection;
+            for (var i = 0; i < currentSelection.length; i++) savedSelection.push(currentSelection[i]);
+        } catch (e) {
+            /* 選択を読めなければ控えずに進む / Continue without saving the selection */
+        }
+        var savedArtboardIndex = targetDocument.artboards.getActiveArtboardIndex();
+        var wasModified = targetDocument.modified; /* 走査で立つ変更フラグを退避 / remember the flag */
+
+        var tagNames = [];
+        var seenTagNames = {};
+        var templateItems = collectTemplateItems(targetDocument);
+        for (var j = 0; j < templateItems.length; j++) {
+            collectTagNamesFromItem(templateItems[j], tagNames, seenTagNames);
+        }
+
+        try {
+            targetDocument.artboards.setActiveArtboardIndex(savedArtboardIndex);
+            targetDocument.selection = (savedSelection.length > 0) ? savedSelection : null;
+        } catch (e) {
+            /* 戻せなくても走査結果は使う / Keep the result even if restoring fails */
+        }
+        targetDocument.modified = wasModified; /* 走査で立った変更フラグを元に戻す / restore the flag */
+        return tagNames;
+    }
+
+    /**
+     * 指定ドキュメントを別名保存し、操作対象として複製後ドキュメントを返す
+     * @param {Document} sourceDocument - 複製元のドキュメント
+     * @param {File} duplicateFile - 保存先のファイル
+     * @returns {Document} 別名保存後のドキュメント
+     */
+    function duplicateDocumentBySaveAs(sourceDocument, duplicateFile) {
+        sourceDocument.saveAs(duplicateFile); /* このドキュメント自体が複製ファイルに切り替わる / Illustrator switches this document to the duplicated file */
+        return sourceDocument;
+    }
+
+    /**
+     * 複製（別名保存・ファイルコピー）の失敗を通知する
+     * @param {Error} err - 捕捉した例外
+     * @returns {void}
+     */
+    function alertDuplicateFailure(err) {
+        alert(getLabel("alert.dupFailed").replace("#detail#", String(err)));
+    }
+
+    // =========================================
+    // テキストの置換 / Text replacement
+    // =========================================
+
+    /**
+     * テキストフレーム内のタグを、文字書式を保ったまま置換する
+     * タグの1文字目にデータ値を流し込み、残りのタグ文字を削除することで書式を引き継ぐ
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} placeholderTag - 置換する `<ヘッダー名>` 形式のタグ
+     * @param {string} replacementValue - 流し込む値
+     * @returns {void}
+     */
+    function replaceTagKeepingStyle(textFrame, placeholderTag, replacementValue) {
+        var guardCount = 0;
+        var tagPosition = textFrame.contents.indexOf(placeholderTag);
+        while (tagPosition !== -1 && guardCount++ < MAX_TAG_REPLACEMENTS) {
+            if (replacementValue === "") {
+                for (var i = 0; i < placeholderTag.length; i++) {
+                    textFrame.characters[tagPosition].remove();
+                }
+            } else {
+                textFrame.characters[tagPosition].contents = replacementValue; /* 1文字目の書式を引き継ぐ / inherit the style */
+                for (var j = 1; j < placeholderTag.length; j++) {
+                    textFrame.characters[tagPosition + replacementValue.length].remove();
+                }
+            }
+            tagPosition = textFrame.contents.indexOf(placeholderTag);
+        }
+    }
+
+    /**
+     * オブジェクトを再帰的に走査し、テキスト内の `<タグ>` をデータ値へ置換する
+     * @param {PageItem} pageItem - 走査対象のオブジェクト
+     * @param {Array<{tag: string, source: object}>} tagMappings - 変数と列の対応
+     * @param {string[]} rowValues - 1行分のデータ値
+     * @returns {void}
+     */
+    function replaceTagsRecursive(pageItem, tagMappings, rowValues) {
+        if (!pageItem) return;
+
+        if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                replaceTagsRecursive(pageItem.pageItems[i], tagMappings, rowValues);
+            }
+            return;
+        }
+        if (pageItem.typename !== "TextFrame") return;
+
+        var originalContents = pageItem.contents;
+        if (originalContents == null) return;
+
+        var tagReplacements = collectTagReplacements(String(originalContents), tagMappings, rowValues);
+        if (tagReplacements.length === 0) return; /* タグが無いフレームには触らない / leave untagged frames alone */
+
+        try {
+            for (var j = 0; j < tagReplacements.length; j++) {
+                replaceTagKeepingStyle(pageItem, tagReplacements[j].tag, tagReplacements[j].value);
+            }
+        } catch (e) {
+            /* 文字単位で置換できない場合は一括代入にフォールバック（書式は失われる）/ Fallback: whole-contents assignment */
+            pageItem.contents = applyReplacementsToText(originalContents, tagReplacements);
+        }
+    }
+
+    /**
+     * テキストに含まれているタグと、その置換値を集める
+     * @param {string} textContents - テキストフレームの内容
+     * @param {Array<{tag: string, source: object}>} tagMappings - 変数と列の対応
+     * @param {string[]} rowValues - 1行分のデータ値
+     * @returns {Array<{tag: string, value: string}>} 置換の組（含まれていないタグは返さない）
+     */
+    function collectTagReplacements(textContents, tagMappings, rowValues) {
+        var tagReplacements = [];
+        for (var i = 0; i < tagMappings.length; i++) {
+            if (textContents.indexOf(tagMappings[i].tag) === -1) continue;
+            tagReplacements.push({ tag: tagMappings[i].tag, value: resolveSourceValue(tagMappings[i].source, rowValues) });
+        }
+        return tagReplacements;
+    }
+
+    /**
+     * 集めた置換をすべて文字列に適用する（書式を保てないときのフォールバック用）
+     * @param {string} textContents - 置換前のテキスト
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {string} 置換後のテキスト
+     */
+    function applyReplacementsToText(textContents, tagReplacements) {
+        var mergedContents = String(textContents);
+        for (var i = 0; i < tagReplacements.length; i++) {
+            /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
+            mergedContents = mergedContents.split(tagReplacements[i].tag).join(tagReplacements[i].value);
+        }
+        return mergedContents;
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
 
-    (function () {
+    /**
+     * ダイアログを表示し、データファイルの読み込み・プレビュー・流し込みを行う
+     * @returns {void}
+     */
+    function main() {
 
-        var dataRows = [];               // 読み込んだデータ行 / Loaded data rows
-        var headerNames = [];            // ヘッダー（列名）/ Header column names
-        var previewFile = null;          // プレビュー用に開く複製ファイル / Duplicate file opened for preview
-        var artboardNameColumnIndex = 0; // アートボード名に使う列の番号 / Column used for artboard names
-        var templateTagNames = [];       // 雛形に含まれる変数名 / Tag names found in the template
-        var columnSources = [];          // 選べるデータ列（実データ列と計算列）/ Selectable columns (raw & derived)
-        var tagSourceIndexes = [];       // 変数ごとの対応列の番号（-1は対応なし）/ Source per tag (-1 = none)
-        var tagSourceDropdowns = [];     // 変数ごとの対応列ドロップダウン / Column dropdown per tag
-        var tagSampleLabels = [];        // 変数ごとの実データ表示 / Sample value label per tag
-        var taxCalcEnabled = false;      // 消費税を自動計算するか / Whether to derive the tax columns
-        var taxCalcAvailable = false;    // 税込金額の列を特定できたか / Whether a tax-included column exists
+        var dataRows = [];               /* 読み込んだデータ行 / Loaded data rows */
+        var headerNames = [];            /* ヘッダー（列名）/ Header column names */
+        var previewFile = null;          /* プレビュー用に開く複製ファイル / Duplicate file opened for preview */
+        var artboardNameColumnIndex = 0; /* アートボード名に使う列の番号 / Column used for artboard names */
+        var templateTagNames = [];       /* 雛形に含まれる変数名 / Tag names found in the template */
+        var columnSources = [];          /* 選べるデータ列（実データ列と計算列）/ Selectable columns (raw & derived) */
+        var tagSourceIndexes = [];       /* 変数ごとの対応列の番号（-1は対応なし）/ Source per tag (-1 = none) */
+        var tagSourceDropdowns = [];     /* 変数ごとの対応列ドロップダウン / Column dropdown per tag */
+        var tagSampleLabels = [];        /* 変数ごとの実データ表示 / Sample value label per tag */
+        var taxCalcEnabled = false;      /* 消費税を自動計算するか / Whether to derive the tax columns */
+        var taxCalcAvailable = false;    /* 税込金額の列を特定できたか / Whether a tax-included column exists */
 
         // =========================================
         // 初期チェックとデータファイル収集 / Initial checks & data file discovery
@@ -421,54 +967,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         // =========================================
         // ダイアログUIの構築 / Build the dialog UI
         // =========================================
-
-        /**
-         * 補助表示用に、長い文字列を切り詰める
-         * @param {string} text - 対象の文字列
-         * @returns {string} 表示用の文字列
-         */
-        function truncateForDisplay(text) {
-            var displayText = String(text);
-            return (displayText.length > SAMPLE_VALUE_MAX_CHARS) ? (displayText.substring(0, SAMPLE_VALUE_MAX_CHARS) + "…") : displayText;
-        }
-
-        /**
-         * 実データ（データの1件目）を出す補助表示を、行の右端に足す
-         * @param {Group} parentGroup - 追加先のグループ
-         * @param {string} sampleText - 表示する文字列
-         * @param {string} tooltipKey - ヘルプチップの階層キー
-         * @returns {StaticText} 追加した補助表示
-         */
-        function addSampleValueLabel(parentGroup, sampleText, tooltipKey) {
-            var sampleValueLabel = parentGroup.add("statictext", undefined, sampleText);
-            sampleValueLabel.preferredSize.width = SAMPLE_VALUE_WIDTH;
-            sampleValueLabel.helpTip = getLabel(tooltipKey);
-            applySampleValueColor(sampleValueLabel);
-            return sampleValueLabel;
-        }
-
-        /**
-         * 補助表示であることが分かるよう、文字色を淡くする
-         * @param {StaticText} targetLabel - 対象の表示
-         * @returns {void}
-         */
-        function applySampleValueColor(targetLabel) {
-            var labelGraphics = targetLabel.graphics;
-            labelGraphics.foregroundColor = labelGraphics.newPen(labelGraphics.PenType.SOLID_COLOR, SAMPLE_VALUE_COLOR, 1);
-        }
-
-        /**
-         * 設定パネル用に、一定幅のコロン付きラベルを追加して項目を縦に揃える
-         * @param {Group} parentGroup - ラベルを追加するグループ
-         * @param {string} labelKey - ラベルの階層キー
-         * @returns {StaticText} 追加したラベル
-         */
-        function addFieldLabel(parentGroup, labelKey) {
-            /* justify は生成時にしか効かない / justify only takes effect at creation time */
-            var fieldLabel = parentGroup.add("statictext", undefined, labelText(labelKey), { justify: "right" });
-            fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH[uiLang] || FIELD_LABEL_WIDTH.en;
-            return fieldLabel;
-        }
 
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         mainDialog.orientation = "column";
@@ -599,34 +1097,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /**
-         * グリッド全体の外形サイズを求める
-         * @param {number} columnCount - 列数
-         * @param {number} rowCount - 行数
-         * @param {number} cellWidth - 1セルの幅（pt）
-         * @param {number} cellHeight - 1セルの高さ（pt）
-         * @param {number} artboardGap - アートボード間隔（pt）
-         * @returns {{width: number, height: number}} グリッド全体の幅と高さ
-         */
-        function calcGridSize(columnCount, rowCount, cellWidth, cellHeight, artboardGap) {
-            return {
-                width: columnCount * cellWidth + (columnCount - 1) * artboardGap,
-                height: rowCount * cellHeight + (rowCount - 1) * artboardGap
-            };
-        }
-
-        /**
          * アートボードのグリッドを算出する
          * グリッド全体の幅と高さがなるべく等しく（正方形に近く）なる列数を選ぶ
          * @returns {{columnCount: number, rowCount: number, artboardGap: number, fits: boolean}} 配置情報
          */
         function computeArtboardLayout() {
             var artboardGap = getArtboardGap();
-            var maxFitColumns = calcMaxArtboardColumns(artboardGap); // 横に収まる最大列数 / max columns that fit
-            var maxFitRows = calcMaxArtboardRows(artboardGap);       // 縦に収まる最大行数 / max rows that fit
+            var maxFitColumns = calcMaxArtboardColumns(artboardGap); /* 横に収まる最大列数 / max columns that fit */
+            var maxFitRows = calcMaxArtboardRows(artboardGap);       /* 縦に収まる最大行数 / max rows that fit */
             var dataCount = dataRows ? dataRows.length : 0;
             var artboardLayout = { columnCount: maxFitColumns, rowCount: 0, artboardGap: artboardGap, fits: false };
-            if (dataCount < 1) return artboardLayout;                     // 未読込：表示用に最大列数を返す
-            if (dataCount > MAX_ARTBOARD_COUNT) return artboardLayout;    // アートボード数の上限を超過
+            if (dataCount < 1) return artboardLayout;                     /* 未読込：表示用に最大列数を返す / Not loaded: return the max columns for display */
+            if (dataCount > MAX_ARTBOARD_COUNT) return artboardLayout;    /* アートボード数の上限を超過 / Over the artboard limit */
 
             /* 列数の指定があれば、正方形に近づける探索はせずそのまま使う / an explicit column count wins */
             var requestedColumnCount = getArtboardColumnCount();
@@ -643,8 +1125,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             var bestColumnCount = 0, smallestDiff = -1;
             for (var columnCount = 1; columnCount <= maxFitColumns; columnCount++) {
                 var rowCount = Math.ceil(dataCount / columnCount);
-                if (rowCount > maxFitRows) continue;                                       // 縦に収まらない
-                var occupiedColumns = (columnCount < dataCount) ? columnCount : dataCount; // 実際に使う列数
+                if (rowCount > maxFitRows) continue;                                       /* 縦に収まらない / Does not fit vertically */
+                var occupiedColumns = (columnCount < dataCount) ? columnCount : dataCount; /* 実際に使う列数 / Columns actually used */
                 var gridSize = calcGridSize(occupiedColumns, rowCount, templateArtboardWidth, templateArtboardHeight, artboardGap);
                 var widthHeightDiff = Math.abs(gridSize.width - gridSize.height);
                 if (smallestDiff < 0 || widthHeightDiff < smallestDiff) {
@@ -652,7 +1134,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
                     bestColumnCount = columnCount;
                 }
             }
-            if (bestColumnCount < 1) return artboardLayout; // どの列数でも収まらない（fits:false）
+            if (bestColumnCount < 1) return artboardLayout; /* どの列数でも収まらない（fits:false）/ No column count fits */
 
             artboardLayout.columnCount = bestColumnCount;
             artboardLayout.rowCount = Math.ceil(dataCount / bestColumnCount);
@@ -778,65 +1260,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         fileTimeCheckbox.onClick = refreshFileNameResult;
         refreshFileNameResult();
 
-        /* ボタンバー：3カラム（左＝プレビュー / 中央＝スペーサー / 右＝キャンセル・実行） */
-        var buttonBarGroup = mainDialog.add("group");
-        buttonBarGroup.orientation = "row";
-        buttonBarGroup.alignment = ["fill", "top"];
+        /* ボタンエリア：左＝プレビュー / 中央＝スペーサー / 右＝キャンセル・実行 / Button row: preview, spacer, cancel and run */
+        var btnRowGroup = mainDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "top"];
 
-        var previewToggleGroup = buttonBarGroup.add("group");
-        previewToggleGroup.alignment = ["left", "center"];
-        var previewCheckbox = previewToggleGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignment = ["left", "center"];
+        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
         previewCheckbox.helpTip = getLabel("tooltip.preview");
 
-        var buttonSpacerGroup = buttonBarGroup.add("group"); // 中央スペーサー（伸縮）/ flexible spacer
-        buttonSpacerGroup.alignment = ["fill", "center"];
+        var spacer = btnRowGroup.add("group"); /* 中央スペーサー（伸縮）/ flexible spacer */
+        spacer.alignment = ["fill", "center"];
 
-        var actionButtonGroup = buttonBarGroup.add("group");
-        actionButtonGroup.alignment = ["right", "center"];
-        var cancelButton = actionButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        cancelButton.helpTip = getLabel("tooltip.cancel");
-        var runButton = actionButtonGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
-        runButton.helpTip = getLabel("tooltip.run");
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnCancel.helpTip = getLabel("tooltip.cancel");
+        var btnRun = btnRightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        btnRun.helpTip = getLabel("tooltip.run");
 
         // =========================================
         // ドキュメントの複製（別名保存）/ Document duplication (Save As)
         // =========================================
-
-        /**
-         * 1桁の数値を0詰めで2桁にする
-         * @param {number} numberValue - 対象の数値
-         * @returns {string} 2桁の文字列
-         */
-        function padTwoDigits(numberValue) {
-            return (numberValue < 10 ? "0" : "") + String(numberValue);
-        }
-
-        /**
-         * 現在の日付を YYYYMMDD の形にする
-         * @returns {string} 日付の文字列
-         */
-        function buildDateStamp() {
-            var now = new Date();
-            return String(now.getFullYear()) + padTwoDigits(now.getMonth() + 1) + padTwoDigits(now.getDate());
-        }
-
-        /**
-         * 現在の時刻を HHMMSS の形にする
-         * @returns {string} 時刻の文字列
-         */
-        function buildTimeStamp() {
-            var now = new Date();
-            return padTwoDigits(now.getHours()) + padTwoDigits(now.getMinutes()) + padTwoDigits(now.getSeconds());
-        }
-
-        /**
-         * ファイル名に使えない文字と前後の空白を取り除く
-         * @param {string} text - 対象の文字列
-         * @returns {string} ファイル名に使える文字列
-         */
-        function sanitizeFileNamePart(text) {
-            return String(text).replace(FILE_NAME_FORBIDDEN_PATTERN, "").replace(/^\s+|\s+$/g, "");
-        }
 
         /**
          * 保存するファイル名の本体（拡張子なし）を組み立てる
@@ -876,17 +1322,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /**
-         * 指定ドキュメントを別名保存し、操作対象として複製後ドキュメントを返す
-         * @param {Document} sourceDocument - 複製元のドキュメント
-         * @param {File} duplicateFile - 保存先のファイル
-         * @returns {Document} 別名保存後のドキュメント
-         */
-        function duplicateDocumentBySaveAs(sourceDocument, duplicateFile) {
-            sourceDocument.saveAs(duplicateFile); // Illustrator switches this document to the duplicated file
-            return sourceDocument;
-        }
-
-        /**
          * 保存先が元ファイルや既存ファイルを壊さないか確かめる
          * 元ファイルと同じ名前になる場合は中止し、別の既存ファイルなら上書きの可否を尋ねる
          * @param {File} outputFile - 保存先のファイル
@@ -904,146 +1339,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         // =========================================
         // CSV / TSV の解析と読み込み / CSV / TSV parsing & loading
         // =========================================
-
-        /**
-         * データ1行を区切り文字で分割する（CSVは引用符・""エスケープも解釈）
-         * @param {string} dataLine - 1行分の文字列
-         * @param {string} delimiter - 区切り文字（"," または "\t"）
-         * @returns {string[]} 分割したフィールド
-         */
-        function parseDataLine(dataLine, delimiter) {
-            if (delimiter === "\t") return dataLine.split("\t");
-            var parsedFields = [], currentField = "", inQuotes = false;
-            for (var i = 0; i < dataLine.length; i++) {
-                var currentChar = dataLine.charAt(i);
-                if (inQuotes) {
-                    if (currentChar !== '"') currentField += currentChar;
-                    else if (dataLine.charAt(i + 1) === '"') { currentField += '"'; i++; } // "" は引用符1つ / escaped quote
-                    else inQuotes = false;
-                } else if (currentChar === '"') {
-                    inQuotes = true;
-                } else if (currentChar === delimiter) {
-                    parsedFields.push(currentField);
-                    currentField = "";
-                } else {
-                    currentField += currentChar;
-                }
-            }
-            parsedFields.push(currentField);
-            return parsedFields;
-        }
-
-        /**
-         * バイト列がUTF-8として妥当か判定する
-         * @param {string} byteString - 1バイト＝1文字で読み込んだ文字列（BINARY読み）
-         * @returns {boolean} UTF-8として解釈できればtrue
-         */
-        function isValidUtf8(byteString) {
-            var i = 0, byteCount = byteString.length;
-            while (i < byteCount) {
-                var leadByte = byteString.charCodeAt(i);
-                if (leadByte <= 0x7F) { i++; continue; }
-                var followByteCount;
-                if (leadByte >= 0xC2 && leadByte <= 0xDF) followByteCount = 1;
-                else if (leadByte >= 0xE0 && leadByte <= 0xEF) followByteCount = 2;
-                else if (leadByte >= 0xF0 && leadByte <= 0xF4) followByteCount = 3;
-                else return false;
-                if (i + followByteCount >= byteCount) return false;
-                for (var j = 1; j <= followByteCount; j++) {
-                    var followByte = byteString.charCodeAt(i + j);
-                    if (followByte < 0x80 || followByte > 0xBF) return false;
-                }
-                i += followByteCount + 1;
-            }
-            return true;
-        }
-
-        /**
-         * データファイルを読み込む（UTF-8として解釈できなければShift-JISで読み直す）
-         * @param {File} dataFile - 読み込むファイル
-         * @returns {string} ファイル全体の文字列（読み込めなければnull）
-         */
-        function readDataFileText(dataFile) {
-            /* まずバイト列として読み、エンコーディングを判定 / Read raw bytes to detect the encoding */
-            var rawByteString = readFileWithEncoding(dataFile, "BINARY");
-            if (rawByteString === null) return null;
-            return readFileWithEncoding(dataFile, isValidUtf8(rawByteString) ? "UTF-8" : "SJIS");
-        }
-
-        /**
-         * 指定のエンコーディングでファイル全体を読む
-         * @param {File} dataFile - 読み込むファイル
-         * @param {string} encoding - ExtendScriptのエンコーディング名（"BINARY" / "UTF-8" / "SJIS"）
-         * @returns {string} ファイル全体の文字列（開けなければnull）
-         */
-        function readFileWithEncoding(dataFile, encoding) {
-            dataFile.encoding = encoding;
-            if (!dataFile.open("r")) return null;
-            var fileContent = dataFile.read();
-            dataFile.close();
-            return fileContent;
-        }
-
-        /**
-         * Illustratorの最大カンバス範囲を取得する（一時レイヤーで原点を測定）
-         * @returns {number[]} [left, top, right, bottom]
-         */
-        function getCanvasBounds() {
-            var measuredDocument = app.activeDocument;
-            var wasModified = measuredDocument.modified; // 計測前の変更フラグを退避 / remember the flag before measuring
-            var probeLayer = measuredDocument.layers.add();
-            var probeTextFrame = probeLayer.textFrames.add();
-            var canvasLeft = probeTextFrame.matrix.mValueTX;
-            var canvasTop = probeTextFrame.matrix.mValueTY;
-            probeLayer.remove();
-            measuredDocument.modified = wasModified; // 一時レイヤーで立った変更フラグを元に戻す / restore the flag
-            return [canvasLeft, canvasTop, canvasLeft + CANVAS_MAX_SIZE, canvasTop - CANVAS_MAX_SIZE];
-        }
-
-        /**
-         * ヘッダー行を解析し、BOM・前後空白を除いた列名を返す
-         * @param {string} headerLine - ヘッダー行の文字列
-         * @param {string} delimiter - 区切り文字
-         * @returns {string[]} 正規化した列名
-         */
-        function parseColumnNames(headerLine, delimiter) {
-            var columnNames = parseDataLine(headerLine, delimiter);
-            for (var i = 0; i < columnNames.length; i++) {
-                columnNames[i] = trimAndStripBom(columnNames[i]);
-            }
-            return columnNames;
-        }
-
-        /**
-         * 列名がひとつでも入っているか判定する（空ファイル対策）
-         * @param {string[]} columnNames - 列名の配列
-         * @returns {boolean} ひとつでも空でなければtrue
-         */
-        function hasAnyColumnName(columnNames) {
-            for (var i = 0; i < columnNames.length; i++) {
-                if (columnNames[i] !== "") return true;
-            }
-            return false;
-        }
-
-        /**
-         * ヘッダー行より後を解析し、前後空白を除いたデータ行の配列を返す
-         * @param {string[]} fileLines - ファイルを行分割した配列
-         * @param {string} delimiter - 区切り文字
-         * @returns {Array<string[]>} データ行の配列
-         */
-        function parseDataRows(fileLines, delimiter) {
-            var parsedRows = [];
-            for (var i = 1; i < fileLines.length; i++) {
-                if (fileLines[i] === "") continue;
-                var cellValues = parseDataLine(fileLines[i], delimiter);
-                for (var j = 0; j < cellValues.length; j++) {
-                    cellValues[j] = String(cellValues[j]).replace(/^\s+|\s+$/g, "");
-                }
-                parsedRows.push(cellValues);
-            }
-            return parsedRows;
-        }
 
         /**
          * アートボード名の参照列ドロップダウンを作り直す
@@ -1086,16 +1381,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /**
-         * データ行から表示用のセル文字列を取り出す（"0" を空扱いしない）
-         * @param {string[]} cellValues - 1行分のデータ値
-         * @param {number} cellIndex - 取り出す列の番号
-         * @returns {string} セルの文字列（無ければ空文字）
-         */
-        function cellText(cellValues, cellIndex) {
-            return (cellValues[cellIndex] != null) ? String(cellValues[cellIndex]) : "";
-        }
-
-        /**
          * データ一覧リストを作り直す
          * @returns {void}
          */
@@ -1128,6 +1413,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         function clearLoadedData() {
             headerNames = [];
             dataRows = [];
+            refreshLoadedDataViews();
+        }
+
+        /**
+         * 読み込んだヘッダー・データに合わせて、列の一覧・データ一覧・対応行・アートボード設定を作り直す
+         * @returns {void}
+         */
+        function refreshLoadedDataViews() {
             rebuildColumnDropdown();
             rebuildDataListBox();
             rebuildColumnSources();
@@ -1162,14 +1455,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
             headerNames = columnNames;
             dataRows = parseDataRows(fileLines, delimiter);
-            rebuildColumnDropdown();
-            rebuildDataListBox();
-            rebuildColumnSources();
-            applyAutoTagMapping();
-            rebuildTagMappingRows();
-            resetArtboardColumnCountInput();
-            refreshArtboardSettingsPanelTitle();
-            mainDialog.layout.layout(true);
+            refreshLoadedDataViews();
         }
 
         dataFileDropdown.onChange = function () {
@@ -1180,113 +1466,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         // =========================================
         // 変数と列の対応 / Tag-to-column mapping
         // =========================================
-
-        /**
-         * オブジェクトを再帰的に走査し、テキスト内の `<変数名>` を重複なく集める
-         * @param {PageItem} pageItem - 走査対象のオブジェクト
-         * @param {string[]} tagNames - 見つかった変数名を追加する配列
-         * @param {Object} seenTagNames - 既出判定に使う辞書
-         * @returns {void}
-         */
-        function collectTagNamesFromItem(pageItem, tagNames, seenTagNames) {
-            if (!pageItem) return;
-
-            if (pageItem.typename === "GroupItem") {
-                for (var i = 0; i < pageItem.pageItems.length; i++) {
-                    collectTagNamesFromItem(pageItem.pageItems[i], tagNames, seenTagNames);
-                }
-                return;
-            }
-            if (pageItem.typename !== "TextFrame") return;
-
-            var textContents = pageItem.contents;
-            if (textContents == null) return;
-
-            var tagPattern = /<([^<>\r\n]+)>/g;
-            var tagMatch;
-            while ((tagMatch = tagPattern.exec(String(textContents))) !== null) {
-                var tagName = trimAndStripBom(tagMatch[1]);
-                if (tagName === "") continue;
-                /* Objectの既定プロパティと衝突しないよう接頭辞を付ける / prefix to avoid built-in keys */
-                var seenKey = "tag:" + tagName;
-                if (seenTagNames[seenKey]) continue;
-                seenTagNames[seenKey] = true;
-                tagNames.push(tagName);
-            }
-        }
-
-        /**
-         * 雛形（アートボード1）のテキストに含まれる変数名を集める
-         * 選択とアクティブアートボードは、走査前の状態へ戻す
-         * @param {Document} targetDocument - 走査するドキュメント
-         * @returns {string[]} 出現順に並べた変数名
-         */
-        function collectTemplateTagNames(targetDocument) {
-            var savedSelection = [];
-            try {
-                var currentSelection = targetDocument.selection;
-                for (var i = 0; i < currentSelection.length; i++) savedSelection.push(currentSelection[i]);
-            } catch (e) { }
-            var savedArtboardIndex = targetDocument.artboards.getActiveArtboardIndex();
-            var wasModified = targetDocument.modified; // 走査で立つ変更フラグを退避 / remember the flag
-
-            var tagNames = [];
-            var seenTagNames = {};
-            var templateItems = collectTemplateItems(targetDocument);
-            for (var j = 0; j < templateItems.length; j++) {
-                collectTagNamesFromItem(templateItems[j], tagNames, seenTagNames);
-            }
-
-            try {
-                targetDocument.artboards.setActiveArtboardIndex(savedArtboardIndex);
-                targetDocument.selection = (savedSelection.length > 0) ? savedSelection : null;
-            } catch (e) { }
-            targetDocument.modified = wasModified; // 走査で立った変更フラグを元に戻す / restore the flag
-            return tagNames;
-        }
-
-        /**
-         * 名前を照合用に正規化する（空白・アンダースコア・ハイフンを除いて小文字化）
-         * @param {string} text - 対象の文字列
-         * @returns {string} 正規化した文字列
-         */
-        function normalizeNameForMatch(text) {
-            return String(text).replace(/[\s\u3000_\-]/g, "").toLowerCase();
-        }
-
-        /**
-         * 金額の文字列を数値にする（3桁区切り・通貨記号・全角数字を許容する）
-         * @param {string} text - 対象の文字列
-         * @returns {number} 金額（数値として読めなければnull）
-         */
-        function parseAmount(text) {
-            var normalizedText = String(text).replace(/[０-９]/g, function (fullWidthDigit) {
-                return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFEE0);
-            });
-            normalizedText = normalizedText.replace(/[,\s\u3000\u00A5\uFFE5$円]/g, "");
-            if (!/^-?\d+(\.\d+)?$/.test(normalizedText)) return null;
-            return Number(normalizedText);
-        }
-
-        /**
-         * 金額を文字列にする（元の値が3桁区切りなら、区切りも付け直す）
-         * @param {number} amount - 金額
-         * @param {string} sourceText - 元になった文字列
-         * @returns {string} 表示用の文字列
-         */
-        function formatAmount(amount, sourceText) {
-            var amountText = String(amount);
-            if (String(sourceText).indexOf(",") === -1) return amountText;
-
-            var sign = (amountText.charAt(0) === "-") ? "-" : "";
-            var digits = sign ? amountText.substring(1) : amountText;
-            var groupedDigits = "";
-            while (digits.length > 3) {
-                groupedDigits = "," + digits.substring(digits.length - 3) + groupedDigits;
-                digits = digits.substring(0, digits.length - 3);
-            }
-            return sign + digits + groupedDigits;
-        }
 
         /**
          * 列に金額が入っているかを、最初に見つかった空でない値で判定する
@@ -1342,25 +1521,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /**
-         * 列の値を取り出す（本体・税は税込金額から逆算する）
-         * 本体は端数を四捨五入し、税は税込との差にするため、本体＋税は必ず税込に一致する
-         * @param {{columnIndex: number, valueKind: string}} columnSource - 対応づけた列
-         * @param {string[]} rowValues - 1行分のデータ値
-         * @returns {string} 流し込む文字列
-         */
-        function resolveSourceValue(columnSource, rowValues) {
-            var rawText = cellText(rowValues, columnSource.columnIndex);
-            if (columnSource.valueKind === "raw") return rawText;
-
-            var taxIncludedAmount = parseAmount(rawText);
-            if (taxIncludedAmount === null) return rawText; // 金額として読めなければそのまま / leave as-is
-
-            var netAmount = Math.round(taxIncludedAmount / (1 + TAX_RATE));
-            var resolvedAmount = (columnSource.valueKind === "tax") ? (taxIncludedAmount - netAmount) : netAmount;
-            return formatAmount(resolvedAmount, rawText);
-        }
-
-        /**
          * 変数名に対応する列を探す（完全一致を優先し、無ければ正規化して照合）
          * 計算列は自動では選ばない
          * @param {string} tagName - カンバス上の変数名
@@ -1391,12 +1551,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /**
+         * 列の番号が、いま選べる列の範囲に入っているか調べる
+         * @param {number} sourceIndex - 列の番号（-1は対応なし）
+         * @returns {boolean} 範囲内ならtrue
+         */
+        function isValidSourceIndex(sourceIndex) {
+            return sourceIndex != null && sourceIndex >= 0 && sourceIndex < columnSources.length;
+        }
+
+        /**
+         * 列の番号を、対応列ドロップダウンの項目番号に直す（先頭が「対応なし」なので1つ大きい）
+         * @param {number} sourceIndex - 列の番号（-1は対応なし）
+         * @returns {number} 項目番号（対応なしは0）
+         */
+        function sourceIndexToItemIndex(sourceIndex) {
+            return isValidSourceIndex(sourceIndex) ? (sourceIndex + 1) : 0;
+        }
+
+        /**
          * 選んだ列の実データ（データの1件目）を、表示用に切り詰めて返す
          * @param {number} sourceIndex - 列の番号（-1は対応なし）
          * @returns {string} 表示用の文字列（値が無ければ空文字）
          */
         function sampleValueText(sourceIndex) {
-            if (sourceIndex == null || sourceIndex < 0 || sourceIndex >= columnSources.length) return "";
+            if (!isValidSourceIndex(sourceIndex)) return "";
             if (dataRows.length === 0) return "";
             return truncateForDisplay(resolveSourceValue(columnSources[sourceIndex], dataRows[0]));
         }
@@ -1506,9 +1684,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
                 for (var j = 0; j < columnSources.length; j++) {
                     tagSourceDropdown.add("item", columnSources[j].label);
                 }
-                /* 先頭が「対応なし」なので、項目番号は列番号より1つ大きい / index 0 is the "none" item */
                 var sourceIndex = tagSourceIndexes[i];
-                tagSourceDropdown.selection = (sourceIndex >= 0 && sourceIndex < columnSources.length) ? (sourceIndex + 1) : 0;
+                tagSourceDropdown.selection = sourceIndexToItemIndex(sourceIndex);
                 tagSourceDropdowns.push(tagSourceDropdown);
 
                 /* 選んだ列に実際に入っている値（データの1件目）を並べて出す / Show the first data row's value */
@@ -1556,7 +1733,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             var previousSources = [];
             for (var i = 0; i < tagSourceIndexes.length; i++) {
                 var sourceIndex = tagSourceIndexes[i];
-                previousSources.push((sourceIndex >= 0 && sourceIndex < columnSources.length) ? columnSources[sourceIndex] : null);
+                previousSources.push(isValidSourceIndex(sourceIndex) ? columnSources[sourceIndex] : null);
             }
 
             rebuildColumnSources();
@@ -1599,7 +1776,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             var tagMappings = [];
             for (var i = 0; i < templateTagNames.length; i++) {
                 var sourceIndex = tagSourceIndexes[i];
-                if (sourceIndex == null || sourceIndex < 0 || sourceIndex >= columnSources.length) continue;
+                if (!isValidSourceIndex(sourceIndex)) continue;
                 tagMappings.push({ tag: "<" + templateTagNames[i] + ">", source: columnSources[sourceIndex] });
             }
             return tagMappings;
@@ -1625,24 +1802,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             }
             artboardLayout.nameColumnIndex = artboardNameColumnIndex;
             return artboardLayout;
-        }
-
-        /**
-         * アートボード0上の雛形オブジェクトを集める
-         * 選択は複製操作で変化しうるので、配列に控えてから返す
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @returns {PageItem[]} 雛形オブジェクト（見つからなければ空配列）
-         */
-        function collectTemplateItems(targetDocument) {
-            targetDocument.artboards.setActiveArtboardIndex(0);
-            targetDocument.selectObjectsOnActiveArtboard();
-            var selectedItems = targetDocument.selection;
-            var templateItems = [];
-            if (!selectedItems) return templateItems;
-            for (var i = 0; i < selectedItems.length; i++) {
-                templateItems.push(selectedItems[i]);
-            }
-            return templateItems;
         }
 
         /**
@@ -1682,8 +1841,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         function resolveArtboardName(dataIndex, nameColumnIndex) {
             var rowValues = dataRows[dataIndex];
             /* "0" を空扱いしないよう、|| ではなく明示的に空文字を判定する / "0" must not be treated as empty */
-            var nameValue = (rowValues && rowValues.length > nameColumnIndex && rowValues[nameColumnIndex] != null)
-                ? String(rowValues[nameColumnIndex]) : "";
+            var nameValue = rowValues ? cellText(rowValues, nameColumnIndex) : "";
             return (nameValue !== "") ? nameValue : (ARTBOARD_NAME_PREFIX + (dataIndex + 1));
         }
 
@@ -1759,7 +1917,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
                 targetDocument.selection = null;
             } finally {
-                progressWindow.close(); // 途中でエラーが出てもパレットを残さない / never leave the palette on screen
+                progressWindow.close(); /* 途中でエラーが出てもパレットを残さない / never leave the palette on screen */
             }
 
             app.redraw();
@@ -1772,7 +1930,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         }
 
         /* 「実行」：ドキュメントを別名保存で複製し、流し込んでダイアログを閉じる / Run: duplicate via Save As, merge, then close */
-        runButton.onClick = function () {
+        btnRun.onClick = function () {
             if (dataRows.length === 0) return;
             var importLayout = resolveImportLayout();
             if (!importLayout) return;
@@ -1795,15 +1953,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         };
 
         /**
-         * 複製（別名保存・ファイルコピー）の失敗を通知する
-         * @param {Error} err - 捕捉した例外
-         * @returns {void}
-         */
-        function alertDuplicateFailure(err) {
-            alert(getLabel("alert.dupFailed").replace("#detail#", String(err)));
-        }
-
-        /**
          * 既に開いているプレビュー用ドキュメントを探す
          * @returns {Document} 見つかったドキュメント（無ければnull）
          */
@@ -1812,7 +1961,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             for (var i = 0; i < app.documents.length; i++) {
                 try {
                     if (app.documents[i].fullName.fsName === previewFile.fsName) return app.documents[i];
-                } catch (e) { }
+                } catch (e) {
+                    /* 未保存のドキュメントは fullName が例外になる / Unsaved documents throw on fullName */
+                }
             }
             return null;
         }
@@ -1824,6 +1975,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         function closePreviewDocument() {
             var openedPreviewDocument = getOpenPreviewDocument();
             if (!openedPreviewDocument) return;
+            /* 閉じられなくても続行 / Continue even if closing fails */
             try { openedPreviewDocument.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
         }
 
@@ -1835,7 +1987,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             closePreviewDocument();
             try {
                 if (previewFile && previewFile.exists) previewFile.remove();
-            } catch (e) { }
+            } catch (e) {
+                /* 削除できなくても続行 / Continue even if the file cannot be removed */
+            }
             previewFile = null;
         }
 
@@ -1850,7 +2004,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             var importLayout = resolveImportLayout();
             if (!importLayout) return false;
 
-            closePreviewDocument(); // 前回の流し込み結果は破棄 / discard the previous merge
+            closePreviewDocument(); /* 前回の流し込み結果は破棄 / discard the previous merge */
 
             /* 元ドキュメントからプレビュー用の複製ファイルを毎回作り直す / Rebuild the preview copy every time */
             var previewDocument;
@@ -1868,26 +2022,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             }
 
             if (!mergeDataIntoDocument(previewDocument, importLayout, true)) {
-                discardPreview(); // 雛形が空などで流し込めなかった / nothing was merged
+                discardPreview(); /* 雛形が空などで流し込めなかった / nothing was merged */
                 return false;
             }
             return true;
-        }
-
-        /**
-         * ドロップダウンの表示を、onChangeを発火させずに選び直す
-         * @param {object} dropdown - 対象のドロップダウン
-         * @param {number} itemIndex - 選び直す項目の番号
-         * @returns {void}
-         */
-        function setDropdownSelectionSilently(dropdown, itemIndex) {
-            if (itemIndex == null || itemIndex < 0 || itemIndex >= dropdown.items.length) return;
-            var savedOnChange = dropdown.onChange;
-            dropdown.onChange = null;
-            if (!dropdown.selection || dropdown.selection.index !== itemIndex) {
-                dropdown.selection = itemIndex;
-            }
-            dropdown.onChange = savedOnChange;
         }
 
         /**
@@ -1899,10 +2037,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         function restoreDropdownSelections() {
             setDropdownSelectionSilently(artboardNameColumnDropdown, artboardNameColumnIndex);
             for (var i = 0; i < tagSourceDropdowns.length; i++) {
-                /* 先頭が「対応なし」なので、項目番号は列番号より1つ大きい / index 0 is the "none" item */
-                var sourceIndex = tagSourceIndexes[i];
-                var itemIndex = (sourceIndex != null && sourceIndex >= 0 && sourceIndex < columnSources.length) ? (sourceIndex + 1) : 0;
-                setDropdownSelectionSilently(tagSourceDropdowns[i], itemIndex);
+                setDropdownSelectionSilently(tagSourceDropdowns[i], sourceIndexToItemIndex(tagSourceIndexes[i]));
             }
         }
 
@@ -1939,7 +2074,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         };
 
         /* 「キャンセル」：プレビュー用ファイルを削除して閉じる / Cancel: remove the preview file and close */
-        cancelButton.onClick = function () {
+        btnCancel.onClick = function () {
             discardPreview();
             mainDialog.close();
         };
@@ -1947,7 +2082,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         /* ×ボタンやESCで閉じたときもプレビュー用ファイルを残さない / Clean up on any close path */
         mainDialog.onClose = function () {
             discardPreview();
-            return true; // falseを返すと閉じられなくなる / returning false would block the close
+            return true; /* falseを返すと閉じられなくなる / returning false would block the close */
         };
 
         /*
@@ -1963,102 +2098,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             refreshPreviewIfActive();
         };
 
-        // =========================================
-        // テキストの置換 / Text replacement
-        // =========================================
-
-        /**
-         * テキストフレーム内のタグを、文字書式を保ったまま置換する
-         * タグの1文字目にデータ値を流し込み、残りのタグ文字を削除することで書式を引き継ぐ
-         * @param {TextFrame} textFrame - 対象のテキストフレーム
-         * @param {string} placeholderTag - 置換する `<ヘッダー名>` 形式のタグ
-         * @param {string} replacementValue - 流し込む値
-         * @returns {void}
-         */
-        function replaceTagKeepingStyle(textFrame, placeholderTag, replacementValue) {
-            var guardCount = 0;
-            var tagPosition = textFrame.contents.indexOf(placeholderTag);
-            while (tagPosition !== -1 && guardCount++ < MAX_TAG_REPLACEMENTS) {
-                if (replacementValue === "") {
-                    for (var i = 0; i < placeholderTag.length; i++) {
-                        textFrame.characters[tagPosition].remove();
-                    }
-                } else {
-                    textFrame.characters[tagPosition].contents = replacementValue; // 1文字目の書式を引き継ぐ / inherit the style
-                    for (var j = 1; j < placeholderTag.length; j++) {
-                        textFrame.characters[tagPosition + replacementValue.length].remove();
-                    }
-                }
-                tagPosition = textFrame.contents.indexOf(placeholderTag);
-            }
-        }
-
-        /**
-         * オブジェクトを再帰的に走査し、テキスト内の `<タグ>` をデータ値へ置換する
-         * @param {PageItem} pageItem - 走査対象のオブジェクト
-         * @param {Array<{tag: string, source: object}>} tagMappings - 変数と列の対応
-         * @param {string[]} rowValues - 1行分のデータ値
-         * @returns {void}
-         */
-        function replaceTagsRecursive(pageItem, tagMappings, rowValues) {
-            if (!pageItem) return;
-
-            if (pageItem.typename === "GroupItem") {
-                for (var i = 0; i < pageItem.pageItems.length; i++) {
-                    replaceTagsRecursive(pageItem.pageItems[i], tagMappings, rowValues);
-                }
-                return;
-            }
-            if (pageItem.typename !== "TextFrame") return;
-
-            var originalContents = pageItem.contents;
-            if (originalContents == null) return;
-
-            var tagReplacements = collectTagReplacements(String(originalContents), tagMappings, rowValues);
-            if (tagReplacements.length === 0) return; // タグが無いフレームには触らない / leave untagged frames alone
-
-            try {
-                for (var j = 0; j < tagReplacements.length; j++) {
-                    replaceTagKeepingStyle(pageItem, tagReplacements[j].tag, tagReplacements[j].value);
-                }
-            } catch (e) {
-                /* 文字単位で置換できない場合は一括代入にフォールバック（書式は失われる）/ Fallback: whole-contents assignment */
-                pageItem.contents = applyReplacementsToText(originalContents, tagReplacements);
-            }
-        }
-
-        /**
-         * テキストに含まれているタグと、その置換値を集める
-         * @param {string} textContents - テキストフレームの内容
-         * @param {Array<{tag: string, source: object}>} tagMappings - 変数と列の対応
-         * @param {string[]} rowValues - 1行分のデータ値
-         * @returns {Array<{tag: string, value: string}>} 置換の組（含まれていないタグは返さない）
-         */
-        function collectTagReplacements(textContents, tagMappings, rowValues) {
-            var tagReplacements = [];
-            for (var i = 0; i < tagMappings.length; i++) {
-                if (textContents.indexOf(tagMappings[i].tag) === -1) continue;
-                tagReplacements.push({ tag: tagMappings[i].tag, value: resolveSourceValue(tagMappings[i].source, rowValues) });
-            }
-            return tagReplacements;
-        }
-
-        /**
-         * 集めた置換をすべて文字列に適用する（書式を保てないときのフォールバック用）
-         * @param {string} textContents - 置換前のテキスト
-         * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
-         * @returns {string} 置換後のテキスト
-         */
-        function applyReplacementsToText(textContents, tagReplacements) {
-            var mergedContents = String(textContents);
-            for (var i = 0; i < tagReplacements.length; i++) {
-                /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
-                mergedContents = mergedContents.split(tagReplacements[i].tag).join(tagReplacements[i].value);
-            }
-            return mergedContents;
-        }
-
         mainDialog.show();
-    })();
+    }
+
+    main();
 
 })();

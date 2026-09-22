@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AddPageNumberFromTextSelection"; /* スクリプト名 / 
 var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md"; /* README (English) */
@@ -42,6 +42,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
 
 (function () {
 
+    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
 
@@ -51,22 +52,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     var BACKUP_LAYER_NAME = "_pagenumber_preview";
 
     // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var DIALOG_OFFSET_X = 300;              /* ダイアログの表示位置：右(+)／左(-) / dialog offset to the right */
+    var DIALOG_OPACITY = 0.98;              /* ダイアログの不透明度 / dialog opacity */
+    var AFFIX_FIELD_CHARS = 10;             /* 接頭辞・接尾辞欄の文字数 / width of the prefix and suffix fields */
+    var START_NUMBER_FIELD_CHARS = 6;       /* 開始番号欄の文字数 / width of the start number field */
+    var BUTTON_ROW_MARGINS = [10, 10, 0, 0];  /* ボタン行の余白（右0でダイアログ端に寄せる）/ button row margins, flush right */
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 実行環境のUI言語を判定（日本語環境は "ja"、その他は "en"）/ Detect the environment's UI language ("ja" for Japanese, otherwise "en") */
+    /**
+     * 実行環境のUI言語を判定（日本語環境は "ja"、その他は "en"）/ Detect the environment's UI language ("ja" for Japanese, otherwise "en")
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // UI 文字列（OK ボタンのラベルは非ローカライズ）/ UI strings (the OK button label is not localized)
     var LABELS = {
         dialog: {
             title: { ja: "ページ番号を一括配置", en: "Place Page Numbers" }
         },
-        field: {
+        fieldLabel: {
             prefix: { ja: "接頭辞", en: "Prefix" },
             start: { ja: "開始番号", en: "Start number" },
             suffix: { ja: "接尾辞", en: "Suffix" }
@@ -124,12 +137,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         }
     };
 
+    /**
+     * LABELS からドット区切りのパスで現在の言語の文字列を取り出す
+     * @param {string} labelPath - "fieldLabel.prefix" のようなパス
+     * @returns {string} 現在の言語の文字列
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+        }
+        return labelNode[uiLang];
+    }
+
     // =========================================
     // 安全実行ヘルパー / Safe Execution Helpers
     // =========================================
 
-    /* 関数を try/catch 内で実行し、action の戻り値を返す。例外時は onError(e) を呼ぶ（省略時は無視）。
-       例外を握りつぶしてよい処理の共通ヘルパー / Shared helper for operations where ignored exceptions are acceptable */
+    /**
+     * 関数を try/catch 内で実行し、action の戻り値を返す。例外時は onError(e) を呼ぶ（省略時は無視）。
+     * 例外を握りつぶしてよい処理の共通ヘルパー / Shared helper for operations where ignored exceptions are acceptable
+     * @param {Function} action - 実行する関数
+     * @param {Function} [onError] - 例外時に呼ぶ関数
+     * @returns {*} action の戻り値（例外時は undefined）
+     */
     function tryCall(action, onError) {
         try {
             return action ? action() : undefined;
@@ -138,17 +170,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         }
     }
 
-    /* プロパティ代入を例外無視で実行（ロック中・削除済みオブジェクトは代入で例外を出すため）/ Assign a property, ignoring any error (locked or deleted objects throw on assignment) */
-    function trySetProperty(target, propertyName, value) {
-        tryCall(function () { if (target) target[propertyName] = value; });
+    /**
+     * プロパティ代入を例外無視で実行（ロック中・削除済みオブジェクトは代入で例外を出すため）/ Assign a property, ignoring any error (locked or deleted objects throw on assignment)
+     * @param {object} targetObject - 代入先（null なら何もしない）
+     * @param {string} propertyName - プロパティ名
+     * @param {*} propertyValue - 代入する値
+     * @returns {void}
+     */
+    function trySetProperty(targetObject, propertyName, propertyValue) {
+        tryCall(function () { if (targetObject) targetObject[propertyName] = propertyValue; });
     }
 
-    /* 関数を実行し、例外時は errorLabel 付きでアラート表示 / Run a function; on error show an alert prefixed with errorLabel */
+    /**
+     * 関数を実行し、例外時は errorLabel 付きでアラート表示
+     * Run a function; on error show an alert prefixed with errorLabel
+     * @param {string} errorLabel - アラートの先頭に付ける文字列
+     * @param {Function} action - 実行する関数
+     * @returns {void}
+     */
     function runOrAlert(errorLabel, action) {
         tryCall(action, function (e) { alert(errorLabel + ": " + e); });
     }
 
-    /* 画面を安全に再描画 / Redraw the screen safely */
+    /**
+     * 画面を安全に再描画
+     * Redraw the screen safely
+     * @returns {void}
+     */
     function safeRedraw() {
         tryCall(function () { app.redraw(); });
     }
@@ -157,53 +205,77 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // レイヤー操作 / Layer Operations
     // =========================================
 
-    /* 指定名のレイヤーをサブレイヤーまで含めて探す（無ければ null）/ Find a layer by name, including sub-layers (null when it does not exist) */
-    function findLayerByName(container, layerName) {
-        for (var i = 0; i < container.layers.length; i++) {
-            var layer = container.layers[i];
-            if (layer.name === layerName) return layer;
+    /**
+     * 指定名のレイヤーをサブレイヤーまで含めて探す（無ければ null）/ Find a layer by name, including sub-layers (null when it does not exist)
+     * @param {Document|Layer} parentContainer - 探す範囲
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer|null} 見つかったレイヤー
+     */
+    function findLayerByName(parentContainer, layerName) {
+        for (var i = 0; i < parentContainer.layers.length; i++) {
+            var childLayer = parentContainer.layers[i];
+            if (childLayer.name === layerName) return childLayer;
             // サブレイヤーに同名があっても取りこぼさない / do not miss a nested layer with the same name
-            var nestedLayer = findLayerByName(layer, layerName);
+            var nestedLayer = findLayerByName(childLayer, layerName);
             if (nestedLayer) return nestedLayer;
         }
         return null;
     }
 
-    /* 指定名のレイヤーを取得、無ければ新規作成して返す / Get a layer by name, creating it if it does not exist */
+    /**
+     * 指定名のレイヤーを取得、無ければ新規作成して返す
+     * Get a layer by name, creating it if it does not exist
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 既存または新規のレイヤー
+     */
     function getOrCreateLayer(doc, layerName) {
-        var layer = findLayerByName(doc, layerName);
-        if (!layer) {
-            layer = doc.layers.add();
-            layer.name = layerName;
+        var targetLayer = findLayerByName(doc, layerName);
+        if (!targetLayer) {
+            targetLayer = doc.layers.add();
+            targetLayer.name = layerName;
         }
-        return layer;
+        return targetLayer;
     }
 
-    /* アイテムが属するレイヤーを返す（削除済みなら null）/ Return the layer owning the item, or null if the item is gone */
+    /**
+     * アイテムが属するレイヤーを返す（削除済みなら null）/ Return the layer owning the item, or null if the item is gone
+     * @param {PageItem} pageItem - 対象のアイテム
+     * @returns {Layer|null} 所属レイヤー
+     */
     function getOwnerLayer(pageItem) {
         return tryCall(function () { return pageItem.layer; }) || null;
     }
 
-    /* 指定名のレイヤーを確実に削除（中身のロックを解除してから削除）/ Force-remove a layer by name (unlock its contents first, then remove) */
+    /**
+     * 指定名のレイヤーを確実に削除（中身のロックを解除してから削除）/ Force-remove a layer by name (unlock its contents first, then remove)
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {void}
+     */
     function forceRemoveLayerByName(doc, layerName) {
-        var layer = findLayerByName(doc, layerName);
-        if (!layer) return;
+        var targetLayer = findLayerByName(doc, layerName);
+        if (!targetLayer) return;
 
-        trySetProperty(layer, 'locked', false);
-        trySetProperty(layer, 'visible', true);
+        trySetProperty(targetLayer, 'locked', false);
+        trySetProperty(targetLayer, 'visible', true);
 
         // ロックされた中身が削除を妨げるため、先にすべて解除 / locked contents block removal, so unlock them first
-        for (var i = 0; i < layer.pageItems.length; i++) trySetProperty(layer.pageItems[i], 'locked', false);
-        for (var j = 0; j < layer.layers.length; j++) trySetProperty(layer.layers[j], 'locked', false);
+        for (var i = 0; i < targetLayer.pageItems.length; i++) trySetProperty(targetLayer.pageItems[i], 'locked', false);
+        for (var j = 0; j < targetLayer.layers.length; j++) trySetProperty(targetLayer.layers[j], 'locked', false);
 
-        tryCall(function () { layer.remove(); });
+        tryCall(function () { targetLayer.remove(); });
     }
 
     // =========================================
     // Undo / プレビュー管理 / Undo & Preview Manager
     // =========================================
 
-    /* プレビュー編集をUndoステップとして積み、巻き戻し・確定を一括管理するクラス / Manages preview edits as undo steps for batch rollback or commit */
+    /**
+     * プレビュー編集をUndoステップとして積み、巻き戻し・確定を一括管理するクラス
+     * Manages preview edits as undo steps for batch rollback or commit
+     * @constructor
+     */
     function PreviewManager() {
         this.undoDepth = 0; // プレビュー中に実行したアクション数 / number of preview actions executed
 
@@ -245,16 +317,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // 選択・型判定 / Selection & Type Guards
     // =========================================
 
-    /* オブジェクトが TextFrame かどうかを判定（削除済み参照は false）/ Return true if the object is a TextFrame (a deleted reference yields false) */
-    function isTextFrame(target) {
+    /**
+     * オブジェクトが TextFrame かどうかを判定（削除済み参照は false）/ Return true if the object is a TextFrame (a deleted reference yields false)
+     * @param {*} candidate - 判定する値
+     * @returns {boolean} TextFrame なら true
+     */
+    function isTextFrame(candidate) {
         try {
-            return !!target && target.typename === "TextFrame";
+            return !!candidate && candidate.typename === "TextFrame";
         } catch (e) {
             return false;
         }
     }
 
-    /* 選択先頭が TextFrame ならそれを返す（無ければ null）/ Return the selected TextFrame, or null if none is selected */
+    /**
+     * 選択先頭が TextFrame ならそれを返す（無ければ null）/ Return the selected TextFrame, or null if none is selected
+     * @returns {TextFrame|null} 選択中のテキスト
+     */
     function getSelectedTextFrame() {
         if (app.documents.length === 0) return null;
         var currentSelection = app.selection;
@@ -268,16 +347,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // _pagenumber レイヤーの状態管理 / Pagenumber Layer State
     // =========================================
 
-    /* 同じ親の中でのレイヤーの重ね順インデックスを返す（無ければ -1）/ Return the stacking-order index of a layer among its siblings (or -1) */
-    function getLayerStackIndex(layer) {
-        var siblingLayers = layer.parent.layers;
+    /**
+     * 同じ親の中でのレイヤーの重ね順インデックスを返す（無ければ -1）/ Return the stacking-order index of a layer among its siblings (or -1)
+     * @param {Layer} targetLayer - 対象のレイヤー
+     * @returns {number} 重ね順のインデックス
+     */
+    function getLayerStackIndex(targetLayer) {
+        var siblingLayers = targetLayer.parent.layers;
         for (var i = 0; i < siblingLayers.length; i++) {
-            if (siblingLayers[i] === layer) return i;
+            if (siblingLayers[i] === targetLayer) return i;
         }
         return -1;
     }
 
-    /* _pagenumber レイヤーの現在状態（ロック・表示・所属・重ね順）を記録 / Capture the current state (lock, visibility, parent, stacking order) of the _pagenumber layer */
+    /**
+     * _pagenumber レイヤーの現在状態（ロック・表示・所属・重ね順）を記録
+     * Capture the current state (lock, visibility, parent, stacking order) of the _pagenumber layer
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {boolean} layerExisted - 実行前から存在したか
+     * @returns {object} existed / locked / visible / parentContainer / neighborAbove
+     */
     function capturePagenumberState(pagenumberLayer, layerExisted) {
         // 親コンテナ（ドキュメントまたは親レイヤー）ごと覚えておく / remember the parent container (document or parent layer) as well
         var parentContainer = pagenumberLayer.parent;
@@ -293,7 +382,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         };
     }
 
-    /* _pagenumber レイヤーを用意し、元状態を記録したうえで作業用に整える / Prepare the _pagenumber layer for work and capture its original state */
+    /**
+     * _pagenumber レイヤーを用意し、元状態を記録したうえで作業用に整える
+     * Prepare the _pagenumber layer for work and capture its original state
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{layer: Layer, originalState: object}} レイヤーと元の状態
+     */
     function setupPagenumberLayer(doc) {
         var layerExisted = !!findLayerByName(doc, PAGENUMBER_LAYER_NAME);
         var pagenumberLayer = getOrCreateLayer(doc, PAGENUMBER_LAYER_NAME);
@@ -307,7 +401,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return { layer: pagenumberLayer, originalState: originalState };
     }
 
-    /* capturePagenumberState で記録した状態へ _pagenumber レイヤーを復元 / Restore the _pagenumber layer to the captured state */
+    /**
+     * capturePagenumberState で記録した状態へ _pagenumber レイヤーを復元
+     * Restore the _pagenumber layer to the captured state
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {object} originalState - capturePagenumberState() の戻り値
+     * @param {boolean} removeWhenAutoCreated - 自動作成したレイヤーなら削除する（キャンセル時）
+     * @returns {void}
+     */
     function restorePagenumberState(doc, pagenumberLayer, originalState, removeWhenAutoCreated) {
         if (!pagenumberLayer || !originalState) return;
 
@@ -335,12 +437,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // アートボードとフレームの探索 / Artboard & Frame Lookup
     // =========================================
 
-    /* 座標 point が矩形 rect 内にあるか判定 / Return true if the point is inside the rectangle */
+    /**
+     * 座標 point が矩形 rect 内にあるか判定
+     * Return true if the point is inside the rectangle
+     * @param {number[]} point - 座標 [x, y]
+     * @param {number[]} rect - 矩形 [左, 上, 右, 下]
+     * @returns {boolean} 内側なら true
+     */
     function isPointInRect(point, rect) {
         return point[0] >= rect[0] && point[0] <= rect[2] && point[1] <= rect[1] && point[1] >= rect[3];
     }
 
-    /* 指定座標が含まれるアートボードのインデックスを返す（無ければ -1）/ Return the index of the artboard containing the given point (or -1) */
+    /**
+     * 指定座標が含まれるアートボードのインデックスを返す（無ければ -1）/ Return the index of the artboard containing the given point (or -1)
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]} point - 座標 [x, y]
+     * @returns {number} アートボードのインデックス
+     */
     function getArtboardIndexByPosition(doc, point) {
         for (var i = 0; i < doc.artboards.length; i++) {
             if (isPointInRect(point, doc.artboards[i].artboardRect)) return i;
@@ -348,7 +461,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return -1;
     }
 
-    /* いずれかのアートボード上で最初に見つかった TextFrame を返す / Return the first TextFrame found on any artboard */
+    /**
+     * いずれかのアートボード上で最初に見つかった TextFrame を返す
+     * Return the first TextFrame found on any artboard
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} targetLayer - 探すレイヤー
+     * @returns {TextFrame|null} 見つかったテキスト
+     */
     function findTextFrameOnAnyArtboard(doc, targetLayer) {
         for (var i = 0; i < targetLayer.textFrames.length; i++) {
             var textFrame = targetLayer.textFrames[i];
@@ -357,7 +476,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return null;
     }
 
-    /* TextFrame 群をアートボード順に並べた配列を返す（excludedFrame とアートボード外は除外）/ Return the TextFrames sorted by artboard order (excludedFrame and off-artboard frames are skipped) */
+    /**
+     * TextFrame 群をアートボード順に並べた配列を返す（excludedFrame とアートボード外は除外）/ Return the TextFrames sorted by artboard order (excludedFrame and off-artboard frames are skipped)
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrames|TextFrame[]} textFrames - 並べるテキスト
+     * @param {TextFrame|null} excludedFrame - 除外するテキスト
+     * @returns {TextFrame[]} アートボード順のテキスト
+     */
     function sortFramesByArtboard(doc, textFrames, excludedFrame) {
         var frameEntries = [];
         for (var i = 0; i < textFrames.length; i++) {
@@ -368,7 +493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
             if (artboardIndex < 0) continue;
             frameEntries.push({ frame: textFrame, artboardIndex: artboardIndex });
         }
-        frameEntries.sort(function (a, b) { return a.artboardIndex - b.artboardIndex; });
+        frameEntries.sort(function (entryA, entryB) { return entryA.artboardIndex - entryB.artboardIndex; });
 
         var sortedFrames = [];
         for (var j = 0; j < frameEntries.length; j++) sortedFrames.push(frameEntries[j].frame);
@@ -379,7 +504,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // ページ番号テキストの生成・配置 / Page Number Generation & Placement
     // =========================================
 
-    /* 番号・接頭辞/接尾辞・ゼロ埋め・総ページ表示からページ番号文字列を生成 / Build the page-number string from the number, prefix/suffix, zero padding, and the optional total */
+    /**
+     * 番号・接頭辞/接尾辞・ゼロ埋め・総ページ表示からページ番号文字列を生成
+     * Build the page-number string from the number, prefix/suffix, zero padding, and the optional total
+     * @param {number} pageNumber - 番号
+     * @param {number} digitCount - ゼロ埋めの桁数
+     * @param {object} formatOptions - prefix / suffix / zeroPad / showTotal
+     * @param {number} totalPages - 総ページ数として表示する値
+     * @returns {string} ページ番号の文字列
+     */
     function buildPageNumberText(pageNumber, digitCount, formatOptions, totalPages) {
         var numberText = String(pageNumber);
         if (formatOptions.zeroPad && numberText.length < digitCount) {
@@ -390,7 +523,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return pageNumberText;
     }
 
-    /* レイヤー上のテキストをアートボード順に並べ、連番を流し込む / Sort the layer's text frames by artboard and write sequential numbers into them */
+    /**
+     * レイヤー上のテキストをアートボード順に並べ、連番を流し込む
+     * Sort the layer's text frames by artboard and write sequential numbers into them
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} targetLayer - テキストのあるレイヤー
+     * @param {TextFrame|null} excludedFrame - 採番しないテキスト
+     * @param {number} startNumber - 開始番号
+     * @param {object} formatOptions - prefix / suffix / zeroPad / showTotal
+     * @returns {void}
+     */
     function numberFramesInOrder(doc, targetLayer, excludedFrame, startNumber, formatOptions) {
         var sortedFrames = sortFramesByArtboard(doc, targetLayer.textFrames, excludedFrame);
         var lastPageNumber = startNumber + doc.artboards.length - 1;
@@ -401,7 +543,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         }
     }
 
-    /* 指定レイヤー上の TextFrame を keptFrame 以外すべて削除 / Remove every TextFrame on the layer except keptFrame */
+    /**
+     * 指定レイヤー上の TextFrame を keptFrame 以外すべて削除
+     * Remove every TextFrame on the layer except keptFrame
+     * @param {Layer} targetLayer - 対象のレイヤー
+     * @param {TextFrame|null} keptFrame - 残すテキスト
+     * @returns {void}
+     */
     function removeOtherTextFrames(targetLayer, keptFrame) {
         var textFrames = targetLayer.textFrames;
         for (var i = textFrames.length - 1; i >= 0; i--) {
@@ -412,7 +560,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         }
     }
 
-    /* 雛形テキストをカットし、全アートボードへ貼り付ける（プレビューと確定で共通）。成功したら true / Cut the given text and paste it onto every artboard (shared by preview and commit); returns true on success */
+    /**
+     * 雛形テキストをカットし、全アートボードへ貼り付ける（プレビューと確定で共通）。成功したら true
+     * Cut the given text and paste it onto every artboard (shared by preview and commit); returns true on success
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame} textFrame - 雛形テキスト
+     * @param {Layer} pasteLayer - 貼り付け先レイヤー（null なら元のレイヤー）
+     * @param {Function} [beforePaste] - 貼り付け直前に呼ぶ関数
+     * @returns {boolean} 成功したら true
+     */
     function cutAndPasteToAllArtboards(doc, textFrame, pasteLayer, beforePaste) {
         // 対象と所属レイヤーを一時的にロック解除＆可視化 / temporarily unlock & show the target and its layer
         var sourceLayer = getOwnerLayer(textFrame);
@@ -448,7 +604,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         }) === true;
     }
 
-    /* 雛形テキストを開始番号で初期化し、全アートボードへ複製（所属レイヤーの状態は元へ戻す）/ Seed the template text with the start number and duplicate it across all artboards, restoring its layer state afterwards */
+    /**
+     * 雛形テキストを開始番号で初期化し、全アートボードへ複製（所属レイヤーの状態は元へ戻す）/ Seed the template text with the start number and duplicate it across all artboards, restoring its layer state afterwards
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame} templateText - 雛形テキスト
+     * @param {number} startNumber - 開始番号
+     * @returns {boolean} 成功したら true
+     */
     function seedAndPasteToAllArtboards(doc, templateText, startNumber) {
         trySetProperty(templateText, 'contents', String(startNumber));
 
@@ -457,21 +619,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         var originalLocked = sourceLayer ? sourceLayer.locked : null;
         var originalVisible = sourceLayer ? sourceLayer.visible : null;
 
-        var pasted = cutAndPasteToAllArtboards(doc, templateText, sourceLayer);
+        var pasteSucceeded = cutAndPasteToAllArtboards(doc, templateText, sourceLayer);
 
         // レイヤーの一時状態を元へ戻す / restore the layer's temporary state
         if (sourceLayer) {
             trySetProperty(sourceLayer, 'locked', originalLocked);
             trySetProperty(sourceLayer, 'visible', originalVisible);
         }
-        return pasted;
+        return pasteSucceeded;
     }
 
     // =========================================
     // ライブプレビュー / Live Preview
     // =========================================
 
-    /* 雛形を退避レイヤーへ非表示コピーする（キャンセル時の復元用。常に最新の1つだけ保持）/ Copy the template onto a hidden backup layer for restoring on Cancel, keeping only the latest copy */
+    /**
+     * 雛形を退避レイヤーへ非表示コピーする（キャンセル時の復元用。常に最新の1つだけ保持）/ Copy the template onto a hidden backup layer for restoring on Cancel, keeping only the latest copy
+     * @param {Document} doc - 対象ドキュメント
+     * @param {TextFrame} templateText - 雛形テキスト
+     * @returns {void}
+     */
     function backupTemplateText(doc, templateText) {
         var backupLayer = getOrCreateLayer(doc, BACKUP_LAYER_NAME);
         backupLayer.visible = false;
@@ -492,20 +659,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         trySetProperty(backupText, 'locked', true);
     }
 
-    /* 雛形を退避しつつ、全アートボードへクリーンに複製し直す / Back up the template, then cleanly re-duplicate it across every artboard */
+    /**
+     * 雛形を退避しつつ、全アートボードへクリーンに複製し直す
+     * Back up the template, then cleanly re-duplicate it across every artboard
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {TextFrame} templateText - 雛形テキスト
+     * @returns {boolean} 成功したら true
+     */
     function rebuildFramesAcrossArtboards(doc, pagenumberLayer, templateText) {
         backupTemplateText(doc, templateText);
-        var pasted = cutAndPasteToAllArtboards(doc, templateText, pagenumberLayer, function () {
+        var pasteSucceeded = cutAndPasteToAllArtboards(doc, templateText, pagenumberLayer, function () {
             // 貼り付け前に既存のページ番号を一掃 / clear the existing page numbers before pasting
             removeOtherTextFrames(pagenumberLayer, null);
         });
 
         // 失敗時は退避レイヤーごと破棄して、中途半端な状態を残さない / on failure, drop the backup layer so no half-finished state remains
-        if (!pasted) forceRemoveLayerByName(doc, BACKUP_LAYER_NAME);
-        return pasted;
+        if (!pasteSucceeded) forceRemoveLayerByName(doc, BACKUP_LAYER_NAME);
+        return pasteSucceeded;
     }
 
-    /* 選択テキスト（無ければレイヤー上の先頭テキスト）を雛形に、全アートボードへ連番をプレビュー / Render a sequential-numbering preview on every artboard, using the selected text (or the first text on the layer) as a template */
+    /**
+     * 選択テキスト（無ければレイヤー上の先頭テキスト）を雛形に、全アートボードへ連番をプレビュー
+     * Render a sequential-numbering preview on every artboard, using the selected text (or the first text on the layer) as a template
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - ページ番号のレイヤー名
+     * @param {number} startNumber - 開始番号
+     * @param {object} formatOptions - prefix / suffix / zeroPad / showTotal
+     * @returns {boolean} ドキュメントを変更したら true
+     */
     function updatePreview(doc, layerName, startNumber, formatOptions) {
         if (!doc || isNaN(startNumber)) return false;
         var pagenumberLayer = findLayerByName(doc, layerName);
@@ -526,7 +708,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return true;
     }
 
-    /* 退避レイヤーに残ったテキストを _pagenumber へ戻し、退避レイヤーを削除 / Move any text left on the backup layer back to _pagenumber, then remove the backup layer */
+    /**
+     * 退避レイヤーに残ったテキストを _pagenumber へ戻し、退避レイヤーを削除
+     * Move any text left on the backup layer back to _pagenumber, then remove the backup layer
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
     function restorePreviewBackupOnCancel(doc) {
         var backupLayer = findLayerByName(doc, BACKUP_LAYER_NAME);
         if (!backupLayer) return;
@@ -550,7 +737,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // キーボード操作 / Keyboard Handlers
     // =========================================
 
-    /* 数値入力欄で↑↓キーによる増減を有効化（Shiftで10の倍数へスナップ）/ Enable Up/Down arrow increment-decrement on a number field (Shift snaps to multiples of 10) */
+    /**
+     * 数値入力欄で↑↓キーによる増減を有効化（Shiftで10の倍数へスナップ）/ Enable Up/Down arrow increment-decrement on a number field (Shift snaps to multiples of 10)
+     * @param {EditText} numberField - 数値入力欄
+     * @param {Function} [onChanged] - 値を変えたあとに呼ぶ関数
+     * @returns {void}
+     */
     function changeValueByArrowKey(numberField, onChanged) {
         if (!numberField || !numberField.addEventListener) return;
         numberField.addEventListener("keydown", function (event) {
@@ -576,15 +768,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         });
     }
 
-    /* 指定キー押下でチェックボックスをトグルするハンドラを登録 / Register a handler that toggles a checkbox when the given key is pressed */
-    function addToggleKeyHandler(targetDialog, toggleKey, checkbox, onChanged, skipWhenEditTextFocus) {
-        if (!targetDialog || !checkbox || !targetDialog.addEventListener) return;
+    /**
+     * 指定キー押下でチェックボックスをトグルするハンドラを登録
+     * Register a handler that toggles a checkbox when the given key is pressed
+     * @param {Window} targetDialog - キー入力を受けるダイアログ
+     * @param {string} toggleKey - 切り替えキー
+     * @param {Checkbox} targetCheckbox - 切り替えるチェックボックス
+     * @param {Function} onChanged - 切り替えたあとに呼ぶ関数
+     * @param {boolean} skipWhenEditTextFocus - 入力欄にフォーカスがあるときは無視する
+     * @returns {void}
+     */
+    function addToggleKeyHandler(targetDialog, toggleKey, targetCheckbox, onChanged, skipWhenEditTextFocus) {
+        if (!targetDialog || !targetCheckbox || !targetDialog.addEventListener) return;
         targetDialog.addEventListener("keydown", function (event) {
             // 入力欄フォーカス中はスキップしたい場合のみスキップ / skip while an edittext is focused, only when requested
             if (skipWhenEditTextFocus && event.target && event.target.type === "edittext") return;
             if ((event.keyName || "").toUpperCase() !== String(toggleKey).toUpperCase()) return;
 
-            checkbox.value = !checkbox.value;
+            targetCheckbox.value = !targetCheckbox.value;
             if (onChanged) onChanged();
             event.preventDefault();
         });
@@ -594,7 +795,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // UI 構築 / UI Construction
     // =========================================
 
-    /* 親に縦並びカラム（group）を追加して返す / Add a vertical column group to the parent and return it */
+    /**
+     * 親に縦並びカラム（group）を追加して返す
+     * @param {Group} parentGroup - 追加先
+     * @param {string} [childAlignment] - 子の揃え（省略時は "left"）
+     * @returns {Group} 追加したカラム
+     */
     function addColumnGroup(parentGroup, childAlignment) {
         var columnGroup = parentGroup.add("group");
         columnGroup.orientation = "column";
@@ -602,9 +808,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return columnGroup;
     }
 
-    /* ラベル付き入力欄を追加し、入力欄（edittext）を返す / Add a labeled edittext and return the edittext */
-    function addLabeledEditText(parentGroup, labelText, initialValue, characterWidth, tooltipText) {
-        var captionLabel = parentGroup.add("statictext", undefined, labelText);
+    /**
+     * ラベル付き入力欄を追加し、入力欄（edittext）を返す
+     * @param {Group} parentGroup - 追加先
+     * @param {string} captionText - 入力欄の上に出す項目名
+     * @param {string} initialValue - 入力欄の初期値
+     * @param {number} characterWidth - 入力欄の文字数
+     * @param {string} tooltipText - 項目名と入力欄に付ける tooltip
+     * @returns {EditText} 追加した入力欄
+     */
+    function addLabeledEditText(parentGroup, captionText, initialValue, characterWidth, tooltipText) {
+        var captionLabel = parentGroup.add("statictext", undefined, captionText);
         var inputField = parentGroup.add("edittext", undefined, initialValue);
         inputField.characters = characterWidth;
         // ラベル・入力欄のどちらにマウスを乗せても説明が出るようにする / show the hint from both the caption and the field
@@ -613,79 +827,114 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return inputField;
     }
 
-    /* チェックボックスを追加して返す / Add a checkbox and return it */
-    function addCheckbox(parentGroup, labelText, tooltipText) {
-        var checkbox = parentGroup.add("checkbox", undefined, labelText);
-        checkbox.helpTip = tooltipText;
-        return checkbox;
+    /**
+     * tooltip 付きのチェックボックスを追加して返す
+     * @param {Group} parentGroup - 追加先
+     * @param {string} checkboxText - チェックボックスの文言
+     * @param {string} tooltipText - tooltip
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addCheckbox(parentGroup, checkboxText, tooltipText) {
+        var optionCheckbox = parentGroup.add("checkbox", undefined, checkboxText);
+        optionCheckbox.helpTip = tooltipText;
+        return optionCheckbox;
     }
 
-    /* 右寄せのボタン行（キャンセル → OK）を追加して返す / Add the right-aligned button row (Cancel then OK) and return both buttons */
+    /**
+     * 右寄せのボタン行（キャンセル → OK）を追加して返す
+     * @param {Window} targetDialog - 追加先のダイアログ
+     * @returns {{btnCancel: Button, btnOK: Button}} 追加したボタン
+     */
     function addButtonRow(targetDialog) {
-        var buttonRow = targetDialog.add("group");
-        buttonRow.orientation = "row";
-        buttonRow.alignChildren = ["right", "center"];
-        // 右マージンは0（ダイアログ端にボタンを寄せる）/ no right margin, so the buttons sit flush with the dialog edge
-        buttonRow.margins = [10, 10, 0, 0];
-        buttonRow.alignment = ["right", "bottom"];
+        var btnRowGroup = targetDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["right", "center"];
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
+        btnRowGroup.alignment = ["right", "bottom"];
 
-        var cancelButton = buttonRow.add("button", undefined, LABELS.button.cancel[currentLanguage], { name: "cancel" });
-        cancelButton.helpTip = LABELS.tooltip.cancel[currentLanguage];
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnCancel.helpTip = getLabel("tooltip.cancel");
 
-        var okButton = buttonRow.add("button", undefined, "OK", { name: "ok" });
-        okButton.helpTip = LABELS.tooltip.ok[currentLanguage];
+        var btnOK = btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+        btnOK.helpTip = getLabel("tooltip.ok");
 
-        return { cancelButton: cancelButton, okButton: okButton };
+        return { btnCancel: btnCancel, btnOK: btnOK };
     }
 
-    /* ダイアログと各UIコントロールを生成し、参照をまとめて返す / Build the dialog and its controls, returning all references */
-    function buildDialog() {
+    /**
+     * ダイアログと各UIコントロールを生成し、参照をまとめて返す
+     * @returns {object} pageNumberDialog と各入力欄・チェックボックス・ボタン
+     */
+    function buildPageNumberDialog() {
         // タイトルバーにはバージョンを併記 / show the version in the title bar
-        var dialog = new Window("dialog", LABELS.dialog.title[currentLanguage] + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
+        var pageNumberDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        pageNumberDialog.orientation = "column";
+        pageNumberDialog.alignChildren = "left";
 
         // 3カラムレイアウト / 3-column layout
-        var columnsGroup = dialog.add("group");
+        var columnsGroup = pageNumberDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = "top";
 
         // 左カラム: 接頭辞 / left column: prefix
         var prefixColumn = addColumnGroup(columnsGroup);
-        var prefixField = addLabeledEditText(prefixColumn, LABELS.field.prefix[currentLanguage], "", 10,
-            LABELS.tooltip.prefix[currentLanguage]);
+        var prefixField = addLabeledEditText(prefixColumn, getLabel("fieldLabel.prefix"), "", AFFIX_FIELD_CHARS,
+            getLabel("tooltip.prefix"));
 
         // 中央カラム: 開始番号 + ゼロ埋め / center column: start number + zero pad
         var startNumberColumn = addColumnGroup(columnsGroup);
-        var startNumberField = addLabeledEditText(startNumberColumn, LABELS.field.start[currentLanguage], "1", 6,
-            LABELS.tooltip.start[currentLanguage]);
-        var zeroPadCheckbox = addCheckbox(startNumberColumn, LABELS.checkbox.zeroPad[currentLanguage],
-            LABELS.tooltip.zeroPad[currentLanguage]);
+        var startNumberField = addLabeledEditText(startNumberColumn, getLabel("fieldLabel.start"), "1", START_NUMBER_FIELD_CHARS,
+            getLabel("tooltip.start"));
+        var zeroPadCheckbox = addCheckbox(startNumberColumn, getLabel("checkbox.zeroPad"),
+            getLabel("tooltip.zeroPad"));
 
         // 右カラム: 接尾辞 + 総ページ表示 / right column: suffix + show-total
         var suffixColumn = addColumnGroup(columnsGroup);
-        var suffixField = addLabeledEditText(suffixColumn, LABELS.field.suffix[currentLanguage], "", 10,
-            LABELS.tooltip.suffix[currentLanguage]);
-        var totalPageCheckbox = addCheckbox(suffixColumn, LABELS.checkbox.showTotal[currentLanguage],
-            LABELS.tooltip.showTotal[currentLanguage]);
+        var suffixField = addLabeledEditText(suffixColumn, getLabel("fieldLabel.suffix"), "", AFFIX_FIELD_CHARS,
+            getLabel("tooltip.suffix"));
+        var totalPageCheckbox = addCheckbox(suffixColumn, getLabel("checkbox.showTotal"),
+            getLabel("tooltip.showTotal"));
 
-        var dialogButtons = addButtonRow(dialog);
+        var dialogButtons = addButtonRow(pageNumberDialog);
 
         // 透明度と表示位置の調整 / adjust opacity and position
-        dialog.opacity = 0.98;
-        dialog.onShow = function () {
-            dialog.location = [dialog.location[0] + 300, dialog.location[1]];
+        pageNumberDialog.opacity = DIALOG_OPACITY;
+        pageNumberDialog.onShow = function () {
+            pageNumberDialog.location = [pageNumberDialog.location[0] + DIALOG_OFFSET_X, pageNumberDialog.location[1]];
         };
 
         return {
-            dialog: dialog,
+            pageNumberDialog: pageNumberDialog,
             prefixField: prefixField,
             startNumberField: startNumberField,
             zeroPadCheckbox: zeroPadCheckbox,
             suffixField: suffixField,
             totalPageCheckbox: totalPageCheckbox,
-            cancelButton: dialogButtons.cancelButton,
-            okButton: dialogButtons.okButton
+            btnCancel: dialogButtons.btnCancel,
+            btnOK: dialogButtons.btnOK
+        };
+    }
+
+    /**
+     * 開始番号欄を整数として読む
+     * @param {object} dialogControls - buildPageNumberDialog() の戻り値
+     * @returns {number} 開始番号（数値でなければ NaN）
+     */
+    function readStartNumber(dialogControls) {
+        return parseInt(dialogControls.startNumberField.text, 10);
+    }
+
+    /**
+     * 現在の入力値を書式オプションとしてまとめる
+     * @param {object} dialogControls - buildPageNumberDialog() の戻り値
+     * @returns {{prefix: string, suffix: string, zeroPad: boolean, showTotal: boolean}} 書式オプション
+     */
+    function readFormatOptions(dialogControls) {
+        return {
+            prefix: dialogControls.prefixField.text || "",
+            suffix: dialogControls.suffixField.text || "",
+            zeroPad: !!dialogControls.zeroPadCheckbox.value,
+            showTotal: !!dialogControls.totalPageCheckbox.value
         };
     }
 
@@ -693,7 +942,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
     // 確定処理 / Commit
     // =========================================
 
-    /* OK確定時の雛形テキストを取得（優先候補 → 現在の選択 → レイヤー上の既存テキスト）/ Resolve the template text for the commit (preferred -> current selection -> existing text on the layer) */
+    /**
+     * OK確定時の雛形テキストを取得（優先候補 → 現在の選択 → レイヤー上の既存テキスト）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {TextFrame} preferredText - 最優先の候補（実行時に選択していたテキスト）
+     * @returns {TextFrame|null} 雛形テキスト
+     */
     function resolveTemplateTextForCommit(doc, pagenumberLayer, preferredText) {
         var templateText = isTextFrame(preferredText) ? preferredText : getSelectedTextFrame();
         if (!isTextFrame(templateText)) {
@@ -702,7 +957,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return isTextFrame(templateText) ? templateText : null;
     }
 
-    /* 雛形テキストを _pagenumber 上へ移し、他のテキストを除去 / Move the template to _pagenumber and remove the other text frames */
+    /**
+     * 雛形テキストを _pagenumber 上へ移し、他のテキストを除去
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {TextFrame} templateText - 雛形テキスト
+     * @returns {boolean} 移せたら true
+     */
     function moveTemplateTextToPagenumberLayer(pagenumberLayer, templateText) {
         if (!isTextFrame(templateText)) return false;
         if (templateText.layer.name !== PAGENUMBER_LAYER_NAME) {
@@ -713,7 +973,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return true;
     }
 
-    /* 確定用の連番を全アートボードへ適用 / Apply the committed sequential page numbers to every artboard */
+    /**
+     * 確定用の連番を全アートボードへ適用
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} pagenumberLayer - _pagenumber レイヤー
+     * @param {TextFrame} templateText - 雛形テキスト
+     * @param {number} startNumber - 開始番号
+     * @param {object} formatOptions - readFormatOptions() の戻り値
+     * @returns {boolean} 配置できたら true
+     */
     function applyNumberingToAllArtboards(doc, pagenumberLayer, templateText, startNumber, formatOptions) {
         // 複製に失敗した場合は採番せず、雛形をそのまま残す / when the duplication fails, leave the template as it is
         if (!seedAndPasteToAllArtboards(doc, templateText, startNumber)) return false;
@@ -721,109 +989,112 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
         return true;
     }
 
+    /**
+     * OK確定時の本処理：雛形テキストを _pagenumber へ移し、全アートボードへ連番を確定配置
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} dialogControls - buildPageNumberDialog() の戻り値
+     * @param {TextFrame} originalTemplateText - 実行時に選択していたテキスト
+     * @param {object} pagenumberSetup - setupPagenumberLayer() の戻り値（元の状態へ戻すため）
+     * @returns {void}
+     */
+    function commitPageNumbers(doc, dialogControls, originalTemplateText, pagenumberSetup) {
+        var startNumber = readStartNumber(dialogControls);
+        if (isNaN(startNumber)) {
+            alert(getLabel("alert.notNumber"));
+            return;
+        }
+
+        // プレビュー用の退避レイヤーを破棄 / discard the preview backup layer
+        forceRemoveLayerByName(doc, BACKUP_LAYER_NAME);
+
+        var pagenumberLayer = getOrCreateLayer(doc, PAGENUMBER_LAYER_NAME);
+        var templateText = resolveTemplateTextForCommit(doc, pagenumberLayer, originalTemplateText);
+        if (!templateText || !moveTemplateTextToPagenumberLayer(pagenumberLayer, templateText)) {
+            alert(getLabel("alert.invalidSelection"));
+            return;
+        }
+
+        var placed = applyNumberingToAllArtboards(doc, pagenumberLayer, templateText, startNumber, readFormatOptions(dialogControls));
+        safeRedraw();
+        restorePagenumberState(doc, pagenumberSetup.layer, pagenumberSetup.originalState, false);
+        if (!placed) alert(getLabel("alert.commitFailed"));
+    }
+
     // =========================================
     // メイン処理 / Main
     // =========================================
 
-    /* ダイアログを表示し、選択テキストを雛形に全アートボードへページ番号を配置 / Show the dialog and place page numbers on every artboard using the selected text as a template */
+    /**
+     * ダイアログを表示し、選択テキストを雛形に全アートボードへページ番号を配置
+     * @returns {void}
+     */
     function main() {
         // テキスト未選択なら終了 / Exit if no text is selected
         var originalTemplateText = getSelectedTextFrame();
         if (!originalTemplateText) {
-            alert(LABELS.alert.invalidSelection[currentLanguage]);
+            alert(getLabel("alert.invalidSelection"));
             return;
         }
 
         var doc = app.activeDocument;
         var pagenumberSetup = setupPagenumberLayer(doc);
-        var dialogUI = buildDialog();
+        var dialogControls = buildPageNumberDialog();
         var previewManager = new PreviewManager();
 
-        /* 現在の入力値を書式オプションとしてまとめる / Collect the current input values as formatting options */
-        function getFormatOptions() {
-            return {
-                prefix: dialogUI.prefixField.text || "",
-                suffix: dialogUI.suffixField.text || "",
-                zeroPad: !!dialogUI.zeroPadCheckbox.value,
-                showTotal: !!dialogUI.totalPageCheckbox.value
-            };
-        }
-
-        /* 現在の入力値でライブプレビューを更新（前回分を巻き戻し、1ステップとして再実行）/ Refresh the live preview with current input values (roll back the previous one, run as a single step) */
+        /* 現在の入力値でライブプレビューを更新（前回分を巻き戻し、1ステップとして再実行）
+           Refresh the live preview with current input values (roll back the previous one, run as a single step) */
         function refreshPreview() {
-            var startNumber = parseInt(dialogUI.startNumberField.text, 10);
+            var startNumber = readStartNumber(dialogControls);
             if (isNaN(startNumber)) return;
 
-            var formatOptions = getFormatOptions();
+            var formatOptions = readFormatOptions(dialogControls);
             previewManager.rollback();
             previewManager.runAsStep(function () {
                 return updatePreview(doc, PAGENUMBER_LAYER_NAME, startNumber, formatOptions);
             });
         }
 
-        /* OK確定時の本処理：雛形テキストを _pagenumber へ移し、全アートボードへ連番を確定配置 / Commit: move the template text to _pagenumber and place sequential numbers on every artboard */
-        function commitPageNumbers() {
-            var startNumber = parseInt(dialogUI.startNumberField.text, 10);
-            if (isNaN(startNumber)) {
-                alert(LABELS.alert.notNumber[currentLanguage]);
-                return;
-            }
-
-            // プレビュー用の退避レイヤーを破棄 / discard the preview backup layer
-            forceRemoveLayerByName(doc, BACKUP_LAYER_NAME);
-
-            var pagenumberLayer = getOrCreateLayer(doc, PAGENUMBER_LAYER_NAME);
-            var templateText = resolveTemplateTextForCommit(doc, pagenumberLayer, originalTemplateText);
-            if (!templateText || !moveTemplateTextToPagenumberLayer(pagenumberLayer, templateText)) {
-                alert(LABELS.alert.invalidSelection[currentLanguage]);
-                return;
-            }
-
-            var placed = applyNumberingToAllArtboards(doc, pagenumberLayer, templateText, startNumber, getFormatOptions());
-            safeRedraw();
-            restorePagenumberState(doc, pagenumberSetup.layer, pagenumberSetup.originalState, false);
-            if (!placed) alert(LABELS.alert.commitFailed[currentLanguage]);
-        }
-
-        changeValueByArrowKey(dialogUI.startNumberField, refreshPreview);
+        changeValueByArrowKey(dialogControls.startNumberField, refreshPreview);
 
         // 入力確定（Tabやフォーカス移動）でプレビューを更新。onChanging は1文字ごとに全アートボードを組み直すため使わない
         // Refresh on commit of the field (Tab or focus change); onChanging would rebuild every artboard on each keystroke
-        dialogUI.prefixField.onChange = refreshPreview;
-        dialogUI.suffixField.onChange = refreshPreview;
-        dialogUI.startNumberField.onChange = refreshPreview;
+        dialogControls.prefixField.onChange = refreshPreview;
+        dialogControls.suffixField.onChange = refreshPreview;
+        dialogControls.startNumberField.onChange = refreshPreview;
 
         // チェックボックスのON/OFFでプレビューを更新（キー操作での切り替えは値を直接書き換えるため onClick は発火しない）
         // Update the preview when a checkbox is toggled (key shortcuts set .value directly, so onClick does not fire for them)
-        dialogUI.zeroPadCheckbox.onClick = refreshPreview;
-        dialogUI.totalPageCheckbox.onClick = refreshPreview;
+        dialogControls.zeroPadCheckbox.onClick = refreshPreview;
+        dialogControls.totalPageCheckbox.onClick = refreshPreview;
 
         // Zキーでゼロ埋め、Aキーで総ページ表示をトグル（入力欄では文字入力を優先）
         // Z toggles zero-pad, A toggles show-total; typing in a text field takes precedence
-        addToggleKeyHandler(dialogUI.dialog, "Z", dialogUI.zeroPadCheckbox, refreshPreview, true);
-        addToggleKeyHandler(dialogUI.dialog, "A", dialogUI.totalPageCheckbox, refreshPreview, true);
+        addToggleKeyHandler(dialogControls.pageNumberDialog, "Z", dialogControls.zeroPadCheckbox, refreshPreview, true);
+        addToggleKeyHandler(dialogControls.pageNumberDialog, "A", dialogControls.totalPageCheckbox, refreshPreview, true);
 
         // OK：プレビュー分を全Undoしてから確定処理を1回だけ実行 / OK: undo all preview steps, then run the commit action once
-        dialogUI.okButton.onClick = function () {
-            previewManager.commit(commitPageNumbers);
+        dialogControls.btnOK.onClick = function () {
+            previewManager.commit(function () {
+                commitPageNumbers(doc, dialogControls, originalTemplateText, pagenumberSetup);
+            });
             forceRemoveLayerByName(doc, BACKUP_LAYER_NAME);
-            dialogUI.dialog.close(1);
+            dialogControls.pageNumberDialog.close(1);
         };
 
         // キャンセル：プレビューを巻き戻し、退避テキストと _pagenumber 状態を復元 / Cancel: roll back the preview, restore the backed-up text and the _pagenumber state
-        dialogUI.cancelButton.onClick = function () {
+        dialogControls.btnCancel.onClick = function () {
             previewManager.rollback();
             restorePreviewBackupOnCancel(doc);
             restorePagenumberState(doc, pagenumberSetup.layer, pagenumberSetup.originalState, true);
-            dialogUI.dialog.close(0);
+            dialogControls.pageNumberDialog.close(0);
         };
 
-        dialogUI.startNumberField.active = true;
+        dialogControls.startNumberField.active = true;
 
         // 初回プレビュー / first preview pass
         refreshPreview();
 
-        dialogUI.dialog.show();
+        dialogControls.pageNumberDialog.show();
     }
 
     main();

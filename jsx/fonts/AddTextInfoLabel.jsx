@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AddTextInfoLabel";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTextInfoLabel.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInfoLabel.md"; /* README (English) */
@@ -42,7 +42,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
 
 (function () {
 
-    main();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 情報ラベルを入れるレイヤー名 / Layer that receives the info labels */
+    var INFO_LAYER_NAME = "フォント情報";
+
+    /* 情報ラベルの書式 / Info label text format */
+    var LABEL_FONT_NAME = "HiraginoSans-W3";
+    var LABEL_FONT_SIZE = 10;
+    var LABEL_LEADING = 16;
+
+    /* 一度に処理する選択数の上限（これ以上は何もしない） / Selections at or above this count are ignored */
+    var MAX_SELECTION_COUNT = 1000;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* パネルの余白 / Panel margins */
+    var PANEL_MARGINS = [15, 20, 15, 15];
+
+    /* 一括切り替えボタンの大きさ / Bounds of the bulk toggle buttons */
+    var TOGGLE_BUTTON_BOUNDS = [0, 0, 80, 24];
 
     // =========================================
     // ローカライズ / Localization
@@ -64,33 +87,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         },
         panel: {
             position: { ja: "位置", en: "Position" },
-            mode:     { ja: "表示形式", en: "Format" },
-            info:     { ja: "表示項目（詳細表示時のみ有効）", en: "Items (used by the detailed format only)" }
+            mode: { ja: "表示形式", en: "Format" },
+            info: { ja: "表示項目（詳細表示時のみ有効）", en: "Items (used by the detailed format only)" }
         },
         radio: {
-            posBottom:   { ja: "下", en: "Below" },
-            posRight:    { ja: "右", en: "Right" },
+            posBottom: { ja: "下", en: "Below" },
+            posRight: { ja: "右", en: "Right" },
             modeCompact: { ja: "簡易版", en: "Compact" },
-            modeFull:    { ja: "詳細", en: "Detailed" }
+            modeFull: { ja: "詳細", en: "Detailed" }
         },
         checkbox: {
-            fontName:       { ja: "フォント名", en: "Font name" },
-            postScript:     { ja: "PSフォント名", en: "PostScript name" },
-            fontStyle:      { ja: "スタイル（ウェイト）", en: "Style (weight)" },
-            fontSize:       { ja: "フォントサイズ", en: "Font size" },
-            leading:        { ja: "行送り", en: "Leading" },
-            kerning:        { ja: "カーニング", en: "Kerning" },
-            proportional:   { ja: "プロポーショナルメトリクス", en: "Proportional metrics" },
-            tracking:       { ja: "トラッキング", en: "Tracking" },
-            tsume:          { ja: "文字ツメ", en: "Tsume" },
+            fontName: { ja: "フォント名", en: "Font name" },
+            postScript: { ja: "PSフォント名", en: "PostScript name" },
+            fontStyle: { ja: "スタイル（ウェイト）", en: "Style (weight)" },
+            fontSize: { ja: "フォントサイズ", en: "Font size" },
+            leading: { ja: "行送り", en: "Leading" },
+            kerning: { ja: "カーニング", en: "Kerning" },
+            proportional: { ja: "プロポーショナルメトリクス", en: "Proportional metrics" },
+            tracking: { ja: "トラッキング", en: "Tracking" },
+            tsume: { ja: "文字ツメ", en: "Tsume" },
             leadingPercent: { ja: "行送り（%）", en: "Leading (%)" }
         },
         tooltip: {
-            posBottom:   { ja: "テキストの下に情報ラベルを置きます。", en: "Places the info label below the text." },
-            posRight:    { ja: "テキストの右に情報ラベルを置きます。", en: "Places the info label to the right of the text." },
+            posBottom: { ja: "テキストの下に情報ラベルを置きます。", en: "Places the info label below the text." },
+            posRight: { ja: "テキストの右に情報ラベルを置きます。", en: "Places the info label to the right of the text." },
             modeCompact: { ja: "フォント名とサイズだけの短い表記にします。", en: "Writes a short label with just the font name and size." },
-            modeFull:    { ja: "下の［表示項目］で選んだ内容をすべて書き出します。", en: "Writes every item ticked under Items below." },
-            info:        { ja: "詳細表示のときに、ラベルへ書き出す項目を選びます。", en: "Picks which items go into the label when the detailed format is used." }
+            modeFull: { ja: "下の［表示項目］で選んだ内容をすべて書き出します。", en: "Writes every item ticked under Items below." },
+            info: { ja: "詳細表示のときに、ラベルへ書き出す項目を選びます。", en: "Picks which items go into the label when the detailed format is used." },
+            kerning: {
+                ja: "カーニングの方式（メトリクス／和文等幅／オプティカル／なし）を書き出します。",
+                en: "Writes the kerning method (Metrics, Metrics - Roman Only, Optical, or none)."
+            },
+            leadingPercent: { ja: "行送りをフォントサイズに対する割合で書き出します。", en: "Writes the leading as a percentage of the font size." },
+            minimalSet: {
+                ja: "フォント名・スタイル・フォントサイズ・行送りだけをオンにします。",
+                en: "Turns on only the font name, style, font size, and leading."
+            }
         }
     };
 
@@ -109,434 +141,555 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
     }
 
-    function getFontSizeUnitLabel() {
-        var textUnit = app.preferences.getIntegerPreference("text/units");
-        switch (textUnit) {
+    // =========================================
+    // 表示項目 / Info items
+    // =========================================
+
+    /* 詳細表示の項目（チェックボックスの列・初期値・［最小セット］での値）
+       Detailed-format items: checkbox column, initial value, value set by the minimal preset */
+    var INFO_ITEMS = [
+        { key: "fontName",       column: 0, initial: true,  minimal: true },
+        { key: "postScript",     column: 0, initial: false, minimal: false },
+        { key: "fontStyle",      column: 0, initial: true,  minimal: true },
+        { key: "fontSize",       column: 0, initial: true,  minimal: true },
+        { key: "leading",        column: 0, initial: true,  minimal: true },
+        { key: "kerning",        column: 1, initial: true,  minimal: false, tooltip: "tooltip.kerning" },
+        { key: "proportional",   column: 1, initial: true,  minimal: false },
+        { key: "tracking",       column: 1, initial: false, minimal: false },
+        { key: "tsume",          column: 1, initial: false, minimal: false },
+        { key: "leadingPercent", column: 1, initial: false, minimal: false, tooltip: "tooltip.leadingPercent" }
+    ];
+
+    // =========================================
+    // テキスト情報の読み取り / Reading text attributes
+    // =========================================
+
+    /* 段落の区切り（CR） / Paragraph separator (CR) */
+    var PARAGRAPH_BREAK = String.fromCharCode(13);
+
+    /**
+     * 環境設定の文字単位の表示名を返す
+     * @param {string} prefKey - "text/units"（文字サイズ）または "text/asianunits"（行送り）
+     * @returns {string} 単位の表示名（コード5は文字サイズなら Q、行送りなら H）
+     */
+    function getTextUnitLabel(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey);
+        switch (unitCode) {
             case 0: return "inch";
             case 1: return "mm";
             case 2: return "pt";
             case 3: return "p";
             case 4: return "cm";
-            case 5: return "Q";
+            case 5: return (prefKey === "text/units") ? "Q" : "H";
             case 6: return "px";
             default: return "pt";
         }
     }
 
-    function getLeadingUnitLabel() {
-        var asianUnit = app.preferences.getIntegerPreference("text/asianunits");
-        switch (asianUnit) {
-            case 0: return "inch";
-            case 1: return "mm";
-            case 2: return "pt";
-            case 3: return "p";
-            case 4: return "cm";
-            case 5: return "H";
-            case 6: return "px";
-            default: return "pt";
-        }
-    }
-
-    function getFontSize(item) {
+    /**
+     * 読み取り関数を呼び、例外が出たら「不明」を返す
+     * @param {Function} readValue - (textFrame, displayMode) を受け取る読み取り関数
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {string} [displayMode] - "compact" または "full"
+     * @returns {*} 読み取った値、または "不明"
+     */
+    function readOrUnknown(readValue, textFrame, displayMode) {
+        /* 文字属性の読み取りは失敗しうる / reading character attributes may throw */
         try {
-            var rawSize = item.textRange.characterAttributes.size;
-            var size = Math.round(rawSize * 10) / 10;
-            return size + " " + getFontSizeUnitLabel();
+            return readValue(textFrame, displayMode);
         } catch (e) {
             return "不明";
         }
     }
 
-    function formatNumber(num) {
-        var str = String(num);
-        if (str.indexOf(".") === -1) {
-            return str;
-        }
-
-        var decimals = str.split(".")[1];
-        if (decimals.length <= 2) {
-            return str;
-        } else {
-            return String(Math.round(num * 100) / 100);
-        }
+    /**
+     * フォントサイズを小数1桁の単位付き文字列で返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {string} フォントサイズ
+     */
+    function getFontSize(textFrame) {
+        var rawSize = textFrame.textRange.characterAttributes.size;
+        var roundedSize = Math.round(rawSize * 10) / 10;
+        return roundedSize + " " + getTextUnitLabel("text/units");
     }
 
-    function getLeading(item, displayMode) {
-        try {
-            var attr = item.textRange.characterAttributes;
-            var leading = attr.leading;
-            var unit = getLeadingUnitLabel();
-            var formatted = formatNumber(leading);
+    /**
+     * 小数が3桁以上なら2桁に丸め、それ以外はそのまま文字列にする
+     * @param {number} value - 数値
+     * @returns {string} 整形した数値
+     */
+    function formatUpToTwoDecimals(value) {
+        var valueText = String(value);
+        if (valueText.indexOf(".") === -1) {
+            return valueText;
+        }
+        if (valueText.split(".")[1].length <= 2) {
+            return valueText;
+        }
+        return String(Math.round(value * 100) / 100);
+    }
 
-            if (attr.autoLeading) {
-                return (displayMode === "compact")
-                    ? formatted + " " + unit
-                    : "自動（" + formatted + " " + unit + "）";
-            } else {
-                return formatted + " " + unit;
-            }
-        } catch (e) {
+    /**
+     * 行送りを単位付き文字列で返す（詳細表示の自動行送りは「自動（…）」）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {string} displayMode - "compact" または "full"
+     * @returns {string} 行送り
+     */
+    function getLeading(textFrame, displayMode) {
+        var textAttributes = textFrame.textRange.characterAttributes;
+        var leadingText = formatUpToTwoDecimals(textAttributes.leading) + " " + getTextUnitLabel("text/asianunits");
+
+        if (textAttributes.autoLeading && displayMode !== "compact") {
+            return "自動（" + leadingText + "）";
+        }
+        return leadingText;
+    }
+
+    /**
+     * 行送りのフォントサイズに対する割合を返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {string} 「120 %」のような割合（数値が取れなければ「不明」）
+     */
+    function getLeadingPercentage(textFrame) {
+        var textAttributes = textFrame.textRange.characterAttributes;
+        var fontSize = textAttributes.size;
+        var leading = textAttributes.leading;
+
+        /* 数値でない場合は不明 / Unknown unless both are numbers */
+        if (typeof fontSize !== "number" || typeof leading !== "number" || fontSize === 0) {
             return "不明";
         }
+        return roundToTwoDecimalFixed((leading / fontSize) * 100) + " %";
     }
 
-    function getLeadingPercentage(item) {
-        try {
-            var attr = item.textRange.characterAttributes;
-            var size = attr.size;
-            var leading = attr.leading;
-
-            // 安全チェック：数値でない場合は不明
-            if (typeof size !== "number" || typeof leading !== "number" || size === 0) {
-                return "不明";
-            }
-
-            var percent = (leading / size) * 100;
-            return roundToTwoDecimalFixed(percent) + " %";
-        } catch (e) {
-            return "不明";
-        }
-    }
-
+    /**
+     * 小数2桁に丸め、「.00」なら整数にする
+     * @param {number} value - 数値
+     * @returns {string} 整形した数値
+     */
     function roundToTwoDecimalFixed(value) {
         var rounded = Math.round(value * 100) / 100;
-        var str = rounded.toFixed(2);
-        // 小数点第2位が "00" → ".0" or 整数に丸め
-        if (str.match(/\.00$/)) return String(parseInt(rounded, 10));
-        if (str.match(/\.0$/)) return String(rounded.toFixed(1));
-        return str;
+        var fixedText = rounded.toFixed(2);
+        if (fixedText.match(/\.00$/)) return String(parseInt(rounded, 10));
+        return fixedText;
     }
 
+    /**
+     * カーニングの方式を日本語名で返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {string} カーニングの方式
+     */
+    function getKerningMethodText(textFrame) {
+        switch (textFrame.textRange.characterAttributes.kerningMethod) {
+            case AutoKernType.AUTO: return "メトリクス";
+            case AutoKernType.METRICSROMANONLY: return "和文等幅";
+            case AutoKernType.OPTICAL: return "オプティカル";
+            default: return "なし";
+        }
+    }
+
+    /**
+     * トラッキングを返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {number} トラッキング
+     */
+    function getTracking(textFrame) {
+        return textFrame.textRange.characterAttributes.tracking;
+    }
+
+    /**
+     * プロポーショナルメトリクスの状態を返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {string} "ON" または "OFF"
+     */
+    function getProportionalMetrics(textFrame) {
+        return textFrame.textRange.characterAttributes.proportionalMetrics ? "ON" : "OFF";
+    }
+
+    /**
+     * 文字ツメを小数1桁までの文字列で返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {string} 文字ツメ（数値が取れなければ「なし」）
+     */
+    function getTsume(textFrame) {
+        var tsume = textFrame.textRange.characterAttributes.Tsume;
+        if (typeof tsume !== "number" || isNaN(tsume)) return "なし";
+
+        var rounded = Math.round(tsume * 10) / 10;
+        return (rounded % 1 === 0) ? String(rounded.toFixed(0)) : String(rounded.toFixed(1));
+    }
+
+    /**
+     * 最初に見つかったフォントを返す
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {TextFont|null} フォント（見つからなければ null）
+     */
+    function getFirstAvailableFont(textFrame) {
+        var characters = textFrame.textRange.characters;
+        for (var i = 0; i < characters.length; i++) {
+            var textFont = characters[i].characterAttributes.textFont;
+            if (textFont) return textFont;
+        }
+        return null;
+    }
+
+    /**
+     * ラベルに書き出すテキスト情報をまとめて読み取る
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {TextFont} sourceFont - 対象のフォント
+     * @param {string} displayMode - "compact" または "full"
+     * @returns {Object} テキスト情報
+     */
+    function readTextInfo(textFrame, sourceFont, displayMode) {
+        return {
+            fontSize: readOrUnknown(getFontSize, textFrame),
+            leading: readOrUnknown(getLeading, textFrame, displayMode),
+            leadingPercent: readOrUnknown(getLeadingPercentage, textFrame),
+            kerning: readOrUnknown(getKerningMethodText, textFrame),
+            tracking: readOrUnknown(getTracking, textFrame),
+            proportional: readOrUnknown(getProportionalMetrics, textFrame),
+            tsume: readOrUnknown(getTsume, textFrame),
+            fontFamily: sourceFont.family,
+            fontStyle: sourceFont.style,
+            postScriptName: sourceFont.name
+        };
+    }
+
+    // =========================================
+    // 情報ラベルの作成 / Info label creation
+    // =========================================
+
+    /**
+     * 簡易表示の3行のテキストを組み立てる
+     * @param {Object} textInfo - readTextInfo() の結果
+     * @returns {string} ラベルのテキスト
+     */
+    function buildCompactText(textInfo) {
+        var fontLine = textInfo.fontFamily + " " + textInfo.fontStyle + "、" + textInfo.fontSize + " ↓" + textInfo.leading;
+        var kerningLine = textInfo.kerning + "、プロポーショナルメトリクス：" + textInfo.proportional;
+        var spacingLine = "トラッキング：" + textInfo.tracking + "、文字ツメ：" + textInfo.tsume + " %";
+        return fontLine + PARAGRAPH_BREAK + kerningLine + PARAGRAPH_BREAK + spacingLine;
+    }
+
+    /**
+     * 詳細表示のテキストを、選ばれた項目だけで組み立てる
+     * @param {Object} textInfo - readTextInfo() の結果
+     * @param {Object} includeItems - 項目キーごとの書き出す／書き出さない
+     * @returns {string} ラベルのテキスト
+     */
+    function buildDetailedText(textInfo, includeItems) {
+        /* 書き出す順 / Output order */
+        var detailLines = [
+            ["fontName", "・フォント名\t" + textInfo.fontFamily],
+            ["postScript", "・PSフォント名\t" + textInfo.postScriptName],
+            ["fontStyle", "・スタイル（ウェイト）\t" + textInfo.fontStyle],
+            ["fontSize", "・フォントサイズ\t" + textInfo.fontSize],
+            ["leading", "・行送り\t" + textInfo.leading],
+            ["leadingPercent", "・行送り（%）\t" + textInfo.leadingPercent],
+            ["kerning", "・カーニング\t" + textInfo.kerning],
+            ["proportional", "・プロポーショナルメトリクス\t" + textInfo.proportional],
+            ["tracking", "・トラッキング\t" + textInfo.tracking],
+            ["tsume", "・文字ツメ\t" + textInfo.tsume + " %"]
+        ];
+        var infoLines = [];
+        for (var i = 0; i < detailLines.length; i++) {
+            if (includeItems[detailLines[i][0]]) infoLines.push(detailLines[i][1]);
+        }
+        return infoLines.join(PARAGRAPH_BREAK);
+    }
+
+    /**
+     * 詳細表示のラベルをエリア内文字で作る（右揃えのタブとリーダー付き）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} textContent - ラベルのテキスト
+     * @param {number[]} sourceBounds - 元のテキストの geometricBounds
+     * @param {string} position - "bottom" または "right"
+     * @returns {TextFrame} 作ったラベル
+     */
+    function createDetailedInfoFrame(doc, textContent, sourceBounds, position) {
+        var mmToPt = 72 / 25.4;
+        var lineCount = textContent.split(PARAGRAPH_BREAK).length;
+        var lineHeight = LABEL_FONT_SIZE * 1.4;
+        var frameHeight = lineHeight * (lineCount + 2) + 4 * mmToPt;
+        var frameWidth = 300;
+
+        var frameLeft = (position === "right") ? sourceBounds[2] + 10 : sourceBounds[0];
+        var frameTop = (position === "right") ? sourceBounds[3] + frameHeight : sourceBounds[3] - LABEL_FONT_SIZE;
+
+        var framePath = doc.pathItems.rectangle(frameTop, frameLeft, frameWidth, frameHeight);
+        var infoFrame = doc.textFrames.areaText(framePath);
+        infoFrame.contents = textContent;
+        infoFrame.spacing = 2 * mmToPt;
+
+        /* タブストップ（右揃え、位置400pt、リーダー…） / Right tab stop at 400pt with a "…" leader */
+        var tabStop = new TabStopInfo();
+        tabStop.position = 400;
+        tabStop.alignment = TabStopAlignment.Right;
+        tabStop.leader = "…";
+        for (var i = 0; i < infoFrame.paragraphs.length; i++) {
+            infoFrame.paragraphs[i].tabStops = [tabStop];
+        }
+        return infoFrame;
+    }
+
+    /**
+     * 簡易表示のラベルをポイント文字で作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} textContent - ラベルのテキスト
+     * @param {number[]} sourceBounds - 元のテキストの geometricBounds
+     * @param {string} position - "bottom" または "right"
+     * @returns {TextFrame} 作ったラベル
+     */
+    function createCompactInfoFrame(doc, textContent, sourceBounds, position) {
+        var labelLeft = (position === "right") ? sourceBounds[2] + 20 : sourceBounds[0];
+        var labelTop = (position === "right") ? sourceBounds[1] : sourceBounds[3] - LABEL_FONT_SIZE;
+
+        var infoFrame = doc.textFrames.add();
+        infoFrame.contents = textContent;
+        infoFrame.position = [labelLeft, labelTop];
+        /* 見た目の上端をそろえる / Align the visible top edge */
+        var infoBounds = infoFrame.visibleBounds;
+        infoFrame.translate(0, labelTop - infoBounds[1]);
+        return infoFrame;
+    }
+
+    /**
+     * ラベルに文字サイズ・行送り・揃え・フォントを設定する
+     * @param {TextFrame} infoFrame - 作ったラベル
+     * @param {string} displayMode - "compact" または "full"
+     * @returns {void}
+     */
+    function applyInfoFrameStyle(infoFrame, displayMode) {
+        var infoAttributes = infoFrame.textRange.characterAttributes;
+        infoAttributes.autoLeading = false;
+        infoAttributes.leading = LABEL_LEADING;
+        infoFrame.textRange.characterAttributes.size = LABEL_FONT_SIZE;
+        infoFrame.textRange.paragraphAttributes.justification =
+            (displayMode === "full") ? Justification.RIGHT : Justification.LEFT;
+
+        /* フォントが無ければ既定のまま / keep the default font when it is missing */
+        try {
+            infoFrame.textRange.characterAttributes.textFont = textFonts.getByName(LABEL_FONT_NAME);
+        } catch (e) {}
+    }
+
+    /**
+     * 名前でレイヤーを探し、無ければ作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} レイヤー
+     */
+    function getOrCreateLayer(doc, layerName) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === layerName) return doc.layers[i];
+        }
+        var newLayer = doc.layers.add();
+        newLayer.name = layerName;
+        return newLayer;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ラジオボタン2つを横に並べたパネルを追加する
+     * @param {Group} parentGroup - 追加先
+     * @param {string} panelLabelPath - パネルタイトルの LABELS パス
+     * @param {string[]} radioKeys - LABELS.radio / LABELS.tooltip のキー
+     * @returns {Object} キーごとのラジオボタン
+     */
+    function addRadioPanel(parentGroup, panelLabelPath, radioKeys) {
+        var radioPanel = parentGroup.add("panel", undefined, getLabel(panelLabelPath));
+        radioPanel.orientation = "row";
+        radioPanel.margins = PANEL_MARGINS;
+        var radios = {};
+        for (var i = 0; i < radioKeys.length; i++) {
+            var radio = radioPanel.add("radiobutton", undefined, getLabel("radio." + radioKeys[i]));
+            radio.helpTip = getLabel("tooltip." + radioKeys[i]);
+            radios[radioKeys[i]] = radio;
+        }
+        return radios;
+    }
+
+    /**
+     * 表示項目パネル（2列のチェックボックスと一括切り替えボタン）を追加する
+     * @param {Window} optionDialog - ダイアログ
+     * @returns {{panel: Panel, checkboxes: Object}} パネルと項目キーごとのチェックボックス
+     */
+    function addInfoItemsPanel(optionDialog) {
+        var infoPanel = optionDialog.add("panel", undefined, getLabel("panel.info"));
+        infoPanel.helpTip = getLabel("tooltip.info");
+        infoPanel.orientation = "column";
+        infoPanel.alignChildren = "left";
+        infoPanel.margins = PANEL_MARGINS;
+
+        var columnsGroup = infoPanel.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = "top";
+
+        var columns = [];
+        for (var c = 0; c < 2; c++) {
+            columns[c] = columnsGroup.add("group");
+            columns[c].orientation = "column";
+            columns[c].alignChildren = "left";
+        }
+
+        var checkboxes = {};
+        for (var i = 0; i < INFO_ITEMS.length; i++) {
+            var infoItem = INFO_ITEMS[i];
+            var itemCheckbox = columns[infoItem.column].add("checkbox", undefined, getLabel("checkbox." + infoItem.key));
+            if (infoItem.tooltip) itemCheckbox.helpTip = getLabel(infoItem.tooltip);
+            itemCheckbox.value = infoItem.initial;
+            checkboxes[infoItem.key] = itemCheckbox;
+        }
+
+        /**
+         * 全項目のチェックを、項目ごとの値で設定する
+         * @param {Function} getValue - 項目定義を受け取って値を返す関数
+         * @returns {void}
+         */
+        function setAllItems(getValue) {
+            for (var i = 0; i < INFO_ITEMS.length; i++) {
+                checkboxes[INFO_ITEMS[i].key].value = getValue(INFO_ITEMS[i]);
+            }
+        }
+
+        var toggleButtonGroup = infoPanel.add("group");
+        toggleButtonGroup.orientation = "row";
+        toggleButtonGroup.alignment = "left";
+        var btnAllOn = toggleButtonGroup.add("button", TOGGLE_BUTTON_BOUNDS, "すべてON");
+        var btnAllOff = toggleButtonGroup.add("button", TOGGLE_BUTTON_BOUNDS, "すべてOFF");
+        var btnMinimal = toggleButtonGroup.add("button", TOGGLE_BUTTON_BOUNDS, "最小セット");
+        btnMinimal.helpTip = getLabel("tooltip.minimalSet");
+
+        btnAllOn.onClick = function () {
+            setAllItems(function () { return true; });
+        };
+        btnAllOff.onClick = function () {
+            setAllItems(function () { return false; });
+        };
+        btnMinimal.onClick = function () {
+            setAllItems(function (infoItem) { return infoItem.minimal; });
+        };
+
+        return { panel: infoPanel, checkboxes: checkboxes };
+    }
+
+    /**
+     * 設定ダイアログを表示し、選ばれた設定を返す
+     * @returns {Object|null} 設定（キャンセル時は null）
+     */
+    function showOptionDialog() {
+        var optionDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        optionDialog.alignChildren = "left";
+
+        var topGroup = optionDialog.add("group");
+        topGroup.orientation = "row";
+        topGroup.alignChildren = "top";
+
+        var positionRadios = addRadioPanel(topGroup, "panel.position", ["posBottom", "posRight"]);
+        positionRadios.posRight.value = true;
+
+        var modeRadios = addRadioPanel(topGroup, "panel.mode", ["modeCompact", "modeFull"]);
+        modeRadios.modeCompact.value = true;
+
+        var infoItemsUI = addInfoItemsPanel(optionDialog);
+
+        /* 表示項目は詳細表示のときだけ有効 / Items apply to the detailed format only */
+        function updateInfoPanelEnabled() {
+            infoItemsUI.panel.enabled = modeRadios.modeFull.value;
+        }
+        modeRadios.modeFull.onClick = updateInfoPanelEnabled;
+        modeRadios.modeCompact.onClick = updateInfoPanelEnabled;
+        updateInfoPanelEnabled();
+
+        var btnRowGroup = optionDialog.add("group");
+        btnRowGroup.alignment = "right";
+        btnRowGroup.add("button", undefined, "キャンセル", { name: "cancel" });
+        btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+
+        if (optionDialog.show() !== 1) return null;
+
+        var includeItems = {};
+        for (var i = 0; i < INFO_ITEMS.length; i++) {
+            includeItems[INFO_ITEMS[i].key] = infoItemsUI.checkboxes[INFO_ITEMS[i].key].value;
+        }
+        return {
+            position: positionRadios.posBottom.value ? "bottom" : "right",
+            displayMode: modeRadios.modeFull.value ? "full" : "compact",
+            includeItems: includeItems
+        };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 文字を編集中で、そのストーリーが1つのテキストだけなら、テキストオブジェクトの選択に切り替える
+     * @returns {void}
+     */
+    function selectFrameOfEditedText() {
+        if (app.selection.constructor.name !== "TextRange") return;
+
+        var textFramesInStory = app.selection.story.textFrames;
+        if (textFramesInStory.length === 1) {
+            app.executeMenuCommand("deselectall");
+            app.selection = [textFramesInStory[0]];
+            /* 選択ツールに切り替え（失敗しても続行） / Switch to the Selection tool; ignore failures */
+            try { app.selectTool("Adobe Select Tool"); } catch (e) {}
+        }
+    }
+
+    /**
+     * 選択したテキストごとにフォント情報のラベルを作る
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) return;
 
         var doc = app.activeDocument;
-
-        if (app.selection.constructor.name === "TextRange") {
-            var textFramesInStory = app.selection.story.textFrames;
-            if (textFramesInStory.length === 1) {
-                app.executeMenuCommand("deselectall");
-                app.selection = [textFramesInStory[0]];
-                try { app.selectTool("Adobe Select Tool"); } catch (e) {}
-            }
-        }
+        selectFrameOfEditedText();
 
         var selectedItems = doc.selection;
-        if (!selectedItems || selectedItems.length === 0 || selectedItems.length >= 1000) return;
+        if (!selectedItems || selectedItems.length === 0 || selectedItems.length >= MAX_SELECTION_COUNT) return;
 
-        var dialogOptions = showOptionDialog();
-        if (!dialogOptions) return;
+        var labelOptions = showOptionDialog();
+        if (!labelOptions) return;
 
-        var infoLayer = getOrCreateLayer(doc, "フォント情報");
+        var infoLayer = getOrCreateLayer(doc, INFO_LAYER_NAME);
         var generatedItems = [];
 
         for (var i = 0; i < selectedItems.length; i++) {
-            var originalItem = selectedItems[i];
-            if (originalItem.typename !== "TextFrame") continue;
+            var sourceFrame = selectedItems[i];
+            if (sourceFrame.typename !== "TextFrame") continue;
 
-            var fontObj = getFirstAvailableFont(originalItem);
-            if (!fontObj) continue;
+            var sourceFont = getFirstAvailableFont(sourceFrame);
+            if (!sourceFont) continue;
 
-            var fontSize = getFontSize(originalItem);
-            var leadingText = getLeading(originalItem, dialogOptions.displayMode);
-            var leadingPercent = getLeadingPercentage(originalItem);
-            var kerningText = getKerningMethodText(originalItem);
-            var tracking = getTracking(originalItem);
-            var proportionalMetrics = getProportionalMetrics(originalItem);
-            var tsume = getTsume(originalItem);
-            var fontFamily = fontObj.family;
-            var fontStyle = fontObj.style;
-            var postScriptName = fontObj.name;
-            var displayFontSize = 10;
-            var displayFont = "HiraginoSans-W3";
+            var textInfo = readTextInfo(sourceFrame, sourceFont, labelOptions.displayMode);
+            var sourceBounds = sourceFrame.geometricBounds;
+            var infoFrame;
 
-            var textContent;
-
-            if (dialogOptions.displayMode === "compact") {
-                var line1 = fontFamily + " " + fontStyle + "、" + fontSize + " ↓" + leadingText;
-                var line2 = kerningText + "、プロポーショナルメトリクス：" + proportionalMetrics;
-                var line3 = "トラッキング：" + tracking + "、文字ツメ：" + tsume + " %";
-                textContent = line1 + String.fromCharCode(13) + line2 + String.fromCharCode(13) + line3;
+            if (labelOptions.displayMode === "compact") {
+                infoFrame = createCompactInfoFrame(doc, buildCompactText(textInfo), sourceBounds, labelOptions.position);
             } else {
-                var infoLines = [];
-                if (dialogOptions.includeFontName)     infoLines.push("・フォント名	" + fontFamily);
-                if (dialogOptions.includePostScript)   infoLines.push("・PSフォント名	" + postScriptName);
-                if (dialogOptions.includeFontStyle)    infoLines.push("・スタイル（ウェイト）	" + fontStyle);
-                if (dialogOptions.includeFontSize)     infoLines.push("・フォントサイズ	" + fontSize);
-                if (dialogOptions.includeLeading)      infoLines.push("・行送り	" + leadingText);
-                if (dialogOptions.includeLeadingPercent) infoLines.push("・行送り（%）\t" + leadingPercent);
-                if (dialogOptions.includeKerning)      infoLines.push("・カーニング	" + kerningText);
-                if (dialogOptions.includeProportional) infoLines.push("・プロポーショナルメトリクス	" + proportionalMetrics);
-                if (dialogOptions.includeTracking)     infoLines.push("・トラッキング	" + tracking);
-                if (dialogOptions.includeTsume)        infoLines.push("・文字ツメ	" + tsume + " %");
-                textContent = infoLines.join(String.fromCharCode(13));
+                infoFrame = createDetailedInfoFrame(doc, buildDetailedText(textInfo, labelOptions.includeItems), sourceBounds, labelOptions.position);
             }
+            applyInfoFrameStyle(infoFrame, labelOptions.displayMode);
 
-            var tfInfo;
-            var bounds = originalItem.geometricBounds;
-            var originalLeft = bounds[0];
-            var originalTop = bounds[1];
-            var originalRight = bounds[2];
-            var originalBottom = bounds[3];
-
-            if (dialogOptions.displayMode === "full") {
-                var lineCount = textContent.split(String.fromCharCode(13)).length;
-                var lineHeight = displayFontSize * 1.4;
-                var height = lineHeight * (lineCount + 2);
-                var mmToPt = 72 / 25.4;
-                height += 4 * mmToPt;
-                var width = 300;
-
-                var rectX = (dialogOptions.position === "right") ? originalRight + 10 : originalLeft;
-                var rectY = (dialogOptions.position === "right") ? originalBottom + height : originalBottom - displayFontSize;
-
-                var rectPath = doc.pathItems.rectangle(rectY, rectX, width, height);
-                tfInfo = doc.textFrames.areaText(rectPath);
-                tfInfo.contents = textContent;
-
-                tfInfo.spacing = 2 * mmToPt;
-
-                // ↓ この行を追加
-               var attr = tfInfo.textRange.characterAttributes;
-               attr.autoLeading = false;
-               attr.leading = 16;
-
-                // タブストップ追加（右揃え、位置400pt、リーダー…）
-                var tabStop = new TabStopInfo();
-                tabStop.position = 400;
-                tabStop.alignment = TabStopAlignment.Right;
-                tabStop.leader = "…";
-                for (var p = 0; p < tfInfo.paragraphs.length; p++) {
-                    tfInfo.paragraphs[p].tabStops = [tabStop];
-                }
-            } else {
-                var posX = (dialogOptions.position === "right") ? originalRight + 20 : originalLeft;
-                var posY = (dialogOptions.position === "right") ? originalTop : originalBottom - displayFontSize;
-                tfInfo = createPointText(doc, textContent, [posX, posY]);
-                var infoBounds = tfInfo.visibleBounds;
-                tfInfo.translate(0, posY - infoBounds[1]);
-            }
-
-            // 行送り設定を追加
-            var attr = tfInfo.textRange.characterAttributes;
-            attr.autoLeading = false;
-            attr.leading = 16;
-
-            tfInfo.textRange.characterAttributes.size = displayFontSize;
-            tfInfo.textRange.paragraphAttributes.justification =
-                (dialogOptions.displayMode === "full") ? Justification.RIGHT : Justification.LEFT;
-
-            try {
-                tfInfo.textRange.characterAttributes.textFont = textFonts.getByName(displayFont);
-            } catch (e) {}
-
-            tfInfo.move(infoLayer, ElementPlacement.PLACEATBEGINNING);
-            generatedItems.push(tfInfo);
-            originalItem.selected = false;
+            infoFrame.move(infoLayer, ElementPlacement.PLACEATBEGINNING);
+            generatedItems.push(infoFrame);
+            sourceFrame.selected = false;
         }
 
         if (generatedItems.length > 0) {
             app.selection = generatedItems;
         }
-        app.redraw(); // 画面再描画
+        app.redraw(); /* 画面再描画 / Redraw the screen */
     }
 
-    function showOptionDialog() {
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "left";
-
-        var topGroup = dialog.add("group");
-        topGroup.orientation = "row";
-        topGroup.alignChildren = "top";
-
-        var posGroup = topGroup.add("panel", undefined, getLabel("panel.position"));
-        posGroup.orientation = "row";
-        posGroup.margins = [15, 20, 15, 15];
-        var posBottom = posGroup.add("radiobutton", undefined, getLabel("radio.posBottom"));
-        posBottom.helpTip = getLabel("tooltip.posBottom");
-        var posRight = posGroup.add("radiobutton", undefined, getLabel("radio.posRight"));
-        posRight.helpTip = getLabel("tooltip.posRight");
-        posRight.value = true;
-
-        var modeGroup = topGroup.add("panel", undefined, getLabel("panel.mode"));
-        modeGroup.orientation = "row";
-        modeGroup.margins = [15, 20, 15, 15];
-        var modeCompact = modeGroup.add("radiobutton", undefined, getLabel("radio.modeCompact"));
-        modeCompact.helpTip = getLabel("tooltip.modeCompact");
-        var modeFull = modeGroup.add("radiobutton", undefined, getLabel("radio.modeFull"));
-        modeFull.helpTip = getLabel("tooltip.modeFull");
-        modeCompact.value = true;
-
-        var infoGroup = dialog.add("panel", undefined, getLabel("panel.info"));
-        infoGroup.helpTip = getLabel("tooltip.info");
-        infoGroup.orientation = "column";
-        infoGroup.alignChildren = "left";
-        infoGroup.margins = [15, 20, 15, 15];
-
-        var columnsGroup = infoGroup.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = "top";
-
-        var column1 = columnsGroup.add("group");
-        column1.orientation = "column";
-        column1.alignChildren = "left";
-
-        var column2 = columnsGroup.add("group");
-        column2.orientation = "column";
-        column2.alignChildren = "left";
-
-        var chkFontName     = column1.add("checkbox", undefined, getLabel("checkbox.fontName"));
-        var chkPostScript   = column1.add("checkbox", undefined, getLabel("checkbox.postScript"));
-        var chkFontStyle    = column1.add("checkbox", undefined, getLabel("checkbox.fontStyle"));
-        var chkFontSize     = column1.add("checkbox", undefined, getLabel("checkbox.fontSize"));
-        var chkLeading      = column1.add("checkbox", undefined, getLabel("checkbox.leading"));
-        var chkKerning      = column2.add("checkbox", undefined, getLabel("checkbox.kerning"));
-        var chkProportional = column2.add("checkbox", undefined, getLabel("checkbox.proportional"));
-        var chkTracking     = column2.add("checkbox", undefined, getLabel("checkbox.tracking"));
-        var chkTsume        = column2.add("checkbox", undefined, getLabel("checkbox.tsume"));
-        var chkLeadingPercent = column2.add("checkbox", undefined, getLabel("checkbox.leadingPercent"));
-
-        var allToggles = [
-            chkFontName, chkPostScript, chkFontStyle, chkFontSize, chkLeading,
-            chkKerning, chkProportional, chkTracking, chkTsume, chkLeadingPercent
-        ];
-
-        chkFontName.value     = true;
-        chkPostScript.value   = false;
-        chkFontStyle.value    = true;
-        chkFontSize.value     = true;
-        chkLeading.value      = true;
-        chkKerning.value      = true;
-        chkProportional.value = true;
-        chkTracking.value     = false;
-        chkTsume.value        = false;
-        chkLeadingPercent.value = false;
-
-        var toggleGroup = infoGroup.add("group");
-        toggleGroup.orientation = "row";
-        toggleGroup.alignment = "left";
-        var btnAllOn  = toggleGroup.add("button", [0, 0, 80, 24], "すべてON");
-        var btnAllOff = toggleGroup.add("button", [0, 0, 80, 24], "すべてOFF");
-        var btnMinimal = toggleGroup.add("button", [0, 0, 80, 24], "最小セット");
-
-        btnAllOn.onClick = function () {
-            for (var i = 0; i < allToggles.length; i++) allToggles[i].value = true;
-        };
-        btnAllOff.onClick = function () {
-            for (var i = 0; i < allToggles.length; i++) allToggles[i].value = false;
-        };
-
-    btnMinimal.onClick = function () {
-        chkFontName.value     = true;
-        chkFontStyle.value    = true;
-        chkFontSize.value     = true;
-        chkLeading.value      = true;
-
-        chkPostScript.value   = false;
-        chkKerning.value      = false;
-        chkProportional.value = false;
-        chkTracking.value     = false;
-        chkTsume.value        = false;
-        chkLeadingPercent.value = false;
-    };
-
-        function updateInfoGroupState() {
-            var enabled = modeFull.value;
-            infoGroup.enabled = enabled;
-        }
-
-        modeFull.onClick = updateInfoGroupState;
-        modeCompact.onClick = updateInfoGroupState;
-        updateInfoGroupState(); // 初期化
-
-        var btnGroup = dialog.add("group");
-        btnGroup.alignment = "right";
-        btnGroup.add("button", undefined, "キャンセル", {name: "cancel"});
-        btnGroup.add("button", undefined, "OK", {name: "ok"});
-
-        if (dialog.show() !== 1) return null;
-
-        return {
-            position: posBottom.value ? "bottom" : "right",
-            displayMode: modeFull.value ? "full" : "compact",
-            includeFontName:   chkFontName.value,
-            includePostScript: chkPostScript.value,
-            includeFontStyle:  chkFontStyle.value,
-            includeFontSize:   chkFontSize.value,
-            includeLeading:    chkLeading.value,
-            includeKerning:    chkKerning.value,
-            includeTracking:   chkTracking.value,
-            includeProportional: chkProportional.value,
-            includeTsume: chkTsume.value,
-            includeLeadingPercent: chkLeadingPercent.value
-        };
-    }
-
-    function getFirstAvailableFont(textFrame) {
-        var chars = textFrame.textRange.characters;
-        for (var i = 0; i < chars.length; i++) {
-            var fnt = chars[i].characterAttributes.textFont;
-            if (fnt) return fnt;
-        }
-        return null;
-    }
-
-    function getKerningMethodText(item) {
-        try {
-            var method = item.textRange.characterAttributes.kerningMethod;
-            switch (method) {
-                case AutoKernType.AUTO: return "メトリクス";
-                case AutoKernType.METRICSROMANONLY: return "和文等幅";
-                case AutoKernType.OPTICAL: return "オプティカル";
-                default: return "なし";
-            }
-        } catch (e) {
-            return "不明";
-        }
-    }
-
-    function getTracking(item) {
-        try {
-            return item.textRange.characterAttributes.tracking;
-        } catch (e) {
-            return "不明";
-        }
-    }
-
-    function getProportionalMetrics(item) {
-        try {
-            return item.textRange.characterAttributes.proportionalMetrics ? "ON" : "OFF";
-        } catch (e) {
-            return "不明";
-        }
-    }
-
-    function getTsume(item) {
-        try {
-            var tsume = item.textRange.characterAttributes.Tsume;
-            if (typeof tsume !== "number" || isNaN(tsume)) return "なし";
-
-            var rounded = Math.round(tsume * 10) / 10;
-            return (rounded % 1 === 0) ? String(rounded.toFixed(0)) : String(rounded.toFixed(1));
-        } catch (e) {
-            return "不明";
-        }
-    }
-
-    function getOrCreateLayer(doc, name) {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) return doc.layers[i];
-        }
-        var layer = doc.layers.add();
-        layer.name = name;
-        return layer;
-    }
-
-    function createPointText(doc, contents, position) {
-        var tf = doc.textFrames.add();
-        tf.contents = contents;
-        tf.position = position;
-        return tf;
-    }
+    main();
 
 })();

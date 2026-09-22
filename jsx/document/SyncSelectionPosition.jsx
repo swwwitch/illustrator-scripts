@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SyncSelectionPosition";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SyncSelectionPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SyncSelectionPosition.md"; /* README (English) */
@@ -41,24 +41,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
 (function() {
 
     // =========================================
-    // 日英ラベル定義 / Japanese-English labels
+    // ローカライズ / Localization
     // =========================================
-
-    /**
-     * UIロケールに応じた言語コードを返す
-     * @returns {string} "ja" または "en"
-     */
-    function getCurrentLang() {
-        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
-        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         alert: {
             needTwoDocuments: { ja: "2つ以上のドキュメントを開いてください。", en: "Please open at least two documents." },
-            noSelection:      { ja: "最前面のドキュメントでオブジェクトを選択してください。", en: "Please select objects in the frontmost document." },
+            noSelection: {
+                ja: "最前面のドキュメントでオブジェクトを選択してください。",
+                en: "Please select objects in the frontmost document."
+            },
             done: {
                 ja: "完了しました。\n座標 X: {0}, Y: {1} に統一しました。",
                 en: "Done.\nEvery selection was aligned to X: {0}, Y: {1}."
@@ -67,15 +61,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
     };
 
     /**
-     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('alert','done')）
-     * @param {...string} keys - LABELS を辿るキー列
+     * LABELS からドット区切りのパスで現在の言語のラベルを取得する（例: getLabel("alert.done")）
+     * @param {string} labelPath - LABELS を辿るパス
      * @returns {string} 該当するラベル（見つからない場合は空文字）
      */
-    function getLabel() {
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
+        for (var i = 0; i < labelPathKeys.length; i++) {
             if (labelNode == null) break;
-            labelNode = labelNode[arguments[i]];
+            labelNode = labelNode[labelPathKeys[i]];
         }
         return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
     }
@@ -83,7 +78,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
     /**
      * ラベル内の {0} {1} … を値で置き換える
      * @param {string} template - プレースホルダーを含む文字列
-     * @param {Array} values - 差し込む値
+     * @param {string[]} values - 差し込む値
      * @returns {string} 置き換え後の文字列
      */
     function fillPlaceholders(template, values) {
@@ -98,36 +93,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
-    /* ドキュメントが2つ未満なら処理できない / Need at least two open documents */
-    if (app.documents.length < 2) {
-        alert(getLabel("alert", "needTwoDocuments"));
-        return;
+    /**
+     * 最前面のドキュメントの選択範囲の左上に、ほかのドキュメントの選択オブジェクトをそろえる
+     * @returns {void}
+     */
+    function main() {
+        /* ドキュメントが2つ未満なら処理できない / Need at least two open documents */
+        if (app.documents.length < 2) {
+            alert(getLabel("alert.needTwoDocuments"));
+            return;
+        }
+
+        var sourceDoc = app.activeDocument;
+        var sourceItems = sourceDoc.selection;
+
+        /* 基準にする選択がなければ終了 / Exit when the reference selection is empty */
+        if (!sourceItems || sourceItems.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+
+        /* 基準は選択範囲全体の左上（Left / Top）/ Reference is the top-left corner of the whole selection */
+        var referencePoint = getSelectionTopLeft(sourceItems);
+
+        applyPositionToOtherDocuments(sourceDoc, referencePoint);
+
+        /* 元のドキュメントに戻す / Restore the original active document */
+        app.activeDocument = sourceDoc;
+
+        alert(fillPlaceholders(getLabel("alert.done"), [referencePoint[0].toFixed(2), referencePoint[1].toFixed(2)]));
     }
 
-    var sourceDoc = app.activeDocument;
-    var sourceItems = sourceDoc.selection;
-
-    /* 基準にする選択がなければ終了 / Exit when the reference selection is empty */
-    if (!sourceItems || sourceItems.length === 0) {
-        alert(getLabel("alert", "noSelection"));
-        return;
-    }
-
-    /* 基準は選択範囲全体の左上（Left / Top）/ Reference is the top-left corner of the whole selection */
-    var referencePoint = getSelectionTopLeft(sourceItems);
-
-    applyPositionToOtherDocuments(sourceDoc, referencePoint);
-
-    /* 元のドキュメントに戻す / Restore the original active document */
-    app.activeDocument = sourceDoc;
-
-    alert(fillPlaceholders(getLabel("alert", "done"), [referencePoint[0].toFixed(2), referencePoint[1].toFixed(2)]));
+    // =========================================
+    // 位置合わせ / Positioning
+    // =========================================
 
     /**
      * 選択範囲全体の左上座標を求める
      * Illustratorの座標系ではY軸は上がプラスなので、Topは最大値になる
-     * @param {Array} selectedItems - 対象の選択オブジェクト
-     * @returns {Array<number>} [x, y] 形式の左上座標
+     * @param {PageItem[]} selectedItems - 対象の選択オブジェクト
+     * @returns {number[]} [x, y] 形式の左上座標
      */
     function getSelectionTopLeft(selectedItems) {
         var leftMost = selectedItems[0].position[0];
@@ -144,8 +149,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
 
     /**
      * 選択範囲全体の左上が指定座標に来るように移動する
-     * @param {Array} selectedItems - 移動する選択オブジェクト
-     * @param {Array<number>} topLeft - 移動先の左上座標 [x, y]
+     * @param {PageItem[]} selectedItems - 移動する選択オブジェクト
+     * @param {number[]} topLeft - 移動先の左上座標 [x, y]
      * @returns {void}
      */
     function moveSelectionTopLeftTo(selectedItems, topLeft) {
@@ -162,7 +167,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
      * 基準ドキュメント以外の開いているドキュメントで、選択オブジェクトを基準座標に揃える
      * 選択がないドキュメントは何もせずスキップする
      * @param {Document} referenceDoc - 基準にするドキュメント（処理対象から除外）
-     * @param {Array<number>} topLeft - 揃える左上座標 [x, y]
+     * @param {number[]} topLeft - 揃える左上座標 [x, y]
      * @returns {void}
      */
     function applyPositionToOtherDocuments(referenceDoc, topLeft) {
@@ -173,11 +178,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹�
             /* selection を読むにはアクティブにする必要がある / The document must be active to read its selection */
             app.activeDocument = otherDoc;
 
-            var otherItems = otherDoc.selection;
-            if (otherItems && otherItems.length > 0) {
-                moveSelectionTopLeftTo(otherItems, topLeft);
+            var targetItems = otherDoc.selection;
+            if (targetItems && targetItems.length > 0) {
+                moveSelectionTopLeftTo(targetItems, topLeft);
             }
         }
     }
+
+    main();
 
 })();

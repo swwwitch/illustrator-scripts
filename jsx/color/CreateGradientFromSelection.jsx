@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "CreateGradientFromSelection";  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.9.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection.md"; /* README (English) */
@@ -36,6 +36,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
     /* セパレートグラデーションで許可する最大色数 / Max colors allowed for Separate gradients */
     var SEPARATE_MAX_COLORS = 6;
@@ -63,9 +67,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* パネルの余白 [左, 上, 右, 下] / Panel margins [left, top, right, bottom] */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    /**
+     * 表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -91,6 +106,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             separate: { ja: "セパレート", en: "Segmented" }
         },
         button: {
+            ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         tooltip: {
@@ -98,9 +114,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "スウォッチをグローバルカラー（プロセス）として登録し、後から一括で色を変更可能にします。",
                 en: "Register swatches as Global Process colors so they can be edited together later."
             },
+            createGradient: {
+                ja: "抽出した色を並べた線形グラデーションを作ります。OFF のときはスウォッチの登録だけを行います。",
+                en: "Builds a linear gradient from the extracted colors. When off, only the swatches are registered."
+            },
+            normal: {
+                ja: "色を等間隔に置き、なめらかにつなぐグラデーションにします。",
+                en: "Places the colors evenly and blends them smoothly."
+            },
             separate: {
                 ja: "色の境界をくっきり分割するグラデーション（最大 6 色）。選択が 7 つ以上のときは使えません。",
                 en: "Hard-edged segmented gradient (up to 6 colors). Disabled when 7 or more items are selected."
+            },
+            createRect: {
+                ja: "作ったグラデーションで塗った長方形を描きます。横並びの選択なら下、縦並びなら右に、長方形1個分の間隔をあけて置きます。",
+                en: "Draws a rectangle filled with the new gradient, leaving a one-rectangle gap below a horizontal selection or to the right of a vertical one."
             },
             useSelectionSize: {
                 ja: "選択オブジェクトの外接サイズに合わせて長方形を作成します。",
@@ -113,117 +141,156 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /* ドット区切りパスで多言語ラベルを取得 / Resolve a localized label by dot-path */
-    function getLabel(path) {
-        var parts = path.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            node = node && node[parts[i]];
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "checkbox.globalColor" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode && labelNode[labelPathKeys[i]];
         }
-        if (node && node[uiLang]) return node[uiLang];
-        if (node && node.en) return node.en;
-        return path;
+        if (labelNode && labelNode[uiLang]) return labelNode[uiLang];
+        if (labelNode && labelNode.en) return labelNode.en;
+        return labelPath;
     }
 
     // =========================================
     // セッション設定 / Session Settings
     // =========================================
 
-    /* targetengine 内でダイアログ値を保持 / Persist dialog values within the targetengine */
+    /**
+     * ダイアログの値を保持するオブジェクトを返す（targetengine 内だけで保持し、Illustrator の再起動で消える）
+     * @returns {Object} 設定の保存先
+     */
     function getSessionSettings() {
         if (!$.global.__CGFS_SETTINGS) $.global.__CGFS_SETTINGS = {};
         return $.global.__CGFS_SETTINGS;
     }
-    function loadBool(key, defaultValue) {
-        var settings = getSessionSettings();
-        if (typeof settings[key] === 'boolean') return settings[key];
+
+    /**
+     * 保持している真偽値を読み出す
+     * @param {string} settingKey - 設定のキー
+     * @param {boolean} defaultValue - 保持していないときの値
+     * @returns {boolean} 保持している値、または defaultValue
+     */
+    function loadBool(settingKey, defaultValue) {
+        var sessionSettings = getSessionSettings();
+        if (typeof sessionSettings[settingKey] === 'boolean') return sessionSettings[settingKey];
         return defaultValue;
     }
-    function saveBool(key, value) {
-        getSessionSettings()[key] = !!value;
+
+    /**
+     * 真偽値を保持する
+     * @param {string} settingKey - 設定のキー
+     * @param {boolean} value - 保持する値
+     * @returns {void}
+     */
+    function saveBool(settingKey, value) {
+        getSessionSettings()[settingKey] = !!value;
     }
 
     // =========================================
     // 選択範囲の解析 / Selection Analysis
     // =========================================
 
-    /* アイテムの左上座標を取得 / Get an item's top-left position */
+    /**
+     * 現在の選択を配列に写し取る
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {PageItem[]} 選択中のオブジェクト（選択が無ければ空配列）
+     */
+    function snapshotSelection(doc) {
+        var selectedItems = [];
+        var currentSelection = doc.selection;
+        if (currentSelection && currentSelection.length) {
+            for (var i = 0; i < currentSelection.length; i++) selectedItems.push(currentSelection[i]);
+        }
+        return selectedItems;
+    }
+
+    /**
+     * アイテムの左上座標を取得する
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {{left: number, top: number}} 左上座標（取得できないときは 0, 0）
+     */
     function getItemTopLeft(item) {
         try {
-            var bounds = item.geometricBounds; // [left, top, right, bottom]
+            var bounds = item.geometricBounds; /* [left, top, right, bottom] */
             return { left: bounds[0], top: bounds[1] };
         } catch (e) {
             return { left: 0, top: 0 };
         }
     }
 
-    /* 選択全体の外接バウンディングを取得 / Get the union bounds of the selection */
-    function getSelectionBounds(selection) {
-        if (!selection || selection.length === 0) return null;
+    /**
+     * 選択全体の外接バウンディングを取得する
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {{left: number, top: number, right: number, bottom: number}|null} 外接矩形（求められないときは null）
+     */
+    function getSelectionBounds(selectedItems) {
+        if (!selectedItems || selectedItems.length === 0) return null;
 
         var left = 1e12, top = -1e12, right = -1e12, bottom = 1e12;
-        var got = false;
+        var hasBounds = false;
 
-        for (var i = 0; i < selection.length; i++) {
+        for (var i = 0; i < selectedItems.length; i++) {
             try {
-                var bounds = selection[i].geometricBounds;
+                var bounds = selectedItems[i].geometricBounds;
                 if (bounds[0] < left) left = bounds[0];
                 if (bounds[1] > top) top = bounds[1];
                 if (bounds[2] > right) right = bounds[2];
                 if (bounds[3] < bottom) bottom = bounds[3];
-                got = true;
-            } catch (e) { /* 無視 / ignore */ }
+                hasBounds = true;
+            } catch (e) { /* 空白だけのテキストなどは境界が取れないので無視 / skip items without bounds */ }
         }
 
-        if (!got || left > right || bottom > top) return null;
+        if (!hasBounds || left > right || bottom > top) return null;
         return { left: left, top: top, right: right, bottom: bottom };
     }
 
-    /* 選択が横並びか縦並びかを判定 / Detect whether the selection is horizontal or vertical */
-    function detectSelectionOrientation(selection) {
-        if (!selection || selection.length < 2) {
-            return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
-        }
+    /**
+     * 選択オブジェクトが横並びか縦並びかを、各オブジェクトの中心の散らばりから判定する
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {string} "horizontal" / "vertical" / "mixed" / "unknown"
+     */
+    function detectSelectionOrientation(selectedItems) {
+        if (!selectedItems || selectedItems.length < 2) return "unknown";
 
         var minX = 1e12, maxX = -1e12;
         var minY = 1e12, maxY = -1e12;
 
-        for (var i = 0; i < selection.length; i++) {
+        for (var i = 0; i < selectedItems.length; i++) {
             try {
-                var bounds = selection[i].geometricBounds;
+                var bounds = selectedItems[i].geometricBounds;
                 var centerX = (bounds[0] + bounds[2]) / 2;
                 var centerY = (bounds[1] + bounds[3]) / 2;
                 if (centerX < minX) minX = centerX;
                 if (centerX > maxX) maxX = centerX;
                 if (centerY < minY) minY = centerY;
                 if (centerY > maxY) maxY = centerY;
-            } catch (e) { /* 無視 / ignore */ }
+            } catch (e) { /* bounds を取得できないものは無視 / skip items without bounds */ }
         }
 
-        if (minX > maxX || minY > maxY) {
-            return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
-        }
+        if (minX > maxX || minY > maxY) return "unknown";
 
         var dx = Math.abs(maxX - minX);
         var dy = Math.abs(maxY - minY);
-
-        var ratio = 0;
-        if (dx === 0 && dy === 0) ratio = 0;
-        else if (dx === 0 || dy === 0) ratio = 1e12;
-        else ratio = (dx > dy) ? (dx / dy) : (dy / dx);
-
-        var orientation = "mixed";
-        if (dx > dy) orientation = "horizontal";
-        else if (dy > dx) orientation = "vertical";
-
-        return { orientation: orientation, dx: dx, dy: dy, ratio: ratio };
+        if (dx > dy) return "horizontal";
+        if (dy > dx) return "vertical";
+        return "mixed";
     }
 
     // =========================================
     // カラーユーティリティ / Color Utilities
     // =========================================
 
-    /* NoColor 判定 / Detect NoColor values */
+    /**
+     * 「なし」の色かどうかを判定する
+     * @param {Color} color - 判定する色
+     * @returns {boolean} null または NoColor なら true
+     */
     function isNoColor(color) {
         try {
             return (color == null) || (color.typename === "NoColor");
@@ -232,7 +299,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 重複除去用のカラーキーを生成 / Build a dedup key for a color */
+    /**
+     * 重複除去用のカラーキーを作る
+     * @param {Color} color - 対象の色
+     * @returns {string} 同じ色なら同じになるキー
+     */
     function colorKey(color) {
         if (!color) return "null";
         var typeName = color.typename;
@@ -252,25 +323,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var gradientName = (color.gradient && color.gradient.name) ? color.gradient.name : "(gradient)";
                 return "Gradient:" + gradientName;
             }
-        } catch (e) { /* 無視 / ignore */ }
+        } catch (e) { /* 名前を読めない色は種類だけのキーにする / fall back to the type name */ }
         return "Other:" + typeName;
     }
 
-    /* アイテムから塗り・線の色＋位置エントリを収集（再帰） / Collect fill and stroke color entries with positions (recursive) */
-    function collectFillColorEntries(item, outEntries) {
+    /**
+     * オブジェクトから塗り・線の色を位置付きで集める（グループ・複合パスは再帰）
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {Object[]} outEntries - {left, top, color} を追加する配列
+     * @returns {void}
+     */
+    function collectColorEntries(item, outEntries) {
         if (!item) return;
 
         try {
             if (item.typename === "GroupItem") {
                 for (var i = 0; i < item.pageItems.length; i++) {
-                    collectFillColorEntries(item.pageItems[i], outEntries);
+                    collectColorEntries(item.pageItems[i], outEntries);
                 }
                 return;
             }
 
             if (item.typename === "CompoundPathItem") {
                 for (var j = 0; j < item.pathItems.length; j++) {
-                    collectFillColorEntries(item.pathItems[j], outEntries);
+                    collectColorEntries(item.pathItems[j], outEntries);
                 }
                 return;
             }
@@ -282,7 +358,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     var textStroke = item.textRange.characterAttributes.strokeColor;
                     if (!isNoColor(textStroke)) outEntries.push({ left: textPos.left, top: textPos.top, color: textStroke });
-                } catch (e) { /* 無視 / ignore */ }
+                } catch (e) { /* 線の色を読めないテキストは塗りだけ / fill only when the stroke is unreadable */ }
                 return;
             }
 
@@ -300,15 +376,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { /* 取得できないアイテムは無視 / skip unreadable items */ }
     }
 
-    /* 選択範囲から重複除外したカラー配列を、長辺方向（横なら左→右／縦なら上→下）順で返す / Collect unique colors sorted along the longer axis of the selection */
-    function collectColorsFromSelection(selection, orientation) {
+    /**
+     * 選択から重複を除いた色を、長辺方向（横なら左→右／縦なら上→下）の順で返す
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @param {string} selectionOrientation - detectSelectionOrientation() の結果
+     * @returns {Color[]} 重複を除いた色
+     */
+    function collectColorsFromSelection(selectedItems, selectionOrientation) {
         var entries = [];
-        for (var i = 0; i < selection.length; i++) {
-            collectFillColorEntries(selection[i], entries);
+        for (var i = 0; i < selectedItems.length; i++) {
+            collectColorEntries(selectedItems[i], entries);
         }
 
         /* 縦並び（dy > dx）なら上→下を優先キーに / Use top→bottom as primary key when vertical */
-        var verticalPrimary = !!(orientation && orientation.orientation === "vertical");
+        var verticalPrimary = (selectionOrientation === "vertical");
 
         entries.sort(function (a, b) {
             if (verticalPrimary) {
@@ -326,14 +407,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
 
         var colors = [];
-        var seen = {};
+        var seenKeys = {};
         for (var k = 0; k < entries.length; k++) {
-            var color = entries[k].color;
-            if (isNoColor(color)) continue;
-            var key = colorKey(color);
-            if (seen[key]) continue;
-            seen[key] = true;
-            colors.push(color);
+            var entryColor = entries[k].color;
+            if (isNoColor(entryColor)) continue;
+            var entryKey = colorKey(entryColor);
+            if (seenKeys[entryKey]) continue;
+            seenKeys[entryKey] = true;
+            colors.push(entryColor);
         }
         return colors;
     }
@@ -342,7 +423,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // アクション定義 / Action Definitions
     // =========================================
 
-    /* 一時アクションをロードして実行し、後始末を行う共通処理 / Load a temp action, run it, then clean up */
+    /**
+     * 一時アクションを読み込んで実行し、後始末をする（失敗しても無言）
+     * @param {string} actionCode - アクション定義（.aia）のテキスト
+     * @param {string} actionSetName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @returns {void}
+     */
     function runTempAction(actionCode, actionSetName, actionName) {
         var tempFile = new File(Folder.temp + "/temp_action_" + actionSetName + ".aia");
         try {
@@ -356,11 +443,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             try { tempFile.remove(); } catch (e) { /* 無視 / ignore */ }
         } catch (e) {
+            /* 読み込み済みなら取り除く / Unload the set if it was loaded */
             try { app.unloadAction(actionSetName, ""); } catch (e2) { /* 無視 / ignore */ }
         }
     }
 
-    /* グラデーション角度を 90° に設定するアクションを実行 / Run an action that sets the gradient angle to 90° */
+    /**
+     * 選択中のオブジェクトのグラデーション角度を 90° にするアクションを実行する
+     * @returns {void}
+     */
     function runGradientAngle90Action() {
         var CR = String.fromCharCode(13);
         var actionCode = [
@@ -402,7 +493,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         runTempAction(actionCode, "gradient", "90degree");
     }
 
-    /* 「新規グラフィックスタイル」を呼び出すアクション / Trigger the "New Graphic Style" command via action */
+    /**
+     * 「新規グラフィックスタイル」をアクションで実行する
+     * @returns {void}
+     */
     function runGraphicStyleAction() {
         var CR = String.fromCharCode(13);
         var actionCode = [
@@ -452,39 +546,53 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // スウォッチ操作 / Swatch Operations
     // =========================================
 
-    /* 命名衝突を避けた一意な名前を作る / Build a unique name avoiding collisions */
-    function uniqueName(baseName, existsFunc) {
-        var name = baseName;
+    /**
+     * コレクションに同じ名前の項目があるかを調べる
+     * @param {Object} namedCollection - doc.swatches / doc.swatchGroups / doc.gradients など getByName を持つコレクション
+     * @param {string} itemName - 調べる名前
+     * @returns {boolean} あれば true
+     */
+    function hasItemNamed(namedCollection, itemName) {
+        try {
+            namedCollection.getByName(itemName); /* 見つからないと例外 / throws when not found */
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 名前の衝突を避けた一意な名前を作る（"名前", "名前 1", "名前 2" …）
+     * @param {string} baseName - 元の名前
+     * @param {Object} namedCollection - 名前の重複を調べるコレクション
+     * @returns {string} 使われていない名前
+     */
+    function uniqueName(baseName, namedCollection) {
+        var candidateName = baseName;
         var suffix = 1;
-        while (existsFunc(name)) {
-            name = baseName + " " + suffix;
+        while (hasItemNamed(namedCollection, candidateName)) {
+            candidateName = baseName + " " + suffix;
             suffix++;
         }
-        return name;
+        return candidateName;
     }
 
-    function swatchExists(doc, name) {
-        try { doc.swatches.getByName(name); return true; } catch (e) { return false; }
-    }
-
-    function swatchGroupExists(doc, name) {
-        try { doc.swatchGroups.getByName(name); return true; } catch (e) { return false; }
-    }
-
-    function gradientExists(doc, name) {
-        try { doc.gradients.getByName(name); return true; } catch (e) { return false; }
-    }
-
-    /* ベースカラーをグローバル（プロセス）スポットに変換 / Convert a base color into a Global Process spot */
-    function toGlobalProcessColor(doc, baseColor, baseName) {
+    /**
+     * 色をグローバルカラー（プロセス）に変換する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color} baseColor - 元の色
+     * @param {string} spotName - 作るスポットの名前
+     * @returns {Color} グローバルカラー（失敗したときは元の色）
+     */
+    function toGlobalProcessColor(doc, baseColor, spotName) {
         try {
-            var spot = doc.spots.add();
-            spot.name = baseName;
-            spot.colorType = ColorModel.PROCESS;
-            spot.color = baseColor;
+            var globalSpot = doc.spots.add();
+            globalSpot.name = spotName;
+            globalSpot.colorType = ColorModel.PROCESS;
+            globalSpot.color = baseColor;
 
             var spotColor = new SpotColor();
-            spotColor.spot = spot;
+            spotColor.spot = globalSpot;
             spotColor.tint = 100;
             return spotColor;
         } catch (e) {
@@ -492,21 +600,53 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 1 色をスウォッチに登録（必要に応じてグローバル化） / Register a color as a swatch (optionally as Global Process) */
-    function addSwatchForColor(doc, colorObj, baseName, makeGlobal) {
+    /**
+     * 1色をスウォッチに登録する（必要ならグローバルカラーにする）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color} sourceColor - 登録する色
+     * @param {string} baseName - スウォッチ名の元
+     * @param {boolean} makeGlobal - グローバルカラーにするか
+     * @returns {Swatch} 作ったスウォッチ
+     */
+    function addSwatchForColor(doc, sourceColor, baseName, makeGlobal) {
         var swatch = doc.swatches.add();
-        var name = uniqueName(baseName, function (n) { return swatchExists(doc, n); });
-        swatch.name = name;
-        swatch.color = makeGlobal ? toGlobalProcessColor(doc, colorObj, name) : colorObj;
+        var swatchName = uniqueName(baseName, doc.swatches);
+        swatch.name = swatchName;
+        swatch.color = makeGlobal ? toGlobalProcessColor(doc, sourceColor, swatchName) : sourceColor;
         try { swatch.selected = false; } catch (e) { /* 無視 / ignore */ }
         return swatch;
+    }
+
+    /**
+     * 新しいスウォッチグループを作り、色をスウォッチとして登録する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - 登録する色
+     * @param {boolean} makeGlobal - グローバルカラーにするか
+     * @returns {Swatch[]} 作ったスウォッチ（colors と同じ順）
+     */
+    function registerColorSwatches(doc, colors, makeGlobal) {
+        var groupName = uniqueName(SWATCH_GROUP_BASE_NAME, doc.swatchGroups);
+        var swatchGroup = doc.swatchGroups.add();
+        swatchGroup.name = groupName;
+
+        var createdSwatches = [];
+        for (var i = 0; i < colors.length; i++) {
+            var createdSwatch = addSwatchForColor(doc, colors[i], SWATCH_BASE_NAME, makeGlobal);
+            createdSwatches.push(createdSwatch);
+            try { swatchGroup.addSwatch(createdSwatch); } catch (e) { /* 無視 / ignore */ }
+        }
+        return createdSwatches;
     }
 
     // =========================================
     // レイヤー操作 / Layer Helpers
     // =========================================
 
-    /* 描画可能なレイヤーを返す（activeLayer 優先） / Return a drawable layer, preferring activeLayer */
+    /**
+     * 描画できるレイヤー（ロックも非表示もされていないもの）を返す。アクティブレイヤーを優先する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer|null} 描画できるレイヤー（無ければ null）
+     */
     function getUnlockedVisibleLayer(doc) {
         var activeLayer = doc.activeLayer;
         if (activeLayer && !activeLayer.locked && activeLayer.visible) return activeLayer;
@@ -521,29 +661,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // グラフィックスタイル登録 / Graphic Style Registration
     // =========================================
 
-    /* 選択中アイテムをグラフィックスタイルとして登録 / Register the selected item's appearance as a Graphic Style */
+    /**
+     * 選択中のオブジェクトの見た目を、1つずつ新規グラフィックスタイルとして登録する（名前は既定のまま）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
     function registerGraphicStyleFromSelected(doc) {
         if (!doc.graphicStyles) return;
 
-        var selectedItems = [];
-        if (doc.selection && doc.selection.length) {
-            for (var i = 0; i < doc.selection.length; i++) selectedItems.push(doc.selection[i]);
-        }
-        if (!selectedItems.length) return;
+        var selectedItems = snapshotSelection(doc);
+        for (var i = 0; i < selectedItems.length; i++) {
+            /* 1つだけ選択してアクションで登録 / Select just this item and register it via the action */
+            doc.selection = null;
+            try { doc.selection = [selectedItems[i]]; }
+            catch (e) { try { selectedItems[i].selected = true; } catch (e2) { /* 無視 / ignore */ } }
 
-        for (var k = 0; k < selectedItems.length; k++) {
-            try {
-                var beforeLen = doc.graphicStyles.length;
-                try { doc.selection = null; } catch (e) { /* 無視 / ignore */ }
-                try { doc.selection = [selectedItems[k]]; }
-                catch (e) { try { selectedItems[k].selected = true; } catch (e2) { /* 無視 / ignore */ } }
-
-                runGraphicStyleAction();
-
-                var afterLen = doc.graphicStyles.length;
-                if (afterLen <= beforeLen) continue;
-                // 既定名のまま使用 / leave the default name
-            } catch (eEach) { /* 1 件失敗しても続行 / keep going on per-item failure */ }
+            runGraphicStyleAction();
         }
     }
 
@@ -551,46 +684,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 入力収集 / Input Collection
     // =========================================
 
-    /* 選択オブジェクトかスウォッチ選択から、色配列と関連情報を集める / Gather colors plus context from object or swatch selection */
+    /**
+     * 選択オブジェクト、または（選択が無ければ）選択中のスウォッチから、色と関連情報を集める
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{colors: Color[], fromSwatches: boolean, selectionBounds: Object, selectionOrientation: string, itemCount: number}} 集めた色と関連情報
+     */
     function collectInputColors(doc) {
-        var result = {
+        var colorInput = {
             colors: [],
             fromSwatches: false,
             selectionBounds: null,
-            selectionOrientation: { orientation: "unknown", dx: 0, dy: 0, ratio: 0 },
+            selectionOrientation: "unknown",
             itemCount: 0
         };
 
         if (doc.selection && doc.selection.length > 0) {
-            result.selectionOrientation = detectSelectionOrientation(doc.selection);
-            result.colors = collectColorsFromSelection(doc.selection, result.selectionOrientation);
-            result.selectionBounds = getSelectionBounds(doc.selection);
-            result.itemCount = doc.selection.length;
-            return result;
+            colorInput.selectionOrientation = detectSelectionOrientation(doc.selection);
+            colorInput.colors = collectColorsFromSelection(doc.selection, colorInput.selectionOrientation);
+            colorInput.selectionBounds = getSelectionBounds(doc.selection);
+            colorInput.itemCount = doc.selection.length;
+            return colorInput;
         }
 
         var selectedSwatches = null;
         try { selectedSwatches = doc.swatches.getSelected(); } catch (e) { selectedSwatches = null; }
-        if (!selectedSwatches || selectedSwatches.length < 2) return result;
+        if (!selectedSwatches || selectedSwatches.length < 2) return colorInput;
 
-        result.fromSwatches = true;
+        colorInput.fromSwatches = true;
         for (var i = 0; i < selectedSwatches.length; i++) {
             try {
                 var swatchColor = selectedSwatches[i].color;
-                if (swatchColor && swatchColor.typename !== "NoColor") result.colors.push(swatchColor);
+                if (swatchColor && swatchColor.typename !== "NoColor") colorInput.colors.push(swatchColor);
             } catch (e) { /* 無視 / ignore */ }
         }
-        result.itemCount = result.colors.length;
-        return result;
+        colorInput.itemCount = colorInput.colors.length;
+        return colorInput;
     }
 
     // =========================================
     // ダイアログ / Options Dialog
     // =========================================
 
-    /* オプションダイアログを表示し、確定値を返す（キャンセル時は null） / Show options dialog; return resolved values or null on cancel */
-    function showOptionsDialog(disallowSeparate, fromSwatches) {
-        var opts = {
+    /**
+     * 前回の値（無ければ既定値）からダイアログの初期値を作る
+     * @param {boolean} disallowSeparate - セパレートを選べないとき true（常に OFF にする）
+     * @returns {Object} makeGlobal / makeGradient / makeRect / useSelectionSize / registerGraphicStyle / separateGradient
+     */
+    function loadDialogOptions(disallowSeparate) {
+        return {
             makeGlobal: loadBool('makeGlobal', DEFAULT_OPTIONS.makeGlobal),
             makeGradient: loadBool('makeGradient', DEFAULT_OPTIONS.makeGradient),
             makeRect: loadBool('makeRect', DEFAULT_OPTIONS.makeRect),
@@ -598,101 +739,129 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             registerGraphicStyle: loadBool('registerGraphicStyle', DEFAULT_OPTIONS.registerGraphicStyle),
             separateGradient: (disallowSeparate ? false : loadBool('separateGradient', DEFAULT_OPTIONS.separateGradient))
         };
+    }
 
-        var dlg = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
+    /**
+     * 縦並びのパネルを追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {string} titlePath - パネル名のラベルのパス
+     * @returns {Panel} 追加したパネル
+     */
+    function addOptionPanel(parentWindow, titlePath) {
+        var optionPanel = parentWindow.add('panel', undefined, getLabel(titlePath));
+        optionPanel.orientation = 'column';
+        optionPanel.alignChildren = ['fill', 'top'];
+        optionPanel.margins = PANEL_MARGINS;
+        return optionPanel;
+    }
+
+    /**
+     * オプションダイアログを表示し、確定値を返す
+     * @param {boolean} disallowSeparate - セパレートを選べないとき true
+     * @param {boolean} fromSwatches - 色をスウォッチから集めたとき true（［選択オブジェクトのサイズに合わせる］を使えない）
+     * @returns {Object|null} 確定したオプション（キャンセル時は null）
+     */
+    function showOptionsDialog(disallowSeparate, fromSwatches) {
+        var initialOptions = loadDialogOptions(disallowSeparate);
+
+        var optionsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        optionsDialog.orientation = 'column';
+        optionsDialog.alignChildren = ['fill', 'top'];
 
         /* カラー関連パネル / Color-related panel */
-        var colorPanel = dlg.add('panel', undefined, getLabel('panel.color'));
-        colorPanel.orientation = 'column';
-        colorPanel.alignChildren = ['fill', 'top'];
-        colorPanel.margins = [15, 20, 15, 10];
+        var colorPanel = addOptionPanel(optionsDialog, 'panel.color');
 
-        var cbGlobal = colorPanel.add('checkbox', undefined, getLabel('checkbox.globalColor'));
-        cbGlobal.value = opts.makeGlobal;
-        cbGlobal.helpTip = getLabel('tooltip.globalColor');
+        var globalColorCheckbox = colorPanel.add('checkbox', undefined, getLabel('checkbox.globalColor'));
+        globalColorCheckbox.value = initialOptions.makeGlobal;
+        globalColorCheckbox.helpTip = getLabel('tooltip.globalColor');
 
-        var cbGradient = colorPanel.add('checkbox', undefined, getLabel('checkbox.createGradient'));
-        cbGradient.value = opts.makeGradient;
+        var gradientCheckbox = colorPanel.add('checkbox', undefined, getLabel('checkbox.createGradient'));
+        gradientCheckbox.value = initialOptions.makeGradient;
+        gradientCheckbox.helpTip = getLabel('tooltip.createGradient');
 
-        var radioGroup = colorPanel.add('group');
-        radioGroup.orientation = 'row';
-        radioGroup.alignChildren = ['left', 'center'];
+        var gradientTypeGroup = colorPanel.add('group');
+        gradientTypeGroup.orientation = 'row';
+        gradientTypeGroup.alignChildren = ['left', 'center'];
 
-        var rbNormal = radioGroup.add('radiobutton', undefined, getLabel('radio.normal'));
-        var rbSeparate = radioGroup.add('radiobutton', undefined, getLabel('radio.separate'));
-        rbSeparate.helpTip = getLabel('tooltip.separate');
-        rbSeparate.value = !!opts.separateGradient;
-        rbNormal.value = !rbSeparate.value;
+        var normalRadio = gradientTypeGroup.add('radiobutton', undefined, getLabel('radio.normal'));
+        normalRadio.helpTip = getLabel('tooltip.normal');
+        var separateRadio = gradientTypeGroup.add('radiobutton', undefined, getLabel('radio.separate'));
+        separateRadio.helpTip = getLabel('tooltip.separate');
+        separateRadio.value = !!initialOptions.separateGradient;
+        normalRadio.value = !separateRadio.value;
 
         /* 長方形パネル / Rectangle panel */
-        var rectPanel = dlg.add('panel', undefined, getLabel('panel.rect'));
-        rectPanel.orientation = 'column';
-        rectPanel.alignChildren = ['fill', 'top'];
-        rectPanel.margins = [15, 20, 15, 10];
+        var rectPanel = addOptionPanel(optionsDialog, 'panel.rect');
 
-        var cbRect = rectPanel.add('checkbox', undefined, getLabel('checkbox.createRect'));
-        cbRect.value = opts.makeRect;
+        var rectCheckbox = rectPanel.add('checkbox', undefined, getLabel('checkbox.createRect'));
+        rectCheckbox.value = initialOptions.makeRect;
+        rectCheckbox.helpTip = getLabel('tooltip.createRect');
 
-        var cbSelSize = rectPanel.add('checkbox', undefined, getLabel('checkbox.useSelectionSize'));
-        cbSelSize.value = opts.useSelectionSize;
-        cbSelSize.helpTip = getLabel('tooltip.useSelectionSize');
+        var selectionSizeCheckbox = rectPanel.add('checkbox', undefined, getLabel('checkbox.useSelectionSize'));
+        selectionSizeCheckbox.value = initialOptions.useSelectionSize;
+        selectionSizeCheckbox.helpTip = getLabel('tooltip.useSelectionSize');
 
-        var cbGStyle = rectPanel.add('checkbox', undefined, getLabel('checkbox.registerGraphicStyle'));
-        cbGStyle.value = opts.registerGraphicStyle;
-        cbGStyle.helpTip = getLabel('tooltip.registerGraphicStyle');
+        var graphicStyleCheckbox = rectPanel.add('checkbox', undefined, getLabel('checkbox.registerGraphicStyle'));
+        graphicStyleCheckbox.value = initialOptions.registerGraphicStyle;
+        graphicStyleCheckbox.helpTip = getLabel('tooltip.registerGraphicStyle');
 
-        /* チェック状態の連動 / Sync enabled state across controls */
+        /**
+         * チェック状態の連動（グラデーションを作らないときは長方形・スタイル・種類を OFF にしてディム）
+         * @returns {void}
+         */
         function syncEnable() {
-            cbRect.enabled = cbGradient.value;
-            cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
-            cbGStyle.enabled = cbGradient.value;
+            rectCheckbox.enabled = gradientCheckbox.value;
+            selectionSizeCheckbox.enabled = gradientCheckbox.value && rectCheckbox.value && !fromSwatches;
+            graphicStyleCheckbox.enabled = gradientCheckbox.value;
 
-            rbNormal.enabled = cbGradient.value;
-            rbSeparate.enabled = cbGradient.value && !disallowSeparate;
-            radioGroup.enabled = cbGradient.value;
+            normalRadio.enabled = gradientCheckbox.value;
+            separateRadio.enabled = gradientCheckbox.value && !disallowSeparate;
+            gradientTypeGroup.enabled = gradientCheckbox.value;
 
-            if (!cbGradient.value) {
-                cbRect.value = false;
-                cbSelSize.value = false;
-                cbGStyle.value = false;
+            if (!gradientCheckbox.value) {
+                rectCheckbox.value = false;
+                selectionSizeCheckbox.value = false;
+                graphicStyleCheckbox.value = false;
             }
-            if (fromSwatches) cbSelSize.value = false;
-            if (!cbGradient.value || disallowSeparate) {
-                rbSeparate.value = false;
-                rbNormal.value = true;
+            if (fromSwatches) selectionSizeCheckbox.value = false;
+            if (!gradientCheckbox.value || disallowSeparate) {
+                separateRadio.value = false;
+                normalRadio.value = true;
             }
         }
-        cbGradient.onClick = syncEnable;
-        cbRect.onClick = syncEnable;
+        gradientCheckbox.onClick = syncEnable;
+        rectCheckbox.onClick = syncEnable;
         syncEnable();
 
         /* OK／キャンセル / OK and Cancel */
-        var buttonGroup = dlg.add('group');
-        buttonGroup.alignment = 'right';
-        buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-        buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+        var btnRowGroup = optionsDialog.add('group');
+        btnRowGroup.alignment = 'right';
+        btnRowGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        btnRowGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
+        /**
+         * チェック状態をセッション設定に保存する
+         * @returns {void}
+         */
         function persistFromUI() {
-            saveBool('makeGlobal', cbGlobal.value);
-            saveBool('makeGradient', cbGradient.value);
-            saveBool('makeRect', cbRect.value);
-            saveBool('useSelectionSize', cbSelSize.value);
-            saveBool('registerGraphicStyle', cbGStyle.value);
-            saveBool('separateGradient', (disallowSeparate ? false : rbSeparate.value));
+            saveBool('makeGlobal', globalColorCheckbox.value);
+            saveBool('makeGradient', gradientCheckbox.value);
+            saveBool('makeRect', rectCheckbox.value);
+            saveBool('useSelectionSize', selectionSizeCheckbox.value);
+            saveBool('registerGraphicStyle', graphicStyleCheckbox.value);
+            saveBool('separateGradient', (disallowSeparate ? false : separateRadio.value));
         }
-        dlg.onClose = function () { try { persistFromUI(); } catch (e) { /* 無視 / ignore */ } };
+        optionsDialog.onClose = persistFromUI;
 
-        if (dlg.show() !== 1) return null;
+        if (optionsDialog.show() !== 1) return null;
 
         return {
-            makeGlobal: !!cbGlobal.value,
-            makeGradient: !!cbGradient.value,
-            makeRect: !!cbRect.value,
-            useSelectionSize: !!cbSelSize.value,
-            registerGraphicStyle: !!cbGStyle.value,
-            separateGradient: (disallowSeparate ? false : !!rbSeparate.value)
+            makeGlobal: !!globalColorCheckbox.value,
+            makeGradient: !!gradientCheckbox.value,
+            makeRect: !!rectCheckbox.value,
+            useSelectionSize: !!selectionSizeCheckbox.value,
+            registerGraphicStyle: !!graphicStyleCheckbox.value,
+            separateGradient: (disallowSeparate ? false : !!separateRadio.value)
         };
     }
 
@@ -700,7 +869,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // グラデーション生成 / Gradient Construction
     // =========================================
 
-    /* 作成済みスウォッチがあればそれを、無ければ元色を返す / Prefer the created swatch's color over the raw input color */
+    /**
+     * ストップに使う色を返す（作成済みスウォッチの色を優先し、無ければ元の色）
+     * @param {Swatch[]} createdSwatches - 登録したスウォッチ
+     * @param {Color[]} colors - 元の色
+     * @param {number} index - 色の番号
+     * @returns {Color} ストップに使う色
+     */
     function pickStopColor(createdSwatches, colors, index) {
         try {
             if (createdSwatches && createdSwatches[index] && createdSwatches[index].color) {
@@ -710,15 +885,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return colors[index];
     }
 
-    /* グラデーションのストップ数を target に合わせる / Resize the gradient stop count to match target */
-    function resizeGradientStops(gradient, target) {
-        while (gradient.gradientStops.length < target) gradient.gradientStops.add();
-        while (gradient.gradientStops.length > target) {
+    /**
+     * グラデーションのストップ数を targetCount に合わせる
+     * @param {Gradient} gradient - 対象のグラデーション
+     * @param {number} targetCount - ストップ数
+     * @returns {void}
+     */
+    function resizeGradientStops(gradient, targetCount) {
+        while (gradient.gradientStops.length < targetCount) gradient.gradientStops.add();
+        while (gradient.gradientStops.length > targetCount) {
             gradient.gradientStops[gradient.gradientStops.length - 1].remove();
         }
     }
 
-    /* 通常（スムーズ）グラデーションを作成 / Build a smooth gradient evenly spaced across stops */
+    /**
+     * 色を等間隔に並べた通常（スムーズ）グラデーションを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - 並べる色
+     * @param {Swatch[]} createdSwatches - colors と同じ順に登録したスウォッチ
+     * @returns {Gradient} 作ったグラデーション
+     */
     function buildNormalGradient(doc, colors, createdSwatches) {
         var gradient = doc.gradients.add();
         gradient.type = GradientType.LINEAR;
@@ -733,23 +919,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             stop.opacity = 100;
         }
 
-        gradient.name = uniqueName(GRADIENT_BASE_NAME, function (n) { return gradientExists(doc, n); });
+        gradient.name = uniqueName(GRADIENT_BASE_NAME, doc.gradients);
         return gradient;
     }
 
-    /* セパレート（境界がくっきり）グラデーションを作成（2〜SEPARATE_MAX_COLORS 色） / Build a segmented gradient with hard edges */
+    /**
+     * セパレート（境界がくっきり）グラデーションを作る（2〜SEPARATE_MAX_COLORS 色）
+     * 境界ごとに左右 0.01% の位置へ同じ色の組を置き、色の帯を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - 並べる色
+     * @param {Swatch[]} createdSwatches - colors と同じ順に登録したスウォッチ
+     * @returns {Gradient} 作ったグラデーション
+     */
     function buildSeparateGradient(doc, colors, createdSwatches) {
-        var n = colors.length;
+        var colorCount = colors.length;
         var epsilon = 0.01;
-        var step = 100 / n;
-        if (n === 3 || n === 6) step = Math.round(step * 10) / 10;
+        var bandWidth = 100 / colorCount;
+        if (colorCount === 3 || colorCount === 6) bandWidth = Math.round(bandWidth * 10) / 10;
 
         var stopPoints = [0];
         var stopColors = [pickStopColor(createdSwatches, colors, 0)];
 
-        for (var k = 1; k <= n - 1; k++) {
-            var boundary = step * k;
-            if (n === 3 || n === 6) boundary = Math.round(boundary * 10) / 10;
+        for (var k = 1; k <= colorCount - 1; k++) {
+            var boundary = bandWidth * k;
+            if (colorCount === 3 || colorCount === 6) boundary = Math.round(boundary * 10) / 10;
             var leftPoint = Math.max(0, boundary - epsilon);
             var rightPoint = Math.min(100, boundary + epsilon);
 
@@ -760,7 +953,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         stopPoints.push(100);
-        stopColors.push(pickStopColor(createdSwatches, colors, n - 1));
+        stopColors.push(pickStopColor(createdSwatches, colors, colorCount - 1));
 
         var gradient = doc.gradients.add();
         gradient.type = GradientType.LINEAR;
@@ -783,53 +976,67 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 長方形配置 / Rectangle Placement
     // =========================================
 
-    /* 長方形サイズを決定 / Decide the rectangle size */
-    function computeRectSize(opts, input) {
-        if (input.fromSwatches) return { width: SWATCH_RECT_WIDTH, height: SWATCH_RECT_HEIGHT };
-        if (opts.useSelectionSize && input.selectionBounds) {
-            var w = Math.abs(input.selectionBounds.right - input.selectionBounds.left);
-            var h = Math.abs(input.selectionBounds.top - input.selectionBounds.bottom);
-            if (w > 0 && h > 0) return { width: w, height: h };
+    /**
+     * 長方形のサイズを決める
+     * @param {Object} gradientOptions - ダイアログのオプション
+     * @param {Object} colorInput - collectInputColors() の結果
+     * @returns {{width: number, height: number}} 長方形のサイズ
+     */
+    function computeRectSize(gradientOptions, colorInput) {
+        if (colorInput.fromSwatches) return { width: SWATCH_RECT_WIDTH, height: SWATCH_RECT_HEIGHT };
+        if (gradientOptions.useSelectionSize && colorInput.selectionBounds) {
+            var boundsWidth = Math.abs(colorInput.selectionBounds.right - colorInput.selectionBounds.left);
+            var boundsHeight = Math.abs(colorInput.selectionBounds.top - colorInput.selectionBounds.bottom);
+            if (boundsWidth > 0 && boundsHeight > 0) return { width: boundsWidth, height: boundsHeight };
         }
         return { width: DEFAULT_RECT_SIZE, height: DEFAULT_RECT_SIZE };
     }
 
-    /* 長方形の配置（左上座標）を決定 / Decide the rectangle anchor (top-left) */
-    function computeRectPosition(doc, input, size) {
-        var viewCenterX = doc.activeView.centerPoint[0];
-        var viewCenterY = doc.activeView.centerPoint[1];
-        var left = viewCenterX - size.width / 2;
-        var top = viewCenterY + size.height / 2;
+    /**
+     * 長方形の配置（左上座標）を決める
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} colorInput - collectInputColors() の結果
+     * @param {{width: number, height: number}} rectSize - 長方形のサイズ
+     * @returns {{left: number, top: number}} 長方形の左上
+     */
+    function computeRectPosition(doc, colorInput, rectSize) {
+        var viewCenter = doc.activeView.centerPoint;
+        var left = viewCenter[0] - rectSize.width / 2;
+        var top = viewCenter[1] + rectSize.height / 2;
 
-        if (!input.fromSwatches && input.selectionBounds) {
-            if (input.selectionOrientation.orientation === "horizontal") {
+        if (!colorInput.fromSwatches && colorInput.selectionBounds) {
+            if (colorInput.selectionOrientation === "horizontal") {
                 /* 横並び: 選択の左端揃え／真下に 1 個分離す / Horizontal: align to left edge, offset below */
-                left = input.selectionBounds.left;
-                top = input.selectionBounds.bottom - size.height;
-            } else if (input.selectionOrientation.orientation === "vertical") {
+                left = colorInput.selectionBounds.left;
+                top = colorInput.selectionBounds.bottom - rectSize.height;
+            } else if (colorInput.selectionOrientation === "vertical") {
                 /* 縦並び: 選択の上端揃え／右に 1 個分離す / Vertical: align to top edge, offset to right */
-                left = input.selectionBounds.right + size.width;
-                top = input.selectionBounds.top;
+                left = colorInput.selectionBounds.right + rectSize.width;
+                top = colorInput.selectionBounds.top;
             }
         }
         return { left: left, top: top };
     }
 
-    /* 長方形を作成し、グラデーション適用（必要に応じてスタイル登録）を行う / Create a rectangle, apply gradient, optionally register a style */
-    function createGradientRect(doc, gradient, opts, input) {
+    /**
+     * 長方形を作ってグラデーションを適用し、必要ならグラフィックスタイルに登録する
+     * 長方形を出力しない設定では、一時レイヤーの一時長方形でスタイルを登録してから片付ける
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Gradient} gradient - 適用するグラデーション
+     * @param {Object} gradientOptions - ダイアログのオプション
+     * @param {Object} colorInput - collectInputColors() の結果
+     * @returns {void}
+     */
+    function createGradientRect(doc, gradient, gradientOptions, colorInput) {
         var targetLayer = getUnlockedVisibleLayer(doc);
         if (!targetLayer) return;
 
-        var tempRectForStyle = (!opts.makeRect && opts.registerGraphicStyle);
-        var prevSelection = null;
-        var prevActiveLayer = null;
+        var tempRectForStyle = (!gradientOptions.makeRect && gradientOptions.registerGraphicStyle);
+        var previousActiveLayer = null;
         var tempLayer = null;
 
-        try { prevActiveLayer = doc.activeLayer; } catch (e) { /* 無視 / ignore */ }
-        if (doc.selection && doc.selection.length) {
-            prevSelection = [];
-            for (var i = 0; i < doc.selection.length; i++) prevSelection.push(doc.selection[i]);
-        }
+        try { previousActiveLayer = doc.activeLayer; } catch (e) { /* 無視 / ignore */ }
+        var previousSelection = snapshotSelection(doc);
 
         if (tempRectForStyle) {
             try {
@@ -840,39 +1047,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var drawLayer = (tempRectForStyle && tempLayer) ? tempLayer : targetLayer;
-        var size = computeRectSize(opts, input);
-        var pos = computeRectPosition(doc, input, size);
+        var rectSize = computeRectSize(gradientOptions, colorInput);
+        var rectPosition = computeRectPosition(doc, colorInput, rectSize);
 
-        var rect = drawLayer.pathItems.rectangle(pos.top, pos.left, size.width, size.height);
+        var gradientRect = drawLayer.pathItems.rectangle(rectPosition.top, rectPosition.left, rectSize.width, rectSize.height);
         doc.selection = null;
-        rect.selected = true;
+        gradientRect.selected = true;
 
         /* 縦並びならグラデーション角度を 90° に / If vertical, rotate gradient by action */
-        if (input.selectionOrientation.orientation === "vertical") {
-            try { runGradientAngle90Action(); } catch (e) { /* 無視 / ignore */ }
-        }
+        if (colorInput.selectionOrientation === "vertical") runGradientAngle90Action();
 
-        rect.stroked = false;
-        rect.filled = true;
+        gradientRect.stroked = false;
+        gradientRect.filled = true;
         var gradientFill = new GradientColor();
         gradientFill.gradient = gradient;
-        rect.fillColor = gradientFill;
+        gradientRect.fillColor = gradientFill;
 
-        if (opts.registerGraphicStyle) {
+        if (gradientOptions.registerGraphicStyle) {
             doc.selection = null;
-            rect.selected = true;
+            gradientRect.selected = true;
             try { registerGraphicStyleFromSelected(doc); } catch (e) { /* 無視 / ignore */ }
         }
 
         /* 一時長方形だった場合の後始末 / Clean up the temporary rectangle */
         if (tempRectForStyle) {
-            try { rect.remove(); } catch (e) { /* 無視 / ignore */ }
+            try { gradientRect.remove(); } catch (e) { /* 無視 / ignore */ }
             if (tempLayer) { try { tempLayer.remove(); } catch (e) { /* 無視 / ignore */ } }
-            try { if (prevActiveLayer) doc.activeLayer = prevActiveLayer; } catch (e) { /* 無視 / ignore */ }
+            try { if (previousActiveLayer) doc.activeLayer = previousActiveLayer; } catch (e) { /* 無視 / ignore */ }
             try {
                 doc.selection = null;
-                if (prevSelection && prevSelection.length) doc.selection = prevSelection;
-            } catch (e) { /* 無視 / ignore */ }
+                if (previousSelection.length) doc.selection = previousSelection;
+            } catch (e) { /* 削除済みのオブジェクトは選択できない / removed items cannot be selected */ }
         }
     }
 
@@ -880,55 +1085,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // メイン処理 / Main
     // =========================================
 
-    /* 全体フロー: 入力 → ダイアログ → スウォッチ登録 → グラデーション → 長方形・スタイル / Top-level flow */
+    /**
+     * 全体フロー: 入力 → ダイアログ → スウォッチ登録 → グラデーション → 長方形・スタイル
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) return;
         var doc = app.activeDocument;
 
-        var input = collectInputColors(doc);
-        if (input.colors.length < 2) return;
+        var colorInput = collectInputColors(doc);
+        if (colorInput.colors.length < 2) return;
 
-        var disallowSeparate = (input.itemCount >= 7);
-        var opts = showOptionsDialog(disallowSeparate, input.fromSwatches);
-        if (!opts) return;
+        var disallowSeparate = (colorInput.itemCount >= 7);
+        var gradientOptions = showOptionsDialog(disallowSeparate, colorInput.fromSwatches);
+        if (!gradientOptions) return;
 
         try {
-            /* 新規スウォッチグループ / Create a new swatch group */
-            var groupName = uniqueName(SWATCH_GROUP_BASE_NAME, function (n) { return swatchGroupExists(doc, n); });
-            var swatchGroup = doc.swatchGroups.add();
-            swatchGroup.name = groupName;
+            /* 新規スウォッチグループに抽出色を登録 / Register extracted colors in a new swatch group */
+            var createdSwatches = registerColorSwatches(doc, colorInput.colors, gradientOptions.makeGlobal);
 
-            /* 抽出色をスウォッチに登録 / Register extracted colors as swatches */
-            var createdSwatches = [];
-            for (var i = 0; i < input.colors.length; i++) {
-                var swatch = addSwatchForColor(doc, input.colors[i], SWATCH_BASE_NAME, opts.makeGlobal);
-                createdSwatches.push(swatch);
-                try { swatchGroup.addSwatch(swatch); } catch (e) { /* 無視 / ignore */ }
-            }
-
-            try { doc.selection = null; } catch (e) { /* 無視 / ignore */ }
+            doc.selection = null;
 
             /* グラデーション作成 / Build the gradient */
             var gradient = null;
-            if (opts.makeGradient) {
-                var canSeparate = opts.separateGradient
-                    && input.colors.length >= 2
-                    && input.colors.length <= SEPARATE_MAX_COLORS;
+            if (gradientOptions.makeGradient) {
+                var canSeparate = gradientOptions.separateGradient
+                    && colorInput.colors.length >= 2
+                    && colorInput.colors.length <= SEPARATE_MAX_COLORS;
                 gradient = canSeparate
-                    ? buildSeparateGradient(doc, input.colors, createdSwatches)
-                    : buildNormalGradient(doc, input.colors, createdSwatches);
+                    ? buildSeparateGradient(doc, colorInput.colors, createdSwatches)
+                    : buildNormalGradient(doc, colorInput.colors, createdSwatches);
             }
 
             /* 長方形・グラフィックスタイル / Rectangle and Graphic Style */
-            if ((opts.makeRect || opts.registerGraphicStyle) && gradient) {
-                try { createGradientRect(doc, gradient, opts, input); } catch (e) { /* 無視 / ignore */ }
+            if ((gradientOptions.makeRect || gradientOptions.registerGraphicStyle) && gradient) {
+                try { createGradientRect(doc, gradient, gradientOptions, colorInput); } catch (e) { /* 無視 / ignore */ }
             }
 
             /* 作成した最後のスウォッチ（= グラデーション）を選択 / Select the last created swatch */
             if (gradient) {
-                var idx = doc.swatches.length - 1;
-                if (idx >= 0) {
-                    try { doc.swatches[idx].selected = true; } catch (e) { /* 無視 / ignore */ }
+                var lastIndex = doc.swatches.length - 1;
+                if (lastIndex >= 0) {
+                    try { doc.swatches[lastIndex].selected = true; } catch (e) { /* 無視 / ignore */ }
                 }
             }
         } catch (e) {

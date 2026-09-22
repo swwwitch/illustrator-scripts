@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartSwitchDocs";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v0.5.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md"; /* README (English) */
@@ -43,18 +43,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
 (function () {
 
     // =========================================
-    // 日英ラベル定義 / Japanese-English labels
+    // レイアウト / Layout
     // =========================================
+    var TARGET_PANEL_MARGINS  = [10, 15, 10, 10]; /* 切り替え先パネルの余白 [左,上,右,下] / Target panel margins */
+    var CURRENT_PANEL_MARGINS = [15, 20, 15, 15]; /* 現在のドキュメントパネルの余白 [左,上,右,下] / Current document panel margins */
+    var DOC_LIST_SIZE         = [300, 150];       /* ドキュメント一覧の大きさ [幅,高さ] / Document list size */
 
-    /**
-     * UIロケールに応じた言語コードを返す
-     * @returns {string} "ja" または "en"
-     */
-    function getCurrentLang() {
-        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
-        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -73,20 +71,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
             ok:     { ja: "OK", en: "OK" }
         },
         tooltip: {
-            preview: { ja: "オンのときは選択と同時に切り替え、オフのときは［OK］をクリックしてから切り替えます", en: "On: switch as soon as the selection changes. Off: switch only after OK is clicked" }
+            preview: {
+                ja: "オンのときは選択と同時に切り替え、オフのときは［OK］をクリックしてから切り替えます",
+                en: "On: switch as soon as the selection changes. Off: switch only after OK is clicked"
+            }
         }
     };
 
     /**
-     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('panel','targetDoc')）
-     * @param {...string} keys - LABELS を辿るキー列
+     * LABELS からドット区切りのパスで現在の言語のラベルを取得する（例: getLabel("panel.targetDoc")）
+     * @param {string} labelPath - LABELS を辿るパス
      * @returns {string} 該当するラベル（見つからない場合は空文字）
      */
-    function getLabel() {
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
+        for (var i = 0; i < labelPathKeys.length; i++) {
             if (labelNode == null) break;
-            labelNode = labelNode[arguments[i]];
+            labelNode = labelNode[labelPathKeys[i]];
         }
         return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
     }
@@ -145,19 +147,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
      * @returns {void}
      */
     function showSwitchDialog(originalDoc, targetDocs) {
-        var switchDialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        var switchDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         switchDialog.orientation = "column";
         switchDialog.alignChildren = "fill";
 
         /* 切り替え先パネル（現在のドキュメントは除外）/ Target panel (current document excluded) */
-        var targetDocPanel = switchDialog.add("panel", undefined, getLabel("panel", "targetDoc"));
+        var targetDocPanel = switchDialog.add("panel", undefined, getLabel("panel.targetDoc"));
         targetDocPanel.orientation = "column";
         targetDocPanel.alignChildren = "fill";
-        targetDocPanel.margins = [10, 15, 10, 10]; /* 左, 上, 右, 下 / Left, Top, Right, Bottom */
+        targetDocPanel.margins = TARGET_PANEL_MARGINS;
 
         /* ドキュメント一覧（multiselect: false は既定なので省略）/ Document list (multiselect: false is the default) */
         var targetDocList = targetDocPanel.add("listbox", undefined, getDocNames(targetDocs));
-        targetDocList.preferredSize = [300, 150];
+        targetDocList.preferredSize = DOC_LIST_SIZE;
         targetDocList.selection = 0;
 
         /**
@@ -170,10 +172,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         }
 
         /* 現在のドキュメントを表示するパネル / Panel showing the current document */
-        var currentDocPanel = switchDialog.add("panel", undefined, getLabel("panel", "currentDoc"));
+        var currentDocPanel = switchDialog.add("panel", undefined, getLabel("panel.currentDoc"));
         currentDocPanel.orientation = "column";
         currentDocPanel.alignChildren = "left";
-        currentDocPanel.margins = [15, 20, 15, 15]; /* 左, 上, 右, 下 / Left, Top, Right, Bottom */
+        currentDocPanel.margins = CURRENT_PANEL_MARGINS;
         currentDocPanel.add("statictext", undefined, originalDoc.name);
 
         /* ボタンエリア（左：プレビュー／右：キャンセル・OK）/ Button area (left: preview, right: cancel and OK) */
@@ -182,9 +184,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         btnRowGroup.alignment = ["fill", "top"];
         btnRowGroup.alignChildren = ["fill", "center"];
 
-        var previewCheckbox = btnRowGroup.add("checkbox", undefined, getLabel("checkbox", "preview"));
+        var previewCheckbox = btnRowGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
         previewCheckbox.alignment = ["left", "center"];
-        previewCheckbox.helpTip = getLabel("tooltip", "preview");
+        previewCheckbox.helpTip = getLabel("tooltip.preview");
         previewCheckbox.value = true; /* 既定はプレビューON / Preview is on by default */
 
         /* スペーサー：ボタンを右端へ押し出す / Spacer that pushes the buttons to the right edge */
@@ -197,8 +199,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         btnRightGroup.alignment = ["right", "center"];
         btnRightGroup.alignChildren = ["right", "center"];
 
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok", isDefault: true });
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok", isDefault: true });
 
         /* プレビューONなら選択と同時に切り替え、OFFなら［OK］まで切り替えない / Switch on selection when preview is on; wait for OK when off */
         targetDocList.onChange = function() {

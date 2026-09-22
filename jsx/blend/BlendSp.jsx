@@ -28,256 +28,216 @@ var SCRIPT_NAME     = "BlendSp";                      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendSp.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-var SCRIPT_TITLE = {
-    ja: 'ブレンドSpecial',
-    en: 'Blend Special'
-};
-
 (function () {
 
-    $.localize = true;
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    // --- UI Localizations (one place) ---
-    var LABELS = {
-        title: {
-            ja: SCRIPT_TITLE.ja + ' v' + SCRIPT_VERSION,
-            en: SCRIPT_TITLE.en + ' v' + SCRIPT_VERSION
-        },
-        stepLabel: {
-            ja: 'ステップ数',
-            en: 'Steps'
-        },
-        alignToPage: {
-            ja: '垂直方向',
-            en: 'Align to Page'
-        },
-        alignToPath: {
-            ja: 'パスに沿う',
-            en: 'Align to Path'
-        },
-        ok: {
-            ja: 'OK',
-            en: 'OK'
-        },
-        cancel: {
-            ja: 'キャンセル',
-            en: 'Cancel'
-        },
-        tipStep: {
-            ja: 'ブレンドの中間オブジェクト数です。0 で中間なし。スライダーでも変えられます。',
-            en: 'How many intermediate objects the blend creates. 0 means none. The slider changes it too.'
-        },
-        tipAlignToPage: {
-            ja: '中間オブジェクトの向きを、ページの垂直方向に固定します。',
-            en: 'Keeps the intermediate objects upright with respect to the page.'
-        },
-        tipAlignToPath: {
-            ja: '中間オブジェクトの向きを、スパイン（軸のパス）の傾きに合わせます。',
-            en: 'Rotates the intermediate objects to follow the spine.'
-        },
-        tipAdjustNone: {
-            ja: 'ブレンドをそのまま残します。',
-            en: 'Leaves the blend as a live blend.'
-        },
-        tipAdjustRelease: {
-            ja: 'ブレンドを解除して、元のオブジェクトとスパインに戻します。',
-            en: 'Releases the blend back into the original objects and the spine.'
-        },
-        tipAdjustExpand: {
-            ja: 'ブレンドを分割・拡張して、中間オブジェクトを実体のあるパスにします。',
-            en: 'Expands the blend so the intermediate steps become real paths.'
-        },
-        tipAdjustReplace: {
-            ja: 'スパインを、選択しておいた別のパスに置き換えます。',
-            en: 'Replaces the spine with another path you selected.'
-        },
-        tipReverseSpine: {
-            ja: 'スパインの向きを反転し、始点と終点を入れ替えます。',
-            en: 'Reverses the spine so the start and the end swap places.'
-        },
-        tipReverseStack: {
-            ja: 'ブレンド内の重ね順を逆にします。',
-            en: 'Reverses the stacking order inside the blend.'
-        },
-        invalidStep: {
-            ja: 'ステップ数は 0〜1000 の整数で入力してください。',
-            en: 'Please enter an integer from 0 to 1000.'
-        },
-        adjustPanel: {
-            ja: 'その他',
-            en: 'Misc'
-        },
-        reversePanel: {
-            ja: '反転',
-            en: 'Reverse'
-        },
-        orientationPanel: {
-            ja: '方向',
-            en: 'Orientation'
-        },
-        adjustNone: {
-            ja: 'なし',
-            en: 'None'
-        },
-        adjustRelease: {
-            ja: '解除',
-            en: 'Release'
-        },
-        adjustExpand: {
-            ja: '拡張',
-            en: 'Expand'
-        },
-        adjustReplace: {
-            ja: 'ブレンド軸を置き換え',
-            en: 'Replace Spine'
-        },
-        reverseSpine: {
-            ja: 'ブレンド軸を反転',
-            en: 'Reverse Spine'
-        },
-        reverseStack: {
-            ja: '前後を反転',
-            en: 'Reverse Front to Back'
-        }
-    };
+    /* ブレンド以外を選択して開いたときのステップ数 / Steps used when no blend is selected at launch */
+    var DEFAULT_BLEND_STEPS = 8;
 
-    // ブレンドオプション > 方向
-    // 0: Align to Page（ページに揃える） / 1: Align to Path（パスに沿う）
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS = 16;              /* ダイアログの余白 / dialog margins */
+    var DIALOG_SPACING = 10;              /* ダイアログ内の要素間隔 / dialog spacing */
+    var STEP_AREA_SPACING = 6;            /* ステップ数の行とスライダーの間隔 / gap between the Steps row and the slider */
+    var COLUMN_SPACING = 12;              /* 2カラムの間隔 / gap between the two columns */
+    var COLUMN_STACK_SPACING = 10;        /* カラム内のパネル間隔 / gap between panels in a column */
+    var PANEL_MARGINS = [12, 18, 12, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var OPTION_LIST_SPACING = 4;          /* ラジオ・チェックボックスの行間 / gap between radios and checkboxes */
+
+    /**
+     * オプションパネルの共通設定
+     * @param {Panel} optionPanel - 対象パネル
+     * @param {string} horizontalAlign - 子の横方向の揃え（"fill" / "left"）
+     * @param {number} spacing - 要素間隔
+     * @returns {void}
+     */
+    function setupOptionPanel(optionPanel, horizontalAlign, spacing) {
+        optionPanel.orientation = 'column';
+        optionPanel.alignChildren = [horizontalAlign, 'top'];
+        optionPanel.spacing = spacing;
+        optionPanel.margins = PANEL_MARGINS;
+    }
+
+    /**
+     * パネルを縦に積むカラムを追加する
+     * @param {Group} columnsGroup - 追加先の横並びグループ
+     * @returns {Group} 追加したカラム
+     */
+    function addColumnGroup(columnsGroup) {
+        var columnGroup = columnsGroup.add('group');
+        columnGroup.orientation = 'column';
+        columnGroup.alignChildren = ['fill', 'top'];
+        columnGroup.spacing = COLUMN_STACK_SPACING;
+        return columnGroup;
+    }
+
+    /**
+     * ラジオ・チェックボックスを縦に並べるグループを追加する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @returns {Group} 追加したグループ
+     */
+    function addOptionList(parentContainer) {
+        var optionList = parentContainer.add('group');
+        optionList.orientation = 'column';
+        optionList.alignChildren = ['left', 'top'];
+        optionList.spacing = OPTION_LIST_SPACING;
+        return optionList;
+    }
+
+    /**
+     * ラベルと tooltip 付きのコントロールを追加する
+     * @param {Group} optionList - 追加先
+     * @param {string} controlType - "radiobutton" / "checkbox"
+     * @param {string} labelPath - ラベルのパス
+     * @param {string} tooltipPath - tooltip のパス
+     * @returns {RadioButton|Checkbox} 追加したコントロール
+     */
+    function addOptionControl(optionList, controlType, labelPath, tooltipPath) {
+        var optionControl = optionList.add(controlType, undefined, getLabel(labelPath));
+        optionControl.helpTip = getLabel(tooltipPath);
+        return optionControl;
+    }
+
+    // =========================================
+    // ブレンドの設定 / Blend settings
+    // =========================================
+
+    /* ブレンドオプション > 方向（0: Align to Page〈垂直方向〉/ 1: Align to Path〈パスに沿う〉）
+       Blend Options > Orientation */
     var BlendOrientation = {
         'Align to Page': 0,
         'Align to Path': 1
     };
 
-    // エントリーポイント（UI専用スクリプト）
-    // 選択内容を元にダイアログを表示し、ブレンドの設定／調整のみを行う
-    main();
+    /* ステップ数の上限 / Maximum number of steps */
+    var MAX_BLEND_STEPS = 1000;
+
+    /* ステップ数スライダーの上限（通常／Option 併用／Shift 併用）/ Slider maximum: plain / with Option / with Shift */
+    var STEP_SLIDER_MAX = { normal: 32, option: 128, shift: 1000 };
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
     /**
-     * ドキュメントと選択を確認し、ダイアログを開いてブレンドの作成・設定・調整を実行する
-     * @returns {void}
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
      */
-    function main() {
-        if (app.documents.length <= 0) {
-            return;
-        }
-        var doc = app.activeDocument;
-        var selection = doc.selection;
-
-        // ダイアログを開いた時点で「ブレンドオブジェクトを選択していたか」を記録
-        // （この後 Path Blend Make を実行して選択がブレンドに変わることがあるため）
-        var wasBlendSelectedAtOpen = false;
-        var blendInSelectionAtOpen = null;
-        try {
-            blendInSelectionAtOpen = findFirstPluginItem(selection);
-            wasBlendSelectedAtOpen = !!blendInSelectionAtOpen;
-        } catch (e) {
-            blendInSelectionAtOpen = null;
-            wasBlendSelectedAtOpen = false;
-        }
-
-        // 選択にブレンド（PluginItem/BlendItem）が含まれない場合のみ、ブレンドを作成
-        // （既に PluginItem/BlendItem が含まれる場合は、作成せずオプション/調整のみ行う）
-        if (!blendInSelectionAtOpen) {
-            try {
-                app.executeMenuCommand('Path Blend Make');
-            } catch (e) {}
-
-            // コマンド実行後に選択が変わる可能性があるため、再取得
-            selection = doc.selection;
-            if (!selection || selection.length <= 0) {
-                return;
-            }
-
-            // 生成された PluginItem（ブレンド）だけを選択状態にする
-            var madeBlend = findFirstPluginItem(selection);
-            if (madeBlend) {
-                selectOnlyItem(doc, madeBlend);
-                selection = doc.selection;
-            }
-        } else {
-            // Selection already contains a blend object; keep current selection (even if paths are also selected)
-            selection = doc.selection;
-            if (!selection || selection.length <= 0) {
-                return;
-            }
-        }
-
-        // ダイアログを表示してユーザー入力を取得
-        // ※ 引数実行は行わない（UI操作専用）
-        var input = getInput(selection, wasBlendSelectedAtOpen);
-        if (!input) {
-            return;
-        } // cancel
-
-        var blendStep = input.step;
-        var orientationValue = input.orientation;
-        var adjustMode = input.adjustMode || 'none';
-        var reverseSpine = !!input.reverseSpine;
-        var reverseStack = !!input.reverseStack;
-
-        if (adjustMode === 'release') {
-            app.executeMenuCommand('Path Blend Release');
-            // ※ コマンド実行後に選択が変わる可能性があるため、doc.selection を参照する
-            try {
-                deleteFrontmostPath(doc.selection);
-            } catch (e) {}
-            return;
-        }
-        if (adjustMode === 'expand') {
-            app.executeMenuCommand('Path Blend Expand');
-            return;
-        }
-        if (adjustMode === 'replaceSpine') {
-            app.executeMenuCommand('Path Blend Replace Spine');
-            // ※ コマンド実行後に選択が変わる可能性があるため、doc.selection を参照する
-            try {
-                deleteFrontmostPath(doc.selection);
-            } catch (e) {}
-            return;
-        }
-
-        if (reverseSpine) {
-            app.executeMenuCommand('Path Blend Reverse Spine');
-            // ※ コマンド実行後に選択が変わる可能性があるため、doc.selection を参照する
-            try {
-                deleteFrontmostPath(doc.selection);
-            } catch (e) {}
-        }
-        if (reverseStack) {
-            app.executeMenuCommand('Path Blend Reverse Stack');
-            // ※ コマンド実行後に選択が変わる可能性があるため、doc.selection を参照する
-            try {
-                deleteFrontmostPath(doc.selection);
-            } catch (e) {}
-        }
-        if (reverseSpine || reverseStack) {
-            return;
-        }
-
-        // Apply option only (no new blend creation)
-        setBlendOption(blendStep, orientationValue);
+    function detectUILanguage() {
+        return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
+
+    var uiLang = detectUILanguage();
+
+    var LABELS = {
+        dialog: {
+            title: { ja: "ブレンドSpecial", en: "Blend Special" }
+        },
+        panel: {
+            orientation: { ja: "方向", en: "Orientation" },
+            adjust: { ja: "その他", en: "Misc" },
+            reverse: { ja: "反転", en: "Reverse" }
+        },
+        fieldLabel: {
+            steps: { ja: "ステップ数", en: "Steps" }
+        },
+        radio: {
+            alignToPage: { ja: "垂直方向", en: "Align to Page" },
+            alignToPath: { ja: "パスに沿う", en: "Align to Path" },
+            adjustNone: { ja: "なし", en: "None" },
+            adjustRelease: { ja: "解除", en: "Release" },
+            adjustExpand: { ja: "拡張", en: "Expand" },
+            adjustReplace: { ja: "ブレンド軸を置き換え", en: "Replace Spine" }
+        },
+        checkbox: {
+            reverseSpine: { ja: "ブレンド軸を反転", en: "Reverse Spine" },
+            reverseStack: { ja: "前後を反転", en: "Reverse Front to Back" }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        tooltip: {
+            step: {
+                ja: "ブレンドの中間オブジェクト数です。0 で中間なし。スライダーでも変えられます。",
+                en: "How many intermediate objects the blend creates. 0 means none. The slider changes it too."
+            },
+            alignToPage: {
+                ja: "中間オブジェクトの向きを、ページの垂直方向に固定します。",
+                en: "Keeps the intermediate objects upright with respect to the page."
+            },
+            alignToPath: {
+                ja: "中間オブジェクトの向きを、スパイン（軸のパス）の傾きに合わせます。",
+                en: "Rotates the intermediate objects to follow the spine."
+            },
+            adjustNone: { ja: "ブレンドをそのまま残します。", en: "Leaves the blend as a live blend." },
+            adjustRelease: {
+                ja: "ブレンドを解除して、元のオブジェクトとスパインに戻します。",
+                en: "Releases the blend back into the original objects and the spine."
+            },
+            adjustExpand: {
+                ja: "ブレンドを分割・拡張して、中間オブジェクトを実体のあるパスにします。",
+                en: "Expands the blend so the intermediate steps become real paths."
+            },
+            adjustReplace: {
+                ja: "スパインを、選択しておいた別のパスに置き換えます。",
+                en: "Replaces the spine with another path you selected."
+            },
+            reverseSpine: {
+                ja: "スパインの向きを反転し、始点と終点を入れ替えます。",
+                en: "Reverses the spine so the start and the end swap places."
+            },
+            reverseStack: { ja: "ブレンド内の重ね順を逆にします。", en: "Reverses the stacking order inside the blend." }
+        },
+        alert: {
+            invalidStep: { ja: "ステップ数は 0〜1000 の整数で入力してください。", en: "Please enter an integer from 0 to 1000." }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "panel.orientation" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (labelNode === undefined || labelNode === null) return labelPath;
+        }
+        var labelValue = labelNode[uiLang];
+        if (typeof labelValue !== 'string') labelValue = labelNode.en;
+        return (typeof labelValue === 'string') ? labelValue : labelPath;
+    }
+
+    // =========================================
+    // 選択とブレンドの判定 / Selection and blend helpers
+    // =========================================
 
     /**
      * 選択から最初の BlendItem または PluginItem を返す（BlendItem を優先）
-     * @param {Array<PageItem>} selection - 探索する選択オブジェクト
-     * @returns {PageItem} 見つかったブレンドオブジェクト。無ければ null
+     * @param {PageItem[]} selection - 探索する選択オブジェクト
+     * @returns {PageItem|null} 見つかったブレンドオブジェクト。無ければ null
      */
-    function findFirstPluginItem(selection) {
-        // Backward-compatible name: return first BlendItem/PluginItem (BlendItem preferred)
+    function findFirstBlendObject(selection) {
         try {
             if (!selection || selection.length <= 0) {
                 return null;
             }
-            // Prefer BlendItem if present (it usually exposes blendOptions.steps)
+            /* BlendItem を優先（blendOptions.steps を持つことが多い）/ Prefer BlendItem; it usually exposes blendOptions.steps */
             for (var i = 0; i < selection.length; i++) {
                 if (selection[i] && selection[i].typename === 'BlendItem') {
                     return selection[i];
@@ -288,31 +248,15 @@ var SCRIPT_TITLE = {
                     return selection[j];
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
         return null;
-    }
-
-    /**
-     * 指定したアイテムだけを選択状態にする（失敗しても例外は投げない）
-     * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} item - 選択したいアイテム
-     * @returns {void}
-     */
-    function selectOnlyItem(doc, item) {
-        try {
-            if (!doc || !item) {
-                return;
-            }
-            doc.selection = null;
-            item.selected = true;
-        } catch (e) {}
     }
 
     /**
      * 選択がブレンドオブジェクトのみで構成されているかを判定する
      *
      * 「ブレンド軸を置き換え」の有効／無効制御に使う。ブレンドとパスの混在選択では false になる。
-     * @param {Array<PageItem>} selection - 判定する選択オブジェクト
+     * @param {PageItem[]} selection - 判定する選択オブジェクト
      * @returns {boolean} すべてブレンドなら true
      */
     function isOnlyBlendObjects(selection) {
@@ -320,14 +264,14 @@ var SCRIPT_TITLE = {
             if (!selection || selection.length <= 0) {
                 return false;
             }
-            // 1つ以上あり、全てが BlendItem / PluginItem のとき「ブレンドのみ」
+            /* 1つ以上あり、全てが BlendItem / PluginItem のとき「ブレンドのみ」/ Every item is a blend */
             for (var i = 0; i < selection.length; i++) {
-                var it = selection[i];
-                if (!it) {
+                var selectedItem = selection[i];
+                if (!selectedItem) {
                     return false;
                 }
-                var t = it.typename;
-                if (t !== 'PluginItem' && t !== 'BlendItem') {
+                var itemType = selectedItem.typename;
+                if (itemType !== 'PluginItem' && itemType !== 'BlendItem') {
                     return false;
                 }
             }
@@ -338,6 +282,128 @@ var SCRIPT_TITLE = {
     }
 
     /**
+     * 指定したアイテムだけを選択状態にする（失敗しても例外は投げない）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} targetItem - 選択したいアイテム
+     * @returns {void}
+     */
+    function selectOnlyItem(doc, targetItem) {
+        try {
+            if (!doc || !targetItem) {
+                return;
+            }
+            doc.selection = null;
+            targetItem.selected = true;
+        } catch (e) { }
+    }
+
+    /**
+     * 現在の選択を配列に控える
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {PageItem[]} 選択していたアイテム
+     */
+    function snapshotSelection(doc) {
+        var selectedItems = [];
+        try {
+            var currentSelection = doc.selection;
+            if (currentSelection && currentSelection.length) {
+                for (var i = 0; i < currentSelection.length; i++) {
+                    selectedItems.push(currentSelection[i]);
+                }
+            }
+        } catch (e) { }
+        return selectedItems;
+    }
+
+    /**
+     * snapshotSelection() で控えた選択へ戻す（選択できないアイテムは飛ばす）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} selectedItems - 控えておいたアイテム
+     * @returns {void}
+     */
+    function restoreSelection(doc, selectedItems) {
+        try {
+            doc.selection = null;
+            for (var i = 0; i < selectedItems.length; i++) {
+                /* ロック・非表示などで選択できないアイテムは飛ばす / Skip items that cannot be selected */
+                try { selectedItems[i].selected = true; } catch (err) { }
+            }
+        } catch (e) { }
+    }
+
+    /**
+     * 選択のうち最前面のパスを削除する
+     * @param {PageItem[]} selection - 対象の選択オブジェクト
+     * @returns {boolean} 削除できた場合は true、対象が無い場合は false
+     */
+    function deleteFrontmostPath(selection) {
+        try {
+            if (!selection || selection.length <= 0) {
+                return false;
+            }
+
+            var frontmostPath = null;
+            var frontmostZ = null;
+
+            for (var i = 0; i < selection.length; i++) {
+                var selectedItem = selection[i];
+                if (!selectedItem || selectedItem.typename !== 'PathItem') {
+                    continue;
+                }
+
+                var zPosition = null;
+                try {
+                    zPosition = selectedItem.zOrderPosition;
+                } catch (err) {
+                    zPosition = null;
+                }
+
+                /* zOrderPosition が大きいものを優先。取れなければ先に見つかったもの（比較できる値が無いうちは後のもので置き換え）
+                   Prefer the higher zOrderPosition; while no comparable value exists, the later path takes over */
+                var hasFrontmostZ = (frontmostZ !== null && frontmostZ !== undefined);
+                var hasZ = (zPosition !== null && zPosition !== undefined);
+                if (!hasFrontmostZ || (hasZ && zPosition > frontmostZ)) {
+                    frontmostPath = selectedItem;
+                    frontmostZ = zPosition;
+                }
+            }
+
+            if (frontmostPath) {
+                frontmostPath.remove();
+                return true;
+            }
+        } catch (e) { }
+
+        return false;
+    }
+
+    /**
+     * ブレンドのメニューコマンドを実行し、選択に残った最前面のパスを削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} menuCommand - 実行するメニューコマンド
+     * @returns {void}
+     */
+    function runBlendCommandAndDeleteFrontmostPath(doc, menuCommand) {
+        app.executeMenuCommand(menuCommand);
+        /* コマンド実行後に選択が変わる可能性があるため、doc.selection を参照する
+           The command may change the selection, so read doc.selection afresh */
+        try {
+            deleteFrontmostPath(doc.selection);
+        } catch (e) { }
+    }
+
+    /**
+     * ステップ数を 0〜MAX_BLEND_STEPS に収める
+     * @param {number} stepValue - 対象の値
+     * @returns {number} 範囲に収めた値
+     */
+    function clampBlendSteps(stepValue) {
+        if (stepValue < 0) return 0;
+        if (stepValue > MAX_BLEND_STEPS) return MAX_BLEND_STEPS;
+        return stepValue;
+    }
+
+    /**
      * PluginItem のブレンドから中間ステップ数を取得する
      *
      * 元データを壊さないよう、複製してから分割・拡張してカウントし、後片付けする。
@@ -345,160 +411,238 @@ var SCRIPT_TITLE = {
      * @returns {number} 中間ステップ数。取得できない場合は -1
      */
     function getBlendStepsFromPluginItem(blendItem) {
-        // Guard: PluginItem 以外は対象外
+        /* PluginItem 以外は対象外 / Only PluginItem is supported */
         if (!blendItem || blendItem.typename !== 'PluginItem') {
             return -1;
         }
 
         var doc = app.activeDocument;
         var stepCount = -1;
-        var tempItem = null;
+        var duplicatedBlend = null;
 
-        // 選択状態を退避（この関数内で選択を変更するため）
-        var originalSelection = [];
-        try {
-            var currentSelection = doc.selection;
-            if (currentSelection && currentSelection.length) {
-                for (var i = 0; i < currentSelection.length; i++) {
-                    originalSelection.push(currentSelection[i]);
-                }
-            }
-        } catch (e0) {}
+        /* 選択状態を退避（この関数内で選択を変更するため）/ Save the selection; this function changes it */
+        var originalSelection = snapshotSelection(doc);
 
         try {
-            // 1) 複製（元データ保護）
-            tempItem = blendItem.duplicate();
+            /* 1) 複製（元データ保護）/ Duplicate to protect the original */
+            duplicatedBlend = blendItem.duplicate();
 
-            // 2) 複製したものだけを選択
+            /* 2) 複製したものだけを選択 / Select only the duplicate */
             doc.selection = null;
-            tempItem.selected = true;
+            duplicatedBlend.selected = true;
 
-            // 3) Expand
+            /* 3) 分割・拡張 / Expand */
             app.executeMenuCommand('Path Blend Expand');
 
-            // 4) Expand 後の選択（展開結果）を確認
+            /* 4) 分割・拡張後の選択（展開結果）を確認 / Check the expanded result */
             if (doc.selection && doc.selection.length > 0) {
-                // 5) トップレベルのグループを解除（ネストまでは無理に追わない）
-                try { app.executeMenuCommand('ungroup'); } catch (e1) {}
+                /* 5) トップレベルのグループを解除（ネストまでは無理に追わない）/ Ungroup the top level only */
+                try { app.executeMenuCommand('ungroup'); } catch (err) { }
 
-                // 6) 数をカウント
-                var totalItems = doc.selection.length;
-
-                // 7) 始点・終点を除外（全要素数 - 2）
-                stepCount = (totalItems >= 2) ? (totalItems - 2) : 0;
+                /* 6) 数を数え、7) 始点・終点を除外（全要素数 - 2）/ Count, excluding the start and end objects */
+                var expandedCount = doc.selection.length;
+                stepCount = (expandedCount >= 2) ? (expandedCount - 2) : 0;
             }
-        } catch (e2) {
+        } catch (e) {
             stepCount = -1;
         } finally {
-            // 展開残骸を削除
+            /* 展開残骸を削除 / Remove what the expansion left */
             try {
-                var junk = doc.selection;
-                if (junk && junk.length) {
-                    for (var x = 0; x < junk.length; x++) {
-                        try { junk[x].remove(); } catch (e3) {}
+                var expandedItems = doc.selection;
+                if (expandedItems && expandedItems.length) {
+                    for (var i = 0; i < expandedItems.length; i++) {
+                        try { expandedItems[i].remove(); } catch (removeError) { }
                     }
                 }
-            } catch (e4) {}
+            } catch (selectionError) { }
 
-            // 複製が残っていた場合の保険
+            /* 複製が残っていた場合の保険 / In case the duplicate survived */
             try {
-                if (tempItem) { tempItem.remove(); }
-            } catch (e5) {}
+                if (duplicatedBlend) { duplicatedBlend.remove(); }
+            } catch (duplicateError) { }
 
-            // 選択状態を復元
-            try {
-                doc.selection = null;
-                for (var j = 0; j < originalSelection.length; j++) {
-                    try { originalSelection[j].selected = true; } catch (e6) {}
-                }
-            } catch (e7) {}
+            /* 選択状態を復元 / Restore the selection */
+            restoreSelection(doc, originalSelection);
         }
 
         return stepCount;
     }
 
     /**
-     * 設定ダイアログを組み立てて表示し、確定した入力値を返す
-     * @param {Array<PageItem>} selection - 実行時の選択オブジェクト
+     * ダイアログのステップ数の初期値を決める
+     *
+     * ブレンドを選択して開いたときは、そのステップ数を読めれば使う（読めなければ既定値）。
+     * @param {PageItem[]} selection - 実行時の選択オブジェクト
      * @param {boolean} wasBlendSelectedAtOpen - ダイアログを開いた時点でブレンドを選択していたか
-     * @returns {Object} ステップ数・方向・反転・調整モードを持つ入力値。キャンセル時は null
+     * @returns {number} ステップ数の初期値
      */
-    function getInput(selection, wasBlendSelectedAtOpen) {
-
-        var doc = app.activeDocument;
-
-        // ダイアログ開始時の選択を保存（Replace Spine などで「ブレンド＋パス」の混在選択を維持するため）
-        var originalSelectionForDialog = [];
+    function readDefaultStep(selection, wasBlendSelectedAtOpen) {
+        var defaultStep = DEFAULT_BLEND_STEPS;
+        if (!wasBlendSelectedAtOpen) {
+            return defaultStep;
+        }
         try {
-            var sel0 = doc.selection;
-            if (sel0 && sel0.length) {
-                for (var si = 0; si < sel0.length; si++) {
-                    originalSelectionForDialog.push(sel0[si]);
+            var blendObject = findFirstBlendObject(selection);
+            /* BlendItem は blendOptions.steps を持つことが多い。PluginItem は持たないことがある
+               BlendItem typically exposes blendOptions.steps; PluginItem may not */
+            if (blendObject && blendObject.blendOptions && typeof blendObject.blendOptions.steps === 'number') {
+                defaultStep = blendObject.blendOptions.steps;
+            } else if (blendObject && blendObject.typename === 'PluginItem') {
+                var countedSteps = getBlendStepsFromPluginItem(blendObject);
+                if (typeof countedSteps === 'number' && countedSteps >= 0) {
+                    defaultStep = countedSteps;
                 }
             }
-        } catch (eSel0) {}
+        } catch (e) { }
+        return defaultStep;
+    }
 
-        /**
-         * ダイアログを開いた時点の選択状態へ戻す
-         * @returns {void}
-         */
-        function restoreOriginalSelectionForDialog() {
-            try {
-                doc.selection = null;
-                for (var k = 0; k < originalSelectionForDialog.length; k++) {
-                    try { originalSelectionForDialog[k].selected = true; } catch (eSel1) {}
-                }
-            } catch (eSel2) {}
-        }
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-        // 選択内容を元にダイアログを構築・表示する
-        var dlg = new Window('dialog', localize(LABELS.title));
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
-        dlg.spacing = 10;
-        dlg.margins = 16;
-
-        // --- Step (one-column, full width) ---
-        var stepArea = dlg.add('group');
+    /**
+     * ステップ数の入力欄とスライダーを組み立てる
+     * @param {Window} blendDialog - 追加先のダイアログ
+     * @param {number} defaultStep - ステップ数の初期値
+     * @returns {{stepInput: EditText, stepSlider: Slider}} 入力欄とスライダー
+     */
+    function buildStepArea(blendDialog, defaultStep) {
+        var stepArea = blendDialog.add('group');
         stepArea.orientation = 'column';
         stepArea.alignChildren = ['fill', 'top'];
-        stepArea.spacing = 6;
+        stepArea.spacing = STEP_AREA_SPACING;
 
         var stepRow = stepArea.add('group');
         stepRow.orientation = 'row';
         stepRow.alignChildren = ['left', 'center'];
-        stepRow.add('statictext', undefined, localize(LABELS.stepLabel));
+        stepRow.add('statictext', undefined, getLabel('fieldLabel.steps'));
 
-        // Default step:
-        // - If a blend object was selected when opening the dialog: get its steps when possible (fallback 8)
-        // - If not: default is 8
-        var _defaultStep = 8;
-        if (wasBlendSelectedAtOpen) {
-            try {
-                var _bi = findFirstPluginItem(selection);
-                // BlendItem typically exposes blendOptions.steps; PluginItem may not
-                if (_bi && _bi.blendOptions && typeof _bi.blendOptions.steps === 'number') {
-                    _defaultStep = _bi.blendOptions.steps;
-                } else if (_bi && _bi.typename === 'PluginItem') {
-                    var _calc = getBlendStepsFromPluginItem(_bi);
-                    if (typeof _calc === 'number' && _calc >= 0) {
-                        _defaultStep = _calc;
-                    }
-                }
-            } catch (e) {}
-        }
+        var stepInput = stepRow.add('edittext', undefined, String(defaultStep));
+        stepInput.helpTip = getLabel('tooltip.step');
+        stepInput.characters = 4;
 
-        var edtStep = stepRow.add('edittext', undefined, String(_defaultStep));
-        edtStep.helpTip = localize(LABELS.tipStep);
-        edtStep.characters = 4;
+        /* スライダー（ステップ数の下、横いっぱい）/ Slider under Steps, full width */
+        var stepSlider = stepArea.add('slider', undefined, defaultStep, 0, STEP_SLIDER_MAX.normal);
+        stepSlider.helpTip = getLabel('tooltip.step');
+        stepSlider.alignment = ['fill', 'center'];
 
-        // --- Slider (under Steps) ---
-        var sldStep = stepArea.add('slider', undefined, _defaultStep, 0, 32);
-        sldStep.helpTip = localize(LABELS.tipStep);
-        sldStep.alignment = ['fill', 'center'];
+        return { stepInput: stepInput, stepSlider: stepSlider };
+    }
 
-        // Keep the slider thumb position stable when switching range (32 <-> 128 <-> 1000)
-        var _stepSliderLastMax = 32;
+    /**
+     * 「方向」「反転」（左カラム）と「その他」（右カラム）のパネルを組み立てる
+     * @param {Window} blendDialog - 追加先のダイアログ
+     * @returns {Object} 各パネルとラジオ・チェックボックス
+     */
+    function buildOptionColumns(blendDialog) {
+        var columnsGroup = blendDialog.add('group');
+        columnsGroup.orientation = 'row';
+        columnsGroup.alignChildren = ['fill', 'top'];
+        columnsGroup.spacing = COLUMN_SPACING;
+
+        var leftColumnGroup = addColumnGroup(columnsGroup);
+        var rightColumnGroup = addColumnGroup(columnsGroup);
+
+        /* 方向 / Orientation */
+        var orientationPanel = leftColumnGroup.add('panel', undefined, getLabel('panel.orientation'));
+        setupOptionPanel(orientationPanel, 'fill', 8);
+
+        var orientationRow = orientationPanel.add('group');
+        orientationRow.orientation = 'row';
+        orientationRow.alignChildren = ['left', 'top'];
+
+        var orientationList = addOptionList(orientationRow);
+        var alignToPageRadio = addOptionControl(orientationList, 'radiobutton', 'radio.alignToPage', 'tooltip.alignToPage');
+        var alignToPathRadio = addOptionControl(orientationList, 'radiobutton', 'radio.alignToPath', 'tooltip.alignToPath');
+        alignToPageRadio.value = true;
+
+        /* その他（解除・拡張・ブレンド軸の置き換え）/ Misc: release, expand, replace spine */
+        var adjustPanel = rightColumnGroup.add('panel', undefined, getLabel('panel.adjust'));
+        setupOptionPanel(adjustPanel, 'left', 6);
+
+        var adjustList = addOptionList(adjustPanel);
+        var adjustNoneRadio = addOptionControl(adjustList, 'radiobutton', 'radio.adjustNone', 'tooltip.adjustNone');
+        var adjustReleaseRadio = addOptionControl(adjustList, 'radiobutton', 'radio.adjustRelease', 'tooltip.adjustRelease');
+        var adjustExpandRadio = addOptionControl(adjustList, 'radiobutton', 'radio.adjustExpand', 'tooltip.adjustExpand');
+        var adjustReplaceRadio = addOptionControl(adjustList, 'radiobutton', 'radio.adjustReplace', 'tooltip.adjustReplace');
+        adjustNoneRadio.value = true;
+
+        /* 反転 / Reverse */
+        var reversePanel = leftColumnGroup.add('panel', undefined, getLabel('panel.reverse'));
+        setupOptionPanel(reversePanel, 'left', 6);
+
+        var reverseList = addOptionList(reversePanel);
+        var reverseSpineCheckbox = addOptionControl(reverseList, 'checkbox', 'checkbox.reverseSpine', 'tooltip.reverseSpine');
+        var reverseStackCheckbox = addOptionControl(reverseList, 'checkbox', 'checkbox.reverseStack', 'tooltip.reverseStack');
+        reverseSpineCheckbox.value = false;
+        reverseStackCheckbox.value = false;
+
+        return {
+            orientationPanel: orientationPanel,
+            alignToPageRadio: alignToPageRadio,
+            alignToPathRadio: alignToPathRadio,
+            adjustNoneRadio: adjustNoneRadio,
+            adjustReleaseRadio: adjustReleaseRadio,
+            adjustExpandRadio: adjustExpandRadio,
+            adjustReplaceRadio: adjustReplaceRadio,
+            reversePanel: reversePanel,
+            reverseSpineCheckbox: reverseSpineCheckbox,
+            reverseStackCheckbox: reverseStackCheckbox
+        };
+    }
+
+    /**
+     * ボタン行（キャンセル／OK）を組み立てる
+     * @param {Window} blendDialog - 追加先のダイアログ
+     * @returns {{btnOK: Button, btnCancel: Button}} OK・キャンセルボタン
+     */
+    function buildButtonRow(blendDialog) {
+        var btnRowGroup = blendDialog.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignment = 'center';
+        var btnCancel = btnRowGroup.add('button', undefined, getLabel('button.cancel'), {
+            name: 'cancel'
+        });
+        var btnOK = btnRowGroup.add('button', undefined, getLabel('button.ok'), {
+            name: 'ok'
+        });
+        return { btnOK: btnOK, btnCancel: btnCancel };
+    }
+
+    /**
+     * 選択中の方向をブレンドオプションの値で返す
+     * @param {Object} dialogControls - ダイアログのコントロール
+     * @returns {number} BlendOrientation の値
+     */
+    function readOrientation(dialogControls) {
+        return (dialogControls.alignToPathRadio.value) ? BlendOrientation['Align to Path'] : BlendOrientation['Align to Page'];
+    }
+
+    /**
+     * 選択中の「その他」の調整モードを返す
+     * @param {Object} dialogControls - ダイアログのコントロール
+     * @returns {string} "none" / "release" / "expand" / "replaceSpine"
+     */
+    function readAdjustMode(dialogControls) {
+        if (dialogControls.adjustReleaseRadio.value) return 'release';
+        if (dialogControls.adjustExpandRadio.value) return 'expand';
+        if (dialogControls.adjustReplaceRadio.value) return 'replaceSpine';
+        return 'none';
+    }
+
+    /**
+     * ステップ数の入力欄とスライダーを連動させ、値が変わるたびにプレビューを更新する
+     * @param {EditText} stepInput - ステップ数の入力欄
+     * @param {Slider} stepSlider - ステップ数のスライダー
+     * @param {function} refreshPreview - プレビューを更新するコールバック
+     * @returns {void}
+     */
+    function bindStepControls(stepInput, stepSlider, refreshPreview) {
+        /* 範囲を切り替えるとき（32 ⇔ 128 ⇔ 1000）につまみの位置を保つための控え
+           Last slider maximum, used to keep the thumb position when the range switches */
+        var lastSliderMax = STEP_SLIDER_MAX.normal;
+
         /**
          * 修飾キーの状態に応じてステップ数スライダーの上限を切り替える
          *
@@ -507,59 +651,49 @@ var SCRIPT_TITLE = {
          */
         function updateStepSliderRangeFromKeyboard() {
             try {
-                var kb = ScriptUI.environment.keyboardState;
+                var keyboardState = ScriptUI.environment.keyboardState;
 
-                // Priority: Shift (0-1000) > Option (0-128) > default (0-32)
-                var nextMax = 32;
-                if (kb && kb.shiftKey) {
-                    nextMax = 1000;
-                } else if (kb && kb.altKey) {
-                    nextMax = 128;
+                /* 優先順位: Shift (0-1000) > Option (0-128) > 通常 (0-32) / Priority: Shift > Option > default */
+                var nextMax = STEP_SLIDER_MAX.normal;
+                if (keyboardState && keyboardState.shiftKey) {
+                    nextMax = STEP_SLIDER_MAX.shift;
+                } else if (keyboardState && keyboardState.altKey) {
+                    nextMax = STEP_SLIDER_MAX.option;
                 }
 
-                var prevMax = _stepSliderLastMax;
-                if (prevMax !== nextMax) {
-                    // Preserve relative position of the thumb (ratio) when changing range
-                    var ratio = 0;
-                    try {
-                        ratio = (prevMax > 0) ? (sldStep.value / prevMax) : 0;
-                        if (!isFinite(ratio) || isNaN(ratio)) ratio = 0;
-                    } catch (e0) {
-                        ratio = 0;
-                    }
+                if (lastSliderMax !== nextMax) {
+                    /* 範囲を変えてもつまみの相対位置（比率）を保つ / Keep the thumb's relative position */
+                    var thumbRatio = (lastSliderMax > 0) ? (stepSlider.value / lastSliderMax) : 0;
+                    if (!isFinite(thumbRatio) || isNaN(thumbRatio)) thumbRatio = 0;
 
-                    sldStep.maxvalue = nextMax;
+                    stepSlider.maxvalue = nextMax;
 
-                    var nextVal = Math.round(ratio * nextMax);
-                    if (nextVal < 0) nextVal = 0;
-                    if (nextVal > nextMax) nextVal = nextMax;
+                    var nextValue = Math.round(thumbRatio * nextMax);
+                    if (nextValue < 0) nextValue = 0;
+                    if (nextValue > nextMax) nextValue = nextMax;
 
-                    sldStep.value = nextVal;
-                    // Keep edit text consistent with the new value
-                    edtStep.text = String(nextVal);
+                    stepSlider.value = nextValue;
+                    /* 入力欄も新しい値にそろえる / Keep the field in step with the new value */
+                    stepInput.text = String(nextValue);
 
-                    _stepSliderLastMax = nextMax;
-                } else {
-                    // Ensure range is correct even if maxvalue was modified elsewhere
-                    if (sldStep.maxvalue !== nextMax) {
-                        sldStep.maxvalue = nextMax;
-                    }
+                    lastSliderMax = nextMax;
+                } else if (stepSlider.maxvalue !== nextMax) {
+                    /* 上限が他所で変わっていても範囲をそろえる / Re-apply the range if it drifted */
+                    stepSlider.maxvalue = nextMax;
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         /**
          * ステップ数を整数に丸め、0以上スライダー上限以下に収める
-         * @param {number} v - 丸める前の値
+         * @param {number} stepValue - 丸める前の値
          * @returns {number} 0〜スライダー上限に収めた整数
          */
-        function clampStepValue(v) {
-            v = Math.round(v);
-            if (v < 0) v = 0;
-            var _max = 32;
-            try { _max = sldStep.maxvalue; } catch (e) { _max = 32; }
-            if (v > _max) v = _max;
-            return v;
+        function clampToSliderRange(stepValue) {
+            var roundedValue = Math.round(stepValue);
+            if (roundedValue < 0) roundedValue = 0;
+            if (roundedValue > stepSlider.maxvalue) roundedValue = stepSlider.maxvalue;
+            return roundedValue;
         }
 
         /**
@@ -567,10 +701,9 @@ var SCRIPT_TITLE = {
          * @returns {void}
          */
         function syncSliderFromEditText() {
-            var v = parseInt(edtStep.text, 10);
-            if (isNaN(v)) return;
-            v = clampStepValue(v);
-            sldStep.value = v;
+            var stepValue = parseInt(stepInput.text, 10);
+            if (isNaN(stepValue)) return;
+            stepSlider.value = clampToSliderRange(stepValue);
         }
 
         /**
@@ -578,75 +711,66 @@ var SCRIPT_TITLE = {
          * @returns {void}
          */
         function syncEditTextFromSlider() {
-            var v = clampStepValue(sldStep.value);
-            edtStep.text = String(v);
+            stepInput.text = String(clampToSliderRange(stepSlider.value));
         }
 
-        // Arrow keys: update slider + preview
-        changeValueByArrowKey(edtStep, function() {
+        /* ↑↓キー：スライダーとプレビューを更新 / Arrow keys update the slider and the preview */
+        changeValueByArrowKey(stepInput, function () {
             syncSliderFromEditText();
-            applyPreviewFromUI();
+            refreshPreview();
         });
 
-        // Slider: update edit text + preview
-        sldStep.onChanging = function() {
+        /* スライダー：入力欄とプレビューを更新 / The slider updates the field and the preview */
+        stepSlider.onChanging = stepSlider.onChange = function () {
             updateStepSliderRangeFromKeyboard();
             syncEditTextFromSlider();
-            applyPreviewFromUI();
-        };
-        sldStep.onChange = function() {
-            updateStepSliderRangeFromKeyboard();
-            syncEditTextFromSlider();
-            applyPreviewFromUI();
+            refreshPreview();
         };
 
-        // --- 2 columns ---
-        var cols = dlg.add('group');
-        cols.orientation = 'row';
-        cols.alignChildren = ['fill', 'top'];
-        cols.spacing = 12;
+        /* 手入力でもプレビュー（数値として読めるときだけ。入力中は書き換えない）
+           Preview while typing, only when the text parses; the field is not rewritten per keystroke */
+        stepInput.onChanging = function () {
+            if (isNaN(parseInt(stepInput.text, 10))) {
+                return;
+            }
+            syncSliderFromEditText();
+            refreshPreview();
+        };
 
-        var colLeft = cols.add('group');
-        colLeft.orientation = 'column';
-        colLeft.alignChildren = ['fill', 'top'];
-        colLeft.spacing = 10;
+        /* 確定時（Enter・フォーカス移動）に 0〜上限の整数へ整える / Sanitize on commit */
+        stepInput.onChange = function () {
+            var stepValue = parseInt(stepInput.text, 10);
+            if (isNaN(stepValue)) {
+                stepValue = 0;
+            }
+            stepInput.text = String(clampBlendSteps(stepValue));
+            syncSliderFromEditText();
+            refreshPreview();
+        };
+    }
 
-        var colRight = cols.add('group');
-        colRight.orientation = 'column';
-        colRight.alignChildren = ['fill', 'top'];
-        colRight.spacing = 10;
-
-        var panelBlend = colLeft.add('panel', undefined, localize(LABELS.orientationPanel));
-        panelBlend.orientation = 'column';
-        panelBlend.alignChildren = ['fill', 'top'];
-        panelBlend.spacing = 8;
-        panelBlend.margins = [12, 18, 12, 12];
-
-        var row2 = panelBlend.add('group');
-        row2.orientation = 'row';
-        row2.alignChildren = ['left', 'top'];
-
-        var orientGroup = row2.add('group');
-        orientGroup.orientation = 'column';
-        orientGroup.alignChildren = ['left', 'top'];
-        orientGroup.spacing = 4;
-
-        var rbVertical = orientGroup.add('radiobutton', undefined, localize(LABELS.alignToPage));
-        rbVertical.helpTip = localize(LABELS.tipAlignToPage);
-        var rbAlign = orientGroup.add('radiobutton', undefined, localize(LABELS.alignToPath));
-        rbAlign.helpTip = localize(LABELS.tipAlignToPath);
-        rbVertical.value = true;
-
-        // --- Live Preview (best-effort) ---
-        // Count how many preview operations we applied so Cancel can rollback.
+    /**
+     * ダイアログのライブプレビューを用意する
+     *
+     * キャンセルで戻せるよう、プレビューで実行した操作の数を数える。
+     * 反転コマンドはトグルなので、前回適用時から状態が変わったときだけ実行する。
+     * @param {Object} dialogControls - ダイアログのコントロール
+     * @returns {Object} applyStep / applyReverse / undoAll / keepChanges / wasReverseApplied を持つオブジェクト
+     */
+    function createBlendPreview(dialogControls) {
+        /* プレビューで実行した操作の数（キャンセル時に取り消す）/ Operations to undo on Cancel */
         var previewUndoDepth = 0;
-        var lastBlendPreviewApplied = false;
 
-        // Target blend item for preview operations (ensure it's selected when running commands)
+        /* プレビュー対象のブレンド（コマンド実行時に選択されている必要がある）/ Blend the preview acts on */
         var targetBlendItem = null;
         try {
-            targetBlendItem = findFirstPluginItem(app.activeDocument.selection);
-        } catch (e) {}
+            targetBlendItem = findFirstBlendObject(app.activeDocument.selection);
+        } catch (e) { }
+
+        /* 反転の前回適用時の状態と、プレビューで反転を実行したか / Last applied reverse state */
+        var lastReverseSpine = dialogControls.reverseSpineCheckbox.value;
+        var lastReverseStack = dialogControls.reverseStackCheckbox.value;
+        var reversePreviewTouched = false;
 
         /**
          * 対象のブレンドを特定し、それだけを選択状態にする
@@ -655,154 +779,119 @@ var SCRIPT_TITLE = {
         function ensureTargetBlendSelected() {
             try {
                 if (!targetBlendItem) {
-                    targetBlendItem = findFirstPluginItem(app.activeDocument.selection);
+                    targetBlendItem = findFirstBlendObject(app.activeDocument.selection);
                 }
                 if (targetBlendItem) {
                     selectOnlyItem(app.activeDocument, targetBlendItem);
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         /**
-         * プレビューに使う入力値（ステップ数と方向）をUIから読み取る
-         * @returns {Object} step と orientation を持つオブジェクト。値が不正な場合は null
-         */
-        function getUIValuesForPreview() {
-            var step = parseInt(edtStep.text, 10);
-            if (isNaN(step)) {
-                return null;
-            }
-            if (step < 0) {
-                step = 0;
-            }
-            if (step > 1000) {
-                step = 1000;
-            }
-
-            var orientation = (rbAlign.value) ? BlendOrientation['Align to Path'] : BlendOrientation['Align to Page'];
-            return {
-                step: step,
-                orientation: orientation
-            };
-        }
-
-        /**
-         * 指定した値でブレンド設定を適用し、プレビューを更新する
-         * @param {Object} values - getUIValuesForPreview() が返した入力値
+         * UIの現在値（ステップ数と方向）でブレンド設定を適用し、プレビューを更新する
          * @returns {void}
          */
-        function applyPreview(values) {
-            if (!values) {
+        function applyStepPreview() {
+            var stepValue = parseInt(dialogControls.stepInput.text, 10);
+            if (isNaN(stepValue)) {
                 return;
             }
             try {
                 ensureTargetBlendSelected();
-                setBlendOption(values.step, values.orientation);
+                setBlendOption(clampBlendSteps(stepValue), readOrientation(dialogControls));
                 previewUndoDepth++;
-                lastBlendPreviewApplied = true; // informational only
                 app.redraw();
-            } catch (e3) {}
+            } catch (e) { }
         }
 
         /**
-         * UIの現在値でプレビューを更新する
+         * 反転チェックボックスの状態をブレンドへ即時プレビューする
          * @returns {void}
          */
-        function applyPreviewFromUI() {
-            var v = getUIValuesForPreview();
-            applyPreview(v);
+        function applyReversePreview() {
+            var wantSpine = !!dialogControls.reverseSpineCheckbox.value;
+            var wantStack = !!dialogControls.reverseStackCheckbox.value;
+
+            ensureTargetBlendSelected();
+
+            try {
+                if (wantSpine !== lastReverseSpine) {
+                    app.executeMenuCommand('Path Blend Reverse Spine');
+                    previewUndoDepth++;
+                    lastReverseSpine = wantSpine;
+                    reversePreviewTouched = true;
+                }
+            } catch (e) { }
+
+            try {
+                if (wantStack !== lastReverseStack) {
+                    app.executeMenuCommand('Path Blend Reverse Stack');
+                    previewUndoDepth++;
+                    lastReverseStack = wantStack;
+                    reversePreviewTouched = true;
+                }
+            } catch (e) { }
+
+            app.redraw();
         }
 
-        // Step: preview on manual edits as well
-        edtStep.onChanging = function() {
-            // Avoid spamming undo/apply too aggressively by only previewing when the value parses
-            // (Arrow keys already preview via changeValueByArrowKey callback)
-            var v = parseInt(edtStep.text, 10);
-            if (isNaN(v)) {
-                return;
-            }
-            // integer only + clamp (do not force-write on every keystroke)
-            if (v < 0) v = 0;
-            if (v > 1000) v = 1000;
-            syncSliderFromEditText();
-            applyPreviewFromUI();
+        /**
+         * プレビューで実行した操作をすべて取り消す
+         * @returns {void}
+         */
+        function undoAll() {
+            try {
+                while (previewUndoDepth > 0) {
+                    app.executeMenuCommand('undo');
+                    previewUndoDepth--;
+                }
+                app.redraw();
+            } catch (e) { }
+        }
+
+        return {
+            applyStep: applyStepPreview,
+            applyReverse: applyReversePreview,
+            undoAll: undoAll,
+            /* 確定時はプレビューの結果を残す / Keep the preview result on OK */
+            keepChanges: function () { previewUndoDepth = 0; },
+            wasReverseApplied: function () { return reversePreviewTouched; }
         };
+    }
 
-        // Sanitize on commit (enter / focus-out)
-        edtStep.onChange = function() {
-            var v = parseInt(edtStep.text, 10);
-            if (isNaN(v)) {
-                v = 0;
-            }
-            if (v < 0) v = 0;
-            if (v > 1000) v = 1000;
-            edtStep.text = String(Math.round(v));
-            syncSliderFromEditText();
-            try { applyPreviewFromUI(); } catch (e) {}
+    /**
+     * 「その他」「反転」のラジオ・チェックボックスの連動を登録し、初期状態を反映する
+     * @param {Window} blendDialog - 対象ダイアログ（淡色表示のペンを作る）
+     * @param {Object} dialogControls - ダイアログのコントロール
+     * @param {PageItem[]} selection - 実行時の選択オブジェクト
+     * @param {Object} blendPreview - createBlendPreview() の戻り値
+     * @returns {function} 調整モードに合わせて各パネルの状態を更新する関数
+     */
+    function bindAdjustControls(blendDialog, dialogControls, selection, blendPreview) {
+        var adjustRadios = {
+            none: dialogControls.adjustNoneRadio,
+            release: dialogControls.adjustReleaseRadio,
+            expand: dialogControls.adjustExpandRadio,
+            replaceSpine: dialogControls.adjustReplaceRadio
         };
-
-        // Orientation: preview on change
-        rbVertical.onClick = applyPreviewFromUI;
-        rbAlign.onClick = applyPreviewFromUI;
-
-        var panelAdjust = colRight.add('panel', undefined, localize(LABELS.adjustPanel));
-        panelAdjust.orientation = 'column';
-        panelAdjust.alignChildren = ['left', 'top'];
-        panelAdjust.spacing = 6;
-        panelAdjust.margins = [12, 18, 12, 12];
-
-        var adjustGroup = panelAdjust.add('group');
-        adjustGroup.orientation = 'column';
-        adjustGroup.alignChildren = ['left', 'top'];
-        adjustGroup.spacing = 4;
-
-        var rbAdjustNone = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustNone));
-        rbAdjustNone.helpTip = localize(LABELS.tipAdjustNone);
-        var rbAdjustRelease = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustRelease));
-        rbAdjustRelease.helpTip = localize(LABELS.tipAdjustRelease);
-        var rbAdjustExpand = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustExpand));
-        rbAdjustExpand.helpTip = localize(LABELS.tipAdjustExpand);
-        var rbAdjustReplace = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustReplace));
-        rbAdjustReplace.helpTip = localize(LABELS.tipAdjustReplace);
-        rbAdjustNone.value = true;
-
-        // --- Reverse panel ---
-        var panelReverse = colLeft.add('panel', undefined, localize(LABELS.reversePanel));
-        panelReverse.orientation = 'column';
-        panelReverse.alignChildren = ['left', 'top'];
-        panelReverse.spacing = 6;
-        panelReverse.margins = [12, 18, 12, 12];
-
-        var reverseGroup = panelReverse.add('group');
-        reverseGroup.orientation = 'column';
-        reverseGroup.alignChildren = ['left', 'top'];
-        reverseGroup.spacing = 4;
-
-        var cbReverseSpine = reverseGroup.add('checkbox', undefined, localize(LABELS.reverseSpine));
-        cbReverseSpine.helpTip = localize(LABELS.tipReverseSpine);
-        var cbReverseStack = reverseGroup.add('checkbox', undefined, localize(LABELS.reverseStack));
-        cbReverseStack.helpTip = localize(LABELS.tipReverseStack);
-        cbReverseSpine.value = false;
-        cbReverseStack.value = false;
 
         /**
          * 調整モードのラジオボタンを排他的に切り替える
          *
          * ScriptUI は同じ親の中でしか自動排他しないため、パネルをまたぐ排他をここで行う。
-         * @param {string} which - "none" / "release" / "expand" / "replaceSpine" のいずれか
+         * @param {string} adjustMode - "none" / "release" / "expand" / "replaceSpine" のいずれか
          * @returns {void}
          */
-        function selectAdjustMode(which) {
-            rbAdjustNone.value = (which === 'none');
-            rbAdjustRelease.value = (which === 'release');
-            rbAdjustExpand.value = (which === 'expand');
-            rbAdjustReplace.value = (which === 'replaceSpine');
+        function selectAdjustMode(adjustMode) {
+            adjustRadios.none.value = (adjustMode === 'none');
+            adjustRadios.release.value = (adjustMode === 'release');
+            adjustRadios.expand.value = (adjustMode === 'expand');
+            adjustRadios.replaceSpine.value = (adjustMode === 'replaceSpine');
         }
 
-        // 「その他」が「なし」のとき、他の選択肢を視覚的にディム表示（ただし選択は可能）
-        // ※ enabled=false にすると選択できなくなるため、文字色のみ変更する。
-        var _dimPen = null;
-        var _normalPen = null;
+        var dimPen = null;
+        var normalPen = null;
+
         /**
          * 「その他」が「なし」のとき、他の選択肢のラベルを淡色にする
          *
@@ -811,31 +900,30 @@ var SCRIPT_TITLE = {
          */
         function syncAdjustOptionDimming() {
             try {
-                if (!_dimPen) {
-                    _dimPen = dlg.graphics.newPen(PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1);
+                if (!dimPen) {
+                    dimPen = blendDialog.graphics.newPen(PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1);
                 }
-                if (!_normalPen) {
-                    _normalPen = dlg.graphics.newPen(PenType.SOLID_COLOR, [0, 0, 0, 1], 1);
+                if (!normalPen) {
+                    normalPen = blendDialog.graphics.newPen(PenType.SOLID_COLOR, [0, 0, 0, 1], 1);
                 }
 
-                var useDim = !!rbAdjustNone.value;
+                var useDim = !!adjustRadios.none.value;
 
-                // Keep existing enable/disable behavior (e.g., GroupItem-only restriction) intact.
-                // Only change the label color for the radios that are currently enabled.
-                var targets = [rbAdjustRelease, rbAdjustExpand, rbAdjustReplace];
-                for (var i = 0; i < targets.length; i++) {
-                    var rb = targets[i];
-                    if (!rb) continue;
+                /* 無効化中のラジオ（ブレンドのみ選択時の置き換えなど）は常に淡色。有効なものだけ切り替える
+                   Disabled radios stay dim; only enabled ones follow the None state */
+                var dimmableRadios = [adjustRadios.release, adjustRadios.expand, adjustRadios.replaceSpine];
+                for (var i = 0; i < dimmableRadios.length; i++) {
+                    var adjustRadio = dimmableRadios[i];
+                    if (!adjustRadio) continue;
 
-                    // If disabled (e.g. replace on GroupItem-only), keep it dim.
-                    if (rb.enabled === false) {
-                        rb.graphics.foregroundColor = _dimPen;
+                    if (adjustRadio.enabled === false) {
+                        adjustRadio.graphics.foregroundColor = dimPen;
                         continue;
                     }
 
-                    rb.graphics.foregroundColor = useDim ? _dimPen : _normalPen;
+                    adjustRadio.graphics.foregroundColor = useDim ? dimPen : normalPen;
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         /**
@@ -846,349 +934,213 @@ var SCRIPT_TITLE = {
          */
         function updateAdjustAvailability() {
             try {
-                var onlyBlend = isOnlyBlendObjects(selection);
-                rbAdjustReplace.enabled = !onlyBlend;
-                if (!rbAdjustReplace.enabled) {
-                    // If it was selected somehow, fall back to None
-                    if (rbAdjustReplace.value) {
-                        selectAdjustMode('none');
-                    }
+                adjustRadios.replaceSpine.enabled = !isOnlyBlendObjects(selection);
+                if (!adjustRadios.replaceSpine.enabled && adjustRadios.replaceSpine.value) {
+                    selectAdjustMode('none');
                 }
                 syncAdjustOptionDimming();
-            } catch (e) {}
+            } catch (e) { }
         }
 
         /**
-         * 「調整」が「なし」以外のとき、ブレンド設定パネルを無効化する
+         * 「その他」が「なし」以外のとき、方向パネルを無効化し、フォーカスを移す
          * @returns {void}
          */
         function syncBlendPanelEnabled() {
-            var enable = !!rbAdjustNone.value;
-            panelBlend.enabled = enable;
+            var isAdjustNone = !!adjustRadios.none.value;
+            dialogControls.orientationPanel.enabled = isAdjustNone;
 
-            // Keep focus sensible
+            /* フォーカスを分かりやすい位置へ / Keep focus sensible */
             try {
-                if (enable) {
-                    edtStep.active = true;
-                    edtStep.setSelection(0, edtStep.text.length);
+                if (isAdjustNone) {
+                    dialogControls.stepInput.active = true;
+                    dialogControls.stepInput.setSelection(0, dialogControls.stepInput.text.length);
                 } else {
-                    // Prefer focusing the currently-selected option if possible
-                    if (rbAdjustRelease.value) rbAdjustRelease.active = true;
-                    else if (rbAdjustExpand.value) rbAdjustExpand.active = true;
-                    else if (rbAdjustReplace.value) rbAdjustReplace.active = true;
-                    else rbAdjustNone.active = true;
+                    /* 選択中の選択肢にフォーカス / Focus the selected option */
+                    if (adjustRadios.release.value) adjustRadios.release.active = true;
+                    else if (adjustRadios.expand.value) adjustRadios.expand.active = true;
+                    else if (adjustRadios.replaceSpine.value) adjustRadios.replaceSpine.active = true;
+                    else adjustRadios.none.active = true;
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         /**
-         * 「調整」が「なし」以外のとき、反転パネルを無効化する
+         * 「その他」が「なし」以外のとき、反転パネルを無効化する
          *
-         * チェックボックスの状態は保持し、値は書き換えない。
+         * チェックボックスの値は書き換えない（プレビュー済みの反転は OK／キャンセルの処理まで残す）。
          * @returns {void}
          */
         function syncReversePanelEnabled() {
-            var enable = !!rbAdjustNone.value;
-            panelReverse.enabled = enable;
-
-            // Disable without mutating checkbox state (do not clear values)
-            // Preview changes are not applied here to avoid losing the user's intent on OK.
-            // Any preview already applied remains as-is until Cancel/OK handling.
-            if (!enable) {
-                // no-op
-            }
+            dialogControls.reversePanel.enabled = !!adjustRadios.none.value;
         }
-
-        // When choosing any adjust option (other than None), dim blend options
-        rbAdjustNone.onClick = function() {
-            selectAdjustMode('none');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            syncAdjustOptionDimming();
-        };
-        rbAdjustRelease.onClick = function() {
-            selectAdjustMode('release');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            syncAdjustOptionDimming();
-        };
-        rbAdjustExpand.onClick = function x() {
-            selectAdjustMode('expand');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            syncAdjustOptionDimming();
-        };
-        rbAdjustReplace.onClick = function() {
-            selectAdjustMode('replaceSpine');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            syncAdjustOptionDimming();
-        };
-        cbReverseSpine.onClick = function() {
-            // Reverse actions are independent; keep Adjust in "None" to avoid mixed-mode confusion
-            selectAdjustMode('none');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            applyReversePreviewFromUI();
-        };
-        cbReverseStack.onClick = function() {
-            selectAdjustMode('none');
-            updateAdjustAvailability();
-            syncBlendPanelEnabled();
-            syncReversePanelEnabled();
-            applyReversePreviewFromUI();
-        };
-        // --- Immediate Reverse Preview ---
-        var lastReverseSpine = cbReverseSpine.value;
-        var lastReverseStack = cbReverseStack.value;
-        // Reverse commands are toggles; if we executed them during preview, do NOT execute again on OK.
-        var reversePreviewTouched = false;
 
         /**
-         * 反転チェックボックスの状態をブレンドへ即時プレビューする
-         *
-         * 反転コマンドはトグルのため、前回適用時から状態が変わったときだけ実行する。
+         * 調整モードに合わせて各パネルの状態を更新する
          * @returns {void}
          */
-        function applyReversePreviewFromUI() {
-            // Immediate reverse preview (no delay)
-            // Reverse commands are toggles; apply only when state changed.
-            var wantSpine = !!cbReverseSpine.value;
-            var wantStack = !!cbReverseStack.value;
-
-            ensureTargetBlendSelected();
-
-            try {
-                if (wantSpine !== lastReverseSpine) {
-                    app.executeMenuCommand('Path Blend Reverse Spine');
-                    previewUndoDepth++;
-                    lastReverseSpine = wantSpine;
-                    // lastBlendPreviewApplied = false; // removed, no longer needed
-                    reversePreviewTouched = true;
-                }
-            } catch (e1) {}
-
-            try {
-                if (wantStack !== lastReverseStack) {
-                    app.executeMenuCommand('Path Blend Reverse Stack');
-                    previewUndoDepth++;
-                    lastReverseStack = wantStack;
-                    // lastBlendPreviewApplied = false; // removed, no longer needed
-                    reversePreviewTouched = true;
-                }
-            } catch (e2) {}
-
-            app.redraw();
+        function refreshAdjustState() {
+            updateAdjustAvailability();
+            syncBlendPanelEnabled();
+            syncReversePanelEnabled();
         }
 
-        // Initial state
-        updateAdjustAvailability();
-        syncBlendPanelEnabled();
-        syncReversePanelEnabled();
-        syncAdjustOptionDimming();
+        /* 「なし」以外を選ぶと方向・反転パネルを無効化 / Choosing an adjustment disables the other panels */
+        for (var adjustMode in adjustRadios) {
+            if (!adjustRadios.hasOwnProperty(adjustMode)) continue;
+            (function (radioMode) {
+                adjustRadios[radioMode].onClick = function () {
+                    selectAdjustMode(radioMode);
+                    refreshAdjustState();
+                };
+            })(adjustMode);
+        }
 
-        var btnRowGroup = dlg.add('group');
-        btnRowGroup.orientation = 'row';
-        btnRowGroup.alignment = 'center';
-        var btnCancel = btnRowGroup.add('button', undefined, localize(LABELS.cancel), {
-            name: 'cancel'
-        });
-        var btnOk = btnRowGroup.add('button', undefined, localize(LABELS.ok), {
-            name: 'ok'
-        });
-
-        dlg.onShow = function() {
-            try {
-                applyPreviewFromUI();
-                updateAdjustAvailability();
-                syncBlendPanelEnabled();
-                syncReversePanelEnabled();
-                syncAdjustOptionDimming();
-            } catch (e) {}
+        /* 反転は独立した操作。混乱を避けるため「その他」は「なし」に戻す
+           Reverse actions are independent; keep Misc on None to avoid mixed modes */
+        dialogControls.reverseSpineCheckbox.onClick = dialogControls.reverseStackCheckbox.onClick = function () {
+            selectAdjustMode('none');
+            refreshAdjustState();
+            blendPreview.applyReverse();
         };
 
-        btnOk.onClick = function() {
-            // Snapshot reverse states to avoid any UI sync side-effects
-            var _keepReverseSpine = !!cbReverseSpine.value;
-            var _keepReverseStack = !!cbReverseStack.value;
+        refreshAdjustState();
+        return refreshAdjustState;
+    }
 
-            var step = parseInt(edtStep.text, 10);
-            if (isNaN(step) || step < 0 || step > 1000) {
-                alert(localize(LABELS.invalidStep));
+    /**
+     * 設定ダイアログを組み立てて表示し、確定した入力値を返す
+     * @param {PageItem[]} selection - 実行時の選択オブジェクト
+     * @param {boolean} wasBlendSelectedAtOpen - ダイアログを開いた時点でブレンドを選択していたか
+     * @returns {Object|null} ステップ数・方向・反転・調整モードを持つ入力値。キャンセル時は null
+     */
+    function showBlendDialog(selection, wasBlendSelectedAtOpen) {
+        var doc = app.activeDocument;
+
+        /* ダイアログ開始時の選択を保存（Replace Spine などで「ブレンド＋パス」の混在選択を維持するため）
+           Keep the launch selection; Replace Spine needs the blend and the path selected together */
+        var selectionAtOpen = snapshotSelection(doc);
+        var defaultStep = readDefaultStep(selection, wasBlendSelectedAtOpen);
+
+        var blendDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        blendDialog.orientation = 'column';
+        blendDialog.alignChildren = ['fill', 'top'];
+        blendDialog.spacing = DIALOG_SPACING;
+        blendDialog.margins = DIALOG_MARGINS;
+
+        var stepControls = buildStepArea(blendDialog, defaultStep);
+        var dialogControls = buildOptionColumns(blendDialog);
+        dialogControls.stepInput = stepControls.stepInput;
+        dialogControls.stepSlider = stepControls.stepSlider;
+
+        var blendPreview = createBlendPreview(dialogControls);
+        bindStepControls(dialogControls.stepInput, dialogControls.stepSlider, blendPreview.applyStep);
+        dialogControls.alignToPageRadio.onClick = blendPreview.applyStep;
+        dialogControls.alignToPathRadio.onClick = blendPreview.applyStep;
+        var refreshAdjustState = bindAdjustControls(blendDialog, dialogControls, selection, blendPreview);
+
+        var dialogButtons = buildButtonRow(blendDialog);
+        var dialogResult = null;
+
+        blendDialog.onShow = function () {
+            blendPreview.applyStep();
+            refreshAdjustState();
+        };
+
+        dialogButtons.btnOK.onClick = function () {
+            var reverseSpine = !!dialogControls.reverseSpineCheckbox.value;
+            var reverseStack = !!dialogControls.reverseStackCheckbox.value;
+
+            var stepValue = parseInt(dialogControls.stepInput.text, 10);
+            if (isNaN(stepValue) || stepValue < 0 || stepValue > MAX_BLEND_STEPS) {
+                alert(getLabel('alert.invalidStep'));
                 return;
             }
-            var adjustMode = 'none';
-            if (rbAdjustRelease.value) {
-                adjustMode = 'release';
-            } else if (rbAdjustExpand.value) {
-                adjustMode = 'expand';
-            } else if (rbAdjustReplace.value) {
-                adjustMode = 'replaceSpine';
-            }
+            var adjustMode = readAdjustMode(dialogControls);
 
-            // Replace Spine は「ブレンド＋置き換え用パス」の同時選択が必要。
-            // プレビュー中にブレンド単体選択へ切り替わっていることがあるため、ここで元の選択を復元する。
+            /* Replace Spine は「ブレンド＋置き換え用パス」の同時選択が必要。
+               プレビュー中にブレンド単体選択へ切り替わっていることがあるため、ここで元の選択を復元する。
+               Replace Spine needs the blend and the new path selected; restore the launch selection */
             if (adjustMode === 'replaceSpine') {
-                restoreOriginalSelectionForDialog();
+                restoreSelection(doc, selectionAtOpen);
             }
 
-            // Restore (defensive) before closing
-            cbReverseSpine.value = _keepReverseSpine;
-            cbReverseStack.value = _keepReverseStack;
-
-            dlg._result = {
-                step: step,
-                orientation: (rbAlign.value) ? BlendOrientation['Align to Path'] : BlendOrientation['Align to Page'],
+            /* プレビューで反転済みなら文書は既に目的の状態。true を渡すと main() で再度トグルして打ち消してしまう
+               If the reverse preview already ran, passing true would toggle it back in main() */
+            var reverseApplied = blendPreview.wasReverseApplied();
+            dialogResult = {
+                step: stepValue,
+                orientation: readOrientation(dialogControls),
                 adjustMode: adjustMode,
-                // If reverse preview ran, the document is already in the desired state.
-                // Passing true here would toggle again in main() and cancel the effect.
-                reverseSpine: reversePreviewTouched ? false : _keepReverseSpine,
-                reverseStack: reversePreviewTouched ? false : _keepReverseStack
+                reverseSpine: reverseApplied ? false : reverseSpine,
+                reverseStack: reverseApplied ? false : reverseStack
             };
-            // Keep preview result; prevent cancel rollback
-            previewUndoDepth = 0;
-            dlg.close(1);
+            blendPreview.keepChanges();
+            blendDialog.close(1);
         };
 
-        btnCancel.onClick = function() {
-            // Revert all preview changes applied during this dialog session
-            try {
-                while (previewUndoDepth > 0) {
-                    app.executeMenuCommand('undo');
-                    previewUndoDepth--;
-                }
-                app.redraw();
-            } catch (e) {}
-            // 取り消し時も、ダイアログ開始時の選択に戻す
-            restoreOriginalSelectionForDialog();
-            dlg.close(0);
+        dialogButtons.btnCancel.onClick = function () {
+            /* このダイアログで適用したプレビューをすべて戻す / Revert every preview change */
+            blendPreview.undoAll();
+            /* 取り消し時も、ダイアログ開始時の選択に戻す / Restore the launch selection */
+            restoreSelection(doc, selectionAtOpen);
+            blendDialog.close(0);
         };
 
-        var r = dlg.show();
-        if (r !== 1) {
+        if (blendDialog.show() !== 1) {
             return null;
         }
-        return dlg._result || null;
+        return dialogResult;
     }
 
     /**
      * 入力欄で↑↓キーによる増減を行えるようにする
      *
-     * Shift併用で±10、Option併用で±0.1。
+     * Shift併用で±10。値は 0〜MAX_BLEND_STEPS の整数に収める。
      * @param {EditText} editText - 対象の入力欄
-     * @param {Function} onValueChanged - 値が変わったときに呼ぶコールバック
+     * @param {function} onValueChanged - 値が変わったときに呼ぶコールバック
      * @returns {void}
      */
     function changeValueByArrowKey(editText, onValueChanged) {
-        editText.addEventListener("keydown", function(event) {
-            // Only handle up/down keys
+        editText.addEventListener("keydown", function (event) {
+            /* 上下キーだけを扱う / Only handle Up/Down */
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
             var value = parseInt(editText.text, 10);
             if (isNaN(value)) value = 0;
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
+            /* Shiftキー押下時は10刻み（整数のみ）/ Shift steps by 10 */
+            var delta = ScriptUI.environment.keyboardState.shiftKey ? 10 : 1;
+            value += (event.keyName === "Up") ? delta : -delta;
+            event.preventDefault();
 
-            // Shiftキー押下時は10刻み（整数のみ）
-            if (keyboard.shiftKey) {
-                delta = 10;
+            /* 整数・0〜上限に収める / Integer within 0..MAX_BLEND_STEPS */
+            editText.text = String(clampBlendSteps(Math.round(value)));
+
+            if (typeof onValueChanged === 'function') {
+                onValueChanged();
             }
-
-            if (event.keyName === "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
-
-            // Clamp: integer only, min 0, max 1000
-            value = Math.round(value);
-            if (value < 0) value = 0;
-            if (value > 1000) value = 1000;
-
-            editText.text = String(value);
-
-            try {
-                if (typeof onValueChanged === 'function') {
-                    onValueChanged();
-                }
-            } catch (e) {}
         });
     }
 
-    /**
-     * 選択のうち最前面のパスを削除する
-     * @param {Array<PageItem>} selection - 対象の選択オブジェクト
-     * @returns {boolean} 削除できた場合は true、対象が無い場合は false
-     */
-    function deleteFrontmostPath(selection) {
-        try {
-            if (!selection || selection.length <= 0) {
-                return false;
-            }
-
-            var target = null;
-            var bestZ = null;
-
-            for (var i = 0; i < selection.length; i++) {
-                var it = selection[i];
-                if (!it) {
-                    continue;
-                }
-
-                // PathItem only
-                if (it.typename === 'PathItem') {
-                    var z = null;
-                    try {
-                        z = it.zOrderPosition;
-                    } catch (e1) {
-                        z = null;
-                    }
-
-                    if (bestZ === null || bestZ === undefined) {
-                        target = it;
-                        bestZ = z;
-                    } else {
-                        // Prefer higher zOrderPosition when available; otherwise keep the first one.
-                        if (z !== null && z !== undefined && (bestZ === null || bestZ === undefined || z > bestZ)) {
-                            target = it;
-                            bestZ = z;
-                        }
-                    }
-                }
-            }
-
-            if (target) {
-                target.remove();
-                return true;
-            }
-        } catch (e2) {}
-
-        return false;
-    }
+    // =========================================
+    // 一時アクション / Temporary action
+    // =========================================
 
     /**
      * アクションを文字列から生成し実行するブロック構文。終了時・エラー発生時の後片付けは自動
-     * @param {String} actionCode アクションのソースコード
-     * @param {Function} func ブロック内処理をここに記述する
-     * @return なし
+     * @param {string} actionCode - アクションのソースコード
+     * @param {function} actionCallback - 読み込んだアクションを受け取って実行する処理
+     * @returns {void}
      */
-    function tempAction(actionCode, func) {
+    function tempAction(actionCode, actionCallback) {
         /**
          * UTF-8の16進数文字コードを文字列に変換する
          * @param {string} hex - 16進数で表した文字コード列
          * @returns {string} 変換した文字列
          */
-        var hexToString = function(hex) {
-            var res = decodeURIComponent(hex.replace(/(.{2})/g, '%$1'));
-            return res;
+        var hexToString = function (hexText) {
+            return decodeURIComponent(hexText.replace(/(.{2})/g, '%$1'));
         };
 
         // ActionItemのconstructor。ActionItem.exec()を使えばわざわざ名前を直接指定しなくても実行できる
@@ -1275,7 +1227,7 @@ var SCRIPT_TITLE = {
         try {
             app.loadAction(aiaFileObj);
             actionLoaded = true;
-            func.call(func, actionItemsObj);
+            actionCallback.call(actionCallback, actionItemsObj);
         } catch (e) {
             alert(e);
         } finally {
@@ -1294,63 +1246,144 @@ var SCRIPT_TITLE = {
      * @returns {void}
      */
     function setBlendOption(step, orientationValue) {
-      var actionCode = [
-          "/version 3",
-          "/name [ 5",
-          "	426c656e64",
-          "]",
-          "/isOpen 1",
-          "/actionCount 1",
-          "/action-1 {",
-          "	/name [ 7",
-          "		73657453746570",
-          "	]",
-          "	/keyIndex 0",
-          "	/colorIndex 0",
-          "	/isOpen 1",
-          "	/eventCount 1",
-          "	/event-1 {",
-          "		/useRulersIn1stQuadrant 0",
-          "		/internalName (ai_plugin_liveblend)",
-          "		/localizedName [ 12",
-          "			e38396e383ace383b3e38389",
-          "		]",
-          "		/isOpen 0",
-          "		/isOn 1",
-          "		/hasDialog 1",
-          "		/showDialog 0",
-          "		/parameterCount 3",
-          "		/parameter-1 {",
-          "			/key 1835363957",
-          "			/showInPalette 4294967295",
-          "			/type (enumerated)",
-          "			/name [ 15",
-          "				e382aae38397e382b7e383a7e383b3",
-          "			]",
-          "			/value 5",
-          "		}",
-          "		/parameter-2 {",
-          "			/key 1937007984",
-          "			/showInPalette 4294967295",
-          "			/type (integer)",
-          "			/value " + String(step),
-          "		}",
-          "		/parameter-3 {",
-          "			/key 1919906913",
-          "			/showInPalette 4294967295",
-          "			/type (enumerated)",
-          "			/name [ 12",
-          "				e59e82e79bb4e696b9e59091",
-          "			]",
-          "			/value " + String(orientationValue),
-          "		}",
-          "	}",
-          "}"
-      ].join("\n");
+        var actionCode = [
+            "/version 3",
+            "/name [ 5",
+            "	426c656e64",
+            "]",
+            "/isOpen 1",
+            "/actionCount 1",
+            "/action-1 {",
+            "	/name [ 7",
+            "		73657453746570",
+            "	]",
+            "	/keyIndex 0",
+            "	/colorIndex 0",
+            "	/isOpen 1",
+            "	/eventCount 1",
+            "	/event-1 {",
+            "		/useRulersIn1stQuadrant 0",
+            "		/internalName (ai_plugin_liveblend)",
+            "		/localizedName [ 12",
+            "			e38396e383ace383b3e38389",
+            "		]",
+            "		/isOpen 0",
+            "		/isOn 1",
+            "		/hasDialog 1",
+            "		/showDialog 0",
+            "		/parameterCount 3",
+            "		/parameter-1 {",
+            "			/key 1835363957",
+            "			/showInPalette 4294967295",
+            "			/type (enumerated)",
+            "			/name [ 15",
+            "				e382aae38397e382b7e383a7e383b3",
+            "			]",
+            "			/value 5",
+            "		}",
+            "		/parameter-2 {",
+            "			/key 1937007984",
+            "			/showInPalette 4294967295",
+            "			/type (integer)",
+            "			/value " + String(step),
+            "		}",
+            "		/parameter-3 {",
+            "			/key 1919906913",
+            "			/showInPalette 4294967295",
+            "			/type (enumerated)",
+            "			/name [ 12",
+            "				e59e82e79bb4e696b9e59091",
+            "			]",
+            "			/value " + String(orientationValue),
+            "		}",
+            "	}",
+            "}"
+        ].join("\n");
 
-      tempAction(actionCode, function(actionItems) {
-        actionItems[0].exec(false);
-      });
+        tempAction(actionCode, function(actionItems) {
+            actionItems[0].exec(false);
+        });
     }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ドキュメントと選択を確認し、ダイアログを開いてブレンドの作成・設定・調整を実行する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length <= 0) {
+            return;
+        }
+        var doc = app.activeDocument;
+        var selection = doc.selection;
+
+        /* ダイアログを開いた時点で「ブレンドオブジェクトを選択していたか」を記録
+           （この後 Path Blend Make を実行して選択がブレンドに変わることがあるため）
+           Remember whether a blend was selected at launch; Path Blend Make may change the selection */
+        var wasBlendSelectedAtOpen = !!findFirstBlendObject(selection);
+
+        /* 選択にブレンド（PluginItem/BlendItem）が含まれない場合のみ、ブレンドを作成
+           （既に含まれる場合は、パスが混ざっていても選択はそのまま。作成せずオプション/調整のみ行う）
+           Make a blend only when none is selected; otherwise keep the selection as is */
+        if (!wasBlendSelectedAtOpen) {
+            try {
+                app.executeMenuCommand('Path Blend Make');
+            } catch (e) { }
+
+            /* コマンド実行後に選択が変わる可能性があるため、再取得 / The command may change the selection */
+            selection = doc.selection;
+            if (!selection || selection.length <= 0) {
+                return;
+            }
+
+            /* 生成された PluginItem（ブレンド）だけを選択状態にする / Select only the new blend */
+            var createdBlend = findFirstBlendObject(selection);
+            if (createdBlend) {
+                selectOnlyItem(doc, createdBlend);
+                selection = doc.selection;
+            }
+        }
+
+        /* ダイアログを表示してユーザー入力を取得（UI操作専用。引数実行は行わない）
+           Show the dialog; this script is UI-only */
+        var dialogInput = showBlendDialog(selection, wasBlendSelectedAtOpen);
+        if (!dialogInput) {
+            return; /* キャンセル / cancelled */
+        }
+
+        var adjustMode = dialogInput.adjustMode || 'none';
+        if (adjustMode === 'release') {
+            runBlendCommandAndDeleteFrontmostPath(doc, 'Path Blend Release');
+            return;
+        }
+        if (adjustMode === 'expand') {
+            app.executeMenuCommand('Path Blend Expand');
+            return;
+        }
+        if (adjustMode === 'replaceSpine') {
+            runBlendCommandAndDeleteFrontmostPath(doc, 'Path Blend Replace Spine');
+            return;
+        }
+
+        var reverseSpine = !!dialogInput.reverseSpine;
+        var reverseStack = !!dialogInput.reverseStack;
+        if (reverseSpine) {
+            runBlendCommandAndDeleteFrontmostPath(doc, 'Path Blend Reverse Spine');
+        }
+        if (reverseStack) {
+            runBlendCommandAndDeleteFrontmostPath(doc, 'Path Blend Reverse Stack');
+        }
+        if (reverseSpine || reverseStack) {
+            return;
+        }
+
+        /* オプションだけを適用（新しいブレンドは作らない）/ Apply options only; no new blend */
+        setBlendOption(dialogInput.step, dialogInput.orientation);
+    }
+
+    main();
 
 })();

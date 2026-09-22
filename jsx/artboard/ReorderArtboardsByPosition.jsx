@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md"; /* README (English) */
@@ -89,68 +89,68 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * ウィンドウの共通設定を適用する
-     * @param {Window} win - 対象ウィンドウ
+     * @param {Window} targetWindow - 対象ウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = ["fill", "top"];
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルの共通設定を適用する
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 行グループの共通設定を適用する
-     * @param {Group} group - 対象グループ
+     * @param {Group} rowGroup - 対象グループ
      * @param {string|Array} [alignment] - 配置（省略時は "left"）
      * @param {number} [spacing] - 要素間隔（省略時は ScriptUI 既定値）
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignChildren = ["left", "center"];
-        group.alignment = alignment || "left";
-        if (typeof spacing === "number") group.spacing = spacing;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.alignment = alignment || "left";
+        if (typeof spacing === "number") rowGroup.spacing = spacing;
     }
 
     /**
      * 列グループの共通設定を適用する
-     * @param {Group} group - 対象グループ
+     * @param {Group} columnGroup - 対象グループ
      * @param {string|Array} [alignChildren] - 子要素の配置（省略時は ["fill", "top"]）
      * @param {string|Array} [alignment] - グループ自身の配置（省略時は ["fill", "top"]）
      * @returns {void}
      */
-    function setupColumn(group, alignChildren, alignment) {
-        group.orientation = "column";
-        group.alignChildren = alignChildren || ["fill", "top"];
-        group.alignment = alignment || ["fill", "top"];
+    function setupColumn(columnGroup, alignChildren, alignment) {
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = alignChildren || ["fill", "top"];
+        columnGroup.alignment = alignment || ["fill", "top"];
     }
 
     /**
      * 2カラムを横に並べる行グループの共通設定を適用する
-     * @param {Group} group - 対象グループ
+     * @param {Group} columnsRowGroup - 対象グループ
      * @returns {void}
      */
-    function setupColumnsRow(group) {
-        group.orientation = "row";
-        group.alignChildren = ["fill", "top"];
-        group.alignment = ["fill", "top"];
-        group.spacing = COLUMN_SPACING;
+    function setupColumnsRow(columnsRowGroup) {
+        columnsRowGroup.orientation = "row";
+        columnsRowGroup.alignChildren = ["fill", "top"];
+        columnsRowGroup.alignment = ["fill", "top"];
+        columnsRowGroup.spacing = COLUMN_SPACING;
     }
 
     // =========================================
@@ -161,10 +161,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * 現在のUI言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getUILanguage() {
+    function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getUILanguage();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -195,9 +195,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             namingEnable:       { ja: "「行-列」形式に更新", en: "Update" }
         },
         fieldLabel: {
-            columns:   { ja: "列数：", en: "Columns:" },
-            columnGap: { ja: "列間：", en: "Column gap:" },
-            rowGap:    { ja: "行間：", en: "Row gap:" }
+            columns:   { ja: "列数", en: "Columns" },
+            columnGap: { ja: "列間", en: "Column gap" },
+            rowGap:    { ja: "行間", en: "Row gap" }
         },
         tooltip: {
             sortByName:     { ja: "アートボードパネルの並び順を、アートボード名の昇順に整えます。", en: "Sorts the Artboards panel by artboard name." },
@@ -214,7 +214,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             duplicateGroupInLastRow: { ja: "行列を読み取れなかったアートボードや重複したものを、最終行の次の行にまとめます。", en: "Collects artboards with no readable row-column, or duplicates, into a row after the last one." },
             namingEnable:       { ja: "処理のあと、アートボード名を「行-列」形式に付け直します。", en: "Renames the artboards as row-column once the rearranging is done." },
             namingFromPosition: { ja: "並べ直したあとの位置から、新しい名前を作ります。", en: "Builds the new names from the positions after rearranging." },
-            namingFromExisting: { ja: "既存の名前に含まれる行列を読み取り、区切り文字と桁数だけ整えます。", en: "Keeps the row-column found in the existing names and only fixes the separator and digits." }
+            namingFromExisting: { ja: "既存の名前に含まれる行列を読み取り、区切り文字と桁数だけ整えます。", en: "Keeps the row-column found in the existing names and only fixes the separator and digits." },
+            namingSeparator:    { ja: "行番号と列番号のあいだに入れる文字です。", en: "Character placed between the row number and the column number." },
+            namingPadWidth:     { ja: "行番号・列番号がこの桁数になるまで、先頭に 0 を補います（例: 00 → 01-02）。", en: "Pads the row and column numbers with leading zeros to this many digits (e.g. 00 gives 01-02)." }
         },
         button: {
             ok:     { ja: "OK", en: "OK" },
@@ -233,21 +235,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * ラベルを現在のUI言語で取得する
-     * @param {...string} labelPath - たどるキー（例: getLabel("dialog", "title")）
-     * @returns {string} ローカライズ済みラベル
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのパス
+     * @returns {string} ローカライズ済みラベル（見つからなければ空文字）
      */
-    function getLabel() {
-        var node = LABELS;
-        for (var pathIndex = 0; pathIndex < arguments.length; pathIndex++) {
-            if (node == null) break;
-            node = node[arguments[pathIndex]];
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var pathIndex = 0; pathIndex < pathKeys.length; pathIndex++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[pathKeys[pathIndex]];
         }
-        return (node && node[uiLang] != null) ? node[uiLang] : "";
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
     }
 
-    // =========================================
-    // 単位 / Units
-    // =========================================
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
 
     // =========================================
     // 単位 / Units
@@ -284,38 +292,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     var currentUnitLabel = getUnitInfo().label;
 
     /**
-     * 表示単位の数値をポイントに変換する
-     * @param {number} value - 表示単位の値
-     * @returns {number} ポイント値
-     */
-    function convertDisplayUnitToPoints(value) {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        switch (unitCode) {
-            case 0: return value * 72;                  /* inch */
-            case 1: return value * 72 / 25.4;           /* mm */
-            case 2: return value;                       /* pt */
-            case 3: return value * 12;                  /* pica */
-            case 4: return value * 72 / 2.54;           /* cm */
-            case 5: return value * 0.25 * 72 / 25.4;    /* Q/H */
-            case 6: return value;                       /* px: Illustrator scripting commonly treats px as pt */
-            case 7: return value * 72 * 12;             /* ft/in */
-            case 8: return value * 72 / 0.0254;         /* m */
-            case 9: return value * 72 * 36;             /* yd */
-            case 10: return value * 72 * 12;            /* ft */
-            default: return value;
-        }
-    }
-
-    /**
      * 入力欄の表示単位値を読み取り、ポイントに変換する
-     * @param {EditText} input - 対象の入力欄
+     * @param {EditText} valueInput - 対象の入力欄
      * @param {number} defaultValue - 数値として読めない場合の既定値（表示単位）
      * @returns {number} ポイント値
      */
-    function readDisplayUnitInputAsPoints(input, defaultValue) {
-        var value = parseFloat(input.text);
-        if (isNaN(value)) value = defaultValue;
-        return convertDisplayUnitToPoints(value);
+    function readDisplayUnitInputAsPoints(valueInput, defaultValue) {
+        var displayValue = parseFloat(valueInput.text);
+        if (isNaN(displayValue)) displayValue = defaultValue;
+        return displayValue * getUnitInfo().pointsPerUnit;
     }
 
     // =========================================
@@ -343,22 +328,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel("alert", "noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var doc = app.activeDocument;
         if (doc.artboards.length === 0) {
-            alert(getLabel("alert", "noArtboards"));
+            alert(getLabel("alert.noArtboards"));
             return;
         }
 
         var previewContext = buildPreviewContext(doc);
-        var ui = buildDialogUI(previewContext.defaultTolerance, previewContext.sliderMax);
+        var dialogUI = buildDialogUI(previewContext.defaultTolerance, previewContext.sliderMax);
 
-        bindEvents(doc, previewContext, ui);
+        bindEvents(doc, previewContext, dialogUI);
 
-        ui.dialog.center();
-        ui.dialog.show();
+        dialogUI.reorderDialog.center();
+        dialogUI.reorderDialog.show();
     }
 
     /**
@@ -403,37 +388,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {number} 許容差（pt）
      */
     function calculateAutoTolerance(artboardEntries) {
-        var tops = [];
+        var topEdges = [];
         for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
-            tops.push(artboardEntries[entryIndex].artboardRect[1]);
+            topEdges.push(artboardEntries[entryIndex].artboardRect[1]);
         }
         /* 上から下に並べる / Sort top to bottom */
-        tops.sort(function (firstTop, secondTop) {
+        topEdges.sort(function (firstTop, secondTop) {
             return secondTop - firstTop;
         });
 
-        var diffs = [];
-        for (var topIndex = 1; topIndex < tops.length; topIndex++) {
-            var diff = Math.abs(tops[topIndex] - tops[topIndex - 1]);
-            if (diff > 0) diffs.push(diff);
+        var topGaps = [];
+        for (var topIndex = 1; topIndex < topEdges.length; topIndex++) {
+            var topGap = Math.abs(topEdges[topIndex] - topEdges[topIndex - 1]);
+            if (topGap > 0) topGaps.push(topGap);
         }
 
         /* 差が無ければデフォルト / Default if no difference */
-        if (diffs.length === 0) return TOLERANCE_FALLBACK_POINTS;
+        if (topGaps.length === 0) return TOLERANCE_FALLBACK_POINTS;
 
         /* 少しマージンを加える / Add some margin */
-        return Math.min.apply(null, diffs) + TOLERANCE_AUTO_MARGIN_POINTS;
+        return Math.min.apply(null, topGaps) + TOLERANCE_AUTO_MARGIN_POINTS;
     }
 
     /**
      * ダイアログのイベントを設定する
      * @param {Document} doc - 対象ドキュメント
      * @param {PreviewContext} previewContext - プレビュー用のコンテキスト
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @returns {void}
      */
-    function bindEvents(doc, previewContext, ui) {
-        var sortRadios = ui.preview.sortModeRadios;
+    function bindEvents(doc, previewContext, dialogUI) {
+        var sortRadios = dialogUI.preview.sortModeRadios;
 
         /* ラジオは親グループが異なるため、ScriptUI の自動排他が効かない。
          * 手動で他のラジオを OFF にして相互排他を成立させる。
@@ -459,8 +444,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
          */
         function syncToleranceEnabled() {
             var usedByPanelOrder = sortRadios.byPosition.value;
-            var usedByNaming = ui.naming.enableCheckbox.value && ui.naming.source.fromPosition.value;
-            ui.preview.toleranceSlider.enabled = usedByPanelOrder || usedByNaming;
+            var usedByNaming = dialogUI.naming.enableCheckbox.value && dialogUI.naming.source.fromPosition.value;
+            dialogUI.preview.toleranceSlider.enabled = usedByPanelOrder || usedByNaming;
         }
 
         /**
@@ -469,7 +454,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
          */
         function syncSortMode() {
             syncToleranceEnabled();
-            updateReorderPreview(previewContext, ui, Math.round(ui.preview.toleranceSlider.value));
+            updateReorderPreview(previewContext, dialogUI, Math.round(dialogUI.preview.toleranceSlider.value));
         }
 
         /**
@@ -477,47 +462,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
          * @returns {void}
          */
         function syncNamingState() {
-            ui.naming.settingsGroup.enabled = ui.naming.enableCheckbox.value;
+            dialogUI.naming.settingsGroup.enabled = dialogUI.naming.enableCheckbox.value;
             syncToleranceEnabled();
         }
 
         syncNamingState();
         syncSortMode();
 
-        ui.preview.toleranceSlider.onChanging = function () {
-            updateReorderPreview(previewContext, ui, Math.round(ui.preview.toleranceSlider.value));
+        dialogUI.preview.toleranceSlider.onChanging = function () {
+            updateReorderPreview(previewContext, dialogUI, Math.round(dialogUI.preview.toleranceSlider.value));
         };
 
         sortRadios.byPosition.onClick = function () { selectSortMode(sortRadios.byPosition); };
         sortRadios.byName.onClick = function () { selectSortMode(sortRadios.byName); };
         sortRadios.keepAsIs.onClick = function () { selectSortMode(sortRadios.keepAsIs); };
 
-        ui.naming.enableCheckbox.onClick = syncNamingState;
-        ui.naming.source.fromPosition.onClick = syncToleranceEnabled;
-        ui.naming.source.fromExisting.onClick = syncToleranceEnabled;
+        dialogUI.naming.enableCheckbox.onClick = syncNamingState;
+        dialogUI.naming.source.fromPosition.onClick = syncToleranceEnabled;
+        dialogUI.naming.source.fromExisting.onClick = syncToleranceEnabled;
 
-        ui.buttons.okBtn.onClick = function () {
-            executeReorder(doc, ui);
+        dialogUI.buttons.btnOK.onClick = function () {
+            executeReorder(doc, dialogUI);
         };
 
-        ui.buttons.cancelBtn.onClick = function () {
-            ui.dialog.close(-1);
+        dialogUI.buttons.btnCancel.onClick = function () {
+            dialogUI.reorderDialog.close(-1);
         };
     }
 
     /**
      * 並び順リストのプレビューを更新する
      * @param {PreviewContext} previewContext - プレビュー用のコンテキスト
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @param {number} tolerance - 行判定の許容差（pt）
      * @returns {void}
      */
-    function updateReorderPreview(previewContext, ui, tolerance) {
-        var reorderList = ui.preview.reorderList;
+    function updateReorderPreview(previewContext, dialogUI, tolerance) {
+        var reorderList = dialogUI.preview.reorderList;
         reorderList.removeAll();
 
         /* 変更しないモード: 現在の並びをそのまま表示 / Keep-as-is mode: show current order untouched */
-        if (ui.preview.sortModeRadios.keepAsIs.value) {
+        if (dialogUI.preview.sortModeRadios.keepAsIs.value) {
             for (var keepIndex = 0; keepIndex < previewContext.artboardEntries.length; keepIndex++) {
                 reorderList.add("item", previewContext.artboardEntries[keepIndex].name);
             }
@@ -525,7 +510,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         }
 
         /* 名前順モード: アートボード名で並べてリスト表示 / By-name mode: list names in name-sort order */
-        if (ui.preview.sortModeRadios.byName.value) {
+        if (dialogUI.preview.sortModeRadios.byName.value) {
             var byNameEntries = previewContext.artboardEntries.slice();
             sortArtboardsByName(byNameEntries);
             for (var nameIndex = 0; nameIndex < byNameEntries.length; nameIndex++) {
@@ -552,21 +537,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     /**
      * ダイアログの設定を読み取り、再配置・並べ替え・リネームを実行する
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @returns {void}
      */
-    function executeReorder(doc, ui) {
-        var tolerance = Math.round(ui.preview.toleranceSlider.value) || 0;
+    function executeReorder(doc, dialogUI) {
+        var tolerance = Math.round(dialogUI.preview.toleranceSlider.value) || 0;
 
         /* 再配置に失敗したらアラート済みなので、ダイアログを開いたまま中断する
          * Abort with the dialog still open when the rearrange failed (already alerted) */
-        var rearrangeResult = applyCanvasRearrange(doc, ui);
+        var rearrangeResult = applyCanvasRearrange(doc, dialogUI);
         if (!rearrangeResult.ok) return;
 
-        applyPanelReorder(doc, ui, tolerance);
-        applyArtboardRenaming(doc, ui, tolerance);
+        applyPanelReorder(doc, dialogUI, tolerance);
+        applyArtboardRenaming(doc, dialogUI, tolerance);
 
-        ui.dialog.close(1);
+        dialogUI.reorderDialog.close(1);
 
         /* ダイアログを閉じてからビューを合わせる（モーダル表示中のメニュー実行を避ける）
          * Fit the view after closing, so no menu command runs while the modal dialog is up */
@@ -578,31 +563,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * 再配置を先に実行すると、パネル順が「再配置後の見た目」と揃う
      * Run rearrange first so the panel order reflects post-rearrange positions
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @returns {{ok: boolean, rearranged: boolean}} ok は後続処理を続けてよいか、rearranged は実際に動かしたか
      */
-    function applyCanvasRearrange(doc, ui) {
-        var modeChecks = ui.rearrange.modeChecks;
+    function applyCanvasRearrange(doc, dialogUI) {
+        var modeChecks = dialogUI.rearrange.modeChecks;
         if (!modeChecks.byColumns.value && !modeChecks.byName.value) {
             return { ok: true, rearranged: false };
         }
 
         /* 入力値は表示単位として受け取り、ptに変換して渡す / Read inputs in display units and convert to points */
-        var columnGapPoints = readDisplayUnitInputAsPoints(ui.rearrange.columnGapInput, DEFAULT_GAP_VALUE);
-        var rowGapPoints = ui.rearrange.gapLinkCheckbox.value
+        var columnGapPoints = readDisplayUnitInputAsPoints(dialogUI.rearrange.columnGapInput, DEFAULT_GAP_VALUE);
+        var rowGapPoints = dialogUI.rearrange.gapLinkCheckbox.value
             ? columnGapPoints
-            : readDisplayUnitInputAsPoints(ui.rearrange.rowGapInput, DEFAULT_GAP_VALUE);
+            : readDisplayUnitInputAsPoints(dialogUI.rearrange.rowGapInput, DEFAULT_GAP_VALUE);
 
         try {
             if (modeChecks.byColumns.value) {
-                rearrangeArtboardsWithGaps(doc, readColumnCount(ui.rearrange.columnsInput), columnGapPoints, rowGapPoints);
+                rearrangeArtboardsWithGaps(doc, readColumnCount(dialogUI.rearrange.columnsInput), columnGapPoints, rowGapPoints);
                 return { ok: true, rearranged: true };
             }
-            var exceptionMode = ui.rearrange.duplicateRadios.groupLast.value ? 'lastRow' : 'rowEnd';
+            var exceptionMode = dialogUI.rearrange.duplicateRadios.groupLast.value ? 'lastRow' : 'rowEnd';
             var matched = rearrangeArtboardsByRowColumnName(doc, columnGapPoints, rowGapPoints, exceptionMode);
             return { ok: matched, rearranged: matched };
         } catch (rearrangeError) {
-            alert(getLabel("alert", "errorPrefix") + rearrangeError.message);
+            alert(getLabel("alert.errorPrefix") + rearrangeError.message);
             return { ok: false, rearranged: false };
         }
     }
@@ -623,45 +608,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     /**
      * ［アートボード］パネルの並び順を更新する
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @param {number} tolerance - 行判定の許容差（pt）
      * @returns {void}
      */
-    function applyPanelReorder(doc, ui, tolerance) {
+    function applyPanelReorder(doc, dialogUI, tolerance) {
         /* 並び順モードに応じてソーター切替（変更しない場合はスキップ）
          * Pick a sorter based on the selected sort mode; skip when "Keep as is" */
-        if (ui.preview.sortModeRadios.keepAsIs.value) return;
+        if (dialogUI.preview.sortModeRadios.keepAsIs.value) return;
 
-        var sorter;
-        if (ui.preview.sortModeRadios.byName.value) {
-            sorter = function (entries) {
-                sortArtboardsByName(entries);
+        var sortFunction;
+        if (dialogUI.preview.sortModeRadios.byName.value) {
+            sortFunction = function (artboardEntries) {
+                sortArtboardsByName(artboardEntries);
             };
         } else {
-            sorter = function (entries, decimalPlaces) {
-                sortArtboardsTopLeftWithTolerance(entries, decimalPlaces, tolerance);
+            sortFunction = function (artboardEntries, decimalPlaces) {
+                sortArtboardsTopLeftWithTolerance(artboardEntries, decimalPlaces, tolerance);
             };
         }
-        rebuildArtboardsInSortedOrder(doc, sorter, COORDINATE_PRECISION_DIGITS);
+        rebuildArtboardsInSortedOrder(doc, sortFunction, COORDINATE_PRECISION_DIGITS);
     }
 
     /**
      * アートボード名を「行-列」形式に更新する
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
      * @param {number} tolerance - 行判定の許容差（pt）
      * @returns {void}
      */
-    function applyArtboardRenaming(doc, ui, tolerance) {
-        if (!ui.naming.enableCheckbox.value) return;
+    function applyArtboardRenaming(doc, dialogUI, tolerance) {
+        if (!dialogUI.naming.enableCheckbox.value) return;
 
-        var separators = ui.naming.separators;
+        var separators = dialogUI.naming.separators;
         var separator = separators.underscore.value ? "_" : (separators.x.value ? "x" : "-");
-        var padRadios = ui.naming.padRadios;
+        var padRadios = dialogUI.naming.padRadios;
         var padWidth = padRadios.w3.value ? 3 : (padRadios.w2.value ? 2 : 1);
 
         /* 配置位置から作成 / 既存名を整形 / Create from position, or reformat existing names */
-        if (ui.naming.source.fromPosition.value) {
+        if (dialogUI.naming.source.fromPosition.value) {
             renameArtboardsFromPositions(doc, separator, padWidth, tolerance);
         } else {
             renameArtboardsFromExistingNames(doc, separator, padWidth);
@@ -676,17 +661,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * ダイアログ全体を組み立てる
      * @param {number} defaultTolerance - 許容差スライダーの初期値
      * @param {number} sliderMax - 許容差スライダーの最大値
-     * @returns {Object} ダイアログとUI参照をまとめたオブジェクト
+     * @returns {Object} ダイアログ（reorderDialog）とUI参照をまとめたオブジェクト
      */
     function buildDialogUI(defaultTolerance, sliderMax) {
-        var dialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
+        var reorderDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(reorderDialog);
 
         /* 並び順は上段にフル幅 / Order panel spans full width on top */
-        var preview = buildPreviewPanel(dialog, defaultTolerance, sliderMax);
+        var previewControls = buildPreviewPanel(reorderDialog, defaultTolerance, sliderMax);
 
         /* 下段は 2 カラム（左: 再配置 / 右: 命名） / Two-column row: rearrange (left) / naming (right) */
-        var twoColumnsRow = dialog.add("group");
+        var twoColumnsRow = reorderDialog.add("group");
         setupColumnsRow(twoColumnsRow);
 
         var leftColumn = twoColumnsRow.add("group");
@@ -695,54 +680,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var rightColumn = twoColumnsRow.add("group");
         setupColumn(rightColumn);
 
-        var rearrange = buildRearrangePanel(leftColumn);
-        var naming = buildNamingPanel(rightColumn);
-        var buttons = buildDialogButtons(dialog);
-
+        /* プロパティの評価順がそのままUIの並び順になる / Property evaluation order is the on-screen order */
         return {
-            dialog: dialog,
-            preview: preview,
-            rearrange: rearrange,
-            naming: naming,
-            buttons: buttons
+            reorderDialog: reorderDialog,
+            preview: previewControls,
+            rearrange: buildRearrangePanel(leftColumn),
+            naming: buildNamingPanel(rightColumn),
+            buttons: buildDialogButtons(reorderDialog)
         };
     }
 
     /**
      * プレビューパネル（並び順モード＋許容差スライダー＋並び順リスト）を作成する
-     * @param {Group|Window} parent - 追加先のコンテナ
+     * @param {Group|Window} parentContainer - 追加先のコンテナ
      * @param {number} defaultTolerance - 許容差スライダーの初期値
      * @param {number} sliderMax - 許容差スライダーの最大値
      * @returns {Object} 並び順ラジオ・スライダー・リストの参照
      */
-    function buildPreviewPanel(parent, defaultTolerance, sliderMax) {
-        var reorderPanel = parent.add("panel", undefined, getLabel("panel", "reorder"));
+    function buildPreviewPanel(parentContainer, defaultTolerance, sliderMax) {
+        var reorderPanel = parentContainer.add("panel", undefined, getLabel("panel.reorder"));
         setupPanel(reorderPanel, DENSE_SPACING);
 
         /* 名前順（ラジオ） / Radio "By name" */
         var byNameRow = reorderPanel.add("group");
         setupRow(byNameRow);
-        var sortByNameRadio = byNameRow.add("radiobutton", undefined, getLabel("radio", "sortByName"));
-        sortByNameRadio.helpTip = getLabel("tooltip", "sortByName");
+        var sortByNameRadio = byNameRow.add("radiobutton", undefined, getLabel("radio.sortByName"));
+        sortByNameRadio.helpTip = getLabel("tooltip.sortByName");
 
         /* カンバス上の並び順に（ラジオ）＋ 許容差スライダーを同じ行に配置
          * Radio "Match canvas order" and tolerance slider on the same row */
         var byPositionRow = reorderPanel.add("group");
         setupRow(byPositionRow);
 
-        var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, getLabel("radio", "sortByPosition"));
-        sortByPositionRadio.helpTip = getLabel("tooltip", "sortByPosition");
+        var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, getLabel("radio.sortByPosition"));
+        sortByPositionRadio.helpTip = getLabel("tooltip.sortByPosition");
         sortByPositionRadio.value = true;
 
         var toleranceSlider = byPositionRow.add("slider", undefined, defaultTolerance, 0, sliderMax);
-        toleranceSlider.helpTip = getLabel("tooltip", "tolerance");
+        toleranceSlider.helpTip = getLabel("tooltip.tolerance");
         toleranceSlider.preferredSize = [SLIDER_WIDTH, SLIDER_HEIGHT];
 
         /* 変更しない（ラジオ） / Radio "Keep as is" */
         var keepAsIsRow = reorderPanel.add("group");
         setupRow(keepAsIsRow);
-        var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, getLabel("radio", "sortKeepAsIs"));
-        sortKeepAsIsRadio.helpTip = getLabel("tooltip", "sortKeepAsIs");
+        var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, getLabel("radio.sortKeepAsIs"));
+        sortKeepAsIsRadio.helpTip = getLabel("tooltip.sortKeepAsIs");
 
         var reorderList = reorderPanel.add("listbox", undefined, [], { multiselect: false });
         reorderList.preferredSize.width = PREVIEW_LIST_WIDTH;
@@ -762,11 +744,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 再配置パネルを作成する
-     * @param {Group} parent - 追加先のコンテナ
+     * @param {Group} parentContainer - 追加先のコンテナ
      * @returns {Object} 再配置設定コントロールの参照
      */
-    function buildRearrangePanel(parent) {
-        var rearrangePanel = parent.add("panel", undefined, getLabel("panel", "rearrange"));
+    function buildRearrangePanel(parentContainer) {
+        var rearrangePanel = parentContainer.add("panel", undefined, getLabel("panel.rearrange"));
         setupPanel(rearrangePanel);
 
         var modeChecks = buildRearrangeModeCheckboxes(rearrangePanel);
@@ -774,7 +756,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var rearrangeSettingsGroup = rearrangePanel.add("group");
         setupColumn(rearrangeSettingsGroup);
 
-        var columnsRow = addLabeledInput(rearrangeSettingsGroup, getLabel("fieldLabel", "columns"), String(DEFAULT_COLUMN_COUNT), MIN_COLUMN_COUNT);
+        var columnsRow = addLabeledInput(rearrangeSettingsGroup, labelText("fieldLabel.columns"), String(DEFAULT_COLUMN_COUNT), MIN_COLUMN_COUNT);
         var spacingControls = buildRearrangeSpacingControls(rearrangeSettingsGroup);
         var duplicateRadios = buildDuplicateHandlingPanel(rearrangePanel);
 
@@ -811,17 +793,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 再配置モードのチェックボックスを作成する（列数指定 / アートボード名、排他的に選択）
-     * @param {Panel} parent - 追加先のパネル
+     * @param {Panel} parentContainer - 追加先のパネル
      * @returns {Object} 各モードのチェックボックス参照
      */
-    function buildRearrangeModeCheckboxes(parent) {
-        var modeGroup = parent.add("group");
+    function buildRearrangeModeCheckboxes(parentContainer) {
+        var modeGroup = parentContainer.add("group");
         setupColumn(modeGroup, ["left", "top"]);
 
-        var byColumnsCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByColumns"));
-        byColumnsCheckbox.helpTip = getLabel("tooltip", "rearrangeByColumns");
-        var byNameCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByName"));
-        byNameCheckbox.helpTip = getLabel("tooltip", "rearrangeByName");
+        var byColumnsCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox.rearrangeByColumns"));
+        byColumnsCheckbox.helpTip = getLabel("tooltip.rearrangeByColumns");
+        var byNameCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox.rearrangeByName"));
+        byNameCheckbox.helpTip = getLabel("tooltip.rearrangeByName");
         byColumnsCheckbox.value = false;
         byNameCheckbox.value = false;
 
@@ -833,27 +815,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 再配置の列間／行間入力と連動チェックを作成する
-     * @param {Group} parent - 追加先のコンテナ
+     * @param {Group} parentContainer - 追加先のコンテナ
      * @returns {Object} 列間・行間入力欄と連動チェックの参照
      */
-    function buildRearrangeSpacingControls(parent) {
+    function buildRearrangeSpacingControls(parentContainer) {
         /* 列間／行間 + 連動チェックの2カラム / Two-column row: gap inputs (left) + link checkbox (right) */
-        var gapsRow = parent.add("group");
+        var gapsRow = parentContainer.add("group");
         setupRow(gapsRow, "left", COLUMN_SPACING);
 
         var gapsLeft = gapsRow.add("group");
         setupColumn(gapsLeft, ["left", "top"], ["left", "top"]);
 
-        var columnGapRow = addLabeledInput(gapsLeft, getLabel("fieldLabel", "columnGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
+        var columnGapRow = addLabeledInput(gapsLeft, labelText("fieldLabel.columnGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
         var columnGapInput = columnGapRow.input;
         columnGapRow.row.add("statictext", undefined, currentUnitLabel);
 
-        var rowGapRow = addLabeledInput(gapsLeft, getLabel("fieldLabel", "rowGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
+        var rowGapRow = addLabeledInput(gapsLeft, labelText("fieldLabel.rowGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
         var rowGapInput = rowGapRow.input;
         rowGapRow.row.add("statictext", undefined, currentUnitLabel);
 
-        var gapLinkCheckbox = gapsRow.add("checkbox", undefined, getLabel("checkbox", "gapLink"));
-        gapLinkCheckbox.helpTip = getLabel("tooltip", "gapLink");
+        var gapLinkCheckbox = gapsRow.add("checkbox", undefined, getLabel("checkbox.gapLink"));
+        gapLinkCheckbox.helpTip = getLabel("tooltip.gapLink");
         gapLinkCheckbox.value = true;
 
         bindGapLinkControls(columnGapInput, rowGapInput, rowGapRow.row, gapLinkCheckbox);
@@ -898,17 +880,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 未指定／重複の扱いパネルを作成する
-     * @param {Panel} parent - 追加先のパネル
+     * @param {Panel} parentContainer - 追加先のパネル
      * @returns {Object} パネルと各ラジオの参照
      */
-    function buildDuplicateHandlingPanel(parent) {
-        var duplicatePanel = parent.add("panel", undefined, getLabel("panel", "duplicateHandling"));
+    function buildDuplicateHandlingPanel(parentContainer) {
+        var duplicatePanel = parentContainer.add("panel", undefined, getLabel("panel.duplicateHandling"));
         setupPanel(duplicatePanel, DENSE_SPACING);
 
-        var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateAppendToRowEnd"));
-        duplicateAppendRadio.helpTip = getLabel("tooltip", "duplicateAppendToRowEnd");
-        var duplicateGroupRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateGroupInLastRow"));
-        duplicateGroupRadio.helpTip = getLabel("tooltip", "duplicateGroupInLastRow");
+        var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio.duplicateAppendToRowEnd"));
+        duplicateAppendRadio.helpTip = getLabel("tooltip.duplicateAppendToRowEnd");
+        var duplicateGroupRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio.duplicateGroupInLastRow"));
+        duplicateGroupRadio.helpTip = getLabel("tooltip.duplicateGroupInLastRow");
         duplicateAppendRadio.value = true;
 
         return {
@@ -938,15 +920,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 命名パネルを作成する
-     * @param {Group} parent - 追加先のコンテナ
+     * @param {Group} parentContainer - 追加先のコンテナ
      * @returns {Object} 命名設定コントロールの参照
      */
-    function buildNamingPanel(parent) {
-        var namingPanel = parent.add("panel", undefined, getLabel("panel", "naming"));
+    function buildNamingPanel(parentContainer) {
+        var namingPanel = parentContainer.add("panel", undefined, getLabel("panel.naming"));
         setupPanel(namingPanel);
 
-        var namingEnableCheckbox = namingPanel.add("checkbox", undefined, getLabel("checkbox", "namingEnable"));
-        namingEnableCheckbox.helpTip = getLabel("tooltip", "namingEnable");
+        var namingEnableCheckbox = namingPanel.add("checkbox", undefined, getLabel("checkbox.namingEnable"));
+        namingEnableCheckbox.helpTip = getLabel("tooltip.namingEnable");
         namingEnableCheckbox.value = false;
 
         var namingSettingsGroup = namingPanel.add("group");
@@ -955,18 +937,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         /* 命名ソース / Naming source */
         var sourceGroup = namingSettingsGroup.add("group");
         setupColumn(sourceGroup, ["left", "top"]);
-        var fromPositionRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromPosition"));
-        fromPositionRadio.helpTip = getLabel("tooltip", "namingFromPosition");
-        var fromExistingRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromExisting"));
-        fromExistingRadio.helpTip = getLabel("tooltip", "namingFromExisting");
+        var fromPositionRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio.namingFromPosition"));
+        fromPositionRadio.helpTip = getLabel("tooltip.namingFromPosition");
+        var fromExistingRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio.namingFromExisting"));
+        fromExistingRadio.helpTip = getLabel("tooltip.namingFromExisting");
         fromPositionRadio.value = true;
 
         /* 区切り文字パネルと桁数パネルを横並び / Separator and digits panels side by side */
         var separatorPadRow = namingSettingsGroup.add("group");
         setupColumnsRow(separatorPadRow);
 
-        var separatorRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel", "namingSeparator"), ["-", "_", "x"]);
-        var padRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel", "namingPadWidth"), ["0", "00", "000"]);
+        var separatorRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel.namingSeparator"), ["-", "_", "x"], getLabel("tooltip.namingSeparator"));
+        var padRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel.namingPadWidth"), ["0", "00", "000"], getLabel("tooltip.namingPadWidth"));
 
         /* 有効／無効の同期は bindEvents() が担当（許容差スライダーの状態と連動するため）
          * bindEvents() owns the enable sync, since it also drives the tolerance slider */
@@ -992,66 +974,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     /**
      * 選択肢ラジオを縦に並べたパネルを作成する（先頭を選択状態にする）
-     * @param {Group} parent - 追加先のコンテナ
+     * @param {Group} parentContainer - 追加先のコンテナ
      * @param {string} panelLabel - パネルのラベル
      * @param {string[]} optionLabels - ラジオのラベル
+     * @param {string} optionTooltip - 各ラジオのツールチップ
      * @returns {RadioButton[]} 作成したラジオボタン
      */
-    function buildOptionRadioPanel(parent, panelLabel, optionLabels) {
-        var optionPanel = parent.add("panel", undefined, panelLabel);
+    function buildOptionRadioPanel(parentContainer, panelLabel, optionLabels, optionTooltip) {
+        var optionPanel = parentContainer.add("panel", undefined, panelLabel);
         setupPanel(optionPanel, DENSE_SPACING);
 
         var optionGroup = optionPanel.add("group");
         setupColumn(optionGroup, ["left", "top"]);
 
-        var radios = [];
+        var optionRadios = [];
         for (var optionIndex = 0; optionIndex < optionLabels.length; optionIndex++) {
-            radios.push(optionGroup.add("radiobutton", undefined, optionLabels[optionIndex]));
+            var optionRadio = optionGroup.add("radiobutton", undefined, optionLabels[optionIndex]);
+            optionRadio.helpTip = optionTooltip;
+            optionRadios.push(optionRadio);
         }
-        if (radios.length > 0) radios[0].value = true;
-        return radios;
+        if (optionRadios.length > 0) optionRadios[0].value = true;
+        return optionRadios;
     }
 
     /**
      * キャンセル / OK ボタンを作成する
-     * @param {Window} dialog - 対象ダイアログ
-     * @returns {Object} 各ボタンの参照
+     * @param {Window} parentWindow - 対象ダイアログ
+     * @returns {{btnCancel: Button, btnOK: Button}} 各ボタンの参照
      */
-    function buildDialogButtons(dialog) {
-        var buttonGroup = dialog.add("group");
-        setupRow(buttonGroup, ["right", "bottom"]);
+    function buildDialogButtons(parentWindow) {
+        var btnRowGroup = parentWindow.add("group");
+        setupRow(btnRowGroup, ["right", "bottom"]);
 
-        var cancelBtn = buttonGroup.add("button", undefined, getLabel("button", "cancel"));
-        var okBtn = buttonGroup.add("button", undefined, getLabel("button", "ok"));
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"));
 
-        var buttonWidth = Math.max(okBtn.preferredSize.width, cancelBtn.preferredSize.width);
-        okBtn.preferredSize.width = buttonWidth;
-        cancelBtn.preferredSize.width = buttonWidth;
+        var buttonWidth = Math.max(btnOK.preferredSize.width, btnCancel.preferredSize.width);
+        btnOK.preferredSize.width = buttonWidth;
+        btnCancel.preferredSize.width = buttonWidth;
 
         return {
-            cancelBtn: cancelBtn,
-            okBtn: okBtn
+            btnCancel: btnCancel,
+            btnOK: btnOK
         };
     }
 
     /**
      * ラベル付き edittext 行を追加する
-     * @param {Group} parent - 追加先のコンテナ
-     * @param {string} labelText - ラベル文字列
+     * @param {Group} parentContainer - 追加先のコンテナ
+     * @param {string} fieldLabelText - ラベル文字列（コロン付き）
      * @param {string} defaultValue - 入力欄の初期値
      * @param {number} minValue - ↑↓キーで下回らせない下限値
      * @returns {{row: Group, input: EditText}} 行グループと入力欄
      */
-    function addLabeledInput(parent, labelText, defaultValue, minValue) {
-        var row = parent.add("group");
-        setupRow(row);
-        var label = row.add("statictext", undefined, labelText);
-        label.preferredSize.width = FIELD_LABEL_WIDTH;
-        label.justify = "right";
-        var input = row.add("edittext", undefined, defaultValue);
-        input.characters = FIELD_INPUT_CHARS;
-        changeValueByArrowKey(input, minValue);
-        return { row: row, input: input };
+    function addLabeledInput(parentContainer, fieldLabelText, defaultValue, minValue) {
+        var labeledRow = parentContainer.add("group");
+        setupRow(labeledRow);
+        var fieldLabel = labeledRow.add("statictext", undefined, fieldLabelText);
+        fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH;
+        fieldLabel.justify = "right";
+        var fieldInput = labeledRow.add("edittext", undefined, defaultValue);
+        fieldInput.characters = FIELD_INPUT_CHARS;
+        changeValueByArrowKey(fieldInput, minValue);
+        return { row: labeledRow, input: fieldInput };
     }
 
     /**
@@ -1243,8 +1228,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function padNumbersForNaturalSort(text) {
         return text.replace(/\d+/g, function (digitRun) {
-            var pad = "0000000000";
-            return (pad + digitRun).slice(-pad.length);
+            var zeroPadding = "0000000000";
+            return (zeroPadding + digitRun).slice(-zeroPadding.length);
         });
     }
 
@@ -1255,14 +1240,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {Array<ArtboardEntry[]>} 行ごとにまとめた配列
      */
     function groupSortedIntoRows(sortedEntries) {
-        var rows = [];
+        var rowGroups = [];
         for (var entryIndex = 0; entryIndex < sortedEntries.length; entryIndex++) {
             if (entryIndex === 0 || sortedEntries[entryIndex].rowBand !== sortedEntries[entryIndex - 1].rowBand) {
-                rows.push([]);
+                rowGroups.push([]);
             }
-            rows[rows.length - 1].push(sortedEntries[entryIndex]);
+            rowGroups[rowGroups.length - 1].push(sortedEntries[entryIndex]);
         }
-        return rows;
+        return rowGroups;
     }
 
     // =========================================
@@ -1343,7 +1328,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     function rearrangeArtboardsByRowColumnName(doc, columnGapPoints, rowGapPoints, exceptionMode) {
         var placementContext = parseArtboardNamePlacements(doc.artboards);
         if (!placementContext.hasMatchedArtboard) {
-            alert(getLabel("alert", "noMatch"));
+            alert(getLabel("alert.noMatch"));
             return false;
         }
 
@@ -1471,9 +1456,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function assignArtboardPlacementSlots(placementContext, exceptionMode) {
         var occupiedSlots = {};
-        var nextExceptionColumnByRow = {};
+        var nextFreeColumnByRow = {};
+        var rowEndFirstColumn = placementContext.maxColumnNumber + 1;
         var currentRowNumber = 1;
-        var lastRowExceptionColumn = 1;
         var exceptionRowNumber = placementContext.maxMatchedRowNumber + 1;
         var placementItems = placementContext.placementItems;
 
@@ -1481,11 +1466,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             var assignTarget = placementItems[assignIndex];
 
             if (assignTarget.matched) {
-                currentRowNumber = assignMatchedPlacementSlot(assignTarget, placementContext, occupiedSlots, nextExceptionColumnByRow);
+                currentRowNumber = assignMatchedPlacementSlot(assignTarget, placementContext, occupiedSlots, nextFreeColumnByRow);
             } else if (exceptionMode === 'lastRow') {
-                lastRowExceptionColumn = assignLastRowExceptionSlot(assignTarget, exceptionRowNumber, lastRowExceptionColumn, occupiedSlots);
+                /* 最終行の次の行に、列 1 から出現順に並べる / Row after the last one, from column 1 in order */
+                assignTarget.assignedRow = exceptionRowNumber;
+                assignTarget.assignedColumn = reserveNextFreeColumn(exceptionRowNumber, 1, occupiedSlots, nextFreeColumnByRow);
             } else {
-                assignRowEndExceptionSlot(assignTarget, currentRowNumber, placementContext.maxColumnNumber, occupiedSlots, nextExceptionColumnByRow);
+                /* 直前に割り当てた行の末尾に置く / End of the row assigned just before */
+                assignTarget.assignedRow = currentRowNumber;
+                assignTarget.assignedColumn = reserveNextFreeColumn(currentRowNumber, rowEndFirstColumn, occupiedSlots, nextFreeColumnByRow);
             }
         }
     }
@@ -1495,10 +1484,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @param {PlacementItem} assignTarget - 配置候補
      * @param {Object} placementContext - parseArtboardNamePlacements() の戻り値
      * @param {Object} occupiedSlots - 使用済みスロット（"行,列" をキーにする）
-     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
+     * @param {Object} nextFreeColumnByRow - 行ごとの次に試す列番号
      * @returns {number} 割り当てた行番号
      */
-    function assignMatchedPlacementSlot(assignTarget, placementContext, occupiedSlots, nextExceptionColumnByRow) {
+    function assignMatchedPlacementSlot(assignTarget, placementContext, occupiedSlots, nextFreeColumnByRow) {
         var targetRowNumber = assignTarget.rowNumber;
         if (assignTarget.matchType === 'prefixNumber') {
             targetRowNumber = placementContext.maxRowNumber + placementContext.prefixRowOffsetByName[assignTarget.prefixName];
@@ -1511,65 +1500,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             assignTarget.assignedColumn = assignTarget.columnNumber;
         } else {
             /* 同じスロットが埋まっている場合は行末に逃がす / Fall back to the row end when the slot is taken */
-            assignTarget.assignedColumn = reserveNextColumnAtRowEnd(
-                targetRowNumber, occupiedSlots, nextExceptionColumnByRow, placementContext.maxColumnNumber
+            assignTarget.assignedColumn = reserveNextFreeColumn(
+                targetRowNumber, placementContext.maxColumnNumber + 1, occupiedSlots, nextFreeColumnByRow
             );
         }
         return targetRowNumber;
     }
 
     /**
-     * 最終行の次の行にまとめる例外スロットを割り当てる
-     * @param {PlacementItem} assignTarget - 配置候補
-     * @param {number} exceptionRowNumber - 例外行の行番号
-     * @param {number} lastRowExceptionColumn - 次に試す列番号
-     * @param {Object} occupiedSlots - 使用済みスロット
-     * @returns {number} 更新後の次に試す列番号
-     */
-    function assignLastRowExceptionSlot(assignTarget, exceptionRowNumber, lastRowExceptionColumn, occupiedSlots) {
-        assignTarget.assignedRow = exceptionRowNumber;
-        while (true) {
-            var lastRowColumnCandidate = lastRowExceptionColumn++;
-            var lastRowKey = exceptionRowNumber + ',' + lastRowColumnCandidate;
-            if (!occupiedSlots[lastRowKey]) {
-                occupiedSlots[lastRowKey] = true;
-                assignTarget.assignedColumn = lastRowColumnCandidate;
-                break;
-            }
-        }
-        return lastRowExceptionColumn;
-    }
-
-    /**
-     * 各行の末尾に置く例外スロットを割り当てる
-     * @param {PlacementItem} assignTarget - 配置候補
-     * @param {number} currentRowNumber - 直前に割り当てた行番号
-     * @param {number} maxColumnNumber - 名前から得た最大列番号
-     * @param {Object} occupiedSlots - 使用済みスロット
-     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
-     * @returns {void}
-     */
-    function assignRowEndExceptionSlot(assignTarget, currentRowNumber, maxColumnNumber, occupiedSlots, nextExceptionColumnByRow) {
-        assignTarget.assignedRow = currentRowNumber;
-        assignTarget.assignedColumn = reserveNextColumnAtRowEnd(
-            currentRowNumber, occupiedSlots, nextExceptionColumnByRow, maxColumnNumber
-        );
-    }
-
-    /**
-     * 指定行の末尾（maxColumnNumber + n）で空きスロットを予約する
+     * 指定行の firstColumn 以降で空きスロットを予約する
      * @param {number} rowNumber - 対象の行番号
-     * @param {Object} occupiedSlots - 使用済みスロット
-     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
-     * @param {number} maxColumnNumber - 名前から得た最大列番号
+     * @param {number} firstColumn - その行で最初に試す列番号
+     * @param {Object} occupiedSlots - 使用済みスロット（"行,列" をキーにする）
+     * @param {Object} nextFreeColumnByRow - 行ごとの次に試す列番号
      * @returns {number} 予約した列番号
      */
-    function reserveNextColumnAtRowEnd(rowNumber, occupiedSlots, nextExceptionColumnByRow, maxColumnNumber) {
-        if (nextExceptionColumnByRow[rowNumber] === undefined) {
-            nextExceptionColumnByRow[rowNumber] = maxColumnNumber + 1;
+    function reserveNextFreeColumn(rowNumber, firstColumn, occupiedSlots, nextFreeColumnByRow) {
+        if (nextFreeColumnByRow[rowNumber] === undefined) {
+            nextFreeColumnByRow[rowNumber] = firstColumn;
         }
         while (true) {
-            var candidateColumn = nextExceptionColumnByRow[rowNumber]++;
+            var candidateColumn = nextFreeColumnByRow[rowNumber]++;
             var candidateSlotKey = rowNumber + ',' + candidateColumn;
             if (!occupiedSlots[candidateSlotKey]) {
                 occupiedSlots[candidateSlotKey] = true;
@@ -1712,9 +1663,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function applyItemTranslations(doc, placements) {
-        var translations = collectItemTranslations(doc.layers, placements);
-        for (var translateIndex = 0; translateIndex < translations.length; translateIndex++) {
-            var pendingMove = translations[translateIndex];
+        var itemTranslations = [];
+        appendItemTranslations(doc.layers, placements, itemTranslations);
+        for (var translateIndex = 0; translateIndex < itemTranslations.length; translateIndex++) {
+            var pendingMove = itemTranslations[translateIndex];
             if (pendingMove.deltaX === 0 && pendingMove.deltaY === 0) continue;
             try {
                 pendingMove.item.translate(pendingMove.deltaX, pendingMove.deltaY);
@@ -1723,25 +1675,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     }
 
     /**
-     * レイヤーを再帰的に走査してアートボード上のオブジェクトの移動量を集める
-     * @param {Layers} layerCollection - 走査するレイヤーコレクション
-     * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
-     * @returns {Array<{item: PageItem, deltaX: number, deltaY: number}>} 移動予定リスト
-     */
-    function collectItemTranslations(layerCollection, placementItems) {
-        var collected = [];
-        appendItemTranslations(layerCollection, placementItems, collected);
-        return collected;
-    }
-
-    /**
      * レイヤーとサブレイヤーを走査して移動予定を追加する
      * @param {Layers} layerCollection - 走査するレイヤーコレクション
      * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
-     * @param {Array<Object>} output - 追加先の配列
+     * @param {Array<Object>} itemTranslations - 追加先の配列（{ item, deltaX, deltaY }）
      * @returns {void}
      */
-    function appendItemTranslations(layerCollection, placementItems, output) {
+    function appendItemTranslations(layerCollection, placementItems, itemTranslations) {
         for (var layerIndex = 0; layerIndex < layerCollection.length; layerIndex++) {
             var layer = layerCollection[layerIndex];
             for (var itemIndex = 0; itemIndex < layer.pageItems.length; itemIndex++) {
@@ -1752,10 +1692,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
                 try {
                     if (pageItem.locked) continue;
                 } catch (lockedReadError) { /* プロパティが取得不能なら通常通り扱う / Treat as unlocked when unreadable */ }
-                appendTranslationForItem(pageItem, placementItems, output);
+                appendTranslationForItem(pageItem, placementItems, itemTranslations);
             }
             if (layer.layers && layer.layers.length > 0) {
-                appendItemTranslations(layer.layers, placementItems, output);
+                appendItemTranslations(layer.layers, placementItems, itemTranslations);
             }
         }
     }
@@ -1764,16 +1704,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * オブジェクトの幾何中心が含まれる元アートボードを特定し、移動量を1件追加する
      * @param {PageItem} pageItem - 対象オブジェクト
      * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
-     * @param {Array<Object>} output - 追加先の配列
+     * @param {Array<Object>} itemTranslations - 追加先の配列（{ item, deltaX, deltaY }）
      * @returns {void}
      */
-    function appendTranslationForItem(pageItem, placementItems, output) {
+    function appendTranslationForItem(pageItem, placementItems, itemTranslations) {
         var center = getItemGeometricCenter(pageItem);
         if (!center) return;
         for (var placementIndex = 0; placementIndex < placementItems.length; placementIndex++) {
             var placement = placementItems[placementIndex];
             if (isCenterInsideRect(center, placement.oldRect)) {
-                output.push({ item: pageItem, deltaX: placement.deltaX, deltaY: placement.deltaY });
+                itemTranslations.push({ item: pageItem, deltaX: placement.deltaX, deltaY: placement.deltaY });
                 break;
             }
         }
@@ -1843,19 +1783,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     function renameArtboardsFromPositions(doc, separator, padWidth, tolerance) {
         var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
 
-        var entries = [];
+        var positionEntries = [];
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
-            entries.push({
+            positionEntries.push({
                 sourceIndex: artboardIndex,
                 artboardRect: doc.artboards[artboardIndex].artboardRect
             });
         }
-        sortArtboardsTopLeftWithTolerance(entries, decimalPlaces, tolerance);
+        sortArtboardsTopLeftWithTolerance(positionEntries, decimalPlaces, tolerance);
 
-        var rows = groupSortedIntoRows(entries);
-        for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-            for (var columnIndex = 0; columnIndex < rows[rowIndex].length; columnIndex++) {
-                var targetArtboard = doc.artboards[rows[rowIndex][columnIndex].sourceIndex];
+        var rowGroups = groupSortedIntoRows(positionEntries);
+        for (var rowIndex = 0; rowIndex < rowGroups.length; rowIndex++) {
+            for (var columnIndex = 0; columnIndex < rowGroups[rowIndex].length; columnIndex++) {
+                var targetArtboard = doc.artboards[rowGroups[rowIndex][columnIndex].sourceIndex];
                 targetArtboard.name = formatRowColumnName(rowIndex + 1, columnIndex + 1, separator, padWidth);
             }
         }
@@ -1875,8 +1815,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             if (!nameMatch) continue;
             var rowNumber = parseInt(nameMatch[1], 10);
             var columnNumber = parseInt(nameMatch[2], 10);
-            var rest = nameMatch[3] || "";
-            artboard.name = formatRowColumnName(rowNumber, columnNumber, separator, padWidth) + rest;
+            var trailingText = nameMatch[3] || "";
+            artboard.name = formatRowColumnName(rowNumber, columnNumber, separator, padWidth) + trailingText;
         }
     }
 
