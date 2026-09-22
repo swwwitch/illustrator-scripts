@@ -32,7 +32,7 @@ var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Takeshi Umeda (noellabo)";     /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md"; /* README (English) */
@@ -62,9 +62,231 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     var DEFAULT_ADD_METHOD = 'blank';
 
     // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var OPTION_PANEL_SPACING = 6;            /* 各パネル内の要素間隔 / spacing inside the option panels */
+    var NUMBER_FIELD_CHARS = 4;              /* 追加数・間隔の入力欄の文字数 / width of the count and spacing fields */
+
+    /**
+     * ウィンドウに共通のレイアウト設定を適用する
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = 'column';
+        targetWindow.alignChildren = 'fill';
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === 'number') ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルに共通のレイアウト設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = 'column';
+        targetPanel.alignChildren = ['fill', 'top'];
+        targetPanel.alignment = 'fill';
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 行グループ（ボタン列など）に共通の設定を適用する。パネル幅いっぱいに広げず、既定では左寄せ
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string} [alignment] - 横方向の揃え（省略時は 'left'）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = 'row';
+        rowGroup.alignment = alignment || 'left';
+        rowGroup.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ↑↓キーで値を増減する（Shift=±10で10の倍数にスナップ / Option=±0.1 / 通常=±1）。負値は0でクランプ
+     * Arrow keys adjust the value (Shift = ±10 snapped to multiples of 10, Option = ±0.1, otherwise ±1); clamps at 0
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener('keydown', function (event) {
+            // ↑↓以外のキーは素通し（入力中の値を丸め直さない）/ Ignore keys other than Up/Down so typing isn't rounded
+            if (event.keyName != 'Up' && event.keyName != 'Down') return;
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                // Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 with Shift
+                if (event.keyName == 'Up') {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName == 'Down') {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                // Optionキー押下時は0.1単位で増減 / Step by 0.1 with Option
+                if (event.keyName == 'Up') {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == 'Down') {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName == 'Up') {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == 'Down') {
+                    value -= delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            }
+
+            if (keyboard.altKey) {
+                value = Math.round(value * 10) / 10; // 小数第1位までに丸め / Round to 1 decimal
+            } else {
+                value = Math.round(value); // 整数に丸め / Round to integer
+            }
+
+            editText.text = value;
+        });
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 間隔を表示用に小数第2位までに丸める
+     * @param {number} valueInUnit - 定規単位の値
+     * @returns {string} 表示用の文字列
+     */
+    function formatSpacingForDisplay(valueInUnit) {
+        return String(Math.round(valueInUnit * 100) / 100);
+    }
+
+    // =========================================
+    // 座標 / Coordinates
+    // =========================================
+
+    /* 座標が同じとみなす許容値（pt）。吸着させた辺でも 1e-12 程度ずれるため生比較しない
+       Tolerance (pt) for treating coordinates as equal; snapped edges still differ by ~1e-12 */
+    var COORDINATE_TOLERANCE_PT = 0.001;
+
+    /**
+     * 2つの座標を許容値つきで同じとみなすか判定する
+     * @param {number} coordA - 比較する座標
+     * @param {number} coordB - 比較する座標
+     * @returns {boolean} 同じとみなせるなら true
+     */
+    function isSameCoordinate(coordA, coordB) {
+        return Math.abs(coordA - coordB) <= COORDINATE_TOLERANCE_PT;
+    }
+
+    /**
+     * 軸方向のアートボードサイズを返す
+     * @param {number[]} artboardRect - アートボードの範囲 [左, 上, 右, 下]
+     * @param {number} axisIndex - 0=幅 / 1=高さ
+     * @returns {number} 幅または高さ（pt）
+     */
+    function getArtboardSizeOnAxis(artboardRect, axisIndex) {
+        return (axisIndex === 0)
+            ? (artboardRect[2] - artboardRect[0])           // 幅 / width
+            : Math.abs(artboardRect[3] - artboardRect[1]);  // 高さ / height
+    }
+
+    /**
+     * 隣り合う2枚から並びの軸を判定する（左端が同じ＝縦並び→1 / 違う＝横並び→0）
+     * Detect the layout axis from two neighbors (same left edge ⇒ vertical → 1, otherwise horizontal → 0)
+     * @param {number[]} firstRect - 1枚目のアートボードの範囲
+     * @param {number[]} secondRect - 2枚目のアートボードの範囲
+     * @returns {number} 0=横並び / 1=縦並び
+     */
+    function detectLayoutAxisIndex(firstRect, secondRect) {
+        return isSameCoordinate(firstRect[0], secondRect[0]) ? 1 : 0;
+    }
+
+    /**
+     * 既存アートボードの並びから現在の間隔（pt）を推定する。2枚未満の場合は fallbackSpacingPt（環境設定値）を返す
+     * Estimate the current spacing (pt) from the existing artboard arrangement;
+     * returns fallbackSpacingPt (the preference value) when there are fewer than 2 artboards
+     * @param {number} fallbackSpacingPt - 2枚未満のときに使う間隔（pt）
+     * @returns {number} 推定した間隔（pt）
+     */
+    function estimateArtboardSpacingPt(fallbackSpacingPt) {
+        var artboards = doc.artboards;
+        if (artboards.length < 2) return fallbackSpacingPt;
+
+        var firstRect = artboards[0].artboardRect;
+        var secondRect = artboards[1].artboardRect;
+        var layoutAxisIndex = detectLayoutAxisIndex(firstRect, secondRect);
+        var artboardPitch = Math.abs(secondRect[layoutAxisIndex] - firstRect[layoutAxisIndex]);
+        return Math.max(0, artboardPitch - getArtboardSizeOnAxis(firstRect, layoutAxisIndex));
+    }
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
@@ -151,181 +373,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         }
     };
 
-    /* ラベル（ja/en のリーフ）を現在の言語に解決 / Resolve a label leaf (ja/en) to the current language */
+    /**
+     * ラベル（ja/en のリーフ）を現在の言語に解決する
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @returns {string} 現在の言語の文字列（無ければ空文字）
+     */
     function getLabel(labelSet) {
         return (labelSet && labelSet[uiLang]) || '';
     }
 
-    /* 項目名にコロンを付ける（日本語は全角、英語は半角）/ Append a colon to a field label (full-width in Japanese) */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === 'ja' ? '：' : ': ');
-    }
-
-    // =========================================
-    // 単位と座標 / Units & coordinates
-    // =========================================
-
-    // 座標が同じとみなす許容値（pt）。吸着させた辺でも 1e-12 程度ずれるため生比較しない
-    // Tolerance (pt) for treating coordinates as equal; snapped edges still differ by ~1e-12
-    var COORDINATE_TOLERANCE_PT = 0.001;
-
-    // =========================================
-    // 単位 / Units
-    // =========================================
-
-    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
-       Unit code -> display label and points per unit */
-    var UNITS = [
-        { label: "in",    pointsPerUnit: 72 },                /* 0 */
-        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
-        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
-        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
-        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
-        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
-        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
-        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
-        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
-        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
-        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
-    ];
-
     /**
-     * 環境設定キーの単位を返す
-     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @returns {string} コロン付きの項目名
      */
-    function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
-        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
-        var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
-    }
-
-    // 表示用に小数第2位までに丸める / Round to 2 decimals for display
-    function formatSpacingForDisplay(valueInUnit) {
-        return String(Math.round(valueInUnit * 100) / 100);
-    }
-
-    function isSameCoordinate(coordA, coordB) {
-        return Math.abs(coordA - coordB) <= COORDINATE_TOLERANCE_PT;
-    }
-
-    // 軸方向のアートボードサイズ（0=幅 / 1=高さ）/ Artboard size along an axis (0=width, 1=height)
-    function getArtboardSizeOnAxis(artboardRect, axisIndex) {
-        return (axisIndex === 0)
-            ? (artboardRect[2] - artboardRect[0])           // 幅 / width
-            : Math.abs(artboardRect[3] - artboardRect[1]);  // 高さ / height
-    }
-
-    // 隣り合う2枚から並びの軸を判定（左端が同じ＝縦並び→1 / 違う＝横並び→0）
-    // Detect the layout axis from two neighbors (same left edge ⇒ vertical → 1, otherwise horizontal → 0)
-    function detectLayoutAxisIndex(firstRect, secondRect) {
-        return isSameCoordinate(firstRect[0], secondRect[0]) ? 1 : 0;
-    }
-
-    // 既存アートボードの並びから現在の間隔（pt）を推定
-    // 2枚未満の場合は fallbackSpacingPt（環境設定値）を返す
-    // Estimate the current spacing (pt) from the existing artboard arrangement
-    // Returns fallbackSpacingPt (the preference value) when there are fewer than 2 artboards
-    function estimateArtboardSpacingPt(fallbackSpacingPt) {
-        var artboards = doc.artboards;
-        if (artboards.length < 2) return fallbackSpacingPt;
-
-        var firstRect = artboards[0].artboardRect;
-        var secondRect = artboards[1].artboardRect;
-        var layoutAxisIndex = detectLayoutAxisIndex(firstRect, secondRect);
-        var artboardPitch = Math.abs(secondRect[layoutAxisIndex] - firstRect[layoutAxisIndex]);
-        return Math.max(0, artboardPitch - getArtboardSizeOnAxis(firstRect, layoutAxisIndex));
-    }
-
-    // =========================================
-    // UIレイアウトの共通設定 / Shared UI layout
-    // =========================================
-
-    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
-
-    /* ウィンドウの共通設定 / Apply shared window layout */
-    function setupWindow(win, spacing) {
-        win.orientation = 'column';
-        win.alignChildren = 'fill';
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === 'number') ? spacing : WINDOW_SPACING;
-    }
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = 'column';
-        panel.alignChildren = ['fill', 'top'];
-        panel.alignment = 'fill';
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
-    }
-
-    /* 行グループの共通設定（ボタン列など）/ Apply a horizontal row group */
-    /* パネル幅いっぱいに広げず、既定では左寄せ / Doesn't stretch to the panel width; left-aligned by default */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = 'row';
-        group.alignment = alignment || 'left';
-        group.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
-    }
-
-    /* ↑↓キーで値を増減（Shift=±10で10の倍数にスナップ / Option=±0.1 / 通常=±1）。負値は0でクランプ */
-    /* Arrow keys adjust the value (Shift = ±10 snapped to multiples of 10, Option = ±0.1, otherwise ±1); clamps at 0 */
-    function changeValueByArrowKey(editText) {
-        editText.addEventListener('keydown', function (event) {
-            // ↑↓以外のキーは素通し（入力中の値を丸め直さない）/ Ignore keys other than Up/Down so typing isn't rounded
-            if (event.keyName != 'Up' && event.keyName != 'Down') return;
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
-
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 with Shift
-                if (event.keyName == 'Up') {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == 'Down') {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                // Optionキー押下時は0.1単位で増減 / Step by 0.1 with Option
-                if (event.keyName == 'Up') {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == 'Down') {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == 'Up') {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == 'Down') {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            }
-
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10; // 小数第1位までに丸め / Round to 1 decimal
-            } else {
-                value = Math.round(value); // 整数に丸め / Round to integer
-            }
-
-            editText.text = value;
-        });
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // =========================================
@@ -349,42 +412,127 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     // ダイアログ / Dialog
     // =========================================
 
-    // ダイアログを表示し、OK なら挿入の設定を返す（キャンセルは null）
-    // Show the dialog and return the insert settings on OK (null on cancel)
+    /**
+     * ダイアログを表示し、OK なら挿入の設定を返す
+     * @returns {object|null} 挿入の設定（キャンセルは null）
+     */
     function showInsertDialog() {
-        var dialog = new Window('dialog', getLabel(LABELS.dialog.title) + ' ' + SCRIPT_VERSION);
-        setupWindow(dialog);
+        /* 2枚以上は既存の並びから推定した間隔、1枚以下は「アートボードを再配置」の間隔（pt）を
+           定規単位に変換して初期表示し、編集可能にする
+           For 2+ artboards use the spacing inferred from the existing layout, otherwise the
+           Rearrange Artboards spacing (pt); shown in the ruler unit and editable */
+        var rulerUnitInfo = getUnitInfo();
+        var spacingPreferencePt = app.preferences.getRealPreference('plugin/ArtboardRearrange/ArtboardSpacing');
+        var estimatedSpacingPt = estimateArtboardSpacingPt(spacingPreferencePt);
+        var initialSpacingText = formatSpacingForDisplay(estimatedSpacingPt / rulerUnitInfo.pointsPerUnit);
 
-        // 追加方法パネル / Add method panel
-        var addMethodPanel = dialog.add('panel', undefined, getLabel(LABELS.panel.addMethod));
-        setupPanel(addMethodPanel, 6);
-        var blankArtboardRadio = addMethodPanel.add('radiobutton', undefined, getLabel(LABELS.radio.blank));
+        var dialogControls = buildInsertDialog(initialSpacingText, rulerUnitInfo.label);
+        if (dialogControls.insertDialog.show() != 1) return null;
+
+        return readInsertSettings(dialogControls, {
+            initialSpacingText: initialSpacingText,
+            estimatedSpacingPt: estimatedSpacingPt,
+            pointsPerUnit: rulerUnitInfo.pointsPerUnit
+        });
+    }
+
+    /**
+     * ダイアログを組み立てる
+     * @param {string} initialSpacingText - 間隔欄の初期表示（定規単位）
+     * @param {string} unitLabel - 間隔欄の単位ラベル
+     * @returns {object} ダイアログと、設定の読み取りに使うコントロール
+     */
+    function buildInsertDialog(initialSpacingText, unitLabel) {
+        var insertDialog = new Window('dialog', getLabel(LABELS.dialog.title) + ' ' + SCRIPT_VERSION);
+        setupWindow(insertDialog);
+
+        var methodControls = addMethodPanel(insertDialog);
+        var positionControls = addInsertPositionPanel(insertDialog);
+
+        /* 追加方法に応じて UI を更新 / Update the UI according to the add method:
+            - 追加数は「空のアートボード」のときのみ有効 / Count is enabled only for blank artboards
+            - 追加位置の既定は 複製→現在の次 / 空→末尾 / Default position: duplicate → next, blank → end */
+        function syncUIWithAddMethod() {
+            var isBlank = methodControls.blankArtboardRadio.value;
+            methodControls.addCountLabel.enabled = isBlank;
+            methodControls.addCountInput.enabled = isBlank;
+            positionControls.insertAfterCurrentRadio.value = !isBlank;
+            positionControls.insertAtEndRadio.value = isBlank;
+        }
+        methodControls.duplicateArtboardRadio.onClick = syncUIWithAddMethod;
+        methodControls.blankArtboardRadio.onClick = syncUIWithAddMethod;
+        syncUIWithAddMethod();
+
+        var spacingControls = addSpacingPanel(insertDialog, initialSpacingText, unitLabel);
+
+        addRadioShortcutKeyHandler(insertDialog, methodControls.blankArtboardRadio, methodControls.duplicateArtboardRadio,
+            positionControls.insertAfterCurrentRadio, positionControls.insertAtEndRadio, syncUIWithAddMethod);
+
+        /* ボタン列はダイアログ幅いっぱいに広げず中央に置く / Center the button row instead of stretching it */
+        var btnRowGroup = insertDialog.add('group');
+        setupRow(btnRowGroup, 'center');
+        btnRowGroup.add('button', undefined, getLabel(LABELS.button.cancel), { name: 'cancel' });
+        btnRowGroup.add('button', undefined, getLabel(LABELS.button.ok), { name: 'ok' });
+
+        return {
+            insertDialog: insertDialog,
+            duplicateArtboardRadio: methodControls.duplicateArtboardRadio,
+            addCountInput: methodControls.addCountInput,
+            insertAfterCurrentRadio: positionControls.insertAfterCurrentRadio,
+            directionDownRadio: positionControls.directionDownRadio,
+            spacingScopeAllRadio: spacingControls.spacingScopeAllRadio,
+            spacingInput: spacingControls.spacingInput
+        };
+    }
+
+    /**
+     * 「追加方法」パネル（空／複製と追加数）を追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {object} blankArtboardRadio / duplicateArtboardRadio / addCountLabel / addCountInput
+     */
+    function addMethodPanel(parentWindow) {
+        var methodPanel = parentWindow.add('panel', undefined, getLabel(LABELS.panel.addMethod));
+        setupPanel(methodPanel, OPTION_PANEL_SPACING);
+        var blankArtboardRadio = methodPanel.add('radiobutton', undefined, getLabel(LABELS.radio.blank));
         blankArtboardRadio.helpTip = getLabel(LABELS.tooltip.blank);
-        var duplicateArtboardRadio = addMethodPanel.add('radiobutton', undefined, getLabel(LABELS.radio.duplicate));
+        var duplicateArtboardRadio = methodPanel.add('radiobutton', undefined, getLabel(LABELS.radio.duplicate));
         duplicateArtboardRadio.helpTip = getLabel(LABELS.tooltip.duplicate);
-        // 初期選択はユーザー設定に従う（'duplicate' 以外は「空のアートボード」）
-        // The initial selection follows the user setting (anything but 'duplicate' means blank)
+        /* 初期選択はユーザー設定に従う（'duplicate' 以外は「空のアートボード」）
+           The initial selection follows the user setting (anything but 'duplicate' means blank) */
         duplicateArtboardRadio.value = (DEFAULT_ADD_METHOD === 'duplicate');
         blankArtboardRadio.value = !duplicateArtboardRadio.value;
 
-        // 追加数 / Count
-        var addCountGroup = addMethodPanel.add('group');
+        /* 追加数 / Count */
+        var addCountGroup = methodPanel.add('group');
         setupRow(addCountGroup);
         var addCountLabel = addCountGroup.add('statictext', undefined, labelText(LABELS.fieldLabel.addCount));
         var addCountInput = addCountGroup.add('edittext', undefined, '1');
-        addCountInput.characters = 4;
+        addCountInput.characters = NUMBER_FIELD_CHARS;
         addCountInput.helpTip = getLabel(LABELS.tooltip.addCount);
         changeValueByArrowKey(addCountInput);
 
-        // 追加位置パネル / Insert position panel
-        var insertPositionPanel = dialog.add('panel', undefined, getLabel(LABELS.panel.insertPosition));
-        setupPanel(insertPositionPanel, 6);
+        return {
+            blankArtboardRadio: blankArtboardRadio,
+            duplicateArtboardRadio: duplicateArtboardRadio,
+            addCountLabel: addCountLabel,
+            addCountInput: addCountInput
+        };
+    }
+
+    /**
+     * 「追加位置」パネル（現在の次／末尾と方向）を追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {object} insertAfterCurrentRadio / insertAtEndRadio / directionDownRadio
+     */
+    function addInsertPositionPanel(parentWindow) {
+        var insertPositionPanel = parentWindow.add('panel', undefined, getLabel(LABELS.panel.insertPosition));
+        setupPanel(insertPositionPanel, OPTION_PANEL_SPACING);
         var insertAfterCurrentRadio = insertPositionPanel.add('radiobutton', undefined, getLabel(LABELS.radio.insertAfterCurrent));
         insertAfterCurrentRadio.helpTip = getLabel(LABELS.tooltip.insertAfterCurrent);
         var insertAtEndRadio = insertPositionPanel.add('radiobutton', undefined, getLabel(LABELS.radio.insertAtEnd));
         insertAtEndRadio.helpTip = getLabel(LABELS.tooltip.insertAtEnd);
 
-        // 追加方向（右＝横並び / 下＝縦並び）/ Add direction (right = horizontal, down = vertical)
+        /* 追加方向（右＝横並び / 下＝縦並び）/ Add direction (right = horizontal, down = vertical) */
         var directionGroup = insertPositionPanel.add('group');
         setupRow(directionGroup);
         directionGroup.add('statictext', undefined, labelText(LABELS.fieldLabel.direction));
@@ -394,89 +542,91 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         directionDownRadio.helpTip = getLabel(LABELS.tooltip.directionDown);
         directionRightRadio.value = true;
 
-        // 追加方法に応じて UI を更新 / Update the UI according to the add method:
-        //  - 追加数は「空のアートボード」のときのみ有効 / Count is enabled only for blank artboards
-        //  - 追加位置の既定は 複製→現在の次 / 空→末尾 / Default position: duplicate → next, blank → end
-        function syncUIWithAddMethod() {
-            var isBlank = blankArtboardRadio.value;
-            addCountLabel.enabled = isBlank;
-            addCountInput.enabled = isBlank;
-            insertAfterCurrentRadio.value = !isBlank;
-            insertAtEndRadio.value = isBlank;
-        }
-        duplicateArtboardRadio.onClick = syncUIWithAddMethod;
-        blankArtboardRadio.onClick = syncUIWithAddMethod;
-        syncUIWithAddMethod();
+        return {
+            insertAfterCurrentRadio: insertAfterCurrentRadio,
+            insertAtEndRadio: insertAtEndRadio,
+            directionDownRadio: directionDownRadio
+        };
+    }
 
-        // 間隔パネル / Spacing panel
-        // 適用範囲（追加分のみ / すべて）と、間隔の数値を指定
-        // Choose the scope (added artboards only / all) and the spacing value
-        var spacingPanel = dialog.add('panel', undefined, getLabel(LABELS.panel.spacing));
-        setupPanel(spacingPanel, 6);
+    /**
+     * 「間隔」パネル（適用範囲と間隔の数値）を追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {string} initialSpacingText - 間隔欄の初期表示（定規単位）
+     * @param {string} unitLabel - 間隔欄の単位ラベル
+     * @returns {object} spacingScopeAllRadio / spacingInput
+     */
+    function addSpacingPanel(parentWindow, initialSpacingText, unitLabel) {
+        var spacingPanel = parentWindow.add('panel', undefined, getLabel(LABELS.panel.spacing));
+        setupPanel(spacingPanel, OPTION_PANEL_SPACING);
         var spacingScopeAddedOnlyRadio = spacingPanel.add('radiobutton', undefined, getLabel(LABELS.radio.scopeAddedOnly));
         spacingScopeAddedOnlyRadio.helpTip = getLabel(LABELS.tooltip.scopeAddedOnly);
         var spacingScopeAllRadio = spacingPanel.add('radiobutton', undefined, getLabel(LABELS.radio.scopeAll));
         spacingScopeAllRadio.helpTip = getLabel(LABELS.tooltip.scopeAll);
         spacingScopeAddedOnlyRadio.value = true;
 
-        // 間隔入力 / Spacing input
-        // 2枚以上は既存の並びから推定した間隔、1枚以下は「アートボードを再配置」の間隔（pt）を
-        // 定規単位に変換して初期表示し、編集可能にする
-        // For 2+ artboards use the spacing inferred from the existing layout, otherwise the
-        // Rearrange Artboards spacing (pt); shown in the ruler unit and editable
-        var rulerUnitInfo = getUnitInfo();
-        var spacingPreferencePt = app.preferences.getRealPreference('plugin/ArtboardRearrange/ArtboardSpacing');
-        var estimatedSpacingPt = estimateArtboardSpacingPt(spacingPreferencePt);
-        var initialSpacingText = formatSpacingForDisplay(estimatedSpacingPt / rulerUnitInfo.pointsPerUnit);
-
-        // 項目名はパネル名「間隔」と重なるので付けない / No field label; the panel title already says Spacing
+        /* 項目名はパネル名「間隔」と重なるので付けない / No field label; the panel title already says Spacing */
         var spacingGroup = spacingPanel.add('group');
         setupRow(spacingGroup);
         var spacingInput = spacingGroup.add('edittext', undefined, initialSpacingText);
-        spacingInput.characters = 4;
+        spacingInput.characters = NUMBER_FIELD_CHARS;
         spacingInput.helpTip = getLabel(LABELS.tooltip.spacing);
         changeValueByArrowKey(spacingInput);
-        spacingGroup.add('statictext', undefined, rulerUnitInfo.label);
+        spacingGroup.add('statictext', undefined, unitLabel);
 
-        addRadioShortcutKeyHandler(dialog, blankArtboardRadio, duplicateArtboardRadio, insertAfterCurrentRadio, insertAtEndRadio, syncUIWithAddMethod);
+        return {
+            spacingScopeAllRadio: spacingScopeAllRadio,
+            spacingInput: spacingInput
+        };
+    }
 
-        // ボタン列はダイアログ幅いっぱいに広げず中央に置く / Center the button row instead of stretching it
-        var btnRowGroup = dialog.add('group');
-        setupRow(btnRowGroup, 'center');
-        var btnCancel = btnRowGroup.add('button', undefined, getLabel(LABELS.button.cancel), { name: 'cancel' });
-        var btnOK = btnRowGroup.add('button', undefined, getLabel(LABELS.button.ok), { name: 'ok' });
+    /**
+     * 閉じたダイアログから挿入の設定を読み取る
+     * @param {object} dialogControls - buildInsertDialog() の戻り値
+     * @param {object} spacingContext - initialSpacingText / estimatedSpacingPt / pointsPerUnit
+     * @returns {object} 挿入の設定
+     */
+    function readInsertSettings(dialogControls, spacingContext) {
+        /* 手動で初期値から変更されたかどうか（空欄・不正値は未変更扱い）。変更時のみ入力値を pt に戻して使い、
+           未変更なら丸めた表示値を経由せず推定値（pt）をそのまま使う。負値は 0 にする
+           Whether the value was manually changed (blank/invalid counts as unchanged). Only a changed value
+           is converted back to pt; otherwise use the estimated pt value, not the rounded display. Negatives become 0 */
+        var spacingInputText = dialogControls.spacingInput.text;
+        var spacingInputValue = parseFloat(spacingInputText);
+        var useManualSpacing = !isNaN(spacingInputValue) && (spacingInputText !== spacingContext.initialSpacingText);
 
-        if (dialog.show() != 1) return null;
-
-        // 手動で初期値から変更されたかどうか（空欄・不正値は未変更扱い）。変更時のみ入力値を pt に戻して使い、
-        // 未変更なら丸めた表示値を経由せず推定値（pt）をそのまま使う。負値は 0 にする
-        // Whether the value was manually changed (blank/invalid counts as unchanged). Only a changed value
-        // is converted back to pt; otherwise use the estimated pt value, not the rounded display. Negatives become 0
-        var spacingInputValue = parseFloat(spacingInput.text);
-        var useManualSpacing = !isNaN(spacingInputValue) && (spacingInput.text !== initialSpacingText);
-
-        // 追加数（1以上の整数）。複製モードでは常に1枚 / Number to add (integer ≥ 1); duplicate mode always adds 1
-        var isDuplicateMode = duplicateArtboardRadio.value;
-        var addCount = parseInt(addCountInput.text, 10);
+        /* 追加数（1以上の整数）。複製モードでは常に1枚 / Number to add (integer ≥ 1); duplicate mode always adds 1 */
+        var isDuplicateMode = dialogControls.duplicateArtboardRadio.value;
+        var addCount = parseInt(dialogControls.addCountInput.text, 10);
         if (isDuplicateMode || isNaN(addCount) || addCount < 1) addCount = 1;
 
         return {
             isDuplicateMode: isDuplicateMode,
-            insertAfterCurrent: insertAfterCurrentRadio.value,
+            insertAfterCurrent: dialogControls.insertAfterCurrentRadio.value,
             addCount: addCount,
-            // 追加方向：0=右（横並び）/ 1=下（縦並び）/ Add direction: 0 = right (horizontal), 1 = down (vertical)
-            directionAxisIndex: directionDownRadio.value ? 1 : 0,
-            spacingPt: useManualSpacing ? Math.max(0, spacingInputValue * rulerUnitInfo.pointsPerUnit) : estimatedSpacingPt,
-            estimatedSpacingPt: estimatedSpacingPt,
+            /* 追加方向：0=右（横並び）/ 1=下（縦並び）/ Add direction: 0 = right (horizontal), 1 = down (vertical) */
+            directionAxisIndex: dialogControls.directionDownRadio.value ? 1 : 0,
+            spacingPt: useManualSpacing
+                ? Math.max(0, spacingInputValue * spacingContext.pointsPerUnit)
+                : spacingContext.estimatedSpacingPt,
+            estimatedSpacingPt: spacingContext.estimatedSpacingPt,
             useManualSpacing: useManualSpacing,
-            // 間隔の適用範囲：true=すべてのアートボード / false=追加分のみ
-            // Spacing scope: true = all artboards, false = added artboards only
-            applySpacingToAll: spacingScopeAllRadio.value
+            /* 間隔の適用範囲：true=すべてのアートボード / false=追加分のみ
+               Spacing scope: true = all artboards, false = added artboards only */
+            applySpacingToAll: dialogControls.spacingScopeAllRadio.value
         };
     }
 
-    // キー入力でラジオボタンを切り替え（B=空 / D=複製 / N=現在の次 / E=末尾）
-    // Switch radio buttons with keys (B = blank, D = duplicate, N = after current, E = at end)
+    /**
+     * キー入力でラジオボタンを切り替える（B=空 / D=複製 / N=現在の次 / E=末尾）
+     * @param {Window} targetDialog - キー入力を受けるダイアログ
+     * @param {RadioButton} blankRadio - 「空のアートボード」
+     * @param {RadioButton} duplicateRadio - 「現在のアートボードを複製」
+     * @param {RadioButton} afterCurrentRadio - 「現在のアートボードの次」
+     * @param {RadioButton} atEndRadio - 「末尾」
+     * @param {Function} onAddMethodChange - 追加方法を切り替えたあとに呼ぶ関数
+     * @returns {void}
+     */
     function addRadioShortcutKeyHandler(targetDialog, blankRadio, duplicateRadio, afterCurrentRadio, atEndRadio, onAddMethodChange) {
         targetDialog.addEventListener('keydown', function (event) {
             var keyName = String(event.keyName || '').toUpperCase();
@@ -499,11 +649,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     // グリッドの解析 / Grid analysis
     // =========================================
 
-    /*
-    最大キャンバス範囲を取得 / Get the largest canvas bounds
-    Original idea by OMOTI
-    https://forums.adobe.com/thread/2459293
-    */
+    /**
+     * 最大キャンバス範囲を取得する / Get the largest canvas bounds
+     * Original idea by OMOTI
+     * https://forums.adobe.com/thread/2459293
+     * @returns {Rect} キャンバス全体の範囲 [左, 上, 右, 下]
+     */
     function getLargestCanvasBounds() {
         var MAX_CANVAS_SIZE = 16383;
         var tempLayer = doc.layers.add();
@@ -520,13 +671,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         );
     }
 
-    // 先頭のアートボードを原点に、グリッド1セルあたりの移動量・列数・行数を求める。
-    // 既存の並びが指定方向と一致するときだけ、ピッチと列数を引き継ぐ（canInheritLayout）。
-    // 一致しない・1枚のみのときはグリッドを使わず、挿入位置の直前を基準に並べる → getAnchoredPosition
-    // Build the grid anchored on the first artboard: step per cell, column count and row count.
-    // The pitch and column count are inherited only when the existing layout matches the chosen
-    // direction (canInheritLayout); otherwise new artboards are placed relative to the artboard
-    // just before the insert point → getAnchoredPosition
+    /**
+     * 先頭のアートボードを原点に、グリッド1セルあたりの移動量・列数・行数を求める。
+     * 既存の並びが指定方向と一致するときだけ、ピッチと列数を引き継ぐ（canInheritLayout）。
+     * 一致しない・1枚のみのときはグリッドを使わず、挿入位置の直前を基準に並べる → getAnchoredPosition
+     * Build the grid anchored on the first artboard: step per cell, column count and row count.
+     * The pitch and column count are inherited only when the existing layout matches the chosen
+     * direction (canInheritLayout); otherwise new artboards are placed relative to the artboard
+     * just before the insert point → getAnchoredPosition
+     * @param {Artboards} artboards - ドキュメントのアートボード
+     * @param {object} insertSettings - ダイアログで決めた挿入の設定
+     * @returns {object} originRect / primaryAxis / secondaryAxis / primarySign / gridStep / columnCount / rowCount / canInheritLayout
+     */
     function analyzeArtboardGrid(artboards, insertSettings) {
         var originRect = artboards[0].artboardRect;
         var primaryAxis = insertSettings.directionAxisIndex;
@@ -577,7 +733,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
             originRect[1]
         ];
 
-        // 進む向きの側のキャンバス端までに入るセル数 / Number of cells that fit up to the canvas edge in the step direction
+        /**
+         * 進む向きの側のキャンバス端までに入るセル数を返す
+         * Number of cells that fit up to the canvas edge in the step direction
+         * @param {number} targetAxis - 0=横 / 1=縦
+         * @returns {number} セル数
+         */
         function countCellsToCanvasEdge(targetAxis) {
             var edgeIndex = (targetAxis ^ +(gridStep[targetAxis] < 0)) ? targetAxis : targetAxis + 2;
             return Math.abs(Math.floor((canvasRect[edgeIndex] - gridCellRect[edgeIndex]) / gridStep[targetAxis]));
@@ -595,7 +756,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         };
     }
 
-    // グリッド上のインデックスの位置を計算 / Calculate the position of a grid index
+    /**
+     * グリッド上のインデックスの位置を計算する / Calculate the position of a grid index
+     * @param {object} artboardGrid - analyzeArtboardGrid() の戻り値
+     * @param {number} gridIndex - グリッド上の通し番号
+     * @returns {number[]} セルの左上 [x, y]
+     */
     function getGridCellPosition(artboardGrid, gridIndex) {
         var cellOffset = [];
         cellOffset[artboardGrid.primaryAxis] = (gridIndex % artboardGrid.columnCount) * artboardGrid.gridStep[artboardGrid.primaryAxis];
@@ -603,15 +769,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         return [artboardGrid.originRect[0] + cellOffset[0], artboardGrid.originRect[1] + cellOffset[1]];
     }
 
-    // グリッドを引き継げないとき（既存の並びが指定方向と違う／1枚のみ）の配置。
-    // 先頭ではなく挿入位置の直前のアートボードを基準に、指定方向へ (addedOrder+1) 枚目を置く。
-    // グリッドのインデックスをそのまま歩数に使うと、既存の並びと軸が違う場合に
-    // 実際の枚数分だけ離れた位置へ飛んでしまうため、こちらで実位置から積み上げる。
-    // Placement used when the grid can't be inherited (existing layout uses the other axis,
-    // or there is only one artboard). Anchors on the artboard just before the insert point
-    // instead of the first one, and steps along the chosen direction. Reusing the grid index
-    // as a step count would fling the new artboard away by the whole artboard count when the
-    // existing layout runs along the other axis, so build up from the real position instead.
+    /**
+     * グリッドを引き継げないとき（既存の並びが指定方向と違う／1枚のみ）の配置。
+     * 先頭ではなく挿入位置の直前のアートボードを基準に、指定方向へ (addedOrder+1) 枚目を置く。
+     * グリッドのインデックスをそのまま歩数に使うと、既存の並びと軸が違う場合に
+     * 実際の枚数分だけ離れた位置へ飛んでしまうため、こちらで実位置から積み上げる。
+     * Placement used when the grid can't be inherited (existing layout uses the other axis,
+     * or there is only one artboard). Anchors on the artboard just before the insert point
+     * instead of the first one, and steps along the chosen direction. Reusing the grid index
+     * as a step count would fling the new artboard away by the whole artboard count when the
+     * existing layout runs along the other axis, so build up from the real position instead.
+     * @param {object} insertPlan - buildInsertPlan() の戻り値
+     * @param {number[]} referenceRect - 新規アートボードのサイズの基準
+     * @param {number} addedOrder - 追加分の中での順番（0 始まり）
+     * @returns {number[]} 新規アートボードの左上 [x, y]
+     */
     function getAnchoredPosition(insertPlan, referenceRect, addedOrder) {
         var primaryAxis = insertPlan.artboardGrid.primaryAxis;
         var spacingPt = insertPlan.spacingPt;
@@ -629,6 +801,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     // 挿入処理 / Insertion
     // =========================================
 
+    /**
+     * 既存のアートボードをずらして新しいアートボードを挿入する
+     * @param {object} insertSettings - ダイアログで決めた挿入の設定
+     * @returns {void}
+     */
     function insertArtboardsWithShift(insertSettings) {
         var insertPlan = buildInsertPlan(insertSettings);
         if (!insertPlan) return;
@@ -652,8 +829,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         app.redraw();
     }
 
-    // 挿入位置・基準アートボード・グリッド・移動量をまとめる。作成できないときは警告して null
-    // Gather the insert index, reference artboard, grid and offsets; alerts and returns null when it can't proceed
+    /**
+     * 挿入位置・基準アートボード・グリッド・移動量をまとめる。作成できないときは警告して null
+     * Gather the insert index, reference artboard, grid and offsets; alerts and returns null when it can't proceed
+     * @param {object} insertSettings - ダイアログで決めた挿入の設定
+     * @returns {object|null} 挿入の計画
+     */
     function buildInsertPlan(insertSettings) {
         var artboards = doc.artboards;
         var originalCount = artboards.length;
@@ -707,16 +888,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         };
     }
 
-    // 既存アートボードを最終位置へ移動し、アートワークも一緒に運ぶ。
-    // 挿入位置以降は addCount セル分だけ後ろへ（追加分のみモードでは tailPrimaryOffset を加算して
-    // 新規の間隔ぶんさらにずらす）。reflowFromHead=true（すべてモード）のときは先頭も新グリッドへ再配置。
-    // アイテムの帰属は移動前の位置でまとめて取得（スナップショット）してから動かすので、
-    // 移動順による取り違えが起きない。
-    // Move existing artboards to their final positions, carrying their artwork.
-    // Artboards at/after the insert point move back by `addCount` cells (plus tailPrimaryOffset
-    // in added-only mode, to make room for the new spacing). When reflowFromHead is true (scope =
-    // all) the head is also re-flowed onto the new grid. Artwork assignment is snapshotted
-    // from the pre-move rects, so move order can't misassign items.
+    /**
+     * 既存アートボードを最終位置へ移動し、アートワークも一緒に運ぶ。
+     * 挿入位置以降は addCount セル分だけ後ろへ（追加分のみモードでは tailPrimaryOffset を加算して
+     * 新規の間隔ぶんさらにずらす）。reflowFromHead=true（すべてモード）のときは先頭も新グリッドへ再配置。
+     * アイテムの帰属は移動前の位置でまとめて取得（スナップショット）してから動かすので、
+     * 移動順による取り違えが起きない。
+     * Move existing artboards to their final positions, carrying their artwork.
+     * Artboards at/after the insert point move back by `addCount` cells (plus tailPrimaryOffset
+     * in added-only mode, to make room for the new spacing). When reflowFromHead is true (scope =
+     * all) the head is also re-flowed onto the new grid. Artwork assignment is snapshotted
+     * from the pre-move rects, so move order can't misassign items.
+     * @param {object} insertPlan - buildInsertPlan() の戻り値
+     * @returns {void}
+     */
     function relayoutExistingArtboards(insertPlan) {
         var artboards = insertPlan.artboards;
         var plannedMoves = [];
@@ -751,8 +936,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         }
     }
 
-    // 指定数の新規アートボードを末尾に追加して名前を付け、複製モードなら内容もコピーする
-    // Append the requested number of new artboards, name them, and copy the contents in duplicate mode
+    /**
+     * 指定数の新規アートボードを末尾に追加して名前を付け、複製モードなら内容もコピーする
+     * Append the requested number of new artboards, name them, and copy the contents in duplicate mode
+     * @param {object} insertPlan - buildInsertPlan() の戻り値
+     * @returns {void}
+     */
     function addNewArtboards(insertPlan) {
         var artboardGrid = insertPlan.artboardGrid;
         var addCount = insertPlan.addCount;
@@ -785,10 +974,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         }
     }
 
-    // 末尾に追加された addCount 枚を、挿入位置 insertIndex..insertIndex+addCount-1 へ並べ替え。
-    // 既存の後続（insertIndex..originalCount-1）は addCount 枚分だけ後ろへ送る。
-    // Move the `addCount` just-appended artboards into slots insertIndex..insertIndex+addCount-1,
-    // pushing the existing trailing artboards (insertIndex..originalCount-1) back by `addCount`.
+    /**
+     * 末尾に追加された addCount 枚を、挿入位置 insertIndex..insertIndex+addCount-1 へ並べ替える。
+     * 既存の後続（insertIndex..originalCount-1）は addCount 枚分だけ後ろへ送る。
+     * Move the `addCount` just-appended artboards into slots insertIndex..insertIndex+addCount-1,
+     * pushing the existing trailing artboards (insertIndex..originalCount-1) back by `addCount`.
+     * @param {object} insertPlan - buildInsertPlan() の戻り値
+     * @returns {void}
+     */
     function reorderAppendedArtboards(insertPlan) {
         var artboards = insertPlan.artboards;
         var addCount = insertPlan.addCount;
@@ -813,25 +1006,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         }
     }
 
-    // 枠と名前を写す（source は Artboard でも退避したオブジェクトでもよい）
-    // Copy the rect and name (source can be an Artboard or a saved state object)
-    function copyRectAndName(source, targetArtboard) {
-        targetArtboard.artboardRect = source.artboardRect;
-        targetArtboard.name = source.name;
+    /**
+     * 枠と名前を写す / Copy the rect and name
+     * @param {Artboard|object} sourceState - 写し元（Artboard でも、退避した { artboardRect, name } でもよい）
+     * @param {Artboard} targetArtboard - 写し先のアートボード
+     * @returns {void}
+     */
+    function copyRectAndName(sourceState, targetArtboard) {
+        targetArtboard.artboardRect = sourceState.artboardRect;
+        targetArtboard.name = sourceState.name;
     }
 
     // =========================================
     // アートワークの収集・移動・複製 / Artwork collection, moving and duplication
     // =========================================
 
-    // アートボード上のアイテムを収集 / Collect items on an artboard
-    // doc.pageItems はグループ・複合パスの子まで再帰的に含むため、
-    // 最上位（親がレイヤー）のアイテムのみを対象にする。
-    // 子は親と一緒に移動・複製されるので、ここで拾うと二重に処理されてしまう。
-    // doc.pageItems also returns children of groups/compound paths, so only
-    // collect top-level items (whose parent is a Layer). Children move and
-    // duplicate together with their parent, so including them here would
-    // process them twice.
+    /**
+     * アートボード上のアイテムを収集する（中心がアートボード内にある最上位のアイテム）
+     * doc.pageItems はグループ・複合パスの子まで再帰的に含むため、
+     * 最上位（親がレイヤー）のアイテムのみを対象にする。
+     * 子は親と一緒に移動・複製されるので、ここで拾うと二重に処理されてしまう。
+     * doc.pageItems also returns children of groups/compound paths, so only
+     * collect top-level items (whose parent is a Layer). Children move and
+     * duplicate together with their parent, so including them here would
+     * process them twice.
+     * @param {number[]} artboardRect - アートボードの範囲 [左, 上, 右, 下]
+     * @returns {PageItem[]} アートボードに属するアイテム
+     */
     function getItemsAssignedToArtboard(artboardRect) {
         var assignedItems = [];
         var pageItems = doc.pageItems;
@@ -849,20 +1050,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         return assignedItems;
     }
 
-    // ロック／非表示のアイテムは translate() や duplicate() が例外になる。
-    // 途中で例外になると、そこまで動かしたアートボードだけが残って崩れるため、
-    // 対象アイテムと祖先レイヤーのロック／表示状態を一時解除して action を実行し、終わったら元へ戻す。
-    // translate() and duplicate() throw on locked/hidden items. An exception partway through
-    // would leave the already-moved artboards in a broken state, so temporarily clear the
-    // lock/visibility of the item and its ancestor layers, run the action, then restore them.
+    /**
+     * ロック／非表示のアイテムは translate() や duplicate() が例外になる。
+     * 途中で例外になると、そこまで動かしたアートボードだけが残って崩れるため、
+     * 対象アイテムと祖先レイヤーのロック／表示状態を一時解除して action を実行し、終わったら元へ戻す。
+     * translate() and duplicate() throw on locked/hidden items. An exception partway through
+     * would leave the already-moved artboards in a broken state, so temporarily clear the
+     * lock/visibility of the item and its ancestor layers, run the action, then restore them.
+     * @param {PageItem} pageItem - 対象のアイテム
+     * @param {Function} action - ロック・非表示を解除した状態で実行する処理
+     * @returns {void}
+     */
     function runWithItemUnlocked(pageItem, action) {
         var savedStates = [];
 
-        // 値が違うときだけ元の値を控えてから書き換える / Record and overwrite only when the value differs
-        function overrideState(target, propertyName, temporaryValue) {
-            if (target[propertyName] === temporaryValue) return;
-            savedStates.push({ target: target, propertyName: propertyName, originalValue: target[propertyName] });
-            target[propertyName] = temporaryValue;
+        /**
+         * 値が違うときだけ元の値を控えてから書き換える / Record and overwrite only when the value differs
+         * @param {object} targetObject - 書き換えるアイテムまたはレイヤー
+         * @param {string} propertyName - プロパティ名
+         * @param {boolean} temporaryValue - 一時的に設定する値
+         * @returns {void}
+         */
+        function overrideState(targetObject, propertyName, temporaryValue) {
+            if (targetObject[propertyName] === temporaryValue) return;
+            savedStates.push({ targetObject: targetObject, propertyName: propertyName, originalValue: targetObject[propertyName] });
+            targetObject[propertyName] = temporaryValue;
         }
 
         for (var ancestorLayer = pageItem.parent; ancestorLayer && ancestorLayer.typename === 'Layer'; ancestorLayer = ancestorLayer.parent) {
@@ -877,13 +1089,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         } finally {
             // 書き換えと逆順に戻す / Restore in reverse order
             for (var i = savedStates.length - 1; i >= 0; i--) {
-                savedStates[i].target[savedStates[i].propertyName] = savedStates[i].originalValue;
+                savedStates[i].targetObject[savedStates[i].propertyName] = savedStates[i].originalValue;
             }
         }
     }
 
-    // sourceRect のアートボード上のアイテムを targetRect の位置へ複製（ロック／表示状態も引き継ぐ）
-    // Duplicate the items on the sourceRect artboard to targetRect, carrying their lock/visibility
+    /**
+     * sourceRect のアートボード上のアイテムを targetRect の位置へ複製する（ロック／表示状態も引き継ぐ）
+     * Duplicate the items on the sourceRect artboard to targetRect, carrying their lock/visibility
+     * @param {number[]} sourceRect - 複製元のアートボードの範囲
+     * @param {number[]} targetRect - 複製先のアートボードの範囲
+     * @returns {void}
+     */
     function duplicateArtboardContents(sourceRect, targetRect) {
         var dx = targetRect[0] - sourceRect[0];
         var dy = targetRect[1] - sourceRect[1];

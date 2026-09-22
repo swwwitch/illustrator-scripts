@@ -900,7 +900,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     /**
      * seedから同じ並びを再現できる乱数生成器を作る
      * @param {number} randomSeed - 乱数の種
-     * @returns {function} 0以上1未満の乱数を返す関数
+     * @returns {Function} 0以上1未満の乱数を返す関数
      */
     function createSeededRandom(randomSeed) {
         var rngState = randomSeed >>> 0;
@@ -912,7 +912,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * -1〜1の乱数を返す
-     * @param {function} nextRandom - 乱数生成器
+     * @param {Function} nextRandom - 乱数生成器
      * @returns {number} -1以上1未満の値
      */
     function randomSigned(nextRandom) {
@@ -1016,7 +1016,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /**
      * プレビューを適用し、キャンセル時に戻せるよう記録する
-     * @param {function} previewFn - 文字属性を書き換える処理
+     * @param {Function} previewFn - 文字属性を書き換える処理
      * @returns {void}
      */
     function runPreview(previewFn) {

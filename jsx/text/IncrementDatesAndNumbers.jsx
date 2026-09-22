@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "IncrementDatesAndNumbers";     /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/IncrementDatesAndNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/IncrementDatesAndNumbers.md"; /* README (English) */
@@ -269,14 +269,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 数値を指定の桁数までゼロ埋めする
-     * @param {number} num - 数値
-     * @param {number} len - 桁数
+     * @param {number} numberValue - 数値
+     * @param {number} digitCount - 桁数
      * @returns {string} ゼロ埋めした文字列
      */
-    function pad(num, len) {
-        var str = String(num);
-        while (str.length < len) str = "0" + str;
-        return str;
+    function pad(numberValue, digitCount) {
+        var paddedText = String(numberValue);
+        while (paddedText.length < digitCount) paddedText = "0" + paddedText;
+        return paddedText;
     }
 
     /**
@@ -999,9 +999,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         editText.addEventListener("keydown", function(event) {
             var value = Number(editText.text);
             if (isNaN(value)) return;
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
             var delta = 1;
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 delta = 10;
                 if (event.keyName == "Up") {
                     value = Math.ceil((value + 1) / delta) * delta;
@@ -1010,7 +1010,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     value = Math.floor((value - 1) / delta) * delta;
                     event.preventDefault();
                 }
-            } else if (keyboard.altKey) {
+            } else if (keyboardState.altKey) {
                 delta = 0.1;
                 if (event.keyName == "Up") {
                     value += delta;
@@ -1029,7 +1029,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     event.preventDefault();
                 }
             }
-            if (keyboard.altKey) {
+            if (keyboardState.altKey) {
                 value = Math.round(value * 10) / 10;
             } else {
                 value = Math.round(value);
@@ -1042,6 +1042,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         });
     }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
     showIncrementDialog();
 

@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "MultiAreaText";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MultiAreaText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MultiAreaText.md"; /* README (English) */
@@ -330,8 +330,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function readCharacterAttributes(sourceAttributes) {
         var attributeSnapshot = {};
-        for (var n = 0; n < COPIED_CHARACTER_ATTRIBUTES.length; n++) {
-            attributeSnapshot[COPIED_CHARACTER_ATTRIBUTES[n]] = sourceAttributes[COPIED_CHARACTER_ATTRIBUTES[n]];
+        for (var attrIndex = 0; attrIndex < COPIED_CHARACTER_ATTRIBUTES.length; attrIndex++) {
+            attributeSnapshot[COPIED_CHARACTER_ATTRIBUTES[attrIndex]] = sourceAttributes[COPIED_CHARACTER_ATTRIBUTES[attrIndex]];
         }
         return attributeSnapshot;
     }
@@ -343,8 +343,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function writeCharacterAttributes(targetAttributes, attributeSnapshot) {
-        for (var n = 0; n < COPIED_CHARACTER_ATTRIBUTES.length; n++) {
-            targetAttributes[COPIED_CHARACTER_ATTRIBUTES[n]] = attributeSnapshot[COPIED_CHARACTER_ATTRIBUTES[n]];
+        for (var attrIndex = 0; attrIndex < COPIED_CHARACTER_ATTRIBUTES.length; attrIndex++) {
+            targetAttributes[COPIED_CHARACTER_ATTRIBUTES[attrIndex]] = attributeSnapshot[COPIED_CHARACTER_ATTRIBUTES[attrIndex]];
         }
     }
 
@@ -402,10 +402,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function buildDialog(selectedItems, rulerLabel) {
         var isSingle = (selectedItems.length === 1);
         var hasNonAreaText = containsNonAreaText(selectedItems);
-        var ui = {};
+        var dialogControls = {};
 
-        ui.window = new Window("dialog", getLabel("dialog.title") + ' ' + SCRIPT_VERSION);
-        var columnsGroup = ui.window.add("group");
+        dialogControls.window = new Window("dialog", getLabel("dialog.title") + ' ' + SCRIPT_VERSION);
+        var columnsGroup = dialogControls.window.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
 
@@ -413,133 +413,133 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leftColumn = addColumnGroup(columnsGroup);
 
         var optionPanel = addOptionPanel(leftColumn, "panel.option");
-        ui.rbMerge = addControl(optionPanel, "radiobutton", "radio.merge", "tooltip.merge");
-        ui.rbThread = addControl(optionPanel, "radiobutton", "radio.thread", "tooltip.thread");
-        ui.rbSwap = addControl(optionPanel, "radiobutton", "radio.swap", "tooltip.swap");
+        dialogControls.rbMerge = addControl(optionPanel, "radiobutton", "radio.merge", "tooltip.merge");
+        dialogControls.rbThread = addControl(optionPanel, "radiobutton", "radio.thread", "tooltip.thread");
+        dialogControls.rbSwap = addControl(optionPanel, "radiobutton", "radio.swap", "tooltip.swap");
         if (isSingle) {
-            ui.rbMerge.value = false;
-            ui.rbThread.value = true;
+            dialogControls.rbMerge.value = false;
+            dialogControls.rbThread.value = true;
         } else {
-            ui.rbMerge.value = true;
+            dialogControls.rbMerge.value = true;
         }
 
         var orderPanel = addOptionPanel(leftColumn, "panel.order");
-        ui.rbTopToBottom = addControl(orderPanel, "radiobutton", "radio.topToBottom");
-        ui.rbLeftToRight = addControl(orderPanel, "radiobutton", "radio.leftToRight");
-        ui.rbTopToBottom.value = true;
+        dialogControls.rbTopToBottom = addControl(orderPanel, "radiobutton", "radio.topToBottom");
+        dialogControls.rbLeftToRight = addControl(orderPanel, "radiobutton", "radio.leftToRight");
+        dialogControls.rbTopToBottom.value = true;
 
         var threadPanel = addOptionPanel(leftColumn, "panel.threadText");
-        ui.rbThreadLink = addControl(threadPanel, "radiobutton", "radio.threadLink", "tooltip.threadLink");
-        ui.rbThreadUnlink = addControl(threadPanel, "radiobutton", "radio.threadUnlink", "tooltip.threadUnlink");
-        ui.rbThreadAdd = addControl(threadPanel, "radiobutton", "radio.threadAdd", "tooltip.threadAdd");
-        ui.rbThreadRelease = addControl(threadPanel, "radiobutton", "radio.threadRelease", "tooltip.threadRelease");
-        ui.rbThreadRelease2 = addControl(threadPanel, "radiobutton", "radio.threadRelease2", "tooltip.threadRelease2");
+        dialogControls.rbThreadLink = addControl(threadPanel, "radiobutton", "radio.threadLink", "tooltip.threadLink");
+        dialogControls.rbThreadUnlink = addControl(threadPanel, "radiobutton", "radio.threadUnlink", "tooltip.threadUnlink");
+        dialogControls.rbThreadAdd = addControl(threadPanel, "radiobutton", "radio.threadAdd", "tooltip.threadAdd");
+        dialogControls.rbThreadRelease = addControl(threadPanel, "radiobutton", "radio.threadRelease", "tooltip.threadRelease");
+        dialogControls.rbThreadRelease2 = addControl(threadPanel, "radiobutton", "radio.threadRelease2", "tooltip.threadRelease2");
         if (isSingle) {
-            ui.rbThreadRelease.value = true;
+            dialogControls.rbThreadRelease.value = true;
         } else {
-            ui.rbThreadLink.value = true;
+            dialogControls.rbThreadLink.value = true;
         }
 
         /* 右カラム：スタイル、フレームの高さ / Right column: Style, Frame Height */
         var rightColumn = addColumnGroup(columnsGroup);
 
         var stylePanel = addOptionPanel(rightColumn, "panel.style");
-        ui.cbRemoveLineBreaks = addControl(stylePanel, "checkbox", "checkbox.removeLineBreaks", "tooltip.removeLineBreaks");
-        ui.cbRemoveLineBreaks.value = false;
-        ui.cbPreserveFormatting = addControl(stylePanel, "checkbox", "checkbox.preserveFormatting", "tooltip.preserveFormatting");
-        ui.cbPreserveFormatting.value = true;
-        ui.cbPreserveFormatting.onClick = function () { ui.cbRemoveLineBreaks.enabled = !ui.cbPreserveFormatting.value; };
+        dialogControls.cbRemoveLineBreaks = addControl(stylePanel, "checkbox", "checkbox.removeLineBreaks", "tooltip.removeLineBreaks");
+        dialogControls.cbRemoveLineBreaks.value = false;
+        dialogControls.cbPreserveFormatting = addControl(stylePanel, "checkbox", "checkbox.preserveFormatting", "tooltip.preserveFormatting");
+        dialogControls.cbPreserveFormatting.value = true;
+        dialogControls.cbPreserveFormatting.onClick = function () { dialogControls.cbRemoveLineBreaks.enabled = !dialogControls.cbPreserveFormatting.value; };
         var insetSpacingGroup = stylePanel.add("group");
-        ui.cbInsetSpacing = addControl(insetSpacingGroup, "checkbox", "checkbox.insetSpacing", "tooltip.insetSpacing");
-        ui.cbInsetSpacing.value = false;
-        ui.insetSpacingInput = insetSpacingGroup.add("edittext", undefined, "1");
-        ui.insetSpacingInput.characters = SPACING_FIELD_CHARACTERS;
+        dialogControls.cbInsetSpacing = addControl(insetSpacingGroup, "checkbox", "checkbox.insetSpacing", "tooltip.insetSpacing");
+        dialogControls.cbInsetSpacing.value = false;
+        dialogControls.insetSpacingInput = insetSpacingGroup.add("edittext", undefined, "1");
+        dialogControls.insetSpacingInput.characters = SPACING_FIELD_CHARACTERS;
         insetSpacingGroup.add("statictext", undefined, rulerLabel);
-        ui.cbInsetSpacing.onClick = function () { ui.insetSpacingInput.enabled = ui.cbInsetSpacing.value; };
-        ui.cbJustify = addControl(stylePanel, "checkbox", "checkbox.justify");
-        ui.cbJustify.value = true;
-        ui.cbAppearance = addControl(stylePanel, "checkbox", "checkbox.appearance", "tooltip.appearance");
-        ui.cbAppearance.value = false;
+        dialogControls.cbInsetSpacing.onClick = function () { dialogControls.insetSpacingInput.enabled = dialogControls.cbInsetSpacing.value; };
+        dialogControls.cbJustify = addControl(stylePanel, "checkbox", "checkbox.justify");
+        dialogControls.cbJustify.value = true;
+        dialogControls.cbAppearance = addControl(stylePanel, "checkbox", "checkbox.appearance", "tooltip.appearance");
+        dialogControls.cbAppearance.value = false;
 
         var heightPanel = addOptionPanel(rightColumn, "panel.frameHeight");
-        ui.rbHeightNone = addControl(heightPanel, "radiobutton", "radio.heightNone");
-        ui.rbHeightFit = addControl(heightPanel, "radiobutton", "radio.heightFit", "tooltip.heightFit");
-        ui.rbHeightAuto = addControl(heightPanel, "radiobutton", "radio.heightAuto", "tooltip.heightAuto");
-        ui.rbHeightFit.value = true;
+        dialogControls.rbHeightNone = addControl(heightPanel, "radiobutton", "radio.heightNone");
+        dialogControls.rbHeightFit = addControl(heightPanel, "radiobutton", "radio.heightFit", "tooltip.heightFit");
+        dialogControls.rbHeightAuto = addControl(heightPanel, "radiobutton", "radio.heightAuto", "tooltip.heightAuto");
+        dialogControls.rbHeightFit.value = true;
 
         /* パネルの有効/無効を切り替え / Toggle panel enabled state */
         var updatePanels = function () {
             /* 1つのときマージ・交換を無効化 / Disable merge and swap when single object */
-            ui.rbMerge.enabled = !isSingle;
-            ui.rbSwap.enabled = (selectedItems.length === 2);
+            dialogControls.rbMerge.enabled = !isSingle;
+            dialogControls.rbSwap.enabled = (selectedItems.length === 2);
             /* ポイント文字/パステキスト含有時スレッドを無効化 / Disable thread when non-area text present */
-            ui.rbThread.enabled = !hasNonAreaText;
+            dialogControls.rbThread.enabled = !hasNonAreaText;
             /* 交換・スレッドのとき順序を無効化 / Disable order when swap or thread is selected */
-            var orderEnabled = !ui.rbSwap.value && !ui.rbThread.value;
-            ui.rbTopToBottom.enabled = orderEnabled;
-            ui.rbLeftToRight.enabled = orderEnabled;
+            var orderEnabled = !dialogControls.rbSwap.value && !dialogControls.rbThread.value;
+            dialogControls.rbTopToBottom.enabled = orderEnabled;
+            dialogControls.rbLeftToRight.enabled = orderEnabled;
             /* スレッドテキストパネルはスレッド選択時のみ有効 / Thread text panel enabled only when thread is selected */
-            var threadPanelEnabled = ui.rbThread.value;
-            ui.rbThreadLink.enabled = threadPanelEnabled;
-            ui.rbThreadUnlink.enabled = threadPanelEnabled;
-            ui.rbThreadRelease.enabled = threadPanelEnabled;
-            ui.rbThreadAdd.enabled = threadPanelEnabled;
-            ui.rbThreadRelease2.enabled = threadPanelEnabled;
+            var threadPanelEnabled = dialogControls.rbThread.value;
+            dialogControls.rbThreadLink.enabled = threadPanelEnabled;
+            dialogControls.rbThreadUnlink.enabled = threadPanelEnabled;
+            dialogControls.rbThreadRelease.enabled = threadPanelEnabled;
+            dialogControls.rbThreadAdd.enabled = threadPanelEnabled;
+            dialogControls.rbThreadRelease2.enabled = threadPanelEnabled;
             /* 交換・1つ選択のときスタイルを無効化 / Disable style when swap is selected or single object */
-            var styleEnabled = !ui.rbSwap.value && !isSingle;
-            ui.cbRemoveLineBreaks.enabled = styleEnabled && !ui.cbPreserveFormatting.value;
-            ui.cbPreserveFormatting.enabled = styleEnabled;
-            ui.cbInsetSpacing.enabled = styleEnabled;
-            ui.insetSpacingInput.enabled = styleEnabled && ui.cbInsetSpacing.value;
-            ui.cbJustify.enabled = styleEnabled;
-            ui.cbAppearance.enabled = styleEnabled;
+            var styleEnabled = !dialogControls.rbSwap.value && !isSingle;
+            dialogControls.cbRemoveLineBreaks.enabled = styleEnabled && !dialogControls.cbPreserveFormatting.value;
+            dialogControls.cbPreserveFormatting.enabled = styleEnabled;
+            dialogControls.cbInsetSpacing.enabled = styleEnabled;
+            dialogControls.insetSpacingInput.enabled = styleEnabled && dialogControls.cbInsetSpacing.value;
+            dialogControls.cbJustify.enabled = styleEnabled;
+            dialogControls.cbAppearance.enabled = styleEnabled;
             /* 交換・スレッド・1つ選択のときフレームの高さを無効化 / Disable frame height when swap, thread, or single object */
-            var heightEnabled = !ui.rbThread.value && !ui.rbSwap.value && !isSingle;
-            ui.rbHeightNone.enabled = heightEnabled;
-            ui.rbHeightFit.enabled = heightEnabled;
-            ui.rbHeightAuto.enabled = heightEnabled;
+            var heightEnabled = !dialogControls.rbThread.value && !dialogControls.rbSwap.value && !isSingle;
+            dialogControls.rbHeightNone.enabled = heightEnabled;
+            dialogControls.rbHeightFit.enabled = heightEnabled;
+            dialogControls.rbHeightAuto.enabled = heightEnabled;
         };
         updatePanels();
-        ui.rbMerge.onClick = updatePanels;
-        ui.rbThread.onClick = updatePanels;
-        ui.rbSwap.onClick = updatePanels;
+        dialogControls.rbMerge.onClick = updatePanels;
+        dialogControls.rbThread.onClick = updatePanels;
+        dialogControls.rbSwap.onClick = updatePanels;
 
-        var btnRowGroup = ui.window.add("group");
+        var btnRowGroup = dialogControls.window.add("group");
         btnRowGroup.alignment = ["right", "center"];
         btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        return ui;
+        return dialogControls;
     }
 
     /**
      * ダイアログのコントロールから処理設定を読み取る
-     * @param {Object} ui - buildDialog() の結果
+     * @param {Object} dialogControls - buildDialog() の結果
      * @returns {Object} 処理設定
      */
-    function readDialogSettings(ui) {
+    function readDialogSettings(dialogControls) {
         var threadAction = "link";
-        if (ui.rbThreadUnlink.value) threadAction = "unlink";
-        else if (ui.rbThreadRelease.value) threadAction = "release";
-        else if (ui.rbThreadRelease2.value) threadAction = "releaseByDuplicate";
-        else if (ui.rbThreadAdd.value) threadAction = "add";
+        if (dialogControls.rbThreadUnlink.value) threadAction = "unlink";
+        else if (dialogControls.rbThreadRelease.value) threadAction = "release";
+        else if (dialogControls.rbThreadRelease2.value) threadAction = "releaseByDuplicate";
+        else if (dialogControls.rbThreadAdd.value) threadAction = "add";
 
         var frameHeightMode = "none";
-        if (!ui.rbHeightNone.value) {
-            if (ui.rbHeightFit.value) frameHeightMode = "fit";
-            else if (ui.rbHeightAuto.value) frameHeightMode = "auto";
+        if (!dialogControls.rbHeightNone.value) {
+            if (dialogControls.rbHeightFit.value) frameHeightMode = "fit";
+            else if (dialogControls.rbHeightAuto.value) frameHeightMode = "auto";
         }
 
         return {
-            operation: ui.rbThread.value ? "thread" : (ui.rbSwap.value ? "swap" : "merge"),
+            operation: dialogControls.rbThread.value ? "thread" : (dialogControls.rbSwap.value ? "swap" : "merge"),
             threadAction: threadAction,
-            leftToRight: ui.rbLeftToRight.value,
-            removeLineBreaks: ui.cbRemoveLineBreaks.value,
-            preserveFormatting: ui.cbPreserveFormatting.value,
-            insetSpacingOn: ui.cbInsetSpacing.value,
-            insetSpacingText: ui.insetSpacingInput.text,
-            justify: ui.cbJustify.value,
-            appearance: ui.cbAppearance.value,
+            leftToRight: dialogControls.rbLeftToRight.value,
+            removeLineBreaks: dialogControls.cbRemoveLineBreaks.value,
+            preserveFormatting: dialogControls.cbPreserveFormatting.value,
+            insetSpacingOn: dialogControls.cbInsetSpacing.value,
+            insetSpacingText: dialogControls.insetSpacingInput.text,
+            justify: dialogControls.cbJustify.value,
+            appearance: dialogControls.cbAppearance.value,
             frameHeightMode: frameHeightMode
         };
     }
@@ -578,10 +578,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var frameText = textFrame.contents;
 
         var paragraphAttributes = [];
-        for (var p = 0; p < textFrame.paragraphs.length; p++) {
+        for (var paragraphIndex = 0; paragraphIndex < textFrame.paragraphs.length; paragraphIndex++) {
             /* 読めない段落（末尾の空段落など）で打ち切る / stop at a paragraph that cannot be read, such as a trailing empty one */
             try {
-                paragraphAttributes.push(readCharacterAttributes(textFrame.paragraphs[p].characterAttributes));
+                paragraphAttributes.push(readCharacterAttributes(textFrame.paragraphs[paragraphIndex].characterAttributes));
             } catch (e) {
                 break;
             }
@@ -616,9 +616,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 段落ごとに書式を適用。段落が足りなければ打ち切る / Apply attributes per paragraph; stop when paragraphs run out */
-        for (var p = 1; p < paragraphAttributes.length; p++) {
+        for (var paragraphIndex = 1; paragraphIndex < paragraphAttributes.length; paragraphIndex++) {
             try {
-                writeCharacterAttributes(newTextFrame.paragraphs[p].characterAttributes, paragraphAttributes[p]);
+                writeCharacterAttributes(newTextFrame.paragraphs[paragraphIndex].characterAttributes, paragraphAttributes[paragraphIndex]);
             } catch (e) {
                 break;
             }
@@ -687,8 +687,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             /* すべての対象がスレッドから外れていれば成功 / Success when no target is threaded any more */
             releaseOk = true;
-            for (var ck = 0; ck < frameSnapshots.length; ck++) {
-                if (isThreadedFrame(frameSnapshots[ck].frame)) {
+            for (var checkIndex = 0; checkIndex < frameSnapshots.length; checkIndex++) {
+                if (isThreadedFrame(frameSnapshots[checkIndex].frame)) {
                     releaseOk = false;
                     break;
                 }
@@ -703,22 +703,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* スレッドから外れたので、元の内容を消しても連結先に影響しない / Safe to clear now that the chain is broken */
-        for (var clr = 0; clr < frameSnapshots.length; clr++) {
+        for (var clearIndex = 0; clearIndex < frameSnapshots.length; clearIndex++) {
             try {
-                frameSnapshots[clr].frame.contents = "";
+                frameSnapshots[clearIndex].frame.contents = "";
             } catch (e) { }
         }
 
         /* 保存した情報から新しいエリア内文字を作成 / Create new area text from saved info */
-        for (var rj = 0; rj < frameSnapshots.length; rj++) {
-            recreateAreaText(doc, frameSnapshots[rj]);
+        for (var createIndex = 0; createIndex < frameSnapshots.length; createIndex++) {
+            recreateAreaText(doc, frameSnapshots[createIndex]);
         }
 
         /* 空になり、スレッドから外れた元のフレームだけを削除 / Remove only the originals that are empty and unthreaded */
-        for (var rm = 0; rm < frameSnapshots.length; rm++) {
+        for (var removeIndex = 0; removeIndex < frameSnapshots.length; removeIndex++) {
             /* 無効になったフレームは読み取りや削除で例外になる / an invalid frame throws on read or remove */
             try {
-                var originalFrame = frameSnapshots[rm].frame;
+                var originalFrame = frameSnapshots[removeIndex].frame;
                 if (!originalFrame || originalFrame.typename !== "TextFrame") continue;
                 if (originalFrame.contents !== "") continue;
                 if (isThreadedFrame(originalFrame)) continue;
@@ -794,12 +794,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ソート（左から右、または上から下） / Sort (left-to-right or top-to-bottom) */
         if (leftToRight) {
-            textFrames.sort(function (a, b) {
-                return a.geometricBounds[0] - b.geometricBounds[0];
+            textFrames.sort(function (firstFrame, secondFrame) {
+                return firstFrame.geometricBounds[0] - secondFrame.geometricBounds[0];
             });
         } else {
-            textFrames.sort(function (a, b) {
-                return b.geometricBounds[1] - a.geometricBounds[1];
+            textFrames.sort(function (firstFrame, secondFrame) {
+                return secondFrame.geometricBounds[1] - firstFrame.geometricBounds[1];
             });
         }
         return textFrames;
@@ -833,11 +833,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 先頭フレームの書式をtextRange全体に適用後、段落ごとに上書き / Apply the first frame to the whole range, then override per paragraph */
         writeCharacterAttributes(newTextFrame.textRange.characterAttributes, frameAttributes[0]);
         var paragraphIndex = 0;
-        for (var fi = 0; fi < frameAttributes.length; fi++) {
-            for (var pi = 0; pi < frameParagraphCounts[fi]; pi++) {
+        for (var frameIndex = 0; frameIndex < frameAttributes.length; frameIndex++) {
+            for (var framePara = 0; framePara < frameParagraphCounts[frameIndex]; framePara++) {
                 /* 末尾の空段落は Error 1302 になるのでスキップ / skip the trailing empty paragraph (Error 1302) */
                 try {
-                    writeCharacterAttributes(newTextFrame.paragraphs[paragraphIndex].characterAttributes, frameAttributes[fi]);
+                    writeCharacterAttributes(newTextFrame.paragraphs[paragraphIndex].characterAttributes, frameAttributes[frameIndex]);
                 } catch (e) { }
                 paragraphIndex++;
             }
@@ -907,9 +907,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var frameAttributes = [];
         var frameParagraphCounts = [];
         if (mergeSettings.preserveFormatting) {
-            for (var ci = 0; ci < textFrames.length; ci++) {
-                frameAttributes.push(readCharacterAttributes(textFrames[ci].textRange.characterAttributes));
-                frameParagraphCounts.push(textFrames[ci].paragraphs.length);
+            for (var frameIndex = 0; frameIndex < textFrames.length; frameIndex++) {
+                frameAttributes.push(readCharacterAttributes(textFrames[frameIndex].textRange.characterAttributes));
+                frameParagraphCounts.push(textFrames[frameIndex].paragraphs.length);
             }
         }
 
@@ -932,8 +932,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 readCharacterAttributes(textFrames[0].textRange.characterAttributes));
         }
 
-        for (var r = textFrames.length - 1; r >= 0; r--) {
-            textFrames[r].remove();
+        for (var removeIndex = textFrames.length - 1; removeIndex >= 0; removeIndex--) {
+            textFrames[removeIndex].remove();
         }
 
         /* スタイルを適用 / Apply style */

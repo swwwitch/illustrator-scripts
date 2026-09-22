@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "ConvertAreaAndPointType";      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertAreaAndPointType.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertAreaAndPointType.md"; /* README (English) */
@@ -48,16 +48,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * パネルの共通設定を適用する
-     * @param {Panel} panel - 対象のパネル
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -87,6 +87,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dontKeepStyle: { ja: "保持しない", en: "Don't keep" }
         },
         button: {
+            ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         /* 順/逆で意味が異なるため補足 / Meaning differs per direction */
@@ -366,23 +367,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} text - ASCII 文字列
      * @returns {string} 16進数の文字列
      */
-    function _hexAscii(text) {
-        var hex = "";
+    function asciiToHex(text) {
+        var hexText = "";
         for (var i = 0; i < text.length; i++) {
-            var pair = text.charCodeAt(i).toString(16);
-            if (pair.length < 2) pair = "0" + pair;
-            hex += pair;
+            var hexPair = text.charCodeAt(i).toString(16);
+            if (hexPair.length < 2) hexPair = "0" + hexPair;
+            hexText += hexPair;
         }
-        return hex;
+        return hexText;
     }
 
     /**
      * アクション定義の /name ブロック（ASCII）を作る
-     * @param {string} text - 名前
+     * @param {string} actionName - アクション名またはセット名
      * @returns {string} /name ブロック
      */
-    function _nameBlockAscii(text) {
-        return "/name [ " + text.length + " " + _hexAscii(text).toUpperCase() + " ]";
+    function buildActionNameBlock(actionName) {
+        return "/name [ " + actionName.length + " " + asciiToHex(actionName).toUpperCase() + " ]";
     }
 
     /**
@@ -390,20 +391,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} setName - アクションセット名
      * @param {string} internalName - イベントの内部名
      * @param {string} localizedNameHex - ローカライズ名（"長さ 16進" 形式。空なら省略）
-     * @param {number} paramKeyInt - パラメーターのキー
-     * @param {Object[]} actionDefs - { name, value } のアクション定義
+     * @param {number} parameterKey - パラメーターのキー
+     * @param {Object[]} actionDefinitions - { name, value } のアクション定義
      * @returns {string} .aia の文字列
      */
-    function _buildActionSetAIA(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
+    function buildActionSetAia(setName, internalName, localizedNameHex, parameterKey, actionDefinitions) {
         var aiaString = "/version 3" +
-            _nameBlockAscii(setName) +
+            buildActionNameBlock(setName) +
             "/isOpen 1" +
-            "/actionCount " + actionDefs.length;
+            "/actionCount " + actionDefinitions.length;
 
-        for (var i = 0; i < actionDefs.length; i++) {
-            var actionDef = actionDefs[i];
+        for (var i = 0; i < actionDefinitions.length; i++) {
+            var actionDef = actionDefinitions[i];
             aiaString += "/action-" + (i + 1) + " {" +
-                " " + _nameBlockAscii(actionDef.name) +
+                " " + buildActionNameBlock(actionDef.name) +
                 " /keyIndex 0" +
                 " /colorIndex 0" +
                 " /isOpen 1" +
@@ -417,7 +418,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 " /hasDialog 0" +
                 " /parameterCount 1" +
                 " /parameter-1 {" +
-                " /key " + paramKeyInt +
+                " /key " + parameterKey +
                 " /showInPalette 4294967295" +
                 " /type (integer)" +
                 " /value " + actionDef.value +
@@ -465,7 +466,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function loadFrameAlignmentAction() {
-        var aiaString = _buildActionSetAIA(
+        var aiaString = buildActionSetAia(
             AREA_TEXT_ACTION_SET,
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
@@ -1030,7 +1031,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnRowGroup = styleDialog.add("group");
         btnRowGroup.alignment = "center";
         var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         var dialogResult = null;
         btnOK.onClick = function () {

@@ -153,7 +153,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * テキストと書式の現状を控える
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {{contents: (string|null), charSnapshots: object[], paraSnapshots: object[]}} 控えた状態
+     * @returns {{contents: (string|null), charSnapshots: Object[], paraSnapshots: Object[]}} 控えた状態
      */
     function captureFrameState(textFrame) {
         var frameState = { contents: null, charSnapshots: [], paraSnapshots: [] };
@@ -166,7 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 控えておいた書式をフレームへ復元する
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @param {{charSnapshots: object[], paraSnapshots: object[]}} frameState - captureFrameState() が返した控え
+     * @param {{charSnapshots: Object[], paraSnapshots: Object[]}} frameState - captureFrameState() が返した控え
      * @returns {void}
      */
     function restoreFrameState(textFrame, frameState) {
@@ -177,7 +177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * フレーム内の全文字の文字属性を控える
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {object[]} 文字ごとの属性（文字順）
+     * @returns {Object[]} 文字ごとの属性（文字順）
      */
     function captureCharAttributes(textFrame) {
         var charSnapshots = [];
@@ -193,7 +193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 控えた文字属性を全文字へ復元する（文字数は不変なので先頭から順に対応づける）
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @param {object[]} charSnapshots - captureCharAttributes() が返した控え
+     * @param {Object[]} charSnapshots - captureCharAttributes() が返した控え
      * @returns {void}
      */
     function restoreAllCharAttributes(textFrame, charSnapshots) {
@@ -209,7 +209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 1文字分の主要な文字属性を控える
      * @param {CharacterAttributes} characterAttr - 対象の文字属性
-     * @returns {object} 控えた属性
+     * @returns {Object} 控えた属性
      */
     function snapshotCharAttributes(characterAttr) {
         var charSnapshot = {};
@@ -231,7 +231,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 控えた文字属性を1文字へ復元する
      * @param {CharacterAttributes} characterAttr - 復元先の文字属性
-     * @param {object} charSnapshot - snapshotCharAttributes() が返した控え
+     * @param {Object} charSnapshot - snapshotCharAttributes() が返した控え
      * @returns {void}
      */
     function restoreCharAttributes(characterAttr, charSnapshot) {
@@ -256,7 +256,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 各段落の段落属性を控える
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {object[]} 段落ごとの属性（段落順）
+     * @returns {Object[]} 段落ごとの属性（段落順）
      */
     function captureParagraphFormats(textFrame) {
         var paraSnapshots = [];
@@ -272,7 +272,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 控えた段落属性を各段落へ復元する（段落数は不変なので先頭から順に対応づける）
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @param {object[]} paraSnapshots - captureParagraphFormats() が返した控え
+     * @param {Object[]} paraSnapshots - captureParagraphFormats() が返した控え
      * @returns {void}
      */
     function restoreParagraphFormats(textFrame, paraSnapshots) {
@@ -288,7 +288,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 1段落分の主要な段落属性を控える
      * @param {ParagraphAttributes} paragraphAttr - 対象の段落属性
-     * @returns {object} 控えた属性
+     * @returns {Object} 控えた属性
      */
     function snapshotParagraphAttributes(paragraphAttr) {
         var paraSnapshot = {};
@@ -307,7 +307,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 控えた段落属性を1段落へ復元する
      * @param {ParagraphAttributes} paragraphAttr - 復元先の段落属性
-     * @param {object} paraSnapshot - snapshotParagraphAttributes() が返した控え
+     * @param {Object} paraSnapshot - snapshotParagraphAttributes() が返した控え
      * @returns {void}
      */
     function restoreParagraphAttributes(paragraphAttr, paraSnapshot) {

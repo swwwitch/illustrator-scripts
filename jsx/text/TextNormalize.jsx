@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "TextNormalize";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextNormalize.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextNormalize.md"; /* README (English) */
@@ -578,7 +578,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 対象のすべての TextRange を集める
-     * @param {Array} targetItems - 対象のオブジェクト
+     * @param {Object[]} targetItems - 対象のオブジェクト
      * @returns {TextRange[]} TextRange の一覧
      */
     function collectAllTextRanges(targetItems) {
@@ -589,7 +589,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 処理の対象を返す。選択が無ければドキュメント内のすべてのテキストフレーム
-     * @returns {Array} 対象のオブジェクト
+     * @returns {Object[]} 対象のオブジェクト
      */
     function getTargetItems() {
         var targetItems = app.selection;
@@ -605,7 +605,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 対象の現在の文字列を控える（リセットで戻すため）
-     * @param {Array} targetItems - 対象のオブジェクト
+     * @param {Object[]} targetItems - 対象のオブジェクト
      * @returns {Object[]} { textRange, baseline } の一覧
      */
     function takeBaseline(targetItems) {
@@ -872,7 +872,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * ダイアログの各コントロールにイベントを付ける（プレビュー・リセット・OK）
      * @param {Object} ui - buildDialog() の結果
-     * @param {Array} targetItems - 処理の対象
+     * @param {Object[]} targetItems - 処理の対象
      * @returns {void}
      */
     function bindDialogEvents(ui, targetItems) {
@@ -895,9 +895,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function applyProcessToSelection() {
+            var normalizeOptions = readNormalizeOptions(ui, normalizeState);
             var textRanges = collectAllTextRanges(targetItems);
             for (var j = 0; j < textRanges.length; j++) {
-                textRanges[j].contents = normalizeText(textRanges[j].contents, readNormalizeOptions(ui, normalizeState));
+                textRanges[j].contents = normalizeText(textRanges[j].contents, normalizeOptions);
             }
         }
 

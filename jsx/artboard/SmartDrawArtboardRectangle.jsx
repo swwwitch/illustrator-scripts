@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -135,38 +135,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /* ラベル定義（カテゴリ別）/ Label definitions (by category) */
     var LABELS = {
         dialog: {
-            title: {
-                ja: "アートボードサイズの長方形を描画",
-                en: "Draw Artboard Size Rectangle"
-            }
+            title: { ja: "アートボードサイズの長方形を描画", en: "Draw Artboard Size Rectangle" }
         },
         panel: {
             offset: { ja: "オフセット", en: "Offset" },
             color: { ja: "カラー", en: "Color" },
-            zorder: { ja: "配置位置", en: "Placement" },
+            placement: { ja: "配置位置", en: "Placement" },
             target: { ja: "対象", en: "Target" },
             options: { ja: "オプション", en: "Options" }
+        },
+        radio: {
+            colorNone: { ja: "なし", en: "None" },
+            colorK100: { ja: "K100、不透明度15%", en: "K100, Opacity 15%" },
+            colorHex: { ja: "HEX", en: "HEX" },
+            colorCmyk: { ja: "CMYK", en: "CMYK" },
+            placeFront: { ja: "最前面", en: "Front" },
+            placeBack: { ja: "最背面", en: "Back" },
+            placeBgLayer: { ja: "bgレイヤー", en: "bg Layer" },
+            currentArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
+            allArtboards: { ja: "すべてのアートボード", en: "All Artboards" }
         },
         checkbox: {
             bleed: { ja: "裁ち落とし", en: "Bleed" },
             makeGuide: { ja: "ガイドに変換", en: "Convert to Guides" },
             convertToLiveShape: { ja: "ライブシェイプ化", en: "Convert to Live Shape" }
-        },
-        color: {
-            none: { ja: "なし", en: "None" },
-            k100: { ja: "K100、不透明度15%", en: "K100, Opacity 15%" },
-            hex: { ja: "HEX", en: "HEX" },
-            cmyk: { ja: "CMYK", en: "CMYK" },
-            hint: { ja: "例: #FF0000", en: "e.g., #FF0000" }
-        },
-        zorder: {
-            front: { ja: "最前面", en: "Front" },
-            back: { ja: "最背面", en: "Back" },
-            bg: { ja: "bgレイヤー", en: "bg Layer" }
-        },
-        target: {
-            current: { ja: "現在のアートボード", en: "Current Artboard" },
-            all: { ja: "すべてのアートボード", en: "All Artboards" }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -174,7 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             previewOutline: { ja: "アウトライン表示", en: "Outline" },
             previewPreview: { ja: "プレビュー表示", en: "Preview" }
         },
-        helpTip: {
+        tooltip: {
             offsetInput: {
                 ja: "アートボード境界から外側へ広げる量を指定します。負の値で内側へ縮めます。",
                 en: "Set how far the bounds expand outward from the artboard. Use a negative value to shrink inward."
@@ -183,14 +175,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 ja: "現在の単位に応じて、裁ち落とし相当の値を自動入力します。",
                 en: "Automatically fills a bleed-equivalent offset based on the current unit."
             },
+            colorNone: { ja: "塗りも線もない長方形を描画します。", en: "Draws the rectangle with no fill and no stroke." },
             hexInput: {
                 ja: "#RRGGBB（#RGB 短縮・red などの色名・gray50 も可）で塗りカラーを指定します。",
                 en: "Enter a fill color: #RRGGBB (also #RGB shorthand, color names like red, or gray50)."
+            },
+            colorCmyk: {
+                ja: "CMYK値で塗りを指定します。RGBドキュメントではRGBに換算して塗ります。",
+                en: "Sets the fill from CMYK values. In an RGB document the values are converted to RGB."
             },
             cmykInput: {
                 ja: "0〜100の範囲でCMYK値を指定します。未入力は0として扱います。",
                 en: "Enter CMYK values from 0 to 100. Empty fields are treated as 0."
             },
+            placeFront: { ja: "現在のレイヤー内で最前面に配置します。", en: "Places the rectangle at the front of the current layer." },
+            placeBack: { ja: "現在のレイヤー内で最背面に配置します。", en: "Places the rectangle at the back of the current layer." },
             bgLayer: {
                 ja: "bgレイヤーを作成または使用し、レイヤーの最背面へ配置します。",
                 en: "Creates or uses the bg layer and places it at the back of the layer stack."
@@ -203,37 +202,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 ja: "Illustratorのメニューコマンドで長方形をライブシェイプ化します。中心点も表示されます。",
                 en: "Uses Illustrator's menu command to convert rectangles to Live Shapes. The center point is also shown."
             },
-            makeGuide: {
-                ja: "描画した長方形をガイドに変換します。",
-                en: "Converts the drawn rectangles to guides."
-            }
+            makeGuide: { ja: "描画した長方形をガイドに変換します。", en: "Converts the drawn rectangles to guides." }
         },
         warning: {
-            hexInvalid: {
-                ja: "正しい #RRGGBB を入力してください",
-                en: "Enter a valid #RRGGBB value"
-            },
-            hexEmpty: {
-                ja: "HEX未入力（# のみ）",
-                en: "HEX not entered (# only)"
-            },
+            hexInvalid: { ja: "正しい #RRGGBB を入力してください", en: "Enter a valid #RRGGBB value" },
+            hexEmpty: { ja: "HEX未入力（# のみ）", en: "HEX not entered (# only)" },
             cmykRange: {
                 ja: "0–100 の範囲にしてください（未入力は 0 として扱います）",
                 en: "Enter a value from 0 to 100 (empty fields are treated as 0)"
             },
-            singleArtboard: {
-                ja: "アートボードが1つのため選択できません",
-                en: "Disabled: only one artboard exists"
-            }
+            singleArtboard: { ja: "アートボードが1つのため選択できません", en: "Disabled: only one artboard exists" }
         },
-        name: {
+        objectName: {
             previewLayer: { ja: "_preview", en: "_preview" },
             rect: { ja: "<長方形>", en: "<Rectangle>" },
             guide: { ja: "<ガイド>", en: "<Guide>" },
-            previewRect: {
-                ja: "__プレビュー_アートボードサイズの長方形",
-                en: "__Preview_ArtboardSizeRectangle"
-            }
+            previewRect: { ja: "__プレビュー_アートボードサイズの長方形", en: "__Preview_ArtboardSizeRectangle" }
         }
     };
 
@@ -249,8 +233,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (labelNode == null) break;
             labelNode = labelNode[keyParts[i]];
         }
-        var text = (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : key;
-        return String(text).replace(/\{slash\}/g, '/');
+        var labelValue = (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : key;
+        return String(labelValue).replace(/\{slash\}/g, '/');
     }
 
     // =========================================
@@ -264,16 +248,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      *   DialogPersist.setOpacity(dialog, 0.95);
      *   DialogPersist.applyInitialOffset(dialog, offsetX, offsetY); // onShow などで
      * ========================================= */
-    (function (g) {
-        if (!g.DialogPersist) {
-            g.DialogPersist = {
+    (function (globalObject) {
+        if (!globalObject.DialogPersist) {
+            globalObject.DialogPersist = {
                 setOpacity: function (dialog, opacity) {
                     try { dialog.opacity = opacity; } catch (e) { }
                 },
                 applyInitialOffset: function (dialog, offsetX, offsetY) {
                     try {
-                        var location = dialog.location;
-                        dialog.location = [location[0] + (offsetX | 0), location[1] + (offsetY | 0)];
+                        var currentLocation = dialog.location;
+                        dialog.location = [currentLocation[0] + (offsetX | 0), currentLocation[1] + (offsetY | 0)];
                     } catch (e) { }
                 }
             };
@@ -362,10 +346,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (typeof onValueChange === 'function') onValueChange();
         });
     }
-
-    // =========================================
-    // 単位 / Units
-    // =========================================
 
     // =========================================
     // 単位 / Units
@@ -516,14 +496,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {number[]} [R, G, B]（0–255）
      */
     function cmykToRgb(cyan, magenta, yellow, black) {
-        var c = clampValue(cyan, 0, 100) / 100;
-        var m = clampValue(magenta, 0, 100) / 100;
-        var y = clampValue(yellow, 0, 100) / 100;
-        var k = clampValue(black, 0, 100) / 100;
+        var cyanRatio = clampValue(cyan, 0, 100) / 100;
+        var magentaRatio = clampValue(magenta, 0, 100) / 100;
+        var yellowRatio = clampValue(yellow, 0, 100) / 100;
+        var blackRatio = clampValue(black, 0, 100) / 100;
         return [
-            Math.round(255 * (1 - c) * (1 - k)),
-            Math.round(255 * (1 - m) * (1 - k)),
-            Math.round(255 * (1 - y) * (1 - k))
+            Math.round(255 * (1 - cyanRatio) * (1 - blackRatio)),
+            Math.round(255 * (1 - magentaRatio) * (1 - blackRatio)),
+            Math.round(255 * (1 - yellowRatio) * (1 - blackRatio))
         ];
     }
 
@@ -546,37 +526,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      */
     function parseColorText(doc, colorText) {
         if (!colorText) return null;
-        var text = String(colorText).replace(/^\s+|\s+$/g, '').toLowerCase();
-        if (!text) return null;
+        var normalizedText = String(colorText).replace(/^\s+|\s+$/g, '').toLowerCase();
+        if (!normalizedText) return null;
 
         /* 全角の空白・読点・数字・記号をASCIIへ正規化 / Normalize full-width characters to ASCII */
-        text = text.replace(/　/g, ' ').replace(/[，、]/g, ',');
-        text = text.replace(/[０-９]/g, function (ch) {
-            return String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30);
+        normalizedText = normalizedText.replace(/　/g, ' ').replace(/[，、]/g, ',');
+        normalizedText = normalizedText.replace(/[０-９]/g, function (fullWidthDigit) {
+            return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFF10 + 0x30);
         });
-        text = text.replace(/．/g, '.').replace(/／/g, '/');
+        normalizedText = normalizedText.replace(/．/g, '.').replace(/／/g, '/');
 
         /* 短縮HEXを #RRGGBB へ展開 / Expand shorthand hex notations */
-        if (text.charAt(0) === '#') {
-            var digits = text.substr(1);
+        if (normalizedText.charAt(0) === '#') {
+            var digits = normalizedText.substr(1);
             if (digits.length === 1) {          /* #R → #RRRRRR */
-                text = '#' + digits + digits + digits + digits + digits + digits;
+                normalizedText = '#' + digits + digits + digits + digits + digits + digits;
             } else if (digits.length === 2) {   /* #RG → #RGRGRG */
-                text = '#' + digits + digits + digits;
+                normalizedText = '#' + digits + digits + digits;
             } else if (digits.length === 3) {   /* #RGB → #RRGGBB */
-                text = '#' + digits.charAt(0) + digits.charAt(0) +
+                normalizedText = '#' + digits.charAt(0) + digits.charAt(0) +
                     digits.charAt(1) + digits.charAt(1) +
                     digits.charAt(2) + digits.charAt(2);
             }
         }
 
         /* #RRGGBB */
-        if (/^#[0-9a-f]{6}$/.test(text)) {
-            return makeRgbColor(parseInt(text.substr(1, 2), 16), parseInt(text.substr(3, 2), 16), parseInt(text.substr(5, 2), 16));
+        if (/^#[0-9a-f]{6}$/.test(normalizedText)) {
+            return makeRgbColor(parseInt(normalizedText.substr(1, 2), 16), parseInt(normalizedText.substr(3, 2), 16), parseInt(normalizedText.substr(5, 2), 16));
         }
 
         /* 色名 / Named colors — ドキュメントのカラースペースを優先 */
-        var namedColor = NAMED_COLOR_TABLE[text];
+        var namedColor = NAMED_COLOR_TABLE[normalizedText];
         if (namedColor) {
             if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) {
                 return makeCmykColor(namedColor.cmyk[0], namedColor.cmyk[1], namedColor.cmyk[2], namedColor.cmyk[3]);
@@ -585,7 +565,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
 
         /* grayNN（0–100）/ grayNN (0-100) */
-        var grayMatch = text.match(/^gray\s*(\d{1,3})$/);
+        var grayMatch = normalizedText.match(/^gray\s*(\d{1,3})$/);
         if (grayMatch) {
             var grayLevel = clampValue(parseInt(grayMatch[1], 10), 0, 100);
             if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) return makeCmykColor(0, 0, 0, grayLevel);
@@ -609,8 +589,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (typeof channels[i] !== 'number' || isNaN(channels[i])) return null;
         }
         if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-            var rgb = cmykToRgb(channels[0], channels[1], channels[2], channels[3]);
-            return makeRgbColor(rgb[0], rgb[1], rgb[2]);
+            var rgbValues = cmykToRgb(channels[0], channels[1], channels[2], channels[3]);
+            return makeRgbColor(rgbValues[0], rgbValues[1], rgbValues[2]);
         }
         return makeCmykColor(channels[0], channels[1], channels[2], channels[3]);
     }
@@ -644,6 +624,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     // =========================================
+    // 長方形とレイヤーの共通処理 / Rectangle and layer helpers
+    // =========================================
+
+    /**
+     * 座標系をドキュメント座標へ切り替える
+     * @returns {CoordinateSystem|null} 切り替え前の座標系（取得できなければ null）
+     */
+    function switchToDocumentCoordinates() {
+        var previousCoordinateSystem = null;
+        try {
+            previousCoordinateSystem = app.coordinateSystem;
+            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+        } catch (e) { }
+        return previousCoordinateSystem;
+    }
+
+    /**
+     * switchToDocumentCoordinates() で控えた座標系へ戻す
+     * @param {CoordinateSystem|null} previousCoordinateSystem - 切り替え前の座標系
+     * @returns {void}
+     */
+    function restoreCoordinateSystem(previousCoordinateSystem) {
+        try {
+            if (previousCoordinateSystem !== null) app.coordinateSystem = previousCoordinateSystem;
+        } catch (e) { }
+    }
+
+    /**
+     * アートボードをオフセットぶん広げた長方形の位置と寸法を求める
+     * @param {number[]} artboardRect - アートボードの [left, top, right, bottom]
+     * @param {number} offsetPt - 外側へ広げる量（pt、負の値で内側）
+     * @returns {{top: number, left: number, width: number, height: number}} 長方形の位置と寸法
+     */
+    function getOffsetRectangleBounds(artboardRect, offsetPt) {
+        return {
+            top: artboardRect[1] + offsetPt,
+            left: artboardRect[0] - offsetPt,
+            width: (artboardRect[2] - artboardRect[0]) + offsetPt * 2,
+            height: (artboardRect[1] - artboardRect[3]) + offsetPt * 2
+        };
+    }
+
+    /**
+     * 配置位置の設定どおりにレイヤー内の重ね順を変える（bgレイヤーは作成順のまま）
+     * @param {PathItem} targetRectangle - 対象の長方形
+     * @param {string} zOrder - "front" / "back" / "bg"
+     * @returns {void}
+     */
+    function applyZOrder(targetRectangle, zOrder) {
+        if (zOrder === 'front') targetRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
+        else if (zOrder === 'back') targetRectangle.zOrder(ZOrderMethod.SENDTOBACK);
+    }
+
+    /**
+     * 名前が一致する最上位レイヤーを探す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer|null} 見つかったレイヤー。無ければ null
+     */
+    function findLayerByName(doc, layerName) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === layerName) return doc.layers[i];
+        }
+        return null;
+    }
+
+    // =========================================
     // プレビュー / Preview
     // =========================================
 
@@ -656,21 +703,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
      *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
      * ========================================= */
-    (function (g) {
-        if (!g.PreviewHistory) {
-            g.PreviewHistory = {
+    (function (globalObject) {
+        if (!globalObject.PreviewHistory) {
+            globalObject.PreviewHistory = {
                 start: function () {
-                    g.__previewUndoCount = 0;
+                    globalObject.__previewUndoCount = 0;
                 },
                 bump: function () {
-                    g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
+                    globalObject.__previewUndoCount = (globalObject.__previewUndoCount | 0) + 1;
                 },
                 undo: function () {
-                    var undoCount = g.__previewUndoCount | 0;
+                    var undoCount = globalObject.__previewUndoCount | 0;
                     try {
                         for (var i = 0; i < undoCount; i++) app.executeMenuCommand('undo');
                     } catch (e) { }
-                    g.__previewUndoCount = 0;
+                    globalObject.__previewUndoCount = 0;
                 },
                 cancelTask: function (taskId) {
                     try { if (taskId) app.cancelTask(taskId); } catch (e) { }
@@ -708,7 +755,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {boolean} プレビュー専用レイヤーなら true
      */
     function isPreviewLayerName(layerName) {
-        return layerName === getLabel('name.previewLayer') || layerName === '_preview';
+        return layerName === getLabel('objectName.previewLayer') || layerName === '_preview';
     }
 
     /**
@@ -719,7 +766,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     function clearPreview(removeLayer) {
         try {
             var doc = app.activeDocument;
-            var previewItemPrefix = getLabel('name.previewRect') + "#";
+            var previewItemPrefix = getLabel('objectName.previewRect') + "#";
             for (var i = doc.layers.length - 1; i >= 0; i--) {
                 var layer = doc.layers[i];
                 if (!isPreviewLayerName(layer.name)) continue;
@@ -744,14 +791,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {Layer} プレビュー専用レイヤー
      */
     function getOrCreatePreviewLayer(doc) {
-        var previewLayerName = getLabel('name.previewLayer');
-        var previewLayer = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === previewLayerName) {
-                previewLayer = doc.layers[i];
-                break;
-            }
-        }
+        var previewLayerName = getLabel('objectName.previewLayer');
+        var previewLayer = findLayerByName(doc, previewLayerName);
         if (!previewLayer) {
             previewLayer = doc.layers.add();
             previewLayer.name = previewLayerName;
@@ -768,26 +809,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * アートボード番号に対応するプレビュー長方形を取得する（なければ作成、あれば再利用）
      * @param {Layer} previewLayer - プレビュー専用レイヤー
      * @param {number} artboardIndex - アートボード番号
-     * @param {number} top - 上端座標
-     * @param {number} left - 左端座標
-     * @param {number} width - 幅
-     * @param {number} height - 高さ
+     * @param {{top: number, left: number, width: number, height: number}} rectangleBounds - 長方形の位置と寸法
      * @returns {PathItem} プレビュー長方形
      */
-    function getOrCreatePreviewRectangle(previewLayer, artboardIndex, top, left, width, height) {
-        var previewItemName = getLabel('name.previewRect') + "#" + artboardIndex;
+    function getOrCreatePreviewRectangle(previewLayer, artboardIndex, rectangleBounds) {
+        var previewItemName = getLabel('objectName.previewRect') + "#" + artboardIndex;
         for (var i = 0; i < previewLayer.pathItems.length; i++) {
             var existingRectangle = previewLayer.pathItems[i];
             if (existingRectangle.name !== previewItemName) continue;
             /* 既存を使い回して再作成のヒストリーを増やさない / Reuse in place to avoid extra history entries */
-            existingRectangle.top = top;
-            existingRectangle.left = left;
-            existingRectangle.width = width;
-            existingRectangle.height = height;
+            existingRectangle.top = rectangleBounds.top;
+            existingRectangle.left = rectangleBounds.left;
+            existingRectangle.width = rectangleBounds.width;
+            existingRectangle.height = rectangleBounds.height;
             existingRectangle.hidden = false;
             return existingRectangle;
         }
-        var previewRectangle = previewLayer.pathItems.rectangle(top, left, width, height);
+        var previewRectangle = previewLayer.pathItems.rectangle(
+            rectangleBounds.top, rectangleBounds.left, rectangleBounds.width, rectangleBounds.height);
         previewRectangle.name = previewItemName;
         return previewRectangle;
     }
@@ -811,19 +850,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {void}
      */
     function drawPreviewRectangle(doc, previewLayer, artboardIndex, drawSettings) {
-        var artboardRect = doc.artboards[artboardIndex].artboardRect; /* [left, top, right, bottom] */
-        var artboardWidth = artboardRect[2] - artboardRect[0];
-        var artboardHeight = artboardRect[1] - artboardRect[3];
-        var offsetPt = drawSettings.offset || 0;
-
-        var previewRectangle = getOrCreatePreviewRectangle(
-            previewLayer,
-            artboardIndex,
-            artboardRect[1] + offsetPt,
-            artboardRect[0] - offsetPt,
-            artboardWidth + offsetPt * 2,
-            artboardHeight + offsetPt * 2
-        );
+        var rectangleBounds = getOffsetRectangleBounds(doc.artboards[artboardIndex].artboardRect, drawSettings.offset || 0);
+        var previewRectangle = getOrCreatePreviewRectangle(previewLayer, artboardIndex, rectangleBounds);
 
         applyFillByMode(doc, previewRectangle, drawSettings);
 
@@ -835,8 +863,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         previewRectangle.strokeColor = getPreviewStrokeColor(doc);
         previewRectangle.selected = false;
 
-        if (drawSettings.zOrder === 'front') previewRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
-        else if (drawSettings.zOrder === 'back') previewRectangle.zOrder(ZOrderMethod.SENDTOBACK);
+        applyZOrder(previewRectangle, drawSettings.zOrder);
     }
 
     /**
@@ -873,12 +900,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         clearPreview(false);
         if (!doc || !drawSettings) return;
 
-        var previousCoordinateSystem = null;
-        try {
-            previousCoordinateSystem = app.coordinateSystem;
-            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
-        } catch (e) { }
-
+        var previousCoordinateSystem = switchToDocumentCoordinates();
         var previewLayer = getOrCreatePreviewLayer(doc);
         if (drawSettings.target === 'all') {
             for (var i = 0; i < doc.artboards.length; i++) drawPreviewRectangle(doc, previewLayer, i, drawSettings);
@@ -886,10 +908,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             drawPreviewRectangle(doc, previewLayer, doc.artboards.getActiveArtboardIndex(), drawSettings);
         }
         hidePreviewItemsOutOfScope(doc, previewLayer, drawSettings);
+        restoreCoordinateSystem(previousCoordinateSystem);
 
-        try {
-            if (previousCoordinateSystem !== null) app.coordinateSystem = previousCoordinateSystem;
-        } catch (e) { }
         PreviewHistory.bump();
         app.redraw();
     }
@@ -907,7 +927,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      */
     function setHexWarning(hexField, isWarning, warningKey) {
         setFieldWarnColor(hexField, isWarning);
-        hexField.helpTip = isWarning ? getLabel(warningKey || 'warning.hexInvalid') : getLabel('helpTip.hexInput');
+        hexField.helpTip = isWarning ? getLabel(warningKey || 'warning.hexInvalid') : getLabel('tooltip.hexInput');
         try { hexField.notify('onDraw'); } catch (e) { }
     }
 
@@ -919,7 +939,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      */
     function setCmykWarning(channelInput, isWarning) {
         setFieldWarnColor(channelInput, isWarning);
-        channelInput.helpTip = isWarning ? getLabel('warning.cmykRange') : getLabel('helpTip.cmykInput');
+        channelInput.helpTip = isWarning ? getLabel('warning.cmykRange') : getLabel('tooltip.cmykInput');
     }
 
     /**
@@ -955,7 +975,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /**
      * CMYK入力欄へ共通のハンドラをまとめて登録する
      * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
      * @returns {void}
      */
     function bindCmykField(channelInput, previewHooks) {
@@ -992,7 +1012,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             previewHooks.deferred();
         });
 
-        previewHooks.trackFocus(channelInput);
+        trackFocusForHotkeys(channelInput);
     }
 
     // =========================================
@@ -1002,7 +1022,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /**
      * オフセットパネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
-     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
      * @returns {object} { offsetInput, bleedCheckbox, initFieldState }
      */
     function buildOffsetPanel(parentGroup, previewHooks) {
@@ -1016,7 +1036,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
         var offsetInput = offsetRow.add('edittext', undefined, '0');
         offsetInput.characters = 4;
-        offsetInput.helpTip = getLabel('helpTip.offsetInput');
+        offsetInput.helpTip = getLabel('tooltip.offsetInput');
         offsetRow.add('statictext', undefined, getUnitInfo().label);
 
         var bleedRow = offsetPanel.add('group');
@@ -1027,7 +1047,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         var bleedCheckbox = bleedRow.add('checkbox', undefined, getLabel('checkbox.bleed'));
         bleedCheckbox.alignment = 'center';
         bleedCheckbox.value = false; /* デフォルトOFF / default OFF */
-        bleedCheckbox.helpTip = getLabel('helpTip.bleed');
+        bleedCheckbox.helpTip = getLabel('tooltip.bleed');
 
         /* 裁ち落としON/OFFの往復で手入力値を失わないよう控えておく
            Remember the manual offset so toggling Bleed does not lose it */
@@ -1058,7 +1078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (event.keyName == 'Enter') previewHooks.immediate();
         });
         changeValueByArrowKey(offsetInput, previewHooks.deferred);
-        previewHooks.trackFocus(offsetInput);
+        trackFocusForHotkeys(offsetInput);
 
         return {
             offsetInput: offsetInput,
@@ -1073,25 +1093,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /**
      * カラーパネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
-     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
      * @returns {object} 各ラジオ・入力欄をまとめたオブジェクト
      */
     function buildColorPanel(parentGroup, previewHooks) {
         var colorPanel = parentGroup.add('panel', undefined, getLabel('panel.color'));
         setupPanel(colorPanel, STACK_SPACING); /* やや広めの行間 / a bit more vertical gap */
 
-        var noneRadio = colorPanel.add('radiobutton', undefined, getLabel('color.none'));
-        var k100Radio = colorPanel.add('radiobutton', undefined, getLabel('color.k100'));
+        var noneRadio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorNone'));
+        noneRadio.helpTip = getLabel('tooltip.colorNone');
+        var k100Radio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorK100'));
 
         /* HEXはラジオと入力欄を同じ行に / HEX radio and its field share one row */
         var hexRow = colorPanel.add('group');
         setupGroup(hexRow, 'row', TIGHT_SPACING);
-        var hexRadio = hexRow.add('radiobutton', undefined, getLabel('color.hex'));
+        var hexRadio = hexRow.add('radiobutton', undefined, getLabel('radio.colorHex'));
         var hexInput = hexRow.add('edittext', undefined, '#');
         hexInput.characters = 14; /* カラム幅が伸びないよう控えめに / narrow enough to keep the column width */
-        hexInput.helpTip = getLabel('helpTip.hexInput');
+        hexInput.helpTip = getLabel('tooltip.hexInput');
 
-        var cmykRadio = colorPanel.add('radiobutton', undefined, getLabel('color.cmyk'));
+        var cmykRadio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorCmyk'));
+        cmykRadio.helpTip = getLabel('tooltip.colorCmyk');
 
         /* ラベル行とフィールド行の2段グリッド / Two-row grid: labels on top, fields below */
         var cmykGrid = colorPanel.add('group');
@@ -1110,7 +1132,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             var channelInput = cmykFieldRow.add('edittext', undefined, '');
             channelInput.characters = 3;
             channelInput.preferredSize.width = CMYK_FIELD_WIDTH;
-            channelInput.helpTip = getLabel('helpTip.cmykInput');
+            channelInput.helpTip = getLabel('tooltip.cmykInput');
             cmykLabels.push(channelLabel);
             cmykInputs.push(channelInput);
             bindCmykField(channelInput, previewHooks);
@@ -1141,7 +1163,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             previewHooks.immediate();
         };
 
-        previewHooks.trackFocus(hexInput);
+        trackFocusForHotkeys(hexInput);
 
         /* ラジオ選択に応じて入力欄の有効・無効を反映 / Sync field enable state with the radios */
         function updateColorFieldStates() {
@@ -1199,17 +1221,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /**
      * 配置位置（重ね順）パネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
-     * @param {object} previewHooks - プレビュー更新コールバック
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
      * @returns {object} { frontRadio, backRadio, bgLayerRadio }
      */
     function buildPlacementPanel(parentGroup, previewHooks) {
-        var placementPanel = parentGroup.add('panel', undefined, getLabel('panel.zorder'));
+        var placementPanel = parentGroup.add('panel', undefined, getLabel('panel.placement'));
         setupPanel(placementPanel, TIGHT_SPACING);
 
-        var frontRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.front'));
-        var backRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.back'));
-        var bgLayerRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.bg'));
-        bgLayerRadio.helpTip = getLabel('helpTip.bgLayer');
+        var frontRadio = placementPanel.add('radiobutton', undefined, getLabel('radio.placeFront'));
+        var backRadio = placementPanel.add('radiobutton', undefined, getLabel('radio.placeBack'));
+        var bgLayerRadio = placementPanel.add('radiobutton', undefined, getLabel('radio.placeBgLayer'));
+        frontRadio.helpTip = getLabel('tooltip.placeFront');
+        backRadio.helpTip = getLabel('tooltip.placeBack');
+        bgLayerRadio.helpTip = getLabel('tooltip.bgLayer');
 
         frontRadio.value = true; /* デフォルトは最前面 / default to Bring to Front */
 
@@ -1224,15 +1248,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     /**
      * 対象アートボードのパネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
-     * @param {object} previewHooks - プレビュー更新コールバック
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
      * @returns {object} { currentArtboardRadio, allArtboardsRadio }
      */
     function buildTargetPanel(parentGroup, previewHooks) {
         var targetPanel = parentGroup.add('panel', undefined, getLabel('panel.target'));
         setupPanel(targetPanel);
 
-        var currentArtboardRadio = targetPanel.add('radiobutton', undefined, getLabel('target.current'));
-        var allArtboardsRadio = targetPanel.add('radiobutton', undefined, getLabel('target.all'));
+        var currentArtboardRadio = targetPanel.add('radiobutton', undefined, getLabel('radio.currentArtboard'));
+        var allArtboardsRadio = targetPanel.add('radiobutton', undefined, getLabel('radio.allArtboards'));
 
         /* 常に「現在のアートボード」をデフォルト選択 / Always default to the current artboard */
         currentArtboardRadio.value = true;
@@ -1264,24 +1288,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
         var makeGuideCheckbox = optionsPanel.add('checkbox', undefined, getLabel('checkbox.makeGuide'));
         makeGuideCheckbox.value = false; /* デフォルトOFF / default OFF */
-        makeGuideCheckbox.helpTip = getLabel('helpTip.makeGuide');
+        makeGuideCheckbox.helpTip = getLabel('tooltip.makeGuide');
 
         var convertToLiveShapeCheckbox = optionsPanel.add('checkbox', undefined, getLabel('checkbox.convertToLiveShape'));
         convertToLiveShapeCheckbox.value = true; /* デフォルトON / default ON */
-        convertToLiveShapeCheckbox.helpTip = getLabel('helpTip.convertToLiveShape');
+        convertToLiveShapeCheckbox.helpTip = getLabel('tooltip.convertToLiveShape');
 
         return { makeGuideCheckbox: makeGuideCheckbox, convertToLiveShapeCheckbox: convertToLiveShapeCheckbox };
     }
 
     /**
      * ダイアログのホットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
-     * @param {Window} dialog - 対象ダイアログ
+     * @param {Window} settingsDialog - 対象ダイアログ
      * @param {object} dialogControls - 各パネルのコントロール
      * @param {function} refreshPreview - プレビューを即時更新するコールバック
      * @returns {void}
      */
-    function addDialogHotkeys(dialog, dialogControls, refreshPreview) {
-        dialog.addEventListener('keydown', function (event) {
+    function addDialogHotkeys(settingsDialog, dialogControls, refreshPreview) {
+        settingsDialog.addEventListener('keydown', function (event) {
             if (focusedField) return; /* 入力中は無効 / ignore while typing in a field */
             var pressedKey = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
 
@@ -1347,69 +1371,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             offset: resolvedOffset.pt,
             zOrder: zOrder,
             target: dialogControls.target.allArtboardsRadio.value ? 'all' : 'current',
-            bleed: !!offsetControls.bleedCheckbox.value,
             makeGuide: !!dialogControls.options.makeGuideCheckbox.value,
             convertToLiveShape: !!dialogControls.options.convertToLiveShapeCheckbox.value
         };
     }
 
     /**
-     * 設定ダイアログを構築して結果を返す
-     * @returns {object|null} 描画設定。キャンセル時は null
+     * ボタン行（左：表示モード切り替え、右：キャンセル／OK）を構築する
+     * @param {Window} settingsDialog - 追加先のダイアログ
+     * @returns {{btnOK: Button, btnCancel: Button}} OK・キャンセルボタン
      */
-    function showDialog() {
-        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        DialogPersist.setOpacity(dialog, DIALOG_OPACITY);
-        dialog.alignChildren = 'left';
-
-        /* 各パネルより先に定義してコールバックとして配る（実行はパネル構築後）
-           Declared before the panels so they can be handed out as callbacks */
-        var dialogControls = null;
-
-        function updatePreviewImmediately() {
-            PreviewHistory.cancelTask(previewDebounceTaskId);
-            try {
-                renderPreview(app.activeDocument, collectDrawSettings(dialogControls));
-            } catch (e) { }
-        }
-
-        function updatePreviewDeferred() {
-            try {
-                schedulePreview(collectDrawSettings(dialogControls), PREVIEW_DELAY_TYPING_MS);
-            } catch (e) { }
-        }
-
-        var previewHooks = {
-            immediate: updatePreviewImmediately,
-            deferred: updatePreviewDeferred,
-            trackFocus: trackFocusForHotkeys
-        };
-
-        /* 2カラム構成 / Two-column layout */
-        var mainColumnsGroup = dialog.add('group');
-        setupGroup(mainColumnsGroup, 'row', COLUMN_SPACING);
-        mainColumnsGroup.alignChildren = ['fill', 'top']; /* 2カラムを上揃え・横いっぱいに */
-
-        var leftColumnGroup = mainColumnsGroup.add('group');
-        setupGroup(leftColumnGroup, 'column', STACK_SPACING);
-        leftColumnGroup.alignChildren = 'fill'; /* パネルを列幅いっぱいに / panels fill the column */
-
-        var rightColumnGroup = mainColumnsGroup.add('group');
-        setupGroup(rightColumnGroup, 'column', STACK_SPACING);
-        rightColumnGroup.alignChildren = 'fill';
-
-        dialogControls = {
-            offset: buildOffsetPanel(leftColumnGroup, previewHooks),
-            placement: buildPlacementPanel(leftColumnGroup, previewHooks),
-            options: buildOptionsPanel(leftColumnGroup),
-            color: buildColorPanel(rightColumnGroup, previewHooks),
-            target: buildTargetPanel(rightColumnGroup, previewHooks)
-        };
-
-        addDialogHotkeys(dialog, dialogControls, updatePreviewImmediately);
-
-        /* ボタン行 / Button row */
-        var btnRowGroup = dialog.add('group');
+    function buildButtonRow(settingsDialog) {
+        var btnRowGroup = settingsDialog.add('group');
         btnRowGroup.orientation = 'row';
         btnRowGroup.alignChildren = ['fill', 'center'];
         btnRowGroup.alignment = 'fill';
@@ -1419,7 +1392,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
         var isPreviewDisplayMode = true;
         var btnDisplayToggle = btnLeftGroup.add('button', undefined, getLabel('button.previewOutline'));
-        btnDisplayToggle.helpTip = getLabel('helpTip.previewToggle');
+        btnDisplayToggle.helpTip = getLabel('tooltip.previewToggle');
 
         var spacer = btnRowGroup.add('group');
         spacer.alignment = ['fill', 'fill'];
@@ -1440,26 +1413,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             } catch (e) { }
         };
 
+        return { btnOK: btnOK, btnCancel: btnCancel };
+    }
+
+    /**
+     * 設定ダイアログを構築して結果を返す
+     * @returns {object|null} 描画設定。キャンセル時は null
+     */
+    function showDialog() {
+        var settingsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        DialogPersist.setOpacity(settingsDialog, DIALOG_OPACITY);
+        settingsDialog.alignChildren = 'left';
+
+        /* 各パネルより先に定義してコールバックとして配る（実行はパネル構築後）
+           Declared before the panels so they can be handed out as callbacks */
+        var dialogControls = null;
+
+        function updatePreviewImmediately() {
+            PreviewHistory.cancelTask(previewDebounceTaskId);
+            try {
+                renderPreview(app.activeDocument, collectDrawSettings(dialogControls));
+            } catch (e) { }
+        }
+
+        function updatePreviewDeferred() {
+            try {
+                schedulePreview(collectDrawSettings(dialogControls), PREVIEW_DELAY_TYPING_MS);
+            } catch (e) { }
+        }
+
+        var previewHooks = {
+            immediate: updatePreviewImmediately,
+            deferred: updatePreviewDeferred
+        };
+
+        /* 2カラム構成 / Two-column layout */
+        var mainColumnsGroup = settingsDialog.add('group');
+        setupGroup(mainColumnsGroup, 'row', COLUMN_SPACING);
+        mainColumnsGroup.alignChildren = ['fill', 'top']; /* 2カラムを上揃え・横いっぱいに */
+
+        var leftColumnGroup = mainColumnsGroup.add('group');
+        setupGroup(leftColumnGroup, 'column', STACK_SPACING);
+        leftColumnGroup.alignChildren = 'fill'; /* パネルを列幅いっぱいに / panels fill the column */
+
+        var rightColumnGroup = mainColumnsGroup.add('group');
+        setupGroup(rightColumnGroup, 'column', STACK_SPACING);
+        rightColumnGroup.alignChildren = 'fill';
+
+        dialogControls = {
+            offset: buildOffsetPanel(leftColumnGroup, previewHooks),
+            placement: buildPlacementPanel(leftColumnGroup, previewHooks),
+            options: buildOptionsPanel(leftColumnGroup),
+            color: buildColorPanel(rightColumnGroup, previewHooks),
+            target: buildTargetPanel(rightColumnGroup, previewHooks)
+        };
+
+        addDialogHotkeys(settingsDialog, dialogControls, updatePreviewImmediately);
+
+        var dialogButtons = buildButtonRow(settingsDialog);
+
         /* プレビューを片付けてから閉じる / Clean the preview up, then close */
         function closeWithCleanup(resultCode) {
             PreviewHistory.cancelTask(previewDebounceTaskId);
             PreviewHistory.undo();
             clearPreview(true); /* undo回数に依存せず _preview レイヤーを確実に削除 */
-            dialog.close(resultCode);
+            settingsDialog.close(resultCode);
         }
 
-        btnOK.onClick = function () { closeWithCleanup(1); };
-        btnCancel.onClick = function () { closeWithCleanup(0); };
+        dialogButtons.btnOK.onClick = function () { closeWithCleanup(1); };
+        dialogButtons.btnCancel.onClick = function () { closeWithCleanup(0); };
 
-        dialog.onShow = function () {
-            DialogPersist.applyInitialOffset(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+        settingsDialog.onShow = function () {
+            DialogPersist.applyInitialOffset(settingsDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
             dialogControls.offset.initFieldState();
             try { dialogControls.offset.offsetInput.active = true; } catch (e) { }
             PreviewHistory.start(); /* プレビューのUndoカウンタを初期化 */
             updatePreviewImmediately();
         };
 
-        if (dialog.show() != 1) return null;
+        if (settingsDialog.show() != 1) return null;
 
         /* 確定値もプレビューと同じ計算経路から取る / Final values come from the same computation as the preview */
         return collectDrawSettings(dialogControls);
@@ -1498,13 +1530,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {Layer} bgレイヤー
      */
     function getOrCreateBgLayer(doc) {
-        var bgLayer = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === BG_LAYER_NAME) {
-                bgLayer = doc.layers[i];
-                break;
-            }
-        }
+        var bgLayer = findLayerByName(doc, BG_LAYER_NAME);
         if (!bgLayer) {
             bgLayer = doc.layers.add();
             bgLayer.name = BG_LAYER_NAME;
@@ -1527,11 +1553,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      * @returns {PathItem} 描画した長方形
      */
     function drawRectangleForArtboard(doc, artboard, drawSettings) {
-        var artboardRect = artboard.artboardRect; /* [left, top, right, bottom] */
-        var artboardWidth = artboardRect[2] - artboardRect[0];
-        var artboardHeight = artboardRect[1] - artboardRect[3];
-        var offsetPt = drawSettings.offset;
-
+        var rectangleBounds = getOffsetRectangleBounds(artboard.artboardRect, drawSettings.offset);
         var targetLayer = (drawSettings.zOrder === 'bg') ? getOrCreateBgLayer(doc) : getWritableLayer(doc);
         /* アクティブレイヤーがロックされたままだと、別の編集可能レイヤーへ作成しても
            Illustrator が Error 8705（対象レイヤーは編集できません）を投げる。
@@ -1544,18 +1566,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         } catch (e) { }
 
         var artboardRectangle = targetLayer.pathItems.rectangle(
-            artboardRect[1] + offsetPt,
-            artboardRect[0] - offsetPt,
-            artboardWidth + offsetPt * 2,
-            artboardHeight + offsetPt * 2
-        );
+            rectangleBounds.top, rectangleBounds.left, rectangleBounds.width, rectangleBounds.height);
 
         applyFillByMode(doc, artboardRectangle, drawSettings);
-        artboardRectangle.name = getLabel('name.rect');
+        artboardRectangle.name = getLabel('objectName.rect');
         artboardRectangle.selected = true;
-
-        if (drawSettings.zOrder === 'front') artboardRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
-        else if (drawSettings.zOrder === 'back') artboardRectangle.zOrder(ZOrderMethod.SENDTOBACK);
+        applyZOrder(artboardRectangle, drawSettings.zOrder);
 
         return artboardRectangle;
     }
@@ -1660,7 +1676,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             /* PathItem.guides を直接立てる（選択・メニュー状態に依存せず確実）
                Set PathItem.guides directly - robust, independent of selection and menu state */
             for (var i = 0; i < createdRectangles.length; i++) {
-                createdRectangles[i].name = getLabel('name.guide');
+                createdRectangles[i].name = getLabel('objectName.guide');
                 createdRectangles[i].guides = true;
             }
             try { app.executeMenuCommand('deselectall'); } catch (e) { }
@@ -1682,12 +1698,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         if (drawSettings === null) return;
 
         var doc = app.activeDocument;
-
-        var previousCoordinateSystem = null;
-        try {
-            previousCoordinateSystem = app.coordinateSystem;
-            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
-        } catch (e) { }
+        var previousCoordinateSystem = switchToDocumentCoordinates();
 
         app.executeMenuCommand('deselectall'); /* 既存選択を解除 / clear any existing selection */
 
@@ -1702,10 +1713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
 
         applyDrawOptions(createdRectangles, drawSettings);
-
-        try {
-            if (previousCoordinateSystem !== null) app.coordinateSystem = previousCoordinateSystem;
-        } catch (e) { }
+        restoreCoordinateSystem(previousCoordinateSystem);
     }
 
     main();

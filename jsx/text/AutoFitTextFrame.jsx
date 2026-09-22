@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AutoFitTextFrame";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md"; /* README (English) */
@@ -107,8 +107,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * パネルを追加し、共通レイアウトを設定する
-     * @param {object} parentContainer - 追加先のウィンドウまたはグループ
-     * @param {object} titleSet - ja/en を持つパネル名
+     * @param {Object} parentContainer - 追加先のウィンドウまたはグループ
+     * @param {Object} titleSet - ja/en を持つパネル名
      * @returns {Panel} 追加したパネル
      */
     function addPanel(parentContainer, titleSet) {
@@ -123,7 +123,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * 字下げした縦並びグループを追加する（入れ子のオプション用）
-     * @param {object} parentContainer - 追加先のパネルまたはグループ
+     * @param {Object} parentContainer - 追加先のパネルまたはグループ
      * @returns {Group} 追加したグループ
      */
     function addIndentedColumn(parentContainer) {
@@ -218,7 +218,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * 現在の言語のラベルを取得する
-     * @param {object} labelSet - ja/en を持つラベル
+     * @param {Object} labelSet - ja/en を持つラベル
      * @returns {string} 表示用の文字列
      */
     function getLabel(labelSet) {
@@ -256,8 +256,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * 選択項目を再帰的にたどってテキストフレームを集める
-     * @param {object} selectedItem - 選択項目（TextRange／TextFrame／GroupItem など）
-     * @param {Array<TextFrame>} collectedFrames - 集めたテキストフレームの配列（破壊的に追加）
+     * @param {Object} selectedItem - 選択項目（TextRange／TextFrame／GroupItem など）
+     * @param {TextFrame[]} collectedFrames - 集めたテキストフレームの配列（破壊的に追加）
      * @returns {void}
      */
     function collectTextFramesFromItem(selectedItem, collectedFrames) {
@@ -297,7 +297,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * 選択から処理対象のテキストフレームを重複なく集める
      * @param {Document} doc - 対象のドキュメント
-     * @returns {Array<TextFrame>} 処理対象のテキストフレーム
+     * @returns {TextFrame[]} 処理対象のテキストフレーム
      */
     function getSelectedTextFrames(doc) {
         var collectedFrames = [];
@@ -324,8 +324,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * テキストフレームの配列からエリア内文字だけを取り出す
-     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
-     * @returns {Array<TextFrame>} エリア内文字のみの配列
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {TextFrame[]} エリア内文字のみの配列
      */
     function filterAreaTextFrames(textFrames) {
         var areaFrames = [];
@@ -477,10 +477,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * データセットの1件目なら元の値をタグに控え、控えた値があれば毎回そこへ戻す
      * @param {Document} doc - 対象のドキュメント
-     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @param {string} tagName - タグ名
-     * @param {function} readCurrentValue - テキストフレームから現在値を読む処理
-     * @param {function} writeSavedValue - テキストフレームへ値を書き戻す処理
+     * @param {Function} readCurrentValue - テキストフレームから現在値を読む処理
+     * @param {Function} writeSavedValue - テキストフレームへ値を書き戻す処理
      * @returns {void}
      */
     function resetToOriginalValue(doc, textFrames, tagName, readCurrentValue, writeSavedValue) {
@@ -500,7 +500,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * 最後のデータセットまで終わったらタグを片付ける
      * @param {Document} doc - 対象のドキュメント
-     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @param {string} tagName - タグ名
      * @returns {void}
      */
@@ -563,6 +563,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     }
 
     /**
+     * 文字サイズを書き込み、手動行送りなら比率を保って追従させる
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} fontSize - 文字サイズ（pt）
+     * @param {number|null} leadingRatio - 行送りの比率（null のときは行送りに触らない）
+     * @returns {void}
+     */
+    function setFontSizeWithLeading(textFrame, fontSize, leadingRatio) {
+        setFontSize(textFrame, fontSize);
+        applyLeading(textFrame, fontSize, leadingRatio);
+    }
+
+    /**
      * あふれがなくなるまで文字サイズを縮小する
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @returns {boolean} 続行してよいとき true（改行コードを含むときは false）
@@ -578,8 +590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
             if (currentSize <= MIN_FONT_SIZE) break;
 
             var reducedSize = Math.max(MIN_FONT_SIZE, currentSize - FONT_SIZE_STEP);
-            setFontSize(textFrame, reducedSize);
-            applyLeading(textFrame, reducedSize, leadingRatio);
+            setFontSizeWithLeading(textFrame, reducedSize, leadingRatio);
 
             iteration++;
             if (iteration >= MAX_SHRINK_ITERATIONS) {
@@ -607,14 +618,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
         for (var i = 0; i < MAX_GROW_ITERATIONS && !isOversetFrame(textFrame); i++) {
             grownSize = grownSize * 2;
             if (grownSize > MAX_FONT_SIZE) break;
-            setFontSize(textFrame, grownSize);
-            applyLeading(textFrame, grownSize, leadingRatio);
+            setFontSizeWithLeading(textFrame, grownSize, leadingRatio);
         }
 
         /* それでもあふれないときは元に戻す / Restore the original size when it never oversets */
         if (!isOversetFrame(textFrame)) {
-            setFontSize(textFrame, originalSize);
-            applyLeading(textFrame, originalSize, leadingRatio);
+            setFontSizeWithLeading(textFrame, originalSize, leadingRatio);
             return true;
         }
 
@@ -705,8 +714,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * エリア内文字だけを取り出す（1つもなければ警告する）
-     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
-     * @returns {Array<TextFrame>|null} エリア内文字の配列（1つもないときは null）
+     * @param {TextFrame[]} textFrames - 選択から集めたテキストフレーム
+     * @returns {TextFrame[]|null} エリア内文字の配列（1つもないときは null）
      */
     function getAreaTextTargets(textFrames) {
         var areaFrames = filterAreaTextFrames(textFrames);
@@ -719,8 +728,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * テキストフレームを順に処理する（中止が返ったらそこで止める）
-     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
-     * @param {function} adjustFrame - 1つのテキストフレームを処理する関数
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {Function} adjustFrame - 1つのテキストフレームを処理する関数
      * @returns {boolean} 最後まで処理できたとき true
      */
     function adjustEachFrame(textFrames, adjustFrame) {
@@ -732,7 +741,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * 自動サイズ調整を適用する（エリア内文字のみ）
-     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @param {TextFrame[]} textFrames - 選択から集めたテキストフレーム
      * @returns {void}
      */
     function runAutoSize(textFrames) {
@@ -744,7 +753,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * エリア内文字の高さを中身に合わせる
      * @param {Document} doc - 対象のドキュメント
-     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @param {TextFrame[]} textFrames - 選択から集めたテキストフレーム
      * @returns {void}
      */
     function runHeightAdjust(doc, textFrames) {
@@ -762,7 +771,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * 文字サイズであふれを調整する（両方ONなら「最大まで拡大」→「あふれを解消」の順）
      * @param {Document} doc - 対象のドキュメント
-     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @param {TextFrame[]} textFrames - 選択から集めたテキストフレーム
      * @param {boolean} doMaximize - ［文字サイズ：最大まで拡大］を実行するか
      * @param {boolean} doShrink - ［文字サイズ：あふれを解消］を実行するか
      * @returns {void}
@@ -803,7 +812,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
      * ［調整方法］パネルを組み立て、中のコントロールを返す
      * @param {Window} parentWindow - 追加先のダイアログ
      * @param {boolean} hasAreaText - 選択にエリア内文字があるか
-     * @returns {object} パネル内のコントロール
+     * @returns {Object} パネル内のコントロール
      */
     function addProcessingPanel(parentWindow, hasAreaText) {
         var processingPanel = addPanel(parentWindow, LABELS.panel.processing);
@@ -868,7 +877,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * ボタンエリア（左右中央）を組み立て、ボタンを返す
      * @param {Window} parentWindow - 追加先のダイアログ
-     * @returns {object} キャンセルボタンとOKボタン
+     * @returns {Object} キャンセルボタンとOKボタン
      */
     function addButtonRow(parentWindow) {
         var btnRowGroup = parentWindow.add("group");
@@ -886,8 +895,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
 
     /**
      * パネルの選択内容を設定にまとめる（選択が足りないときは警告する）
-     * @param {object} processingControls - ［調整方法］パネルのコントロール
-     * @returns {object|null} 実行する処理の設定（選択が足りないときは null）
+     * @param {Object} processingControls - ［調整方法］パネルのコントロール
+     * @returns {Object|null} 実行する処理の設定（選択が足りないときは null）
      */
     function readAdjustSettings(processingControls) {
         if (processingControls.heightModeCheckbox.value) {
@@ -909,7 +918,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹�
     /**
      * ダイアログを表示し、選ばれた処理を返す
      * @param {boolean} hasAreaText - 選択にエリア内文字があるか
-     * @returns {object|null} 実行する処理の設定（キャンセル時は null）
+     * @returns {Object|null} 実行する処理の設定（キャンセル時は null）
      */
     function showDialog(hasAreaText) {
         var adjustDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);

@@ -210,7 +210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
     /**
      * コントロールにツールチップを設定する
-     * @param {object} control - ScriptUI コントロール
+     * @param {Object} control - ScriptUI コントロール
      * @param {string} tooltipKey - ドットでつないだ LABELS のキー
      * @returns {void}
      */
@@ -301,7 +301,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
     /**
      * パネルを追加して共通設定を適用する
-     * @param {object} parentContainer - 追加先のコンテナー
+     * @param {Object} parentContainer - 追加先のコンテナー
      * @param {string} panelTitleKey - ドットでつないだ LABELS のキー
      * @returns {Panel} 追加したパネル
      */
@@ -415,7 +415,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      * 修飾キーに応じて次の値を計算する（通常 ±1 / Shift ±10・10 の倍数にスナップ / Option ±0.1）
      * @param {number} currentValue - 現在の値
      * @param {number} direction - 1 なら増加、-1 なら減少
-     * @param {object} keyboardState - ScriptUI.environment.keyboardState
+     * @param {Object} keyboardState - ScriptUI.environment.keyboardState
      * @returns {number} 変更後の値
      */
     function stepValueByModifier(currentValue, direction, keyboardState) {
@@ -498,8 +498,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
     /**
      * 属性を1つだけ安全にコピーする（1つ失敗しても他へ波及させない）
-     * @param {object} sourceAttributes - コピー元の属性
-     * @param {object} targetAttributes - コピー先の属性
+     * @param {Object} sourceAttributes - コピー元の属性
+     * @param {Object} targetAttributes - コピー先の属性
      * @param {string} attributeName - 属性名
      * @returns {void}
      */
@@ -616,7 +616,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     // =========================================
 
     /**
-     * @typedef {object} SeparatorInfo
+     * @typedef {Object} SeparatorInfo
      * @property {string} text - 実際に挟む区切り文字列
      * @property {string} styledChars - スケール・ベースラインを適用する文字（スペースのみなら ""）
      * @property {number} leadingSpaces - 区切り文字列の先頭にあるスペース数
@@ -678,7 +678,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     // =========================================
 
     /**
-     * @typedef {object} RepeatSettings
+     * @typedef {Object} RepeatSettings
      * @property {number|null} repeatCount - 繰り返し数（不正なら null）
      * @property {boolean} useCharSeparator - 区切りに任意の文字を使うか（false ならスペースのみ）
      * @property {string} separatorChar - 任意の区切り文字
@@ -691,7 +691,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      */
 
     /**
-     * @typedef {object} RepeatJob
+     * @typedef {Object} RepeatJob
      * @property {Document} activeDoc - 対象のドキュメント
      * @property {TextFrame} sourceTextFrame - 元のテキストフレーム
      * @property {PathItem} circlePath - 元の円のパス
