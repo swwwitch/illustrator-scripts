@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "ArtboardNavigator";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardNavigator.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNavigator.md"; /* README (English) */
@@ -38,9 +38,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-
-    // 外部 JSX 実行時の警告ダイアログを抑制 / Suppress the external-JSX warning dialog
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /*
       ArtboardNavigator.jsx
@@ -92,14 +89,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        // アートボードラベルの見た目（ここで自由に調整できる） / Tunable label appearance
+        var LABEL_BACKGROUND_OPACITY = 80; // 背景の長方形の不透明度（%）/ background opacity (%)
+        var LABEL_TEXT_OPACITY = 100;      // アートボード名（文字）の不透明度（%）/ text opacity (%)
+        var LABEL_FONT_RATIO = 0.03;       // 文字サイズ＝アートボード幅 × この比率 / font size = artboard width × this ratio
+
+        // =========================================
+        // レイアウト / Layout
+        // =========================================
+        var PALETTE_MARGINS = 12;                      /* パレット外周の余白 / palette margin */
+        var PALETTE_SPACING = 8;                       /* パレット内の要素間隔 / palette spacing */
+        var PALETTE_PREFERRED_SIZE = [210, 200];       /* パレットの初期サイズ / initial palette size */
+        var NAV_BUTTON_SIZE = 26;                      /* ナビゲーションボタンの一辺 / side of a navigation button */
+        var NAV_BUTTON_SPACING = 7;                    /* ナビゲーションボタンの間隔 / spacing between navigation buttons */
+        var NAV_BUTTON_ROW_MARGINS = [5, 5, 5, 10];    /* ボタン行の余白（下だけ +5）/ button row margins (+5 at the bottom) */
+        var OPTIONS_PANEL_MARGINS = [16, 20, 16, 12];  /* オプションパネルの余白 / options panel margins */
+        var SLIDER_PREFERRED_SIZE = [120, -1];         /* スライダーの幅 / slider width */
+        var LIST_TOGGLE_ROW_MARGINS = 5;               /* 「アートボード一覧」行の余白 / margins of the list toggle row */
+        var LIST_COLUMN_WIDTHS = [44, 156];            /* 一覧の列幅（番号｜名前）/ list column widths */
+        var LIST_PREFERRED_SIZE = [210, 150];          /* 一覧の初期サイズ / initial list size */
+
+        // =========================================
         // ローカライズ / Localization
         // =========================================
 
-        var currentLanguage = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
-
-        // =========================================
-        // ラベル定義 / Labels
-        // =========================================
+        var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
         var LABELS = {
             dialog: {
@@ -114,7 +131,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 prev: { ja: "前のアートボードへ (Ctrl+Shift+Opt+←)", en: "Previous artboard (Ctrl+Shift+Opt+←)" },
                 list: { ja: "全アートボードを一覧表示 (Ctrl+Shift+Opt+↑)", en: "Fit all artboards (Ctrl+Shift+Opt+↑)" },
                 next: { ja: "次のアートボードへ (Ctrl+Shift+Opt+→)", en: "Next artboard (Ctrl+Shift+Opt+→)" },
-                last: { ja: "最後のアートボードへ", en: "Last artboard" }
+                last: { ja: "最後のアートボードへ", en: "Last artboard" },
+                animation: {
+                    ja: "OFFにすると、補間せずに移動先へ瞬時に切り替えます。",
+                    en: "When off, jumps to the destination instantly without animating."
+                },
+                speed: { ja: "移動アニメーションの速さです。右ほど速くなります。", en: "Speed of the move animation. Faster toward the right." },
+                ease: {
+                    ja: "ONで終わりに向けて減速し、OFFで等速に移動します。",
+                    en: "Slows down toward the end when on; moves at a constant speed when off."
+                },
+                prezi: {
+                    ja: "個別のアートボードへ移動するとき、途中で一度ズームアウトしてから寄せます。",
+                    en: "Zooms out partway through each move to an artboard, then zooms back in."
+                },
+                preziDip: {
+                    ja: "Preziライクモードで途中に引くズームの量です。右ほど大きく引きます。",
+                    en: "How far to zoom out mid-move in Prezi-like mode. Stronger toward the right."
+                },
+                showLabel: {
+                    ja: "移動先のアートボードの左上に「番号：名前」を表示します（プリントされない専用レイヤーに描画）。",
+                    en: "Shows \"number: name\" at the top left of the destination artboard, on a dedicated non-printing layer."
+                },
+                listVisible: { ja: "パレット下部のアートボード一覧を表示します。", en: "Shows the artboard list at the bottom of the palette." },
+                artboardList: { ja: "行をクリックすると、そのアートボードへ移動します。", en: "Click a row to move to that artboard." }
             },
             panel: {
                 options: { ja: "オプション", en: "Options" }
@@ -126,7 +166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 showLabel: { ja: "アートボード名を表示", en: "Show artboard name" },
                 listVisible: { ja: "アートボード一覧", en: "Artboard list" }
             },
-            slider: {
+            fieldLabel: {
                 speed: { ja: "スピード", en: "Speed" },
                 preziDip: { ja: "俯瞰の強さ", en: "Zoom-out amount" }
             },
@@ -136,20 +176,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         };
 
-        /* ドット区切りのキー（例 "checkbox.showLabel"）でカテゴリ分けされた LABELS を引く / Look up a categorized label by dot-separated key */
-        // 末尾の {slash} はスラッシュ "/" に置換する（ソース内に裸の "/" を書かないため）
-        function getLabel(keyPath) {
-            var node = LABELS;
-            var parts = keyPath.split(".");
-            for (var i = 0; i < parts.length; i++) {
-                if (!node || node[parts[i]] === undefined) {
-                    return keyPath;
+        /**
+         * ドット区切りのキー（例 "checkbox.showLabel"）でカテゴリ分けされた LABELS を引く
+         * {slash} はスラッシュ "/" に置換する（ソース内に裸の "/" を書かないため）
+         * @param {string} labelPath - ラベルのパス
+         * @returns {string} 表示言語の文字列（見つからなければ labelPath）
+         */
+        function getLabel(labelPath) {
+            var labelNode = LABELS;
+            var labelPathKeys = labelPath.split(".");
+            for (var i = 0; i < labelPathKeys.length; i++) {
+                if (!labelNode || labelNode[labelPathKeys[i]] === undefined) {
+                    return labelPath;
                 }
-                node = node[parts[i]];
+                labelNode = labelNode[labelPathKeys[i]];
             }
-            var text = (node && node[currentLanguage] !== undefined) ? node[currentLanguage] : keyPath;
-            return String(text).replace(/\{slash\}/g, "/");
+            var localizedText = (labelNode && labelNode[uiLang] !== undefined) ? labelNode[uiLang] : labelPath;
+            return String(localizedText).replace(/\{slash\}/g, "/");
         }
+
+        // =========================================
+        // 前提チェック / Preconditions
+        // =========================================
 
         if (app.name !== "Adobe Illustrator") {
             alert(getLabel("alert.needIllustrator"));
@@ -163,51 +211,51 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var SCRIPT_NAME = getLabel("dialog.title") + " " + SCRIPT_VERSION;
+        // =========================================
+        // 設定とアニメーション / Settings & animation
+        // =========================================
+
+        var PALETTE_TITLE = getLabel("dialog.title") + " " + SCRIPT_VERSION;
         var PREF_FILE = new File(Folder.userData + "/ArtboardNavigator/palette-position.txt");
         var SETTINGS_FILE = new File(Folder.userData + "/ArtboardNavigator/settings.txt");
 
-        // 前回終了時の設定（無ければ既定値で埋める）
+        // 前回終了時の設定（無ければ既定値で埋める）/ Settings from the last session (defaults fill the gaps)
         var savedSettings = loadSettings();
 
-        // アニメーション設定
         // スピードは 1（遅い）〜10（速い）。速いほどステップ数を減らして素早く移動する。
+        // Speed runs from 1 (slow) to 10 (fast); faster speeds use fewer steps
         var MIN_SPEED = 1;
         var MAX_SPEED = 10;
         var DEFAULT_SPEED = 6;
-        var SLOW_STEP_COUNT = 40; // 最も遅いときのステップ数
-        var FAST_STEP_COUNT = 6;  // 最も速いときのステップ数
+        var SLOW_STEP_COUNT = 40; // 最も遅いときのステップ数 / steps at the slowest speed
+        var FAST_STEP_COUNT = 6;  // 最も速いときのステップ数 / steps at the fastest speed
 
         var initialSpeed = settingNumber(savedSettings, "speed", DEFAULT_SPEED, MIN_SPEED, MAX_SPEED);
         var animationStepCount = speedToStepCount(initialSpeed);
         var frameDelayMs = 6;
 
-        // Prezi モードで途中に下げるズーム比率（0=引かない 〜 1=最大、中央 0.5）
+        // Prezi モードで途中に下げるズーム比率（0=引かない 〜 1=最大、中央 0.5）/ Prezi zoom-out ratio
         var preziDipRatio = settingNumber(savedSettings, "preziDip", 0.2, 0, 1);
 
-        // アートボードラベルの見た目（ここで自由に調整できる） / Tunable label appearance
-        var LABEL_BACKGROUND_OPACITY = 80; // 背景の長方形の不透明度（%）
-        var LABEL_TEXT_OPACITY = 100;      // アートボード名（文字）の不透明度（%）
-        var LABEL_FONT_RATIO = 0.03;       // 文字サイズ＝アートボード幅 × この比率
+        // 画面いっぱいに対する余白率（92% に収める）/ Fit ratio against the full view (fit within 92%)
+        var fitMarginRatio = 0.92;
+
+        // =========================================
+        // パレットの状態 / Palette state
+        // =========================================
 
         // ボタンの配色は環境設定「ユーザーインターフェイスの明るさ」に追従
         // 明るいUI = 白バック・枠線・黒記号 / 暗いUI = 黒バック・白記号（従来）
         var useLightButtons = isLightUI();
 
-        /* スピード値（1〜10）をステップ数に変換 / Convert a speed value (1-10) to a step count */
-        function speedToStepCount(speed) {
-            var ratio = (speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED); // 0〜1
-            var steps = Math.round(SLOW_STEP_COUNT - ratio * (SLOW_STEP_COUNT - FAST_STEP_COUNT));
-            if (steps < FAST_STEP_COUNT) { steps = FAST_STEP_COUNT; }
-            if (steps > SLOW_STEP_COUNT) { steps = SLOW_STEP_COUNT; }
-            return steps;
-        }
-
-        // 画面いっぱいに対する余白率（92% に収める）
-        var fitMarginRatio = 0.92;
-
-        // BridgeTalk: ナビゲーション本体をメインエンジンへ登録済みか
+        // BridgeTalk: ナビゲーション本体をメインエンジンへ登録済みか / Whether the worker is installed in the main engine
         var workerInstalled = false;
+
+        // 一覧を作り直している間は onChange による移動を止める / Suppress navigation while the list is being rebuilt
+        var isPopulatingList = false;
+
+        // 一覧表示時のウィンドウ高さ（再表示でこの値へ正確に戻す）/ Palette height with the list shown (restored when it reappears)
+        var shownWindowHeight = null;
 
         // すでに開いているパレットがあれば閉じてから作り直す（多重表示・再実行対策）
         try {
@@ -236,225 +284,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // コマンド名 → ボタンの対応（先頭／最終ボタンの有効・無効切替に使う）
         var navButtonsByCommand = {};
 
-        // =========================================================
-        // パレット
-        // =========================================================
+        // =========================================
+        // パレット / Palette
+        // =========================================
 
-        var paletteWindow = new Window("palette", SCRIPT_NAME, undefined, { resizeable: true });
+        var paletteWindow = new Window("palette", PALETTE_TITLE, undefined, { resizeable: true });
         $.global.artboardNavigatorWindow = paletteWindow;
 
         paletteWindow.orientation = "column";
         paletteWindow.alignChildren = ["fill", "top"];
-        paletteWindow.margins = 12;
-        paletteWindow.spacing = 8;
-        paletteWindow.preferredSize = [210, 200];
+        paletteWindow.margins = PALETTE_MARGINS;
+        paletteWindow.spacing = PALETTE_SPACING;
+        paletteWindow.preferredSize = PALETTE_PREFERRED_SIZE;
 
-        var navButtonRow = paletteWindow.add("group");
-        navButtonRow.orientation = "row";
-        navButtonRow.alignChildren = ["center", "center"];
-        navButtonRow.alignment = ["center", "top"];
-        navButtonRow.spacing = 7;
-        navButtonRow.margins = [5, 5, 5, 10]; // 下だけ +5
+        var navButtonRow = addNavButtonRow(paletteWindow);
 
-        for (var i = 0; i < navButtonDefinitions.length; i++) {
-            addNavButton(navButtonRow, navButtonDefinitions[i]);
-        }
+        var optionControls = addOptionsPanel(paletteWindow);
+        var animationCheckbox = optionControls.animationCheckbox;
+        var speedSlider = optionControls.speedSlider;
+        var easeCheckbox = optionControls.easeCheckbox;
+        var preziCheckbox = optionControls.preziCheckbox;
+        var preziDipSlider = optionControls.preziDipSlider;
+        var showArtboardNameCheckbox = optionControls.showArtboardNameCheckbox;
 
-        // オプション設定パネル / Options panel
-        var optionsPanel = paletteWindow.add("panel", undefined, getLabel("panel.options"));
-        optionsPanel.orientation = "column";
-        optionsPanel.alignChildren = ["left", "top"];
-        optionsPanel.alignment = ["fill", "top"];
-        optionsPanel.margins = [16, 20, 16, 12];
+        var listControls = addArtboardListSection(paletteWindow);
+        var listVisibilityCheckbox = listControls.listVisibilityCheckbox;
+        var artboardListBox = listControls.artboardListBox;
 
-        // アニメーションの ON/OFF（OFF で以降のオプションをディム表示）
-        var animationCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.animation"));
-        animationCheckbox.value = settingBool(savedSettings, "animation", true);
-
-        // 前後のアートボードへ移動するスピード（右ほど速い） / Speed of moving to the prev/next artboard (faster toward the right)
-        var speedRow = optionsPanel.add("group");
-        speedRow.orientation = "row";
-        speedRow.alignChildren = ["left", "center"];
-        speedRow.alignment = ["fill", "top"];
-
-        var speedLabel = speedRow.add("statictext", undefined, getLabel("slider.speed"));
-        var speedSlider = speedRow.add("slider", undefined, initialSpeed, MIN_SPEED, MAX_SPEED);
-        speedSlider.alignment = ["fill", "center"];
-        speedSlider.preferredSize = [120, -1];
-
-        // ドラッグ中はステップ数へ即反映、確定時（離したとき）に設定を保存
-        speedSlider.onChanging = function () {
-            animationStepCount = speedToStepCount(this.value);
-        };
-        speedSlider.onChange = function () {
-            animationStepCount = speedToStepCount(this.value);
-            saveSettings();
-        };
-
-        // イーズの ON/OFF（OFF で線形＝イーズなし）
-        var easeCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.ease"));
-        easeCheckbox.value = settingBool(savedSettings, "ease", true);
-        easeCheckbox.onClick = function () {
-            saveSettings();
-        };
-
-        // Prezi モード：前後移動の途中で一度ズームを下げてから寄せる（Prezi 風）
-        var preziCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.prezi"));
-        preziCheckbox.value = settingBool(savedSettings, "prezi", true);
-
-        // Prezi モードで下げるズーム量（中央 0.5、左ほど弱く右ほど強い） / Prezi zoom-out amount
-        var preziDipRow = optionsPanel.add("group");
-        preziDipRow.orientation = "row";
-        preziDipRow.alignChildren = ["left", "center"];
-        preziDipRow.alignment = ["fill", "top"];
-
-        var preziDipLabel = preziDipRow.add("statictext", undefined, getLabel("slider.preziDip"));
-        var preziDipSlider = preziDipRow.add("slider", undefined, preziDipRatio, 0, 1);
-        preziDipSlider.alignment = ["fill", "center"];
-        preziDipSlider.preferredSize = [120, -1];
-
-        // ドラッグ中は引き量へ即反映、確定時（離したとき）に設定を保存
-        preziDipSlider.onChanging = function () {
-            preziDipRatio = this.value;
-        };
-        preziDipSlider.onChange = function () {
-            preziDipRatio = this.value;
-            saveSettings();
-        };
-
-        // 引きスライダーはアニメーション ON かつ Prezi モード ON のときだけ有効
-        function applyPreziDipEnabled() {
-            preziDipRow.enabled = animationCheckbox.value && preziCheckbox.value;
-        }
-
-        preziCheckbox.onClick = function () {
-            applyPreziDipEnabled();
-            saveSettings();
-        };
-
-        // アニメーション OFF のときは以降のオプションをすべてディム表示
-        function applyAnimationEnabled(enabled) {
-            speedRow.enabled = enabled;
-            easeCheckbox.enabled = enabled;
-            preziCheckbox.enabled = enabled;
-            applyPreziDipEnabled();
-        }
-
-        animationCheckbox.onClick = function () {
-            applyAnimationEnabled(this.value);
-            saveSettings();
-        };
-
-        applyAnimationEnabled(animationCheckbox.value);
-
-        // アートボード名ラベルの表示 ON/OFF
-        // ON のときだけ、移動先の左上に「番号：アートボード名」を専用レイヤー
-        //（ロックON・プリントOFF）へ描画する。OFF のときは描画もレイヤー作成もしない。
-        var showArtboardNameCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.showLabel"));
-        showArtboardNameCheckbox.value = settingBool(savedSettings, "showLabel", true);
-        showArtboardNameCheckbox.onClick = function () {
-            if (!this.value) {
-                removeLabelLayerDirect();
-                requestLabelRemoval();
-            }
-            saveSettings();
-        };
-
-        // アートボード一覧の表示 ON/OFF（OFF で一覧を隠し、領域も確保しない）
-        var listVisibilityRow = paletteWindow.add("group");
-        listVisibilityRow.orientation = "row";
-        listVisibilityRow.alignChildren = ["center", "center"];
-        listVisibilityRow.alignment = ["fill", "top"];
-        listVisibilityRow.margins = 5;
-
-        var listVisibilityCheckbox = listVisibilityRow.add("checkbox", undefined, getLabel("checkbox.listVisible"));
-        listVisibilityCheckbox.value = settingBool(savedSettings, "listVisible", true);
-
-        // アートボード一覧（番号｜アートボード名）。行を選ぶとそのアートボードへ移動
-        var artboardListBox = paletteWindow.add("listbox", undefined, [], {
-            numberOfColumns: 2,
-            showHeaders: true,
-            columnTitles: [getLabel("column.number"), getLabel("column.name")],
-            columnWidths: [44, 156]
-        });
-        // リサイズ時に一覧が縦横とも追従して広がるようにする
-        artboardListBox.alignment = ["fill", "fill"];
-        artboardListBox.preferredSize = [210, 150];
-
-        // ウィンドウのリサイズに追従してレイアウトを再配置
-        paletteWindow.onResizing = paletteWindow.onResize = function () {
-            this.layout.resize();
-        };
-
-        // 一覧の表示／非表示を切り替え、OFF のときは領域も確保しない
-        listVisibilityCheckbox.onClick = function () {
-            applyArtboardListVisibility(this.value);
-            saveSettings();
-        };
-
-        var isPopulatingList = false;
-
-        artboardListBox.onChange = function () {
-            if (isPopulatingList) {
-                return;
-            }
-            if (this.selection) {
-                runNavigation(String(this.selection.index));
-            }
-        };
-
-        restoreWindowPosition(paletteWindow);
-
-        paletteWindow.onMove = function () {
-            saveWindowPosition(paletteWindow);
-        };
-
-        paletteWindow.onClose = function () {
-            saveWindowPosition(paletteWindow);
-            saveSettings();
-            // 表示中のラベルをメインエンジン側で消してから閉じる
-            requestLabelRemoval();
-            $.global.artboardNavigatorWindow = null;
-        };
-
-        paletteWindow.onActivate = function () {
-            // 環境設定のUI明るさが変わっていたらボタンの配色を切り替えて描き直す
-            var nowLight = isLightUI();
-            if (nowLight !== useLightButtons) {
-                useLightButtons = nowLight;
-                try {
-                    for (var bi = 0; bi < navButtonRow.children.length; bi++) {
-                        navButtonRow.children[bi].notify("onDraw");
-                    }
-                } catch (redrawError) {
-                }
-            }
-            refreshArtboardList();
-        };
-
-        // キーボードショートカット（パレットにフォーカスがあるとき）
-        // Control + Shift + Option + ← … 前のアートボードへ
-        // Control + Shift + Option + → … 次のアートボードへ
-        // Control + Shift + Option + ↑ … 全アートボードを一覧表示
-        // ※ Option は ScriptUI では altKey
-        try {
-            paletteWindow.addEventListener("keydown", function (kbEvent) {
-                if (!kbEvent.ctrlKey || !kbEvent.shiftKey || !kbEvent.altKey) {
-                    return;
-                }
-                if (kbEvent.keyName === "Left") {
-                    runNavigation("prev");
-                    kbEvent.preventDefault();
-                } else if (kbEvent.keyName === "Right") {
-                    runNavigation("next");
-                    kbEvent.preventDefault();
-                } else if (kbEvent.keyName === "Up") {
-                    runNavigation("list");
-                    kbEvent.preventDefault();
-                }
-            });
-        } catch (e) {
-        }
+        bindPaletteEvents();
 
         paletteWindow.show();
         refreshArtboardList();
@@ -469,38 +326,328 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             installNavigationWorker();
         }
 
-        // =========================================================
-        // ボタン生成・アイコン描画
-        // =========================================================
+        // =========================================
+        // パレットの組み立て / Building the palette
+        // =========================================
 
-        /* ナビゲーションボタンを1つ生成して配置 / Create and place one navigation button */
+        /**
+         * スピード値（1〜10）をステップ数に変換する / Convert a speed value (1-10) to a step count
+         * @param {number} speed - スピード値
+         * @returns {number} アニメーションのステップ数
+         */
+        function speedToStepCount(speed) {
+            var ratio = (speed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED); // 0〜1
+            var steps = Math.round(SLOW_STEP_COUNT - ratio * (SLOW_STEP_COUNT - FAST_STEP_COUNT));
+            if (steps < FAST_STEP_COUNT) { steps = FAST_STEP_COUNT; }
+            if (steps > SLOW_STEP_COUNT) { steps = SLOW_STEP_COUNT; }
+            return steps;
+        }
+
+        /**
+         * ナビゲーションボタンの行を追加する
+         * @param {Window} parentWindow - 追加先のパレット
+         * @returns {Group} ボタンの行
+         */
+        function addNavButtonRow(parentWindow) {
+            var buttonRow = parentWindow.add("group");
+            buttonRow.orientation = "row";
+            buttonRow.alignChildren = ["center", "center"];
+            buttonRow.alignment = ["center", "top"];
+            buttonRow.spacing = NAV_BUTTON_SPACING;
+            buttonRow.margins = NAV_BUTTON_ROW_MARGINS;
+
+            for (var i = 0; i < navButtonDefinitions.length; i++) {
+                addNavButton(buttonRow, navButtonDefinitions[i]);
+            }
+            return buttonRow;
+        }
+
+        /**
+         * 項目名とスライダーの行を追加する（ラベル・スライダーの両方に tooltip を付ける）
+         * @param {Panel} parentPanel - 追加先のパネル
+         * @param {string} labelKey - fieldLabel.* と tooltip.* に共通のキー
+         * @param {number} initialValue - 初期値
+         * @param {number} minValue - 最小値
+         * @param {number} maxValue - 最大値
+         * @returns {{row: Group, slider: Slider}} 追加した行とスライダー
+         */
+        function addSliderRow(parentPanel, labelKey, initialValue, minValue, maxValue) {
+            var sliderRow = parentPanel.add("group");
+            sliderRow.orientation = "row";
+            sliderRow.alignChildren = ["left", "center"];
+            sliderRow.alignment = ["fill", "top"];
+
+            var sliderLabel = sliderRow.add("statictext", undefined, getLabel("fieldLabel." + labelKey));
+            sliderLabel.helpTip = getLabel("tooltip." + labelKey);
+            var valueSlider = sliderRow.add("slider", undefined, initialValue, minValue, maxValue);
+            valueSlider.alignment = ["fill", "center"];
+            valueSlider.preferredSize = SLIDER_PREFERRED_SIZE;
+            valueSlider.helpTip = getLabel("tooltip." + labelKey);
+            return { row: sliderRow, slider: valueSlider };
+        }
+
+        /**
+         * 前回の設定値と tooltip 付きのチェックボックスを追加する
+         * @param {Group|Panel} parentGroup - 追加先
+         * @param {string} labelKey - checkbox.* と tooltip.* に共通のキー
+         * @param {string} settingKey - 設定ファイルのキー
+         * @returns {Checkbox} 追加したチェックボックス
+         */
+        function addSettingCheckbox(parentGroup, labelKey, settingKey) {
+            var settingCheckbox = parentGroup.add("checkbox", undefined, getLabel("checkbox." + labelKey));
+            settingCheckbox.helpTip = getLabel("tooltip." + labelKey);
+            settingCheckbox.value = settingBool(savedSettings, settingKey, true);
+            return settingCheckbox;
+        }
+
+        /**
+         * オプション設定パネルを追加する / Add the options panel
+         * @param {Window} parentWindow - 追加先のパレット
+         * @returns {object} animationCheckbox / speedSlider / easeCheckbox / preziCheckbox / preziDipSlider / showArtboardNameCheckbox
+         */
+        function addOptionsPanel(parentWindow) {
+            var optionsPanel = parentWindow.add("panel", undefined, getLabel("panel.options"));
+            optionsPanel.orientation = "column";
+            optionsPanel.alignChildren = ["left", "top"];
+            optionsPanel.alignment = ["fill", "top"];
+            optionsPanel.margins = OPTIONS_PANEL_MARGINS;
+
+            // アニメーションの ON/OFF（OFF で以降のオプションをディム表示）
+            var animationToggle = addSettingCheckbox(optionsPanel, "animation", "animation");
+
+            // 前後のアートボードへ移動するスピード（右ほど速い） / Speed of moving to the prev/next artboard (faster toward the right)
+            var speedControls = addSliderRow(optionsPanel, "speed", initialSpeed, MIN_SPEED, MAX_SPEED);
+
+            // ドラッグ中はステップ数へ即反映、確定時（離したとき）に設定を保存
+            speedControls.slider.onChanging = function () {
+                animationStepCount = speedToStepCount(this.value);
+            };
+            speedControls.slider.onChange = function () {
+                animationStepCount = speedToStepCount(this.value);
+                saveSettings();
+            };
+
+            // イーズの ON/OFF（OFF で線形＝イーズなし）
+            var easeToggle = addSettingCheckbox(optionsPanel, "ease", "ease");
+            easeToggle.onClick = function () {
+                saveSettings();
+            };
+
+            // Prezi モード：前後移動の途中で一度ズームを下げてから寄せる（Prezi 風）
+            var preziToggle = addSettingCheckbox(optionsPanel, "prezi", "prezi");
+
+            // Prezi モードで下げるズーム量（中央 0.5、左ほど弱く右ほど強い） / Prezi zoom-out amount
+            var preziDipControls = addSliderRow(optionsPanel, "preziDip", preziDipRatio, 0, 1);
+
+            // ドラッグ中は引き量へ即反映、確定時（離したとき）に設定を保存
+            preziDipControls.slider.onChanging = function () {
+                preziDipRatio = this.value;
+            };
+            preziDipControls.slider.onChange = function () {
+                preziDipRatio = this.value;
+                saveSettings();
+            };
+
+            /**
+             * 引きスライダーはアニメーション ON かつ Prezi モード ON のときだけ有効にする
+             * @returns {void}
+             */
+            function applyPreziDipEnabled() {
+                preziDipControls.row.enabled = animationToggle.value && preziToggle.value;
+            }
+
+            preziToggle.onClick = function () {
+                applyPreziDipEnabled();
+                saveSettings();
+            };
+
+            /**
+             * アニメーション OFF のときは以降のオプションをすべてディム表示する
+             * @param {boolean} enabled - アニメーションが ON なら true
+             * @returns {void}
+             */
+            function applyAnimationEnabled(enabled) {
+                speedControls.row.enabled = enabled;
+                easeToggle.enabled = enabled;
+                preziToggle.enabled = enabled;
+                applyPreziDipEnabled();
+            }
+
+            animationToggle.onClick = function () {
+                applyAnimationEnabled(this.value);
+                saveSettings();
+            };
+
+            applyAnimationEnabled(animationToggle.value);
+
+            // アートボード名ラベルの表示 ON/OFF
+            // ON のときだけ、移動先の左上に「番号：アートボード名」を専用レイヤー
+            //（ロックON・プリントOFF）へ描画する。OFF のときは描画もレイヤー作成もしない。
+            var showLabelToggle = addSettingCheckbox(optionsPanel, "showLabel", "showLabel");
+            showLabelToggle.onClick = function () {
+                if (!this.value) {
+                    removeLabelLayerDirect();
+                    requestLabelRemoval();
+                }
+                saveSettings();
+            };
+
+            return {
+                animationCheckbox: animationToggle,
+                speedSlider: speedControls.slider,
+                easeCheckbox: easeToggle,
+                preziCheckbox: preziToggle,
+                preziDipSlider: preziDipControls.slider,
+                showArtboardNameCheckbox: showLabelToggle
+            };
+        }
+
+        /**
+         * 「アートボード一覧」のチェックボックスと一覧（番号｜アートボード名）を追加する
+         * @param {Window} parentWindow - 追加先のパレット
+         * @returns {{listVisibilityCheckbox: Checkbox, artboardListBox: ListBox}} 追加したコントロール
+         */
+        function addArtboardListSection(parentWindow) {
+            // アートボード一覧の表示 ON/OFF（OFF で一覧を隠し、領域も確保しない）
+            var listVisibilityRow = parentWindow.add("group");
+            listVisibilityRow.orientation = "row";
+            listVisibilityRow.alignChildren = ["center", "center"];
+            listVisibilityRow.alignment = ["fill", "top"];
+            listVisibilityRow.margins = LIST_TOGGLE_ROW_MARGINS;
+
+            var listToggle = addSettingCheckbox(listVisibilityRow, "listVisible", "listVisible");
+
+            // アートボード一覧（番号｜アートボード名）。行を選ぶとそのアートボードへ移動
+            var listBox = parentWindow.add("listbox", undefined, [], {
+                numberOfColumns: 2,
+                showHeaders: true,
+                columnTitles: [getLabel("column.number"), getLabel("column.name")],
+                columnWidths: LIST_COLUMN_WIDTHS
+            });
+            listBox.helpTip = getLabel("tooltip.artboardList");
+            // リサイズ時に一覧が縦横とも追従して広がるようにする
+            listBox.alignment = ["fill", "fill"];
+            listBox.preferredSize = LIST_PREFERRED_SIZE;
+
+            // 一覧の表示／非表示を切り替え、OFF のときは領域も確保しない
+            listToggle.onClick = function () {
+                applyArtboardListVisibility(this.value);
+                saveSettings();
+            };
+
+            listBox.onChange = function () {
+                if (isPopulatingList) {
+                    return;
+                }
+                if (this.selection) {
+                    runNavigation(String(this.selection.index));
+                }
+            };
+
+            return { listVisibilityCheckbox: listToggle, artboardListBox: listBox };
+        }
+
+        /**
+         * パレットのリサイズ・移動・閉じる・アクティブ化・キー操作のイベントを登録する
+         * @returns {void}
+         */
+        function bindPaletteEvents() {
+            // ウィンドウのリサイズに追従してレイアウトを再配置
+            paletteWindow.onResizing = paletteWindow.onResize = function () {
+                this.layout.resize();
+            };
+
+            restoreWindowPosition(paletteWindow);
+
+            paletteWindow.onMove = function () {
+                saveWindowPosition(paletteWindow);
+            };
+
+            paletteWindow.onClose = function () {
+                saveWindowPosition(paletteWindow);
+                saveSettings();
+                // 表示中のラベルをメインエンジン側で消してから閉じる
+                requestLabelRemoval();
+                $.global.artboardNavigatorWindow = null;
+            };
+
+            paletteWindow.onActivate = function () {
+                // 環境設定のUI明るさが変わっていたらボタンの配色を切り替えて描き直す
+                var nowLight = isLightUI();
+                if (nowLight !== useLightButtons) {
+                    useLightButtons = nowLight;
+                    try {
+                        for (var i = 0; i < navButtonRow.children.length; i++) {
+                            navButtonRow.children[i].notify("onDraw");
+                        }
+                    } catch (redrawError) {
+                    }
+                }
+                refreshArtboardList();
+            };
+
+            // キーボードショートカット（パレットにフォーカスがあるとき）
+            // Control + Shift + Option + ← … 前のアートボードへ
+            // Control + Shift + Option + → … 次のアートボードへ
+            // Control + Shift + Option + ↑ … 全アートボードを一覧表示
+            // ※ Option は ScriptUI では altKey
+            try {
+                paletteWindow.addEventListener("keydown", function (kbEvent) {
+                    if (!kbEvent.ctrlKey || !kbEvent.shiftKey || !kbEvent.altKey) {
+                        return;
+                    }
+                    if (kbEvent.keyName === "Left") {
+                        runNavigation("prev");
+                        kbEvent.preventDefault();
+                    } else if (kbEvent.keyName === "Right") {
+                        runNavigation("next");
+                        kbEvent.preventDefault();
+                    } else if (kbEvent.keyName === "Up") {
+                        runNavigation("list");
+                        kbEvent.preventDefault();
+                    }
+                });
+            } catch (e) {
+            }
+        }
+
+        // =========================================
+        // ボタン生成・アイコン描画 / Buttons & icons
+        // =========================================
+
+        /**
+         * ナビゲーションボタンを1つ生成して配置する / Create and place one navigation button
+         * @param {Group} parentGroup - 追加先の行
+         * @param {{tip: string, icon: string, command: string}} buttonDefinition - ボタンの定義
+         * @returns {void}
+         */
         function addNavButton(parentGroup, buttonDefinition) {
-            var button = parentGroup.add("button", undefined, "");
-            button.helpTip = buttonDefinition.tip;
-            button.preferredSize = [26, 26];
-            button.minimumSize = [26, 26];
-            button.maximumSize = [26, 26];
-            button.iconType = buttonDefinition.icon;
-            button.navCommand = buttonDefinition.command;
-            button.pressed = false;
-            navButtonsByCommand[buttonDefinition.command] = button;
-            button.onDraw = function () {
+            var navButton = parentGroup.add("button", undefined, "");
+            navButton.helpTip = buttonDefinition.tip;
+            navButton.preferredSize = [NAV_BUTTON_SIZE, NAV_BUTTON_SIZE];
+            navButton.minimumSize = [NAV_BUTTON_SIZE, NAV_BUTTON_SIZE];
+            navButton.maximumSize = [NAV_BUTTON_SIZE, NAV_BUTTON_SIZE];
+            navButton.iconType = buttonDefinition.icon;
+            navButton.navCommand = buttonDefinition.command;
+            navButton.pressed = false;
+            navButtonsByCommand[buttonDefinition.command] = navButton;
+            navButton.onDraw = function () {
                 drawNavButton(this);
             };
-            button.onClick = function () {
+            navButton.onClick = function () {
                 runNavigation(this.navCommand);
             };
             // クリック中だけ背景の明るさを少し変える（押下フィードバック）
-            button.addEventListener("mousedown", function () {
+            navButton.addEventListener("mousedown", function () {
                 this.pressed = true;
                 this.notify("onDraw");
             });
-            button.addEventListener("mouseup", function () {
+            navButton.addEventListener("mouseup", function () {
                 this.pressed = false;
                 this.notify("onDraw");
             });
             // ボタン外でマウスを離したときも押下状態を戻す
-            button.addEventListener("mouseout", function () {
+            navButton.addEventListener("mouseout", function () {
                 if (this.pressed) {
                     this.pressed = false;
                     this.notify("onDraw");
@@ -508,10 +655,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             });
         }
 
-        /* 環境設定のUI明るさが明るい側かどうか / Whether the UI brightness preference is on the light side */
-        // uiBrightness は 0（最暗）〜1（最明）の 4 段階。
-        // 0=暗 / 0.5=やや暗め → 暗いUI、0.51=やや明るめ / 1=明るい → 明るいUI。
-        // 「やや暗め(0.5)」を暗い側に含めるため 0.5 より大きいかで判定する。
+        /**
+         * 環境設定のUI明るさが明るい側かどうか / Whether the UI brightness preference is on the light side
+         * uiBrightness は 0（最暗）〜1（最明）の 4 段階。
+         * 0=暗 / 0.5=やや暗め → 暗いUI、0.51=やや明るめ / 1=明るい → 明るいUI。
+         * 「やや暗め(0.5)」を暗い側に含めるため 0.5 より大きいかで判定する。
+         * @returns {boolean} 明るいUIなら true
+         */
         function isLightUI() {
             try {
                 return app.preferences.getRealPreference("uiBrightness") > 0.5;
@@ -520,23 +670,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        /* ボタンの背景とアイコンを描画 / Draw the button background and icon */
-        // 明るいUI = 白バック＋枠線＋黒記号 / 暗いUI = 黒バック＋白記号
-        function drawNavButton(button) {
-            var graphics = button.graphics;
-            var width = button.size[0];
-            var height = button.size[1];
+        /**
+         * ボタンの背景とアイコンを描画する / Draw the button background and icon
+         * 明るいUI = 白バック＋枠線＋黒記号 / 暗いUI = 黒バック＋白記号
+         * @param {Button} navButton - 描画するボタン
+         * @returns {void}
+         */
+        function drawNavButton(navButton) {
+            var graphics = navButton.graphics;
+            var width = navButton.size[0];
+            var height = navButton.size[1];
 
             var backgroundColor = useLightButtons ? [1, 1, 1, 1] : [0.30, 0.30, 0.30, 1];
             var glyphColor = useLightButtons ? [0.15, 0.15, 0.15, 1] : [0.92, 0.92, 0.92, 1];
 
             // クリック中は明るさを少しだけ変える（明るいUIは少し暗く、暗いUIは少し明るく）
-            if (button.pressed) {
+            if (navButton.pressed) {
                 backgroundColor = useLightButtons ? [0.86, 0.86, 0.86, 1] : [0.46, 0.46, 0.46, 1];
             }
 
             // 無効（端にいる先頭／最終ボタン）は記号を淡くしてグレーアウト表示
-            if (button.enabled === false) {
+            if (navButton.enabled === false) {
                 glyphColor = useLightButtons ? [0.75, 0.75, 0.75, 1] : [0.50, 0.50, 0.50, 1];
             }
 
@@ -555,64 +709,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
 
-            drawNavGlyph(graphics, button.iconType, width, height, glyphColor);
+            drawNavGlyph(graphics, navButton.iconType, glyphColor);
         }
 
-        /* < / > / グリッド / |< / >| のアイコン形状を描く / Draw the glyph */
-        function drawNavGlyph(graphics, iconType, width, height, glyphColor) {
-
-            if (iconType === "first") {
-                // |< 形状（左端の縦棒＋左向き山）
-                var firstPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.6);
-                graphics.newPath();
-                graphics.moveTo(9, 7);
-                graphics.lineTo(9, 19);
-                graphics.strokePath(firstPen);
-                graphics.newPath();
-                graphics.moveTo(18, 7);
-                graphics.lineTo(13, 13);
-                graphics.lineTo(18, 19);
-                graphics.strokePath(firstPen);
-                return;
+        /**
+         * 折れ線を1本描く
+         * @param {ScriptUIGraphics} graphics - 描画先
+         * @param {Object} glyphPen - ペン
+         * @param {number[][]} points - 頂点 [[x, y], ...]
+         * @returns {void}
+         */
+        function strokePolyline(graphics, glyphPen, points) {
+            graphics.newPath();
+            graphics.moveTo(points[0][0], points[0][1]);
+            for (var i = 1; i < points.length; i++) {
+                graphics.lineTo(points[i][0], points[i][1]);
             }
+            graphics.strokePath(glyphPen);
+        }
 
-            if (iconType === "last") {
-                // >| 形状（右向き山＋右端の縦棒）
-                var lastPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.6);
-                graphics.newPath();
-                graphics.moveTo(8, 7);
-                graphics.lineTo(13, 13);
-                graphics.lineTo(8, 19);
-                graphics.strokePath(lastPen);
-                graphics.newPath();
-                graphics.moveTo(17, 7);
-                graphics.lineTo(17, 19);
-                graphics.strokePath(lastPen);
-                return;
-            }
-
-            if (iconType === "prev") {
-                // < 形状
-                var prevPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.6);
-                graphics.newPath();
-                graphics.moveTo(16, 7);
-                graphics.lineTo(10, 13);
-                graphics.lineTo(16, 19);
-                graphics.strokePath(prevPen);
-                return;
-            }
-
-            if (iconType === "next") {
-                // > 形状
-                var nextPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.6);
-                graphics.newPath();
-                graphics.moveTo(10, 7);
-                graphics.lineTo(16, 13);
-                graphics.lineTo(10, 19);
-                graphics.strokePath(nextPen);
-                return;
-            }
-
+        /**
+         * < / > / グリッド / |< / >| のアイコン形状を描く / Draw the glyph
+         * @param {ScriptUIGraphics} graphics - 描画先
+         * @param {string} iconType - "first" / "prev" / "list" / "next" / "last"
+         * @param {number[]} glyphColor - 記号の色 [r, g, b, a]
+         * @returns {void}
+         */
+        function drawNavGlyph(graphics, iconType, glyphColor) {
             if (iconType === "list") {
                 // 2×2 のサムネイル風グリッド
                 var listPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.0);
@@ -625,16 +748,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     graphics.rectPath(cellOrigins[i][0], cellOrigins[i][1], cellSize, cellSize);
                     graphics.strokePath(listPen);
                 }
+                return;
+            }
+
+            var glyphPen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, 1.6);
+            if (iconType === "first") {
+                // |< 形状（左端の縦棒＋左向き山）
+                strokePolyline(graphics, glyphPen, [[9, 7], [9, 19]]);
+                strokePolyline(graphics, glyphPen, [[18, 7], [13, 13], [18, 19]]);
+            } else if (iconType === "last") {
+                // >| 形状（右向き山＋右端の縦棒）
+                strokePolyline(graphics, glyphPen, [[8, 7], [13, 13], [8, 19]]);
+                strokePolyline(graphics, glyphPen, [[17, 7], [17, 19]]);
+            } else if (iconType === "prev") {
+                // < 形状
+                strokePolyline(graphics, glyphPen, [[16, 7], [10, 13], [16, 19]]);
+            } else if (iconType === "next") {
+                // > 形状
+                strokePolyline(graphics, glyphPen, [[10, 7], [16, 13], [10, 19]]);
             }
         }
 
-        // =========================================================
-        // BridgeTalk でメインエンジンへ処理を送る
-        // =========================================================
+        // =========================================
+        // ナビゲーションと一覧 / Navigation & list
+        // =========================================
 
-        /* ナビゲーションを実行（必要ならワーカーを登録） / Run navigation (install worker if needed) */
-        // listbox 選択はクリック時にパレット側で確定（onResult に依存しない）。
-        // ラベル描画と削除は worker 側で行う。OFF にしたときはパレット側でも直接削除する。
+        /**
+         * ナビゲーションを実行する（必要ならワーカーを登録） / Run navigation (install worker if needed)
+         * listbox 選択はクリック時にパレット側で確定（onResult に依存しない）。
+         * ラベル描画と削除は worker 側で行う。OFF にしたときはパレット側でも直接削除する。
+         * @param {string} navCommand - "first" / "prev" / "list" / "next" / "last" / 絶対インデックスの文字列
+         * @returns {void}
+         */
         function runNavigation(navCommand) {
             if (typeof BridgeTalk === "undefined") {
                 return;
@@ -660,40 +805,59 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        /* ナビゲーションコマンドを移動先の絶対インデックスへ解決（list は -1） / Resolve a command to an absolute artboard index (-1 for list) */
-        function resolveTargetIndex(navCommand) {
-            var count = artboardListBox.items.length;
-            if (count === 0) {
+        /**
+         * 一覧の行数（無ければドキュメントのアートボード数）を返す
+         * @returns {number} アートボード数（ドキュメントを参照できなければ -1）
+         */
+        function getArtboardCount() {
+            var artboardCount = artboardListBox.items.length;
+            if (artboardCount === 0) {
                 try {
-                    count = app.activeDocument.artboards.length;
+                    artboardCount = app.activeDocument.artboards.length;
                 } catch (e) {
                     return -1;
                 }
             }
+            return artboardCount;
+        }
+
+        /**
+         * ナビゲーションコマンドを移動先の絶対インデックスへ解決する（list は -1） / Resolve a command to an absolute artboard index (-1 for list)
+         * @param {string} navCommand - ナビゲーションコマンド
+         * @returns {number} 移動先のインデックス（解決できなければ -1）
+         */
+        function resolveTargetIndex(navCommand) {
+            var artboardCount = getArtboardCount();
+            if (artboardCount < 0) {
+                return -1;
+            }
             if (navCommand === "list") {
                 return -1;
             }
-            var current = currentListIndex();
+            var currentIndex = currentListIndex();
             if (navCommand === "prev") {
-                return (current - 1 + count) % count;
+                return (currentIndex - 1 + artboardCount) % artboardCount;
             }
             if (navCommand === "next") {
-                return (current + 1) % count;
+                return (currentIndex + 1) % artboardCount;
             }
             if (navCommand === "first") {
                 return 0;
             }
             if (navCommand === "last") {
-                return count - 1;
+                return artboardCount - 1;
             }
             var explicitIndex = parseInt(navCommand, 10);
-            if (!isNaN(explicitIndex) && explicitIndex >= 0 && explicitIndex < count) {
+            if (!isNaN(explicitIndex) && explicitIndex >= 0 && explicitIndex < artboardCount) {
                 return explicitIndex;
             }
             return -1;
         }
 
-        /* 現在地とみなすインデックス（listbox の選択 → 無ければドキュメント） / Current index (listbox selection, fallback to document) */
+        /**
+         * 現在地とみなすインデックス（listbox の選択 → 無ければドキュメント） / Current index (listbox selection, fallback to document)
+         * @returns {number} 現在のインデックス
+         */
         function currentListIndex() {
             if (artboardListBox.selection) {
                 return artboardListBox.selection.index;
@@ -705,147 +869,64 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        /* onChange を発火させずに一覧の選択を更新 / Select a list row without triggering onChange */
-        function selectArtboardInList(index) {
-            if (index < 0 || index >= artboardListBox.items.length) {
+        /**
+         * onChange を発火させずに一覧の選択を更新する / Select a list row without triggering onChange
+         * @param {number} rowIndex - 選択する行
+         * @returns {void}
+         */
+        function selectArtboardInList(rowIndex) {
+            if (rowIndex < 0 || rowIndex >= artboardListBox.items.length) {
                 return;
             }
             isPopulatingList = true;
             try {
-                artboardListBox.selection = index;
+                artboardListBox.selection = rowIndex;
             } catch (e) {
             }
             isPopulatingList = false;
-            updateNavButtonStates(index);
+            updateNavButtonStates(rowIndex);
         }
 
-        /* 先頭にいるとき先頭ボタン、最終にいるとき最終ボタンを無効化 / Disable first/last button at the respective ends */
-        // prev/next は循環移動なので常に有効のまま。
+        /**
+         * 先頭にいるとき先頭ボタン、最終にいるとき最終ボタンを無効化する / Disable first/last button at the respective ends
+         * prev/next は循環移動なので常に有効のまま。
+         * @param {number} [currentIndex] - 現在のインデックス（省略時は currentListIndex()）
+         * @returns {void}
+         */
         function updateNavButtonStates(currentIndex) {
-            var count = artboardListBox.items.length;
-            if (count === 0) {
-                try {
-                    count = app.activeDocument.artboards.length;
-                } catch (e) {
-                    return;
-                }
+            var artboardCount = getArtboardCount();
+            if (artboardCount < 0) {
+                return;
             }
             if (typeof currentIndex !== "number" || currentIndex < 0) {
                 currentIndex = currentListIndex();
             }
             setButtonEnabled(navButtonsByCommand.first, currentIndex > 0);
-            setButtonEnabled(navButtonsByCommand.last, currentIndex < count - 1);
+            setButtonEnabled(navButtonsByCommand.last, currentIndex < artboardCount - 1);
         }
 
-        /* ボタンの有効状態を変え、必要なら再描画 / Set a button's enabled state and repaint if it changed */
-        function setButtonEnabled(button, enabled) {
-            if (!button || button.enabled === enabled) {
+        /**
+         * ボタンの有効状態を変え、変わったときだけ再描画する / Set a button's enabled state and repaint if it changed
+         * @param {Button} navButton - 対象のボタン
+         * @param {boolean} isEnabled - 有効にするなら true
+         * @returns {void}
+         */
+        function setButtonEnabled(navButton, isEnabled) {
+            if (!navButton || navButton.enabled === isEnabled) {
                 return;
             }
-            button.enabled = enabled;
+            navButton.enabled = isEnabled;
             try {
-                button.notify("onDraw");
+                navButton.notify("onDraw");
             } catch (e) {
             }
         }
 
-        /* ナビゲーション本体をメインエンジンへ一度だけ登録 / Install the worker into the main engine once */
-        // 以降のクリックは短い呼び出しだけ送るので、毎回の送信ペイロードが最小になる。
-        function installNavigationWorker() {
-            var bridgeTalk = newIllustratorBridgeTalk();
-            bridgeTalk.body = "$.global.artboardNavigatorWorker = (" + navigationScriptMain.toString() + ");";
-            bridgeTalk.onResult = function () {
-                removeNavigationJob(bridgeTalk);
-            };
-            bridgeTalk.onError = function () {
-                removeNavigationJob(bridgeTalk);
-            };
-            $.global.artboardNavigatorJobs.push(bridgeTalk);
-            trimNavigationJobs();
-            bridgeTalk.send();
-            workerInstalled = true;
-        }
-
-        /* 登録済みワーカーを短い呼び出しだけで実行 / Invoke the installed worker with a short call */
-        function sendNavigation(navCommand, allowReinstall) {
-            var bridgeTalk = newIllustratorBridgeTalk();
-            bridgeTalk.body = buildNavigationCall(navCommand);
-            bridgeTalk.onResult = function () {
-                removeNavigationJob(bridgeTalk);
-            };
-            bridgeTalk.onError = function () {
-                removeNavigationJob(bridgeTalk);
-                // ワーカー未登録などで失敗したら、登録し直して1回だけ再試行
-                if (allowReinstall) {
-                    workerInstalled = false;
-                    installNavigationWorker();
-                    sendNavigation(navCommand, false);
-                }
-            };
-            $.global.artboardNavigatorJobs.push(bridgeTalk);
-            trimNavigationJobs();
-            bridgeTalk.send();
-        }
-
-        /* メインエンジンへラベル即時消去を依頼（パレットを閉じるときなど） / Ask the main engine to remove labels now (e.g. on close) */
-        function requestLabelRemoval() {
-            if (typeof BridgeTalk === "undefined") {
-                return;
-            }
-            try {
-                var bridgeTalk = newIllustratorBridgeTalk();
-                bridgeTalk.body = "if($.global.artboardNavigatorRemoveLabels)$.global.artboardNavigatorRemoveLabels();";
-                // 送信完了前に GC されないよう、他の送信と同じジョブ配列で保持する
-                bridgeTalk.onResult = function () {
-                    removeNavigationJob(bridgeTalk);
-                };
-                bridgeTalk.onError = function () {
-                    removeNavigationJob(bridgeTalk);
-                };
-                $.global.artboardNavigatorJobs.push(bridgeTalk);
-                trimNavigationJobs();
-                bridgeTalk.send();
-            } catch (e) {
-            }
-        }
-
-        /* パレット側から "ArtboardNavigator" レイヤーを直接削除 / Remove the "ArtboardNavigator" layer directly from the palette engine */
-        // requestLabelRemoval（メインエンジン経由）は worker 関数が未定義だと無効なため、
-        // 「アートボード名を表示」OFF の瞬間に確実に消すための、BridgeTalk に依存しない直接削除。
-        // 前回セッションから書類に残った専用レイヤーも、未ナビゲートのまま OFF にすれば消える。
-        function removeLabelLayerDirect() {
-            if (app.documents.length === 0) {
-                return;
-            }
-            try {
-                var doc = app.activeDocument;
-                for (var i = doc.layers.length - 1; i >= 0; i--) {
-                    if (doc.layers[i].name === "ArtboardNavigator") {
-                        try {
-                            doc.layers[i].locked = false;
-                            doc.layers[i].remove();
-                        } catch (layerError) {
-                        }
-                    }
-                }
-                app.redraw();
-            } catch (e) {
-            }
-        }
-
-        /* Illustrator 宛ての BridgeTalk を生成 / Create a BridgeTalk addressed to Illustrator */
-        function newIllustratorBridgeTalk() {
-            var bridgeTalk = new BridgeTalk();
-            try {
-                bridgeTalk.target = BridgeTalk.getSpecifier("illustrator");
-            } catch (e) {
-                bridgeTalk.target = "illustrator";
-            }
-            return bridgeTalk;
-        }
-
-        /* アートボード一覧を再構築し現在のものを選択 / Rebuild the artboard list and select the active one */
-        // 先に値を取得し、取得できたときだけ作り直す（失敗時は現状維持で空白化を防ぐ）
+        /**
+         * アートボード一覧を再構築し現在のものを選択する / Rebuild the artboard list and select the active one
+         * 先に値を取得し、取得できたときだけ作り直す（失敗時は現状維持で空白化を防ぐ）
+         * @returns {void}
+         */
         function refreshArtboardList() {
             if (app.documents.length === 0) {
                 return;
@@ -890,11 +971,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateNavButtonStates(activeIndex);
         }
 
-        // 一覧表示時のウィンドウ高さ（再表示でこの値へ正確に戻す）
-        var shownWindowHeight = null;
-
-        /* 一覧の表示／非表示を切り替え（OFF は領域も確保せずパレットを縮める） / Toggle the list and shrink/grow the palette by its height */
-        // OFF 時は layout(true) で残りの要素にぴったり収まる高さへ詰め、ON 時は記録した高さへ正確に戻す
+        /**
+         * 一覧の表示／非表示を切り替える（OFF は領域も確保せずパレットを縮める） / Toggle the list and shrink/grow the palette by its height
+         * OFF 時は layout(true) で残りの要素にぴったり収まる高さへ詰め、ON 時は記録した高さへ正確に戻す
+         * @param {boolean} showList - 一覧を表示するなら true
+         * @returns {void}
+         */
         function applyArtboardListVisibility(showList) {
             var keptWidth = paletteWindow.size[0];
 
@@ -915,14 +997,130 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 paletteWindow.preferredSize = [-1, -1];
                 paletteWindow.layout.layout(true);
 
-                var collapsedHeight = paletteWindow.bounds.height;
-                // alert(collapsedHeight);
-                paletteWindow.size = [keptWidth, collapsedHeight];
+                paletteWindow.size = [keptWidth, paletteWindow.bounds.height];
                 paletteWindow.layout.resize();
             }
         }
 
-        /* 登録済みワーカーの呼び出し文を組み立てる / Build the call string for the installed worker */
+        // =========================================
+        // BridgeTalk でメインエンジンへ処理を送る / Sending work to the main engine
+        // =========================================
+
+        /**
+         * BridgeTalk ジョブを保持して送信する（完了・失敗で配列から外す。送信完了前に GC されないため）
+         * @param {BridgeTalk} bridgeTalk - 送るジョブ
+         * @param {Function} [onFailure] - 失敗時に追加で呼ぶ処理
+         * @returns {void}
+         */
+        function sendTrackedJob(bridgeTalk, onFailure) {
+            bridgeTalk.onResult = function () {
+                removeNavigationJob(bridgeTalk);
+            };
+            bridgeTalk.onError = function () {
+                removeNavigationJob(bridgeTalk);
+                if (onFailure) {
+                    onFailure();
+                }
+            };
+            $.global.artboardNavigatorJobs.push(bridgeTalk);
+            trimNavigationJobs();
+            bridgeTalk.send();
+        }
+
+        /**
+         * ナビゲーション本体をメインエンジンへ一度だけ登録する / Install the worker into the main engine once
+         * 以降のクリックは短い呼び出しだけ送るので、毎回の送信ペイロードが最小になる。
+         * @returns {void}
+         */
+        function installNavigationWorker() {
+            var bridgeTalk = newIllustratorBridgeTalk();
+            bridgeTalk.body = "$.global.artboardNavigatorWorker = (" + navigationScriptMain.toString() + ");";
+            sendTrackedJob(bridgeTalk);
+            workerInstalled = true;
+        }
+
+        /**
+         * 登録済みワーカーを短い呼び出しだけで実行する / Invoke the installed worker with a short call
+         * @param {string} navCommand - ナビゲーションコマンド
+         * @param {boolean} allowReinstall - 失敗時にワーカーを登録し直して1回だけ再試行するなら true
+         * @returns {void}
+         */
+        function sendNavigation(navCommand, allowReinstall) {
+            var bridgeTalk = newIllustratorBridgeTalk();
+            bridgeTalk.body = buildNavigationCall(navCommand);
+            sendTrackedJob(bridgeTalk, function () {
+                // ワーカー未登録などで失敗したら、登録し直して1回だけ再試行
+                if (allowReinstall) {
+                    workerInstalled = false;
+                    installNavigationWorker();
+                    sendNavigation(navCommand, false);
+                }
+            });
+        }
+
+        /**
+         * メインエンジンへラベル即時消去を依頼する（パレットを閉じるときなど） / Ask the main engine to remove labels now (e.g. on close)
+         * @returns {void}
+         */
+        function requestLabelRemoval() {
+            if (typeof BridgeTalk === "undefined") {
+                return;
+            }
+            try {
+                var bridgeTalk = newIllustratorBridgeTalk();
+                bridgeTalk.body = "if($.global.artboardNavigatorRemoveLabels)$.global.artboardNavigatorRemoveLabels();";
+                // 送信完了前に GC されないよう、他の送信と同じジョブ配列で保持する
+                sendTrackedJob(bridgeTalk);
+            } catch (e) {
+            }
+        }
+
+        /**
+         * パレット側から "ArtboardNavigator" レイヤーを直接削除する / Remove the "ArtboardNavigator" layer directly from the palette engine
+         * requestLabelRemoval（メインエンジン経由）は worker 関数が未定義だと無効なため、
+         * 「アートボード名を表示」OFF の瞬間に確実に消すための、BridgeTalk に依存しない直接削除。
+         * 前回セッションからドキュメントに残った専用レイヤーも、未ナビゲートのまま OFF にすれば消える。
+         * @returns {void}
+         */
+        function removeLabelLayerDirect() {
+            if (app.documents.length === 0) {
+                return;
+            }
+            try {
+                var doc = app.activeDocument;
+                for (var i = doc.layers.length - 1; i >= 0; i--) {
+                    if (doc.layers[i].name === "ArtboardNavigator") {
+                        try {
+                            doc.layers[i].locked = false;
+                            doc.layers[i].remove();
+                        } catch (layerError) {
+                        }
+                    }
+                }
+                app.redraw();
+            } catch (e) {
+            }
+        }
+
+        /**
+         * Illustrator 宛ての BridgeTalk を生成する / Create a BridgeTalk addressed to Illustrator
+         * @returns {BridgeTalk} 宛先を設定した BridgeTalk
+         */
+        function newIllustratorBridgeTalk() {
+            var bridgeTalk = new BridgeTalk();
+            try {
+                bridgeTalk.target = BridgeTalk.getSpecifier("illustrator");
+            } catch (e) {
+                bridgeTalk.target = "illustrator";
+            }
+            return bridgeTalk;
+        }
+
+        /**
+         * 登録済みワーカーの呼び出し文を組み立てる / Build the call string for the installed worker
+         * @param {string} navCommand - ナビゲーションコマンド
+         * @returns {string} メインエンジンで評価する呼び出し文
+         */
         function buildNavigationCall(navCommand) {
             return "$.global.artboardNavigatorWorker(" +
                 quoteForScript(navCommand) + "," +
@@ -940,12 +1138,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ");";
         }
 
-        /* 文字列を安全に引用符で囲む / Quote a string safely for embedding in script */
+        /**
+         * 文字列を安全に引用符で囲む / Quote a string safely for embedding in script
+         * @param {string} value - 囲む値
+         * @returns {string} 引用符付きの文字列リテラル
+         */
         function quoteForScript(value) {
             return '"' + String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
         }
 
-        /* 保留中の BridgeTalk ジョブを一定数に保つ / Keep pending BridgeTalk jobs under a limit */
+        /**
+         * 保留中の BridgeTalk ジョブを一定数に保つ / Keep pending BridgeTalk jobs under a limit
+         * @returns {void}
+         */
         function trimNavigationJobs() {
             var pendingJobs = $.global.artboardNavigatorJobs;
             while (pendingJobs.length > 12) {
@@ -953,7 +1158,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        /* 完了したジョブを配列から取り除く / Remove a finished job from the array */
+        /**
+         * 完了したジョブを配列から取り除く / Remove a finished job from the array
+         * @param {BridgeTalk} bridgeTalk - 取り除くジョブ
+         * @returns {void}
+         */
         function removeNavigationJob(bridgeTalk) {
             var pendingJobs = $.global.artboardNavigatorJobs;
             for (var i = pendingJobs.length - 1; i >= 0; i--) {
@@ -963,11 +1172,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        // =========================================================
-        // メインエンジンで実行される本体（BridgeTalk で送信）
-        // ※ この関数は文字列化して送るため、外側の変数を参照せず
-        //   引数とアプリ DOM だけで完結させる
-        // =========================================================
+        // =========================================
+        // メインエンジンで実行される本体（BridgeTalk で送信）/ Worker run in the main engine (sent via BridgeTalk)
+        // ※ この関数は toString() で文字列化して送るため、外側の変数を参照せず引数とアプリ DOM だけで完結させる。
+        //   JSDoc を付けず、関数内のコメントは /* */ だけにする（toString() の出力が壊れて構文エラーになるため）
+        // =========================================
 
         /* メインエンジンで移動を実行する本体 / Worker that performs the move in the main engine */
         function navigationScriptMain(navCommand, stepCount, delayMs, marginRatio, useEasing, preziMode, animate, preziDipRatio, labelFontRatio, labelBackgroundOpacity, labelTextOpacity, showLabel) {
@@ -984,18 +1193,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var view = doc.views[0];
                 var targetView;
 
-                // Prezi 風のズームダウンは個別アートボードへの移動時のみ（全体表示では使わない）
+                /* Prezi 風のズームダウンは個別アートボードへの移動時のみ（全体表示では使わない） */
                 var usePreziDip = false;
 
-                // 移動先のラベルを出すアートボード番号（-1 = ラベルを出さない＝全体表示）
+                /* 移動先のラベルを出すアートボード番号（-1 = ラベルを出さない＝全体表示） */
                 var labelIndex = -1;
 
-                // ラベルは専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画する。
+                /* ラベルは専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画する。 */
                 var LABEL_LAYER_NAME = "ArtboardNavigator";
                 var LABEL_ITEM_NAME = "__ArtboardNavigatorLabel";
 
-                // パレットからの即時消去依頼（チェックOFF・パレットを閉じる時など）に応える削除関数。
-                // 専用レイヤーごと削除し、レイヤーも残さない。文字列から呼べるよう $.global に公開。
+                /* パレットからの即時消去依頼（チェックOFF・パレットを閉じる時など）に応える削除関数。 */
+                /* 専用レイヤーごと削除し、レイヤーも残さない。文字列から呼べるよう $.global に公開。 */
                 if (typeof $.global.artboardNavigatorRemoveLabels !== "function") {
                     $.global.artboardNavigatorRemoveLabels = function () {
                         try {
@@ -1034,7 +1243,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     } else if (navCommand === "last") {
                         targetIndex = artboardCount - 1;
                     } else {
-                        // 一覧から選ばれた絶対インデックス（数値文字列）
+                        /* 一覧から選ばれた絶対インデックス（数値文字列） */
                         targetIndex = parseInt(navCommand, 10);
                         if (isNaN(targetIndex) || targetIndex < 0 || targetIndex >= artboardCount) {
                             return "範囲外のアートボード: " + navCommand;
@@ -1049,9 +1258,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 animateViewTo(targetView.centerX, targetView.centerY, targetView.zoom, usePreziDip);
 
-                // 移動後に左上ラベルを更新。
-                // ・「アートボード名を表示」OFF、または全体表示のときは描画せず専用レイヤーごと削除
-                // ・ラベル描画が失敗しても移動自体は成立させる
+                /* 移動後に左上ラベルを更新。 */
+                /* ・「アートボード名を表示」OFF、または全体表示のときは描画せず専用レイヤーごと削除 */
+                /* ・ラベル描画が失敗しても移動自体は成立させる */
                 try {
                     if (showLabel && labelIndex >= 0) {
                         showArtboardLabel(labelIndex);
@@ -1064,14 +1273,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 return "ok";
 
-                // ----- 以下、メインエンジン内のヘルパー（巻き上げで先に定義扱い） -----
-                // 役割ごとに ①アニメーション ②ビュー計測 ③ラベルレイヤー操作 ④ラベル処理 に分かれる。
+                /* ----- 以下、メインエンジン内のヘルパー（巻き上げで先に定義扱い） ----- */
+                /* 役割ごとに ①アニメーション ②ビュー計測 ③ラベルレイヤー操作 ④ラベル処理 に分かれる。 */
 
-                // ===== ① アニメーション / Animation =====
+                /* ===== ① アニメーション / Animation ===== */
 
                 /* 現在のビューから目標へなめらかに移動 / Animate the view from current to target */
                 function animateViewTo(targetCenterX, targetCenterY, targetZoom, preziDip) {
-                    // アニメーション OFF のときは補間せず一気に目標へジャンプ
+                    /* アニメーション OFF のときは補間せず一気に目標へジャンプ */
                     if (!animate) {
                         view.centerPoint = [targetCenterX, targetCenterY];
                         view.zoom = targetZoom;
@@ -1084,7 +1293,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var startCenterY = startCenterPoint[1];
                     var startZoom = view.zoom;
 
-                    // 移動量に応じてステップ数を調整（小さい移動は少ないステップで素早く）
+                    /* 移動量に応じてステップ数を調整（小さい移動は少ないステップで素早く） */
                     var effectiveSteps = resolveStepCount(
                         startCenterX, startCenterY, startZoom,
                         targetCenterX, targetCenterY, targetZoom
@@ -1093,9 +1302,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     for (var i = 1; i <= effectiveSteps; i++) {
                         var progress = i / effectiveSteps;
 
-                        // useEasing が OFF のときは線形（イーズなし）
-                        // ON のときは easeOutQuad（出だしは速く、終わりにゆっくり減速）
-                        // ＝押した瞬間に動き出すので開始のタイムラグを感じにくい
+                        /* useEasing が OFF のときは線形（イーズなし） */
+                        /* ON のときは easeOutQuad（出だしは速く、終わりにゆっくり減速） */
+                        /* ＝押した瞬間に動き出すので開始のタイムラグを感じにくい */
                         var easedProgress = useEasing
                             ? 1 - (1 - progress) * (1 - progress)
                             : progress;
@@ -1104,11 +1313,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var frameCenterY = startCenterY + (targetCenterY - startCenterY) * easedProgress;
                         var frameZoom = startZoom + (targetZoom - startZoom) * easedProgress;
 
-                        // Prezi モード：移動の中盤でズームを最大 preziDipRatio ぶん下げ、
-                        // 出入りは sin カーブで滑らかに（始点・終点では 1.0 に戻る）
+                        /* Prezi モード：移動の中盤でズームを最大 preziDipRatio ぶん下げ、 */
+                        /* 出入りは sin カーブで滑らかに（始点・終点では 1.0 に戻る） */
                         if (preziDip) {
                             var dipMultiplier = 1 - preziDipRatio * Math.sin(progress * Math.PI);
-                            if (dipMultiplier < 0.05) { dipMultiplier = 0.05; } // ズーム 0 を回避
+                            if (dipMultiplier < 0.05) { dipMultiplier = 0.05; } /* ズーム 0 を回避 */
                             frameZoom = frameZoom * dipMultiplier;
                         }
 
@@ -1119,20 +1328,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         sleep(delayMs);
                     }
 
-                    // 最後に正確に合わせる
+                    /* 最後に正確に合わせる */
                     view.centerPoint = [targetCenterX, targetCenterY];
                     view.zoom = targetZoom;
                     app.redraw();
                 }
 
                 /* 移動量に応じてステップ数を決める / Decide step count from the move magnitude */
-                // 画面に対するパン量とズーム変化率の大きい方を minSteps〜stepCount に対応づける
+                /* 画面に対するパン量とズーム変化率の大きい方を minSteps〜stepCount に対応づける */
                 function resolveStepCount(startX, startY, startZoom, targetX, targetY, targetZoom) {
                     var magnitude;
 
                     try {
                         var bounds = view.bounds;
-                        // bounds = [left, top, right, bottom]（現在ズームでのドキュメント座標）
+                        /* bounds = [left, top, right, bottom]（現在ズームでのドキュメント座標） */
                         var visibleExtent = Math.max(
                             Math.abs(bounds[2] - bounds[0]),
                             Math.abs(bounds[1] - bounds[3])
@@ -1146,7 +1355,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                         magnitude = Math.max(moveFraction, zoomFraction);
                     } catch (e) {
-                        // 計測できなければフルステップ
+                        /* 計測できなければフルステップ */
                         return stepCount;
                     }
 
@@ -1167,12 +1376,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return resolvedSteps;
                 }
 
-                // ===== ② ビュー計測（中心・ズームの算出）/ View metrics =====
+                /* ===== ② ビュー計測（中心・ズームの算出）/ View metrics ===== */
 
                 /* 指定アートボードの中心とズームを求める / Compute center and zoom for one artboard */
                 function measureArtboardView(artboardIndex) {
                     var rect = doc.artboards[artboardIndex].artboardRect;
-                    // rect = [left, top, right, bottom]（Illustrator は y 上向きで top > bottom）
+                    /* rect = [left, top, right, bottom]（Illustrator は y 上向きで top > bottom） */
 
                     return {
                         centerX: (rect[0] + rect[2]) / 2,
@@ -1201,11 +1410,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
 
                 /* 対象を収めるズームを view.bounds から算出 / Compute fit zoom from view.bounds */
-                // メニューコマンドもビュー変更も使わないため、移動開始前のタイムラグが出ない。
+                /* メニューコマンドもビュー変更も使わないため、移動開始前のタイムラグが出ない。 */
                 function computeFitZoom(targetWidth, targetHeight, fallbackTarget) {
                     try {
                         var bounds = view.bounds;
-                        // bounds = [left, top, right, bottom]（ドキュメント座標）
+                        /* bounds = [left, top, right, bottom]（ドキュメント座標） */
                         var visibleWidth = Math.abs(bounds[2] - bounds[0]);
                         var visibleHeight = Math.abs(bounds[1] - bounds[3]);
 
@@ -1220,7 +1429,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     } catch (e) {
                     }
 
-                    // フォールバック: 実際に fitin / fitall して計測（環境差対策）
+                    /* フォールバック: 実際に fitin / fitall して計測（環境差対策） */
                     return measureFitZoomByMenu(fallbackTarget);
                 }
 
@@ -1250,7 +1459,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     while (new Date().getTime() - sleepStartTime < durationMs) { }
                 }
 
-                // ===== ③ ラベルレイヤー操作 / Label layer =====
+                /* ===== ③ ラベルレイヤー操作 / Label layer ===== */
 
                 /* ラベル専用レイヤーを探す（無ければ null） / Find the dedicated label layer (null if absent) */
                 function findLabelLayer() {
@@ -1275,7 +1484,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 }
 
-                // ===== ④ ラベル処理（描画）/ Label drawing =====
+                /* ===== ④ ラベル処理（描画）/ Label drawing ===== */
 
                 /* ドキュメントのカラースペースに合わせて白／黒を作る / Build white or black for the document color space */
                 function makeLabelColor(isWhite) {
@@ -1298,12 +1507,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 /* アートボード左上に「番号：名前」ラベルを専用レイヤー（ロックON・プリントOFF）へ描画 / Draw the "index: name" label on a dedicated locked, non-printing layer */
                 function showArtboardLabel(artboardIndex) {
                     var artboard = doc.artboards[artboardIndex];
-                    var artboardRect = artboard.artboardRect; // [left, top, right, bottom]
+                    var artboardRect = artboard.artboardRect; /* [left, top, right, bottom] */
                     var artboardLeft = artboardRect[0];
                     var artboardTop = artboardRect[1];
                     var artboardWidth = artboardRect[2] - artboardRect[0];
 
-                    // 文字サイズはアートボード幅に比例（画面フィット後の見た目をほぼ一定に）
+                    /* 文字サイズはアートボード幅に比例（画面フィット後の見た目をほぼ一定に） */
                     var fontSize = artboardWidth * labelFontRatio;
                     if (fontSize < 1) {
                         fontSize = 1;
@@ -1315,8 +1524,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                     var labelText = (artboardIndex + 1) + "：" + artboard.name;
 
-                    // 専用レイヤーを作り直す（位置・内容をリセットし、常に1枚に保つ）。
-                    // 作業レイヤーを巻き込まないよう、描画後にアクティブレイヤーを元へ戻す。
+                    /* 専用レイヤーを作り直す（位置・内容をリセットし、常に1枚に保つ）。 */
+                    /* 作業レイヤーを巻き込まないよう、描画後にアクティブレイヤーを元へ戻す。 */
                     var prevActiveLayer = doc.activeLayer;
                     removeLabelLayer();
                     var labelLayer = doc.layers.add();
@@ -1325,7 +1534,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var labelGroup = labelLayer.groupItems.add();
                     labelGroup.name = LABEL_ITEM_NAME;
 
-                    // テキスト（白・HiraginoSans-W6）
+                    /* テキスト（白・HiraginoSans-W6） */
                     var textFrame = labelLayer.textFrames.pointText([0, 0]);
                     textFrame.contents = labelText;
                     var attributes = textFrame.textRange.characterAttributes;
@@ -1337,13 +1546,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     attributes.fillColor = makeLabelColor(true);
                     textFrame.opacity = labelTextOpacity;
 
-                    var textBounds = textFrame.geometricBounds; // [left, top, right, bottom]
+                    var textBounds = textFrame.geometricBounds; /* [left, top, right, bottom] */
                     var textLeft = textBounds[0];
                     var textTop = textBounds[1];
                     var textWidth = textBounds[2] - textBounds[0];
                     var textHeight = textBounds[1] - textBounds[3];
 
-                    // 背景の長方形（黒・不透明度は呼び出し側の設定値）
+                    /* 背景の長方形（黒・不透明度は呼び出し側の設定値） */
                     var backgroundRect = labelLayer.pathItems.rectangle(
                         textTop + paddingY,
                         textLeft - paddingX,
@@ -1355,15 +1564,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     backgroundRect.fillColor = makeLabelColor(false);
                     backgroundRect.opacity = labelBackgroundOpacity;
 
-                    // 重ね順を明示：背景の長方形を背面（PLACEATEND）、テキストを前面（PLACEATBEGINNING）へ。
-                    // 挿入順に依存せず、必ずテキストが前面・長方形が背面になる。
+                    /* 重ね順を明示：背景の長方形を背面（PLACEATEND）、テキストを前面（PLACEATBEGINNING）へ。 */
+                    /* 挿入順に依存せず、必ずテキストが前面・長方形が背面になる。 */
                     backgroundRect.move(labelGroup, ElementPlacement.PLACEATEND);
                     textFrame.move(labelGroup, ElementPlacement.PLACEATBEGINNING);
 
-                    // アートボードの左上へ少し内側に配置
+                    /* アートボードの左上へ少し内側に配置 */
                     labelGroup.position = [artboardLeft + edgeMargin, artboardTop - edgeMargin];
 
-                    // レイヤーをプリントOFF・ロックON にし、作業レイヤーを元に戻す
+                    /* レイヤーをプリントOFF・ロックON にし、作業レイヤーを元に戻す */
                     labelLayer.printable = false;
                     labelLayer.locked = true;
                     try {
@@ -1378,11 +1587,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        // =========================================================
-        // ウィンドウ位置の保存・復元
-        // =========================================================
+        // =========================================
+        // ウィンドウ位置の保存・復元 / Palette position
+        // =========================================
 
-        /* 保存したウィンドウ位置を復元 / Restore the saved window position */
+        /**
+         * 保存したウィンドウ位置を復元する / Restore the saved window position
+         * @param {Window} windowRef - 対象のパレット
+         * @returns {void}
+         */
         function restoreWindowPosition(windowRef) {
             if (!PREF_FILE.exists) {
                 return;
@@ -1400,24 +1613,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return;
                 }
 
-                var x = parseInt(positionParts[0], 10);
-                var y = parseInt(positionParts[1], 10);
-                if (isNaN(x) || isNaN(y)) {
+                var savedLeft = parseInt(positionParts[0], 10);
+                var savedTop = parseInt(positionParts[1], 10);
+                if (isNaN(savedLeft) || isNaN(savedTop)) {
                     return;
                 }
 
                 // モニタ構成の変更などで画面外（不可視）になる位置は無視し、既定位置で開く
-                if (!isLocationVisible(x, y)) {
+                if (!isLocationVisible(savedLeft, savedTop)) {
                     return;
                 }
 
-                windowRef.location = [x, y];
+                windowRef.location = [savedLeft, savedTop];
             } catch (e) {
             }
         }
 
-        /* 指定座標（ウィンドウ左上）がいずれかのスクリーン内で、タイトルバーを掴める範囲か / Whether the top-left point sits on a screen with the title bar reachable */
-        function isLocationVisible(x, y) {
+        /**
+         * 指定座標（ウィンドウ左上）がいずれかのスクリーン内で、タイトルバーを掴める範囲か
+         * Whether the top-left point sits on a screen with the title bar reachable
+         * @param {number} windowLeft - ウィンドウ左上の X
+         * @param {number} windowTop - ウィンドウ左上の Y
+         * @returns {boolean} 見える位置なら true（スクリーン情報が取れないときも true）
+         */
+        function isLocationVisible(windowLeft, windowTop) {
             var screens;
             try {
                 screens = $.screens;
@@ -1428,16 +1647,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return true;
             }
             for (var i = 0; i < screens.length; i++) {
-                var s = screens[i];
+                var screenBounds = screens[i];
                 // 左上がスクリーン内に収まり、右端・下端には掴むための余白（幅60/高さ40）を残す
-                if (x >= s.left && x <= s.right - 60 && y >= s.top && y <= s.bottom - 40) {
+                if (windowLeft >= screenBounds.left && windowLeft <= screenBounds.right - 60 &&
+                    windowTop >= screenBounds.top && windowTop <= screenBounds.bottom - 40) {
                     return true;
                 }
             }
             return false;
         }
 
-        /* 現在のウィンドウ位置を保存 / Save the current window position */
+        /**
+         * 現在のウィンドウ位置を保存する / Save the current window position
+         * @param {Window} windowRef - 対象のパレット
+         * @returns {void}
+         */
         function saveWindowPosition(windowRef) {
             try {
                 var prefFolder = PREF_FILE.parent;
@@ -1454,40 +1678,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        // =========================================================
-        // 各設定の保存・復元（key=value 形式）
-        // =========================================================
+        // =========================================
+        // 各設定の保存・復元（key=value 形式） / Settings file (key=value)
+        // =========================================
 
-        /* 設定ファイルを読み込み key=value を連想配列に / Load settings.txt into a key=value map */
+        /**
+         * 設定ファイルを読み込み key=value を連想配列にする / Load settings.txt into a key=value map
+         * @returns {Object} 設定のキーと値（文字列）
+         */
         function loadSettings() {
-            var result = {};
+            var loadedSettings = {};
             if (!SETTINGS_FILE.exists) {
-                return result;
+                return loadedSettings;
             }
 
             try {
                 if (!SETTINGS_FILE.open("r")) {
-                    return result;
+                    return loadedSettings;
                 }
-                var content = SETTINGS_FILE.read();
+                var settingsText = SETTINGS_FILE.read();
                 SETTINGS_FILE.close();
 
-                var lines = content.split(/\r\n|\r|\n/);
-                for (var i = 0; i < lines.length; i++) {
-                    var separatorIndex = lines[i].indexOf("=");
+                var settingLines = settingsText.split(/\r\n|\r|\n/);
+                for (var i = 0; i < settingLines.length; i++) {
+                    var separatorIndex = settingLines[i].indexOf("=");
                     if (separatorIndex < 1) {
                         continue;
                     }
-                    var key = lines[i].substring(0, separatorIndex);
-                    var value = lines[i].substring(separatorIndex + 1);
-                    result[key] = value;
+                    var settingKey = settingLines[i].substring(0, separatorIndex);
+                    loadedSettings[settingKey] = settingLines[i].substring(separatorIndex + 1);
                 }
             } catch (e) {
             }
-            return result;
+            return loadedSettings;
         }
 
-        /* 現在の各設定を key=value 形式で保存 / Save current settings in key=value form */
+        /**
+         * 現在の各設定を key=value 形式で保存する / Save current settings in key=value form
+         * @returns {void}
+         */
         function saveSettings() {
             try {
                 var settingsFolder = SETTINGS_FILE.parent;
@@ -1495,7 +1724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     settingsFolder.create();
                 }
 
-                var lines = [
+                var settingLines = [
                     "animation=" + (animationCheckbox.value ? "1" : "0"),
                     "speed=" + speedSlider.value,
                     "ease=" + (easeCheckbox.value ? "1" : "0"),
@@ -1508,38 +1737,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!SETTINGS_FILE.open("w")) {
                     return;
                 }
-                SETTINGS_FILE.write(lines.join("\n"));
+                SETTINGS_FILE.write(settingLines.join("\n"));
                 SETTINGS_FILE.close();
             } catch (e) {
             }
         }
 
-        /* 設定値を真偽として取得（未保存なら既定値） / Read a setting as boolean */
-        function settingBool(source, key, fallback) {
-            var raw = source[key];
-            if (raw === undefined) {
+        /**
+         * 設定値を真偽として取得する（未保存なら既定値） / Read a setting as boolean
+         * @param {Object} settingsMap - loadSettings() の戻り値
+         * @param {string} settingKey - 設定のキー
+         * @param {boolean} fallback - 未保存のときの値
+         * @returns {boolean} 設定値
+         */
+        function settingBool(settingsMap, settingKey, fallback) {
+            var rawValue = settingsMap[settingKey];
+            if (rawValue === undefined) {
                 return fallback;
             }
-            return raw === "1" || raw === "true";
+            return rawValue === "1" || rawValue === "true";
         }
 
-        /* 設定値を数値として取得し範囲内に収める（未保存なら既定値） / Read a setting as a clamped number */
-        function settingNumber(source, key, fallback, minValue, maxValue) {
-            var raw = source[key];
-            if (raw === undefined) {
+        /**
+         * 設定値を数値として取得し範囲内に収める（未保存なら既定値） / Read a setting as a clamped number
+         * @param {Object} settingsMap - loadSettings() の戻り値
+         * @param {string} settingKey - 設定のキー
+         * @param {number} fallback - 未保存・不正なときの値
+         * @param {number} [minValue] - 下限
+         * @param {number} [maxValue] - 上限
+         * @returns {number} 設定値
+         */
+        function settingNumber(settingsMap, settingKey, fallback, minValue, maxValue) {
+            var rawValue = settingsMap[settingKey];
+            if (rawValue === undefined) {
                 return fallback;
             }
-            var parsed = parseFloat(raw);
-            if (isNaN(parsed)) {
+            var parsedValue = parseFloat(rawValue);
+            if (isNaN(parsedValue)) {
                 return fallback;
             }
-            if (typeof minValue === "number" && parsed < minValue) {
-                parsed = minValue;
+            if (typeof minValue === "number" && parsedValue < minValue) {
+                parsedValue = minValue;
             }
-            if (typeof maxValue === "number" && parsed > maxValue) {
-                parsed = maxValue;
+            if (typeof maxValue === "number" && parsedValue > maxValue) {
+                parsedValue = maxValue;
             }
-            return parsed;
+            return parsedValue;
         }
 
     })();

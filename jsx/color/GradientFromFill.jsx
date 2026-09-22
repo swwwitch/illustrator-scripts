@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "GradientFromFill";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GradientFromFill.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GradientFromFill.md"; /* README (English) */
@@ -38,6 +38,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* パネルの余白 [左, 上, 右, 下] / Panel margins [left, top, right, bottom] */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+
+    /* 角度の選択肢（ラジオボタンの並び順） / Angle choices in radio order */
+    var ANGLE_CHOICES = [0, 30, 45, 60, 90];
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -45,103 +63,101 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "グラデーション作成",
-            en: "Create Gradient"
+        dialog: {
+            title: { ja: "グラデーション作成", en: "Create Gradient" }
         },
-        tipEndBlack:        { ja: "終点を黒にします。", en: "Ends the gradient in black." },
-        tipEndWhite:        { ja: "終点を白にします。", en: "Ends the gradient in white." },
-        tipEndTransparent:  { ja: "終点の不透明度を0にして、透明へ抜けるグラデーションにします。", en: "Fades the gradient out to fully transparent." },
-        tipEndComplementary:{ ja: "始点カラーの補色を終点にします。", en: "Uses the complement of the source color as the end color." },
-        tipEndTint:         { ja: "始点カラーを薄くした色を終点にします。濃度はスライダーで決めます。", en: "Ends in a lighter tint of the source color. The slider sets how light." },
-        tipTintSlider:      { ja: "終点に使う濃度（％）です。小さいほど薄くなります。", en: "Tint percentage used for the end color. Lower is lighter." },
-        tipAngle:           { ja: "グラデーションの角度です。", en: "Angle of the gradient." },
-        tipSourceDropdown:  { ja: "始点に使うカラーを選びます。「自動（先頭）」は選択の先頭オブジェクトの塗りを使います。", en: "Color used as the gradient start. Auto (First) takes the fill of the first selected object." },
-        tipSeparate:        { ja: "選択したオブジェクトごとに、それぞれの塗りからグラデーションを作ります。", en: "Builds a separate gradient for each selected object from its own fill." },
-        tipReverse:         { ja: "始点と終点を入れ替えます。", en: "Swaps the start and end colors." },
-        tipPreview:         { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original fills." },
-        selectObjectAlert: {
-            ja: "オブジェクトを選択してください。",
-            en: "Please select an object."
+        panel: {
+            endColor: { ja: "終点のカラー", en: "End Color" },
+            angle: { ja: "角度", en: "Angle" },
+            sourceColor: { ja: "始点カラー", en: "Source Color" },
+            options: { ja: "オプション", en: "Options" }
         },
-        endpointColorPanel: {
-            ja: "終点のカラー",
-            en: "End Color"
+        radio: {
+            black: { ja: "黒", en: "Black" },
+            white: { ja: "白", en: "White" },
+            transparent: { ja: "透明", en: "Transparent" },
+            complementary: { ja: "補色", en: "Complementary" },
+            tint: { ja: "淡色", en: "Tint" }
         },
-        anglePanel: {
-            ja: "角度",
-            en: "Angle"
+        dropdown: {
+            auto: { ja: "自動（先頭）", en: "Auto (First)" }
         },
-        sourceColorPanel: {
-            ja: "始点カラー",
-            en: "Source Color"
+        colorName: {
+            gray: { ja: "グレー", en: "Gray" },
+            spot: { ja: "特色", en: "Spot" }
         },
-        auto: {
-            ja: "自動（先頭）",
-            en: "Auto (First)"
+        checkbox: {
+            separateGradient: { ja: "セパレートグラデーション", en: "Separate Gradient" },
+            reverse: { ja: "反転", en: "Reverse" },
+            preview: { ja: "プレビュー", en: "Preview" }
         },
-        gray: {
-            ja: "グレー",
-            en: "Gray"
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        spot: {
-            ja: "特色",
-            en: "Spot"
+        tooltip: {
+            black: { ja: "終点を黒にします。", en: "Ends the gradient in black." },
+            white: { ja: "終点を白にします。", en: "Ends the gradient in white." },
+            transparent: {
+                ja: "終点の不透明度を0にして、透明へ抜けるグラデーションにします。",
+                en: "Fades the gradient out to fully transparent."
+            },
+            complementary: { ja: "始点カラーの補色を終点にします。", en: "Uses the complement of the source color as the end color." },
+            tint: {
+                ja: "始点カラーを薄くした色を終点にします。濃度はスライダーで決めます。",
+                en: "Ends in a lighter tint of the source color. The slider sets how light."
+            },
+            tintSlider: {
+                ja: "終点に使う濃度（％）です。小さいほど薄くなります。",
+                en: "Tint percentage used for the end color. Lower is lighter."
+            },
+            angle: { ja: "グラデーションの角度です。", en: "Angle of the gradient." },
+            sourceDropdown: {
+                ja: "始点に使うカラーを選びます。「自動（先頭）」は選択の先頭オブジェクトの塗りを使います。",
+                en: "Color used as the gradient start. Auto (First) takes the fill of the first selected object."
+            },
+            separateGradient: {
+                ja: "選択したオブジェクトごとに、それぞれの塗りからグラデーションを作ります。",
+                en: "Builds a separate gradient for each selected object from its own fill."
+            },
+            reverse: { ja: "始点と終点を入れ替えます。", en: "Swaps the start and end colors." },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+                en: "Shows the result on the canvas. Cancel restores the original fills."
+            }
         },
-        black: {
-            ja: "黒",
-            en: "Black"
-        },
-        white: {
-            ja: "白",
-            en: "White"
-        },
-        transparent: {
-            ja: "透明",
-            en: "Transparent"
-        },
-        complementary: {
-            ja: "補色",
-            en: "Complementary"
-        },
-        tint: {
-            ja: "淡色",
-            en: "Tint"
-        },
-        optionsPanel: {
-            ja: "オプション",
-            en: "Options"
-        },
-        separateGradient: {
-            ja: "セパレートグラデーション",
-            en: "Separate Gradient"
-        },
-        reverse: {
-            ja: "反転",
-            en: "Reverse"
-        },
-        preview: {
-            ja: "プレビュー",
-            en: "Preview"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        unsupportedSpotComplementary: {
-            ja: "スポットカラーの補色計算には未対応です。",
-            en: "Complementary color calculation is not supported for spot colors."
+        alert: {
+            selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
+            unsupportedSpotComplementary: {
+                ja: "スポットカラーの補色計算には未対応です。",
+                en: "Complementary color calculation is not supported for spot colors."
+            }
         }
     };
 
-    function getLabel(key) {
-        return LABELS[key][uiLang];
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "radio.black" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+        }
+        return labelNode[uiLang];
     }
 
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択した塗りオブジェクトに、元の塗り色を始点にしたグラデーションを適用する
+     * キャンセル時は塗りを元に戻し、作ったグラデーションを削除する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
             return;
@@ -150,415 +166,494 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         var currentSelection = doc.selection;
         var originalSelection = [];
-        for (var selIndex = 0; selIndex < currentSelection.length; selIndex++) {
-            originalSelection.push(currentSelection[selIndex]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            originalSelection.push(currentSelection[i]);
         }
 
         if (currentSelection.length === 0) {
-            alert(getLabel("selectObjectAlert"));
+            alert(getLabel("alert.selectObject"));
             return;
         }
 
         var isCMYK = isDocumentCMYK(doc);
         var targetObjects = [];
-        var shouldRestoreOriginal = false;
-        var shouldCleanupAppliedGradients = false;
+        var shouldRevertChanges = false;
 
         try {
             /* 選択オブジェクトの情報を保持 / Store selected object data */
-            targetObjects = collectGradientTargets(currentSelection, isCMYK);
+            targetObjects = collectGradientTargets(currentSelection);
 
             if (targetObjects.length === 0) {
                 return;
             }
 
-            // =========================================
-            // ダイアログの作成 / Create dialog
-            // =========================================
-            var ui = buildDialogUI();
-            var dlg = ui.dlg;
-            var radioBlack = ui.radioBlack;
-            var radioWhite = ui.radioWhite;
-            var radioTransparent = ui.radioTransparent;
-            var radioComplementary = ui.radioComplementary;
-            var radioTint = ui.radioTint;
-            var tintSlider = ui.tintSlider;
-            var tintValue = ui.tintValue;
-            var angle0 = ui.angle0;
-            var angle30 = ui.angle30;
-            var angle45 = ui.angle45;
-            var angle60 = ui.angle60;
-            var angle90 = ui.angle90;
-            var sourceDropdown = ui.sourceDropdown;
-            var sourcePanel = ui.sourcePanel;
-            var chkSeparate = ui.chkSeparate;
-            var chkReverse = ui.chkReverse;
-            var chkPreview = ui.chkPreview;
+            var dialogControls = buildDialogUI();
+            populateSourceDropdown(dialogControls.sourceDropdown, targetObjects, isCMYK);
+            updateSourcePanelEnabled(dialogControls.sourcePanel, dialogControls.sourceDropdown, targetObjects);
 
-            populateSourceDropdown(sourceDropdown, targetObjects, isCMYK);
-            updateSourcePanelEnabled(sourcePanel, sourceDropdown, targetObjects);
+            var updatePreview = createPreviewUpdater(doc, targetObjects, originalSelection, dialogControls, isCMYK);
+            bindDialogEvents(dialogControls, updatePreview);
 
-            // =========================================
-            // 処理関数 / Processing functions
-            // =========================================
-
-            function applyGradient() {
-                for (var i = 0; i < targetObjects.length; i++) {
-                    var data = targetObjects[i];
-                    var obj = data.item;
-                    var orgColor = getSourceColorForFill(data.originalFillColor, isCMYK, sourceDropdown);
-                    var targetColor = orgColor;
-                    var targetOpacity = 100.0;
-
-                    if (radioTransparent.value) {
-                        targetColor = orgColor;
-                        targetOpacity = 0.0;
-                    } else if (radioBlack.value) {
-                        targetColor = createBlackColor(isCMYK);
-                    } else if (radioWhite.value) {
-                        targetColor = createWhiteColor(isCMYK);
-                    } else if (radioComplementary.value) {
-                        targetColor = createComplementaryColor(orgColor, isCMYK);
-                    } else if (radioTint.value) {
-                        targetColor = createTintColor(orgColor, tintSlider.value, isCMYK);
-                    }
-
-                    var startColor = orgColor;
-                    var startOpacity = 100.0;
-                    var endColor = targetColor;
-                    var endOpacity = targetOpacity;
-
-                    if (chkReverse.value) {
-                        startColor = targetColor;
-                        startOpacity = targetOpacity;
-                        endColor = orgColor;
-                        endOpacity = 100.0;
-                    }
-
-                    /* グラデーションの新規作成または再利用 / Create or reuse gradient */
-                    if (data.appliedGrad === null) {
-                        data.appliedGrad = doc.gradients.add();
-                        data.appliedGrad.type = GradientType.LINEAR;
-                    }
-                    var activeGrad = data.appliedGrad;
-
-                    var isSeparate = chkSeparate.value;
-                    var requiredStops = isSeparate ? 4 : 2;
-
-                    while (activeGrad.gradientStops.length < requiredStops) {
-                        activeGrad.gradientStops.add();
-                    }
-                    while (activeGrad.gradientStops.length > requiredStops) {
-                        activeGrad.gradientStops[activeGrad.gradientStops.length - 1].remove();
-                    }
-
-                    if (isSeparate) {
-                        /* セパレート（0, 50, 50, 100） / Separate stops (0, 50, 50, 100) */
-                        setStop(activeGrad.gradientStops[0], 0, startColor, startOpacity);
-                        setStop(activeGrad.gradientStops[1], 50.0, startColor, startOpacity);
-                        setStop(activeGrad.gradientStops[2], 50.0, endColor, endOpacity);
-                        setStop(activeGrad.gradientStops[3], 100.0, endColor, endOpacity);
-                    } else {
-                        /* 通常（0, 100） / Standard stops (0, 100) */
-                        setStop(activeGrad.gradientStops[0], 0, startColor, startOpacity);
-                        setStop(activeGrad.gradientStops[1], 100.0, endColor, endOpacity);
-                    }
-
-                    var gradColor = new GradientColor();
-                    gradColor.gradient = activeGrad;
-                    setTargetFillColor(obj, gradColor);
-
-                    doc.selection = null;
-                    obj.selected = true;
-                    applyGradientAngle(obj, gradColor, data, angle0, angle30, angle45, angle60, angle90);
+            if (dialogControls.gradientDialog.show() === 1) {
+                if (!dialogControls.previewCheckbox.value) {
+                    applyGradient(doc, targetObjects, dialogControls, isCMYK);
                 }
-            }
-
-            function setStop(stop, ramp, color, opacity) {
-                stop.rampPoint = ramp;
-                stop.color = color;
-                stop.opacity = opacity;
-            }
-
-            function restoreOriginal() {
-                for (var i = 0; i < targetObjects.length; i++) {
-                    var data = targetObjects[i];
-                    setTargetFillColor(data.item, data.originalFillColor);
-                    data.lastAngle = 0;
-                }
-            }
-
-            function cleanupAppliedGradients() {
-                for (var i = 0; i < targetObjects.length; i++) {
-                    var data = targetObjects[i];
-                    if (data.appliedGrad !== null) {
-                        try { data.appliedGrad.remove(); } catch (e) { }
-                    }
-                    data.appliedGrad = null;
-                    data.lastAngle = 0;
-                }
-            }
-
-            function restoreSelection() {
-                doc.selection = null;
-                for (var i = 0; i < originalSelection.length; i++) {
-                    try {
-                        originalSelection[i].selected = true;
-                    } catch (e) { }
-                }
-            }
-
-            function updatePreview() {
-                try {
-                    if (chkPreview.value) {
-                        applyGradient();
-                    } else {
-                        restoreOriginal();
-                    }
-                } catch (e) {
-                    try {
-                        restoreOriginal();
-                    } catch (restoreErr) { }
-                    try {
-                        cleanupAppliedGradients();
-                    } catch (cleanupErr) { }
-                } finally {
-                    restoreSelection();
-                    app.redraw();
-                }
-            }
-
-            /* イベントの設定 / Set event handlers */
-            chkPreview.onClick = updatePreview;
-            chkSeparate.onClick = updatePreview;
-            chkReverse.onClick = updatePreview;
-            angle0.onClick = updatePreview;
-            angle30.onClick = updatePreview;
-            angle45.onClick = updatePreview;
-            angle60.onClick = updatePreview;
-            angle90.onClick = updatePreview;
-            sourceDropdown.onChange = updatePreview;
-            radioBlack.onClick = updatePreview;
-            radioWhite.onClick = updatePreview;
-            radioTransparent.onClick = updatePreview;
-            radioComplementary.onClick = updatePreview;
-            radioTint.onClick = function () {
-                radioBlack.value = false;
-                radioWhite.value = false;
-                radioTransparent.value = false;
-                radioComplementary.value = false;
-                tintSlider.enabled = radioTint.value;
-                updatePreview();
-            };
-            tintSlider.onChanging = function () {
-                if (ScriptUI.environment.keyboardState.shiftKey) {
-                    tintSlider.value = Math.round(tintSlider.value / 10) * 10;
-                }
-                tintValue.text = Math.round(tintSlider.value) + "%";
-                updatePreview();
-            };
-            tintSlider.onChange = function () {
-                if (ScriptUI.environment.keyboardState.shiftKey) {
-                    tintSlider.value = Math.round(tintSlider.value / 10) * 10;
-                }
-                tintValue.text = Math.round(tintSlider.value) + "%";
-                updatePreview();
-            };
-
-            /* 他のラジオ選択時にスライダーを無効化 / Disable slider when other radios selected */
-            var otherRadios = [radioBlack, radioWhite, radioTransparent, radioComplementary];
-            for (var ri = 0; ri < otherRadios.length; ri++) {
-                (function (radio) {
-                    var originalOnClick = radio.onClick;
-                    radio.onClick = function () {
-                        radioTint.value = false;
-                        tintSlider.enabled = false;
-                        if (originalOnClick) originalOnClick();
-                    };
-                })(otherRadios[ri]);
-            }
-
-            addColorKeyHandler(dlg, radioBlack, radioWhite, radioTransparent, radioComplementary, radioTint, tintSlider, updatePreview);
-
-            if (dlg.show() === 1) {
-                if (!chkPreview.value) {
-                    applyGradient();
-                }
-                shouldCleanupAppliedGradients = false;
-                shouldRestoreOriginal = false;
-                restoreSelection();
             } else {
-                shouldRestoreOriginal = true;
-                shouldCleanupAppliedGradients = true;
-                restoreSelection();
+                shouldRevertChanges = true;
             }
         } finally {
-            if (shouldRestoreOriginal) {
+            if (shouldRevertChanges) {
                 try {
-                    restoreOriginal();
+                    restoreOriginal(targetObjects);
                 } catch (e) { }
-            }
-            if (shouldCleanupAppliedGradients) {
                 try {
-                    cleanupAppliedGradients();
+                    cleanupAppliedGradients(targetObjects);
                 } catch (e) { }
             }
             try {
-                restoreSelection();
+                restoreSelection(doc, originalSelection);
             } catch (e) { }
             app.redraw();
         }
     }
 
     // =========================================
-    // UI構築 / UI construction
+    // グラデーションの適用と取り消し / Apply and revert
     // =========================================
 
-    function buildDialogUI() {
-        var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+    /**
+     * 終点カラーのラジオボタンから、始点カラーに対する終点の色と不透明度を決める
+     * @param {Color} sourceColor - 始点カラー
+     * @param {Object} dialogControls - buildDialogUI() の戻り値
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {{color: Color, opacity: number}} 終点の色と不透明度
+     */
+    function resolveEndpoint(sourceColor, dialogControls, isCMYK) {
+        var endpointColor = sourceColor;
+        var endpointOpacity = 100.0;
 
-        var topGroup = dlg.add("group");
-        topGroup.orientation = "row";
-        topGroup.alignChildren = ["fill", "top"];
+        if (dialogControls.transparentRadio.value) {
+            endpointOpacity = 0.0;
+        } else if (dialogControls.blackRadio.value) {
+            endpointColor = createBlackColor(isCMYK);
+        } else if (dialogControls.whiteRadio.value) {
+            endpointColor = createWhiteColor(isCMYK);
+        } else if (dialogControls.complementaryRadio.value) {
+            endpointColor = createComplementaryColor(sourceColor, isCMYK);
+        } else if (dialogControls.tintRadio.value) {
+            endpointColor = createTintColor(sourceColor, dialogControls.tintSlider.value, isCMYK);
+        }
+        return { color: endpointColor, opacity: endpointOpacity };
+    }
 
-        /* 終点カラーの設定 / Set end color options */
-        var panel = topGroup.add("panel", undefined, getLabel("endpointColorPanel"));
-        panel.orientation = "column";
-        panel.alignChildren = ["left", "top"];
-        panel.margins = [15, 20, 15, 10];
+    /**
+     * グラデーションのストップを設定する
+     * @param {GradientStop} gradientStop - 対象のストップ
+     * @param {number} rampPoint - 位置（0〜100）
+     * @param {Color} stopColor - 色
+     * @param {number} stopOpacity - 不透明度（0〜100）
+     * @returns {void}
+     */
+    function setStop(gradientStop, rampPoint, stopColor, stopOpacity) {
+        gradientStop.rampPoint = rampPoint;
+        gradientStop.color = stopColor;
+        gradientStop.opacity = stopOpacity;
+    }
 
-        var radioBlack = panel.add("radiobutton", undefined, getLabel("black"));
-        radioBlack.helpTip = getLabel("tipEndBlack");
-        var radioWhite = panel.add("radiobutton", undefined, getLabel("white"));
-        radioWhite.helpTip = getLabel("tipEndWhite");
-        var radioTransparent = panel.add("radiobutton", undefined, getLabel("transparent"));
-        radioTransparent.helpTip = getLabel("tipEndTransparent");
-        var radioComplementary = panel.add("radiobutton", undefined, getLabel("complementary"));
-        radioComplementary.helpTip = getLabel("tipEndComplementary");
-        /* 淡色ラジオ＋スライダー / Tint radio + slider */
-        var tintLabelGroup = panel.add("group");
-        tintLabelGroup.orientation = "row";
-        tintLabelGroup.alignChildren = ["left", "center"];
-        tintLabelGroup.spacing = 4;
-        var radioTint = tintLabelGroup.add("radiobutton", undefined, getLabel("tint"));
-        radioTint.helpTip = getLabel("tipEndTint");
-        var tintValue = tintLabelGroup.add("statictext", undefined, "50%");
-        tintValue.characters = 5;
+    /**
+     * 対象オブジェクトすべてにダイアログの設定でグラデーションを適用する（2回目以降は作ったグラデーションを使い回す）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @param {Object} dialogControls - buildDialogUI() の戻り値
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {void}
+     */
+    function applyGradient(doc, targetObjects, dialogControls, isCMYK) {
+        for (var i = 0; i < targetObjects.length; i++) {
+            var targetRecord = targetObjects[i];
+            var targetItem = targetRecord.item;
+            var sourceColor = getSourceColorForFill(targetRecord.originalFillColor, isCMYK, dialogControls.sourceDropdown);
+            var endpoint = resolveEndpoint(sourceColor, dialogControls, isCMYK);
 
-        var tintSlider = panel.add("slider", undefined, 50, 0, 100);
-        tintSlider.helpTip = getLabel("tipTintSlider");
-        tintSlider.alignment = ["fill", "top"];
-        tintSlider.enabled = false;
+            var startColor = sourceColor;
+            var startOpacity = 100.0;
+            var endColor = endpoint.color;
+            var endOpacity = endpoint.opacity;
 
-        radioTransparent.value = true; // デフォルト / Default
+            if (dialogControls.reverseCheckbox.value) {
+                startColor = endpoint.color;
+                startOpacity = endpoint.opacity;
+                endColor = sourceColor;
+                endOpacity = 100.0;
+            }
 
-        var anglePanel = topGroup.add("panel", undefined, getLabel("anglePanel"));
-        anglePanel.orientation = "column";
-        anglePanel.alignChildren = ["left", "top"];
-        anglePanel.margins = [15, 20, 15, 10];
+            /* グラデーションの新規作成または再利用 / Create or reuse gradient */
+            if (targetRecord.appliedGrad === null) {
+                targetRecord.appliedGrad = doc.gradients.add();
+                targetRecord.appliedGrad.type = GradientType.LINEAR;
+            }
+            var activeGradient = targetRecord.appliedGrad;
 
-        var angle0 = anglePanel.add("radiobutton", undefined, "0");
-        angle0.helpTip = getLabel("tipAngle");
-        var angle30 = anglePanel.add("radiobutton", undefined, "30");
-        angle30.helpTip = getLabel("tipAngle");
-        var angle45 = anglePanel.add("radiobutton", undefined, "45");
-        angle45.helpTip = getLabel("tipAngle");
-        var angle60 = anglePanel.add("radiobutton", undefined, "60");
-        angle60.helpTip = getLabel("tipAngle");
-        var angle90 = anglePanel.add("radiobutton", undefined, "90");
-        angle90.helpTip = getLabel("tipAngle");
-        angle0.value = true; // デフォルト / Default
+            var isSeparate = dialogControls.separateCheckbox.value;
+            var requiredStops = isSeparate ? 4 : 2;
 
-        var sourcePanel = dlg.add("panel", undefined, getLabel("sourceColorPanel"));
-        sourcePanel.orientation = "row";
-        sourcePanel.alignChildren = ["left", "center"];
-        sourcePanel.margins = [15, 20, 15, 10];
+            while (activeGradient.gradientStops.length < requiredStops) {
+                activeGradient.gradientStops.add();
+            }
+            while (activeGradient.gradientStops.length > requiredStops) {
+                activeGradient.gradientStops[activeGradient.gradientStops.length - 1].remove();
+            }
 
-        var sourceDropdown = sourcePanel.add("dropdownlist", undefined, [getLabel("auto")]);
-        sourceDropdown.helpTip = getLabel("tipSourceDropdown");
-        sourceDropdown.selection = 0; // デフォルト / Default
+            if (isSeparate) {
+                /* セパレート（0, 50, 50, 100） / Separate stops (0, 50, 50, 100) */
+                setStop(activeGradient.gradientStops[0], 0, startColor, startOpacity);
+                setStop(activeGradient.gradientStops[1], 50.0, startColor, startOpacity);
+                setStop(activeGradient.gradientStops[2], 50.0, endColor, endOpacity);
+                setStop(activeGradient.gradientStops[3], 100.0, endColor, endOpacity);
+            } else {
+                /* 通常（0, 100） / Standard stops (0, 100) */
+                setStop(activeGradient.gradientStops[0], 0, startColor, startOpacity);
+                setStop(activeGradient.gradientStops[1], 100.0, endColor, endOpacity);
+            }
 
-        /* オプションの設定 / Set options */
-        var optPanel = dlg.add("panel", undefined, getLabel("optionsPanel"));
-        optPanel.orientation = "column";
-        optPanel.alignChildren = ["left", "top"];
-        optPanel.margins = [15, 20, 15, 10];
+            var gradientFill = new GradientColor();
+            gradientFill.gradient = activeGradient;
+            setTargetFillColor(targetItem, gradientFill);
 
-        var chkSeparate = optPanel.add("checkbox", undefined, getLabel("separateGradient"));
-        chkSeparate.helpTip = getLabel("tipSeparate");
-        var chkReverse = optPanel.add("checkbox", undefined, getLabel("reverse"));
-        chkReverse.helpTip = getLabel("tipReverse");
-        var chkPreview = optPanel.add("checkbox", undefined, getLabel("preview"));
-        chkPreview.helpTip = getLabel("tipPreview");
+            doc.selection = null;
+            targetItem.selected = true;
+            applyGradientAngle(targetRecord, gradientFill, getSelectedAngle(dialogControls.angleRadios));
+        }
+    }
 
-        /* ボタンの設定 / Set button layout */
-        var btnGroup = dlg.add("group");
-        btnGroup.alignment = ["center", "center"]; // 中央揃え / Center align
-        btnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
-        btnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
+    /**
+     * 対象オブジェクトの塗りを元に戻す
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @returns {void}
+     */
+    function restoreOriginal(targetObjects) {
+        for (var i = 0; i < targetObjects.length; i++) {
+            var targetRecord = targetObjects[i];
+            setTargetFillColor(targetRecord.item, targetRecord.originalFillColor);
+            targetRecord.lastAngle = 0;
+        }
+    }
 
-        return {
-            dlg: dlg,
-            radioBlack: radioBlack,
-            radioWhite: radioWhite,
-            radioTransparent: radioTransparent,
-            radioComplementary: radioComplementary,
-            radioTint: radioTint,
-            tintSlider: tintSlider,
-            tintValue: tintValue,
-            angle0: angle0,
-            angle30: angle30,
-            angle45: angle45,
-            angle60: angle60,
-            angle90: angle90,
-            sourcePanel: sourcePanel,
-            sourceDropdown: sourceDropdown,
-            chkSeparate: chkSeparate,
-            chkReverse: chkReverse,
-            chkPreview: chkPreview
+    /**
+     * プレビュー・適用で作ったグラデーションを削除する
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @returns {void}
+     */
+    function cleanupAppliedGradients(targetObjects) {
+        for (var i = 0; i < targetObjects.length; i++) {
+            var targetRecord = targetObjects[i];
+            if (targetRecord.appliedGrad !== null) {
+                try { targetRecord.appliedGrad.remove(); } catch (e) { }
+            }
+            targetRecord.appliedGrad = null;
+            targetRecord.lastAngle = 0;
+        }
+    }
+
+    /**
+     * 選択を元に戻す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} originalSelection - 元の選択
+     * @returns {void}
+     */
+    function restoreSelection(doc, originalSelection) {
+        doc.selection = null;
+        for (var i = 0; i < originalSelection.length; i++) {
+            try {
+                originalSelection[i].selected = true;
+            } catch (e) { /* ロック・非表示は選択できない / locked or hidden items cannot be selected */ }
+        }
+    }
+
+    /**
+     * プレビューを更新する関数を作る（ON なら適用、OFF なら元に戻す。失敗したら元に戻して片付ける）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @param {PageItem[]} originalSelection - 元の選択
+     * @param {Object} dialogControls - buildDialogUI() の戻り値
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Function} プレビューを更新する関数
+     */
+    function createPreviewUpdater(doc, targetObjects, originalSelection, dialogControls, isCMYK) {
+        return function () {
+            try {
+                if (dialogControls.previewCheckbox.value) {
+                    applyGradient(doc, targetObjects, dialogControls, isCMYK);
+                } else {
+                    restoreOriginal(targetObjects);
+                }
+            } catch (e) {
+                try {
+                    restoreOriginal(targetObjects);
+                } catch (restoreErr) { }
+                try {
+                    cleanupAppliedGradients(targetObjects);
+                } catch (cleanupErr) { }
+            } finally {
+                restoreSelection(doc, originalSelection);
+                app.redraw();
+            }
         };
     }
 
     // =========================================
-    // 補助関数 / Helper functions
+    // UI構築 / UI construction
     // =========================================
 
+    /**
+     * 余白をそろえたパネルを追加する
+     * @param {Object} parentContainer - 追加先（Window / Group）
+     * @param {string} titlePath - パネル名のラベルのパス
+     * @param {string} orientation - "column" / "row"
+     * @param {string[]} alignChildren - 子の揃え
+     * @returns {Panel} 追加したパネル
+     */
+    function addStyledPanel(parentContainer, titlePath, orientation, alignChildren) {
+        var styledPanel = parentContainer.add("panel", undefined, getLabel(titlePath));
+        styledPanel.orientation = orientation;
+        styledPanel.alignChildren = alignChildren;
+        styledPanel.margins = PANEL_MARGINS;
+        return styledPanel;
+    }
+
+    /**
+     * tooltip 付きのコントロールを追加する
+     * @param {Object} parentContainer - 追加先
+     * @param {string} controlType - "radiobutton" / "checkbox" など
+     * @param {string} textPath - 表示テキストのラベルのパス
+     * @param {string} tipPath - tooltip のラベルのパス
+     * @returns {Object} 追加したコントロール
+     */
+    function addTippedControl(parentContainer, controlType, textPath, tipPath) {
+        var tippedControl = parentContainer.add(controlType, undefined, getLabel(textPath));
+        tippedControl.helpTip = getLabel(tipPath);
+        return tippedControl;
+    }
+
+    /**
+     * ダイアログを組み立てる
+     * @returns {Object} ダイアログと各コントロール
+     */
+    function buildDialogUI() {
+        var gradientDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        gradientDialog.orientation = "column";
+        gradientDialog.alignChildren = ["fill", "top"];
+
+        var topGroup = gradientDialog.add("group");
+        topGroup.orientation = "row";
+        topGroup.alignChildren = ["fill", "top"];
+
+        /* 終点カラーの設定 / Set end color options */
+        var endColorPanel = addStyledPanel(topGroup, "panel.endColor", "column", ["left", "top"]);
+
+        var blackRadio = addTippedControl(endColorPanel, "radiobutton", "radio.black", "tooltip.black");
+        var whiteRadio = addTippedControl(endColorPanel, "radiobutton", "radio.white", "tooltip.white");
+        var transparentRadio = addTippedControl(endColorPanel, "radiobutton", "radio.transparent", "tooltip.transparent");
+        var complementaryRadio = addTippedControl(endColorPanel, "radiobutton", "radio.complementary", "tooltip.complementary");
+
+        /* 淡色ラジオ＋スライダー（ラジオは別グループなので排他は手動） / Tint radio + slider (exclusivity handled by hand) */
+        var tintLabelGroup = endColorPanel.add("group");
+        tintLabelGroup.orientation = "row";
+        tintLabelGroup.alignChildren = ["left", "center"];
+        tintLabelGroup.spacing = 4;
+        var tintRadio = addTippedControl(tintLabelGroup, "radiobutton", "radio.tint", "tooltip.tint");
+        var tintValueText = tintLabelGroup.add("statictext", undefined, "50%");
+        tintValueText.characters = 5;
+
+        var tintSlider = endColorPanel.add("slider", undefined, 50, 0, 100);
+        tintSlider.helpTip = getLabel("tooltip.tintSlider");
+        tintSlider.alignment = ["fill", "top"];
+        tintSlider.enabled = false;
+
+        transparentRadio.value = true; /* デフォルト / Default */
+
+        /* 角度 / Angle */
+        var anglePanel = addStyledPanel(topGroup, "panel.angle", "column", ["left", "top"]);
+        var angleRadios = [];
+        for (var i = 0; i < ANGLE_CHOICES.length; i++) {
+            var angleRadio = anglePanel.add("radiobutton", undefined, String(ANGLE_CHOICES[i]));
+            angleRadio.helpTip = getLabel("tooltip.angle");
+            angleRadios.push(angleRadio);
+        }
+        angleRadios[0].value = true; /* デフォルト / Default */
+
+        /* 始点カラー / Source color */
+        var sourcePanel = addStyledPanel(gradientDialog, "panel.sourceColor", "row", ["left", "center"]);
+        var sourceDropdown = sourcePanel.add("dropdownlist", undefined, [getLabel("dropdown.auto")]);
+        sourceDropdown.helpTip = getLabel("tooltip.sourceDropdown");
+        sourceDropdown.selection = 0; /* デフォルト / Default */
+
+        /* オプションの設定 / Set options */
+        var optionsPanel = addStyledPanel(gradientDialog, "panel.options", "column", ["left", "top"]);
+        var separateCheckbox = addTippedControl(optionsPanel, "checkbox", "checkbox.separateGradient", "tooltip.separateGradient");
+        var reverseCheckbox = addTippedControl(optionsPanel, "checkbox", "checkbox.reverse", "tooltip.reverse");
+        var previewCheckbox = addTippedControl(optionsPanel, "checkbox", "checkbox.preview", "tooltip.preview");
+
+        /* ボタンの設定 / Set button layout */
+        var btnRowGroup = gradientDialog.add("group");
+        btnRowGroup.alignment = ["center", "center"]; /* 中央揃え / Center align */
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return {
+            gradientDialog: gradientDialog,
+            blackRadio: blackRadio,
+            whiteRadio: whiteRadio,
+            transparentRadio: transparentRadio,
+            complementaryRadio: complementaryRadio,
+            tintRadio: tintRadio,
+            tintSlider: tintSlider,
+            tintValueText: tintValueText,
+            angleRadios: angleRadios,
+            sourcePanel: sourcePanel,
+            sourceDropdown: sourceDropdown,
+            separateCheckbox: separateCheckbox,
+            reverseCheckbox: reverseCheckbox,
+            previewCheckbox: previewCheckbox
+        };
+    }
+
+    /**
+     * ダイアログのコントロールにイベントをつなぐ
+     * @param {Object} dialogControls - buildDialogUI() の戻り値
+     * @param {Function} updatePreview - プレビューを更新する関数
+     * @returns {void}
+     */
+    function bindDialogEvents(dialogControls, updatePreview) {
+        var tintRadio = dialogControls.tintRadio;
+        var tintSlider = dialogControls.tintSlider;
+        var otherEndpointRadios = [
+            dialogControls.blackRadio,
+            dialogControls.whiteRadio,
+            dialogControls.transparentRadio,
+            dialogControls.complementaryRadio
+        ];
+
+        dialogControls.previewCheckbox.onClick = updatePreview;
+        dialogControls.separateCheckbox.onClick = updatePreview;
+        dialogControls.reverseCheckbox.onClick = updatePreview;
+        for (var i = 0; i < dialogControls.angleRadios.length; i++) {
+            dialogControls.angleRadios[i].onClick = updatePreview;
+        }
+        dialogControls.sourceDropdown.onChange = updatePreview;
+
+        /* 淡色ラジオは別グループなので、ほかの終点ラジオを手動で OFF に / Tint radio sits in another group */
+        tintRadio.onClick = function () {
+            for (var j = 0; j < otherEndpointRadios.length; j++) {
+                otherEndpointRadios[j].value = false;
+            }
+            tintSlider.enabled = tintRadio.value;
+            updatePreview();
+        };
+
+        /* 他のラジオ選択時は淡色を OFF にしてスライダーを無効化 / Disable slider when other radios selected */
+        for (var k = 0; k < otherEndpointRadios.length; k++) {
+            otherEndpointRadios[k].onClick = function () {
+                tintRadio.value = false;
+                tintSlider.enabled = false;
+                updatePreview();
+            };
+        }
+
+        /**
+         * スライダーの値を表示に反映する（Shift で 10% 刻み）
+         * @returns {void}
+         */
+        function onTintSliderChange() {
+            if (ScriptUI.environment.keyboardState.shiftKey) {
+                tintSlider.value = Math.round(tintSlider.value / 10) * 10;
+            }
+            dialogControls.tintValueText.text = Math.round(tintSlider.value) + "%";
+            updatePreview();
+        }
+        tintSlider.onChanging = onTintSliderChange;
+        tintSlider.onChange = onTintSliderChange;
+
+        addColorKeyHandler(dialogControls, updatePreview);
+    }
+
+    /* キー（B / W / T / C / L）と終点カラーの対応 / Shortcut keys for the end color */
+    var ENDPOINT_KEY_MODES = { B: "black", W: "white", T: "transparent", C: "complementary", L: "tint" };
+
+    /**
+     * キー操作で終点カラーを切り替える（B: 黒、W: 白、T: 透明、C: 補色、L: 淡色）
+     * @param {Object} dialogControls - buildDialogUI() の戻り値
+     * @param {Function} onChange - 切り替えたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function addColorKeyHandler(dialogControls, onChange) {
+        /**
+         * 終点カラーのラジオボタンを1つだけ ON にする
+         * @param {string} endpointMode - "black" / "white" / "transparent" / "complementary" / "tint"
+         * @returns {void}
+         */
+        function setEndpointMode(endpointMode) {
+            dialogControls.blackRadio.value = (endpointMode === "black");
+            dialogControls.whiteRadio.value = (endpointMode === "white");
+            dialogControls.transparentRadio.value = (endpointMode === "transparent");
+            dialogControls.complementaryRadio.value = (endpointMode === "complementary");
+            dialogControls.tintRadio.value = (endpointMode === "tint");
+            dialogControls.tintSlider.enabled = (endpointMode === "tint");
+        }
+
+        dialogControls.gradientDialog.addEventListener("keydown", function (event) {
+            if (!ENDPOINT_KEY_MODES.hasOwnProperty(event.keyName)) {
+                return;
+            }
+            setEndpointMode(ENDPOINT_KEY_MODES[event.keyName]);
+            event.preventDefault();
+            onChange();
+        });
+    }
+
+    // =========================================
+    // 始点カラーの候補 / Source color choices
+    // =========================================
+
+    /**
+     * 始点カラーのドロップダウンを作り直す（1つだけ選択したグラデーションの塗りから、黒・白・透明以外のストップ色を並べる）
+     * @param {DropDownList} sourceDropdown - 対象のドロップダウン
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {void}
+     */
     function populateSourceDropdown(sourceDropdown, targetObjects, isCMYK) {
         if (!sourceDropdown) {
             return;
         }
 
         removeAllDropdownItems(sourceDropdown);
+        sourceDropdown.add("item", getLabel("dropdown.auto"));
 
         var gradientFill = getSingleGradientFillColor(targetObjects);
-        if (!gradientFill) {
-            sourceDropdown.add("item", getLabel("auto"));
-            sourceDropdown.selection = 0;
-            return;
-        }
-
-        var sourceColors = collectSourceColorsFromGradient(gradientFill, isCMYK);
-        if (sourceColors.length === 0) {
-            sourceDropdown.add("item", getLabel("auto"));
-            sourceDropdown.selection = 0;
-            return;
-        }
-
-        sourceDropdown.add("item", getLabel("auto"));
+        var sourceColors = gradientFill ? collectSourceColorsFromGradient(gradientFill, isCMYK) : [];
         for (var i = 0; i < sourceColors.length; i++) {
             sourceDropdown.add("item", formatSourceColorLabel(sourceColors[i], i));
         }
         sourceDropdown.selection = 0;
     }
 
-    function removeAllDropdownItems(dropdown) {
-        while (dropdown.items.length > 0) {
-            dropdown.remove(dropdown.items[0]);
+    /**
+     * ドロップダウンの項目をすべて削除する
+     * @param {DropDownList} targetDropdown - 対象のドロップダウン
+     * @returns {void}
+     */
+    function removeAllDropdownItems(targetDropdown) {
+        while (targetDropdown.items.length > 0) {
+            targetDropdown.remove(targetDropdown.items[0]);
         }
     }
 
+    /**
+     * 対象が1つだけで塗りがグラデーションなら、その塗りを返す
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @returns {GradientColor|null} グラデーションの塗り（該当しなければ null）
+     */
     function getSingleGradientFillColor(targetObjects) {
         if (!targetObjects || targetObjects.length !== 1) {
             return null;
@@ -571,6 +666,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return null;
     }
 
+    /**
+     * 始点カラーのパネルは、グラデーションの塗りを1つだけ選択したときだけ有効にする
+     * @param {Panel} sourcePanel - 始点カラーのパネル
+     * @param {DropDownList} sourceDropdown - 始点カラーのドロップダウン
+     * @param {Object[]} targetObjects - collectGradientTargets() の結果
+     * @returns {void}
+     */
     function updateSourcePanelEnabled(sourcePanel, sourceDropdown, targetObjects) {
         var isEnabled = !!getSingleGradientFillColor(targetObjects);
 
@@ -582,127 +684,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    function isDocumentCMYK(doc) {
-        return doc.documentColorSpace === DocumentColorSpace.CMYK;
-    }
-    function isGradientTarget(obj) {
-        if (!obj) {
-            return false;
-        }
-
-        if (obj.typename === "PathItem") {
-            return obj.filled && !obj.clipping;
-        }
-
-        if (obj.typename === "CompoundPathItem") {
-            return isFilledCompoundPath(obj);
-        }
-
-        return false;
-    }
-
-    function isFilledCompoundPath(compoundPath) {
-        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
-            return false;
-        }
-
-        for (var i = 0; i < compoundPath.pathItems.length; i++) {
-            var pathItem = compoundPath.pathItems[i];
-            if (pathItem.filled && !pathItem.clipping) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    function createGradientTargetRecord(obj, isCMYK) {
-        return {
-            item: obj,
-            originalFillColor: getTargetFillColor(obj),
-            appliedGrad: null,
-            lastAngle: 0
-        };
-    }
-
-    function collectGradientTargets(selection, isCMYK) {
-        var targetObjects = [];
-        for (var i = 0; i < selection.length; i++) {
-            collectGradientTargetsFromItem(selection[i], targetObjects, isCMYK);
-        }
-        return targetObjects;
-    }
-
-    function collectGradientTargetsFromItem(item, targetObjects, isCMYK) {
-        if (!item) {
-            return;
-        }
-
-        if (item.typename === "GroupItem") {
-            for (var i = 0; i < item.pageItems.length; i++) {
-                collectGradientTargetsFromItem(item.pageItems[i], targetObjects, isCMYK);
-            }
-            return;
-        }
-
-        if (isGradientTarget(item)) {
-            targetObjects.push(createGradientTargetRecord(item, isCMYK));
-        }
-    }
-
-    function getTargetFillColor(obj) {
-        if (!obj) {
-            return null;
-        }
-
-        if (obj.typename === "CompoundPathItem") {
-            return getCompoundPathFillColor(obj);
-        }
-
-        return obj.fillColor;
-    }
-
-    function setTargetFillColor(obj, fillColor) {
-        if (!obj) {
-            return;
-        }
-
-        if (obj.typename === "CompoundPathItem") {
-            setCompoundPathFillColor(obj, fillColor);
-            return;
-        }
-
-        obj.fillColor = fillColor;
-    }
-
-    function getCompoundPathFillColor(compoundPath) {
-        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
-            return null;
-        }
-
-        for (var i = 0; i < compoundPath.pathItems.length; i++) {
-            var pathItem = compoundPath.pathItems[i];
-            if (pathItem.filled && !pathItem.clipping) {
-                return pathItem.fillColor;
-            }
-        }
-
-        return compoundPath.pathItems[0].fillColor;
-    }
-
-    function setCompoundPathFillColor(compoundPath, fillColor) {
-        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
-            return;
-        }
-
-        for (var i = 0; i < compoundPath.pathItems.length; i++) {
-            var pathItem = compoundPath.pathItems[i];
-            if (!pathItem.clipping) {
-                pathItem.fillColor = fillColor;
-            }
-        }
-    }
-
+    /**
+     * 塗りから始点カラーを決める（グラデーションならドロップダウンで選んだストップ色）
+     * @param {Color} fillColor - 元の塗り
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @param {DropDownList} sourceDropdown - 始点カラーのドロップダウン
+     * @returns {Color} 始点カラー
+     */
     function getSourceColorForFill(fillColor, isCMYK, sourceDropdown) {
         if (!fillColor || fillColor.typename !== "GradientColor") {
             return cloneSimpleColor(fillColor, isCMYK);
@@ -721,34 +709,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return cloneSimpleColor(sourceColors[selectedIndex], isCMYK);
     }
 
+    /**
+     * グラデーションのストップ色から、黒・白・透明を除いて重複なく集める
+     * @param {GradientColor} fillColor - グラデーションの塗り
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color[]} 候補の色
+     */
     function collectSourceColorsFromGradient(fillColor, isCMYK) {
-        var colors = [];
-        var grad = fillColor.gradient;
-        if (!grad || !grad.gradientStops) {
-            return colors;
+        var sourceColors = [];
+        var sourceGradient = fillColor.gradient;
+        if (!sourceGradient || !sourceGradient.gradientStops) {
+            return sourceColors;
         }
 
-        for (var i = 0; i < grad.gradientStops.length; i++) {
-            var stop = grad.gradientStops[i];
-            if (!isExcludedSourceStop(stop)) {
-                var clonedColor = cloneSimpleColor(stop.color, isCMYK);
-                if (!containsEquivalentColor(colors, clonedColor)) {
-                    colors.push(clonedColor);
+        for (var i = 0; i < sourceGradient.gradientStops.length; i++) {
+            var gradientStop = sourceGradient.gradientStops[i];
+            if (!isExcludedSourceStop(gradientStop)) {
+                var clonedColor = cloneSimpleColor(gradientStop.color, isCMYK);
+                if (!containsEquivalentColor(sourceColors, clonedColor)) {
+                    sourceColors.push(clonedColor);
                 }
             }
         }
-        return colors;
+        return sourceColors;
     }
 
-    function containsEquivalentColor(colors, targetColor) {
-        for (var i = 0; i < colors.length; i++) {
-            if (isSameColorValue(colors[i], targetColor)) {
+    /**
+     * 同じ値の色が一覧にあるかを調べる
+     * @param {Color[]} colorList - 色の一覧
+     * @param {Color} targetColor - 探す色
+     * @returns {boolean} あれば true
+     */
+    function containsEquivalentColor(colorList, targetColor) {
+        for (var i = 0; i < colorList.length; i++) {
+            if (isSameColorValue(colorList[i], targetColor)) {
                 return true;
             }
         }
         return false;
     }
 
+    /**
+     * 2つの色が同じ値かを調べる（CMYK / RGB / グレー / 特色）
+     * @param {Color} colorA - 1つ目の色
+     * @param {Color} colorB - 2つ目の色
+     * @returns {boolean} 同じなら true
+     */
     function isSameColorValue(colorA, colorB) {
         if (!colorA || !colorB) {
             return false;
@@ -784,15 +790,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return false;
     }
 
-    function isSameNumber(a, b) {
-        var na = Number(a);
-        var nb = Number(b);
-        if (isNaN(na) || isNaN(nb)) {
+    /**
+     * 2つの値が数値として（0.001 未満の差で）等しいかを調べる
+     * @param {number} valueA - 1つ目の値
+     * @param {number} valueB - 2つ目の値
+     * @returns {boolean} 等しければ true（数値でなければ false）
+     */
+    function isSameNumber(valueA, valueB) {
+        var numberA = Number(valueA);
+        var numberB = Number(valueB);
+        if (isNaN(numberA) || isNaN(numberB)) {
             return false;
         }
-        return Math.abs(na - nb) < 0.001;
+        return Math.abs(numberA - numberB) < 0.001;
     }
 
+    /**
+     * ドロップダウンで選んだ候補の番号を返す（先頭の「自動」は 0 番目の候補と同じ）
+     * @param {DropDownList} sourceDropdown - 始点カラーのドロップダウン
+     * @returns {number} 候補の番号
+     */
     function getSelectedSourceColorIndex(sourceDropdown) {
         if (!sourceDropdown || !sourceDropdown.selection) {
             return 0;
@@ -805,10 +822,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return Math.max(0, sourceDropdown.selection.index - 1);
     }
 
-    function formatSourceColorLabel(color, index) {
-        return String(index + 1) + ': ' + formatColorLabel(color);
+    /**
+     * ドロップダウンに出す候補の表示名を作る（"1: C0 M50 Y100 K0" など）
+     * @param {Color} sourceColor - 候補の色
+     * @param {number} index - 候補の番号
+     * @returns {string} 表示名
+     */
+    function formatSourceColorLabel(sourceColor, index) {
+        return String(index + 1) + ': ' + formatColorLabel(sourceColor);
     }
 
+    /**
+     * 色の値を短い文字列にする
+     * @param {Color} color - 対象の色
+     * @returns {string} "C0 M50 Y100 K0" / "R255 G0 B0" / "グレー 50" / "特色名 100%" など
+     */
     function formatColorLabel(color) {
         if (!color) {
             return '-';
@@ -823,17 +851,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (color.typename === "GrayColor") {
-            return getLabel("gray") + ' ' + formatColorNumber(color.gray);
+            return getLabel("colorName.gray") + ' ' + formatColorNumber(color.gray);
         }
 
         if (color.typename === "SpotColor") {
-            var spotName = (color.spot && color.spot.name) ? color.spot.name : getLabel("spot");
+            var spotName = (color.spot && color.spot.name) ? color.spot.name : getLabel("colorName.spot");
             return spotName + ' ' + formatColorNumber(color.tint) + '%';
         }
 
         return color.typename;
     }
 
+    /**
+     * 色の値を小数1桁までの文字列にする（整数なら小数点なし）
+     * @param {number} value - 値
+     * @returns {string} 表示用の文字列（数値でなければ "0"）
+     */
     function formatColorNumber(value) {
         if (typeof value !== "number") {
             return '0';
@@ -846,16 +879,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return String(rounded);
     }
 
-    function isExcludedSourceStop(stop) {
-        if (!stop) {
+    /**
+     * 始点カラーの候補から外すストップか（不透明度 0、黒、白）
+     * @param {GradientStop} gradientStop - 対象のストップ
+     * @returns {boolean} 外すなら true
+     */
+    function isExcludedSourceStop(gradientStop) {
+        if (!gradientStop) {
             return true;
         }
-        if (typeof stop.opacity === "number" && stop.opacity <= 0) {
+        if (typeof gradientStop.opacity === "number" && gradientStop.opacity <= 0) {
             return true;
         }
-        return isBlackOrWhiteColor(stop.color);
+        return isBlackOrWhiteColor(gradientStop.color);
     }
 
+    /**
+     * 黒または白かを判定する
+     * @param {Color} color - 対象の色
+     * @returns {boolean} 黒・白なら true
+     */
     function isBlackOrWhiteColor(color) {
         if (!color) {
             return false;
@@ -880,209 +923,396 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return false;
     }
 
+    /**
+     * 候補が無いグラデーションの始点カラー（先頭ストップの色、ストップが無ければ黒）
+     * @param {GradientColor} fillColor - グラデーションの塗り
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} 始点カラー
+     */
     function getFallbackGradientColor(fillColor, isCMYK) {
-        var grad = fillColor.gradient;
-        if (grad && grad.gradientStops && grad.gradientStops.length > 0) {
-            return cloneSimpleColor(grad.gradientStops[0].color, isCMYK);
+        var sourceGradient = fillColor.gradient;
+        if (sourceGradient && sourceGradient.gradientStops && sourceGradient.gradientStops.length > 0) {
+            return cloneSimpleColor(sourceGradient.gradientStops[0].color, isCMYK);
         }
         return createBlackColor(isCMYK);
     }
 
+    // =========================================
+    // 対象オブジェクト / Target objects
+    // =========================================
+
+    /**
+     * ドキュメントが CMYK かを調べる
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {boolean} CMYK なら true
+     */
+    function isDocumentCMYK(doc) {
+        return doc.documentColorSpace === DocumentColorSpace.CMYK;
+    }
+
+    /**
+     * グラデーションを適用できるオブジェクトか（塗りのあるパス、塗りのあるパスを含む複合パス。クリップパスは除く）
+     * @param {PageItem} candidateItem - 対象のオブジェクト
+     * @returns {boolean} 適用できるなら true
+     */
+    function isGradientTarget(candidateItem) {
+        if (!candidateItem) {
+            return false;
+        }
+
+        if (candidateItem.typename === "PathItem") {
+            return candidateItem.filled && !candidateItem.clipping;
+        }
+
+        if (candidateItem.typename === "CompoundPathItem") {
+            return !!findFirstFilledPath(candidateItem);
+        }
+
+        return false;
+    }
+
+    /**
+     * 複合パスの中で、塗りがありクリップパスでない最初のパスを返す
+     * @param {CompoundPathItem} compoundPath - 対象の複合パス
+     * @returns {PathItem|null} 見つかったパス（無ければ null）
+     */
+    function findFirstFilledPath(compoundPath) {
+        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
+            return null;
+        }
+
+        for (var i = 0; i < compoundPath.pathItems.length; i++) {
+            var pathItem = compoundPath.pathItems[i];
+            if (pathItem.filled && !pathItem.clipping) {
+                return pathItem;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 対象オブジェクトの記録を作る
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @returns {{item: PageItem, originalFillColor: Color, appliedGrad: Gradient, lastAngle: number}} 記録
+     */
+    function createGradientTargetRecord(targetItem) {
+        return {
+            item: targetItem,
+            originalFillColor: getTargetFillColor(targetItem),
+            appliedGrad: null,
+            lastAngle: 0
+        };
+    }
+
+    /**
+     * 選択からグラデーションを適用するオブジェクトを集める（グループの中もたどる）
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {Object[]} 対象オブジェクトの記録
+     */
+    function collectGradientTargets(selectedItems) {
+        var targetObjects = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            collectGradientTargetsFromItem(selectedItems[i], targetObjects);
+        }
+        return targetObjects;
+    }
+
+    /**
+     * 1つのオブジェクトから対象を集める（グループは再帰）
+     * @param {PageItem} sourceItem - 対象のオブジェクト
+     * @param {Object[]} targetObjects - 記録を追加する配列
+     * @returns {void}
+     */
+    function collectGradientTargetsFromItem(sourceItem, targetObjects) {
+        if (!sourceItem) {
+            return;
+        }
+
+        if (sourceItem.typename === "GroupItem") {
+            for (var i = 0; i < sourceItem.pageItems.length; i++) {
+                collectGradientTargetsFromItem(sourceItem.pageItems[i], targetObjects);
+            }
+            return;
+        }
+
+        if (isGradientTarget(sourceItem)) {
+            targetObjects.push(createGradientTargetRecord(sourceItem));
+        }
+    }
+
+    /**
+     * 対象オブジェクトの塗りを読む（複合パスは最初の塗りのあるパス）
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @returns {Color|null} 塗り
+     */
+    function getTargetFillColor(targetItem) {
+        if (!targetItem) {
+            return null;
+        }
+
+        if (targetItem.typename === "CompoundPathItem") {
+            return getCompoundPathFillColor(targetItem);
+        }
+
+        return targetItem.fillColor;
+    }
+
+    /**
+     * 対象オブジェクトに塗りを設定する（複合パスはクリップパス以外のすべてのパス）
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @param {Color} fillColor - 設定する塗り
+     * @returns {void}
+     */
+    function setTargetFillColor(targetItem, fillColor) {
+        if (!targetItem) {
+            return;
+        }
+
+        if (targetItem.typename === "CompoundPathItem") {
+            setCompoundPathFillColor(targetItem, fillColor);
+            return;
+        }
+
+        targetItem.fillColor = fillColor;
+    }
+
+    /**
+     * 複合パスの塗りを読む（最初の塗りのあるパス、無ければ先頭のパス）
+     * @param {CompoundPathItem} compoundPath - 対象の複合パス
+     * @returns {Color|null} 塗り
+     */
+    function getCompoundPathFillColor(compoundPath) {
+        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
+            return null;
+        }
+
+        var filledPath = findFirstFilledPath(compoundPath);
+        return filledPath ? filledPath.fillColor : compoundPath.pathItems[0].fillColor;
+    }
+
+    /**
+     * 複合パスのクリップパス以外のすべてのパスに塗りを設定する
+     * @param {CompoundPathItem} compoundPath - 対象の複合パス
+     * @param {Color} fillColor - 設定する塗り
+     * @returns {void}
+     */
+    function setCompoundPathFillColor(compoundPath, fillColor) {
+        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
+            return;
+        }
+
+        for (var i = 0; i < compoundPath.pathItems.length; i++) {
+            var pathItem = compoundPath.pathItems[i];
+            if (!pathItem.clipping) {
+                pathItem.fillColor = fillColor;
+            }
+        }
+    }
+
+    // =========================================
+    // 角度 / Angle
+    // =========================================
+
+    /**
+     * 選択中の角度を返す
+     * @param {RadioButton[]} angleRadios - 角度のラジオボタン（ANGLE_CHOICES と同じ順）
+     * @returns {number} 角度（度）
+     */
+    function getSelectedAngle(angleRadios) {
+        for (var i = 0; i < angleRadios.length; i++) {
+            if (angleRadios[i].value) {
+                return ANGLE_CHOICES[i];
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * グラデーションの角度を設定する（前回の角度との差だけグラデーションを回転する）
+     * @param {Object} targetRecord - 対象オブジェクトの記録（lastAngle を更新する）
+     * @param {GradientColor} gradientFill - 適用した塗り
+     * @param {number} angle - 角度（度）
+     * @returns {void}
+     */
+    function applyGradientAngle(targetRecord, gradientFill, angle) {
+        var previousAngle = (typeof targetRecord.lastAngle === "number") ? targetRecord.lastAngle : 0;
+        var deltaAngle = angle - previousAngle;
+
+        gradientFill.angle = angle;
+
+        if (deltaAngle !== 0) {
+            rotateTargetGradient(targetRecord.item, deltaAngle);
+        }
+
+        targetRecord.lastAngle = angle;
+    }
+
+    /**
+     * オブジェクトは動かさず、塗りのグラデーションだけを中心で回転する（パスの無い複合パスは何もしない）
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @param {number} deltaAngle - 回転角（度）
+     * @returns {void}
+     */
+    function rotateTargetGradient(targetItem, deltaAngle) {
+        if (!targetItem || deltaAngle === 0) {
+            return;
+        }
+
+        if (targetItem.typename === "CompoundPathItem" && (!targetItem.pathItems || targetItem.pathItems.length === 0)) {
+            return;
+        }
+
+        targetItem.rotate(deltaAngle, false, false, true, false, Transformation.CENTER);
+    }
+
+    // =========================================
+    // 色の作成 / Color creation
+    // =========================================
+
+    /**
+     * CMYK カラーを作る
+     * @param {number} cyan - C
+     * @param {number} magenta - M
+     * @param {number} yellow - Y
+     * @param {number} black - K
+     * @returns {CMYKColor} CMYK カラー
+     */
+    function makeCMYKColor(cyan, magenta, yellow, black) {
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = cyan;
+        cmykColor.magenta = magenta;
+        cmykColor.yellow = yellow;
+        cmykColor.black = black;
+        return cmykColor;
+    }
+
+    /**
+     * RGB カラーを作る
+     * @param {number} red - R
+     * @param {number} green - G
+     * @param {number} blue - B
+     * @returns {RGBColor} RGB カラー
+     */
+    function makeRGBColor(red, green, blue) {
+        var rgbColor = new RGBColor();
+        rgbColor.red = red;
+        rgbColor.green = green;
+        rgbColor.blue = blue;
+        return rgbColor;
+    }
+
+    /**
+     * グレーカラーを作る
+     * @param {number} grayValue - 濃度
+     * @returns {GrayColor} グレーカラー
+     */
+    function makeGrayColor(grayValue) {
+        var grayColor = new GrayColor();
+        grayColor.gray = grayValue;
+        return grayColor;
+    }
+
+    /**
+     * 特色を作る
+     * @param {Spot} sourceSpot - スポット
+     * @param {number} tint - 濃度
+     * @returns {SpotColor} 特色
+     */
+    function makeSpotColor(sourceSpot, tint) {
+        var spotColor = new SpotColor();
+        spotColor.spot = sourceSpot;
+        spotColor.tint = tint;
+        return spotColor;
+    }
+
+    /**
+     * 単色（CMYK / RGB / グレー / 特色）を複製する。それ以外や空なら黒
+     * @param {Color} color - 元の色
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} 複製した色
+     */
     function cloneSimpleColor(color, isCMYK) {
         if (!color) {
             return createBlackColor(isCMYK);
         }
 
         if (color.typename === "CMYKColor") {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = color.cyan;
-            cmyk.magenta = color.magenta;
-            cmyk.yellow = color.yellow;
-            cmyk.black = color.black;
-            return cmyk;
+            return makeCMYKColor(color.cyan, color.magenta, color.yellow, color.black);
         }
 
         if (color.typename === "RGBColor") {
-            var rgb = new RGBColor();
-            rgb.red = color.red;
-            rgb.green = color.green;
-            rgb.blue = color.blue;
-            return rgb;
+            return makeRGBColor(color.red, color.green, color.blue);
         }
 
         if (color.typename === "GrayColor") {
-            var gray = new GrayColor();
-            gray.gray = color.gray;
-            return gray;
+            return makeGrayColor(color.gray);
         }
 
         if (color.typename === "SpotColor") {
-            var spot = new SpotColor();
-            spot.spot = color.spot;
-            spot.tint = color.tint;
-            return spot;
+            return makeSpotColor(color.spot, color.tint);
         }
 
         return createBlackColor(isCMYK);
     }
 
-    function addColorKeyHandler(dlg, blackRadio, whiteRadio, transparentRadio, complementaryRadio, tintRadio, tintSlider, onChange) {
-        function setEndpointMode(mode) {
-            blackRadio.value = (mode === "black");
-            whiteRadio.value = (mode === "white");
-            transparentRadio.value = (mode === "transparent");
-            complementaryRadio.value = (mode === "complementary");
-            tintRadio.value = (mode === "tint");
-            tintSlider.enabled = (mode === "tint");
-        }
-
-        dlg.addEventListener("keydown", function (event) {
-            if (event.keyName == "B") {
-                setEndpointMode("black");
-                event.preventDefault();
-            } else if (event.keyName == "W") {
-                setEndpointMode("white");
-                event.preventDefault();
-            } else if (event.keyName == "T") {
-                setEndpointMode("transparent");
-                event.preventDefault();
-            } else if (event.keyName == "C") {
-                setEndpointMode("complementary");
-                event.preventDefault();
-            } else if (event.keyName == "L") {
-                setEndpointMode("tint");
-                event.preventDefault();
-            } else {
-                return;
-            }
-
-            onChange();
-        });
-    }
-
-    function getSelectedAngle(angle0, angle30, angle45, angle60, angle90) {
-        if (angle30.value) {
-            return 30;
-        }
-        if (angle45.value) {
-            return 45;
-        }
-        if (angle60.value) {
-            return 60;
-        }
-        if (angle90.value) {
-            return 90;
-        }
-        return 0;
-    }
-
-    function applyGradientAngle(obj, gradColor, data, angle0, angle30, angle45, angle60, angle90) {
-        var angle = getSelectedAngle(angle0, angle30, angle45, angle60, angle90);
-        var previousAngle = (typeof data.lastAngle === "number") ? data.lastAngle : 0;
-        var deltaAngle = angle - previousAngle;
-
-        gradColor.angle = angle;
-
-        if (deltaAngle !== 0) {
-            rotateTargetGradient(obj, deltaAngle);
-        }
-
-        data.lastAngle = angle;
-    }
-
-    function rotateTargetGradient(obj, deltaAngle) {
-        if (!obj || deltaAngle === 0) {
-            return;
-        }
-
-        if (obj.typename === "CompoundPathItem") {
-            rotateCompoundPathGradient(obj, deltaAngle);
-            return;
-        }
-
-        obj.rotate(deltaAngle, false, false, true, false, Transformation.CENTER);
-    }
-
-    function rotateCompoundPathGradient(compoundPath, deltaAngle) {
-        if (!compoundPath || !compoundPath.pathItems || compoundPath.pathItems.length === 0) {
-            return;
-        }
-
-        compoundPath.rotate(deltaAngle, false, false, true, false, Transformation.CENTER);
-    }
-
+    /**
+     * 黒を作る
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} K100 または RGB 0,0,0
+     */
     function createBlackColor(isCMYK) {
-        if (isCMYK) {
-            var c = new CMYKColor();
-            c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
-            return c;
-        } else {
-            var c = new RGBColor();
-            c.red = 0; c.green = 0; c.blue = 0;
-            return c;
-        }
+        return isCMYK ? makeCMYKColor(0, 0, 0, 100) : makeRGBColor(0, 0, 0);
     }
 
+    /**
+     * 白を作る
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} CMYK すべて 0 または RGB 255,255,255
+     */
     function createWhiteColor(isCMYK) {
-        if (isCMYK) {
-            var c = new CMYKColor();
-            c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 0;
-            return c;
-        } else {
-            var c = new RGBColor();
-            c.red = 255; c.green = 255; c.blue = 255;
-            return c;
-        }
+        return isCMYK ? makeCMYKColor(0, 0, 0, 0) : makeRGBColor(255, 255, 255);
     }
 
-    function createTintColor(orgColor, amount, isCMYK) {
+    /**
+     * 始点カラーを薄くした色を作る
+     * @param {Color} sourceColor - 始点カラー
+     * @param {number} amount - 濃度（％。0〜100）
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} 淡色（未対応の種類は白）
+     */
+    function createTintColor(sourceColor, amount, isCMYK) {
         var ratio = Math.max(0, Math.min(100, amount)) / 100;
-        if (orgColor.typename === "CMYKColor") {
-            var c = new CMYKColor();
-            c.cyan = orgColor.cyan * ratio;
-            c.magenta = orgColor.magenta * ratio;
-            c.yellow = orgColor.yellow * ratio;
-            c.black = orgColor.black * ratio;
-            return c;
-        } else if (orgColor.typename === "RGBColor") {
-            var c = new RGBColor();
-            c.red = Math.round(orgColor.red + (255 - orgColor.red) * (1 - ratio));
-            c.green = Math.round(orgColor.green + (255 - orgColor.green) * (1 - ratio));
-            c.blue = Math.round(orgColor.blue + (255 - orgColor.blue) * (1 - ratio));
-            return c;
-        } else if (orgColor.typename === "GrayColor") {
-            var c = new GrayColor();
-            c.gray = orgColor.gray * ratio;
-            return c;
-        } else if (orgColor.typename === "SpotColor") {
-            var c = new SpotColor();
-            c.spot = orgColor.spot;
-            c.tint = orgColor.tint * ratio;
-            return c;
+        if (sourceColor.typename === "CMYKColor") {
+            return makeCMYKColor(sourceColor.cyan * ratio, sourceColor.magenta * ratio, sourceColor.yellow * ratio, sourceColor.black * ratio);
+        } else if (sourceColor.typename === "RGBColor") {
+            return makeRGBColor(
+                Math.round(sourceColor.red + (255 - sourceColor.red) * (1 - ratio)),
+                Math.round(sourceColor.green + (255 - sourceColor.green) * (1 - ratio)),
+                Math.round(sourceColor.blue + (255 - sourceColor.blue) * (1 - ratio))
+            );
+        } else if (sourceColor.typename === "GrayColor") {
+            return makeGrayColor(sourceColor.gray * ratio);
+        } else if (sourceColor.typename === "SpotColor") {
+            return makeSpotColor(sourceColor.spot, sourceColor.tint * ratio);
         }
         return createWhiteColor(isCMYK);
     }
 
-    function createComplementaryColor(orgColor, isCMYK) {
-        if (orgColor.typename === "CMYKColor") {
-            var c = new CMYKColor();
-            c.cyan = 100 - orgColor.cyan;
-            c.magenta = 100 - orgColor.magenta;
-            c.yellow = 100 - orgColor.yellow;
-            c.black = orgColor.black;
-            return c;
-        } else if (orgColor.typename === "RGBColor") {
-            var c = new RGBColor();
-            c.red = 255 - orgColor.red;
-            c.green = 255 - orgColor.green;
-            c.blue = 255 - orgColor.blue;
-            return c;
-        } else if (orgColor.typename === "GrayColor") {
-            var c = new GrayColor();
-            c.gray = 100 - orgColor.gray;
-            return c;
-        } else if (orgColor.typename === "SpotColor") {
-            throw new Error(getLabel("unsupportedSpotComplementary"));
+    /**
+     * 始点カラーの補色を作る（特色は例外を投げる）
+     * @param {Color} sourceColor - 始点カラー
+     * @param {boolean} isCMYK - CMYK ドキュメントか
+     * @returns {Color} 補色（未対応の種類は黒）
+     */
+    function createComplementaryColor(sourceColor, isCMYK) {
+        if (sourceColor.typename === "CMYKColor") {
+            return makeCMYKColor(100 - sourceColor.cyan, 100 - sourceColor.magenta, 100 - sourceColor.yellow, sourceColor.black);
+        } else if (sourceColor.typename === "RGBColor") {
+            return makeRGBColor(255 - sourceColor.red, 255 - sourceColor.green, 255 - sourceColor.blue);
+        } else if (sourceColor.typename === "GrayColor") {
+            return makeGrayColor(100 - sourceColor.gray);
+        } else if (sourceColor.typename === "SpotColor") {
+            throw new Error(getLabel("alert.unsupportedSpotComplementary"));
         }
         return createBlackColor(isCMYK);
     }
