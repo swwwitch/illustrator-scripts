@@ -314,6 +314,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [表示領域の中心に欧文のポイントテキストを作成](readme-ja/InsertNewTextE.md)
 - [表示領域の中心に長めの欧文ポイントテキストを作成](readme-ja/InsertNewTextELong.md)
 - [表示領域の中心に和文のポイントテキストを作成](readme-ja/InsertNewTextJ.md)
+- [ロックしたオブジェクトを履歴に残して戻す](readme-ja/LockHistoryPalette.md)
 - [選択中／全体のパス統計をカウントし、常駐パレットで表示](readme-ja/PathInspector.md)
 - [グラフィックスタイル／ブラシ／スウォッチ／シンボルの「名前」を、ダイアログで指定した「検索→置換」で一括変更…](readme-ja/RenameAssets.md)
 - [選択したオブジェクトの線幅と矢印（始点／終点の形状・倍率・先端位置）をまとめて設定します](readme-ja/SetStrokeAndArrowheads.md)

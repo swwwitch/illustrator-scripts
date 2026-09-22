@@ -295,6 +295,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Create a Latin point text at the center of the view](readme-en/InsertNewTextE.md)
 - [Create a longer Latin point text at the center of the view](readme-en/InsertNewTextELong.md)
 - [Create a Japanese point text at the center of the view](readme-en/InsertNewTextJ.md)
+- [Keep a history of what you locked and bring it back](readme-en/LockHistoryPalette.md)
 - [Count path stats for the selection / whole document an…](readme-en/PathInspector.md)
 - [Renames graphic styles, brushes, swatches and symbols…](readme-en/RenameAssets.md)
 - [Sets stroke width and arrowheads (shape, scale and tip…](readme-en/SetStrokeAndArrowheads.md)
