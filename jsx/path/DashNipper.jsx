@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashNipper
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashNipper";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
@@ -371,7 +371,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
             if (anchorCount > 4 && !hasMatchingEnds(anchors, endSideIndex)) continue;
             var candidate = buildCenterLine(anchors, endSideIndex);
             if (!isMatchingLength(candidate.thickness, expectedThickness)) continue;
-            if (!bestLine || isBetterCenterLine(candidate, bestLine)) bestLine = candidate;
+            if (!bestLine || isBetterCenterLine(candidate, bestLine, expectedThickness)) bestLine = candidate;
         }
         return bestLine ? orientCenterLine(bestLine) : null;
     }
@@ -380,39 +380,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
      * 中心線の候補が、いまの候補より適しているかを返す
      * @param {CenterLine} candidate - 比べる候補
      * @param {CenterLine} currentBest - いまの候補
-     * @returns {boolean} candidate の方が細ければ true。太さが同じ（正方形など）なら縦の線を優先
+     * @param {number} expectedThickness - 元の破線の線幅（pt）
+     * @returns {boolean} candidate の太さの方が線幅に近ければ true。同じ（正方形など）なら縦の線を優先
      */
-    function isBetterCenterLine(candidate, currentBest) {
-        if (Math.abs(candidate.thickness - currentBest.thickness) <= LENGTH_TOLERANCE) {
+    function isBetterCenterLine(candidate, currentBest, expectedThickness) {
+        var candidateGap = Math.abs(candidate.thickness - expectedThickness);
+        var currentGap = Math.abs(currentBest.thickness - expectedThickness);
+        if (Math.abs(candidateGap - currentGap) <= LENGTH_TOLERANCE) {
             return isMostlyVertical(candidate) && !isMostlyVertical(currentBest);
         }
-        return candidate.thickness < currentBest.thickness;
+        return candidateGap < currentGap;
     }
 
     // =========================================
     // アウトラインの整形 / Outline cleanup
     // =========================================
-    // 閉じたパスの破線をアウトライン化すると、継ぎ目の近くの線分に、長さ 0.1pt 前後のセグメントや
-    // 切り口の途中のアンカーが混ざる。中心線を求められなかった線分だけ、これを取り除いてから判定し直す
-    // Outlining a closed dashed path leaves ~0.1pt segments and extra anchors on the cut near the seam.
-    // Only dashes that fail the first attempt are cleaned up and tried again
+    // 閉じたパスの破線をアウトライン化すると、継ぎ目の近くの線分に、ごく短いセグメント（線幅 8pt で 0.007〜0.18pt を実測）や
+    // 切り口の途中のアンカー、小さな破片が混ざる。中心線を求められなかった線分だけ、線幅の TINY_SEGMENT_RATIO 未満に
+    // 近いアンカーをまとめてから判定し直す
+    // Outlining a closed dashed path leaves tiny segments (0.007-0.18pt measured at an 8pt stroke), extra anchors on the cut,
+    // and small fragments near the seam. Only dashes that fail the first attempt are cleaned up and tried again
 
     /**
-     * 近接したアンカーの集まりを1つのアンカーにまとめる（位置は平均、ハンドルは位置の移動に合わせてずらす）
+     * 近接したアンカーの集まりを1つのアンカーにまとめる（ハンドルは位置の移動に合わせてずらす）
+     * 片側だけが直線（切り口）につながるときはその端のアンカーに寄せ、切り口の長さを変えない。それ以外は平均の位置
      * @param {AnchorInfo[]} cluster - まとめるアンカー（パスの順）
+     * @param {AnchorInfo} previousAnchor - 集まりの直前のアンカー
+     * @param {AnchorInfo} nextAnchor - 集まりの直後のアンカー
      * @returns {AnchorInfo} まとめたアンカー
      */
-    function mergeAnchorCluster(cluster) {
+    function mergeAnchorCluster(cluster, previousAnchor, nextAnchor) {
         if (cluster.length === 1) return cluster[0];
-        var sumX = 0;
-        var sumY = 0;
-        for (var i = 0; i < cluster.length; i++) {
-            sumX += cluster[i].anchor[0];
-            sumY += cluster[i].anchor[1];
-        }
-        var position = [sumX / cluster.length, sumY / cluster.length];
         var first = cluster[0];
         var last = cluster[cluster.length - 1];
+        var entersStraight = isStraightSegment(previousAnchor, first);
+        var leavesStraight = isStraightSegment(last, nextAnchor);
+        var position;
+        if (leavesStraight && !entersStraight) {
+            position = last.anchor;
+        } else if (entersStraight && !leavesStraight) {
+            position = first.anchor;
+        } else {
+            var sumX = 0;
+            var sumY = 0;
+            for (var i = 0; i < cluster.length; i++) {
+                sumX += cluster[i].anchor[0];
+                sumY += cluster[i].anchor[1];
+            }
+            position = [sumX / cluster.length, sumY / cluster.length];
+        }
         return {
             anchor: position,
             leftDirection: [first.leftDirection[0] + position[0] - first.anchor[0], first.leftDirection[1] + position[1] - first.anchor[1]],
@@ -421,9 +437,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     }
 
     /**
-     * ごく短いセグメントでつながったアンカーを、1つのアンカーにまとめる
+     * 互いにごく近いアンカーを、1つのアンカーにまとめる
+     * 集まりの広さは最初のアンカーから mergeDistance 未満に限るので、点が密なパスでも辺が1点に潰れない
      * @param {AnchorInfo[]} anchors - パスのアンカー情報
-     * @param {number} mergeDistance - これより短いセグメントをまとめる（pt）
+     * @param {number} mergeDistance - 集まりの最初のアンカーからこれより近いアンカーをまとめる（pt）
      * @returns {AnchorInfo[]} まとめたあとのアンカー。全体がごく小さいときは空の配列
      */
     function mergeTinySegments(anchors, mergeDistance) {
@@ -443,14 +460,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
         var mergedAnchors = [];
         var offset = 0;
         while (offset < anchorCount) {
+            var clusterStart = offset;
             var cluster = [anchors[(startIndex + offset) % anchorCount]];
             offset++;
             while (offset < anchorCount &&
-                getDistance(cluster[cluster.length - 1].anchor, anchors[(startIndex + offset) % anchorCount].anchor) < mergeDistance) {
+                getDistance(cluster[0].anchor, anchors[(startIndex + offset) % anchorCount].anchor) < mergeDistance) {
                 cluster.push(anchors[(startIndex + offset) % anchorCount]);
                 offset++;
             }
-            mergedAnchors.push(mergeAnchorCluster(cluster));
+            mergedAnchors.push(mergeAnchorCluster(cluster,
+                anchors[(startIndex + clusterStart - 1 + anchorCount) % anchorCount],
+                anchors[(startIndex + offset) % anchorCount]));
         }
         return mergedAnchors;
     }
@@ -485,26 +505,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     }
 
     /**
-     * 破線の線分から中心線を求める。そのままで求められなければ、ごく短いセグメントと余分なアンカーを除いて判定し直す
+     * 破線の線分から中心線を求める。そのままで求められなければ、ごく近いアンカーをまとめ、
+     * 余分なアンカーを除いて判定し直す。まとめるとアンカーが3つ未満になるものは、アウトライン化で生じた破片とみなす
      * @param {AnchorInfo[]} anchors - 線分のアンカー情報
      * @param {number} strokeWidth - 元の破線の線幅（pt）
-     * @returns {CenterLine|null} 中心線。求められなければ null
+     * @returns {{centerLine: CenterLine|null, isDebris: boolean}} 中心線（求められなければ null）と、破片かどうか
      */
-    function getDashCenterLine(anchors, strokeWidth) {
+    function analyzeDashPiece(anchors, strokeWidth) {
         var centerLine = getCenterLine(anchors, strokeWidth);
-        if (centerLine) return centerLine;
+        if (centerLine) return { centerLine: centerLine, isDebris: false };
         var tinyLength = strokeWidth * TINY_SEGMENT_RATIO;
-        return getCenterLine(removeStraightMidAnchors(mergeTinySegments(anchors, tinyLength), tinyLength), strokeWidth);
-    }
-
-    /**
-     * アウトライン化で生じた、線分とは呼べないほど小さな破片かどうかを返す
-     * @param {AnchorInfo[]} anchors - 線分のアンカー情報
-     * @param {number} strokeWidth - 元の破線の線幅（pt）
-     * @returns {boolean} ごく短いセグメントをまとめるとアンカーが3つ未満になるなら true
-     */
-    function isOutlineDebris(anchors, strokeWidth) {
-        return mergeTinySegments(anchors, strokeWidth * TINY_SEGMENT_RATIO).length < 3;
+        var mergedAnchors = mergeTinySegments(anchors, tinyLength);
+        if (mergedAnchors.length < 3) return { centerLine: null, isDebris: true };
+        return { centerLine: getCenterLine(removeStraightMidAnchors(mergedAnchors, tinyLength), strokeWidth), isDebris: false };
     }
 
     // =========================================
@@ -532,28 +545,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     }
 
     /**
-     * 選択の中から破線のパスを集める
-     * @param {PageItem[]} selectedItems - 選択中のアイテム
-     * @returns {PathItem[]} 破線のパス
+     * 選択の中から破線のパスを集める（グループの中もたどる）
+     * 非表示・ロック中のもの（選択できない）、クリッピングパス、ガイドは除く
+     * @param {PageItem[]} items - 選択中のアイテム
+     * @returns {PathItem[]} 破線のパス（選択の順）
      */
-    function collectDashedPaths(selectedItems) {
+    function collectDashedPaths(items) {
         var dashedPaths = [];
-        /* グループの中もたどる。文字の選択中は selection が TextRange になり、[i] は undefined なので飛ばされる
-           Groups are searched too; a TextRange selection yields undefined items, which are skipped */
-        var paths = collectItemsByType(selectedItems, "PathItem");
-        for (var i = 0; i < paths.length; i++) {
-            if (paths[i].stroked && paths[i].strokeDashes.length > 0) dashedPaths.push(paths[i]);
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            /* 文字の選択中は selection が TextRange になり、[i] は undefined
+               While editing text, selection is a TextRange and [i] is undefined */
+            if (!item || item.hidden || item.locked) continue;
+            if (item.typename === "GroupItem") {
+                dashedPaths = dashedPaths.concat(collectDashedPaths(item.pageItems));
+            } else if (item.typename === "PathItem" && !item.clipping && !item.guides &&
+                item.stroked && item.strokeDashes.length > 0) {
+                dashedPaths.push(item);
+            }
         }
         return dashedPaths;
     }
 
     /**
-     * 破線をアウトライン化し、複合パスを解除して、線分ごとのパスを返す
+     * 破線をアウトライン化し、複合パスを解除して、線分ごとのパスを返す（破線の塗りは削除する）
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} dashedPath - 破線のパス（処理後は参照できなくなる）
      * @returns {PathItem[]} 線分ごとのパス
      */
     function outlineDashedPath(doc, dashedPath) {
+        /* 塗りがあると、アウトライン化で塗りのパスも別にでき、線分と取り違えて線の前面に残るので外しておく
+           A fill would come out as an extra path mistaken for a dash and left in front of the lines, so drop it */
+        if (dashedPath.filled) dashedPath.filled = false;
         doc.selection = [dashedPath];
         app.redraw();
         app.executeMenuCommand("Live Outline Stroke");
@@ -662,7 +685,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
      * 中心線にできなかった線分もアウトラインのまま同じグループに入れ、アウトライン化で生じた破片は削除する
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} dashedPath - 破線のパス
-     * @returns {{resultItem: PageItem|null, skippedCount: number}} 置き換えた結果（グループか1本の線。線分が無ければ null）と、中心線にできなかった線分の数
+     * @returns {{resultItem: PageItem|null, skippedCount: number, outlineFailed: boolean}}
+     *     置き換えた結果（グループか1本の線。残るものが無ければ null）、中心線にできなかった線分の数、アウトライン化で線分ができなかったか
      */
     function convertDashedPath(doc, dashedPath) {
         var strokeWidth = dashedPath.strokeWidth;
@@ -670,14 +694,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
         var resultItems = [];
         var skippedCount = 0;
         for (var i = 0; i < dashPieces.length; i++) {
-            var anchors = readAnchors(dashPieces[i]);
-            if (isOutlineDebris(anchors, strokeWidth)) {
+            var analysis = dashPieces[i].closed ?
+                analyzeDashPiece(readAnchors(dashPieces[i]), strokeWidth) :
+                { centerLine: null, isDebris: false };
+            if (analysis.isDebris) {
                 dashPieces[i].remove();
-                continue;
-            }
-            var centerLine = dashPieces[i].closed ? getDashCenterLine(anchors, strokeWidth) : null;
-            if (centerLine) {
-                resultItems.push(replaceWithCenterLine(dashPieces[i], centerLine));
+            } else if (analysis.centerLine) {
+                resultItems.push(replaceWithCenterLine(dashPieces[i], analysis.centerLine));
             } else {
                 resultItems.push(dashPieces[i]);
                 skippedCount++;
@@ -687,7 +710,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
         var resultItem = null;
         if (resultItems.length === 1) resultItem = resultItems[0];
         if (resultItems.length > 1) resultItem = groupInPlace(resultItems);
-        return { resultItem: resultItem, skippedCount: skippedCount };
+        return { resultItem: resultItem, skippedCount: skippedCount, outlineFailed: dashPieces.length === 0 };
     }
 
     /**
@@ -704,11 +727,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
            Outline one path at a time, since each may have its own stroke width */
         for (var i = 0; i < dashedPaths.length; i++) {
             var conversion = convertDashedPath(doc, dashedPaths[i]);
-            if (conversion.resultItem) {
-                resultItems.push(conversion.resultItem);
-            } else {
-                hasOutlineFailure = true;
-            }
+            if (conversion.resultItem) resultItems.push(conversion.resultItem);
+            if (conversion.outlineFailed) hasOutlineFailure = true;
             skippedCount += conversion.skippedCount;
         }
 

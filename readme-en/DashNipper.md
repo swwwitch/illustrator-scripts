@@ -30,7 +30,9 @@
 
 ### Notes
 
-- Only paths with Dashed Line set in the Stroke panel are processed. Dashes made with a brush or with a second stroke in the Appearance panel are not.
+- Only paths with Dashed Line set in the Stroke panel are processed. Dashes made with a brush or with a second stroke in the Appearance panel, and dashed compound paths, are not.
+- Hidden or locked paths, clipping paths, and guides inside groups are skipped.
+- If a dashed line has a fill, the fill is deleted (otherwise it would stay in front of the lines and hide them).
 - Other selected objects, including non-dashed objects inside selected groups, are left as they are.
 - The following dashes cannot become center lines and stay outlined (an alert reports how many):
   - Zero-length dashes with round caps (the dots of a dotted line)
@@ -47,3 +49,4 @@
 ### Update History
 
 - v1.0.0 (20260922) : Initial release
+- v1.1.0 (20260922) : The lines of each dashed line are now grouped. Dashed lines inside groups are now processed; hidden or locked paths, clipping paths, and guides are skipped. The script now shows an alert and stops when no dashed line is selected, and converting a single already-outlined shape is no longer supported. Fixed dashes near the seam of a closed dashed path failing to convert; tiny fragments left by outlining are now deleted. Fixed the fill of a filled dashed line staying in front of the lines (the fill is now deleted). Fixed dashes shorter than 5% of the stroke width being deleted. Fixed the direction and stroke width sometimes being off when the dash length is close to the stroke width
