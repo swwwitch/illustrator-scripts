@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "DistributeDownFromTop";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeDownFromTop.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeDownFromTop.md"; /* README (English) */
@@ -180,7 +180,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var paragraphs = textFrame.textRange.paragraphs;
         for (var i = 0; i < paragraphs.length; i++) {
             var paragraph = paragraphs[i];
-            if (!paragraph.characters || paragraph.characters.length === 0) continue;
+            if (paragraph.characters.length === 0) continue;
 
             var charAttributes = paragraph.characters[0].characterAttributes;
             var fontSizePt = charAttributes.size;
@@ -219,16 +219,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択中の TextRange を含む単一の TextFrame を選択し直す
+     * @param {Document} doc - 対象のドキュメント
      * @returns {void}
      */
-    function selectSingleTextFrameFromTextRange() {
-        if (app.selection.constructor.name !== "TextRange") return;
+    function selectSingleTextFrameFromTextRange(doc) {
+        if (doc.selection.constructor.name !== "TextRange") return;
 
-        var textFramesInStory = app.selection.story.textFrames;
+        var textFramesInStory = doc.selection.story.textFrames;
         if (textFramesInStory.length !== 1) return;
 
         app.executeMenuCommand("deselectall");  /* 現在の選択を解除 / clear the caret selection */
-        app.selection = [textFramesInStory[0]]; /* 該当の TextFrame を選択 / select that frame */
+        doc.selection = [textFramesInStory[0]]; /* 該当の TextFrame を選択 / select that frame */
         app.selectTool("Adobe Select Tool");    /* 選択ツールに戻す / back to the selection tool */
     }
 
@@ -242,11 +243,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function main() {
         if (app.documents.length < 1) return;
+        var doc = app.activeDocument;
 
         /* テキスト範囲（カーソル）を選択しているときは、その story の単一 TextFrame を選択し直す / Reselect the single frame of a caret selection */
-        selectSingleTextFrameFromTextRange();
+        selectSingleTextFrameFromTextRange(doc);
 
-        var selectedObjects = app.activeDocument.selection;
+        var selectedObjects = doc.selection;
         if (selectedObjects.length < 1) return;
 
         /* 「サイズ／行送り」キー増加（text/sizeIncrement）を表示単位（text/units）込みで pt 換算 / Size/Leading increment in points */

@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.9.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
@@ -2628,12 +2628,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * 選択したアンカーの角を半径 rr で丸める
-     * @param {PathItem[]} s - 対象のパス
-     * @param {Object} conf - 設定（rr: 半径）
+     * @param {PathItem[]} targetPaths - 対象のパス
+     * @param {Object} roundOptions - 設定（rr: 半径）
      * @returns {void}
      */
-    function roundAnyCorner(s, conf) {
-        var rr = conf.rr;
+    function roundAnyCorner(targetPaths, roundOptions) {
+        var rr = roundOptions.rr;
 
         var p, op, pnts;
         var skipList, adjRdirAtEnd, redrawFlg;
@@ -2643,10 +2643,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var hanLen = 4 * (Math.sqrt(2) - 1) / 3;
         var ptyp = PointType.SMOOTH;
 
-        for (var j = 0; j < s.length; j++) {
-            p = s[j].pathPoints;
+        for (var j = 0; j < targetPaths.length; j++) {
+            p = targetPaths[j].pathPoints;
             if (readjustAnchors(p) < 2) continue;
-            op = !s[j].closed;
+            op = !targetPaths[j].closed;
             pnts = op ? [getDat(p[0])] : [];
             redrawFlg = false;
             adjRdirAtEnd = 0;
@@ -2782,7 +2782,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
                 }
             }
         }
-        app.activeDocument.selection = s;
+        app.activeDocument.selection = targetPaths;
     }
 
     /**
@@ -2988,12 +2988,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var t, d;
         var t0 = 0;
         var t1 = 1;
-        var torelance = 0.001;
+        var tolerance = 0.001;
 
         for (var h = 1; h < 30; h++) {
             t = t0 + (t1 - t0) / 2;
             d = len - getLength(k, t);
-            if (Math.abs(d) < torelance) break;
+            if (Math.abs(d) < tolerance) break;
             else if (d < 0) t1 = t;
             else t0 = t;
         }

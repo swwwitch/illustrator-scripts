@@ -310,7 +310,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      *
      * @param {string} startValueText - ［開始値］の入力。
      * @param {string} formatModeKey - 選ばれている書式ラジオのキー（紛らわしい表記の判断に使う）。
-     * @returns {object} format（"number" / "letter" / "kanji" / "daiji" / "roman"）と値を持つオブジェクト。
+     * @returns {Object} format（"number" / "letter" / "kanji" / "daiji" / "roman"）と値を持つオブジェクト。
      *                   数字のときは入力した整数部の桁数を digits に入れます。解釈できないときは null。
      */
     function parseStartValue(startValueText, formatModeKey) {
@@ -402,7 +402,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * ［開始値］に対応する書式ラジオのキーを返します。
      *
-     * @param {object} startValue - parseStartValue() の戻り値。
+     * @param {Object} startValue - parseStartValue() の戻り値。
      * @returns {string} FORMAT_MODES のキー。判定できないときは null。
      */
     function getFormatModeKey(startValue) {
@@ -417,7 +417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * ［開始値］から数えて sequenceOffset 番目の値を文字列で返します。
      *
-     * @param {object} startValue - parseStartValue() の戻り値。
+     * @param {Object} startValue - parseStartValue() の戻り値。
      * @param {number} sequenceOffset - ［開始値］からの位置（0が最初）。
      * @param {number} zeroPadDigits - ゼロ埋めの桁数。0で埋めません。
      * @returns {string} 書き込む文字列。
@@ -444,7 +444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 書き出す整数部の桁数を返します。入力した桁数（"01" なら2桁）は常に保ち、
      * ［ゼロ埋め］がONのときは最後の番号の桁数まで広げます。
      *
-     * @param {object} startValue - parseStartValue() の戻り値。
+     * @param {Object} startValue - parseStartValue() の戻り値。
      * @param {number} targetCount - 振り直す個数。
      * @param {boolean} isZeroPadded - ［ゼロ埋め］がONか。
      * @returns {number} ゼロ埋めする桁数。埋めないときは0。
@@ -458,7 +458,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * ［ゼロ埋め］をONにすると桁数が変わるかを返します。ディム判定に使います。
      *
-     * @param {object} startValue - parseStartValue() の戻り値。
+     * @param {Object} startValue - parseStartValue() の戻り値。
      * @param {number} targetCount - 振り直す個数。
      * @returns {boolean} 桁数が変わるなら true。
      */
@@ -579,7 +579,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 言語に合わせた文言を返します。
      *
-     * @param {object} labelSet - ja / en を持つ文言オブジェクト。
+     * @param {Object} labelSet - ja / en を持つ文言オブジェクト。
      * @returns {string} 現在の言語の文言。
      */
     function getLabel(labelSet) {
@@ -589,7 +589,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 項目名にコロンを付けて返します（日本語は全角、英語は半角）。
      *
-     * @param {object} labelSet - ja / en を持つ文言オブジェクト。
+     * @param {Object} labelSet - ja / en を持つ文言オブジェクト。
      * @returns {string} コロン付きの項目名。
      */
     function labelText(labelSet) {
@@ -634,8 +634,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      *
      * 並べ替えに使う座標と重ね順は、プレビューで中身が変わる前に控えます。
      *
-     * @param {Array} selectedItems - ドキュメントの選択。
-     * @returns {Array<object>} 振り直し対象（frame / originalContents / text / sortValue / left / top /
+     * @param {Object[]} selectedItems - ドキュメントの選択。
+     * @returns {Object[]} 振り直し対象（frame / originalContents / text / sortValue / left / top /
      *                   layerOrder / itemOrder / selectionIndex）。
      */
     function collectSequenceTargets(selectedItems) {
@@ -686,7 +686,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 連番振り直しのダイアログを表示します。
      *
-     * @param {Array<object>} renumberTargets - 振り直し対象。
+     * @param {Object[]} renumberTargets - 振り直し対象。
      * @returns {void}
      */
     function showRenumberDialog(renumberTargets) {
@@ -702,7 +702,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
         var sortOrderRadios = dialogControls.sortOrderControls.radios;
         var affixInputs = dialogControls.affixInputs;
 
-        /* 入力値をまとめて読み取る / Read every input at once */
+        /**
+         * ダイアログの入力値をまとめて読み取ります。
+         *
+         * @returns {Object} applyRenumber() に渡す設定。
+         */
         function getRenumberSettings() {
             return {
                 startValueText: startValueInput.text,
@@ -716,7 +720,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
             };
         }
 
-        /* プレビュー更新 / Refresh the preview */
+        /**
+         * いまの入力でプレビューを更新します（書式のラジオとゼロ埋めのディムも合わせます）。
+         *
+         * @returns {void}
+         */
         function updatePreview() {
             var startValue = parseStartValue(startValueInput.text, getSelectedFormatMode(formatRadios));
 
@@ -764,8 +772,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
             return true;
         };
 
-        /* ラジオを選んだら、その書式のいちばん若い値を［開始値］に入れる
-           Choosing a format drops its lowest value into the start value field */
+        /**
+         * 書式のラジオを選んだら、その書式のいちばん若い値を［開始値］に入れるハンドラを作ります。
+         *
+         * @param {string} formatStartValue - ［開始値］に入れる値。
+         * @returns {Function} onClick に設定するハンドラ。
+         */
         function makeFormatClickHandler(formatStartValue) {
             return function () {
                 startValueInput.text = formatStartValue;
@@ -793,9 +805,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 連番振り直しのダイアログを組み立てます（イベントの配線は showRenumberDialog() で行います）。
      *
      * @param {string} initialStartValue - ［開始値］の初期値。
-     * @returns {{renumberDialog: Window, startValueInput: EditText, formatRadios: object,
+     * @returns {{renumberDialog: Window, startValueInput: EditText, formatRadios: Object,
      *            renumberOptions: {reverse: Checkbox, zeroPad: Checkbox},
-     *            sortOrderControls: {radios: object, reorderStack: Checkbox},
+     *            sortOrderControls: {radios: Object, reorderStack: Checkbox},
      *            affixInputs: {prefix: EditText, suffix: EditText}, btnCancel: Button, btnOK: Button}} 作成したコントロール。
      */
     function buildRenumberDialog(initialStartValue) {
@@ -875,7 +887,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 項目を左揃えで縦に並べるパネルを追加します（［基準となる値］［並び順］［オプション］で共用）。
      *
      * @param {Group} parentGroup - 追加先のグループ。
-     * @param {object} titleLabelSet - パネル見出しの文言オブジェクト。
+     * @param {Object} titleLabelSet - パネル見出しの文言オブジェクト。
      * @returns {Panel} 追加したパネル。
      */
     function addColumnPanel(parentGroup, titleLabelSet) {
@@ -951,7 +963,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * ［並び順］パネル（並び順のラジオと重ね順調整）を作ります。
      *
      * @param {Group} parentGroup - 追加先のグループ。
-     * @returns {{radios: object, reorderStack: Checkbox}} 並び順のラジオと重ね順調整のチェックボックス。
+     * @returns {{radios: Object, reorderStack: Checkbox}} 並び順のラジオと重ね順調整のチェックボックス。
      */
     function addSortOrderPanel(parentGroup) {
         var sortOrderPanel = addColumnPanel(parentGroup, LABELS.panel.sortOrder);
@@ -978,7 +990,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 選択されている書式のキーを返します。
      *
-     * @param {object} formatRadios - addStartValuePanel() が返したラジオボタン。
+     * @param {Object} formatRadios - addStartValuePanel() が返したラジオボタン。
      * @returns {string} FORMAT_MODES のいずれか。
      */
     function getSelectedFormatMode(formatRadios) {
@@ -991,7 +1003,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 選択されている並び順のキーを返します。
      *
-     * @param {object} sortOrderRadios - addSortOrderPanel() が返したラジオボタン。
+     * @param {Object} sortOrderRadios - addSortOrderPanel() が返したラジオボタン。
      * @returns {string} SORT_MODES のいずれか。
      */
     function getSelectedSortMode(sortOrderRadios) {
@@ -1038,8 +1050,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 接頭辞・接尾辞の1行を作ります。
      *
      * @param {Panel} parentPanel - 追加先のパネル。
-     * @param {object} fieldLabelSet - 項目名の文言オブジェクト。
-     * @param {object} tooltipSet - tooltipの文言オブジェクト。
+     * @param {Object} fieldLabelSet - 項目名の文言オブジェクト。
+     * @param {Object} tooltipSet - tooltipの文言オブジェクト。
      * @returns {EditText} 作成した入力欄。
      */
     function addAffixRow(parentPanel, fieldLabelSet, tooltipSet) {
@@ -1056,9 +1068,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 並べ替えた順に連番を書き込みます。プレビューと確定で共用します。
      *
-     * @param {Array<object>} renumberTargets - 振り直し対象。
-     * @param {object} renumberSettings - getRenumberSettings() が返す設定。
-     * @returns {Array<object>} 番号を振った順に並べた配列。［開始値］が不正なときは null。
+     * @param {Object[]} renumberTargets - 振り直し対象。
+     * @param {Object} renumberSettings - getRenumberSettings() が返す設定。
+     * @returns {Object[]} 番号を振った順に並べた配列。［開始値］が不正なときは null。
      */
     function applyRenumber(renumberTargets, renumberSettings) {
         var startValue = parseStartValue(renumberSettings.startValueText, renumberSettings.formatModeKey);
@@ -1078,7 +1090,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 振り直した番号の順に重ね順を並べ替えます（番号の小さいものが前面）。
      *
-     * @param {Array<object>} orderedTargets - 番号を振った順に並んだ対象。
+     * @param {Object[]} orderedTargets - 番号を振った順に並んだ対象。
      * @returns {void}
      */
     function reorderStackToMatch(orderedTargets) {
@@ -1092,10 +1104,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     /**
      * 指定した並び順に並べ替えた配列を返します（元の配列は変更しません）。
      *
-     * @param {Array<object>} renumberTargets - 振り直し対象。
+     * @param {Object[]} renumberTargets - 振り直し対象。
      * @param {string} sortMode - SORT_MODES のいずれか。
      * @param {boolean} isReversed - 並びを逆さにするか。
-     * @returns {Array<object>} 並べ替えた配列。
+     * @returns {Object[]} 並べ替えた配列。
      */
     function sortTargets(renumberTargets, sortMode, isReversed) {
         var orderedTargets = renumberTargets.slice();
@@ -1151,7 +1163,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * ［開始値］の初期値を返します。いちばん小さい値のテキストをそのまま使うので、
      * 選択が英字なら英字、漢数字なら漢数字で始まります。
      *
-     * @param {Array<object>} renumberTargets - 振り直し対象。
+     * @param {Object[]} renumberTargets - 振り直し対象。
      * @returns {string} 初期値のテキスト。
      */
     function getInitialStartValue(renumberTargets) {
@@ -1168,7 +1180,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * app.undo() は「1回の addStep ＝ Undo 1段」が前提で、書き込みが起きなかったときに
      * 段数がずれてユーザーの操作まで取り消してしまうため、控えた文字列で戻します。
      *
-     * @param {Array<object>} renumberTargets - 振り直し対象。
+     * @param {Object[]} renumberTargets - 振り直し対象。
      * @returns {void}
      */
     function restoreOriginalContents(renumberTargets) {
@@ -1183,7 +1195,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
      * 数字のときは何もしません（changeValueByArrowKey() が処理します）。
      *
      * @param {EditText} editText - 対象の入力欄。
-     * @param {object} formatRadios - 書式のラジオ（紛らわしい表記の判断に使う）。
+     * @param {Object} formatRadios - 書式のラジオ（紛らわしい表記の判断に使う）。
      * @returns {void}
      */
     function changeSequenceValueByArrowKey(editText, formatRadios) {

@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md"; /* README (English) */
@@ -175,8 +175,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
      */
     function getLabel(labelNode) {
         if (!labelNode) return "";
-        var labelText = labelNode[uiLang] || labelNode.en || "";
-        return labelText.replace(/\{slash\}/g, "/");
+        var localizedText = labelNode[uiLang] || labelNode.en || "";
+        return localizedText.replace(/\{slash\}/g, "/");
     }
 
     /**
@@ -501,15 +501,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     loadButtonRow.alignment = ['center', 'top'];
     loadButtonRow.alignChildren = ['center', 'center'];
 
-    var loadButton = loadButtonRow.add('button', undefined, getLabel(LABELS.button.load));
-    var removeBlanksButton = loadButtonRow.add('button', undefined, getLabel(LABELS.button.removeBlanks));
-    var removeBreaksButton = loadButtonRow.add('button', undefined, getLabel(LABELS.button.removeBreaks));
-    loadButton.preferredSize = BUTTON_SIZE;
-    removeBlanksButton.preferredSize.height = BUTTON_HEIGHT; // 幅はラベルに合わせて自動 / Auto width to fit the label
-    removeBreaksButton.preferredSize.height = BUTTON_HEIGHT; // 幅はラベルに合わせて自動 / Auto width to fit the label
-    loadButton.helpTip = getLabel(LABELS.tooltip.load);
-    removeBlanksButton.helpTip = getLabel(LABELS.tooltip.removeBlanks);
-    removeBreaksButton.helpTip = getLabel(LABELS.tooltip.removeBreaks);
+    var btnLoad = loadButtonRow.add('button', undefined, getLabel(LABELS.button.load));
+    var btnRemoveBlanks = loadButtonRow.add('button', undefined, getLabel(LABELS.button.removeBlanks));
+    var btnRemoveBreaks = loadButtonRow.add('button', undefined, getLabel(LABELS.button.removeBreaks));
+    btnLoad.preferredSize = BUTTON_SIZE;
+    btnRemoveBlanks.preferredSize.height = BUTTON_HEIGHT; // 幅はラベルに合わせて自動 / Auto width to fit the label
+    btnRemoveBreaks.preferredSize.height = BUTTON_HEIGHT; // 幅はラベルに合わせて自動 / Auto width to fit the label
+    btnLoad.helpTip = getLabel(LABELS.tooltip.load);
+    btnRemoveBlanks.helpTip = getLabel(LABELS.tooltip.removeBlanks);
+    btnRemoveBreaks.helpTip = getLabel(LABELS.tooltip.removeBreaks);
 
     /* メモ入力テキストエリア / Memo text area */
     var memoTextArea = memoPalette.add('edittext', undefined, restoredMemoText, {
@@ -521,33 +521,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     memoTextArea.alignment = ['fill', 'fill']; // 上下リサイズ対応 / Resize vertically
 
     /* 保存・コピー・クリア行（テキスト欄の下、3カラム）/ Save / Copy / Clear row (below the text area, 3 columns) */
-    var bottomButtonRow = memoPalette.add('group');
-    bottomButtonRow.orientation = 'row';
-    bottomButtonRow.alignment = ['fill', 'top']; // 行を幅いっぱいに広げて左右に振り分ける / Span full width to push columns left & right
-    bottomButtonRow.alignChildren = ['fill', 'center'];
+    var btnRowGroup = memoPalette.add('group');
+    btnRowGroup.orientation = 'row';
+    btnRowGroup.alignment = ['fill', 'top']; // 行を幅いっぱいに広げて左右に振り分ける / Span full width to push columns left & right
+    btnRowGroup.alignChildren = ['fill', 'center'];
 
     /* 左カラム：保存・すべてをコピー / Left column: Save & Copy All */
-    var saveCopyGroup = bottomButtonRow.add('group');
-    saveCopyGroup.orientation = 'row';
-    saveCopyGroup.alignment = ['left', 'center'];
-    var saveButton = saveCopyGroup.add('button', undefined, getLabel(LABELS.button.save));
-    saveButton.preferredSize = BUTTON_SIZE;
-    saveButton.helpTip = getLabel(LABELS.tooltip.save);
-    var copyAllButton = saveCopyGroup.add('button', undefined, getLabel(LABELS.button.copyAll));
-    copyAllButton.preferredSize = WIDE_BUTTON_SIZE;
-    copyAllButton.helpTip = getLabel(LABELS.tooltip.copyAll);
+    var btnLeftGroup = btnRowGroup.add('group');
+    btnLeftGroup.orientation = 'row';
+    btnLeftGroup.alignment = ['left', 'center'];
+    var btnSave = btnLeftGroup.add('button', undefined, getLabel(LABELS.button.save));
+    btnSave.preferredSize = BUTTON_SIZE;
+    btnSave.helpTip = getLabel(LABELS.tooltip.save);
+    var btnCopyAll = btnLeftGroup.add('button', undefined, getLabel(LABELS.button.copyAll));
+    btnCopyAll.preferredSize = WIDE_BUTTON_SIZE;
+    btnCopyAll.helpTip = getLabel(LABELS.tooltip.copyAll);
 
     /* 中央カラム：スペーサー（余白を吸収して左右を振り分ける）/ Center column: spacer that absorbs slack */
-    var bottomSpacerGroup = bottomButtonRow.add('group');
-    bottomSpacerGroup.alignment = ['fill', 'center'];
+    var spacer = btnRowGroup.add('group');
+    spacer.alignment = ['fill', 'center'];
 
     /* 右カラム：クリア / Right column: Clear */
-    var clearButtonGroup = bottomButtonRow.add('group');
-    clearButtonGroup.orientation = 'row';
-    clearButtonGroup.alignment = ['right', 'center'];
-    var clearButton = clearButtonGroup.add('button', undefined, getLabel(LABELS.button.clear));
-    clearButton.preferredSize = BUTTON_SIZE;
-    clearButton.helpTip = getLabel(LABELS.tooltip.clear);
+    var btnRightGroup = btnRowGroup.add('group');
+    btnRightGroup.orientation = 'row';
+    btnRightGroup.alignment = ['right', 'center'];
+    var btnClear = btnRightGroup.add('button', undefined, getLabel(LABELS.button.clear));
+    btnClear.preferredSize = BUTTON_SIZE;
+    btnClear.helpTip = getLabel(LABELS.tooltip.clear);
 
     /* レイアウトとリサイズ / Layout and resize */
     memoPalette.layout.layout(true);
@@ -581,7 +581,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     // ボタンアクション / Button actions
     // =========================================
     /* 選択オブジェクト（無ければクリップボード）のテキストを読み込む / Load text from the selection, falling back to the clipboard */
-    loadButton.onClick = function () {
+    btnLoad.onClick = function () {
         fetchSelectedText(function (status, loadedText) {
             if (status === 'nosel' || status === 'nodoc') {
                 fetchClipboardText(function (clipboardStatus, clipboardText) {
@@ -610,7 +610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     };
 
     /* メモをテキストファイルへ保存（パレットは開いたまま）/ Save the memo to a text file (the palette stays open) */
-    saveButton.onClick = function () {
+    btnSave.onClick = function () {
         var saveFile = resolveSaveFile();
         if (!saveFile) return;
         if (!writeTextFile(saveFile, buildSaveContent(memoTextArea.text))) {
@@ -624,14 +624,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     };
 
     /* メモをクリアして再起動 / Clear the memo, then restart */
-    clearButton.onClick = function () {
+    btnClear.onClick = function () {
         $.global.__TextMemoContent = '';
         storePaletteBounds();
         restartScript();
     };
 
     /* すべてをコピー：テキスト欄の内容をクリップボードへ / Copy All: copy the memo to the clipboard */
-    copyAllButton.onClick = function () {
+    btnCopyAll.onClick = function () {
         if (!memoTextArea.text) return;
         copyTextToClipboard(memoTextArea.text, function (status) {
             if (status !== 'ok') alert(getLabel(LABELS.alert.copyFailed));
@@ -639,12 +639,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     };
 
     /* 空行削除：テキスト欄の空行を除去 / Remove Blanks: strip blank lines from the memo */
-    removeBlanksButton.onClick = function () {
+    btnRemoveBlanks.onClick = function () {
         setMemoText(removeBlankLines(memoTextArea.text));
     };
 
     /* 改行削除：テキスト欄の改行をすべて除去して1行にまとめる / Remove Breaks: strip all line breaks from the memo */
-    removeBreaksButton.onClick = function () {
+    btnRemoveBreaks.onClick = function () {
         setMemoText(removeLineBreaks(memoTextArea.text));
     };
 
@@ -684,10 +684,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     function updateButtonState() {
         var memoText = memoTextArea.text;
         var hasText = (memoText.length > 0);
-        clearButton.enabled = hasText;
-        copyAllButton.enabled = hasText;
-        removeBlanksButton.enabled = hasText && hasBlankLines(memoText); // 空行が無ければディム / Dim when there are no blank lines
-        removeBreaksButton.enabled = hasText && hasLineBreaks(memoText); // 改行が無ければディム / Dim when there are no line breaks
+        btnClear.enabled = hasText;
+        btnCopyAll.enabled = hasText;
+        btnRemoveBlanks.enabled = hasText && hasBlankLines(memoText); // 空行が無ければディム / Dim when there are no blank lines
+        btnRemoveBreaks.enabled = hasText && hasLineBreaks(memoText); // 改行が無ければディム / Dim when there are no line breaks
     }
 
     // =========================================

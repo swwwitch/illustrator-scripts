@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "SmartTextSplitter";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextSplitter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextSplitter.md"; /* README (English) */
@@ -163,7 +163,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * ダイアログを組み立てる（イベントは showSplitDialog() で結び付ける）
-     * @returns {object} ダイアログと各コントロール
+     * @returns {Object} ダイアログと各コントロール
      */
     function buildDialog() {
         var splitDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -210,8 +210,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * ダイアログの状態を分割の設定にまとめる
-     * @param {object} dialogControls - buildDialog() の戻り値
-     * @returns {object} 分割の設定（keepStyle / keepSpaces / convertToAreaText / mergeAreaText / groupMode）
+     * @param {Object} dialogControls - buildDialog() の戻り値
+     * @returns {Object} 分割の設定（keepStyle / keepSpaces / convertToAreaText / mergeAreaText / groupMode）
      */
     function readSplitOptions(dialogControls) {
         var convertToAreaText = !!dialogControls.convertToAreaTextCheckbox.value;
@@ -414,7 +414,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 作ったテキストフレームを後処理する（エリア内文字に変換・連結・グループ化）し、計算用アウトラインと元のフレームを消す
      * @param {TextFrame[]} createdFrames - 分割で作ったテキストフレーム
      * @param {TextFrame} sourceFrame - 分割元のテキストフレーム
-     * @param {object} [outlineInfo] - buildOutlineCharBounds() の戻り値（高精度分割のときだけ）
+     * @param {Object} [outlineInfo] - buildOutlineCharBounds() の戻り値（高精度分割のときだけ）
      * @returns {void}
      */
     function finishSplit(createdFrames, sourceFrame, outlineInfo) {
@@ -439,7 +439,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 高精度分割をやめて、作りかけのフレームと計算用アウトラインを片付け、幅の積算による分割に切り替える
      * @param {TextFrame[]} createdFrames - ここまでに作ったテキストフレーム
-     * @param {object} outlineInfo - buildOutlineCharBounds() の戻り値
+     * @param {Object} outlineInfo - buildOutlineCharBounds() の戻り値
      * @param {TextFrame} textFrame - 分割元のテキストフレーム
      * @returns {void}
      */
@@ -585,7 +585,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * アウトラインから1文字ずつの bounds を読み順で取り出す
      * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {{ok: boolean, outlinedRoot: GroupItem, boundsList: Array<number[]>}} 取り出した bounds（失敗時は ok: false）
+     * @returns {{ok: boolean, outlinedRoot: GroupItem, boundsList: number[][]}} 取り出した bounds（失敗時は ok: false）
      */
     function buildOutlineCharBounds(textFrame) {
         var outlinedGroup = createOutlineOfDuplicate(textFrame);
@@ -651,7 +651,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * オブジェクトの bounds と中心・高さをまとめる（bounds が読めないものは除く）
      * @param {PageItem[]} pageItems - 対象のオブジェクト
-     * @returns {Array<object>} it / L / T / R / B / cx / cy / h / idx を持つ配列
+     * @returns {Object[]} it / L / T / R / B / cx / cy / h / idx を持つ配列
      */
     function collectBoundsEntries(pageItems) {
         var boundsEntries = [];
@@ -673,8 +673,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * bounds のまとまりを Y 方向でクラスタリングし、上→下の行に分ける
-     * @param {Array<object>} boundsEntries - collectBoundsEntries() の戻り値
-     * @returns {Array<{cy: number, items: Array<object>}>} 上→下に並べた行（行内は未整列）
+     * @param {Object[]} boundsEntries - collectBoundsEntries() の戻り値
+     * @returns {{cy: number, items: Object[]}[]} 上→下に並べた行（行内は未整列）
      */
     function clusterEntriesIntoRows(boundsEntries) {
         var rowThreshold = estimateRowThreshold(boundsEntries);
@@ -755,7 +755,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 行分けのしきい値を、高さの中央値の 0.6 倍（最小 2）として求める
-     * @param {Array<object>} boundsEntries - collectBoundsEntries() の戻り値
+     * @param {Object[]} boundsEntries - collectBoundsEntries() の戻り値
      * @returns {number} しきい値（pt）
      */
     function estimateRowThreshold(boundsEntries) {
@@ -775,7 +775,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * テキストフレームを読み順の行に分ける
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
-     * @returns {Array<TextFrame[]>} 上→下の行ごとに、左→右に並べたテキストフレーム
+     * @returns {TextFrame[][]} 上→下の行ごとに、左→右に並べたテキストフレーム
      */
     function framesToRowsInReadingOrder(textFrames) {
         var boundsEntries = collectBoundsEntries(textFrames);
@@ -815,7 +815,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {boolean} スペースなら true
      */
     function isSpaceChar(characterText) {
-        return (characterText === " " || characterText === "　"); // 半角/全角スペース
+        return (characterText === " " || characterText === "\u3000"); // 半角/全角スペース
     }
 
     /**
@@ -828,10 +828,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (characterText === "\r" || characterText === "\n") return true;
 
         // 「スペースを残す」ONのときは半角/全角スペースは無視しない
-        if (splitOptions.keepSpaces && (characterText === " " || characterText === "　")) return false;
+        if (splitOptions.keepSpaces && (characterText === " " || characterText === "\u3000")) return false;
 
         // 既定（OFF）: 半角/全角スペース/タブを無視
-        return (characterText === " " || characterText === "\t" || characterText === "　");
+        return (characterText === " " || characterText === "\t" || characterText === "\u3000");
     }
 
     // =========================================
@@ -840,7 +840,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 計算用アウトラインを削除する
-     * @param {object|null} outlineInfo - buildOutlineCharBounds() の戻り値
+     * @param {Object|null} outlineInfo - buildOutlineCharBounds() の戻り値
      * @returns {void}
      */
     function removeOutlineInfo(outlineInfo) {
@@ -950,7 +950,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 文字の属性を控える（フォールバック分割で新しいフレームに書き戻す用）
      * @param {TextRange} sourceCharacter - 対象の文字
-     * @returns {object} 文字属性のスナップショット（塗り・線がなしのときは null）
+     * @returns {Object} 文字属性のスナップショット（塗り・線がなしのときは null）
      */
     function snapshotCharacterAttributes(sourceCharacter) {
         var sourceAttributes = sourceCharacter.characterAttributes;
@@ -1084,7 +1084,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 控えた文字属性をテキストフレームに書き戻す
      * @param {TextFrame} textFrame - 書き戻し先
-     * @param {object} attributeSnapshot - 文字属性（省略した比率・トラッキングなどは既定値）
+     * @param {Object} attributeSnapshot - 文字属性（省略した比率・トラッキングなどは既定値）
      * @returns {void}
      */
     function applyAttributes(textFrame, attributeSnapshot) {

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md"; /* README (English) */
@@ -1098,9 +1098,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         for (var j = 0; j < midpoints.length; j++) {
             var diagonalLine = extendPointAtAngle(midpoints[j], angleRad, left, top, right, bottom);
             if (!diagonalLine) continue;
-            var key = makeDiagonalLineKey(diagonalLine);
-            if (usedKeys[key]) continue;
-            usedKeys[key] = true;
+            var lineKey = makeDiagonalLineKey(diagonalLine);
+            if (usedKeys[lineKey]) continue;
+            usedKeys[lineKey] = true;
             diagonalLines.push(diagonalLine);
         }
         return diagonalLines;
@@ -1402,10 +1402,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {Checkbox} 追加したチェックボックス。
      */
     function addCheckbox(parentGroup, labelSet, tooltipSet, initialValue) {
-        var checkbox = parentGroup.add("checkbox", undefined, getLabel(labelSet));
-        checkbox.value = initialValue;
-        checkbox.helpTip = getLabel(tooltipSet);
-        return checkbox;
+        var newCheckbox = parentGroup.add("checkbox", undefined, getLabel(labelSet));
+        newCheckbox.value = initialValue;
+        newCheckbox.helpTip = getLabel(tooltipSet);
+        return newCheckbox;
     }
 
     /**
@@ -1417,9 +1417,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {RadioButton} 追加したラジオボタン。
      */
     function addRadio(parentGroup, labelSet, tooltipSet) {
-        var radio = parentGroup.add("radiobutton", undefined, getLabel(labelSet));
-        radio.helpTip = getLabel(tooltipSet);
-        return radio;
+        var newRadio = parentGroup.add("radiobutton", undefined, getLabel(labelSet));
+        newRadio.helpTip = getLabel(tooltipSet);
+        return newRadio;
     }
 
     /**

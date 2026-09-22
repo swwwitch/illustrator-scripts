@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md"; /* README (English) */
@@ -140,7 +140,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
     /**
      * ラベル定義から現在の言語の文言を取り出す
-     * @param {object} labelSet - { ja: string, en: string } 形式のラベル定義
+     * @param {Object} labelSet - { ja: string, en: string } 形式のラベル定義
      * @returns {string} 現在の言語の文言
      */
     function getLabel(labelSet) {
@@ -149,11 +149,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
 
     /**
      * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {object} labelSet - ラベル定義
+     * @param {Object} labelSet - ラベル定義
      * @returns {string} コロンを付けた項目名
      */
     function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ");
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -927,7 +927,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     /**
      * 行の左端に置く項目名を作る
      * @param {Group} targetRow - 追加先の行
-     * @param {object} labelSet - 項目名のラベル定義
+     * @param {Object} labelSet - 項目名のラベル定義
      * @returns {StaticText} 作成した項目名
      */
     function addRowLabel(targetRow, labelSet) {
@@ -952,10 +952,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     /**
      * 「項目名＋入力欄」の行を作る
      * @param {Group} parentGroup - 追加先のグループ
-     * @param {object} labelSet - 項目名のラベル定義
+     * @param {Object} labelSet - 項目名のラベル定義
      * @param {string} initialValue - 入力欄の初期値
      * @param {number} fieldChars - 入力欄の文字数
-     * @param {object} tooltipSet - 入力欄のツールチップ定義
+     * @param {Object} tooltipSet - 入力欄のツールチップ定義
      * @returns {{fieldRow: Group, fieldInput: EditText}} 作成した行と入力欄
      */
     function addFieldRow(parentGroup, labelSet, initialValue, fieldChars, tooltipSet) {
@@ -971,8 +971,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     /**
      * チェックボックス1つの行を作る
      * @param {Group} parentGroup - 追加先のグループ
-     * @param {object} labelSet - チェックボックスのラベル定義
-     * @param {object} tooltipSet - ツールチップ定義
+     * @param {Object} labelSet - チェックボックスのラベル定義
+     * @param {Object} tooltipSet - ツールチップ定義
      * @returns {{checkboxRow: Group, checkbox: Checkbox}} 作成した行とチェックボックス
      */
     function addCheckboxRow(parentGroup, labelSet, tooltipSet) {
@@ -1025,10 +1025,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹�
     }
 
     /* 開始値 / Start value */
-    var startRow = addCheckboxRow(settingsGroup, LABELS.checkbox.startOverride, LABELS.tooltip.startOverride);
-    var startOverrideCheckbox = startRow.checkbox;
+    var startOverrideRow = addCheckboxRow(settingsGroup, LABELS.checkbox.startOverride, LABELS.tooltip.startOverride);
+    var startOverrideCheckbox = startOverrideRow.checkbox;
 
-    var startValueInput = startRow.checkboxRow.add("edittext", undefined, String(sourceTokens[targetTokenIndex]));
+    var startValueInput = startOverrideRow.checkboxRow.add("edittext", undefined, String(sourceTokens[targetTokenIndex]));
     startValueInput.characters = START_FIELD_CHARS;
     startValueInput.helpTip = getLabel(LABELS.tooltip.startValue);
     startValueInput.enabled = false;

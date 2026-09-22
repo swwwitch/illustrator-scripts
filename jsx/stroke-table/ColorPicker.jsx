@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "ColorPicker";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPicker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicker.md"; /* README (English) */
@@ -60,6 +60,22 @@ CMYK -> "cmyk:C,M,Y,K"
 */
 
 var ColorPicker = (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* スウォッチ行に並べる色（RRGGBB） / Colors shown in the swatch row (RRGGBB) */
+    var DEFAULT_SWATCHES = [
+        "FF0000", "FFCC00", "FFFF00",
+        "00CC00", "0066FF",
+        "FF99CC", "996633", "666666",
+        "999999"
+    ];
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
     /* 前回閉じたときのダイアログ位置（同じセッション内で再利用） / Dialog location from the last close */
     var lastDialogLocation = null;
@@ -112,12 +128,9 @@ var ColorPicker = (function () {
         return labelNode[uiLang] || labelNode.en;
     }
 
-    var DEFAULT_SWATCHES = [
-        "FF0000", "FFCC00", "FFFF00",
-        "00CC00", "0066FF",
-        "FF99CC", "996633", "666666",
-        "999999"
-    ];
+    // =========================================
+    // 色の変換 / Color conversion
+    // =========================================
 
     /**
      * CMYK の色文字列（"cmyk:C,M,Y,K"）かどうかを返す
@@ -163,6 +176,11 @@ var ColorPicker = (function () {
      * @returns {string} 16進数の色文字列
      */
     function rgbToHex(r, g, b) {
+        /**
+         * 0〜255 の値を2桁の16進数にする
+         * @param {number} channelValue - 成分の値
+         * @returns {string} 2桁の16進数（大文字）
+         */
         function toHexByte(channelValue) {
             var hexText = Math.round(channelValue).toString(16).toUpperCase();
             return hexText.length < 2 ? "0" + hexText : hexText;
@@ -248,6 +266,10 @@ var ColorPicker = (function () {
         return clampedValue;
     }
 
+    // =========================================
+    // ピッカーの状態 / Picker state
+    // =========================================
+
     /**
      * 初期値の色文字列からピッカーの状態を作る
      * @param {string} initialValue - "RRGGBB" または "cmyk:C,M,Y,K"
@@ -255,9 +277,9 @@ var ColorPicker = (function () {
      */
     function createInitialState(initialValue) {
         var state = {
-            preset: "custom",   // white | black | custom
-            mode: "rgb",        // rgb | cmyk | gray
-            dialogTab: "rgb",   // rgb | cmyk
+            preset: "custom",   /* white | black | custom */
+            mode: "rgb",        /* rgb | cmyk | gray */
+            dialogTab: "rgb",   /* rgb | cmyk */
             rgb: { r: 0, g: 0, b: 0 },
             cmyk: { c: 0, m: 0, y: 0, k: 0 },
             original: { r: 0, g: 0, b: 0 }
@@ -339,6 +361,10 @@ var ColorPicker = (function () {
         }
         return rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b);
     }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
     /**
      * コントロール全体を RGB の色で塗る（onDraw の中で呼ぶ）
@@ -462,12 +488,12 @@ var ColorPicker = (function () {
         presetRow.orientation = "row";
         presetRow.alignment = ["center", "top"];
         presetRow.alignChildren = ["left", "center"];
-        var rbWhite = presetRow.add("radiobutton", undefined, getLabel("radio.white"));
-        rbWhite.helpTip = getLabel("tooltip.preset");
-        var rbBlack = presetRow.add("radiobutton", undefined, getLabel("radio.black"));
-        rbBlack.helpTip = getLabel("tooltip.preset");
-        var rbCustom = presetRow.add("radiobutton", undefined, getLabel("radio.custom"));
-        rbCustom.helpTip = getLabel("tooltip.preset");
+        var whiteRadio = presetRow.add("radiobutton", undefined, getLabel("radio.white"));
+        whiteRadio.helpTip = getLabel("tooltip.preset");
+        var blackRadio = presetRow.add("radiobutton", undefined, getLabel("radio.black"));
+        blackRadio.helpTip = getLabel("tooltip.preset");
+        var customRadio = presetRow.add("radiobutton", undefined, getLabel("radio.custom"));
+        customRadio.helpTip = getLabel("tooltip.preset");
 
         var swatchItems = addSwatchRow(pickerDialog);
 
@@ -486,7 +512,7 @@ var ColorPicker = (function () {
         var greenRow = addChannelRow(tabRGB, "G", state.rgb.g, 255);
         var blueRow = addChannelRow(tabRGB, "B", state.rgb.b, 255);
 
-        tabRGB.add("panel").preferredSize.height = 10; // spacer
+        tabRGB.add("panel").preferredSize.height = 10; /* 区切り線 / divider */
 
         var hexRow = tabRGB.add("group");
         hexRow.orientation = "row";
@@ -495,28 +521,28 @@ var ColorPicker = (function () {
         hexInput.helpTip = getLabel("tooltip.hex");
         hexInput.characters = 6;
 
-        var cbGray = tabCMYK.add("checkbox", undefined, getLabel("checkbox.gray"));
-        cbGray.helpTip = getLabel("tooltip.gray");
+        var grayCheckbox = tabCMYK.add("checkbox", undefined, getLabel("checkbox.gray"));
+        grayCheckbox.helpTip = getLabel("tooltip.gray");
         var cyanRow = addChannelRow(tabCMYK, "C", state.cmyk.c, 100);
         var magentaRow = addChannelRow(tabCMYK, "M", state.cmyk.m, 100);
         var yellowRow = addChannelRow(tabCMYK, "Y", state.cmyk.y, 100);
         var blackRow = addChannelRow(tabCMYK, "K", state.cmyk.k, 100);
 
-        var buttonRow = pickerDialog.add("group");
-        buttonRow.alignment = ["center", "center"];
-        buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        buttonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var btnRowGroup = pickerDialog.add("group");
+        btnRowGroup.alignment = ["center", "center"];
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         return {
             dialog: pickerDialog,
             previewAfter: previewAfter,
-            rbWhite: rbWhite,
-            rbBlack: rbBlack,
-            rbCustom: rbCustom,
+            whiteRadio: whiteRadio,
+            blackRadio: blackRadio,
+            customRadio: customRadio,
             colorTabs: colorTabs,
             tabRGB: tabRGB,
             tabCMYK: tabCMYK,
-            cbGray: cbGray,
+            grayCheckbox: grayCheckbox,
             redRow: redRow,
             greenRow: greenRow,
             blueRow: blueRow,
@@ -551,9 +577,9 @@ var ColorPicker = (function () {
         renderOptions = renderOptions || {};
         var suppressTabSelection = !!renderOptions.suppressTabSelection;
 
-        pickerControls.rbWhite.value = (state.preset === "white");
-        pickerControls.rbBlack.value = (state.preset === "black");
-        pickerControls.rbCustom.value = (state.preset === "custom");
+        pickerControls.whiteRadio.value = (state.preset === "white");
+        pickerControls.blackRadio.value = (state.preset === "black");
+        pickerControls.customRadio.value = (state.preset === "custom");
 
         if (!suppressTabSelection) {
             var targetTab = (state.dialogTab === "cmyk") ? pickerControls.tabCMYK : pickerControls.tabRGB;
@@ -565,7 +591,7 @@ var ColorPicker = (function () {
             } catch (eTab) {}
         }
 
-        pickerControls.cbGray.value = (state.mode === "gray");
+        pickerControls.grayCheckbox.value = (state.mode === "gray");
 
         setChannelRowValue(pickerControls.redRow, state.rgb.r);
         setChannelRowValue(pickerControls.greenRow, state.rgb.g);
@@ -597,6 +623,11 @@ var ColorPicker = (function () {
     function bindPickerEvents(state, pickerControls) {
         var isRendering = false;
 
+        /**
+         * 表示を更新する（更新中に呼ばれた onChange などからの再入は無視する）
+         * @param {Object} [renderOptions] - renderPickerState() に渡すオプション
+         * @returns {void}
+         */
         function safeRender(renderOptions) {
             if (isRendering) return;
             isRendering = true;
@@ -607,6 +638,11 @@ var ColorPicker = (function () {
             }
         }
 
+        /**
+         * ホワイト／ブラック／カスタムを切り替え、色の値をそろえる
+         * @param {string} nextPreset - "white" / "black" / "custom"
+         * @returns {void}
+         */
         function applyPreset(nextPreset) {
             state.preset = nextPreset;
 
@@ -629,6 +665,13 @@ var ColorPicker = (function () {
             }
         }
 
+        /**
+         * RGB の値を設定し、CMYK も計算し直して「カスタム」の RGB 指定にする
+         * @param {number} r - レッド（0〜255）
+         * @param {number} g - グリーン（0〜255）
+         * @param {number} b - ブルー（0〜255）
+         * @returns {void}
+         */
         function setRgb(r, g, b) {
             state.rgb.r = Math.round(clamp(r, 0, 255));
             state.rgb.g = Math.round(clamp(g, 0, 255));
@@ -639,6 +682,15 @@ var ColorPicker = (function () {
             state.preset = "custom";
         }
 
+        /**
+         * CMYK の値を設定し、RGB も計算し直して「カスタム」の CMYK 指定にする
+         * @param {number} c - シアン（0〜100）
+         * @param {number} m - マゼンタ（0〜100）
+         * @param {number} y - イエロー（0〜100）
+         * @param {number} k - ブラック（0〜100）
+         * @param {boolean} keepGray - グレー（K のみ）のままにするなら true
+         * @returns {void}
+         */
         function setCmyk(c, m, y, k, keepGray) {
             state.cmyk.c = Math.round(clamp(c, 0, 100));
             state.cmyk.m = Math.round(clamp(m, 0, 100));
@@ -650,16 +702,30 @@ var ColorPicker = (function () {
             state.preset = "custom";
         }
 
+        /**
+         * RGB のスライダーの値を状態に入れる
+         * @returns {void}
+         */
         function applyRgbSliders() {
             setRgb(pickerControls.redRow.slider.value, pickerControls.greenRow.slider.value, pickerControls.blueRow.slider.value);
         }
 
+        /**
+         * CMYK のスライダーの値を状態に入れる
+         * @returns {void}
+         */
         function applyCmykSliders() {
             setCmyk(pickerControls.cyanRow.slider.value, pickerControls.magentaRow.slider.value,
-                pickerControls.yellowRow.slider.value, pickerControls.blackRow.slider.value, pickerControls.cbGray.value);
+                pickerControls.yellowRow.slider.value, pickerControls.blackRow.slider.value, pickerControls.grayCheckbox.value);
         }
 
-        /* スライダーと数値欄を連動させ、変更のたびに状態を更新する / link slider and field, then update the state */
+        /**
+         * スライダーと数値欄を連動させ、変更のたびに状態を更新する
+         * @param {Object} channelRow - addChannelRow() の戻り値
+         * @param {number} maxValue - 上限値
+         * @param {Function} applyChannelValues - スライダーの値を状態に入れる関数
+         * @returns {void}
+         */
         function bindChannelRow(channelRow, maxValue, applyChannelValues) {
             channelRow.slider.onChanging = function () {
                 channelRow.valueInput.text = String(Math.round(channelRow.slider.value));
@@ -692,17 +758,17 @@ var ColorPicker = (function () {
             safeRender();
         };
 
-        pickerControls.rbWhite.onClick = function () {
+        pickerControls.whiteRadio.onClick = function () {
             applyPreset("white");
             safeRender();
         };
 
-        pickerControls.rbBlack.onClick = function () {
+        pickerControls.blackRadio.onClick = function () {
             applyPreset("black");
             safeRender();
         };
 
-        pickerControls.rbCustom.onClick = function () {
+        pickerControls.customRadio.onClick = function () {
             applyPreset("custom");
             safeRender();
         };
@@ -715,7 +781,7 @@ var ColorPicker = (function () {
                 state.mode = "rgb";
             } else {
                 syncCmykFromRgb(state);
-                state.mode = pickerControls.cbGray.value ? "gray" : "cmyk";
+                state.mode = pickerControls.grayCheckbox.value ? "gray" : "cmyk";
             }
             safeRender({ suppressTabSelection: true });
         };
@@ -730,8 +796,8 @@ var ColorPicker = (function () {
             })(pickerControls.swatchItems[k]);
         }
 
-        pickerControls.cbGray.onClick = function () {
-            if (pickerControls.cbGray.value) {
+        pickerControls.grayCheckbox.onClick = function () {
+            if (pickerControls.grayCheckbox.value) {
                 state.cmyk.c = 0;
                 state.cmyk.m = 0;
                 state.cmyk.y = 0;
@@ -745,6 +811,10 @@ var ColorPicker = (function () {
             safeRender();
         };
     }
+
+    // =========================================
+    // 公開 API / Public API
+    // =========================================
 
     /**
      * カラーピッカーを開き、選ばれた色を返す

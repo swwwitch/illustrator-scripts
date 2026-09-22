@@ -301,7 +301,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
      * 元の選択を「貼り付いたもの」と誤認して削除しないため。
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} originalSelection - 復元する元の選択
-     * @returns {{bounds: Array<number>, contents: string}|null} 読み取り結果。テキストが無い、または失敗した場合は null
+     * @returns {{bounds: number[], contents: string}|null} 読み取り結果。テキストが無い、または失敗した場合は null
      */
     function readClipboardTextFrame(doc, originalSelection) {
         var clipboardInfo = null;

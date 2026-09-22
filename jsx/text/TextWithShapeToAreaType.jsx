@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "TextWithShapeToAreaType";      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextWithShapeToAreaType.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextWithShapeToAreaType.md"; /* README (English) */
@@ -64,16 +64,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * パネルの共通設定を適用する
-     * @param {Panel} panel - 対象のパネル
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -115,7 +115,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         button: {
             load: { ja: "読み込み", en: "Load" },
             reload: { ja: "再読み込み", en: "Reload" },
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
         tooltip: {
             load: {
@@ -217,10 +218,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 関数を実行し、例外は握りつぶす
-     * @param {Function} fn - 実行する関数
+     * @param {Function} domAction - 実行する関数（DOM の読み書き）
      * @returns {*} 関数の戻り値。失敗したら undefined
      */
-    function tryQuietly(fn) { try { return fn(); } catch (e) { return undefined; } }
+    function tryQuietly(domAction) { try { return domAction(); } catch (e) { return undefined; } }
 
     /**
      * パス上文字の文字ごとの属性を退避する
@@ -1380,7 +1381,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnRowGroup = optionsDialog.add("group");
         btnRowGroup.alignment = "right";
         var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         styleControls.refresh();
 

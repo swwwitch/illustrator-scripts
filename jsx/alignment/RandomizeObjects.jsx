@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "RandomizeObjects";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeObjects.md"; /* README (English) */
@@ -224,20 +224,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
                 en: "Moves each object up or down by a random amount up to this value."
             },
             distanceLink: { ja: "横と同じ値を縦にも使います。", en: "Uses the horizontal value for the vertical one too." },
-            gatherCenter: { ja: "選択範囲の中心へオブジェクトを寄せ集めます。", en: "Pulls the objects together toward the centre of the selection." },
+            gatherCenter: {
+                ja: "選択範囲の中心へオブジェクトを寄せ集めます。",
+                en: "Pulls the objects together toward the centre of the selection."
+            },
             avoidOverlap: {
                 ja: "オブジェクトどうしが重ならない位置へ散らします。十分な余白がないと完全には解消できません。",
                 en: "Spreads the objects so they no longer overlap. Without enough room some overlaps may remain."
             },
             colorNone: { ja: "塗りカラーは変更しません。", en: "Leaves the fill colors alone." },
-            colorShuffle: { ja: "選択内にある塗りカラーどうしを入れ替えます。", en: "Swaps the existing fill colors among the selected objects." },
+            colorShuffle: {
+                ja: "選択内にある塗りカラーどうしを入れ替えます。",
+                en: "Swaps the existing fill colors among the selected objects."
+            },
             colorFullShuffle: {
                 ja: "塗りカラーを入れ替えたうえで、同じ色が隣り合わないように並べ替えます。",
                 en: "Swaps the fill colors and avoids leaving the same color side by side."
             },
             scaleWidth: { ja: "指定した％の範囲で幅をランダムに変えます。", en: "Varies the width randomly within this percentage." },
             scaleHeight: { ja: "指定した％の範囲で高さをランダムに変えます。", en: "Varies the height randomly within this percentage." },
-            scaleLink: { ja: "幅と同じ値を高さにも使い、縦横比を保ちます。", en: "Uses the width value for the height too, keeping the aspect ratio." },
+            scaleLink: {
+                ja: "幅と同じ値を高さにも使い、縦横比を保ちます。",
+                en: "Uses the width value for the height too, keeping the aspect ratio."
+            },
             rotate: { ja: "指定した角度の範囲でランダムに回転します。", en: "Rotates each object randomly within this angle." },
             opacity: { ja: "指定した％の範囲で不透明度をランダムに変えます。", en: "Varies the opacity randomly within this percentage." },
             random: {
@@ -741,20 +750,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
 
     /**
      * 塗りカラーを読み書きできる対象を返す（グループは中を再帰的に探す）
-     * @param {object} item - 対象のオブジェクト
+     * @param {PageItem} pageItem - 対象のオブジェクト
      * @returns {object} 塗りカラーを持つオブジェクト（見つからなければ null）
      */
-    function getFillTarget(item) {
-        if (!item) return null;
+    function getFillTarget(pageItem) {
+        if (!pageItem) return null;
 
         try {
-            if (item.typename === "PathItem" || item.typename === "TextFrame") return item;
-            if (item.typename === "CompoundPathItem") {
-                return (item.pathItems && item.pathItems.length > 0) ? item.pathItems[0] : null;
+            if (pageItem.typename === "PathItem" || pageItem.typename === "TextFrame") return pageItem;
+            if (pageItem.typename === "CompoundPathItem") {
+                return (pageItem.pathItems && pageItem.pathItems.length > 0) ? pageItem.pathItems[0] : null;
             }
-            if (item.typename === "GroupItem" && item.pageItems) {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    var fillTarget = getFillTarget(item.pageItems[i]);
+            if (pageItem.typename === "GroupItem" && pageItem.pageItems) {
+                for (var i = 0; i < pageItem.pageItems.length; i++) {
+                    var fillTarget = getFillTarget(pageItem.pageItems[i]);
                     if (fillTarget) return fillTarget;
                 }
             }
@@ -1327,30 +1336,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @returns {object} ボタン一式
      */
     function buildButtonBar(dialogWindow) {
-        var buttonBar = dialogWindow.add("group");
-        buttonBar.orientation = "row";
-        buttonBar.alignment = ["fill", "bottom"];
-        buttonBar.alignChildren = ["left", "center"];
-        buttonBar.margins = BUTTON_BAR_MARGINS;
+        var btnRowGroup = dialogWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.alignChildren = ["left", "center"];
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
 
-        var randomizeGroup = buttonBar.add("group");
-        setupRow(randomizeGroup, "left");
-        var randomButton = randomizeGroup.add("button", undefined, getLabel("button.random"));
-        randomButton.helpTip = getLabel("tooltip.random");
-        var resetButton = randomizeGroup.add("button", undefined, getLabel("button.reset"));
-        resetButton.helpTip = getLabel("tooltip.reset");
+        var btnLeftGroup = btnRowGroup.add("group");
+        setupRow(btnLeftGroup, "left");
+        var btnRandom = btnLeftGroup.add("button", undefined, getLabel("button.random"));
+        btnRandom.helpTip = getLabel("tooltip.random");
+        var btnReset = btnLeftGroup.add("button", undefined, getLabel("button.reset"));
+        btnReset.helpTip = getLabel("tooltip.reset");
 
         /* 左右のボタン群を両端へ寄せるスペーサー / Spacer that pushes the two groups apart */
-        var flexibleSpacer = buttonBar.add("group");
-        flexibleSpacer.alignment = ["fill", "fill"];
-        flexibleSpacer.minimumSize.width = 0;
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        var commitGroup = buttonBar.add("group");
-        setupRow(commitGroup, "right");
-        var cancelButton = commitGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = commitGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var btnRightGroup = btnRowGroup.add("group");
+        setupRow(btnRightGroup, "right");
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        return { randomButton: randomButton, resetButton: resetButton, cancelButton: cancelButton, okButton: okButton };
+        return { btnRandom: btnRandom, btnReset: btnReset, btnCancel: btnCancel, btnOK: btnOK };
     }
 
     // =========================================
@@ -1565,13 +1574,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             app.redraw();
         });
 
-        dialogButtons.randomButton.onClick = createGuardedHandler("alert.randomError", function () {
+        dialogButtons.btnRandom.onClick = createGuardedHandler("alert.randomError", function () {
             applyCheckboxStates(dialogControls);
             applySelectedColorMode(dialogControls, session.doc);
             runPreview();
         });
 
-        dialogButtons.resetButton.onClick = createGuardedHandler("alert.resetError", function () {
+        dialogButtons.btnReset.onClick = createGuardedHandler("alert.resetError", function () {
             restoreToInitialStates(session);
             /* ［中央に集める］などで動いた基準も起動時の状態へ戻す / Rebuild the preview base as well */
             session.baseStates = cloneItemStates(session.initialStates);
@@ -1629,8 +1638,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             return true;
         };
 
-        dialogButtons.cancelButton.onClick = function () { closeDialog(true); };
-        dialogButtons.okButton.onClick = function () { closeDialog(false); };
+        dialogButtons.btnCancel.onClick = function () { closeDialog(true); };
+        dialogButtons.btnOK.onClick = function () { closeDialog(false); };
     }
 
     /**

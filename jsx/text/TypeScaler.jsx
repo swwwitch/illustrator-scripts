@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "TypeScaler";                   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler.md"; /* README (English) */
@@ -45,7 +45,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var FALLBACK_RATIO = 1.25;             /* 倍率が選ばれていないときの倍率 / ratio used when none is selected */
     var SAMPLE_START_POSITION = [20, -20]; /* 見本の1行目の位置 [left, top] / position of the first sample line */
     var SAMPLE_LINE_GAP = 20;              /* 見本の行ごとにサイズへ足す間隔 / gap added below each sample line */
-    var DIALOG_OPACITY = 0.97;             /* ダイアログの透明度 / dialog opacity */
 
     /* 倍率の候補 / Ratio choices */
     var TYPE_SCALE_RATIOS = [
@@ -67,6 +66,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var SIZE_FIELD_CHARS = 4;              /* 基準サイズ欄の文字数 / base size field width */
     var SAMPLE_FIELD_CHARS = 20;           /* 見本の文字列欄の文字数 / sample text field width */
     var SIZE_LIST_SIZE = [85, 136];        /* サイズ一覧の大きさ / size list size */
+    var DIALOG_OPACITY = 0.97;             /* ダイアログの不透明度 / dialog opacity */
 
     // =========================================
     // セッション / Session

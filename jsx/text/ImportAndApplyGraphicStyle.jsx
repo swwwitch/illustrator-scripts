@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "ImportAndApplyGraphicStyle";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportAndApplyGraphicStyle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportAndApplyGraphicStyle.md"; /* README (English) */
@@ -40,12 +40,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     // =========================================
-    // ユーザー設定 / User settings
+    // ユーザー設定 / User Settings
     // =========================================
 
     /* 大きさ調整「する」の既定倍率（幅・高さ）/ Default size-adjustment ratios (width, height) */
-    var BUTTON_WIDTH_RATIO = 1.2;   // 元の幅に対する倍率 / Ratio of original width
-    var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
+    var BUTTON_WIDTH_RATIO = 1.2;   /* 元の幅に対する倍率 / Ratio of original width */
+    var BUTTON_HEIGHT_RATIO = 1.6;  /* 元の高さに対する倍率 / Ratio of original height */
 
     // =========================================
     // レイアウト / Layout
@@ -1164,12 +1164,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var areaTypeOptionPanel = paletteWindow.add("panel", undefined, getLabel("panel.areaTypeOption"));
         setupPanel(areaTypeOptionPanel, INNER_PANEL_SPACING);
 
-        // マスターチェック：オンのときだけ他パーツを有効化 / Master checkbox: enables the other parts only when checked
+        /* マスターチェック：オンのときだけ他パーツを有効化 / Master checkbox: enables the other parts only when checked */
         var convertCheckbox = areaTypeOptionPanel.add("checkbox", undefined, getLabel("checkbox.convertToAreaType"));
         convertCheckbox.helpTip = getLabel("tooltip.convertToAreaType");
-        convertCheckbox.value = false; // 既定はオフ / Default: off
+        convertCheckbox.value = false; /* 既定はオフ / Default: off */
 
-        // サイズ：調整する / 調整しない / Size: adjust / don't adjust
+        /* サイズ：調整する / 調整しない / Size: adjust / don't adjust */
         var adjustModeGroup = areaTypeOptionPanel.add("group");
         var sizeLabel = adjustModeGroup.add("statictext", undefined, labelText("fieldLabel.size"));
         sizeLabel.preferredSize.width = SIZE_LABEL_WIDTH;
@@ -1177,20 +1177,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         adjustOnRadio.helpTip = getLabel("tooltip.doAdjust");
         var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("radio.dontAdjust"));
         adjustOffRadio.helpTip = getLabel("tooltip.dontAdjust");
-        adjustOffRadio.value = true; // 既定は「しない」/ Default: off
+        adjustOffRadio.value = true; /* 既定は「しない」/ Default: off */
 
-        // 幅・高さの倍率（1行に横並び、百分率 % で入力）/ Width and height ratios (one row, entered as %)
+        /* 幅・高さの倍率（1行に横並び、百分率 % で入力）/ Width and height ratios (one row, entered as %) */
         var ratioRow = areaTypeOptionPanel.add("group");
         var widthInput = addRatioField(ratioRow, "widthRatio", BUTTON_WIDTH_RATIO);
         var heightInput = addRatioField(ratioRow, "heightRatio", BUTTON_HEIGHT_RATIO);
 
-        // 変換ボタン（このパネル内・主アクション）。パネル幅いっぱいに広げず右寄せ・自然幅に
-        // onClick は各パネル構築後に割り当て
-        // Convert button (primary action, inside this panel); right-aligned at its natural width (not full width)
-        // onClick is assigned after all panels are built
+        /* 変換ボタン（このパネル内・主アクション）。パネル幅いっぱいに広げず右寄せ・自然幅に
+           onClick は各パネル構築後に割り当て
+           Convert button (primary action, inside this panel); right-aligned at its natural width (not full width)
+           onClick is assigned after all panels are built */
         var convertButton = areaTypeOptionPanel.add("button", undefined, getLabel("button.runConvert"), { name: "ok" });
         convertButton.helpTip = getLabel("tooltip.runConvert");
-        convertButton.alignment = ["right", "center"]; // 親の fill を上書きして広げない / Override the panel's fill so it doesn't stretch
+        convertButton.alignment = ["right", "center"]; /* 親の fill を上書きして広げない / Override the panel's fill so it doesn't stretch */
 
         /**
          * マスターのチェックと「する／しない」に合わせて各項目の有効・無効を切り替える
@@ -1198,10 +1198,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function updateAreaTypeOptionEnabled() {
             var convertOn = convertCheckbox.value;
-            // マスターがオフなら する/しない ラジオごとディム / Dim the on/off radios when the master is off
+            /* マスターがオフなら する/しない ラジオごとディム / Dim the on/off radios when the master is off */
             adjustOnRadio.enabled = convertOn;
             adjustOffRadio.enabled = convertOn;
-            // 幅・高さはマスターオン かつ「する」のときのみ / Width/height only when the master is on and "On" is chosen
+            /* 幅・高さはマスターオン かつ「する」のときのみ / Width/height only when the master is on and "On" is chosen */
             widthInput.enabled = convertOn && adjustOnRadio.value;
             heightInput.enabled = convertOn && adjustOnRadio.value;
         }
@@ -1245,34 +1245,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var stylePanel = paletteWindow.add("panel", undefined, getLabel("panel.graphicStyle"));
         setupPanel(stylePanel, INNER_PANEL_SPACING);
 
-        // 使用中のみ表示するフィルタ / Filter to show only styles used in the document
+        /* 使用中のみ表示するフィルタ / Filter to show only styles used in the document */
         var usedOnlyCheckbox = stylePanel.add("checkbox", undefined, getLabel("checkbox.usedOnly"));
         usedOnlyCheckbox.value = false;
 
-        // スタイル選択リスト（先頭が「元の見た目」、以降が現在のドキュメントのグラフィックスタイル）
-        // Style list (first row = original appearance, then the document's graphic styles)
+        /* スタイル選択リスト（先頭が「元の見た目」、以降が現在のドキュメントのグラフィックスタイル）
+           Style list (first row = original appearance, then the document's graphic styles) */
         var styleListbox = stylePanel.add("listbox", undefined, [], { multiselect: false });
         styleListbox.preferredSize.height = STYLE_LIST_HEIGHT;
         styleListbox.helpTip = getLabel("tooltip.styleList");
 
-        // 最下部：左右分割（左＝クリア／スペーサー／右＝パネル）/ Bottom row: split layout (left = Clear, spacer, right = Panel)
+        /* 最下部：左右分割（左＝クリア／スペーサー／右＝パネル）/ Bottom row: split layout (left = Clear, spacer, right = Panel) */
         var styleFooterRow = stylePanel.add("group");
         styleFooterRow.orientation = "row";
         styleFooterRow.alignment = ["fill", "bottom"];
-        styleFooterRow.margins = STYLE_FOOTER_MARGINS; // ボタンエリア上部にマージン / Top margin above the button area
+        styleFooterRow.margins = STYLE_FOOTER_MARGINS; /* ボタンエリア上部にマージン / Top margin above the button area */
 
-        // 左側グループ：未使用のグラフィックスタイルを削除 / Left group: delete unused graphic styles
+        /* 左側グループ：未使用のグラフィックスタイルを削除 / Left group: delete unused graphic styles */
         var btnLeftGroup = styleFooterRow.add("group");
         btnLeftGroup.alignChildren = ["left", "center"];
         var clearButton = btnLeftGroup.add("button", undefined, getLabel("button.clearStyle"));
         clearButton.helpTip = getLabel("tooltip.clearStyle");
 
-        // スペーサー（伸縮）/ Spacer (stretchable)
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
         var spacer = styleFooterRow.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
 
-        // 右側グループ：グラフィックスタイルパネルへ移動 / Right group: jump to the Graphic Styles panel
+        /* 右側グループ：グラフィックスタイルパネルへ移動 / Right group: jump to the Graphic Styles panel */
         var btnRightGroup = styleFooterRow.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
         var openStylePanelButton = btnRightGroup.add("button", undefined, getLabel("button.openStylePanel"));
@@ -1296,14 +1296,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(loadPanel, INNER_PANEL_SPACING);
         var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
         fileNameText.preferredSize.width = FILE_NAME_WIDTH;
-        // 読み込み / 再読み込みボタンを左寄せで横並び / Load & Reload buttons in a left-aligned row
+        /* 読み込み / 再読み込みボタンを左寄せで横並び / Load & Reload buttons in a left-aligned row */
         var loadButtonRow = loadPanel.add("group");
         loadButtonRow.alignment = "left";
         loadButtonRow.margins = LOAD_BUTTON_ROW_MARGINS;
         var loadButton = loadButtonRow.add("button", undefined, getLabel("button.load"));
-        loadButton.helpTip = getLabel("tooltip.load"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
+        loadButton.helpTip = getLabel("tooltip.load"); /* 使い方はツールチップで案内 / Usage hint shown as a tooltip */
         var reloadButton = loadButtonRow.add("button", undefined, getLabel("button.reload"));
-        reloadButton.helpTip = getLabel("tooltip.reload"); // 記憶したファイルから再取り込み / Re-import from the remembered file
+        reloadButton.helpTip = getLabel("tooltip.reload"); /* 記憶したファイルから再取り込み / Re-import from the remembered file */
 
         return { fileNameText: fileNameText, loadButton: loadButton, reloadButton: reloadButton };
     }
@@ -1326,7 +1326,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function showPalette(savedStyleState) {
-        // すでにパレットが開いていれば前面に出して終了 / If the palette already exists, bring it forward and return
+        /* すでにパレットが開いていれば前面に出して終了 / If the palette already exists, bring it forward and return */
         /* 閉じたパレットの参照は読めないことがある / A closed palette's reference may be unreadable */
         try {
             if ($.global.__importAndApplyGraphicStylePalette && $.global.__importAndApplyGraphicStylePalette.visible) {
@@ -1351,9 +1351,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var loadControls = addLoadPanel(paletteWindow);
         var styleListbox = styleControls.styleListbox;
 
-        var styleListValues = []; // 各行に対応する値（null=元の見た目、以降はスタイル名）/ Value per row (null = original, else style name)
+        var styleListValues = []; /* 各行に対応する値（null=元の見た目、以降はスタイル名）/ Value per row (null = original, else style name) */
 
-        // リビルド中は onChange の即時適用を抑止 / Suppress live-apply during a rebuild
+        /* リビルド中は onChange の即時適用を抑止 / Suppress live-apply during a rebuild */
         var isRebuildingStyleList = false;
 
         /**
@@ -1362,7 +1362,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function refreshFileLabel() {
             loadControls.fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : getLabel("status.noFileSelected");
-            loadControls.reloadButton.enabled = !!styleState.filePath; // 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file
+            loadControls.reloadButton.enabled = !!styleState.filePath; /* 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file */
         }
 
         /**
@@ -1372,19 +1372,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function rebuildStyleList() {
             styleListbox.removeAll();
             styleListValues = [];
-            // 先頭に「元の見た目」/ First row = original appearance
+            /* 先頭に「元の見た目」/ First row = original appearance */
             styleListbox.add("item", getLabel("listItem.styleOriginal"));
             styleListValues.push(null);
 
-            // 「使用中のみ」ON のときだけ未使用を除外（判定は worker 内で実施）
-            // Skip unused only when the filter is on (classification happens inside the worker)
+            /* 「使用中のみ」ON のときだけ未使用を除外（判定は worker 内で実施）
+               Skip unused only when the filter is on (classification happens inside the worker) */
             var parsedNames = parseMarkerList(delegate("workerGetStyleNames(" + (styleControls.usedOnlyCheckbox.value ? "true" : "false") + ")"));
             for (var j = 0; j < parsedNames.items.length; j++) {
                 styleListbox.add("item", parsedNames.items[j]);
                 styleListValues.push(parsedNames.items[j]);
             }
             isRebuildingStyleList = true;
-            styleListbox.selection = 0; // 既定は「元の見た目」/ Default: original appearance
+            styleListbox.selection = 0; /* 既定は「元の見た目」/ Default: original appearance */
             isRebuildingStyleList = false;
         }
 
@@ -1401,26 +1401,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             styleState.filePath = filePath;
             styleState.styleNames = parsedNames.items;
-            saveStyleState(filePath, parsedNames.items); // 次回以降このファイルを参照 / Remember for next runs
+            saveStyleState(filePath, parsedNames.items); /* 次回以降このファイルを参照 / Remember for next runs */
             refreshFileLabel();
             rebuildStyleList();
         }
 
         styleControls.clearButton.onClick = function () {
-            // 未使用削除はメインエンジンへ委譲（ダイナミックアクション）/ Delegate the unused-prune to the main engine (dynamic action)
+            /* 未使用削除はメインエンジンへ委譲（ダイナミックアクション）/ Delegate the unused-prune to the main engine (dynamic action) */
             delegate("workerPruneUnused()");
             rebuildStyleList();
         };
         styleControls.openStylePanelButton.onClick = function () {
-            // DOM/メニュー操作はメインエンジンへ委譲 / Delegate the DOM/menu op to the main engine
+            /* DOM/メニュー操作はメインエンジンへ委譲 / Delegate the DOM/menu op to the main engine */
             delegate("workerOpenStylePanel()");
         };
         styleControls.usedOnlyCheckbox.onClick = function () { rebuildStyleList(); };
 
-        // listbox で選んだグラフィックスタイルを、その時点の選択オブジェクトへ即適用（「適用」ボタン無し）
-        // 「元の見た目」行・リビルド時は適用しない。選択なし等はクリックごとに警告せず無言で無視
-        // Live-apply the picked style to the current selection (no Apply button);
-        // skip the "Original" row and rebuilds, and ignore no-selection silently
+        /* listbox で選んだグラフィックスタイルを、その時点の選択オブジェクトへ即適用（「適用」ボタン無し）
+           「元の見た目」行・リビルド時は適用しない。選択なし等はクリックごとに警告せず無言で無視
+           Live-apply the picked style to the current selection (no Apply button);
+           skip the "Original" row and rebuilds, and ignore no-selection silently */
         styleListbox.onChange = function () {
             if (isRebuildingStyleList) return;
             if (!styleListbox.selection) return;
@@ -1429,15 +1429,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             delegate("workerApplyStyleToSelection(" + jsStringLiteral(pickedStyleName) + ",false)");
         };
 
-        // onClick で連結（addEventListener は発火しない環境があるため）/ Use onClick, not addEventListener
+        /* onClick で連結（addEventListener は発火しない環境があるため）/ Use onClick, not addEventListener */
         loadControls.loadButton.onClick = function () {
             var pickedPath = pickStyleFile();
             if (!pickedPath) return;
             importAndRemember(pickedPath);
         };
 
-        // 記憶したファイルを選び直さずに再取り込み（別ドキュメントでも同じファイルを再利用）
-        // Re-import from the remembered file without re-picking (reuse the same file in another document)
+        /* 記憶したファイルを選び直さずに再取り込み（別ドキュメントでも同じファイルを再利用）
+           Re-import from the remembered file without re-picking (reuse the same file in another document) */
         loadControls.reloadButton.onClick = function () {
             if (!styleState.filePath) return;
             importAndRemember(styleState.filePath);
@@ -1446,19 +1446,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         refreshFileLabel();
         rebuildStyleList();
 
-        // 「変換」：現在の UI 設定で選択をエリア内文字化。DOM 処理はメインエンジンへ委譲し、パレットは開いたまま
-        // "Convert": convert the selection using the current UI settings. DOM work is delegated; the palette stays open.
+        /* 「変換」：現在の UI 設定で選択をエリア内文字化。DOM 処理はメインエンジンへ委譲し、パレットは開いたまま
+           "Convert": convert the selection using the current UI settings. DOM work is delegated; the palette stays open. */
         optionControls.convertButton.onClick = function () {
-            // 幅・高さは百分率 % 入力を倍率へ換算 / Width/height: convert the % input to a ratio
+            /* 幅・高さは百分率 % 入力を倍率へ換算 / Width/height: convert the % input to a ratio */
             var widthRatio = readRatio(optionControls.widthInput, BUTTON_WIDTH_RATIO);
             var heightRatio = readRatio(optionControls.heightInput, BUTTON_HEIGHT_RATIO);
-            // 「元の見た目」なら null、スタイル選択時はその名前 / null for original, else the selected style name
+            /* 「元の見た目」なら null、スタイル選択時はその名前 / null for original, else the selected style name */
             var externalStyleName = null;
             if (styleListbox.selection) { externalStyleName = styleListValues[styleListbox.selection.index]; }
 
             if (optionControls.convertCheckbox.value) {
-                // エリア内文字変換はメインエンジンへ委譲（スタイルは読み込み済みで現在のドキュメントに存在）
-                // Delegate the area-type conversion to the main engine (the style is already imported in the doc)
+                /* エリア内文字変換はメインエンジンへ委譲（スタイルは読み込み済みで現在のドキュメントに存在）
+                   Delegate the area-type conversion to the main engine (the style is already imported in the doc) */
                 var convertResult = delegate("workerConvertSelection(" +
                     (optionControls.adjustOnRadio.value ? "true" : "false") + "," +
                     widthRatio + "," +
@@ -1468,27 +1468,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 else if (convertResult === "RECTONLY") { alert(getLabel("alert.rectangleOnly")); }
                 else if (convertResult === "NOSEL" || convertResult === "NOTEXT") { alert(getLabel("alert.selectText")); }
             } else if (externalStyleName) {
-                // 変換OFF：選択したグラフィックスタイルを選択オブジェクトへ適用（メインエンジンへ委譲）
-                // Convert off: apply the chosen graphic style to the selection (delegated to the main engine)
+                /* 変換OFF：選択したグラフィックスタイルを選択オブジェクトへ適用（メインエンジンへ委譲）
+                   Convert off: apply the chosen graphic style to the selection (delegated to the main engine) */
                 var applyResult = delegate("workerApplyStyleToSelection(" + jsStringLiteral(externalStyleName) + ",false)");
                 if (applyResult === "NODOC") { alert(getLabel("alert.noDocument")); }
                 else if (applyResult === "NOSEL") { alert(getLabel("alert.selectText")); }
             }
         };
 
-        // パレットをアクティブにして Esc キーで閉じる / Close the palette with Esc while it is active
+        /* パレットをアクティブにして Esc キーで閉じる / Close the palette with Esc while it is active */
         paletteWindow.addEventListener("keydown", function (event) {
             if (event && event.keyName === "Escape") { paletteWindow.close(); }
         });
 
-        // パネル内のボタンはレイアウト確定後に高さを詰める / Trim panel buttons' height after layout
+        /* パネル内のボタンはレイアウト確定後に高さを詰める / Trim panel buttons' height after layout */
         paletteWindow.onShow = function () {
             trimButtonHeight(loadControls.loadButton, BUTTON_HEIGHT_TRIM);
             trimButtonHeight(loadControls.reloadButton, BUTTON_HEIGHT_TRIM);
             trimButtonHeight(styleControls.clearButton, BUTTON_HEIGHT_TRIM);
             trimButtonHeight(styleControls.openStylePanelButton, BUTTON_HEIGHT_TRIM);
         };
-        // 閉じたらグローバル参照を解放 / Release the global reference when closed
+        /* 閉じたらグローバル参照を解放 / Release the global reference when closed */
         paletteWindow.onClose = function () {
             $.global.__importAndApplyGraphicStylePalette = null;
         };
@@ -1497,16 +1497,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
-    // エントリポイント / Entry point
+    // メイン処理 / Main
     // =========================================
-    if (app.documents.length > 0) {
-        // 記憶した参照ファイルとスタイル名を読み込み、常駐パレットを表示
-        // 変換・スタイル適用は「変換」ボタンから実行（DOM 処理はメインエンジンへ委譲）
-        // Load the remembered file/style names, then show the resident palette.
-        // Conversion / style application runs from the "Convert" button (DOM work delegated to the main engine).
+
+    /**
+     * 記憶した参照ファイルとスタイル名を読み込み、常駐パレットを表示する
+     * 変換・スタイル適用は「変換」ボタンから実行する（DOM 処理はメインエンジンへ委譲）
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
         showPalette(loadSavedStyleState());
-    } else {
-        alert(getLabel("alert.noDocument"));
     }
+
+    main();
 
 })();

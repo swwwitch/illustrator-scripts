@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "DrawLinesBetween";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawLinesBetween.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesBetween.md"; /* README (English) */
@@ -336,15 +336,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 「項目名＋数値欄＋（単位）」の行を追加する
-     * @param {Window} parent - 追加先のダイアログ
+     * @param {Window} parentContainer - 追加先のダイアログ
      * @param {string} labelPath - 項目名のラベルのパス
      * @param {number} initialValue - 初期値（現在の線の単位）
      * @param {string} unitLabel - 単位の表示
      * @param {string} tooltipPath - tooltip のラベルのパス
      * @returns {EditText} 追加した数値欄
      */
-    function addNumberRow(parent, labelPath, initialValue, unitLabel, tooltipPath) {
-        var numberRow = parent.add("group");
+    function addNumberRow(parentContainer, labelPath, initialValue, unitLabel, tooltipPath) {
+        var numberRow = parentContainer.add("group");
         numberRow.add("statictext", undefined, getLabel(labelPath));
         var numberInput = numberRow.add("edittext", undefined, formatNumberForUI(initialValue));
         numberInput.helpTip = getLabel(tooltipPath);
@@ -356,12 +356,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * ラジオボタンを縦に並べるパネルを追加する
-     * @param {Window} parent - 追加先のダイアログ
+     * @param {Window} parentContainer - 追加先のダイアログ
      * @param {string} titlePath - パネル見出しのラベルのパス
      * @returns {Group} ラジオボタンを入れるグループ
      */
-    function addRadioPanel(parent, titlePath) {
-        var radioPanel = parent.add("panel", undefined, getLabel(titlePath));
+    function addRadioPanel(parentContainer, titlePath) {
+        var radioPanel = parentContainer.add("panel", undefined, getLabel(titlePath));
         radioPanel.orientation = "column";
         radioPanel.alignChildren = ["left", "top"];
         radioPanel.margins = PANEL_MARGINS;
@@ -374,12 +374,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * tooltip 付きのラジオボタンを追加する
-     * @param {Group} parent - 追加先のグループ
+     * @param {Group} parentContainer - 追加先のグループ
      * @param {string} labelKey - radio と tooltip に共通のキー
      * @returns {RadioButton} 追加したラジオボタン
      */
-    function addRadioButton(parent, labelKey) {
-        var radioButton = parent.add("radiobutton", undefined, getLabel("radio." + labelKey));
+    function addRadioButton(parentContainer, labelKey) {
+        var radioButton = parentContainer.add("radiobutton", undefined, getLabel("radio." + labelKey));
         radioButton.helpTip = getLabel("tooltip." + labelKey);
         return radioButton;
     }
@@ -496,16 +496,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * グループ内のテキストをアウトライン化する（境界を安定させるため。複製に対して使う）
-     * @param {GroupItem} container - 対象のグループ
+     * @param {GroupItem} targetGroup - 対象のグループ
      * @returns {void}
      */
-    function outlineTextFramesInContainer(container) {
-        if (!container || !container.textFrames || container.textFrames.length === 0) return;
+    function outlineTextFramesInContainer(targetGroup) {
+        if (!targetGroup || !targetGroup.textFrames || targetGroup.textFrames.length === 0) return;
 
         /* textFrames はライブコレクションになり得るので、いったん配列化 / snapshot the live collection */
         var textFrameList = [];
-        for (var i = 0; i < container.textFrames.length; i++) {
-            textFrameList.push(container.textFrames[i]);
+        for (var i = 0; i < targetGroup.textFrames.length; i++) {
+            textFrameList.push(targetGroup.textFrames[i]);
         }
 
         for (var j = 0; j < textFrameList.length; j++) {
@@ -520,40 +520,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 境界の計測に使うオブジェクトを返す
      * テキストとグループは複製してアウトライン化したもの（非表示）を返し、tempItems に控える。
-     * @param {PageItem} item - 選択中のオブジェクト
+     * @param {PageItem} sourceItem - 選択中のオブジェクト
      * @param {PageItem[]} tempItems - 一時オブジェクトの控え（追加される）
      * @returns {PageItem} 計測用のオブジェクト（複製できないときは元のオブジェクト）
      */
-    function makeBoundsProxy(item, tempItems) {
-        if (!item) return item;
+    function makeBoundsProxy(sourceItem, tempItems) {
+        if (!sourceItem) return sourceItem;
 
-        if (item.typename === "TextFrame") {
+        if (sourceItem.typename === "TextFrame") {
             try {
                 /* createOutline() は複製を消費してアウトラインのグループを返す / consumes the duplicate */
-                var outlineGroup = item.duplicate().createOutline();
+                var outlineGroup = sourceItem.duplicate().createOutline();
                 try { outlineGroup.hidden = true; } catch (e) { }
                 tempItems.push(outlineGroup);
                 return outlineGroup;
             } catch (e) {
                 /* 変換できない場合は元のテキストを使う / fall back to the original text */
-                return item;
+                return sourceItem;
             }
         }
 
-        if (item.typename === "GroupItem") {
+        if (sourceItem.typename === "GroupItem") {
             try {
-                var groupDuplicate = item.duplicate();
+                var groupDuplicate = sourceItem.duplicate();
                 /* グループ内のテキストもアウトライン化してから境界を見る / outline nested text too */
                 outlineTextFramesInContainer(groupDuplicate);
                 try { groupDuplicate.hidden = true; } catch (e) { }
                 tempItems.push(groupDuplicate);
                 return groupDuplicate;
             } catch (e) {
-                return item;
+                return sourceItem;
             }
         }
 
-        return item;
+        return sourceItem;
     }
 
     /**
@@ -575,18 +575,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 複数のオブジェクトを囲む境界を返す
-     * @param {Object[]} items - visibleBounds を持つオブジェクト
+     * @param {Object[]} boundsItems - visibleBounds を持つオブジェクト
      * @returns {{visibleBounds: number[]}} まとめた境界
      */
-    function mergeBounds(items) {
-        var firstBounds = items[0].visibleBounds;
+    function mergeBounds(boundsItems) {
+        var firstBounds = boundsItems[0].visibleBounds;
         var left = firstBounds[0];
         var top = firstBounds[1];
         var right = firstBounds[2];
         var bottom = firstBounds[3];
 
-        for (var i = 1; i < items.length; i++) {
-            var itemBounds = items[i].visibleBounds;
+        for (var i = 1; i < boundsItems.length; i++) {
+            var itemBounds = boundsItems[i].visibleBounds;
             left = Math.min(left, itemBounds[0]);
             top = Math.max(top, itemBounds[1]);
             right = Math.max(right, itemBounds[2]);
@@ -598,23 +598,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 左右に並ぶオブジェクトを同じ行として束ね、行ごとの境界を返す
-     * @param {Object[]} items - visibleBounds を持つオブジェクト
+     * @param {Object[]} boundsItems - visibleBounds を持つオブジェクト
      * @returns {Object[]} 行ごとの境界（{visibleBounds}）
      */
-    function groupItemsByRow(items) {
+    function groupItemsByRow(boundsItems) {
         var rowMembers = [];
 
-        for (var i = 0; i < items.length; i++) {
+        for (var i = 0; i < boundsItems.length; i++) {
             var isPlaced = false;
             for (var r = 0; r < rowMembers.length; r++) {
                 /* 行の代表要素（最初の1つ）と縦方向の重なりを比較 / compare with the first item of the row */
-                if (getVerticalOverlapRatio(items[i], rowMembers[r][0]) >= ROW_OVERLAP_RATIO) {
-                    rowMembers[r].push(items[i]);
+                if (getVerticalOverlapRatio(boundsItems[i], rowMembers[r][0]) >= ROW_OVERLAP_RATIO) {
+                    rowMembers[r].push(boundsItems[i]);
                     isPlaced = true;
                     break;
                 }
             }
-            if (!isPlaced) rowMembers.push([items[i]]);
+            if (!isPlaced) rowMembers.push([boundsItems[i]]);
         }
 
         var rowBoundsList = [];

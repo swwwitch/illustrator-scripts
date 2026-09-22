@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "RenameAssets";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameAssets.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameAssets.md"; /* README (English) */
@@ -151,12 +151,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * コロン付きの項目名を返す（日本語は全角、英語は半角＋空白）
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
      * @param {string} labelPath - ラベルのパス
      * @returns {string} コロン付きの項目名
      */
     function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ': ');
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -578,8 +578,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var brushRadio = targetRadios.buttons[1];
         var swatchRadio = targetRadios.buttons[2];
         var symbolRadio = targetRadios.buttons[3];
-        for (var r = 0; r < targetRadios.buttons.length; r++) {
-            targetRadios.buttons[r].helpTip = getLabel('tooltip.target');
+        for (var i = 0; i < targetRadios.buttons.length; i++) {
+            targetRadios.buttons[i].helpTip = getLabel('tooltip.target');
         }
         targetRadios.select(0);
 

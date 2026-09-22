@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
@@ -498,7 +498,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
             };
         }
 
-        /* 複製を合体して単一のパスにする / Merge the duplicate down to a single path */
+        /**
+         * 選択中のアイテムを「合体」して分割・拡張し、単一のパスにする
+         * @returns {void}
+         */
         function executePathfinderAddAndExpand() {
             app.executeMenuCommand('Live Pathfinder Add');
             app.executeMenuCommand('expandStyle');
@@ -1085,7 +1088,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
         var offsetCheckbox, offsetInput, offsetUnitLabel;
         var joinRowGroup, joinMiterRadio, joinRoundRadio, joinBevelRadio;
         var distanceInput, angleInput, scaleInput, simplifyCheckbox;
-        var previewCheckbox, btnCancel, btnOk;
+        var previewCheckbox, btnCancel, btnOK;
 
         /**
          * パネルに共通レイアウトを適用する
@@ -1226,8 +1229,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
             btnRightGroup.alignment = ["right", "center"];
 
             btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
-            btnOk = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
-            btnOk.active = true;
+            btnOK = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
+            btnOK.active = true;
         }
 
         /**
@@ -1732,7 +1735,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
             simplifyCheckbox.onClick = refreshPreviewIfEnabled;
             previewCheckbox.onClick = updatePreview;
 
-            btnOk.onClick = function () {
+            btnOK.onClick = function () {
                 /* プレビューを消してから確定実行 / drop the preview before the real run */
                 undoPreview();
                 hasFinished = true;

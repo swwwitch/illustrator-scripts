@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "DetachPathText";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DetachPathText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DetachPathText.md"; /* README (English) */
@@ -213,11 +213,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function snapshotCharacterAttributes(pathText) {
         var attributeSnapshots = [];
-        for (var c = 0; c < pathText.characters.length; c++) {
-            var sourceAttributes = pathText.characters[c].characterAttributes;
+        for (var charIndex = 0; charIndex < pathText.characters.length; charIndex++) {
+            var sourceAttributes = pathText.characters[charIndex].characterAttributes;
             var attributeSnapshot = {};
-            for (var n = 0; n < SNAPSHOT_ATTRIBUTE_NAMES.length; n++) {
-                attributeSnapshot[SNAPSHOT_ATTRIBUTE_NAMES[n]] = sourceAttributes[SNAPSHOT_ATTRIBUTE_NAMES[n]];
+            for (var attrIndex = 0; attrIndex < SNAPSHOT_ATTRIBUTE_NAMES.length; attrIndex++) {
+                attributeSnapshot[SNAPSHOT_ATTRIBUTE_NAMES[attrIndex]] = sourceAttributes[SNAPSHOT_ATTRIBUTE_NAMES[attrIndex]];
             }
             attributeSnapshots.push(attributeSnapshot);
         }
@@ -232,9 +232,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function writeAttributesSafely(targetAttributes, attributeSnapshot, attributeNames) {
-        for (var n = 0; n < attributeNames.length; n++) {
+        for (var attrIndex = 0; attrIndex < attributeNames.length; attrIndex++) {
             /* 値によっては DOM が代入を拒む / the DOM may reject some values */
-            try { targetAttributes[attributeNames[n]] = attributeSnapshot[attributeNames[n]]; } catch (e) { }
+            try { targetAttributes[attributeNames[attrIndex]] = attributeSnapshot[attributeNames[attrIndex]]; } catch (e) { }
         }
     }
 
@@ -245,9 +245,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function restoreCharacterAttributes(newText, attributeSnapshots) {
-        for (var c = 0; c < newText.characters.length; c++) {
-            var targetAttributes = newText.characters[c].characterAttributes;
-            var attributeSnapshot = attributeSnapshots[c];
+        for (var charIndex = 0; charIndex < newText.characters.length; charIndex++) {
+            var targetAttributes = newText.characters[charIndex].characterAttributes;
+            var attributeSnapshot = attributeSnapshots[charIndex];
             if (!attributeSnapshot) break;
 
             writeAttributesSafely(targetAttributes, attributeSnapshot, ATTRIBUTES_BEFORE_STROKE);

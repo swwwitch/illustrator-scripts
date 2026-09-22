@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "ExtendLines";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExtendLines.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLines.md"; /* README (English) */
@@ -479,13 +479,13 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         /* 円弧から円（先に）/ Circles from arcs first */
         if (drawSettings.arcToCircle) {
-            for (var c = 0; c < targetPaths.length; c++) {
-                createCirclesFromArcPath(targetPaths[c], targetContainer, drawSettings, drawBounds, dedupMap);
+            for (var arcPathIndex = 0; arcPathIndex < targetPaths.length; arcPathIndex++) {
+                createCirclesFromArcPath(targetPaths[arcPathIndex], targetContainer, drawSettings, drawBounds, dedupMap);
             }
         }
 
-        for (var p = 0; p < targetPaths.length; p++) {
-            var pathItem = targetPaths[p];
+        for (var pathIndex = 0; pathIndex < targetPaths.length; pathIndex++) {
+            var pathItem = targetPaths[pathIndex];
             var pathPoints = pathItem.pathPoints;
             if (!pathPoints || pathPoints.length < 2) continue;
 
@@ -867,7 +867,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
          * @param {PageItem} pageItem - 対象のオブジェクト
          * @returns {void}
          */
-        function walk(pageItem) {
+        function outlineTextsInItem(pageItem) {
             if (!pageItem) return;
 
             if (pageItem.typename === "TextFrame") {
@@ -889,17 +889,17 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
             if (pageItem.typename === "GroupItem") {
                 for (var i = 0; i < pageItem.pageItems.length; i++) {
-                    walk(pageItem.pageItems[i]);
+                    outlineTextsInItem(pageItem.pageItems[i]);
                 }
             } else if (pageItem.typename === "CompoundPathItem") {
                 for (var j = 0; j < pageItem.pathItems.length; j++) {
-                    walk(pageItem.pathItems[j]);
+                    outlineTextsInItem(pageItem.pathItems[j]);
                 }
             }
         }
 
         for (var i = 0; i < items.length; i++) {
-            walk(items[i]);
+            outlineTextsInItem(items[i]);
         }
 
         return outlineRoots;

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.9.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md"; /* README (English) */
@@ -655,12 +655,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @param {Layer} cellLayer - 描画先のレイヤー。
      * @param {GridMetrics} gridMetrics - グリッドの寸法。
      * @param {boolean} asGuide - ガイドに変換する場合は true。
+     * @param {CMYKColor|RGBColor|null} fillColor - セルの塗り色。塗りなしは null。
+     * @param {number|null} opacity - セルの不透明度（%）。指定しない場合は null。
      * @returns {void}
      */
-    function drawCells(cellLayer, gridMetrics, asGuide) {
-        var fillColor = getCellFillColor();
-        var opacity = readOpacity();
-
+    function drawCells(cellLayer, gridMetrics, asGuide, fillColor, opacity) {
         forEachCell(gridMetrics, function (cellRect) {
             var cellRectangle = cellLayer.pathItems.rectangle(
                 cellRect[1], cellRect[0], gridMetrics.cellWidth, gridMetrics.cellHeight);
@@ -960,27 +959,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * 下部のボタン列を作成します。/ Build the footer button row.
      *
      * @param {Window} parentWindow - 配置先のウィンドウ。
-     * @returns {{randomizeButton: Button, cancelButton: Button, okButton: Button}} 各ボタン。
+     * @returns {{btnShuffle: Button, btnCancel: Button, btnOK: Button}} 各ボタン。
      */
     function buildFooterRow(parentWindow) {
-        var footerRow = parentWindow.add("group");
-        setupRow(footerRow, "fill", 10);
+        var btnRowGroup = parentWindow.add("group");
+        setupRow(btnRowGroup, "fill", 10);
 
-        var footerControls = {
-            randomizeButton: footerRow.add("button", undefined, getLabel(LABELS.button.randomize))
+        var footerButtons = {
+            btnShuffle: btnRowGroup.add("button", undefined, getLabel(LABELS.button.randomize))
         };
-        footerControls.randomizeButton.alignment = "left";
-        footerControls.randomizeButton.helpTip = getLabel(LABELS.tooltip.randomize);
+        footerButtons.btnShuffle.alignment = "left";
+        footerButtons.btnShuffle.helpTip = getLabel(LABELS.tooltip.randomize);
 
         /* 左右のボタンを引き離すためのスペーサー / Spacer that pushes the buttons apart */
-        var footerSpacer = footerRow.add("group");
-        footerSpacer.alignment = ["fill", "fill"];
-        footerSpacer.minimumSize.width = (uiLang === "ja") ? 40 : 60;
-        footerSpacer.maximumSize.height = 0;
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = (uiLang === "ja") ? 40 : 60;
+        spacer.maximumSize.height = 0;
 
-        footerControls.cancelButton = footerRow.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        footerControls.okButton = footerRow.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        return footerControls;
+        footerButtons.btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        footerButtons.btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        return footerButtons;
     }
 
     // =========================================
@@ -1016,9 +1015,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @param {EditText} inputField - 対象の入力欄。
      * @param {boolean} allowsDecimal - 小数の増減を許可する場合は true。
      * @param {number} minValue - 下限値。
+     * @param {function(): void} onStep - 値を変えたあとに呼ぶ処理。
      * @returns {void}
      */
-    function enableArrowKeyStep(inputField, allowsDecimal, minValue) {
+    function enableArrowKeyStep(inputField, allowsDecimal, minValue, onStep) {
         inputField.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
@@ -1040,8 +1040,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             inputField.text = String(Math.max(minValue, fieldValue));
             event.preventDefault();
 
-            syncGutterEnabled();
-            updatePreview();
+            onStep();
         });
     }
 
@@ -1102,12 +1101,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
 
         bindDialogEvents();
 
+        /**
+         * ↑↓キーで値を変えたあとに間隔欄とプレビューを更新します。/ Refresh after an arrow-key step.
+         *
+         * @returns {void}
+         */
+        function handleArrowKeyStep() {
+            syncGutterEnabled();
+            updatePreview();
+        }
+
         /* 行数・列数は 1 未満にしない（0 ではグリッドが成立しない）/ Rows and columns never go below 1 */
-        enableArrowKeyStep(divisionUI.rowCountInput, false, 1);
-        enableArrowKeyStep(divisionUI.columnCountInput, false, 1);
-        enableArrowKeyStep(divisionUI.gutterInput, true, 0);
-        enableArrowKeyStep(divisionUI.marginInput, true, 0);
-        enableArrowKeyStep(cellUI.opacityInput, true, 0);
+        enableArrowKeyStep(divisionUI.rowCountInput, false, 1, handleArrowKeyStep);
+        enableArrowKeyStep(divisionUI.columnCountInput, false, 1, handleArrowKeyStep);
+        enableArrowKeyStep(divisionUI.gutterInput, true, 0, handleArrowKeyStep);
+        enableArrowKeyStep(divisionUI.marginInput, true, 0, handleArrowKeyStep);
+        enableArrowKeyStep(cellUI.opacityInput, true, 0, handleArrowKeyStep);
 
         /* 初期状態を反映してプレビューを表示 / Apply the initial state and show the preview */
         syncGutterEnabled();
@@ -1237,7 +1246,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             if ((cellMode !== "artboard") || isPreview) {
                 var layerName = isPreview ? CONFIG.previewCellLayerName : CONFIG.cellLayerName;
                 var asGuide = (cellMode === "guide") || (cellMode === "artboard" && isPreview);
-                drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide);
+                drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide, getCellFillColor(), readOpacity());
             }
 
             placeItemsInCells(distributionItems, gridMetrics);
@@ -1485,10 +1494,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
                 transparencyGridToggleCount++;
             };
 
-            footerUI.randomizeButton.onClick = shuffleDistributionOrder;
-            footerUI.okButton.onClick = commitDistribution;
+            footerUI.btnShuffle.onClick = shuffleDistributionOrder;
+            footerUI.btnOK.onClick = commitDistribution;
 
-            footerUI.cancelButton.onClick = function () {
+            footerUI.btnCancel.onClick = function () {
                 discardDialogChanges();
                 isCleanedUp = true;
                 distributeDialog.close(0);

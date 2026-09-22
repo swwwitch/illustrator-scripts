@@ -1045,8 +1045,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         var adjustInput = addUnitField(adjustRow, "0", getLabel("tooltip.alignAdjust"), rulerUnit, onPreview);
         alignRadios.adjustInput = adjustInput;
 
-        /* 中央に設定したら横調整を0へリセット（マウス・キー操作共通）/
-           Selecting center resets the horizontal adjust to 0 (shared by mouse and keyboard) */
+        /**
+         * 「中央」を選び、横調整を0へ戻してプレビューする（マウス・キー操作共通）
+         * @returns {void}
+         */
         function selectCenter() {
             alignRadios.center.value = true;
             adjustInput.text = "0";

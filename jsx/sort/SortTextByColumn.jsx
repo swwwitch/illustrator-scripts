@@ -38,6 +38,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // 区切り文字 / Separators
+    // =========================================
+
     var LINE_SEPARATOR = "\r"; /* 行（段落）の区切り / line (paragraph) separator */
     var CELL_SEPARATOR = "\t"; /* 列の区切り / column separator */
 

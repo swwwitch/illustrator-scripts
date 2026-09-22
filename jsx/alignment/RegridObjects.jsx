@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md"; /* README (English) */
@@ -693,24 +693,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * レイアウト計算に使う外接矩形を返す。
      * すでにグループになっているものは中身を分解せず「グループ＝1つのオブジェクト」として扱う。
      * クリップグループはクリップパスの geometricBounds（＝可視領域）を優先し、
-     * それ以外は item.geometricBounds を使う
-     * @param {PageItem} item - 対象のオブジェクト
+     * それ以外は pageItem.geometricBounds を使う
+     * @param {PageItem} pageItem - 対象のオブジェクト
      * @returns {number[]} [left, top, right, bottom]
      */
-    function getLayoutBounds(item) {
+    function getLayoutBounds(pageItem) {
         /* クリップグループの中を読めないときは、グループ自体の外接矩形に戻す / Fall back to the group's own bounds */
         try {
-            if (item.typename === 'GroupItem' && item.clipped) {
+            if (pageItem.typename === 'GroupItem' && pageItem.clipped) {
                 // GroupItem の中から clipping パスを探す / look for the clipping path
-                if (item.pathItems) {
-                    for (var i = 0; i < item.pathItems.length; i++) {
-                        if (item.pathItems[i].clipping) return item.pathItems[i].geometricBounds;
+                if (pageItem.pathItems) {
+                    for (var i = 0; i < pageItem.pathItems.length; i++) {
+                        if (pageItem.pathItems[i].clipping) return pageItem.pathItems[i].geometricBounds;
                     }
                 }
                 // CompoundPath が clipping のケース / compound path used as the mask
-                if (item.compoundPathItems) {
-                    for (var j = 0; j < item.compoundPathItems.length; j++) {
-                        var compoundPath = item.compoundPathItems[j];
+                if (pageItem.compoundPathItems) {
+                    for (var j = 0; j < pageItem.compoundPathItems.length; j++) {
+                        var compoundPath = pageItem.compoundPathItems[j];
                         if (compoundPath.pathItems && compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) {
                             return compoundPath.pathItems[0].geometricBounds;
                         }
@@ -719,7 +719,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             }
         } catch (e) { }
 
-        return item.geometricBounds;
+        return pageItem.geometricBounds;
     }
 
     /**

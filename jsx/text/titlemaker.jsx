@@ -52,7 +52,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_SIZE_PERCENT = 80;
 
     // =========================================
-    // UI レイアウト設定 / UI Layout
+    // レイアウト / Layout
     // =========================================
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];

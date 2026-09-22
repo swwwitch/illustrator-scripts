@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "AiSmartRotateView";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateView.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateView.md"; /* README (English) */
@@ -183,7 +183,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Undoes the rotation recorded on the frontmost selected object (BBAccumRotation), restoring its original orientation."
             },
             resetTextTilt: { ja: "transform フォルダーの ResetTransform.jsx を実行します。", en: "Runs ResetTransform.jsx in the transform folder." },
-            resetImageTilt: { ja: "transform フォルダーの ResetRotation.jsx を実行します。", en: "Runs ResetRotation.jsx in the transform folder." }
+            resetImageTilt: { ja: "transform フォルダーの ResetRotation.jsx を実行します。", en: "Runs ResetRotation.jsx in the transform folder." },
+            refresh: {
+                ja: "ビューの回転角度・角度の制限・選択したオブジェクトの角度を読み直します。",
+                en: "Re-reads the view rotation, the constrain angle, and the selected object's angle."
+            }
         },
         status: {
             applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
@@ -708,6 +712,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 最新の状態を手動で取得し直す / Manually re-fetch the latest state */
         var refreshButton = rotateViewPalette.add("button", undefined, getLabel("button.refresh"));
+        refreshButton.helpTip = getLabel("tooltip.refresh");
         refreshButton.alignment = "right";
 
         /* ステータス表示 / Status line */

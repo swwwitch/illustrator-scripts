@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartRenamer";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenamer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenamer.md"; /* README (English) */
@@ -168,6 +168,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 ja: "現在の名前に指定文字列を含む項目だけをチェックします",
                 en: "Check only items whose current names contain the specified text"
             },
+            custom: { ja: "右の欄に入力した文字列を名前にします", en: "Uses the text entered in the field on the right as the name" },
             frontmost: {
                 ja: "各アートボードで最前面にあるテキストの内容を名前にします（アートボードのみ）",
                 en: "Uses the contents of the frontmost text on each artboard (artboards only)"
@@ -620,6 +621,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var customRow = nameSourcePanel.add("group");
         setupRow(customRow);
         var customRadio = customRow.add("radiobutton", undefined, getLabel("radio.custom"));
+        customRadio.helpTip = getLabel("tooltip.custom");
         var customInput = customRow.add("edittext", undefined, "");
         customInput.characters = CUSTOM_CHARS;
         customInput.enabled = false;
@@ -1613,7 +1615,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             /* フォーカスが外れていない edittext も確定させるため、関連フィールドの onChange を一括で発火する
                Force onChange on all edittexts so pending edits commit even without losing focus
                各 onChange はプレビューを走らせるので、確定前の中間状態では抑制する
-               （抑制しないと1クリックで7回、「最前面のテキスト」では書類全走査が7回起きる） */
+               （抑制しないと1クリックで7回、「最前面のテキスト」ではドキュメント全体の走査が7回起きる） */
             var pendingFields = [
                 dialogUI.prefixInput,
                 dialogUI.suffixInput,
@@ -1766,7 +1768,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         } else {
             /* シンボル・レイヤー・グラフィックスタイルは安定参照を move() で並べ替える */
             reorderByMove(doc, docItems, itemEntries, itemType);
-            docItems = getDocumentItems(doc, itemType);
         }
 
         /* 並び替え後の位置を基準にチェック範囲を作り直してからリネームする */
@@ -1774,7 +1775,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             executeRename(doc, buildReorderedSettings(settings, itemEntries, itemCount), { silent: true });
         }
 
-        /* 手動上書きを適用する（move() 後の最新参照に追随するため items を取り直す） */
+        /* 手動上書きを適用する（move() 後の最新参照に追随するため docItems を取り直す） */
         docItems = getDocumentItems(doc, itemType);
         for (var posKey in userOverridesByNewPosition) {
             if (!userOverridesByNewPosition.hasOwnProperty(posKey)) continue;
@@ -2282,12 +2283,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     }
 
     /* 最前面テキストの走査結果キャッシュ / Cached frontmost-text scan
-       走査結果は設定ではなく書類にしか依存しないので、canvas を書き換えるまで使い回せる */
+       走査結果は設定ではなくドキュメントにしか依存しないので、canvas を書き換えるまで使い回せる */
     var frontmostTextFrameCache = null;
 
     /**
      * 最前面 TextFrame の走査結果を返す（キャッシュがあれば再利用する）
-     * 走査は O(アートボード数 × ページアイテム数) なので、入力のたびに回すと大きな書類で止まる
+     * 走査は O(アートボード数 × ページアイテム数) なので、入力のたびに回すと大きなドキュメントで止まる
      * @param {Document} doc - 対象ドキュメント
      * @returns {Array<TextFrame>} 見つかったテキストフレーム
      */

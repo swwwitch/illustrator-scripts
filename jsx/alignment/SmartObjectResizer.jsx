@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectResizer.md"; /* README (English) */
@@ -286,7 +286,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 ja: "基準となる辺（長辺／短辺）の長さに合わせて、各オブジェクトをリサイズします。",
                 en: "Resize each object to match the chosen reference side (long / short)."
             },
-            area: { ja: "選択オブジェクトの面積を、最大／最小のものにそろえます。", en: "Match object areas to the largest / smallest in the selection." },
+            area: {
+                ja: "選択オブジェクトの面積を、最大／最小のものにそろえます。",
+                en: "Match object areas to the largest / smallest in the selection."
+            },
             artboard: {
                 ja: "選択全体をアートボードの幅／高さに合わせ、中央に配置します。",
                 en: "Fit the whole selection to the artboard width / height and center it."
@@ -303,12 +306,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 ja: "オブジェクトを間隔0で隙間なく並べます（2つ以上で有効）。",
                 en: "Place objects with zero gap, no spacing (needs 2+ objects)."
             },
-            textOutline: { ja: "テキストをアウトライン化した実際の字形の境界で計測します。", en: "Measure text by the actual outlined glyph bounds." },
+            textOutline: {
+                ja: "テキストをアウトライン化した実際の字形の境界で計測します。",
+                en: "Measure text by the actual outlined glyph bounds."
+            },
             preview: {
                 ja: "線幅や効果を含むプレビュー境界で計測します（オフは幾何境界）。",
                 en: "Measure by preview bounds incl. strokes / effects (off = geometric bounds)."
             },
-            reset: { ja: "サイズ・位置・整列をすべて元の状態に戻します。", en: "Revert size, position, and alignment to the original state." }
+            reset: {
+                ja: "サイズ・位置・整列をすべて元の状態に戻します。",
+                en: "Revert size, position, and alignment to the original state."
+            }
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
@@ -799,33 +808,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
          * @returns {Window} ダイアログ
          */
         function buildDialog() {
-            var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-            dialog.alignChildren = ["left", "top"];
+            var dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+            dialogWindow.alignChildren = ["left", "top"];
             /* 左右インセットと下余白はここで一括管理（各ペイン／フッターの左右マージンは 0）/ Insets live on the dialog */
-            dialog.margins = [20, 0, 20, 20];
+            dialogWindow.margins = [20, 0, 20, 20];
 
             /* 前回のダイアログ位置を復元（セッション内のみ）/ Restore the last position within the session */
             var savedDialogPos = $.global[SESSION_POSITION_KEY];
             if (savedDialogPos && savedDialogPos.length === 2 && !isNaN(savedDialogPos[0]) && !isNaN(savedDialogPos[1])) {
-                dialog.location = savedDialogPos;
+                dialogWindow.location = savedDialogPos;
             }
 
-            dialog.onShow = onDialogShow;
+            dialogWindow.onShow = onDialogShow;
 
             /* 閉じるときに位置を記憶（セッション内のみ）/ Remember the position on close */
-            dialog.onClose = function () {
-                $.global[SESSION_POSITION_KEY] = [dialog.location[0], dialog.location[1]];
+            dialogWindow.onClose = function () {
+                $.global[SESSION_POSITION_KEY] = [dialogWindow.location[0], dialogWindow.location[1]];
                 return true;
             };
 
-            addAspectModeGroup(dialog);
+            addAspectModeGroup(dialogWindow);
 
-            var columnsGroup = dialog.add("group");
+            var columnsGroup = dialogWindow.add("group");
             columnsGroup.orientation = "row";
             columnsGroup.alignChildren = ["top", "top"]; /* 左右ペインを上揃えに / top-align both panes */
             columnsGroup.spacing = COLUMN_SPACING;
 
-            /* 左ペイン（リサイズ基準と計測オプション）。余白は dialog.margins と columnsGroup.spacing で管理 */
+            /* 左ペイン（リサイズ基準と計測オプション）。余白は dialogWindow.margins と columnsGroup.spacing で管理 */
             var leftPane = columnsGroup.add("group");
             leftPane.orientation = "column";
             leftPane.alignChildren = ["left", "top"];
@@ -839,8 +848,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             addAlignPanels(rightPane);
             bindAlignChecks();
 
-            addButtonRow(dialog);
-            return dialog;
+            addButtonRow(dialogWindow);
+            return dialogWindow;
         }
 
         /**
@@ -865,11 +874,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
         /**
          * 「縦横比保持」「片辺のみ」の行を作る
-         * @param {Window} dialog - ダイアログ
+         * @param {Window} dialogWindow - ダイアログ
          * @returns {void}
          */
-        function addAspectModeGroup(dialog) {
-            var aspectModeGroup = dialog.add("group");
+        function addAspectModeGroup(dialogWindow) {
+            var aspectModeGroup = dialogWindow.add("group");
             aspectModeGroup.orientation = "row";
             aspectModeGroup.alignChildren = ["left", "center"];
             aspectModeGroup.margins = [20, 20, 0, 0];
@@ -1090,13 +1099,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
         /**
          * フッター（左=リセット / スペーサー / 右=キャンセル・OK）を作る
-         * @param {Window} dialog - ダイアログ
+         * @param {Window} dialogWindow - ダイアログ
          * @returns {void}
          */
-        function addButtonRow(dialog) {
-            var btnRowGroup = dialog.add("group");
+        function addButtonRow(dialogWindow) {
+            var btnRowGroup = dialogWindow.add("group");
             btnRowGroup.orientation = "row";
-            btnRowGroup.alignment = ["fill", "bottom"];   /* 左右下の余白は dialog.margins が担当 / insets come from dialog.margins */
+            btnRowGroup.alignment = ["fill", "bottom"];   /* 左右下の余白は dialogWindow.margins が担当 / insets come from dialogWindow.margins */
             btnRowGroup.margins = [0, 5, 0, 0];           /* 整列パネルとの間隔（上のみ）/ gap above */
 
             var btnLeftGroup = btnRowGroup.add("group");
@@ -1110,18 +1119,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             spacer.minimumSize.width = 0;
 
             /* Mac 規約で Cancel → OK の順 / Cancel then OK, per macOS convention */
-            var btnRightGroup = btnRowGroup.add("button" === "" ? "" : "group");
+            var btnRightGroup = btnRowGroup.add("group");
             btnRightGroup.alignChildren = ["right", "center"];
 
             var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
             btnCancel.onClick = function () {
-                dialog.close(DIALOG_RESULT_CANCEL);
+                dialogWindow.close(DIALOG_RESULT_CANCEL);
             };
 
             var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
             btnOK.onClick = function () {
                 /* 確定（一時グループを使わないので親階層の復元処理は不要）/ Commit; no temporary groups to unwind */
-                dialog.close(DIALOG_RESULT_OK);
+                dialogWindow.close(DIALOG_RESULT_OK);
             };
         }
 
@@ -1188,9 +1197,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
          */
         function clearDimmedBaseSelections() {
             var dimmedGroups = [baseRadios, areaRadios];
-            for (var g = 0; g < dimmedGroups.length; g++) {
-                for (var r = 0; r < dimmedGroups[g].length; r++) {
-                    dimmedGroups[g][r].value = false;
+            for (var groupIndex = 0; groupIndex < dimmedGroups.length; groupIndex++) {
+                for (var radioIndex = 0; radioIndex < dimmedGroups[groupIndex].length; radioIndex++) {
+                    dimmedGroups[groupIndex][radioIndex].value = false;
                 }
             }
         }
@@ -1828,8 +1837,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
          * @returns {void}
          */
         function distributeVertical(useGap) {
-            var sortedItems = targetItems.slice(0).sort(function (a, b) {
-                return getReferenceBounds(b).top - getReferenceBounds(a).top;
+            var sortedItems = targetItems.slice(0).sort(function (itemA, itemB) {
+                return getReferenceBounds(itemB).top - getReferenceBounds(itemA).top;
             });
             var topMost = getReferenceBounds(sortedItems[0]).top;
             var gap = 0;
@@ -1854,8 +1863,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
          * @returns {void}
          */
         function distributeHorizontal(useGap) {
-            var sortedItems = targetItems.slice(0).sort(function (a, b) {
-                return getReferenceBounds(a).left - getReferenceBounds(b).left;
+            var sortedItems = targetItems.slice(0).sort(function (itemA, itemB) {
+                return getReferenceBounds(itemA).left - getReferenceBounds(itemB).left;
             });
             var leftMost = getReferenceBounds(sortedItems[0]).left;
             var gap = 0;

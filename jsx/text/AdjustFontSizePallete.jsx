@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AdjustFontSizePallete";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSizePallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSizePallete.md"; /* README (English) */
@@ -126,11 +126,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {string} labelSet - ラベルのパス
+     * @param {string} labelPath - ラベルのパス
      * @returns {string} コロン付きの項目名
      */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -654,7 +654,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          * 選択している文字の先頭の現在値を読み取って入力欄に反映する
          * @returns {void}
          */
-        function updateInfoText() {
+        function loadValuesFromSelection() {
             /* 実際の値を読み直すので、焼き込み前の保存状態（トグル）は破棄する
                Reloading the actual values invalidates the saved pre-bake (toggle) state */
             apparentToggleState = null;
@@ -712,7 +712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         /**
          * サイズ・比率を手で編集したときの処理（入力値をそのまま適用する）
-         * updateInfoText() で入力欄を読み直すと入力値が丸めで戻る恐れがあるため呼ばない（見かけ表示だけ更新する）
+         * loadValuesFromSelection() で入力欄を読み直すと入力値が丸めで戻る恐れがあるため呼ばない（見かけ表示だけ更新する）
          * @returns {void}
          */
         function handleValueEdited() {
@@ -745,8 +745,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             fontSizeDialog.close(2);
         };
 
-        /* 初期表示（updateInfoText が先頭文字の実サイズを読み取って各欄を設定）/ initial state (updateInfoText reads the actual size of the first char) */
-        updateInfoText();
+        /* 初期表示（loadValuesFromSelection が先頭文字の実サイズを読み取って各欄を設定）/ initial state (loadValuesFromSelection reads the actual size of the first char) */
+        loadValuesFromSelection();
         updateApparentSizeDisplay();
 
         fontSizeDialog.onShow = function () {

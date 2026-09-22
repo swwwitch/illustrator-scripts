@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SwapObjects";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md"; /* README (English) */
@@ -42,11 +42,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
 
 (function () {
 
+    // =========================================
     // ユーザー設定 / User settings
     // =========================================
     var DEFAULT_USE_VISUAL_BOUNDS      = false;  /* 「見た目のサイズを基準にする」の初期値 / default for visual bounds */
     var DEFAULT_LIVE_PREVIEW_ENABLED   = false;  /* プレビューの初期値 / default for live preview */
     var EQUAL_VALUE_TOLERANCE          = 0.01;   /* 同値とみなす許容差 / tolerance for treating values as equal */
+
+    // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+
+    /**
+     * ウィンドウに共通のレイアウト設定を適用する
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} spacing - 要素間隔。省略時はWINDOW_SPACING
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルに共通のレイアウト設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} spacing - 要素間隔。省略時はPANEL_SPACING
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // 定数 / Constants
+    // =========================================
+    var BOUNDS_MODES = {
+        GEOMETRIC: 'geometric',
+        VISUAL: 'visual'
+    };
+
+    var REFERENCE_MODES = {
+        SWAP_CENTERS: 'swapCenters',
+        KEEP_OUTER_EDGES: 'keepOuterEdges'
+    };
 
     // =========================================
     // ローカライズ / Localization
@@ -116,63 +167,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
 
     /**
      * 現在のUI言語に応じたラベル文字列を取得する
-     * @param {string} category - LABELSのカテゴリ名
-     * @param {string} key - カテゴリ内のキー名
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー（カテゴリ.キー）
      * @returns {string} 対応する文字列
      */
-    function getLabel(category, key) {
-        var labelEntry = LABELS[category][key];
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelEntry = LABELS[labelPathKeys[0]][labelPathKeys[1]];
         return labelEntry[uiLang] || labelEntry.en;
-    }
-
-    // =========================================
-    // 定数 / Constants
-    // =========================================
-    var BOUNDS_MODES = {
-        GEOMETRIC: 'geometric',
-        VISUAL: 'visual'
-    };
-
-    var REFERENCE_MODES = {
-        SWAP_CENTERS: 'swapCenters',
-        KEEP_OUTER_EDGES: 'keepOuterEdges'
-    };
-
-    // =========================================
-    // UIレイアウトの共通設定 / Shared UI layout
-    // =========================================
-
-    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
-
-    /**
-     * ウィンドウに共通のレイアウト設定を適用する
-     * @param {Window} targetWindow - 対象のウィンドウ
-     * @param {number} spacing - 要素間隔。省略時はWINDOW_SPACING
-     * @returns {void}
-     */
-    function setupWindow(targetWindow, spacing) {
-        targetWindow.orientation = "column";
-        targetWindow.alignChildren = "fill";
-        targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
-
-    /**
-     * パネルに共通のレイアウト設定を適用する
-     * @param {Panel} panel - 対象のパネル
-     * @param {number} spacing - 要素間隔。省略時はPANEL_SPACING
-     * @returns {void}
-     */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -185,7 +186,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel('alert', 'noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
@@ -211,15 +212,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
      */
     function validateSwapSelection(targetItems) {
         if (!targetItems || targetItems.length !== 2) {
-            return { isValid: false, message: getLabel('alert', 'selectTwoItems') };
+            return { isValid: false, message: getLabel('alert.selectTwoItems') };
         }
 
         for (var i = 0; i < targetItems.length; i++) {
             if (!isSwappableItem(targetItems[i])) {
-                return { isValid: false, message: getLabel('alert', 'unsupportedItem') };
+                return { isValid: false, message: getLabel('alert.unsupportedItem') };
             }
             if (isLockedOrHidden(targetItems[i])) {
-                return { isValid: false, message: getLabel('alert', 'lockedOrHidden') };
+                return { isValid: false, message: getLabel('alert.lockedOrHidden') };
             }
         }
 
@@ -331,7 +332,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
         dialogControls.rdoKeepOuterEdges.onClick = refreshLivePreview;
         dialogControls.chkUseVisualBounds.onClick = refreshLivePreview;
 
-        dialogControls.btnOk.onClick = function () {
+        dialogControls.btnOK.onClick = function () {
             /* プレビュー適用済みならそのまま確定 / Keep the applied preview as the result */
             if (!swapController.isSwapApplied() && swapController.applySwap(getSwapSettings())) {
                 app.redraw();
@@ -355,55 +356,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
      * @returns {object} 生成したコントロールをまとめたオブジェクト
      */
     function buildSwapDialog() {
-        var dialogWindow = new Window('dialog', getLabel('dialog', 'title') + ' ' + SCRIPT_VERSION);
+        var dialogWindow = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         setupWindow(dialogWindow);
 
         /* 位置の基準 / Position reference */
-        var positionReferencePanel = dialogWindow.add('panel', undefined, getLabel('panel', 'positionReference'));
+        var positionReferencePanel = dialogWindow.add('panel', undefined, getLabel('panel.positionReference'));
         setupPanel(positionReferencePanel, 6);
 
-        var rdoSwapCenters = positionReferencePanel.add('radiobutton', undefined, getLabel('radio', 'swapCenters'));
-        rdoSwapCenters.helpTip = getLabel('tooltip', 'swapCenters');
+        var rdoSwapCenters = positionReferencePanel.add('radiobutton', undefined, getLabel('radio.swapCenters'));
+        rdoSwapCenters.helpTip = getLabel('tooltip.swapCenters');
 
-        var rdoKeepOuterEdges = positionReferencePanel.add('radiobutton', undefined, getLabel('radio', 'keepOuterEdges'));
-        rdoKeepOuterEdges.helpTip = getLabel('tooltip', 'keepOuterEdges');
+        var rdoKeepOuterEdges = positionReferencePanel.add('radiobutton', undefined, getLabel('radio.keepOuterEdges'));
+        rdoKeepOuterEdges.helpTip = getLabel('tooltip.keepOuterEdges');
 
         /* サイズの基準 / Size reference */
-        var sizeReferencePanel = dialogWindow.add('panel', undefined, getLabel('panel', 'sizeReference'));
+        var sizeReferencePanel = dialogWindow.add('panel', undefined, getLabel('panel.sizeReference'));
         setupPanel(sizeReferencePanel, 6);
 
-        var chkUseVisualBounds = sizeReferencePanel.add('checkbox', undefined, getLabel('checkbox', 'useVisualBounds'));
-        chkUseVisualBounds.helpTip = getLabel('tooltip', 'useVisualBounds');
+        var chkUseVisualBounds = sizeReferencePanel.add('checkbox', undefined, getLabel('checkbox.useVisualBounds'));
+        chkUseVisualBounds.helpTip = getLabel('tooltip.useVisualBounds');
         chkUseVisualBounds.value = DEFAULT_USE_VISUAL_BOUNDS;
 
         /* ボタンエリアを左右分割で組み立てる。
            左：プレビュー、中央：伸縮スペーサー、右：キャンセル / OK。
            Build the footer split left and right: Preview on the left, a stretchable spacer
            in the middle, and Cancel / OK on the right. */
-        var footerRowGroup = dialogWindow.add('group');
-        footerRowGroup.orientation = 'row';
-        footerRowGroup.margins = [10, 10, 10, 0];
-        footerRowGroup.alignment = ['fill', 'bottom'];
+        var btnRowGroup = dialogWindow.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.margins = [10, 10, 10, 0];
+        btnRowGroup.alignment = ['fill', 'bottom'];
 
         /* 左側グループ / Left-side group
            プレビューは押しっぱなしの切り替えなので、ボタンではなくチェックボックスにしている
            Preview is a sticky toggle, so it stays a checkbox rather than a button */
-        var footerLeftGroup = footerRowGroup.add('group');
-        footerLeftGroup.alignChildren = ['left', 'center'];
-        var chkLivePreview = footerLeftGroup.add('checkbox', undefined, getLabel('checkbox', 'livePreview'));
-        chkLivePreview.helpTip = getLabel('tooltip', 'livePreview');
+        var btnLeftGroup = btnRowGroup.add('group');
+        btnLeftGroup.alignChildren = ['left', 'center'];
+        var chkLivePreview = btnLeftGroup.add('checkbox', undefined, getLabel('checkbox.livePreview'));
+        chkLivePreview.helpTip = getLabel('tooltip.livePreview');
         chkLivePreview.value = DEFAULT_LIVE_PREVIEW_ENABLED;
 
         /* スペーサー（伸縮） / Spacer (stretchable) */
-        var footerSpacer = footerRowGroup.add('group');
-        footerSpacer.alignment = ['fill', 'fill'];
-        footerSpacer.minimumSize.width = 0;
+        var spacer = btnRowGroup.add('group');
+        spacer.alignment = ['fill', 'fill'];
+        spacer.minimumSize.width = 0;
 
         /* 右側グループ / Right-side button group */
-        var footerRightGroup = footerRowGroup.add('group');
-        footerRightGroup.alignChildren = ['right', 'center'];
-        var btnCancel = footerRightGroup.add('button', undefined, getLabel('button', 'cancel'), { name: 'cancel' });
-        var btnOk = footerRightGroup.add('button', undefined, getLabel('button', 'ok'), { name: 'ok' });
+        var btnRightGroup = btnRowGroup.add('group');
+        btnRightGroup.alignChildren = ['right', 'center'];
+        var btnCancel = btnRightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var btnOK = btnRightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
         return {
             dialogWindow: dialogWindow,
@@ -412,7 +413,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
             chkUseVisualBounds: chkUseVisualBounds,
             chkLivePreview: chkLivePreview,
             btnCancel: btnCancel,
-            btnOk: btnOk
+            btnOK: btnOK
         };
     }
 
@@ -585,7 +586,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
     }
 
     // =========================================
-    // 移動量の計算 / Calculate offsetPair
+    // 移動量の計算 / Calculate offsets
     // =========================================
 
     /**

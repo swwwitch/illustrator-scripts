@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md"; /* README (English) */
@@ -205,8 +205,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             alignNone:   { ja: "なし", en: "None" }
         },
         tooltip: {
-            directionHorizontal: { ja: "左から右へ並べます。行数を指定すると折り返します。", en: "Lays the objects out left to right, wrapping at the given number of rows." },
-            directionVertical:   { ja: "上から下へ並べます。列数を指定すると折り返します。", en: "Stacks the objects top to bottom, wrapping at the given number of columns." },
+            directionHorizontal: {
+                ja: "左から右へ並べます。行数を指定すると折り返します。",
+                en: "Lays the objects out left to right, wrapping at the given number of rows."
+            },
+            directionVertical: {
+                ja: "上から下へ並べます。列数を指定すると折り返します。",
+                en: "Stacks the objects top to bottom, wrapping at the given number of columns."
+            },
             laneCount: {
                 ja: "何行（横並び）／何列（縦並び）で折り返すかを指定します。1 なら折り返しません。",
                 en: "How many rows (horizontal) or columns (vertical) to wrap at. 1 means no wrapping."
@@ -217,9 +223,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             },
             hMargin: { ja: "横方向のアキです。↑↓キーで増減できます。", en: "Horizontal gap. The arrow keys step the value." },
             vMargin: { ja: "縦方向のアキです。↑↓キーで増減できます。", en: "Vertical gap. The arrow keys step the value." },
-            linkMargins: { ja: "横のアキと同じ値を縦にも使います。オフにすると縦を個別に指定できます。", en: "Uses the horizontal gap for the vertical one too. Turn it off to set them separately." },
-            alignVertical:   { ja: "各行の中でオブジェクトを上下どこにそろえるかです。", en: "Where to align the objects vertically within each row." },
-            alignHorizontal: { ja: "各列の中でオブジェクトを左右どこにそろえるかです。", en: "Where to align the objects horizontally within each column." },
+            linkMargins: {
+                ja: "横のアキと同じ値を縦にも使います。オフにすると縦を個別に指定できます。",
+                en: "Uses the horizontal gap for the vertical one too. Turn it off to set them separately."
+            },
+            alignVertical: {
+                ja: "各行の中でオブジェクトを上下どこにそろえるかです。",
+                en: "Where to align the objects vertically within each row."
+            },
+            alignHorizontal: {
+                ja: "各列の中でオブジェクトを左右どこにそろえるかです。",
+                en: "Where to align the objects horizontally within each column."
+            },
             useKeyObject: {
                 ja: "最後にクリックしたキーオブジェクトの位置を動かさずに、他を並べ直します。キーオブジェクトが無いときは選べません。",
                 en: "Keeps the key object where it is and arranges the rest around it. Unavailable when there is no key object."

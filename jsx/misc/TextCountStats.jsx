@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "TextCountStats";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md"; /* README (English) */
@@ -157,18 +157,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!currentSelection) { currentSelection = []; }
         var fontSet = {};
 
-        /* グループ・複合パスの中まで含めたオブジェクト数 / Item count including group and compound path members */
-        var allItemCount = 0;
-        function countAllItems(items) {
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                allItemCount++;
-                if (item.typename === "GroupItem") { countAllItems(item.pageItems); }
-                else if (item.typename === "CompoundPathItem") { countAllItems(item.pathItems); }
-            }
-        }
-        countAllItems(doc.pageItems);
-
         /* テキストフレームを種別・文字数などで集計し、フォント名を fontSet に集める / Tally text frames and collect font names */
         function tallyTextFrames(items) {
             var tally = { chars: 0, paras: 0, lines: 0, words: 0, fullwidth: 0, kana: 0, point: 0, area: 0, path: 0 };
@@ -213,7 +201,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var resultPairs = [
             "selCount=" + currentSelection.length,
-            "allCount=" + allItemCount,
             "charSel=" + selectionTally.chars,
             "charAll=" + allTally.chars,
             "paraSel=" + selectionTally.paras,

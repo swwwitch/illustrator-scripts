@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "FormatNumberWithCommas";       /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FormatNumberWithCommas.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FormatNumberWithCommas.md"; /* README (English) */
@@ -43,7 +43,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
 (function () {
 
     // =========================================
-    // ユーザー設定 / User settings
+    // ユーザー設定 / User Settings
     // =========================================
 
     /* 除外ルール。この順にチェックボックスを並べ、defaultValue を初期状態にする
@@ -148,7 +148,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
             previewList: {
                 ja: "✓ の付いた行の数値にだけカンマを付けます。行をクリックすると ✓ を付け外しします。# はテキストの番号（上から順）です。",
                 en: "Only rows with ✓ get commas. Click a row to toggle its ✓. # numbers each text from the top."
-            }
+            },
+            selectAll: { ja: "すべての行に ✓ を付けます。", en: "Puts ✓ on every row." }
         },
         button: {
             selectAll: { ja: "すべて選択", en: "Select All" },
@@ -624,8 +625,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
         var positions = [];
         var frameIndexes = [];
         for (var i = 0; i < textFrames.length; i++) {
-            var bounds = textFrames[i].geometricBounds;
-            positions.push({ left: bounds[0], top: bounds[1] });
+            var frameBounds = textFrames[i].geometricBounds;
+            positions.push({ left: frameBounds[0], top: frameBounds[1] });
             frameIndexes.push(i);
         }
         frameIndexes.sort(function (indexA, indexB) {
@@ -934,6 +935,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21f07978f177"; /* 紹�
 
         var btnRowGroup = addButtonRow(previewDialog);
         var btnSelectAll = btnRowGroup.add("button", undefined, getLabel(LABELS.button.selectAll));
+        btnSelectAll.helpTip = getLabel(LABELS.tooltip.selectAll);
         btnSelectAll.onClick = function () {
             checkAllRows(previewList);
         };

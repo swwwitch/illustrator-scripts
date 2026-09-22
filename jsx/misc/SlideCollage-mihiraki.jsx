@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "SlideCollage-mihiraki";        /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md"; /* README (English) */
@@ -60,10 +60,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -321,12 +321,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function findFirstPlacedItem(items) {
         if (!items || items.length <= 0) return null;
         for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (!item) continue;
-            var constructorName = (item.constructor && item.constructor.name) ? item.constructor.name : "";
-            if (constructorName === "PlacedItem") return item;
+            var pageItem = items[i];
+            if (!pageItem) continue;
+            var constructorName = (pageItem.constructor && pageItem.constructor.name) ? pageItem.constructor.name : "";
+            if (constructorName === "PlacedItem") return pageItem;
             if (constructorName === "GroupItem") {
-                var nestedPlacedItem = findFirstPlacedItem(item.pageItems);
+                var nestedPlacedItem = findFirstPlacedItem(pageItem.pageItems);
                 if (nestedPlacedItem) return nestedPlacedItem;
             }
         }
@@ -499,10 +499,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 位置がどれかの画面と 40px 以上重なっているか
      * @param {Object} bounds - { left, top, right, bottom }
-     * @returns {boolean} 重なっていれば true（画面の情報が取れないときも true）
+     * @returns {boolean} 重なっていれば true（画面の一覧が空なら false、読み取りで例外が出たら true）
      */
     function isOnAnyScreen(bounds) {
-        /* 画面の情報が取れないときはそのまま適用する / Apply as is when screen info is unavailable */
+        /* 画面の情報を読めないときは、そのまま適用する / Apply as is when the screen info cannot be read */
         try {
             if (!($.screens && $.screens.length)) return false;
             for (var i = 0; i < $.screens.length; i++) {
@@ -561,11 +561,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * アートボードの範囲でクリッピングマスクをかける
      * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} item - マスクをかけるオブジェクト
+     * @param {PageItem} maskedItem - マスクをかけるオブジェクト
      * @param {number[]} artboardRect - アートボードの範囲 [left, top, right, bottom]
      * @returns {GroupItem} クリップグループ
      */
-    function clipToArtboard(doc, item, artboardRect) {
+    function clipToArtboard(doc, maskedItem, artboardRect) {
         var maskWidth = Math.abs(artboardRect[2] - artboardRect[0]);
         var maskHeight = Math.abs(artboardRect[1] - artboardRect[3]);
         if (maskWidth <= 0) maskWidth = 1;
@@ -577,8 +577,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         maskPath.clipping = true;
 
         var clipGroup = doc.groupItems.add();
-        try { item.moveToEnd(clipGroup); } catch (e) { }
-        try { maskPath.moveToBeginning(clipGroup); } catch (e2) { }
+        /* 移動に失敗しても続ける（DOM の挙動を実測していないので元の try を残す）/ Keep going if a move fails; the original guard is kept */
+        try { maskedItem.moveToEnd(clipGroup); } catch (e) { }
+        try { maskPath.moveToBeginning(clipGroup); } catch (e) { }
 
         clipGroup.clipped = true;
         return clipGroup;
@@ -812,7 +813,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pageRangeInput.characters = PAGE_RANGE_CHARACTERS;
         pageRangeInput.helpTip = getLabel("tooltip.pageRange");
 
-        var itemControls;
+        /* アイテム（PDF のトリミングと綴じ方向）。初回の読み込みより前に作る
+           Items (PDF crop box and binding); built before the initial load uses them */
+        var itemControls = addItemPanel(mainColumn);
 
         /**
          * 読み込みファイルを差し替え、トリミングの有効／無効・綴じ方向・ファイル名の表示を更新する
@@ -896,10 +899,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!pickedFile) return;
             loadSourceFromFileOrSelection(doc, pickedFile, setSourceFile, setPageRangeText);
         };
-
-        /* アイテム（PDF のトリミングと綴じ方向） / Items (PDF crop box and binding) */
-        itemControls = addItemPanel(mainColumn);
-        itemControls.cropDropdown.enabled = isPdfFile(sourceFile);
 
         /* ボタン（キャンセル・OK） / Buttons (Cancel, OK) */
         var btnRowGroup = collageDialog.add("group");

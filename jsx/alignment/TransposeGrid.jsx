@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "TransposeGrid";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TransposeGrid.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TransposeGrid.md"; /* README (English) */
@@ -82,13 +82,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* Illustrator座標では上ほどYが大きいので「上→下」に並べ直す / top-down order */
         rowYValues.sort(function (valueA, valueB) { return valueB - valueA; });
 
-        var rowCount = rowYValues.length;
-        var columnCount = columnXValues.length;
-
         var gridAssignments = assignItemsToGrid(selectedItems, rowYValues, columnXValues);
         if (gridAssignments === null) return; /* 同一セル衝突。assignItemsToGrid が通知済み */
 
-        var targetPitch = resolveTargetPitch(columnXValues, rowYValues, rowCount, columnCount);
+        var targetPitch = resolveTargetPitch(columnXValues, rowYValues);
         if (targetPitch === null) return; /* ピッチを推定できず。resolveTargetPitch が通知済み */
 
         /* 転置後グリッドの基準は元の左上に固定する / keep the original top-left as the origin */
@@ -126,27 +123,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 近い値をまとめて、行または列の代表座標一覧を作る
-     * @param {number[]} values - まとめる座標値
+     * @param {number[]} coordinateValues - まとめる座標値（この関数内で並べ替える）
      * @param {number} tolerancePt - 同じ行／列とみなす許容差（pt）
      * @returns {number[]} 昇順に並べた代表座標
      */
-    function clusterValues(values, tolerancePt) {
-        values.sort(function (valueA, valueB) { return valueA - valueB; });
+    function clusterValues(coordinateValues, tolerancePt) {
+        coordinateValues.sort(function (valueA, valueB) { return valueA - valueB; });
 
         var clusterCenters = [];
-        for (var i = 0; i < values.length; i++) {
+        for (var i = 0; i < coordinateValues.length; i++) {
             var matchedIndex = -1;
             for (var j = 0; j < clusterCenters.length; j++) {
-                if (Math.abs(values[i] - clusterCenters[j]) <= tolerancePt) {
+                if (Math.abs(coordinateValues[i] - clusterCenters[j]) <= tolerancePt) {
                     matchedIndex = j;
                     break;
                 }
             }
             if (matchedIndex < 0) {
-                clusterCenters.push(values[i]);
+                clusterCenters.push(coordinateValues[i]);
             } else {
                 /* 中心を軽く平均して安定させる / average lightly to keep the center stable */
-                clusterCenters[matchedIndex] = (clusterCenters[matchedIndex] + values[i]) / 2.0;
+                clusterCenters[matchedIndex] = (clusterCenters[matchedIndex] + coordinateValues[i]) / 2.0;
             }
         }
 
@@ -211,24 +208,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function medianAdjacentGap(sortedValues) {
         if (sortedValues.length < 2) return 0;
 
-        var gaps = [];
+        var adjacentGaps = [];
         for (var i = 1; i < sortedValues.length; i++) {
-            gaps.push(Math.abs(sortedValues[i] - sortedValues[i - 1]));
+            adjacentGaps.push(Math.abs(sortedValues[i] - sortedValues[i - 1]));
         }
-        gaps.sort(function (valueA, valueB) { return valueA - valueB; });
-        return gaps[Math.floor(gaps.length / 2)];
+        adjacentGaps.sort(function (valueA, valueB) { return valueA - valueB; });
+        return adjacentGaps[Math.floor(adjacentGaps.length / 2)];
     }
 
     /**
      * 転置後に使う行・列のピッチを決める
      * 1行だけ／1列だけのときは、取れている側のピッチをもう一方へ流用する。
-     * @param {number[]} columnXValues - 列の代表X
-     * @param {number[]} rowYValues - 行の代表Y
-     * @param {number} rowCount - 検出した行数
-     * @param {number} columnCount - 検出した列数
+     * @param {number[]} columnXValues - 列の代表X（要素数＝列数）
+     * @param {number[]} rowYValues - 行の代表Y（要素数＝行数）
      * @returns {{columnPitchPt: number, rowPitchPt: number}|null} 使用するピッチ。推定できなければ null
      */
-    function resolveTargetPitch(columnXValues, rowYValues, rowCount, columnCount) {
+    function resolveTargetPitch(columnXValues, rowYValues) {
+        var rowCount = rowYValues.length;
+        var columnCount = columnXValues.length;
         var columnPitchPt = medianAdjacentGap(columnXValues);
         var rowPitchPt = medianAdjacentGap(rowYValues);
 

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartVerticalAlign";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartVerticalAlign.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartVerticalAlign.md"; /* README (English) */
@@ -95,16 +95,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
     /**
      * パネルの共通設定
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {number} [spacing] - 要素間隔（省略時はScriptUIの既定値のまま）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = 'column';
-        panel.alignChildren = ['left', 'top'];
-        panel.margins = PANEL_MARGINS;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = 'column';
+        targetPanel.alignChildren = ['left', 'top'];
+        targetPanel.margins = PANEL_MARGINS;
         if (typeof spacing === 'number') {
-            panel.spacing = spacing;
+            targetPanel.spacing = spacing;
         }
     }
 

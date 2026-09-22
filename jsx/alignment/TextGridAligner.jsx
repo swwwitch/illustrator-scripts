@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "TextGridAligner";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextGridAligner.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextGridAligner.md"; /* README (English) */
@@ -51,10 +51,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DIALOG_OFFSET_X = 300;   /* ダイアログの表示位置：右(+)／左(-) */
     var DIALOG_OFFSET_Y = 0;     /* ダイアログの表示位置：下(+)／上(-) */
     var DIALOG_OPACITY = 0.95;   /* ダイアログの不透明度 0.0 - 1.0 */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var BUTTON_ROW_MARGINS = [0, 10, 0, 10];
-    var SLIDER_WIDTH = 150;
-    var THRESHOLD_LABEL_CHARS = 5;
+    var PANEL_MARGINS = [15, 20, 15, 10];       /* パネル余白 [左,上,右,下] / panel margins */
+    var BUTTON_ROW_MARGINS = [0, 10, 0, 10];    /* ボタン行の余白 / button row margins */
+    var SLIDER_WIDTH = 150;                     /* しきい値スライダーの幅 / threshold slider width */
+    var THRESHOLD_LABEL_CHARS = 5;              /* しきい値表示の文字数 / width of the threshold readout */
 
     // =========================================
     // 方向の定義 / Direction constants
@@ -426,21 +426,136 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログ / Dialog
     // =========================================
 
-    /* OKで確定した処理内容。ダイアログを閉じたあとに main から読む
-       Options confirmed with Run; main reads them after the dialog closes */
-    var confirmedOptions = null;
+    /**
+     * しきい値の表示用文字列を返す
+     * @param {number} thresholdValue - スライダーの値（pt）
+     * @returns {string} "10 pt" の形の文字列
+     */
+    function formatThreshold(thresholdValue) {
+        return Math.round(thresholdValue) + " pt";
+    }
 
     /**
-     * 整列・グループ化のダイアログを表示する
-     * @param {TextFrame[]} textFrames - 対象のテキスト
-     * @returns {number} ダイアログの戻り値（実行なら 1）
+     * ラベルと tooltip を LABELS の同じキーから引いてチェックボックスを追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelKey - checkbox.* と tooltip.* に共通のキー
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} 追加したチェックボックス
      */
-    function showDialog(textFrames) {
-        /* ダイアログを開く前の位置を控える（キャンセルで戻す）/ Snapshot positions so Cancel can restore them */
+    function addOptionCheckbox(parentPanel, labelKey, initialValue) {
+        var optionCheckbox = parentPanel.add("checkbox", undefined, getLabel("checkbox." + labelKey));
+        optionCheckbox.helpTip = getLabel("tooltip." + labelKey);
+        optionCheckbox.value = initialValue;
+        return optionCheckbox;
+    }
+
+    /**
+     * 行または列のパネル（揃え・グループ化・アキを均等に・しきい値）を組み立てる
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {object} axisKeys - LABELS のキー（panel / align / group / distribute / threshold）
+     * @param {number} sliderMax - しきい値スライダーの最大値
+     * @returns {object} alignCheckbox / groupCheckbox / distributeCheckbox / thresholdSlider / thresholdLabel
+     */
+    function addAxisPanel(parentWindow, axisKeys, sliderMax) {
+        var axisPanel = parentWindow.add("panel", undefined, getLabel("panel." + axisKeys.panel));
+        axisPanel.orientation = "column";
+        axisPanel.alignChildren = "left";
+        axisPanel.margins = PANEL_MARGINS;
+
+        var axisControls = {
+            alignCheckbox: addOptionCheckbox(axisPanel, axisKeys.align, true),
+            groupCheckbox: addOptionCheckbox(axisPanel, axisKeys.group, false),
+            distributeCheckbox: addOptionCheckbox(axisPanel, axisKeys.distribute, false)
+        };
+        /* 「アキを均等に」は「グループ化」をONにするまで使えない / enabled only while grouping */
+        axisControls.distributeCheckbox.enabled = false;
+
+        var thresholdSlider = axisPanel.add("slider", undefined, DEFAULT_GAP_THRESHOLD, 0, sliderMax);
+        thresholdSlider.helpTip = getLabel("tooltip." + axisKeys.threshold);
+        thresholdSlider.value = Math.min(DEFAULT_GAP_THRESHOLD, sliderMax);
+        thresholdSlider.preferredSize.width = SLIDER_WIDTH;
+
+        var thresholdLabel = axisPanel.add("statictext", undefined, formatThreshold(thresholdSlider.value));
+        thresholdLabel.alignment = "center";
+        thresholdLabel.characters = THRESHOLD_LABEL_CHARS;
+
+        axisControls.thresholdSlider = thresholdSlider;
+        axisControls.thresholdLabel = thresholdLabel;
+
+        axisControls.alignCheckbox.onClick = function () {
+            syncEnabledState(axisControls);
+        };
+        return axisControls;
+    }
+
+    /**
+     * 「揃え」のON/OFFに合わせて、その行または列の他のコントロールをディムする
+     * @param {object} axisControls - addAxisPanel() が返すコントロール
+     * @returns {void}
+     */
+    function syncEnabledState(axisControls) {
+        var isAligning = axisControls.alignCheckbox.value;
+        axisControls.thresholdSlider.enabled = isAligning;
+        axisControls.thresholdLabel.enabled = isAligning;
+        axisControls.groupCheckbox.enabled = isAligning;
+        if (!isAligning) {
+            axisControls.groupCheckbox.value = false;
+            axisControls.distributeCheckbox.enabled = false;
+            axisControls.distributeCheckbox.value = false;
+        }
+    }
+
+    /**
+     * 「グループ化」をONにしたら他方の「グループ化」を外し、「アキを均等に」の有効状態を合わせる
+     * 行と列を同時にグループ化はできないため / Rows and columns cannot both be grouped
+     * @param {object} ownControls - クリックされた側のコントロール
+     * @param {object} otherControls - もう一方（行なら列、列なら行）のコントロール
+     * @returns {void}
+     */
+    function bindExclusiveGrouping(ownControls, otherControls) {
+        ownControls.groupCheckbox.onClick = function () {
+            var isGrouping = ownControls.groupCheckbox.value;
+            if (isGrouping) otherControls.groupCheckbox.value = false;
+            ownControls.distributeCheckbox.enabled = isGrouping;
+            if (!isGrouping) ownControls.distributeCheckbox.value = false;
+        };
+    }
+
+    /**
+     * ダイアログを開く前の位置を控える（キャンセルで戻す）
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {number[][]} 各テキストの geometricBounds の複製
+     */
+    function snapshotBounds(textFrames) {
         var originalBoundsList = [];
         for (var i = 0; i < textFrames.length; i++) {
             originalBoundsList.push(textFrames[i].geometricBounds.slice(0));
         }
+        return originalBoundsList;
+    }
+
+    /**
+     * 控えた位置へテキストを戻す
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @param {number[][]} originalBoundsList - snapshotBounds() の戻り値
+     * @returns {void}
+     */
+    function restoreBounds(textFrames, originalBoundsList) {
+        for (var i = 0; i < textFrames.length; i++) {
+            textFrames[i].left = originalBoundsList[i][0];
+            textFrames[i].top = originalBoundsList[i][1];
+        }
+    }
+
+    /**
+     * 整列・グループ化のダイアログを表示する
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {object|null} ［実行］で確定した処理内容（キャンセルなら null）
+     */
+    function showTextGridDialog(textFrames) {
+        /* スライダー操作で動いた分をキャンセルで戻すため / so Cancel can undo slider moves */
+        var originalBoundsList = snapshotBounds(textFrames);
+        var confirmedOptions = null;
 
         var combinedBounds = getCombinedBounds(textFrames);
         var totalWidth = combinedBounds[2] - combinedBounds[0];
@@ -451,110 +566,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alignDialog.alignChildren = "fill";
         alignDialog.opacity = DIALOG_OPACITY;
 
-        /* 行 / Rows */
-        var rowsPanel = alignDialog.add("panel", undefined, getLabel("panel.rows"));
-        rowsPanel.orientation = "column";
-        rowsPanel.alignChildren = "left";
-        rowsPanel.margins = PANEL_MARGINS;
+        var rowControls = addAxisPanel(alignDialog, {
+            panel: "rows", align: "alignRows", group: "groupRows", distribute: "distributeRows", threshold: "rowThreshold"
+        }, totalWidth || 100);
+        var columnControls = addAxisPanel(alignDialog, {
+            panel: "columns", align: "alignColumns", group: "groupColumns", distribute: "distributeColumns", threshold: "columnThreshold"
+        }, totalHeight || 100);
 
-        var alignRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.alignRows"));
-        alignRowsCheckbox.helpTip = getLabel("tooltip.alignRows");
-        alignRowsCheckbox.value = true;
+        bindExclusiveGrouping(rowControls, columnControls);
+        bindExclusiveGrouping(columnControls, rowControls);
 
-        var groupRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.groupRows"));
-        groupRowsCheckbox.helpTip = getLabel("tooltip.groupRows");
-        groupRowsCheckbox.value = false;
+        rowControls.thresholdSlider.onChanging = function () {
+            rowControls.thresholdLabel.text = formatThreshold(rowControls.thresholdSlider.value);
+            rowGapThreshold = rowControls.thresholdSlider.value;
+            if (!rowControls.alignCheckbox.value) return;
 
-        var distributeRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.distributeRows"));
-        distributeRowsCheckbox.helpTip = getLabel("tooltip.distributeRows");
-        distributeRowsCheckbox.value = false;
-        distributeRowsCheckbox.enabled = false;
-
-        var rowThresholdSlider = rowsPanel.add("slider", undefined, DEFAULT_GAP_THRESHOLD, 0, totalWidth || 100);
-        rowThresholdSlider.helpTip = getLabel("tooltip.rowThreshold");
-        rowThresholdSlider.value = Math.min(DEFAULT_GAP_THRESHOLD, totalWidth || 100);
-        rowThresholdSlider.preferredSize.width = SLIDER_WIDTH;
-
-        var rowThresholdLabel = rowsPanel.add("statictext", undefined, Math.round(rowThresholdSlider.value) + " pt");
-        rowThresholdLabel.alignment = "center";
-        rowThresholdLabel.characters = THRESHOLD_LABEL_CHARS;
-
-        /* 列 / Columns */
-        var columnsPanel = alignDialog.add("panel", undefined, getLabel("panel.columns"));
-        columnsPanel.orientation = "column";
-        columnsPanel.alignChildren = "left";
-        columnsPanel.margins = PANEL_MARGINS;
-
-        var alignColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.alignColumns"));
-        alignColumnsCheckbox.helpTip = getLabel("tooltip.alignColumns");
-        alignColumnsCheckbox.value = true;
-
-        var groupColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.groupColumns"));
-        groupColumnsCheckbox.helpTip = getLabel("tooltip.groupColumns");
-        groupColumnsCheckbox.value = false;
-
-        var distributeColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.distributeColumns"));
-        distributeColumnsCheckbox.helpTip = getLabel("tooltip.distributeColumns");
-        distributeColumnsCheckbox.value = false;
-        distributeColumnsCheckbox.enabled = false;
-
-        var columnThresholdSlider = columnsPanel.add("slider", undefined, DEFAULT_GAP_THRESHOLD, 0, totalHeight || 100);
-        columnThresholdSlider.helpTip = getLabel("tooltip.columnThreshold");
-        columnThresholdSlider.value = Math.min(DEFAULT_GAP_THRESHOLD, totalHeight || 100);
-        columnThresholdSlider.preferredSize.width = SLIDER_WIDTH;
-
-        var columnThresholdLabel = columnsPanel.add("statictext", undefined, Math.round(columnThresholdSlider.value) + " pt");
-        columnThresholdLabel.alignment = "center";
-        columnThresholdLabel.characters = THRESHOLD_LABEL_CHARS;
-
-        /**
-         * 「揃え」のON/OFFに合わせて、その行または列の他のコントロールをディムする
-         * @param {Checkbox} alignCheckbox - 「揃え」のチェックボックス
-         * @param {Checkbox} groupCheckbox - 「グループ化」のチェックボックス
-         * @param {Checkbox} distributeCheckbox - 「アキを均等に」のチェックボックス
-         * @param {Slider} thresholdSlider - しきい値スライダー
-         * @param {StaticText} thresholdLabel - しきい値のラベル
-         * @returns {void}
-         */
-        function syncEnabledState(alignCheckbox, groupCheckbox, distributeCheckbox, thresholdSlider, thresholdLabel) {
-            thresholdSlider.enabled = alignCheckbox.value;
-            thresholdLabel.enabled = alignCheckbox.value;
-            groupCheckbox.enabled = alignCheckbox.value;
-            if (!alignCheckbox.value) {
-                groupCheckbox.value = false;
-                distributeCheckbox.enabled = false;
-                distributeCheckbox.value = false;
-            }
-        }
-
-        alignRowsCheckbox.onClick = function () {
-            syncEnabledState(alignRowsCheckbox, groupRowsCheckbox, distributeRowsCheckbox,
-                rowThresholdSlider, rowThresholdLabel);
-        };
-        alignColumnsCheckbox.onClick = function () {
-            syncEnabledState(alignColumnsCheckbox, groupColumnsCheckbox, distributeColumnsCheckbox,
-                columnThresholdSlider, columnThresholdLabel);
-        };
-
-        /* 行と列を同時にグループ化はできないので、片方をONにしたら他方を外す
-           Rows and columns cannot both be grouped, so turning one on clears the other */
-        groupRowsCheckbox.onClick = function () {
-            if (groupRowsCheckbox.value) groupColumnsCheckbox.value = false;
-            distributeRowsCheckbox.enabled = groupRowsCheckbox.value;
-            if (!groupRowsCheckbox.value) distributeRowsCheckbox.value = false;
-        };
-        groupColumnsCheckbox.onClick = function () {
-            if (groupColumnsCheckbox.value) groupRowsCheckbox.value = false;
-            distributeColumnsCheckbox.enabled = groupColumnsCheckbox.value;
-            if (!groupColumnsCheckbox.value) distributeColumnsCheckbox.value = false;
-        };
-
-        rowThresholdSlider.onChanging = function () {
-            rowThresholdLabel.text = Math.round(rowThresholdSlider.value) + " pt";
-            rowGapThreshold = rowThresholdSlider.value;
-            if (textFrames.length === 0 || !alignRowsCheckbox.value) return;
-
-            if (groupRowsCheckbox.value) {
+            if (rowControls.groupCheckbox.value) {
                 groupItemsByDirection(DIRECTION_HORIZONTAL, true);
             } else {
                 alignGroupsToCenter(textFrames, DIRECTION_HORIZONTAL);
@@ -562,14 +589,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             app.redraw();
         };
 
-        columnThresholdSlider.onChanging = function () {
-            columnThresholdLabel.text = Math.round(columnThresholdSlider.value) + " pt";
-            columnGapThreshold = columnThresholdSlider.value;
-            if (textFrames.length === 0 || !alignColumnsCheckbox.value) return;
+        columnControls.thresholdSlider.onChanging = function () {
+            columnControls.thresholdLabel.text = formatThreshold(columnControls.thresholdSlider.value);
+            columnGapThreshold = columnControls.thresholdSlider.value;
+            if (!columnControls.alignCheckbox.value) return;
 
-            if (groupColumnsCheckbox.value) {
+            if (columnControls.groupCheckbox.value) {
                 var createdGroups = groupItemsByDirection(DIRECTION_VERTICAL, false);
-                if (distributeColumnsCheckbox.value) {
+                if (columnControls.distributeCheckbox.value) {
                     /* 各列グループの中で、テキストの左右のアキを均等にする
                        Even out the horizontal gaps inside each column group */
                     for (var i = 0; i < createdGroups.length; i++) {
@@ -590,23 +617,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnCancel.onClick = function () {
-            /* スライダー操作で動いた分を元に戻す / Undo the moves made while dragging the sliders */
-            for (var i = 0; i < textFrames.length; i++) {
-                textFrames[i].left = originalBoundsList[i][0];
-                textFrames[i].top = originalBoundsList[i][1];
-            }
+            restoreBounds(textFrames, originalBoundsList);
             alignDialog.close(0);
         };
 
         var btnRun = btnRowGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
         btnRun.onClick = function () {
             confirmedOptions = {
-                alignRows: alignRowsCheckbox.value,
-                groupRows: groupRowsCheckbox.value,
-                distributeRows: distributeRowsCheckbox.value,
-                alignColumns: alignColumnsCheckbox.value,
-                groupColumns: groupColumnsCheckbox.value,
-                distributeColumns: distributeColumnsCheckbox.value
+                alignRows: rowControls.alignCheckbox.value,
+                groupRows: rowControls.groupCheckbox.value,
+                distributeRows: rowControls.distributeCheckbox.value,
+                alignColumns: columnControls.alignCheckbox.value,
+                groupColumns: columnControls.groupCheckbox.value,
+                distributeColumns: columnControls.distributeCheckbox.value
             };
             alignDialog.close(1);
         };
@@ -618,7 +641,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ];
         };
 
-        return alignDialog.show();
+        return (alignDialog.show() === 1) ? confirmedOptions : null;
     }
 
     // =========================================
@@ -645,17 +668,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        if (showDialog(textFrames) !== 1 || !confirmedOptions) return;
+        var confirmedOptions = showTextGridDialog(textFrames);
+        if (!confirmedOptions) return;
 
-        applyConfirmedOptions(textFrames);
+        applyConfirmedOptions(textFrames, confirmedOptions);
     }
 
     /**
      * ダイアログで確定した内容を適用する
      * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @param {object} confirmedOptions - showTextGridDialog() が返す処理内容
      * @returns {void}
      */
-    function applyConfirmedOptions(textFrames) {
+    function applyConfirmedOptions(textFrames, confirmedOptions) {
         if (confirmedOptions.alignRows) {
             if (confirmedOptions.groupRows) {
                 var rowGroups = groupItemsByDirection(DIRECTION_HORIZONTAL, true);

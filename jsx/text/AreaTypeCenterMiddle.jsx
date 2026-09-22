@@ -186,7 +186,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 候補名から利用できるフォントを返す
-     * @param {Array<string>} candidateFontNames - フォント名の候補
+     * @param {string[]} candidateFontNames - フォント名の候補
      * @returns {TextFont} 見つかったフォント（無ければnull）
      */
     function findAvailableTextFont(candidateFontNames) {
@@ -239,7 +239,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 閉じたパスをエリア内文字に変換してテキストを流し込む
      * @param {Document} doc - 対象ドキュメント
-     * @param {object} shapeItem - 変換するパス（複合パスも可）
+     * @param {PathItem|CompoundPathItem} shapeItem - 変換するパス（複合パスも可）
      * @param {string} bodyText - 流し込むテキスト
      * @returns {TextFrame} 作成したエリア内文字（変換できなければnull）
      */
@@ -264,8 +264,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 組み合わせごとに、閉じたパスをエリア内文字にしてテキストを流し込む
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} fillJobs - shapeItem（変換するパス）と sourceTextFrame（流し込み元。nullならサンプルテキスト）の組み合わせ
-     * @returns {Array<TextFrame>} 作成したエリア内文字
+     * @param {Object[]} fillJobs - shapeItem（変換するパス）と sourceTextFrame（流し込み元。nullならサンプルテキスト）の組み合わせ
+     * @returns {TextFrame[]} 作成したエリア内文字
      */
     function fillShapesWithText(doc, fillJobs) {
         var sampleText = (uiLang === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
@@ -299,7 +299,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * グループが「閉じたパス1つ＋テキスト1つ」なら、その組み合わせを返す
      * @param {GroupItem} groupItem - 対象のグループ
-     * @returns {object} shapeItem / textFrame を持つオブジェクト（該当しなければnull）
+     * @returns {Object|null} shapeItem / textFrame を持つオブジェクト（該当しなければnull）
      */
     function getShapeTextPair(groupItem) {
         /* クリップグループの枠はマスクなので対象にしない / The frame of a clipping group is a mask, not a shape to convert */
@@ -317,7 +317,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * グループから「閉じたパス1つ＋テキスト1つ」の組み合わせを集める
      * @param {GroupItem} groupItem - 対象のグループ
-     * @param {Array} shapeTextPairs - 集めた組み合わせの入れ物
+     * @param {Object[]} shapeTextPairs - 集めた組み合わせの入れ物
      * @returns {void}
      */
     function collectShapeTextPairs(groupItem, shapeTextPairs) {
@@ -334,8 +334,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択オブジェクトを、エリア内文字・閉じたパス・それ以外のテキスト・グループの組み合わせに仕分ける
-     * @param {Array} selectedItems - ドキュメントの選択内容
-     * @returns {object} areaTextFrames / shapeItems / otherTextFrames / shapePairs を持つオブジェクト
+     * @param {PageItem[]} selectedItems - ドキュメントの選択内容
+     * @returns {Object} areaTextFrames / shapeItems / otherTextFrames / shapePairs を持つオブジェクト
      */
     function classifySelection(selectedItems) {
         var classifiedItems = { areaTextFrames: [], shapeItems: [], otherTextFrames: [], shapePairs: [] };
@@ -358,9 +358,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 流し込む組み合わせ（パスと流し込み元のテキスト）を作る
-     * @param {object} classifiedItems - classifySelection() の戻り値
+     * @param {Object} classifiedItems - classifySelection() の戻り値
      * @param {number} selectionLength - 選択オブジェクトの数
-     * @returns {Array<object>} shapeItem / sourceTextFrame を持つオブジェクトの配列
+     * @returns {Object[]} shapeItem / sourceTextFrame を持つオブジェクトの配列
      */
     function buildFillJobs(classifiedItems, selectionLength) {
         /* 「閉じたパス1つ＋テキスト1つ」の選択なら、そのテキストを流し込む / Pour the selected text when it is a single path plus a single text */

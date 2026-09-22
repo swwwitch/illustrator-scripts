@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "FillSnapper";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillSnapper.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillSnapper.md"; /* README (English) */
@@ -345,7 +345,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 savedPoints = [];
             }
             if (savedPoints.length > 0) {
-                snapshotData.push({ item: pageItem, points: savedPoints });
+                snapshotData.push({ pathItem: pageItem, savedPoints: savedPoints });
             }
         }
         return snapshotData;
@@ -359,14 +359,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function restoreOriginalGeometry(snapshotData) {
         for (var i = 0; i < snapshotData.length; i++) {
             var snapshotEntry = snapshotData[i];
-            if (!snapshotEntry || !snapshotEntry.item || !isEditableItem(snapshotEntry.item)) continue;
+            if (!snapshotEntry || !snapshotEntry.pathItem || !isEditableItem(snapshotEntry.pathItem)) continue;
 
             /* 書き戻せないパスはそこで打ち切り、次のパスへ / stop at a path that cannot be written and move on */
             try {
-                var pathPointList = snapshotEntry.item.pathPoints;
-                var pointCount = Math.min(snapshotEntry.points.length, pathPointList.length);
+                var pathPointList = snapshotEntry.pathItem.pathPoints;
+                var pointCount = Math.min(snapshotEntry.savedPoints.length, pathPointList.length);
                 for (var j = 0; j < pointCount; j++) {
-                    var savedPoint = snapshotEntry.points[j];
+                    var savedPoint = snapshotEntry.savedPoints[j];
                     pathPointList[j].anchor = savedPoint.anchor;
                     pathPointList[j].leftDirection = savedPoint.leftDirection;
                     pathPointList[j].rightDirection = savedPoint.rightDirection;
@@ -386,17 +386,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function findClosestCoordinate(targetValue, candidates, maxDistance) {
         if (!candidates || candidates.length === 0) return targetValue;
-        var closest = candidates[0];
-        var minDiff = Math.abs(targetValue - closest);
+        var closestValue = candidates[0];
+        var closestDistance = Math.abs(targetValue - closestValue);
         for (var i = 1; i < candidates.length; i++) {
-            var diff = Math.abs(targetValue - candidates[i]);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closest = candidates[i];
+            var candidateDistance = Math.abs(targetValue - candidates[i]);
+            if (candidateDistance < closestDistance) {
+                closestDistance = candidateDistance;
+                closestValue = candidates[i];
             }
         }
-        if (maxDistance && maxDistance > 0 && minDiff > maxDistance) return targetValue;
-        return closest;
+        if (maxDistance && maxDistance > 0 && closestDistance > maxDistance) return targetValue;
+        return closestValue;
     }
 
     /**

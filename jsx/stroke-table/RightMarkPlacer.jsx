@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "RightMarkPlacer";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RightMarkPlacer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkPlacer.md"; /* README (English) */
@@ -458,27 +458,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     /**
      * コンテキスト付きでエラーを $.writeln に出力します。
      *
-     * @param {string} context - どの処理で起きたかを示す文言。
+     * @param {string} logContext - どの処理で起きたかを示す文言。
      * @param {object} errorObject - エラーオブジェクトまたはメッセージ。
      * @returns {void}
      */
-    function logScriptError(context, errorObject) {
-        $.writeln("[" + SCRIPT_NAME + " " + SCRIPT_VERSION + "] " + context + ": " + errorObject);
+    function logScriptError(logContext, errorObject) {
+        $.writeln("[" + SCRIPT_NAME + " " + SCRIPT_VERSION + "] " + logContext + ": " + errorObject);
     }
 
     /**
      * 処理を実行し、失敗した場合はログを出して続行します。
      *
      * @param {Function} operation - 実行する処理。
-     * @param {string} context - 失敗時にログへ出す文言。
+     * @param {string} logContext - 失敗時にログへ出す文言。
      * @returns {boolean} 成功したら true、失敗したら false。
      */
-    function runSafely(operation, context) {
+    function runSafely(operation, logContext) {
         try {
             operation();
             return true;
         } catch (e) {
-            logScriptError(context, e);
+            logScriptError(logContext, e);
             return false;
         }
     }
@@ -502,14 +502,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * アイテムを削除します。削除済みのアイテムを渡しても止まらないよう、失敗はログだけにします。
      *
      * @param {PageItem} pageItem - 対象のアイテム。null なら何もしません。
-     * @param {string} context - 失敗時にログへ出す文言。
+     * @param {string} logContext - 失敗時にログへ出す文言。
      * @returns {void}
      */
-    function removeItemSafely(pageItem, context) {
+    function removeItemSafely(pageItem, logContext) {
         if (!pageItem) return;
         runSafely(function () {
             pageItem.remove();
-        }, context);
+        }, logContext);
     }
 
     /**

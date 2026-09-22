@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "DirectPrefs";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefs.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefs.md"; /* README (English) */
@@ -138,7 +138,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             },
             constrainPreset: { ja: "この角度を「角度の制限」にすぐ適用します。", en: "Applies this angle to the Constrain Angle preference right away." },
             resetConstrain: { ja: "角度の制限を0°に戻します。", en: "Resets the constrain angle to 0°." },
-            keyIncrementPreset: { ja: "この値をキー増加にすぐ適用します。", en: "Applies this value to the keyboard increment right away." }
+            keyIncrementPreset: { ja: "この値をキー増加にすぐ適用します。", en: "Applies this value to the keyboard increment right away." },
+            keyIncrementInput: { ja: "定規の単位で入力します。［変更］で適用します。", en: "Entered in the ruler unit. Click Change to apply it." },
+            snapToGrid: { ja: "「グリッドにスナップ」のオン・オフを切り替えます。", en: "Turns Snap to Grid on or off." }
         },
         status: {
             applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
@@ -449,6 +451,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         keyIncrementInputGroup.add("statictext", undefined, labelText("fieldLabel.keyIncrement"));
         var keyIncrementInput = keyIncrementInputGroup.add("edittext", undefined, "");
         keyIncrementInput.characters = INPUT_CHARS;
+        keyIncrementInput.helpTip = getLabel("tooltip.keyIncrementInput");
         var keyIncrementUnitLabel = keyIncrementInputGroup.add("statictext", undefined, "pt");
         keyIncrementUnitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
 
@@ -493,6 +496,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* グリッドにスナップを切り替えるボタン / Button that toggles snap to grid */
         var snapToGridButton = gridButtonGroup.add("button", undefined, getLabel("button.snapToGrid"));
+        snapToGridButton.helpTip = getLabel("tooltip.snapToGrid");
 
         /* ステータス表示 / Status line */
         var statusText = prefsPalette.add("statictext", undefined, "");

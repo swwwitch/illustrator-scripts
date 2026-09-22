@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SmartDistributor";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributor.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributor.md"; /* README (English) */
@@ -883,20 +883,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             selectedItems = app.activeDocument.selection;
             if (!selectedItems || selectedItems.length < 1) return "no selection";
 
-            var result;
+            var workerResult;
             if (workerAction === "collapse") {
-                result = collapseGaps();
+                workerResult = collapseGaps();
             } else if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
-                result = shiftTextLeading();
+                workerResult = shiftTextLeading();
             } else if (selectedItems.length < 2) {
                 return "need 2+";
             } else {
                 if (dy !== 0) distributeAlongAxis(true);
                 if (dx !== 0) distributeAlongAxis(false);
-                result = "ok";
+                workerResult = "ok";
             }
             app.redraw();
-            return result;
+            return workerResult;
         } catch (e) {
             return "error: " + e.message;
         }

@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "GuideLineBuilder";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GuideLineBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GuideLineBuilder.md"; /* README (English) */
@@ -95,6 +95,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     var NUMBER_INPUT_CHARACTERS = 6;                  /* 数値入力欄の文字数 / numeric field width */
     var ZOOM_SLIDER_WIDTH       = 240;                /* ズームスライダーの幅 / zoom slider width */
     var ZOOM_ROW_MARGINS        = [0, 0, 0, 10];      /* ズームの行の余白 / zoom row margins */
+    var STROKE_ROW_MARGINS      = [0, 6, 0, 0];       /* 線幅の行の余白 / stroke-width row margins */
 
     /**
      * ウィンドウの共通レイアウトを設定する
@@ -1544,7 +1545,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         var strokeWidthCache = { value: mmToPt(DEFAULT_STROKE_WIDTH_MM) };
         var strokeWidthField = addLengthRow(linesPanel, LABELS.fieldLabel.strokeWidth, "strokeUnits", strokeWidthCache.value);
-        strokeWidthField.row.margins = [0, 6, 0, 0];
+        strokeWidthField.row.margins = STROKE_ROW_MARGINS;
 
         // --- 右カラム / Right column ---
         var rightColumn = columnsGroup.add("group");

@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md"; /* README (English) */
@@ -208,7 +208,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 現在の言語のラベルを取得する
-     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @param {Object} labelSet - { ja: string, en: string } 形式のラベル
      * @returns {string} ラベル文字列
      */
     function getLabel(labelSet) {
@@ -217,11 +217,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
-     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @param {Object} labelSet - { ja: string, en: string } 形式のラベル
      * @returns {string} コロン付きのラベル文字列
      */
     function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ");
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -317,7 +317,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 選択（グループの中を含む）からテキストフレームを集める
-     * @param {Array<PageItem>|TextRange} currentSelection - ドキュメントの選択
+     * @param {PageItem[]|TextRange} currentSelection - ドキュメントの選択
      * @returns {TextFrame[]} テキストフレーム（文字の編集中は空）
      */
     function collectTextFrames(currentSelection) {
@@ -454,14 +454,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 項目名＋入力欄の1行を追加する
-     * @param {Group|Panel} parent - 追加先
-     * @param {object} labelSet - 項目名のラベル
+     * @param {Group|Panel} parentContainer - 追加先
+     * @param {Object} labelSet - 項目名のラベル
      * @param {string} initialText - 入力欄の初期値
      * @param {number} inputCharacters - 入力欄の幅（文字数）
      * @returns {EditText} 追加した入力欄（行のグループは parent で取れる）
      */
-    function addFieldRow(parent, labelSet, initialText, inputCharacters) {
-        var fieldRow = parent.add("group");
+    function addFieldRow(parentContainer, labelSet, initialText, inputCharacters) {
+        var fieldRow = parentContainer.add("group");
         fieldRow.add("statictext", undefined, labelText(labelSet));
         var fieldInput = fieldRow.add("edittext", undefined, initialText);
         fieldInput.characters = inputCharacters;
@@ -470,13 +470,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 左の列（対象文字・シフト量・自動調整パネル）を組む
-     * @param {Group} parent - 追加先
+     * @param {Group} parentContainer - 追加先
      * @param {string} defaultTargetChars - 対象文字の初期値
      * @param {string} shiftUnitLabel - シフト量の単位の表示
      * @returns {{targetInput: EditText, shiftInput: EditText, referenceInput: EditText, btnCalculate: Button}} 入力欄と計算ボタン
      */
-    function buildInputColumn(parent, defaultTargetChars, shiftUnitLabel) {
-        var inputColumn = parent.add("group");
+    function buildInputColumn(parentContainer, defaultTargetChars, shiftUnitLabel) {
+        var inputColumn = parentContainer.add("group");
         inputColumn.orientation = "column";
         inputColumn.alignChildren = "left";
         inputColumn.margins = INPUT_COLUMN_MARGINS;
@@ -505,11 +505,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /**
      * 右の列（調整・キャンセル・リセット）を組む
-     * @param {Group} parent - 追加先
+     * @param {Group} parentContainer - 追加先
      * @returns {{btnOK: Button, btnCancel: Button, btnReset: Button}} ボタン
      */
-    function buildButtonColumn(parent) {
-        var buttonColumn = parent.add("group");
+    function buildButtonColumn(parentContainer) {
+        var buttonColumn = parentContainer.add("group");
         buttonColumn.orientation = "column";
         buttonColumn.alignChildren = "fill";
 

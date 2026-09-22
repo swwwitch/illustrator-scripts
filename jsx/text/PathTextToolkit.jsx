@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "PathTextToolkit";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathTextToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathTextToolkit.md"; /* README (English) */
@@ -456,7 +456,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 縦並び（上寄せ・幅いっぱい）のグループを追加する
+     * 上寄せ・幅いっぱいのグループを追加する
      * @param {Object} parentContainer - 追加先
      * @param {string} orientation - "row" または "column"
      * @returns {Group} 作成したグループ
@@ -1637,12 +1637,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { duplicatedPath.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
             return duplicatedPath;
         } catch (e) {
-            /* 2) だめならアンカーとハンドルを写して作る / Fall back to copying anchors and handles */
-            try {
-                return duplicatePathWithHandles(sourcePath, currentLayer);
-            } catch (e2) {
-                return null;
-            }
+            /* 2) だめならアンカーとハンドルを写して作る（失敗すると null） / Fall back to copying anchors and handles */
+            return duplicatePathWithHandles(sourcePath, currentLayer);
         }
     }
 

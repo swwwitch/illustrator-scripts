@@ -30,7 +30,7 @@ var SCRIPT_NAME     = "TypeBasicsPanel";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md"; /* README (English) */
@@ -669,14 +669,14 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
             var fieldValue = Number(editText.text);
             if (isNaN(fieldValue)) return;
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
             var step = 1;
-            if (keyboard.shiftKey) step = 10;
-            else if (keyboard.altKey) step = 0.1;
-            if (keyboard.shiftKey) fieldValue = roundToStep(fieldValue, step);
+            if (keyboardState.shiftKey) step = 10;
+            else if (keyboardState.altKey) step = 0.1;
+            if (keyboardState.shiftKey) fieldValue = roundToStep(fieldValue, step);
             if (event.keyName === "Up") fieldValue += step;
             else fieldValue -= step;
-            if (keyboard.altKey) fieldValue = Math.round(fieldValue * 10) / 10;
+            if (keyboardState.altKey) fieldValue = Math.round(fieldValue * 10) / 10;
             else fieldValue = Math.round(fieldValue);
             if (!allowNegative && fieldValue < 0) fieldValue = 0;
             event.preventDefault();
@@ -709,6 +709,10 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
      * @returns {void}
      */
     function bindSliderToInput(slider, valueInput, onCommit) {
+        /**
+         * スライダーの値を丸めて入力欄へ写す
+         * @returns {number} 丸めた値
+         */
         function syncFromSlider() {
             var snappedValue = snapSliderValue(slider.value);
             slider.value = snappedValue;
@@ -978,6 +982,12 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
      */
     function parseState(encodedState) {
         var stateFields = String(encodedState || "").split("|");
+
+        /**
+         * 数値に変換する（変換できなければ NaN）
+         * @param {string} fieldText - 変換する文字列
+         * @returns {number} 数値
+         */
         function toNumber(fieldText) { var parsed = parseFloat(fieldText); return isNaN(parsed) ? NaN : parsed; }
         return {
             count: parseInt(stateFields[0], 10) || 0,
@@ -1017,13 +1027,24 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         var workerBusy = false;
         var pendingApply = null;
 
-        /* 重要処理の失敗をダイアログで通知 / Surface an important-op failure via an alert */
+        /**
+         * 適用の失敗を alert で知らせる
+         * @param {string} actionId - 失敗したアクション名
+         * @param {string} payload - エラーの内容
+         * @returns {void}
+         */
         function showWorkerError(actionId, payload) {
             var detail = payload ? (": " + String(payload)) : "";
             alert("⚠ " + getLabel(LABELS.alert.applyError) + " [" + actionId + "]" + detail);
         }
 
-        /* 実際に委譲し、完了後に保留中の要求があれば続けて投げる / Delegate now, then flush the pending request if any */
+        /**
+         * メインエンジンへ委譲し、完了後に保留中の要求があれば続けて送る
+         * @param {string} actionId - dispatchAction() に渡すアクション名
+         * @param {Object|null} params - パラメータ
+         * @param {Function} [onDone] - 完了時に呼ぶ関数
+         * @returns {void}
+         */
         function sendApply(actionId, params, onDone) {
             workerBusy = true;
             runWorker(actionId, params, function (status, payload) {
@@ -1106,26 +1127,38 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
     function bindLeadingEvents(paletteControls, runApply) {
         var textUnit = paletteControls.textUnit;
 
-        /* 現在の行送り（自動行送り量 %）/ The current leading (auto-leading amount %) */
+        /**
+         * 行送り（%）欄の値を返す（自動行送り量）
+         * @returns {number} 百分率（数値でなければ NaN）
+         */
         function currentLeadingPercent() {
             return parseFloat(paletteControls.leadingPercentInput.text);
         }
-        /* 実質行送り（フォントサイズ×%）の表示を更新 / Update the effective-leading display (font size × %) */
+        /**
+         * 実質の行送り（フォントサイズ×%）の表示を更新する
+         * @returns {void}
+         */
         function updateLeadingEffective() {
             var fontSize = parseFloat(paletteControls.fontSizeInput.text);
             var percent = currentLeadingPercent();
             if (isNaN(fontSize) || isNaN(percent)) { paletteControls.leadingEffectiveInput.text = ""; return; }
             paletteControls.leadingEffectiveInput.text = String(Math.round(fontSize * percent / 100 * 10) / 10);
         }
-        /* 行送りを適用（自動行送り量%。行送りの基準は変更しない）/ Apply leading (auto-leading amount %; the basis is left as is) */
+        /**
+         * 行送り（自動行送り量 %）を適用する。行送りの基準は変更しない
+         * @returns {void}
+         */
         function applyLeading() {
             var percent = currentLeadingPercent();
             if (isNaN(percent)) return;
             runApply("applyLeading", { percent: percent });
         }
 
-        /* フォントサイズ入力：適用し、実質行送りの表示も更新。行送りは自動行送りなのでサイズに追従する（再適用は不要）
-           Font size input: apply and refresh the effective leading; auto leading follows the size */
+        /**
+         * フォントサイズ欄の値を適用し、実質の行送りの表示も更新する。
+         * 行送りは自動行送りなのでサイズに追従する（再適用は不要）
+         * @returns {void}
+         */
         function applyFontSizeFromInput() {
             var inputValue = parseFloat(paletteControls.fontSizeInput.text);
             if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.pointsPerUnit });
@@ -1135,7 +1168,10 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         paletteControls.fontSizeInput.onChanging = function () { updateLeadingEffective(); };
         changeValueByArrowKey(paletteControls.fontSizeInput, false, applyFontSizeFromInput, 1);
 
-        /* 行送り（%）入力：実質表示を更新して適用 / Leading (%) input: refresh the effective display and apply */
+        /**
+         * 行送り（%）欄の値で実質の表示を更新して適用する
+         * @returns {void}
+         */
         function applyLeadingFromPercent() {
             updateLeadingEffective();
             applyLeading();
@@ -1144,7 +1180,10 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         paletteControls.leadingPercentInput.onChanging = function () { updateLeadingEffective(); };
         changeValueByArrowKey(paletteControls.leadingPercentInput, false, applyLeadingFromPercent, 1);
 
-        /* 実質（pt）入力：フォントサイズから % を逆算して適用 / Effective (pt) input: back-calculate the % from the font size and apply */
+        /**
+         * 実質の行送り欄の値から % を逆算して適用する
+         * @returns {void}
+         */
         function applyLeadingFromEffective() {
             var effectiveLeading = parseFloat(paletteControls.leadingEffectiveInput.text);
             var fontSize = parseFloat(paletteControls.fontSizeInput.text);

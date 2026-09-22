@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md"; /* README (English) */
@@ -773,7 +773,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     }
 
     /**
-     * onDraw から iconType を束縛したクロージャを返す（基準版では同じ関数が2か所に重複していた）
+     * onDraw から iconType を束縛したクロージャを返す
      * @param {string} iconType - 描画種別
      * @returns {function} onDraw ハンドラ
      */
@@ -1162,16 +1162,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
 
     /**
      * 複数アイテムを囲む外接範囲を求める
-     * @param {PageItem[]} items - 対象アイテム
+     * @param {PageItem[]} pageItems - 対象アイテム
      * @returns {{left: number, top: number, right: number, bottom: number}|null} 外接範囲（求められない場合は null）
      */
-    function getItemsBounds(items) {
+    function getItemsBounds(pageItems) {
         var unionBounds = null;
 
-        for (var i = 0; i < items.length; i++) {
+        for (var i = 0; i < pageItems.length; i++) {
             var itemBounds;
             try {
-                itemBounds = items[i].visibleBounds; /* [left, top, right, bottom] */
+                itemBounds = pageItems[i].visibleBounds; /* [left, top, right, bottom] */
             } catch (e) {
                 continue;
             }
@@ -1190,14 +1190,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     /**
      * 結果が可視領域に収まっていなければ、見えるように表示位置とズームを合わせる
      * すでに見えているときは何もしないので、操作のたびに画面が動くことはない
-     * @param {PageItem[]} items - 見えるようにしたいアイテム
+     * @param {PageItem[]} pageItems - 見えるようにしたいアイテム
      * @returns {void}
      */
-    function ensureItemsVisible(items) {
+    function ensureItemsVisible(pageItems) {
         if (!cbZoomToSelection.value) return;
-        if (!items || items.length === 0) return;
+        if (!pageItems || pageItems.length === 0) return;
 
-        var targetBounds = getItemsBounds(items);
+        var targetBounds = getItemsBounds(pageItems);
         if (targetBounds === null) return;
 
         var activeView;
@@ -1723,13 +1723,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
 
     /**
      * 変換対象のテキスト（ポイント文字・パス上文字・エリア内文字）を、グループの中までたどって集める
-     * @param {PageItem[]} items - 選択中のオブジェクト
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
      * @returns {TextFrame[]} 対象のテキストフレーム
      */
-    function getTargetTextFrames(items) {
+    function getTargetTextFrames(selectedItems) {
         var foundTextFrames = [];
-        for (var i = 0; i < items.length; i++) {
-            var pageItem = items[i];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var pageItem = selectedItems[i];
             if (pageItem.typename === 'TextFrame') {
                 try {
                     if (pageItem.kind === TextType.POINTTEXT ||
@@ -1747,13 +1747,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
 
     /**
      * 選択中のパス（複合パスを含む）を、グループの中までたどって集める
-     * @param {PageItem[]} items - 選択中のオブジェクト
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
      * @returns {PageItem[]} パスと複合パス
      */
-    function getSelectedPathItems(items) {
+    function getSelectedPathItems(selectedItems) {
         var foundPaths = [];
-        for (var i = 0; i < items.length; i++) {
-            var pageItem = items[i];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var pageItem = selectedItems[i];
             if (pageItem.typename === 'PathItem' || pageItem.typename === 'CompoundPathItem') {
                 foundPaths.push(pageItem);
             } else if (pageItem.typename === 'GroupItem') {
@@ -2210,41 +2210,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     function createPathTextFrom(sourceText, originalText, previewMode) {
         var currentLayer = originalText.layer;
 
-        // Create an arc-like path from the text bounds
+        /* テキストの範囲からアーチ状のパスを作る / Create an arc-like path from the text bounds */
         var arcPath = createArcPathFromText(sourceText, currentLayer);
         if (!arcPath) return null;
 
-        // Generated arc path: stroke color/weight 0 (invisible guide)
+        /* 作ったパスは見えないガイドにする / Generated arc path: invisible guide */
         applyInvisiblePathStyle(arcPath);
         if (previewMode) previewTempItems.push(arcPath);
 
         var textOnAPath = currentLayer.textFrames.pathText(arcPath);
-        // Keep stacking position (avoid appearing to disappear behind other objects)
+        /* 重ね順を元のテキストに合わせる（ほかのオブジェクトの背面に隠れないように）/ Keep stacking position */
         try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (e) { }
         if (previewMode) previewTempItems.push(textOnAPath);
 
-        // Keep the path used by the PathText invisible (AI may override style on conversion)
+        /* 変換でスタイルが上書きされることがあるので、パス上文字のパスも見えなくする / Keep the text path invisible (AI may override its style) */
         if (textOnAPath.textPath) applyInvisiblePathStyle(textOnAPath.textPath);
 
-        // Duplicate textRanges from the source text frame
+        /* 変換元の textRange を複製する / Duplicate textRanges from the source text frame */
         for (var i = 0; i < sourceText.textRanges.length; i++) {
             sourceText.textRanges[i].duplicate(textOnAPath);
         }
 
-        // 改行の削除：1本のパスに沿わせるので、改行を消して1行にまとめる
+        /* 改行の削除：1本のパスに沿わせるので、改行を消して1行にまとめる / Join into one line for a single path */
         if (cbRemoveLineBreaks.value) removeLineBreaks(textOnAPath);
 
-        // 行揃え：常に中央 ※ duplicate 後に適用しないと上書きされる
+        /* 行揃え：常に中央 ※ duplicate 後に適用しないと上書きされる / Always centered; must follow duplicate() */
         applyCenterJustification(textOnAPath);
 
-        // 自動カーニング ※ 文字幅が変わるので、トラッキングとフィットより先に適用する
+        /* 自動カーニング ※ 文字幅が変わるので、トラッキングとフィットより先に適用する / Kerning comes before tracking and fitting */
         applyAutoKerning(textOnAPath);
 
-        // トラッキング（既存値 + 指定値）※ フィット前に適用してオーバーセット判定へ反映
-        // 「合わせ方：トラッキング」のときは手動値を加算しない（ディム表示と挙動を一致させる）
+        /* トラッキング（既存値 + 指定値）※ フィット前に適用してオーバーセット判定へ反映。
+           「合わせ方：トラッキング」のときは手動値を加算しない（ディム表示と挙動を一致させる）
+           Tracking is added before fitting, but not while "Fit: Tracking" is selected */
         if (!isFitByTrackingActive()) applyTrackingDelta(textOnAPath);
 
-        // 効果（パス上文字の効果をメニューコマンドで適用）
+        /* 効果（パス上文字の効果をメニューコマンドで適用）/ Apply the path text effect */
         applyPathTextEffect(textOnAPath);
 
         return textOnAPath;
@@ -2265,12 +2266,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         /* モード未選択のまま呼ばれても何もしない / do nothing while no mode is picked */
         if (!isModeSelected()) return false;
 
-        // ブロックはパスを作らず、選択したテキストの行の幅をそろえるだけ
+        /* ブロックはパスを作らず、選択したテキストの行の幅をそろえるだけ / Block mode only fits the line widths */
         if (isBlockMode()) {
             return generateBlockText(showAlerts, previewMode);
         }
 
-        // A path selected together with text should not remain in arc mode
+        /* テキストと一緒に選ばれていたパスは残さない / A path selected together with the text should not remain */
         removeOrHideSelectedPaths(previewMode);
 
         for (var j = 0; j < targetTextFrames.length; j++) {
@@ -2285,7 +2286,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
             if (!isPointTextFrame(originalText)) {
                 sourceText = duplicateAsPointText(originalText);
                 if (sourceText === null) {
-                    if (showAlerts) alert(getLabel('alert', 'pathFailed'));
+                    if (showAlerts) alert(getLabel('alert.pathFailed'));
                     continue;
                 }
                 temporarySources.push(sourceText);
@@ -2293,17 +2294,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
 
             var textOnAPath = createPathTextFrom(sourceText, originalText, previewMode);
             if (textOnAPath === null) {
-                if (showAlerts) alert(getLabel('alert', 'pathFailed'));
+                if (showAlerts) alert(getLabel('alert.pathFailed'));
                 continue;
             }
             createdPathTexts.push(textOnAPath);
 
-            // Remove or hide the original text frame
+            /* 元のテキストを削除する（プレビューでは隠す）/ Remove or hide the original text frame */
             if (previewMode) {
                 hideOriginalForPreview(originalText);
             } else {
                 originalText.remove();
-                // Select the created text on a path
+                /* 作ったパス上文字を選択する / Select the created text on a path */
                 textOnAPath.selected = true;
             }
         }
@@ -2330,7 +2331,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         /* 保険：フィットの設定にかかわらず、パスに収まらないぶんは縮めて文字を欠けさせない */
         preventOverset(createdPathTexts);
 
-        // 変換で位置が大きく変わるので、結果が画面から外れていたら見える位置へ
+        /* 変換で位置が大きく変わるので、結果が画面から外れていたら見える位置へ / Bring the result into view */
         ensureItemsVisible(createdPathTexts);
 
         return createdPathTexts.length > 0;
@@ -2353,17 +2354,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
      * 行の内容を一時テキストフレームへ複製し、アウトライン化して外形幅を測る
      * 一時オブジェクトは成否にかかわらず必ず削除する
      * @param {Document} targetDoc - 対象ドキュメント
-     * @param {TextRange} line - 測定する行
+     * @param {TextRange} textLine - 測定する行
      * @returns {number} 行の外形幅（pt）。測定できない場合は0
      */
-    function measureLineWidth(targetDoc, line) {
+    function measureLineWidth(targetDoc, textLine) {
         var tempTextFrame = null;
         var outlineGroup = null;
         var lineWidth = 0;
 
         try {
             tempTextFrame = targetDoc.textFrames.add();
-            line.duplicate(tempTextFrame, ElementPlacement.INSIDE);
+            textLine.duplicate(tempTextFrame, ElementPlacement.INSIDE);
             /* createOutline() は元のテキストフレームを消費するので参照を手放す
                createOutline() consumes the source frame, so drop the reference */
             outlineGroup = tempTextFrame.createOutline();
@@ -2887,11 +2888,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         }
 
         if (appliedTexts.length === 0) {
-            if (showAlerts) alert(getLabel('alert', 'needTwoLines'));
+            if (showAlerts) alert(getLabel('alert.needTwoLines'));
             return false;
         }
 
-        // 行の分け直しで大きさが変わるので、結果が画面から外れていたら見える位置へ
+        /* 行の分け直しで大きさが変わるので、結果が画面から外れていたら見える位置へ / Bring the result into view */
         ensureItemsVisible(appliedTexts);
         return true;
     }
@@ -3141,7 +3142,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                 var iterations;
 
                 if (isOverset(textFrame, lineAmount)) {
-                    // Too wide: tighten (coarse) until it fits
+                    /* 長すぎる：収まるまで大きな刻みで詰める / Too wide: tighten (coarse) until it fits */
                     iterations = 0;
                     while (isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
                         if (appliedTracking - trackingOptions.coarseStep < trackingOptions.minTracking) break;
@@ -3149,7 +3150,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                         appliedTracking -= trackingOptions.coarseStep;
                         iterations++;
                     }
-                    // Loosen back (fine) until it overflows again
+                    /* あふれるまで細かい刻みで広げ直す / Loosen back (fine) until it overflows again */
                     iterations = 0;
                     while (!isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
                         if (appliedTracking + trackingOptions.fineStep > trackingOptions.maxTracking) break;
@@ -3157,13 +3158,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                         appliedTracking += trackingOptions.fineStep;
                         iterations++;
                     }
-                    // Stepped one fineStep too far: pull back once so it fits
+                    /* 1刻み広げすぎたぶんを戻して収める / Stepped one fineStep too far: pull back once */
                     if (isOverset(textFrame, lineAmount)) {
                         addTrackingToFrame(textFrame, -trackingOptions.fineStep);
                         appliedTracking -= trackingOptions.fineStep;
                     }
                 } else {
-                    // Fits with room: loosen (coarse) until it overflows
+                    /* 余裕がある：あふれるまで大きな刻みで広げる / Fits with room: loosen (coarse) until it overflows */
                     iterations = 0;
                     while (!isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
                         if (appliedTracking + trackingOptions.coarseStep > trackingOptions.maxTracking) break;
@@ -3171,7 +3172,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
                         appliedTracking += trackingOptions.coarseStep;
                         iterations++;
                     }
-                    // Tighten back (fine) until it fits
+                    /* 収まるまで細かい刻みで詰め直す / Tighten back (fine) until it fits */
                     iterations = 0;
                     while (isOverset(textFrame, lineAmount) && iterations < trackingOptions.maxIter) {
                         if (appliedTracking - trackingOptions.fineStep < trackingOptions.minTracking) break;

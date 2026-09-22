@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "ArrangeObjectsAlongPath";      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */
@@ -116,41 +116,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
+            var keyboardState = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName === "Up");
 
-            if (keyboard.shiftKey) {
-                delta = 10;
+            if (keyboardState.shiftKey) {
                 /* shift 押下時は 10 の倍数にスナップ / Snap to multiples of 10 with shift */
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboardState.altKey) {
                 /* option 押下時は 0.1 単位で増減 / Step by 0.1 with option */
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
+                value += isUp ? 0.1 : -0.1;
             } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
+                value += isUp ? 1 : -1;
             }
 
-            if (keyboard.altKey) {
+            if (keyboardState.altKey) {
                 /* 小数第1位までに丸め / Round to one decimal place */
                 value = Math.round(value * 10) / 10;
             } else {
@@ -283,6 +262,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Duplicates the selection to this many copies before arranging. 1 means no duplication."
             },
             rotation: { ja: "配置したオブジェクトの向きの決め方です。", en: "How each placed object is rotated." },
+            rotationNone: {
+                ja: "オブジェクトの向きを変えません（［反転］がオンなら 180° 回転します）。",
+                en: "Keeps each object's current rotation (turns it 180° when Flip is on)."
+            },
             rotationPerpendicular: {
                 ja: "基準パスの中心から放射状に、外向きに立つよう回転します。",
                 en: "Rotates each object to stand outward, radiating from the center of the base path."
@@ -290,6 +273,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rotationPathPerpendicular: {
                 ja: "パスの進む向き（接線）に合わせて回転します。",
                 en: "Rotates each object to follow the direction of the path (its tangent)."
+            },
+            rotationRandom: {
+                ja: "オブジェクトごとに −180°〜180° のランダムな角度だけ回転します。",
+                en: "Rotates each object by a random angle between -180° and 180°."
             },
             rotationAngle: { ja: "「角度指定」を選んだときに適用する角度です。", en: "The angle applied when Angle is selected." },
             rotationFlip180: { ja: "回転に 180° を加えて、向きを反対にします。", en: "Adds 180° to the rotation to turn each object around." },
@@ -303,6 +290,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "Lays the objects from the start of the path in stacking order, backmost first."
             },
             spacing: { ja: "パス上に配置する間隔の決め方です。", en: "How the objects are spaced along the path." },
+            spacingEven: { ja: "パスに沿って等間隔に配置します。", en: "Places the objects at equal intervals along the path." },
+            spacingRandom: {
+                ja: "等間隔の位置から、下のスライダーの強さでランダムにずらします。",
+                en: "Shifts each position randomly away from even spacing, by the strength set with the slider below."
+            },
             spacingJitter: {
                 ja: "ランダム間隔のばらつきの強さです。右ほど均等な位置から大きくずれます。「ランダム」のときだけ使えます。",
                 en: "How far the random spacing strays from even spacing; further right strays more. Available only with Random."
@@ -1083,15 +1075,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {Window} ダイアログ
          */
         function buildDialog() {
-            var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-            dialog.orientation = "column";
-            dialog.alignChildren = "fill";
+            var arrangeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+            arrangeDialog.orientation = "column";
+            arrangeDialog.alignChildren = "fill";
 
-            setDialogOpacity(dialog, DIALOG_OPACITY);
-            shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+            setDialogOpacity(arrangeDialog, DIALOG_OPACITY);
+            shiftDialogPosition(arrangeDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
             /* 2カラム / Two columns */
-            var columnsGroup = dialog.add("group");
+            var columnsGroup = arrangeDialog.add("group");
             columnsGroup.orientation = "row";
             columnsGroup.alignChildren = ["fill", "top"];
             columnsGroup.spacing = COLUMN_SPACING;
@@ -1108,8 +1100,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             addSpacingPanel(placeObjectsPanel);
             addGroupOptionsRow(placeObjectsPanel);
 
-            addButtonRow(dialog);
-            return dialog;
+            addButtonRow(arrangeDialog);
+            return arrangeDialog;
         }
 
         /**
@@ -1193,6 +1185,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rbRotPathPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationPathPerpendicular"));
             rbRotPathPerp.helpTip = getLabel("tooltip.rotationPathPerpendicular");
             rbRotRandom = rotationRadioGroup.add("radiobutton", undefined, getLabel("radio.rotationRandom"));
+            rbRotRandom.helpTip = getLabel("tooltip.rotationRandom");
+            rbRotNone.helpTip = getLabel("tooltip.rotationNone");
             rbRotNone.value = true;
 
             /* 角度指定（1行）/ Angle on one row */
@@ -1247,6 +1241,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             rbSpacingEven = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingEven"));
             rbSpacingRandom = spacingRadioGroup.add("radiobutton", undefined, getLabel("radio.spacingRandom"));
+            rbSpacingEven.helpTip = getLabel("tooltip.spacingEven");
+            rbSpacingRandom.helpTip = getLabel("tooltip.spacingRandom");
             rbSpacingEven.value = true;
 
             /* ばらつきの強さ（「ランダム」のときだけ有効）/ Jitter strength, enabled only with Random */
@@ -1290,11 +1286,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /**
          * 下部のボタンエリア（左：プレビュー、右：キャンセル／OK）を作る
-         * @param {Window} dialog - ダイアログ
+         * @param {Window} targetDialog - ダイアログ
          * @returns {void}
          */
-        function addButtonRow(dialog) {
-            var btnRowGroup = dialog.add("group");
+        function addButtonRow(targetDialog) {
+            var btnRowGroup = targetDialog.add("group");
             btnRowGroup.orientation = "row";
             btnRowGroup.alignment = "fill";
             btnRowGroup.alignChildren = ["left", "center"];
@@ -1321,7 +1317,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             /* キャンセルで必ず閉じる / Always close on Cancel */
             btnCancel.onClick = function () {
-                dialog.close(0);
+                targetDialog.close(0);
             };
         }
 

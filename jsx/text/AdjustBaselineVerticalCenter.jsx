@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "AdjustBaselineVerticalCenter"; /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBaselineVerticalCenter.md"; /* README (English) */
@@ -85,11 +85,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na7a8c907c68c"; /* 紹�
         },
         tooltip: {
             targetChar: {
-                ja: "入力した文字をベースラインシフトで上下に動かします（複数可）。初期値は、選択中のテキストで英数字と空白を除いていちばん多い文字です",
+                ja: "入力した文字をベースラインシフトで上下に動かします（複数可）。初期値は、選択中のテキストで英数字と空白を除いていちばん多い文字です。",
                 en: "Moves these characters up or down with baseline shift (you can enter several). Defaults to the most frequent character in the selection, excluding letters, digits and spaces."
             },
             referenceChar: {
-                ja: "対象文字の天地中央を、この文字の天地中央にそろえます（1文字）",
+                ja: "対象文字の天地中央を、この文字の天地中央にそろえます（1文字）。",
                 en: "Aligns the vertical center of the target characters with the vertical center of this character (one character)."
             }
         },
@@ -132,12 +132,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na7a8c907c68c"; /* 紹�
 
     /**
      * アイテムの天地中央のY座標を求める
-     * @param {PageItem} item - 対象のアイテム
+     * @param {PageItem} pageItem - 対象のアイテム
      * @returns {number} 天地中央のY座標
      */
-    function getCenterY(item) {
-        var bounds = item.geometricBounds;
-        return (bounds[1] + bounds[3]) / 2;
+    function getCenterY(pageItem) {
+        var itemBounds = pageItem.geometricBounds;
+        return (itemBounds[1] + itemBounds[3]) / 2;
     }
 
     /**

@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md"; /* README (English) */
@@ -151,7 +151,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             fontStyle: { ja: "スタイル", en: "Style" }
         },
         format: {
-            itemPrefix: { ja: ": ", en: ": " }
+            itemPrefix: { ja: ": ", en: ": " },
+            symbolSeparator: { ja: "：", en: ": " },
+            symbolSuffix: { ja: "〈シンボル：{symbolName}〉", en: " «Symbol: {symbolName}»" }
         },
         tooltip: {
             keepFormat: { ja: "段落の書式を保持したまま\nテキストを置換します", en: "Replace text while preserving\nparagraph formatting" },
@@ -181,6 +183,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             fontList: {
                 ja: "行をクリックすると、そのフォントを使っている\nテキストを選択します",
                 en: "Click a row to select the text\nthat uses that font"
+            },
+            includeLocked: {
+                ja: "ロックされたテキストと、ロックされた\nレイヤー・グループ内のテキストも対象にします",
+                en: "Also includes locked text and text\nin locked layers or groups"
+            },
+            includeHidden: {
+                ja: "非表示のテキストと、非表示の\nレイヤー・グループ内のテキストも対象にします",
+                en: "Also includes hidden text and text\nin hidden layers or groups"
             }
         },
         button: {
@@ -189,6 +199,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             ok: { ja: "OK", en: "OK" }
         },
         fallbackName: {
+            artboardNumber: { ja: "アートボード{number}", en: "Artboard {number}" },
             outsideArtboards: { ja: "アートボード外", en: "Outside Artboards" },
             unknownFont: { ja: "不明", en: "Unknown" }
         },
@@ -593,7 +604,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @returns {string} 既定名
      */
     function getArtboardNumberName(index) {
-        return (uiLang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+        return getLabel('fallbackName.artboardNumber').replace('{number}', index + 1);
     }
 
     /**
@@ -1264,8 +1275,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var scopedItems = collectScopedSymbolItems(doc, collectOptions, scopeMode);
 
         collectTextsFromScopedSymbolItems(doc, scopedItems, function (symbolName, artboardIndex, text) {
-            var separator = (uiLang === 'ja') ? '：' : ': ';
-            symbolLines.push(symbolName + separator + text.replace(/[\r\n]+/g, ' '));
+            symbolLines.push(symbolName + getLabel('format.symbolSeparator') + text.replace(/[\r\n]+/g, ' '));
         });
 
         return symbolLines;
@@ -1283,12 +1293,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var scopedItems = collectScopedSymbolItems(doc, collectOptions, scopeMode);
 
         collectTextsFromScopedSymbolItems(doc, scopedItems, function (symbolName, artboardIndex, text) {
-            var openParen = (uiLang === 'ja') ? '〈' : ' «';
-            var closeParen = (uiLang === 'ja') ? '〉' : '»';
-            var prefix = (uiLang === 'ja') ? 'シンボル：' : 'Symbol: ';
             symbolEntries.push({
                 artboardIndex: artboardIndex,
-                text: text + openParen + prefix + symbolName + closeParen
+                text: text + getLabel('format.symbolSuffix').split('{symbolName}').join(symbolName)
             });
         });
 
@@ -1601,8 +1608,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         dialogControls.cbIncludeCommentLayers.value = false;
         dialogControls.cbIncludeLocked = layerPanel.add("checkbox", undefined, getLabel("checkbox.includeLocked"));
         dialogControls.cbIncludeLocked.value = false;
+        dialogControls.cbIncludeLocked.helpTip = getLabel("tooltip.includeLocked");
         dialogControls.cbIncludeHidden = layerPanel.add("checkbox", undefined, getLabel("checkbox.includeHidden"));
         dialogControls.cbIncludeHidden.value = false;
+        dialogControls.cbIncludeHidden.helpTip = getLabel("tooltip.includeHidden");
 
         /* ソート / Sort */
         var sortPanel = addScopePanel(scopeColumn, "panel.sort");

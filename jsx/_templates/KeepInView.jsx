@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "KeepInView";                   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepInView.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepInView.md"; /* README (English) */
@@ -75,14 +75,14 @@ var KeepInView = (function () {
      * @returns {string} ラベル文字列（見つからない場合は空文字）
      */
     function getLabel(labelPath, uiLang) {
-        var pathParts = labelPath.split(".");
-        var entry = LABELS;
-        for (var i = 0; i < pathParts.length; i++) {
-            entry = entry[pathParts[i]];
-            if (!entry) return "";
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return "";
         }
         if (!uiLang) uiLang = getCurrentLang();
-        return (entry[uiLang] != null) ? entry[uiLang] : entry.en;
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelNode.en;
     }
 
     // =========================================
@@ -99,12 +99,12 @@ var KeepInView = (function () {
         if (!checkboxOptions) checkboxOptions = {};
 
         var uiLang = checkboxOptions.lang || getCurrentLang();
-        var checkbox = parentContainer.add('checkbox', undefined,
+        var keepInViewCheckbox = parentContainer.add('checkbox', undefined,
             checkboxOptions.text || getLabel('checkbox.keepInView', uiLang));
-        checkbox.helpTip = getLabel('tooltip.keepInView', uiLang);
+        keepInViewCheckbox.helpTip = getLabel('tooltip.keepInView', uiLang);
         /* 明示的に false を渡したときだけOFFで始める / only an explicit false starts it unchecked */
-        checkbox.value = (checkboxOptions.value !== false);
-        return checkbox;
+        keepInViewCheckbox.value = (checkboxOptions.value !== false);
+        return keepInViewCheckbox;
     }
 
     /**

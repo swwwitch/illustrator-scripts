@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "DashGapCalculator";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashGapCalculator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCalculator.md"; /* README (English) */
@@ -124,44 +124,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
     /**
      * ラベル付きパネルを生成し、共通レイアウトを適用する
-     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {string} titleText - パネルのタイトル
      * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parent, titleText, spacing) {
-        var newPanel = parent.add("panel", undefined, titleText);
-        setupPanel(newPanel, spacing);
-        return newPanel;
+    function addPanel(parentContainer, titleText, spacing) {
+        var createdPanel = parentContainer.add("panel", undefined, titleText);
+        setupPanel(createdPanel, spacing);
+        return createdPanel;
     }
 
     /**
      * 横並びのグループを生成する
-     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {string} alignment - 親の中での配置（省略時は "left"）
      * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Group} 生成したグループ
      */
-    function addRow(parent, alignment, spacing) {
-        var row = parent.add("group");
-        setupRow(row, alignment, spacing);
-        row.alignChildren = ["left", "center"];
-        return row;
+    function addRow(parentContainer, alignment, spacing) {
+        var rowGroup = parentContainer.add("group");
+        setupRow(rowGroup, alignment, spacing);
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
     }
 
     /**
      * 縦積みのグループを生成する
-     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "top"]）
      * @param {string} alignment - 親の中での配置（省略時はコンテナ既定）
      * @returns {Group} 生成したグループ
      */
-    function addColumn(parent, alignChildren, alignment) {
-        var column = parent.add("group");
-        column.orientation = "column";
-        column.alignChildren = alignChildren || ["fill", "top"];
-        if (alignment) column.alignment = alignment;
-        return column;
+    function addColumn(parentContainer, alignChildren, alignment) {
+        var columnGroup = parentContainer.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = alignChildren || ["fill", "top"];
+        if (alignment) columnGroup.alignment = alignment;
+        return columnGroup;
     }
 
     // =========================================
@@ -318,12 +318,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * @returns {string} 置き換え後の文言
      */
     function formatLabel(labelNode, args) {
-        var labelText = getLabel(labelNode);
-        if (!args) return labelText;
+        var formattedText = getLabel(labelNode);
+        if (!args) return formattedText;
         for (var i = 0; i < args.length; i++) {
-            labelText = labelText.split("{" + i + "}").join(String(args[i]));
+            formattedText = formattedText.split("{" + i + "}").join(String(args[i]));
         }
-        return labelText;
+        return formattedText;
     }
 
     // =========================================
@@ -508,17 +508,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * @returns {Object} 初期値（長さは現在の線の単位）
      */
     function readInitialValues(savedPrefs, strokeUnit) {
-        var stored = savedPrefs || {};
+        var storedPrefs = savedPrefs || {};
         return {
-            segments:    toInitialNumber(stored.segments, 3, 1),
-            capMode:     toInitialNumber(stored.capMode, 0, 0),
-            mode:        toInitialNumber(stored.mode, 0, 0), /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
-            gapUnit:     toInitialUnit(stored.gapPt, 5, strokeUnit),
-            dashUnit:    toInitialUnit(stored.dashPt, 0, strokeUnit),
-            offsetUnit:  toInitialUnit(stored.offsetPt, 0, strokeUnit),
-            useOffset:   toInitialFlag(stored.useOffset, false),
-            adjustEnds:  toInitialFlag(stored.adjustEnds, true),
-            reversePath: toInitialFlag(stored.reversePath, false)
+            segments:    toInitialNumber(storedPrefs.segments, 3, 1),
+            capMode:     toInitialNumber(storedPrefs.capMode, 0, 0),
+            mode:        toInitialNumber(storedPrefs.mode, 0, 0), /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
+            gapUnit:     toInitialUnit(storedPrefs.gapPt, 5, strokeUnit),
+            dashUnit:    toInitialUnit(storedPrefs.dashPt, 0, strokeUnit),
+            offsetUnit:  toInitialUnit(storedPrefs.offsetPt, 0, strokeUnit),
+            useOffset:   toInitialFlag(storedPrefs.useOffset, false),
+            adjustEnds:  toInitialFlag(storedPrefs.adjustEnds, true),
+            reversePath: toInitialFlag(storedPrefs.reversePath, false)
         };
     }
 
@@ -627,12 +627,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
     /**
      * 右揃えの項目名を持つ行を追加する
-     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {Object} labelNode - 項目名の LABELS ノード
      * @returns {Group} 追加した行
      */
-    function addFieldRow(parent, labelNode) {
-        var fieldRow = addRow(parent);
+    function addFieldRow(parentContainer, labelNode) {
+        var fieldRow = addRow(parentContainer);
         var fieldLabel = fieldRow.add("statictext", undefined, labelText(labelNode));
         fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         fieldLabel.justify = "right";
@@ -641,15 +641,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
     /**
      * 間隔・線分の行を追加する（入力欄と計算結果の表示を重ね、計算方法に応じて切り替える）
-     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Window|Panel|Group} parentContainer - 追加先のコンテナ
      * @param {Object} labelNode - 項目名の LABELS ノード
      * @param {number} initialValue - 入力欄の初期値（単位値）
      * @param {string} unitLabel - 単位の表示
      * @param {Object} tooltipNode - tooltip の LABELS ノード
      * @returns {{row: Group, field: EditText, resultLabel: StaticText}} 行・入力欄・結果表示
      */
-    function addDashGapRow(parent, labelNode, initialValue, unitLabel, tooltipNode) {
-        var fieldRow = addFieldRow(parent, labelNode);
+    function addDashGapRow(parentContainer, labelNode, initialValue, unitLabel, tooltipNode) {
+        var fieldRow = addFieldRow(parentContainer, labelNode);
 
         var fieldStack = fieldRow.add("group");
         fieldStack.orientation = "stack";
@@ -979,11 +979,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
          * @returns {number} 生成した長さ（0以上）
          */
         function getRandomLengthUnit(minValue, maxValue) {
-            var value = Math.random() * (maxValue - minValue) + minValue;
-            if (RANDOM_ROUND_VALUES) value = Math.round(value);
+            var randomLength = Math.random() * (maxValue - minValue) + minValue;
+            if (RANDOM_ROUND_VALUES) randomLength = Math.round(randomLength);
             /* Illustrator は NaN や負値を受け付けない */
-            if (isNaN(value) || value < 0) value = 0;
-            return value;
+            if (isNaN(randomLength) || randomLength < 0) randomLength = 0;
+            return randomLength;
         }
 
         /**

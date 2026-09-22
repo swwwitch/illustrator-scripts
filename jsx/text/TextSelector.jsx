@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "TextSelector";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextSelector.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextSelector.md"; /* README (English) */
@@ -878,22 +878,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * Option＋キーで選択条件を切り替えるハンドラーを付ける（検索文字列の入力中は無効）
-     * @param {Object} ui - buildDialog() の結果
+     * @param {Object} selectorControls - buildDialog() の結果
      * @returns {void}
      */
-    function addSelectionKeyHandler(ui) {
+    function addSelectionKeyHandler(selectorControls) {
         var shortcutRadios = {
-            Q: ui.rbAllText,
-            W: ui.rbPointText,
-            E: ui.rbAreaText,
-            A: ui.rbExactMatch,
-            B: ui.rbStartsWith,
-            D: ui.rbEndsWith,
-            I: ui.rbContainsMatch,
-            R: ui.rbRegexMatch
+            Q: selectorControls.rbAllText,
+            W: selectorControls.rbPointText,
+            E: selectorControls.rbAreaText,
+            A: selectorControls.rbExactMatch,
+            B: selectorControls.rbStartsWith,
+            D: selectorControls.rbEndsWith,
+            I: selectorControls.rbContainsMatch,
+            R: selectorControls.rbRegexMatch
         };
-        ui.window.addEventListener("keydown", function (event) {
-            if (ui.keywordInput && ui.keywordInput.active) {
+        selectorControls.selectorDialog.addEventListener("keydown", function (event) {
+            if (selectorControls.keywordInput && selectorControls.keywordInput.active) {
                 return;
             }
             if (!event.altKey) {
@@ -902,7 +902,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var targetRadioButton = shortcutRadios.hasOwnProperty(event.keyName) ? shortcutRadios[event.keyName] : null;
             if (targetRadioButton) {
-                selectExclusiveRadioButton(ui.selectionRadios, targetRadioButton);
+                selectExclusiveRadioButton(selectorControls.selectionRadios, targetRadioButton);
                 event.preventDefault();
             }
         });
@@ -910,12 +910,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択条件パネル（対象アートボード・属性・テキストの種類・文字列）を追加する
-     * @param {Object} ui - コントロールの格納先
+     * @param {Object} selectorControls - コントロールの格納先
      * @param {Object} initialState - 開いた時点の選択の情報（hasSelection / keyword / attributePreview）
      * @returns {void}
      */
-    function addSelectionPanel(ui, initialState) {
-        var selectionPanel = ui.window.add("panel", undefined, getLabel("panel.selection"));
+    function addSelectionPanel(selectorControls, initialState) {
+        var selectionPanel = selectorControls.selectorDialog.add("panel", undefined, getLabel("panel.selection"));
         setupPanelLayout(selectionPanel, 10);
         selectionPanel.margins = OUTER_PANEL_MARGINS;
 
@@ -927,12 +927,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         artboardScopePanel.margins = OUTER_PANEL_MARGINS;
         artboardScopePanel.spacing = 20;
 
-        ui.rbArtboardAll = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.artboardAll"));
-        ui.rbArtboardCurrent = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.artboardCurrent"));
-        ui.rbArtboardAll.value = true;
-        setHelpTip(ui.rbArtboardAll, getLabel("tooltip.artboardAll"));
-        setHelpTip(ui.rbArtboardCurrent, getLabel("tooltip.artboardCurrent"));
-        setupExclusiveRadioButtons([ui.rbArtboardAll, ui.rbArtboardCurrent]);
+        selectorControls.rbArtboardAll = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.artboardAll"));
+        selectorControls.rbArtboardCurrent = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.artboardCurrent"));
+        selectorControls.rbArtboardAll.value = true;
+        setHelpTip(selectorControls.rbArtboardAll, getLabel("tooltip.artboardAll"));
+        setHelpTip(selectorControls.rbArtboardCurrent, getLabel("tooltip.artboardCurrent"));
+        setupExclusiveRadioButtons([selectorControls.rbArtboardAll, selectorControls.rbArtboardCurrent]);
 
         /* 属性選択パネル / Attribute selection panel */
         var attributePanel = selectionPanel.add("panel", undefined, getLabel("panel.attribute"));
@@ -940,19 +940,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         attributePanel.enabled = initialState.hasSelection;
 
         var attributePreview = initialState.attributePreview;
-        ui.rbFontFamily = addRadioRow(attributePanel, getLabel("radio.fontFamily"), attributePreview.family, ATTRIBUTE_LABEL_WIDTH);
-        ui.rbFontFamilyStyle = addRadioRow(attributePanel, getLabel("radio.fontFamilyStyle"), attributePreview.familyStyle, ATTRIBUTE_LABEL_WIDTH);
-        ui.rbFontFamilyStyleSize = addRadioRow(attributePanel, getLabel("radio.fontFamilyStyleSize"), attributePreview.familyStyleSize, ATTRIBUTE_LABEL_WIDTH);
-        ui.rbFontSize = addRadioRow(attributePanel, getLabel("radio.fontSize"), attributePreview.size, ATTRIBUTE_LABEL_WIDTH);
-        ui.rbTextFillColor = addRadioRow(attributePanel, getLabel("radio.textFillColor"), null, ATTRIBUTE_LABEL_WIDTH);
-        ui.rbOpacity = addRadioRow(attributePanel, getLabel("radio.opacity"), attributePreview.opacity, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbFontFamily = addRadioRow(attributePanel, getLabel("radio.fontFamily"), attributePreview.family, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbFontFamilyStyle = addRadioRow(attributePanel, getLabel("radio.fontFamilyStyle"), attributePreview.familyStyle, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbFontFamilyStyleSize = addRadioRow(attributePanel, getLabel("radio.fontFamilyStyleSize"), attributePreview.familyStyleSize, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbFontSize = addRadioRow(attributePanel, getLabel("radio.fontSize"), attributePreview.size, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbTextFillColor = addRadioRow(attributePanel, getLabel("radio.textFillColor"), null, ATTRIBUTE_LABEL_WIDTH);
+        selectorControls.rbOpacity = addRadioRow(attributePanel, getLabel("radio.opacity"), attributePreview.opacity, ATTRIBUTE_LABEL_WIDTH);
 
-        setHelpTip(ui.rbFontFamily, getLabel("tooltip.fontFamily"));
-        setHelpTip(ui.rbFontFamilyStyle, getLabel("tooltip.fontFamilyStyle"));
-        setHelpTip(ui.rbFontFamilyStyleSize, getLabel("tooltip.fontFamilyStyleSize"));
-        setHelpTip(ui.rbFontSize, getLabel("tooltip.fontSize"));
-        setHelpTip(ui.rbTextFillColor, getLabel("tooltip.textFillColor"));
-        setHelpTip(ui.rbOpacity, getLabel("tooltip.opacity"));
+        setHelpTip(selectorControls.rbFontFamily, getLabel("tooltip.fontFamily"));
+        setHelpTip(selectorControls.rbFontFamilyStyle, getLabel("tooltip.fontFamilyStyle"));
+        setHelpTip(selectorControls.rbFontFamilyStyleSize, getLabel("tooltip.fontFamilyStyleSize"));
+        setHelpTip(selectorControls.rbFontSize, getLabel("tooltip.fontSize"));
+        setHelpTip(selectorControls.rbTextFillColor, getLabel("tooltip.textFillColor"));
+        setHelpTip(selectorControls.rbOpacity, getLabel("tooltip.opacity"));
 
         /* テキスト種類と文字列条件を横並びに配置 / Arrange text type and string condition panels side by side */
         var textConditionGroup = selectionPanel.add("group");
@@ -964,30 +964,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var textTypePanel = textConditionGroup.add("panel", undefined, getLabel("panel.textType"));
         setupPanelLayout(textTypePanel, 6);
 
-        ui.rbAllText = textTypePanel.add("radiobutton", undefined, getLabel("radio.allText"));
-        ui.rbPointText = textTypePanel.add("radiobutton", undefined, getLabel("radio.pointText"));
-        ui.rbAreaText = textTypePanel.add("radiobutton", undefined, getLabel("radio.areaText"));
-        ui.rbPathText = textTypePanel.add("radiobutton", undefined, getLabel("radio.pathText"));
+        selectorControls.rbAllText = textTypePanel.add("radiobutton", undefined, getLabel("radio.allText"));
+        selectorControls.rbPointText = textTypePanel.add("radiobutton", undefined, getLabel("radio.pointText"));
+        selectorControls.rbAreaText = textTypePanel.add("radiobutton", undefined, getLabel("radio.areaText"));
+        selectorControls.rbPathText = textTypePanel.add("radiobutton", undefined, getLabel("radio.pathText"));
 
-        setHelpTip(ui.rbAllText, getLabel("tooltip.allText"));
-        setHelpTip(ui.rbPointText, getLabel("tooltip.pointText"));
-        setHelpTip(ui.rbAreaText, getLabel("tooltip.areaText"));
-        setHelpTip(ui.rbPathText, getLabel("tooltip.pathText"));
+        setHelpTip(selectorControls.rbAllText, getLabel("tooltip.allText"));
+        setHelpTip(selectorControls.rbPointText, getLabel("tooltip.pointText"));
+        setHelpTip(selectorControls.rbAreaText, getLabel("tooltip.areaText"));
+        setHelpTip(selectorControls.rbPathText, getLabel("tooltip.pathText"));
 
         /* 初期選択を設定（選択があれば「＋スタイルとサイズ」、なければ「すべて」） / Set initial selection */
         if (initialState.hasSelection) {
-            ui.rbFontFamilyStyleSize.value = true;
+            selectorControls.rbFontFamilyStyleSize.value = true;
         } else {
-            ui.rbAllText.value = true;
+            selectorControls.rbAllText.value = true;
         }
 
         /* 文字列条件パネル / String condition panel */
         var textMatchPanel = textConditionGroup.add("panel", undefined, getLabel("panel.textMatch"));
         setupPanelLayout(textMatchPanel, 6);
 
-        ui.keywordInput = textMatchPanel.add("edittext", undefined, initialState.keyword);
-        ui.keywordInput.characters = KEYWORD_CHARACTERS;
-        setHelpTip(ui.keywordInput, getLabel("tooltip.keywordInput"));
+        selectorControls.keywordInput = textMatchPanel.add("edittext", undefined, initialState.keyword);
+        selectorControls.keywordInput.characters = KEYWORD_CHARACTERS;
+        setHelpTip(selectorControls.keywordInput, getLabel("tooltip.keywordInput"));
 
         var textMatchOptionsGroup = textMatchPanel.add("group");
         textMatchOptionsGroup.orientation = "row";
@@ -999,76 +999,76 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var textMatchCenterColumnGroup = addColumnGroup(textMatchOptionsGroup);
         var textMatchRightColumnGroup = addColumnGroup(textMatchOptionsGroup);
 
-        ui.rbExactMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("radio.exactMatch"));
-        ui.rbContainsMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("radio.containsMatch"));
-        ui.rbStartsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("radio.startsWith"));
-        ui.rbEndsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("radio.endsWith"));
-        ui.rbRegexMatch = textMatchRightColumnGroup.add("radiobutton", undefined, getLabel("radio.regexMatch"));
+        selectorControls.rbExactMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("radio.exactMatch"));
+        selectorControls.rbContainsMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("radio.containsMatch"));
+        selectorControls.rbStartsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("radio.startsWith"));
+        selectorControls.rbEndsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("radio.endsWith"));
+        selectorControls.rbRegexMatch = textMatchRightColumnGroup.add("radiobutton", undefined, getLabel("radio.regexMatch"));
 
-        setHelpTip(ui.rbExactMatch, getLabel("tooltip.exactMatch"));
-        setHelpTip(ui.rbStartsWith, getLabel("tooltip.startsWith"));
-        setHelpTip(ui.rbEndsWith, getLabel("tooltip.endsWith"));
-        setHelpTip(ui.rbContainsMatch, getLabel("tooltip.containsMatch"));
-        setHelpTip(ui.rbRegexMatch, getLabel("tooltip.regexMatch"));
+        setHelpTip(selectorControls.rbExactMatch, getLabel("tooltip.exactMatch"));
+        setHelpTip(selectorControls.rbStartsWith, getLabel("tooltip.startsWith"));
+        setHelpTip(selectorControls.rbEndsWith, getLabel("tooltip.endsWith"));
+        setHelpTip(selectorControls.rbContainsMatch, getLabel("tooltip.containsMatch"));
+        setHelpTip(selectorControls.rbRegexMatch, getLabel("tooltip.regexMatch"));
 
         /* 選択条件のラジオは、パネルをまたいで排他にする / The criteria radios are exclusive across panels */
-        ui.selectionRadios = [
-            ui.rbFontFamily, ui.rbFontFamilyStyle, ui.rbFontFamilyStyleSize, ui.rbFontSize, ui.rbTextFillColor, ui.rbOpacity,
-            ui.rbAllText, ui.rbPointText, ui.rbAreaText, ui.rbPathText,
-            ui.rbExactMatch, ui.rbStartsWith, ui.rbEndsWith, ui.rbContainsMatch, ui.rbRegexMatch
+        selectorControls.selectionRadios = [
+            selectorControls.rbFontFamily, selectorControls.rbFontFamilyStyle, selectorControls.rbFontFamilyStyleSize, selectorControls.rbFontSize, selectorControls.rbTextFillColor, selectorControls.rbOpacity,
+            selectorControls.rbAllText, selectorControls.rbPointText, selectorControls.rbAreaText, selectorControls.rbPathText,
+            selectorControls.rbExactMatch, selectorControls.rbStartsWith, selectorControls.rbEndsWith, selectorControls.rbContainsMatch, selectorControls.rbRegexMatch
         ];
-        setupExclusiveRadioButtons(ui.selectionRadios);
+        setupExclusiveRadioButtons(selectorControls.selectionRadios);
     }
 
     /**
      * 選択後の処理パネルを追加する
-     * @param {Object} ui - コントロールの格納先
+     * @param {Object} selectorControls - コントロールの格納先
      * @returns {void}
      */
-    function addPostProcessPanel(ui) {
-        var postProcessPanel = ui.window.add("panel", undefined, getLabel("panel.postProcess"));
+    function addPostProcessPanel(selectorControls) {
+        var postProcessPanel = selectorControls.selectorDialog.add("panel", undefined, getLabel("panel.postProcess"));
         setupPanelLayout(postProcessPanel, 6);
         /* ドキュメント内に TextFrame が 0 件なら後処理は無意味なのでディム / Disable post-process when document has no text frames */
         postProcessPanel.enabled = app.activeDocument.textFrames.length > 0;
 
-        ui.rbNoPostProcess = postProcessPanel.add("radiobutton", undefined, getLabel("radio.noPostProcess"));
-        ui.rbHide = postProcessPanel.add("radiobutton", undefined, getLabel("radio.hideAfterSelection"));
-        ui.rbHideOthers = postProcessPanel.add("radiobutton", undefined, getLabel("radio.hideOthers"));
-        ui.rbMove = postProcessPanel.add("radiobutton", undefined, getLabel("radio.moveToTextLayer"));
-        ui.rbBulkEdit = postProcessPanel.add("radiobutton", undefined, getLabel("radio.bulkEdit"));
+        selectorControls.rbNoPostProcess = postProcessPanel.add("radiobutton", undefined, getLabel("radio.noPostProcess"));
+        selectorControls.rbHide = postProcessPanel.add("radiobutton", undefined, getLabel("radio.hideAfterSelection"));
+        selectorControls.rbHideOthers = postProcessPanel.add("radiobutton", undefined, getLabel("radio.hideOthers"));
+        selectorControls.rbMove = postProcessPanel.add("radiobutton", undefined, getLabel("radio.moveToTextLayer"));
+        selectorControls.rbBulkEdit = postProcessPanel.add("radiobutton", undefined, getLabel("radio.bulkEdit"));
 
-        ui.rbNoPostProcess.value = true;
+        selectorControls.rbNoPostProcess.value = true;
 
-        setHelpTip(ui.rbNoPostProcess, getLabel("tooltip.noPostProcess"));
-        setHelpTip(ui.rbHide, getLabel("tooltip.hideAfterSelection"));
-        setHelpTip(ui.rbHideOthers, getLabel("tooltip.hideOthers"));
-        setHelpTip(ui.rbMove, getLabel("tooltip.moveToTextLayer"));
-        setHelpTip(ui.rbBulkEdit, getLabel("tooltip.bulkEdit"));
+        setHelpTip(selectorControls.rbNoPostProcess, getLabel("tooltip.noPostProcess"));
+        setHelpTip(selectorControls.rbHide, getLabel("tooltip.hideAfterSelection"));
+        setHelpTip(selectorControls.rbHideOthers, getLabel("tooltip.hideOthers"));
+        setHelpTip(selectorControls.rbMove, getLabel("tooltip.moveToTextLayer"));
+        setHelpTip(selectorControls.rbBulkEdit, getLabel("tooltip.bulkEdit"));
 
-        setupExclusiveRadioButtons([ui.rbNoPostProcess, ui.rbHide, ui.rbHideOthers, ui.rbMove, ui.rbBulkEdit]);
+        setupExclusiveRadioButtons([selectorControls.rbNoPostProcess, selectorControls.rbHide, selectorControls.rbHideOthers, selectorControls.rbMove, selectorControls.rbBulkEdit]);
     }
 
     /**
      * ダイアログを組み立てる（OK/キャンセルの処理は main() で付ける）
      * @param {Object} initialState - 開いた時点の選択の情報（hasSelection / keyword / attributePreview）
-     * @returns {Object} ダイアログ本体（window）と各コントロール
+     * @returns {Object} ダイアログ本体（selectorDialog）と各コントロール
      */
     function buildDialog(initialState) {
-        var ui = {};
-        ui.window = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        var selectorControls = {};
+        selectorControls.selectorDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
 
-        addSelectionPanel(ui, initialState);
-        addSelectionKeyHandler(ui);
-        addPostProcessPanel(ui);
+        addSelectionPanel(selectorControls, initialState);
+        addSelectionKeyHandler(selectorControls);
+        addPostProcessPanel(selectorControls);
 
         /* ボタンエリア / Button area */
-        var btnRowGroup = ui.window.add("group");
+        var btnRowGroup = selectorControls.selectorDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = "right";
-        ui.btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        ui.btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        selectorControls.btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        selectorControls.btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        return ui;
+        return selectorControls;
     }
 
     /* 属性ラジオと、選択に使う Illustrator 標準コマンド / Attribute radios and the built-in commands they run */
@@ -1109,32 +1109,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * ラジオの対応表から、オンになっている最初の行の値を返す
-     * @param {Object} ui - buildDialog() の結果
+     * @param {Object} selectorControls - buildDialog() の結果
      * @param {Object[]} radioTable - radioKey と値を持つ行の配列
      * @param {string} valueKey - 返す値のキー
      * @param {string} fallbackValue - どれもオフのときの値
      * @returns {string} 値
      */
-    function readRadioChoice(ui, radioTable, valueKey, fallbackValue) {
+    function readRadioChoice(selectorControls, radioTable, valueKey, fallbackValue) {
         for (var i = 0; i < radioTable.length; i++) {
-            if (ui[radioTable[i].radioKey].value) return radioTable[i][valueKey];
+            if (selectorControls[radioTable[i].radioKey].value) return radioTable[i][valueKey];
         }
         return fallbackValue;
     }
 
     /**
      * ダイアログの状態から設定を読み取る
-     * @param {Object} ui - buildDialog() の結果
+     * @param {Object} selectorControls - buildDialog() の結果
      * @returns {Object} postProcessMode / artboardScope / attributeCommand / textMatchMode / keyword / textType
      */
-    function readDialogSettings(ui) {
+    function readDialogSettings(selectorControls) {
         return {
-            postProcessMode: readRadioChoice(ui, POST_PROCESS_MODES, "mode", ""),
-            artboardScope: ui.rbArtboardCurrent.value ? "current" : "all",
-            attributeCommand: readRadioChoice(ui, ATTRIBUTE_COMMANDS, "command", ""),
-            textMatchMode: readRadioChoice(ui, TEXT_MATCH_MODES, "mode", ""),
-            keyword: ui.keywordInput.text || "",
-            textType: readRadioChoice(ui, TEXT_TYPES, "textType", "all")
+            postProcessMode: readRadioChoice(selectorControls, POST_PROCESS_MODES, "mode", ""),
+            artboardScope: selectorControls.rbArtboardCurrent.value ? "current" : "all",
+            attributeCommand: readRadioChoice(selectorControls, ATTRIBUTE_COMMANDS, "command", ""),
+            textMatchMode: readRadioChoice(selectorControls, TEXT_MATCH_MODES, "mode", ""),
+            keyword: selectorControls.keywordInput.text || "",
+            textType: readRadioChoice(selectorControls, TEXT_TYPES, "textType", "all")
         };
     }
 
@@ -1169,19 +1169,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var initialSelection = collectSelectionAsArray(app.activeDocument.selection);
-        var ui = buildDialog({
+        var selectorControls = buildDialog({
             hasSelection: initialSelection.length > 0,
             keyword: getSelectedTextString(initialSelection),
             attributePreview: getSelectedTextAttributePreview(initialSelection)
         });
 
         /* OKボタン実行処理 / Handle OK button action */
-        ui.btnOK.onClick = function () {
-            var selectorSettings = readDialogSettings(ui);
+        selectorControls.btnOK.onClick = function () {
+            var selectorSettings = readDialogSettings(selectorControls);
 
             /* 属性で選択：Illustrator標準コマンドに選択を任せる / By attribute: let Illustrator's command perform the selection */
             if (selectorSettings.attributeCommand) {
-                ui.window.close();
+                selectorControls.selectorDialog.close();
                 selectByAttribute(selectorSettings);
                 return;
             }
@@ -1192,7 +1192,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!keywordValidation) {
                     return;
                 }
-                ui.window.close();
+                selectorControls.selectorDialog.close();
                 var stringPredicate = function (textFrame) {
                     return textMatches(textFrame.contents || "", selectorSettings.keyword, selectorSettings.textMatchMode, keywordValidation.regex);
                 };
@@ -1201,17 +1201,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             /* テキストの種類で選択 / By text type */
-            ui.window.close();
+            selectorControls.selectorDialog.close();
             var typePredicate = buildTextTypePredicate(selectorSettings.textType);
             finalizeSelection(selectTextFrames(typePredicate, selectorSettings.artboardScope), selectorSettings.postProcessMode);
         };
 
         /* キャンセルボタン処理 / Handle Cancel button action */
-        ui.btnCancel.onClick = function () {
-            ui.window.close();
+        selectorControls.btnCancel.onClick = function () {
+            selectorControls.selectorDialog.close();
         };
 
-        ui.window.show();
+        selectorControls.selectorDialog.show();
     }
 
     main();

@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "DateFindReplace";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DateFindReplace.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindReplace.md"; /* README (English) */
@@ -394,24 +394,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function detectFormatAndParse(matchText) {
         var sourceText = String(matchText);
-        for (var r = 0; r < DATE_PARSE_RULES.length; r++) {
-            var parseRule = DATE_PARSE_RULES[r];
-            var m = sourceText.match(parseRule.pattern);
-            if (!m) continue;
+        for (var ruleIndex = 0; ruleIndex < DATE_PARSE_RULES.length; ruleIndex++) {
+            var parseRule = DATE_PARSE_RULES[ruleIndex];
+            var ruleMatch = sourceText.match(parseRule.pattern);
+            if (!ruleMatch) continue;
 
             /* 接頭辞があると、以降のグループ番号が1つずれる / A prefix shifts the later groups by one */
             var groupOffset = parseRule.hasPrefix ? 1 : 0;
-            var prefixText = parseRule.hasPrefix ? m[1] : "";
+            var prefixText = parseRule.hasPrefix ? ruleMatch[1] : "";
             var dateParts;
             if (parseRule.separator) {
                 dateParts = {
-                    prefix: prefixText, year: m[1 + groupOffset], sep1: parseRule.separator, month: m[2 + groupOffset],
-                    sep2: parseRule.separator, day: m[3 + groupOffset], sep3: "", suffix: m[4 + groupOffset] || ""
+                    prefix: prefixText, year: ruleMatch[1 + groupOffset], sep1: parseRule.separator, month: ruleMatch[2 + groupOffset],
+                    sep2: parseRule.separator, day: ruleMatch[3 + groupOffset], sep3: "", suffix: ruleMatch[4 + groupOffset] || ""
                 };
             } else {
                 dateParts = {
-                    prefix: prefixText, year: m[1 + groupOffset], sep1: m[2 + groupOffset], month: m[3 + groupOffset],
-                    sep2: m[4 + groupOffset], day: m[5 + groupOffset], sep3: m[6 + groupOffset], suffix: m[7 + groupOffset] || ""
+                    prefix: prefixText, year: ruleMatch[1 + groupOffset], sep1: ruleMatch[2 + groupOffset], month: ruleMatch[3 + groupOffset],
+                    sep2: ruleMatch[4 + groupOffset], day: ruleMatch[5 + groupOffset], sep3: ruleMatch[6 + groupOffset], suffix: ruleMatch[7 + groupOffset] || ""
                 };
             }
             return {
@@ -745,8 +745,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             opCount++;
         } else if (newLen < oldLen) {
             /* 余った古い文字を末尾から削除 */
-            for (var ri = oldLen - 1; ri >= newLen; ri--) {
-                textFrame.characters[matchStart + ri].remove();
+            for (var removeIdx = oldLen - 1; removeIdx >= newLen; removeIdx--) {
+                textFrame.characters[matchStart + removeIdx].remove();
                 opCount++;
             }
         }
@@ -1155,8 +1155,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 最初に見つかった置換対象を基準に、曜日サフィックスまたは曜日のみフレームの形式を初期選択にする */
         var initialWeekdayChoice = detectInitialWeekdayChoice(foundMatches);
         var initialWeekdayIndex = 0;
-        for (var wi = 0; wi < WEEKDAY_VALUES.length; wi++) {
-            if (WEEKDAY_VALUES[wi] === initialWeekdayChoice) { initialWeekdayIndex = wi; break; }
+        for (var weekdayValueIdx = 0; weekdayValueIdx < WEEKDAY_VALUES.length; weekdayValueIdx++) {
+            if (WEEKDAY_VALUES[weekdayValueIdx] === initialWeekdayChoice) { initialWeekdayIndex = weekdayValueIdx; break; }
         }
         weekdayDropdown.selection = initialWeekdayIndex;
 
@@ -1243,15 +1243,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function getValidationErrorMessage(dialogControls, foundMatches) {
         var inputDate = readDateInputs(dialogControls);
-        var y = inputDate.year;
-        var m = inputDate.month;
-        var d = inputDate.day;
-        if (isNaN(y) || isNaN(m) || isNaN(d)) return "年・月・日は半角数字で入力してください。";
-        if (y < 1) return "年は1以上で入力してください。";
-        if (m < 1 || m > 12) return "月は1〜12で入力してください。";
-        if (d < 1 || d > 31) return "日は1〜31で入力してください。";
-        if (!isRealDate(y, m, d)) return "存在しない日付です。";
-        var checkDate = new Date(y, m - 1, d);
+        var year = inputDate.year;
+        var month = inputDate.month;
+        var day = inputDate.day;
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return "年・月・日は半角数字で入力してください。";
+        if (year < 1) return "年は1以上で入力してください。";
+        if (month < 1 || month > 12) return "月は1〜12で入力してください。";
+        if (day < 1 || day > 31) return "日は1〜31で入力してください。";
+        if (!isRealDate(year, month, day)) return "存在しない日付です。";
+        var checkDate = new Date(year, month - 1, day);
 
         /* 元号フォーマット選択時は、各元号の有効範囲に収まることを要求 */
         var formatChoice = getDropdownValue(dialogControls.formatDropdown, FORMAT_VALUES, 'preserve');
@@ -1293,16 +1293,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function updateCheckPanel(dialogControls, referenceDate) {
         var inputDate = readDateInputs(dialogControls);
-        var y = inputDate.year;
-        var m = inputDate.month;
-        var d = inputDate.day;
+        var year = inputDate.year;
+        var month = inputDate.month;
+        var day = inputDate.day;
 
-        dialogControls.eraLabel.text = formatEraLabel(y, m, d);
-        dialogControls.weekdayLabel.text = getWeekdayLabel(y, m, d);
+        dialogControls.eraLabel.text = formatEraLabel(year, month, day);
+        dialogControls.weekdayLabel.text = getWeekdayLabel(year, month, day);
 
         dialogControls.daysDiffLabel.text = "";
-        if (referenceDate && !isNaN(y) && !isNaN(m) && !isNaN(d)) {
-            var newDate = new Date(y, m - 1, d);
+        if (referenceDate && !isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            var newDate = new Date(year, month - 1, day);
             if (!isNaN(newDate.getTime())) {
                 dialogControls.daysDiffLabel.text = formatDaysDifference(getDaysDifference(referenceDate, newDate));
             }

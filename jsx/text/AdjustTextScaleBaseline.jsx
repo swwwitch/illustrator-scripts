@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "AdjustTextScaleBaseline";      /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md"; /* README (English) */
@@ -230,9 +230,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var otherText = texts[i];
             var sharedChars = "";
             for (var j = 0; j < commonChars.length; j++) {
-                var ch = commonChars.charAt(j);
-                if (otherText.indexOf(ch) !== -1 && sharedChars.indexOf(ch) === -1) {
-                    sharedChars += ch;
+                var currentChar = commonChars.charAt(j);
+                if (otherText.indexOf(currentChar) !== -1 && sharedChars.indexOf(currentChar) === -1) {
+                    sharedChars += currentChar;
                 }
             }
             commonChars = sharedChars;
@@ -247,12 +247,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 英数字以外の文字（重複なし）
      */
     function getUniqueNonAlphanumerics(text) {
-        var stripped = text.replace(/[0-9A-Za-z]/g, "");
+        var strippedText = text.replace(/[0-9A-Za-z]/g, "");
         var uniqueChars = "";
-        for (var i = 0; i < stripped.length; i++) {
-            var ch = stripped.charAt(i);
-            if (uniqueChars.indexOf(ch) === -1) {
-                uniqueChars += ch;
+        for (var i = 0; i < strippedText.length; i++) {
+            var currentChar = strippedText.charAt(i);
+            if (uniqueChars.indexOf(currentChar) === -1) {
+                uniqueChars += currentChar;
             }
         }
         return uniqueChars;
@@ -389,7 +389,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function PreviewManager() {
         this.undoDepth = 0;
 
+        /**
+         * 変更処理を1ステップとして実行し、Undo の深さを数える
+         * @param {Function} stepAction - 実行する変更処理
+         * @returns {void}
+         */
         this.addStep = function (stepAction) {
+            /* 文字属性の書き込みは DOM が例外を投げうる / Writing character attributes can throw */
             try {
                 stepAction();
                 this.undoDepth++;
@@ -399,6 +405,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         };
 
+        /**
+         * プレビューで行った変更をすべて取り消す
+         * @returns {void}
+         */
         this.rollback = function () {
             while (this.undoDepth > 0) {
                 app.undo();
@@ -407,6 +417,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             app.redraw();
         };
 
+        /**
+         * プレビューを戻してから本番処理を1回だけ実行する
+         * @param {Function} finalAction - 確定時に実行する処理
+         * @returns {void}
+         */
         this.confirm = function (finalAction) {
             this.rollback();
             finalAction();
@@ -654,22 +669,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var targetCharInput = dialogControls.targetCharInput;
         var sizeInput = dialogControls.sizeInput;
         var hScaleInput = dialogControls.hScaleInput;
-        var previewMgr = new PreviewManager();
+        var previewManager = new PreviewManager();
         var initialFontSize = null; /* 最初に読み込んだフォントサイズ（リセット用）/ First font size read, for Reset */
         var lastPreviewTime = 0;
 
-        /* 入力欄の値を対象文字に適用 / Apply the field values to the target characters */
+        /**
+         * 入力欄の値を対象文字に適用する
+         * @returns {void}
+         */
         function applyCurrentValues() {
             applyTextAdjustments(targetRanges, readCharFilter(targetCharInput), readAdjustParams(dialogControls));
         }
 
-        /* プレビューを取り消してから掛け直す / Undo the preview, then apply again */
+        /**
+         * プレビューを取り消してから掛け直す
+         * @returns {void}
+         */
         function updatePreview() {
-            previewMgr.rollback();
-            previewMgr.addStep(applyCurrentValues);
+            previewManager.rollback();
+            previewManager.addStep(applyCurrentValues);
         }
 
-        /* onChanging の連打で Undo/再適用が過剰にならないよう間引く / Throttle heavy preview updates */
+        /**
+         * プレビューを間引いて更新する（onChanging の連打で Undo と再適用が過剰にならないように）
+         * @returns {void}
+         */
         function updatePreviewThrottled() {
             var now = (new Date()).getTime();
             if (now - lastPreviewTime < PREVIEW_INTERVAL_MS) return;
@@ -677,7 +701,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreview();
         }
 
-        /* 最初の対象文字のサイズと比率を入力欄に読み込む / Load the size and scale of the first target character */
+        /**
+         * 最初の対象文字のサイズと比率を入力欄に読み込む
+         * @returns {void}
+         */
         function loadFirstTargetCharValues() {
             var firstChar = findFirstTargetChar(targetRanges, readCharFilter(targetCharInput));
             if (!firstChar) {
@@ -695,7 +722,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateApparentSizeDisplay(dialogControls);
         }
 
-        /* サイズ・比率の確定：プレビューして値を読み直す / Size or scale committed: preview and reload */
+        /**
+         * サイズ・比率の確定を受けて、プレビューしてから値を読み直す
+         * @returns {void}
+         */
         function onSizeOrScaleChange() {
             updatePreview();
             loadFirstTargetCharValues();
@@ -741,13 +771,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         dialogControls.btnCancel.onClick = function () {
-            previewMgr.rollback();
+            previewManager.rollback();
             adjustDialog.close(2);
         };
 
         dialogControls.btnOK.onClick = function () {
             /* Undo を1回にまとめて確定 / Confirm as a single undo step */
-            previewMgr.confirm(applyCurrentValues);
+            previewManager.confirm(applyCurrentValues);
             targetCharInput.onChange = null;
             adjustDialog.close();
         };
@@ -779,7 +809,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var targetRanges = collectSelectedTextRanges(app.selection);
+        var targetRanges = collectSelectedTextRanges(app.activeDocument.selection);
         if (targetRanges.length === 0) {
             alert(getLabel("alert.selectText"));
             return;

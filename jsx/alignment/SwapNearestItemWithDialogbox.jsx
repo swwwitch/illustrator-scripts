@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "SwapNearestItemWithDialogbox"; /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItemWithDialogbox.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItemWithDialogbox.md"; /* README (English) */
@@ -35,13 +35,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-
-    // =========================================
-    // ユーザー設定 / User Settings
-    // =========================================
-
-    /* 起動直後の探索方向。ダイアログの矢印キーで切り替わる / Initial direction; the arrow keys change it */
-    var INITIAL_SEARCH_DIRECTION = "down";
 
     // =========================================
     // 基本設定 / Basic settings

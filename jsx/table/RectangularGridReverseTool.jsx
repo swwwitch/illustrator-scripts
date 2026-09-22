@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "RectangularGridReverseTool";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md"; /* README (English) */
@@ -281,8 +281,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             groupProcessedItems(groupTargets);
         }
     }
-
-    main();
 
     // =========================================
     // 選択の前処理 / Preparing the selection
@@ -946,9 +944,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return closestIndex;
     }
 
-    /* 同じ座標とみなす許容誤差（pt） / Tolerance to treat coordinates as identical (pt)
-       注意：main() の実行より後で代入されるため、実行中は undefined のまま使われている（既存の不具合。未修正）
-       Note: assigned after main() has run, so it is still undefined while the script runs (known bug, left as is) */
+    /* 同じ座標とみなす許容誤差（pt） / Tolerance to treat coordinates as identical (pt) */
     var COORDINATE_TOLERANCE = 5.0;
 
     /**
@@ -1540,4 +1536,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (dialogResult !== 1) return null;
         return readOptionDialogState(dialogControls);
     }
+
+    /* 定数の代入がすべて済んでから実行する / run only after every constant above has been assigned */
+    main();
+
 })();

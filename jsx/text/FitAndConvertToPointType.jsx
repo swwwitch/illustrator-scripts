@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "FitAndConvertToPointType";     /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitAndConvertToPointType.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitAndConvertToPointType.md"; /* README (English) */
@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     // =========================================
-    // ユーザー設定 / User settings
+    // ユーザー設定 / User Settings
     // =========================================
 
     /* 「強制改行を削除」の初期状態 / Initial state of "Remove forced line breaks" */
@@ -279,8 +279,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (typeof areaTextFrame.overflows !== "undefined") return !!areaTextFrame.overflows;
         } catch (e) { }
-        // overflows が読めない環境では、行に入っている文字数と全文字数を突き合わせる
-        // Where overflows cannot be read, the characters inside the lines are counted against the total
+        /* overflows が読めない環境では、行に入っている文字数と全文字数を突き合わせる
+           Where overflows cannot be read, the characters inside the lines are counted against the total */
         try {
             var visibleCount = 0;
             for (var i = 0; i < areaTextFrame.lines.length; i++) {
@@ -313,7 +313,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function removeForcedLineBreaks(textFrame) {
         var textCharacters;
         try { textCharacters = textFrame.characters; } catch (e) { return; }
-        // 削除するとインデックスがずれるので後ろから処理する / Deleting shifts the indices, so walk from the back
+        /* 削除するとインデックスがずれるので後ろから処理する / Deleting shifts the indices, so walk from the back */
         for (var i = textCharacters.length - 1; i >= 0; i--) {
             /* 読めない文字・消せない文字は飛ばす / Skip characters that cannot be read or removed */
             try {
@@ -361,23 +361,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { areaTextFrames[i].name = markerPrefix + i; } catch (eTag) { }
         }
 
-        // 変換するとオブジェクトが置き換わるので後ろから処理する
-        // Each frame is replaced as it goes, so the list is walked from the back
+        /* 変換するとオブジェクトが置き換わるので後ろから処理する
+           Each frame is replaced as it goes, so the list is walked from the back */
         for (var j = areaTextFrames.length - 1; j >= 0; j--) {
-            // 1フレームで失敗しても残りを処理できるようにする
-            // One failing frame must not stop the rest
+            /* 1フレームで失敗しても残りを処理できるようにする / One failing frame must not stop the rest */
             try {
                 if (isFrameOverset(areaTextFrames[j])) {
                     doc.selection = null;
                     areaTextFrames[j].selected = true;
-                    app.redraw(); // Illustratorに選択状態を確定させる / Let Illustrator settle the selection
+                    app.redraw(); /* Illustratorに選択状態を確定させる / Let Illustrator settle the selection */
                     runAutoSizeAction();
                 }
                 areaTextFrames[j].convertAreaObjectToPointObject();
             } catch (e) { }
         }
 
-        // 目印で回収して名前を戻す（走査は1回だけ）/ Collect by marker and restore the names (a single scan)
+        /* 目印で回収して名前を戻す（走査は1回だけ）/ Collect by marker and restore the names (a single scan) */
         var convertedFrames = [], failedCount = 0;
         var allTextFrames = doc.textFrames;
         for (var k = 0; k < allTextFrames.length; k++) {
@@ -390,8 +389,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ? previousNames[markerIndex] : "";
             try { allTextFrames[k].name = restoredName; } catch (eRestore) { }
             if (allTextFrames[k].kind === TextType.POINTTEXT) {
-                // 変換すると折り返し位置に強制改行が残るので、ポイント文字になってから取り除く
-                // The conversion leaves a forced break at every wrap, so they are stripped once it is point text
+                /* 変換すると折り返し位置に強制改行が残るので、ポイント文字になってから取り除く
+                   The conversion leaves a forced break at every wrap, so they are stripped once it is point text */
                 if (removeLineBreaks) removeForcedLineBreaks(allTextFrames[k]);
                 convertedFrames.push(allTextFrames[k]);
             } else { failedCount++; }
@@ -400,7 +399,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
-    // エントリポイント / Entry point
+    // メイン処理 / Main
     // =========================================
 
     /**
@@ -429,8 +428,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        // 古いIllustratorには変換APIが無いので、何も触らずに知らせる
-        // Older Illustrator has no conversion API, so nothing is touched
+        /* 古いIllustratorには変換APIが無いので、何も触らずに知らせる / Older Illustrator has no conversion API, so nothing is touched */
         var supportsConversion = false;
         try { supportsConversion = !!areaTextFrames[0].convertAreaObjectToPointObject; } catch (eApi) { }
         if (!supportsConversion) {
@@ -449,8 +447,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             unloadAutoSizeAction();
         }
 
-        // 変換後のポイント文字を選び直す（削除済みの参照を選択に残さない）
-        // Re-select the resulting point text, so no stale reference lingers in the selection
+        /* 変換後のポイント文字を選び直す（削除済みの参照を選択に残さない）
+           Re-select the resulting point text, so no stale reference lingers in the selection */
         try { doc.selection = conversionResult.converted.length ? conversionResult.converted : null; } catch (eSelect) { }
         app.redraw();
 

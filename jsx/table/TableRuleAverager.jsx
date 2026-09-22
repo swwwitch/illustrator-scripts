@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "TableRuleAverager";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableRuleAverager.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableRuleAverager.md"; /* README (English) */
@@ -232,14 +232,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function resetRulePositions(verticalLines, horizontalLines) {
         var i;
         for (i = 0; i < verticalLines.length; i++) {
-            verticalLines[i].item.height = verticalLines[i].originalHeight;
-            verticalLines[i].item.left = verticalLines[i].originalLeft;
-            verticalLines[i].item.top = verticalLines[i].originalTop;
+            verticalLines[i].pathItem.height = verticalLines[i].originalHeight;
+            verticalLines[i].pathItem.left = verticalLines[i].originalLeft;
+            verticalLines[i].pathItem.top = verticalLines[i].originalTop;
         }
         for (i = 0; i < horizontalLines.length; i++) {
-            horizontalLines[i].item.width = horizontalLines[i].originalWidth;
-            horizontalLines[i].item.left = horizontalLines[i].originalLeft;
-            horizontalLines[i].item.top = horizontalLines[i].originalTop;
+            horizontalLines[i].pathItem.width = horizontalLines[i].originalWidth;
+            horizontalLines[i].pathItem.left = horizontalLines[i].originalLeft;
+            horizontalLines[i].pathItem.top = horizontalLines[i].originalTop;
         }
     }
 
@@ -254,7 +254,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < verticalLines.length; i++) {
             var targetX = boundingRect.bounds[0] + verticalSpacing * (i + 1);
             var horizontalDelta = targetX - verticalLines[i].originalX;
-            verticalLines[i].item.left = verticalLines[i].originalLeft + horizontalDelta;
+            verticalLines[i].pathItem.left = verticalLines[i].originalLeft + horizontalDelta;
         }
     }
 
@@ -269,7 +269,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < horizontalLines.length; i++) {
             var targetY = boundingRect.bounds[1] - horizontalSpacing * (i + 1);
             var verticalDelta = targetY - horizontalLines[i].originalY;
-            horizontalLines[i].item.top = horizontalLines[i].originalTop + verticalDelta;
+            horizontalLines[i].pathItem.top = horizontalLines[i].originalTop + verticalDelta;
         }
     }
 
@@ -285,7 +285,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function createRuleRecord(pathItem, itemBounds) {
         return {
-            item: pathItem,
+            pathItem: pathItem,
             originalLeft: pathItem.left,
             originalTop: pathItem.top,
             originalWidth: pathItem.width,

@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
@@ -464,8 +464,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var radioKey = radioByKey[event.keyName];
             if (!radioKey) return;
 
-            for (var key in radioSet) {
-                radioSet[key].value = (key === radioKey);
+            for (var setKey in radioSet) {
+                radioSet[setKey].value = (setKey === radioKey);
             }
             event.preventDefault();
             if (onUpdate) onUpdate();

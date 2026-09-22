@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "ExcelTableNormalizer";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExcelTableNormalizer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTableNormalizer.md"; /* README (English) */
@@ -332,7 +332,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             case "cm": return value * 72 / 2.54;
             case "in": return value * 72;
             case "pt": return value;
-            case "px": return value; // Illustratorはpx≒pt
+            case "px": return value; /* Illustrator では px ≒ pt / px equals pt in Illustrator */
             default: return value;
         }
     }
@@ -2538,20 +2538,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function autoSelectAndMerge(layerName, extraExcludeLayerNames) {
         var doc = app.activeDocument;
 
-        var threshold = getModeTextSize(doc);
-        if (!threshold || threshold <= 0) return;
+        var minShortSide = getModeTextSize(doc);
+        if (!minShortSide || minShortSide <= 0) return;
 
-        var rectangles = collectRectangles(doc, [layerName].concat(extraExcludeLayerNames), threshold);
+        var rectangles = collectRectangles(doc, [layerName].concat(extraExcludeLayerNames), minShortSide);
         if (rectangles.length === 0) return;
 
         setSelection(doc, rectangles);
 
-        var targets = expandByAppearance(doc, rectangles);
-        if (targets.length === 0) return;
+        var cellBackgroundItems = expandByAppearance(doc, rectangles);
+        if (cellBackgroundItems.length === 0) return;
 
         var targetLayer = ensureBackLayer(doc, layerName);
-        moveItemsToLayer(targets, targetLayer);
-        setSelection(doc, targets);
+        moveItemsToLayer(cellBackgroundItems, targetLayer);
+        setSelection(doc, cellBackgroundItems);
 
         safeCall(function () { app.executeMenuCommand('group'); });
     }

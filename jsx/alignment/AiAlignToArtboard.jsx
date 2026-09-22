@@ -101,10 +101,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DIVIDE_GUIDE_NAME = "AiAlignToArtboard-divide";
 
         /* 常駐エンジン（$.global）に控える値のキー
-           ガイドの設定はパレットを開き直しても引き継ぐ（［ガイドを保持］で残したガイドを、
-           次に閉じたときに消してしまわないため）
-           Keys kept on $.global: the guide settings survive a close-and-reopen, so a guide left by
-           "Keep Guides" is not deleted the next time the palette closes */
+           ガイドの設定はパレットを開き直しても引き継ぐ（ドキュメントに残したガイドと入力欄の値が食い違わないように）
+           Keys kept on $.global: the guide settings survive a close-and-reopen, so the guides left in the
+           document keep matching the fields */
         var SETTINGS_KEY     = "__aiAlignToArtboardSettings";
         /* メインエンジンへ送り込んだワーカー定義の刻印を控えるキー / Key holding the stamp of the loaded worker source */
         var WORKER_STAMP_KEY = "__aiAlignToArtboardWorkerStamp";
@@ -492,7 +491,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * グレーの RGBA を作る
-         * @param {number} value - 明度（0..1 にクランプ）
+         * @param {number} brightness - 明度（0..1 にクランプ）
          * @returns {number[]} [r, g, b, a] の配列
          */
         function grayColor(brightness) {
@@ -659,7 +658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * 辺の長さを奇数に丸める
          * 中心が .5 の位置にあるので、奇数にすると両側が同じ幅で割り振られ、中心がぴったり合う
-         * @param {number} value - 丸める前の長さ
+         * @param {number} rawLength - 丸める前の長さ
          * @returns {number} 奇数の長さ
          */
         function roundToOddLength(rawLength) {
@@ -795,7 +794,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * ホバー状態に応じた背景色を返す
-         * @param {Button} control - 対象のコントロール
+         * @param {Button} iconButton - 対象のボタン
          * @returns {number[]} 背景色の RGBA
          */
         function hoverBackground(iconButton) {
@@ -804,7 +803,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * ボタンの下地（背景と、マウスオーバー中だけの枠線）を描く
-         * @param {Button} button - 対象のボタン
+         * @param {Button} iconButton - 対象のボタン
          * @returns {void}
          */
         function drawButtonBase(iconButton) {
@@ -832,7 +831,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 整列アイコンボタンを描画する
-         * @param {Button} button - 対象のボタン（iconType と alignMode を持つ）
+         * @param {Button} alignButton - 対象のボタン（iconType と alignMode を持つ）
          * @returns {void}
          */
         function drawAlignButton(alignButton) {
@@ -848,7 +847,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 移動ボタン（寄せ先のケイ線とオブジェクト）を描画する
-         * @param {Button} button - 対象のボタン（directionKey を持つ）
+         * @param {Button} moveButton - 対象のボタン（directionKey を持つ）
          * @returns {void}
          */
         function drawMoveButton(moveButton) {
@@ -899,8 +898,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * ↑↓キー操作後の次の値を求める（下限は0）
          * @param {number} currentValue - 現在の値
-         * @param {number} direction - 1＝上 / -1＝下
-         * @param {object} keyboard - ScriptUI.environment.keyboardState
+         * @param {number} stepDirection - 1＝上 / -1＝下
+         * @param {object} keyboardState - ScriptUI.environment.keyboardState
          * @returns {number} 次の値
          */
         function computeArrowValue(currentValue, stepDirection, keyboardState) {
@@ -956,8 +955,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * マウスオーバーの状態を button.isHover に反映して再描画する
-         * @param {Button} button - 対象のボタン
+         * マウスオーバーの状態を iconButton.isHover に反映して再描画する
+         * @param {Button} iconButton - 対象のボタン
          * @returns {void}
          */
         function attachHover(iconButton) {
@@ -1151,7 +1150,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * パレットのイベント（選択の取り直し・キー操作・閉じるときの後始末）を結線する
-         * @param {Window} win - 対象のパレット
+         * @param {Window} alignPalette - 対象のパレット
          * @returns {void}
          */
         function attachPaletteEvents(alignPalette) {
@@ -1176,7 +1175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * パレット上のキー操作を振り分ける
          * Esc で閉じ、↑↓←→ で方向ボタン、C/M/X で中央揃え、B で裁ち落としの切り替えを行う
-         * @param {Window} win - 対象のパレット
+         * @param {Window} alignPalette - 対象のパレット
          * @param {object} event - keydown イベント
          * @returns {void}
          */
@@ -1897,7 +1896,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * パレットを閉じた位置を控える（次に開いたときに同じ場所へ出すため）
-         * @param {Window} win - 対象のパレット
+         * @param {Window} alignPalette - 対象のパレット
          * @returns {void}
          */
         function saveWindowLocation(alignPalette) {
@@ -1906,7 +1905,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 控えておいた位置にパレットを移す（画面の外に出る位置なら使わない）
-         * @param {Window} win - 対象のパレット
+         * @param {Window} alignPalette - 対象のパレット
          * @returns {void}
          */
         function restoreWindowLocation(alignPalette) {
@@ -3026,7 +3025,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 再入防止つきで処理を実行する（連打による多重実行を防ぐ）
-         * @param {function} action - 実行する処理
+         * @param {function} exclusiveTask - 実行する処理
          * @returns {boolean} 実行したら true（実行中で見送ったときは false）
          */
         function runExclusive(exclusiveTask) {
@@ -3070,7 +3069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * ソースの取り違えを防ぐ刻印を作る（内容が1文字でも変われば別の値になる）
-         * @param {string} source - 対象のソース
+         * @param {string} workerSource - 対象のソース
          * @returns {string} 刻印
          */
         function buildWorkerStamp(workerSource) {
@@ -3102,11 +3101,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 本文をメインエンジンで同期実行し、結果を受け取る
-         * @param {string} body - メインエンジンで評価する本文
+         * @param {string} messageBody - メインエンジンで評価する本文
          * @returns {string} 評価結果（応答がなければ null）
          */
         function sendToMainEngine(messageBody) {
-            /* 同期送信の結果は holder 経由で受け取る / The synchronous send hands its result back through holder */
+            /* 同期送信の結果は resultHolder 経由で受け取る / The synchronous send hands its result back through resultHolder */
             var resultHolder = { result: null };
             var bridgeTalk = new BridgeTalk();
             bridgeTalk.target = "illustrator";
@@ -3190,7 +3189,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 数値の入力欄を読んで pt に換算する（数値以外と負数は0に丸め、欄の表示もそろえる）
-         * @param {EditText} field - 読み取る入力欄
+         * @param {EditText} valueField - 読み取る入力欄
          * @param {number} pointsPerUnit - 1単位あたりの pt
          * @returns {number} 入力値（pt）
          */
@@ -3289,8 +3288,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * その整列が使うマージンを、寄せる辺から1つ選ぶ（中央揃えは使わないので0）
-         * @param {object} spec - readAlignSpec() の戻り値
-         * @param {object} margins - readMarginsPt() の戻り値
+         * @param {object} alignSpec - readAlignSpec() の戻り値
+         * @param {object} marginsPt - readMarginsPt() の戻り値
          * @returns {number} マージン（pt）
          */
         function marginForAlign(alignSpec, marginsPt) {
@@ -3353,7 +3352,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 中央に寄せる軸を持つ整列か判定する
-         * @param {object} spec - readAlignSpec() の戻り値
+         * @param {object} alignSpec - readAlignSpec() の戻り値
          * @returns {boolean} 片方でも中央に寄せるなら true
          */
         function isCenterAlign(alignSpec) {
@@ -3376,8 +3375,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * マージンの内側の中央へ寄せるための、アートボードの中央からのずれを求める
          * 中央に寄せる軸だけ、向かい合うマージンの差の半分だけ内側へずらす
-         * @param {object} spec - readAlignSpec() の戻り値
-         * @param {object} margins - readMarginsPt() の戻り値
+         * @param {object} alignSpec - readAlignSpec() の戻り値
+         * @param {object} marginsPt - readMarginsPt() の戻り値
          * @returns {object} { x: number, y: number }（pt）
          */
         function centerOffsetInMargin(alignSpec, marginsPt) {

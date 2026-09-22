@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "SelectionInspector";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspector.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspector.md"; /* README (English) */
@@ -750,8 +750,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         reportFile.writeln("");
         reportFile.writeln(getLabel('report.valueNote'));
 
-        for (var s = 0; s < REPORT_SECTIONS.length; s++) {
-            var sectionKey = REPORT_SECTIONS[s];
+        for (var sectionIndex = 0; sectionIndex < REPORT_SECTIONS.length; sectionIndex++) {
+            var sectionKey = REPORT_SECTIONS[sectionIndex];
             reportFile.writeln("");
             reportFile.writeln(getLabel('panel.' + sectionKey));
             if (sectionKey === "memo") {
@@ -760,8 +760,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                 continue;
             }
             var statRows = STAT_ROWS[sectionKey];
-            for (var r = 0; r < statRows.length; r++) {
-                reportFile.writeln(reportLabelText('fieldLabel.' + statRows[r].label) + " " + formatStatValue(statRows[r], statMap));
+            for (var i = 0; i < statRows.length; i++) {
+                reportFile.writeln(reportLabelText('fieldLabel.' + statRows[i].label) + " " + formatStatValue(statRows[i], statMap));
             }
         }
 
@@ -819,23 +819,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
         var valueTexts = {};
         var memoPreview = null;
-        for (var c = 0; c < PALETTE_COLUMNS.length; c++) {
-            var column = twoColGroup.add("group");
-            column.orientation = "column";
-            column.alignChildren = ["fill", "top"];
-            var labelWidth = (c === 0) ? LABEL_WIDTH_LEFT : LABEL_WIDTH_RIGHT;
+        for (var columnIndex = 0; columnIndex < PALETTE_COLUMNS.length; columnIndex++) {
+            var columnGroup = twoColGroup.add("group");
+            columnGroup.orientation = "column";
+            columnGroup.alignChildren = ["fill", "top"];
+            var labelWidth = (columnIndex === 0) ? LABEL_WIDTH_LEFT : LABEL_WIDTH_RIGHT;
 
-            for (var p = 0; p < PALETTE_COLUMNS[c].length; p++) {
-                var panelKey = PALETTE_COLUMNS[c][p];
-                var statPanel = addPanel(column, 'panel.' + panelKey);
+            for (var panelIndex = 0; panelIndex < PALETTE_COLUMNS[columnIndex].length; panelIndex++) {
+                var panelKey = PALETTE_COLUMNS[columnIndex][panelIndex];
+                var statPanel = addPanel(columnGroup, 'panel.' + panelKey);
                 if (panelKey === "memo") {
                     memoPreview = statPanel.add("statictext", undefined, "", { multiline: true });
                     memoPreview.preferredSize = MEMO_PREVIEW_SIZE;
                     continue;
                 }
                 var statRows = STAT_ROWS[panelKey];
-                for (var r = 0; r < statRows.length; r++) {
-                    valueTexts[statRows[r].label] = addStatRow(statPanel, statRows[r], labelWidth);
+                for (var i = 0; i < statRows.length; i++) {
+                    valueTexts[statRows[i].label] = addStatRow(statPanel, statRows[i], labelWidth);
                 }
             }
         }
@@ -852,8 +852,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         for (var panelKey in STAT_ROWS) {
             if (!STAT_ROWS.hasOwnProperty(panelKey)) continue;
             var statRows = STAT_ROWS[panelKey];
-            for (var r = 0; r < statRows.length; r++) {
-                valueTexts[statRows[r].label].text = formatStatValue(statRows[r], statMap);
+            for (var i = 0; i < statRows.length; i++) {
+                valueTexts[statRows[i].label].text = formatStatValue(statRows[i], statMap);
             }
         }
     }
@@ -890,7 +890,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             var keyName = (keyEvent && keyEvent.keyName) ? String(keyEvent.keyName).toUpperCase() : "";
 
             if (keyName === "ESCAPE") {
-                try { inspectorPalette.close(); } catch (e1) {}
+                try { inspectorPalette.close(); } catch (e) {}
             } else if (keyEvent && keyEvent.altKey && keyName === "I") {
                 keyActions.showInfo();
                 preventDefaultSafely(keyEvent);
@@ -952,16 +952,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         var statusText = inspectorPalette.add("statictext", undefined, getLabel('status.ready'));
         statusText.alignment = ["fill", "bottom"];
 
-        /* ステータス行に表示する / Show a message on the status line */
+        /**
+         * ステータス行に表示する
+         * @param {string} statusMessage - 表示する文言
+         * @returns {void}
+         */
         function setStatus(statusMessage) { statusText.text = statusMessage; }
 
-        /* タブの中身が変わったあとに組み直す / Re-layout after the tab contents change */
+        /**
+         * タブの中身が変わったあとにレイアウトを組み直す
+         * @returns {void}
+         */
         function relayout() {
+            /* 表示前など、layout を呼べない状態がある / layout may be unavailable, e.g. before the palette is shown */
             try { if (stackWrap.layout) { stackWrap.layout.layout(true); } } catch (e) {}
-            try { if (inspectorPalette.layout) { inspectorPalette.layout.layout(true); } } catch (e2) {}
+            try { if (inspectorPalette.layout) { inspectorPalette.layout.layout(true); } } catch (e) {}
         }
 
-        /* 情報タブとメモタブを切り替える / Switch between the Info and Notes tabs */
+        /**
+         * 情報タブとメモタブを切り替える
+         * @param {string} viewMode - "info" または "memo"
+         * @returns {void}
+         */
         function switchView(viewMode) {
             var showInfo = (viewMode === "info");
             infoRadio.value = showInfo;
@@ -971,19 +983,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             relayout();
         }
 
-        /* メモタブを開き、先頭の入力欄にフォーカスする / Open the Notes tab and focus its first field */
+        /**
+         * メモタブを開き、先頭の入力欄にフォーカスする
+         * @returns {void}
+         */
         function showMemoView() {
             switchView("memo");
             try { if (memoFields.length > 0) { memoFields[0].active = true; } } catch (e) {}
         }
 
-        /* 情報タブのメモ欄を更新（1件ならその内容、複数なら案内）/ Update the note preview on the Info tab */
+        /**
+         * 情報タブのメモ欄を更新する（1件ならその内容、複数なら案内）
+         * @param {string[]} memoList - 選択オブジェクトのメモ
+         * @returns {void}
+         */
         function updateMemoPreview(memoList) {
             var nonEmptyNotes = collectNonEmptyNotes(memoList);
             memoPreview.text = (nonEmptyNotes.length === 1) ? nonEmptyNotes[0] : (nonEmptyNotes.length > 1 ? getLabel('memo.multiple') : "");
         }
 
-        /* メモタブを再構築 / Rebuild the Notes tab */
+        /**
+         * メモタブを作り直す（選択オブジェクトごとに入力欄と［適用］ボタン）
+         * @param {string[]} memoList - 選択オブジェクトのメモ（並べ替え済み）
+         * @returns {void}
+         */
         function rebuildMemo(memoList) {
             while (memoTab.children.length > 0) {
                 try { memoTab.remove(memoTab.children[0]); } catch (e) { break; }
@@ -1012,7 +1035,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             relayout();
         }
 
-        /* 再集計 / Recount */
+        /**
+         * メインエンジンで集計し直し、パレットに反映する
+         * @returns {void}
+         */
         function refresh() {
             setStatus(getLabel('status.busy'));
             var response = callMainEngine("wkCollect()");
@@ -1037,7 +1063,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             }
         }
 
-        /* メモ適用 / Apply a note */
+        /**
+         * メモをオブジェクトに設定し、集計し直す
+         * @param {number} itemIndex - 並べ替えた選択での番号
+         * @param {string} noteText - 設定するメモ
+         * @returns {void}
+         */
         function applyMemo(itemIndex, noteText) {
             setStatus(getLabel('status.busy'));
             var response = callMainEngine("wkApplyMemo(" + itemIndex + ",\"" + encodeURIComponent(noteText) + "\")");
@@ -1047,7 +1078,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             else { setStatus(getLabel('status.error') + ": " + response); }
         }
 
-        /* レポート書き出し（収集データからパレット側で生成） / Export report */
+        /**
+         * 集計し直してレポートをデスクトップに書き出す（ファイルはパレット側で作る）
+         * @returns {void}
+         */
         function exportReport() {
             setStatus(getLabel('status.busy'));
             var response = callMainEngine("wkCollect()");

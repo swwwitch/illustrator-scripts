@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md"; /* README (English) */
@@ -326,10 +326,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function forEachGridCell(containerInfo, stepX, stepY, gridSize, isBrick, visitCell) {
-        for (var r = 0; r < gridSize.rows; r++) {
-            var yTop = containerInfo.top - r * stepY;
-            for (var c = 0; c < gridSize.columns; c++) {
-                var xLeft = containerInfo.left + c * stepX + ((isBrick && (r % 2 === 1)) ? stepX * 0.5 : 0);
+        for (var rowIndex = 0; rowIndex < gridSize.rows; rowIndex++) {
+            var yTop = containerInfo.top - rowIndex * stepY;
+            for (var columnIndex = 0; columnIndex < gridSize.columns; columnIndex++) {
+                var xLeft = containerInfo.left + columnIndex * stepX + ((isBrick && (rowIndex % 2 === 1)) ? stepX * 0.5 : 0);
                 visitCell(xLeft, yTop);
             }
         }
@@ -421,10 +421,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         editText.addEventListener("keydown", function(event) {
             var value = Number(editText.text);
             if (isNaN(value)) return;
-            var keyboard = ScriptUI.environment.keyboardState;
+            var keyboardState = ScriptUI.environment.keyboardState;
             var delta = 1;
 
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 delta = 10;
                 if (event.keyName == "Up") {
                     value = Math.ceil((value + 1) / delta) * delta;
@@ -434,7 +434,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (!allowNegative && value < 0) value = 0;
                     event.preventDefault();
                 }
-            } else if (keyboard.altKey) {
+            } else if (keyboardState.altKey) {
                 delta = 0.1;
                 if (event.keyName == "Up") {
                     value += delta;
@@ -444,7 +444,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     event.preventDefault();
                 }
             } else {
-                delta = 1;
                 if (event.keyName == "Up") {
                     value += delta;
                     event.preventDefault();
@@ -455,7 +454,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
 
-            if (keyboard.altKey) {
+            if (keyboardState.altKey) {
                 value = Math.round(value * 10) / 10;
             } else {
                 value = Math.round(value);
@@ -505,8 +504,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         marginRow.add('statictext', undefined, unitSuffix(unitLabel));
         changeValueByArrowKey(marginField, true, updatePreviewFromFields); /* マージンは負OK / margin can be negative */
 
-        /* 入力欄の値を pt に換算して読む（チェックボックスは作成前なら false）
-           Read the fields converted to points (checkboxes read false before they exist) */
+        /**
+         * 入力欄の値を pt に換算して読む（チェックボックスは作成前なら false として扱う）
+         * @returns {{gap: number, margin: number, isBrick: boolean, symbolize: boolean, columns: number, rows: number}} 設定（pt）
+         */
         function readFillSettings() {
             var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
             var gapValue = Math.max(0, parseFloat(gapField.text) || 0);
@@ -522,7 +523,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
         }
 
-        /* プレビュー更新 / Update preview */
+        /**
+         * 現在の入力内容でプレビューを描き直す
+         * @returns {void}
+         */
         function updatePreviewFromFields() {
             onPreview(readFillSettings());
         }
@@ -622,14 +626,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function clearPreview(fillTarget) {
+        /* 削除済みのグループは参照が無効になる / The group may already be gone */
         try {
             if (fillTarget.previewGroup && fillTarget.previewGroup.isValid) {
                 fillTarget.previewGroup.remove();
             }
-        } catch (e1) {}
+        } catch (e) {}
         fillTarget.previewGroup = null;
 
-        /* 名前で余分なプレビューを掃除 / Sweep stray previews */
+        /* 名前で余分なプレビューを掃除。ロックされたレイヤーなどで削除できないものは飛ばす
+           Sweep stray previews by name; skip any that cannot be removed, e.g. on a locked layer */
         try {
             var containerLayer = fillTarget.container.layer;
             for (var i = containerLayer.groupItems.length - 1; i >= 0; i--) {
@@ -637,10 +643,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (groupItem.name.indexOf(PREVIEW_GROUP_NAME) === 0) {
                     try {
                         groupItem.remove();
-                    } catch (e2) {}
+                    } catch (e) {}
                 }
             }
-        } catch (e3) {}
+        } catch (e) {}
     }
 
     /**
@@ -686,12 +692,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Symbol|null} 登録したシンボル。失敗時は null（通常の複製に切り替える）
      */
     function createTileSymbol(doc, tile) {
+        /* シンボルにできないオブジェクトがある / Some items cannot become symbols */
         try {
             var symbolSource = tile.duplicate();
             var symbolDefinition = doc.symbols.add(symbolSource);
-            try { symbolSource.remove(); } catch (eSource) {}
+            try { symbolSource.remove(); } catch (e) {}
             return symbolDefinition;
-        } catch (eSymbol) {
+        } catch (e) {
             return null; /* 失敗時は通常複製 / fallback */
         }
     }
