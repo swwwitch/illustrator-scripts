@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashNipper
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashNipper";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
@@ -83,6 +83,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     var ARC_CHECK_STEPS = 4;              /* 半円かを確かめる、1セグメントあたりの点の数 / points checked per segment for a semicircle */
     var MAX_CAP_SEGMENTS = 4;             /* 丸型線端の半円を作るセグメント数の上限 / max segments forming a round cap */
     var TINY_SEGMENT_RATIO = 0.05;        /* 線幅に対して、ごく短いとみなすセグメントの比率 / segment length treated as tiny (ratio to stroke width) */
+    var TINY_SEGMENT_MIN_LENGTH = 0.2;    /* ごく短いとみなす長さの下限（pt）/ lower bound of the tiny length (pt) */
+    var TINY_SEGMENT_MAX_RATIO = 0.25;    /* 下限を当てるときの、線幅に対する上限の比率 / cap on that lower bound (ratio to stroke width) */
     /* 丸型線端のアウトラインは、線幅 1pt で半径の3%ほど真円からずれる（実測）。直線や帯の辺は半径の100%近くずれるので取り違えない
        Outlined round caps deviate ~3% of the radius at a 1pt stroke (measured); straight or band sides deviate ~100% */
     var ARC_RADIUS_MISMATCH_RATIO = 0.1;  /* 半円とみなす、半径に対するずれの比率 / allowed radial deviation for a semicircle (ratio) */
@@ -406,11 +408,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     // =========================================
     // アウトラインの整形 / Outline cleanup
     // =========================================
-    // 閉じたパスの破線をアウトライン化すると、継ぎ目の近くの線分に、ごく短いセグメント（線幅 8pt で 0.007〜0.18pt を実測）や
-    // 切り口の途中のアンカー、小さな破片が混ざる。中心線を求められなかった線分だけ、線幅の TINY_SEGMENT_RATIO 未満に
-    // 近いアンカーをまとめてから判定し直す
-    // Outlining a closed dashed path leaves tiny segments (0.007-0.18pt measured at an 8pt stroke), extra anchors on the cut,
-    // and small fragments near the seam. Only dashes that fail the first attempt are cleaned up and tried again
+    // 破線をアウトライン化すると、継ぎ目の近くや丸型線端の付け根に、ごく短いセグメント（線幅 8pt で 0.007〜0.18pt、
+    // 1pt で 0.015〜0.09pt を実測）や切り口の途中のアンカー、小さな破片が混ざる。長さは線幅にあまり比例しないので、
+    // 「ごく短い」は線幅の比率と下限の大きい方にする。中心線を求められなかった線分だけ、近いアンカーをまとめてから判定し直す
+    // Outlining leaves tiny segments (0.007-0.18pt at an 8pt stroke, 0.015-0.09pt at 1pt), extra anchors on the cut,
+    // and small fragments. Their size barely scales with the stroke, so the tiny length has a lower bound.
+    // Only dashes that fail the first attempt are cleaned up and tried again
+
+    /**
+     * ごく短いとみなすセグメントの長さを返す
+     * @param {number} strokeWidth - 元の破線の線幅（pt）
+     * @returns {number} 線幅の TINY_SEGMENT_RATIO 倍と、TINY_SEGMENT_MIN_LENGTH（線幅の TINY_SEGMENT_MAX_RATIO 倍まで）の大きい方（pt）
+     */
+    function getTinyLength(strokeWidth) {
+        var lowerBound = Math.min(TINY_SEGMENT_MIN_LENGTH, strokeWidth * TINY_SEGMENT_MAX_RATIO);
+        return Math.max(strokeWidth * TINY_SEGMENT_RATIO, lowerBound);
+    }
 
     /**
      * 近接したアンカーの集まりを1つのアンカーにまとめる（ハンドルは位置の移動に合わせてずらす）
@@ -525,7 +538,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     function analyzeDashPiece(anchors, strokeWidth) {
         var centerLine = getCenterLine(anchors, strokeWidth);
         if (centerLine) return { centerLine: centerLine, isDebris: false };
-        var tinyLength = strokeWidth * TINY_SEGMENT_RATIO;
+        var tinyLength = getTinyLength(strokeWidth);
         var mergedAnchors = mergeTinySegments(anchors, tinyLength);
         if (mergedAnchors.length < 3) return { centerLine: null, isDebris: true };
         return { centerLine: getCenterLine(removeStraightMidAnchors(mergedAnchors, tinyLength), strokeWidth), isDebris: false };
