@@ -41,6 +41,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
 (function () {
 
     // =========================================
+    // 再実行の目印 / Retry marker
+    // =========================================
+    /* 中心線にできなかった線分の［属性］パネルのメモに、元の線幅と一緒に書く
+       Written with the stroke width into the note of dashes left as outlines */
+    var SKIPPED_NOTE_PREFIX = "DashNipper:strokeWidth=";
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
     var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -76,6 +83,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     var ARC_CHECK_STEPS = 4;              /* 半円かを確かめる、1セグメントあたりの点の数 / points checked per segment for a semicircle */
     var MAX_CAP_SEGMENTS = 4;             /* 丸型線端の半円を作るセグメント数の上限 / max segments forming a round cap */
     var TINY_SEGMENT_RATIO = 0.05;        /* 線幅に対して、ごく短いとみなすセグメントの比率 / segment length treated as tiny (ratio to stroke width) */
+    /* 丸型線端のアウトラインは、線幅 1pt で半径の3%ほど真円からずれる（実測）。直線や帯の辺は半径の100%近くずれるので取り違えない
+       Outlined round caps deviate ~3% of the radius at a 1pt stroke (measured); straight or band sides deviate ~100% */
+    var ARC_RADIUS_MISMATCH_RATIO = 0.1;  /* 半円とみなす、半径に対するずれの比率 / allowed radial deviation for a semicircle (ratio) */
 
     /**
      * @typedef {object} AnchorInfo
@@ -270,12 +280,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
         var center = getMidpoint(chainStart, chainEnd);
         var radius = getDistance(chainStart, chainEnd) / 2;
         if (radius <= LENGTH_TOLERANCE) return false;
+        var maxDeviation = Math.max(LENGTH_TOLERANCE, radius * ARC_RADIUS_MISMATCH_RATIO);
         for (var segment = 0; segment < segmentCount; segment++) {
             var from = anchors[(startIndex + segment) % anchorCount];
             var to = anchors[(startIndex + segment + 1) % anchorCount];
             for (var i = 1; i <= ARC_CHECK_STEPS; i++) {
                 var point = getPointOnBezier(from.anchor, from.rightDirection, to.leftDirection, to.anchor, i / ARC_CHECK_STEPS);
-                if (!isMatchingLength(getDistance(center, point), radius)) return false;
+                if (Math.abs(getDistance(center, point) - radius) > maxDeviation) return false;
             }
         }
         return true;
@@ -545,26 +556,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     }
 
     /**
-     * 選択の中から破線のパスを集める（グループの中もたどる）
+     * 前回の実行で中心線にできなかった線分なら、メモに残した元の線幅を返す
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number|null} 元の破線の線幅（pt）。目印が無ければ null
+     */
+    function getSkippedStrokeWidth(pathItem) {
+        var note = pathItem.note;
+        if (!note || note.indexOf(SKIPPED_NOTE_PREFIX) !== 0) return null;
+        var strokeWidth = parseFloat(note.substring(SKIPPED_NOTE_PREFIX.length));
+        return (strokeWidth > 0) ? strokeWidth : null;
+    }
+
+    /**
+     * 選択の中から、破線のパスと、前回中心線にできなかった線分を集める（グループの中もたどる）
      * 非表示・ロック中のもの（選択できない）、クリッピングパス、ガイドは除く
      * @param {PageItem[]} items - 選択中のアイテム
-     * @returns {PathItem[]} 破線のパス（選択の順）
+     * @param {{dashedPaths: PathItem[], skippedPieces: PathItem[]}} targets - 集めた結果を入れる先
+     * @returns {{dashedPaths: PathItem[], skippedPieces: PathItem[]}} targets（選択の順）
      */
-    function collectDashedPaths(items) {
-        var dashedPaths = [];
+    function collectTargets(items, targets) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
             /* 文字の選択中は selection が TextRange になり、[i] は undefined
                While editing text, selection is a TextRange and [i] is undefined */
             if (!item || item.hidden || item.locked) continue;
             if (item.typename === "GroupItem") {
-                dashedPaths = dashedPaths.concat(collectDashedPaths(item.pageItems));
-            } else if (item.typename === "PathItem" && !item.clipping && !item.guides &&
-                item.stroked && item.strokeDashes.length > 0) {
-                dashedPaths.push(item);
+                collectTargets(item.pageItems, targets);
+            } else if (item.typename === "PathItem" && !item.clipping && !item.guides) {
+                if (item.stroked && item.strokeDashes.length > 0) {
+                    targets.dashedPaths.push(item);
+                } else if (item.closed && getSkippedStrokeWidth(item) !== null) {
+                    targets.skippedPieces.push(item);
+                }
             }
         }
-        return dashedPaths;
+        return targets;
     }
 
     /**
@@ -681,68 +707,93 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
     // =========================================
 
     /**
+     * @typedef {object} ConversionSummary
+     * @property {PageItem[]} resultItems - 置き換えた結果（破線ごとのグループ、または線）
+     * @property {PathItem[]} skippedPieces - 中心線にできず、アウトラインのまま残した線分
+     * @property {boolean} hasOutlineFailure - アウトライン化で線分ができなかった破線があれば true
+     */
+
+    /**
+     * 線分を中心線に置き換える。破片は削除し、中心線にできなければ元の線幅をメモに残してそのまま残す
+     * @param {PathItem} dashPiece - アウトライン化した線分
+     * @param {number} strokeWidth - 元の破線の線幅（pt）
+     * @returns {{resultItem: PageItem|null, isSkipped: boolean}} 置き換えた線か残した線分（破片なら null）と、中心線にできなかったか
+     */
+    function convertDashPiece(dashPiece, strokeWidth) {
+        var analysis = dashPiece.closed ?
+            analyzeDashPiece(readAnchors(dashPiece), strokeWidth) :
+            { centerLine: null, isDebris: false };
+        if (analysis.isDebris) {
+            dashPiece.remove();
+            return { resultItem: null, isSkipped: false };
+        }
+        if (analysis.centerLine) {
+            return { resultItem: replaceWithCenterLine(dashPiece, analysis.centerLine), isSkipped: false };
+        }
+        /* 選択して再実行できるよう、元の線幅を［属性］パネルのメモに残す / Keep the stroke width in the note for a retry */
+        dashPiece.note = SKIPPED_NOTE_PREFIX + strokeWidth;
+        return { resultItem: dashPiece, isSkipped: true };
+    }
+
+    /**
      * 1本の破線を線分ごとの中心線に置き換え、2つ以上になればグループにまとめる
-     * 中心線にできなかった線分もアウトラインのまま同じグループに入れ、アウトライン化で生じた破片は削除する
+     * 中心線にできなかった線分もアウトラインのまま同じグループに入れる
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} dashedPath - 破線のパス
-     * @returns {{resultItem: PageItem|null, skippedCount: number, outlineFailed: boolean}}
-     *     置き換えた結果（グループか1本の線。残るものが無ければ null）、中心線にできなかった線分の数、アウトライン化で線分ができなかったか
-     */
-    function convertDashedPath(doc, dashedPath) {
-        var strokeWidth = dashedPath.strokeWidth;
-        var dashPieces = outlineDashedPath(doc, dashedPath);
-        var resultItems = [];
-        var skippedCount = 0;
-        for (var i = 0; i < dashPieces.length; i++) {
-            var analysis = dashPieces[i].closed ?
-                analyzeDashPiece(readAnchors(dashPieces[i]), strokeWidth) :
-                { centerLine: null, isDebris: false };
-            if (analysis.isDebris) {
-                dashPieces[i].remove();
-            } else if (analysis.centerLine) {
-                resultItems.push(replaceWithCenterLine(dashPieces[i], analysis.centerLine));
-            } else {
-                resultItems.push(dashPieces[i]);
-                skippedCount++;
-            }
-        }
-
-        var resultItem = null;
-        if (resultItems.length === 1) resultItem = resultItems[0];
-        if (resultItems.length > 1) resultItem = groupInPlace(resultItems);
-        return { resultItem: resultItem, skippedCount: skippedCount, outlineFailed: dashPieces.length === 0 };
-    }
-
-    /**
-     * 破線を線分ごとの中心線に置き換える（破線ごとに1つのグループ）
-     * @param {Document} doc - 対象ドキュメント
-     * @param {PathItem[]} dashedPaths - 破線のパス
+     * @param {ConversionSummary} summary - 結果を書き足す先
      * @returns {void}
      */
-    function convertDashedPaths(doc, dashedPaths) {
-        var resultItems = [];
-        var skippedCount = 0;
-        var hasOutlineFailure = false;
-        /* 線幅は破線ごとに違いうるので、1本ずつアウトライン化する
-           Outline one path at a time, since each may have its own stroke width */
-        for (var i = 0; i < dashedPaths.length; i++) {
-            var conversion = convertDashedPath(doc, dashedPaths[i]);
-            if (conversion.resultItem) resultItems.push(conversion.resultItem);
-            if (conversion.outlineFailed) hasOutlineFailure = true;
-            skippedCount += conversion.skippedCount;
+    function convertDashedPath(doc, dashedPath, summary) {
+        var strokeWidth = dashedPath.strokeWidth;
+        var dashPieces = outlineDashedPath(doc, dashedPath);
+        if (dashPieces.length === 0) summary.hasOutlineFailure = true;
+        var pieceResults = [];
+        for (var i = 0; i < dashPieces.length; i++) {
+            var conversion = convertDashPiece(dashPieces[i], strokeWidth);
+            if (conversion.resultItem) pieceResults.push(conversion.resultItem);
+            if (conversion.isSkipped) summary.skippedPieces.push(conversion.resultItem);
         }
+        if (pieceResults.length === 1) summary.resultItems.push(pieceResults[0]);
+        if (pieceResults.length > 1) summary.resultItems.push(groupInPlace(pieceResults));
+    }
 
-        doc.selection = resultItems;
-        if (hasOutlineFailure) {
-            alert(getLabel(LABELS.alert.dashOutlineFailed));
-        }
-        if (skippedCount > 0) {
-            alert(getLabel(LABELS.alert.skippedPieces).replace("{count}", skippedCount));
+    /**
+     * 前回中心線にできなかった線分を、メモに残した線幅でもう一度中心線に置き換える（その場で置き換え、グループはそのまま）
+     * @param {PathItem[]} skippedPieces - 前回中心線にできなかった線分
+     * @param {ConversionSummary} summary - 結果を書き足す先
+     * @returns {void}
+     */
+    function retrySkippedPieces(skippedPieces, summary) {
+        for (var i = 0; i < skippedPieces.length; i++) {
+            var conversion = convertDashPiece(skippedPieces[i], getSkippedStrokeWidth(skippedPieces[i]));
+            if (!conversion.resultItem) continue;
+            if (conversion.isSkipped) {
+                summary.skippedPieces.push(conversion.resultItem);
+            } else {
+                summary.resultItems.push(conversion.resultItem);
+            }
         }
     }
 
     /**
-     * 選択中の破線を、1本ずつ順に線分ごとの中心線に置き換える（破線が無ければ警告を出して終了）
+     * 結果を選択して警告を出す。中心線にできなかった線分があれば、それだけを選択する（そのまま再実行できるように）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {ConversionSummary} summary - 変換の結果
+     * @returns {void}
+     */
+    function reportConversion(doc, summary) {
+        doc.selection = (summary.skippedPieces.length > 0) ? summary.skippedPieces : summary.resultItems;
+        if (summary.hasOutlineFailure) {
+            alert(getLabel(LABELS.alert.dashOutlineFailed));
+        }
+        if (summary.skippedPieces.length > 0) {
+            alert(getLabel(LABELS.alert.skippedPieces).replace("{count}", summary.skippedPieces.length));
+        }
+    }
+
+    /**
+     * 選択中の破線を1本ずつ順に線分ごとの中心線に置き換え、前回中心線にできなかった線分は置き換え直す
+     * （どちらも無ければ警告を出して終了）
      * @returns {void}
      */
     function main() {
@@ -752,12 +803,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹�
         }
 
         var doc = app.activeDocument;
-        var dashedPaths = doc.selection ? collectDashedPaths(doc.selection) : [];
-        if (dashedPaths.length === 0) {
+        var targets = collectTargets(doc.selection || [], { dashedPaths: [], skippedPieces: [] });
+        if (targets.dashedPaths.length === 0 && targets.skippedPieces.length === 0) {
             alert(getLabel(LABELS.alert.notDashedLine));
             return;
         }
-        convertDashedPaths(doc, dashedPaths);
+
+        var summary = { resultItems: [], skippedPieces: [], hasOutlineFailure: false };
+        /* 線幅は破線ごとに違いうるので、1本ずつアウトライン化する
+           Outline one path at a time, since each may have its own stroke width */
+        for (var i = 0; i < targets.dashedPaths.length; i++) {
+            convertDashedPath(doc, targets.dashedPaths[i], summary);
+        }
+        retrySkippedPieces(targets.skippedPieces, summary);
+        reportConversion(doc, summary);
     }
 
     main();

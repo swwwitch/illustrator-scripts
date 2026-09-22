@@ -22,11 +22,13 @@
 - Grouping: the lines made from each dashed line are grouped together. Dashes that could not become center lines go into the same group as outlines. A single line is not grouped.
 - Stacking order: each group is placed where the dashed line was (same layer or group), and the new groups are selected afterward.
 - Multiple dashed lines: the selected dashed lines (including those inside groups) are processed one at a time. The stroke width is read from each one.
+- Retry: if some dashes could not become center lines, only those dashes are left selected. Run the script again as is to convert them with the original stroke width.
 
 ### Usage
 
 1. Select one or more dashed lines (selecting a group that contains dashed lines also works)
 2. Run the script
+3. If the alert about dashes that could not be converted appears, run the script again with those dashes still selected
 
 ### Notes
 
@@ -39,6 +41,7 @@
   - Dashes that cross a beveled or rounded corner
   - Dashes whose two sides have different numbers of anchor points
   - Dashes whose thickness changes with a width profile
+- Dashes that could not become center lines keep the original stroke width in their note in the Attributes panel (`DashNipper:strokeWidth=…`). A retry reads this note, so do not delete it.
 - On a closed dashed path, outlining can leave very short segments and tiny fragments near the seam. The short segments are cleaned up before the center line is computed, and the fragments are deleted.
 - Dashes with projecting caps become lines with butt caps (the visible length stays the same).
 
@@ -49,4 +52,4 @@
 ### Update History
 
 - v1.0.0 (20260922) : Initial release
-- v1.1.0 (20260922) : The lines of each dashed line are now grouped. Dashed lines inside groups are now processed; hidden or locked paths, clipping paths, and guides are skipped. The script now shows an alert and stops when no dashed line is selected, and converting a single already-outlined shape is no longer supported. Fixed dashes near the seam of a closed dashed path failing to convert; tiny fragments left by outlining are now deleted. Fixed the fill of a filled dashed line staying in front of the lines (the fill is now deleted). Fixed dashes shorter than 5% of the stroke width being deleted. Fixed the direction and stroke width sometimes being off when the dash length is close to the stroke width
+- v1.1.0 (20260922) : The lines of each dashed line are now grouped. Dashed lines inside groups are now processed; hidden or locked paths, clipping paths, and guides are skipped. The script now shows an alert and stops when no dashed line is selected, and converting a single already-outlined shape is no longer supported. Fixed dashes near the seam of a closed dashed path failing to convert; tiny fragments left by outlining are now deleted. Fixed the fill of a filled dashed line staying in front of the lines (the fill is now deleted). Fixed dashes shorter than 5% of the stroke width being deleted. Fixed the direction and stroke width sometimes being off when the dash length is close to the stroke width. Fixed some dashes of a thin round-cap dashed line not becoming center lines. Only the dashes that could not be converted are now left selected, and running the script again converts them with the original stroke width
