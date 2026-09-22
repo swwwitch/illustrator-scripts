@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "SwapNearestItemWithDialogbox"; /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItemWithDialogbox.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItemWithDialogbox.md"; /* README (English) */
@@ -62,9 +62,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         "PluginItem", "GraphItem"
     ];
 
-    /* ダイアログが開いている間の探索方向 / Search direction while the dialog is open */
-    var searchDirection = INITIAL_SEARCH_DIRECTION;
-
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -81,22 +78,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title:    { ja: "オブジェクトの位置を入れ替え", en: "Swap Positions" },
-            message:  { ja: "矢印キーで入れ替え", en: "Press an arrow key to swap" },
+            title: { ja: "オブジェクトの位置を入れ替え", en: "Swap Positions" }
+        },
+        status: {
+            prompt: { ja: "矢印キーで入れ替え", en: "Press an arrow key to swap" },
             notFound: { ja: "見つかりません", en: "Nothing found" }
         },
         button: {
             close: { ja: "閉じる", en: "Close" }
         },
         tooltip: {
-            message: {
+            prompt: {
                 ja: "矢印キーを押すと、その方向にある最も近いオブジェクトと位置を入れ替えます。Esc または Enter で閉じます。",
                 en: "An arrow key swaps the selection with the nearest object in that direction. Esc or Enter closes this dialog."
             }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            selectOne:  { ja: "1つのオブジェクトを選択してください。", en: "Select one object." },
+            selectOne: { ja: "1つのオブジェクトを選択してください。", en: "Select one object." },
             noPosition: { ja: "位置情報を持つオブジェクトを選択してください。", en: "Select an object that has a position." }
         }
     };
@@ -334,9 +333,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択中のオブジェクトと、探索方向で最も近いオブジェクトの位置を入れ替える
+     * @param {string} searchDirection - 探索方向（"right" / "left" / "up" / "down"）
      * @returns {boolean} 入れ替えた場合はtrue
      */
-    function swapWithNearestObject() {
+    function swapWithNearestObject(searchDirection) {
         var selectedObjects = app.activeDocument.selection;
         /* 実行中に選択が変わることがあるため、毎回確認する（案内はmain側で済ませている）
            The selection can change while the dialog is open */
@@ -367,9 +367,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function showDialog() {
         var swapDialog = new Window("dialog", getLabel("dialog.title"));
 
-        var messageText = swapDialog.add("statictext", undefined, getLabel("dialog.message"));
-        messageText.alignment = "center";
-        messageText.helpTip = getLabel("tooltip.message");
+        var statusText = swapDialog.add("statictext", undefined, getLabel("status.prompt"));
+        statusText.alignment = "center";
+        statusText.helpTip = getLabel("tooltip.prompt");
 
         var btnClose = swapDialog.add("button", undefined, getLabel("button.close"));
         btnClose.onClick = function () {
@@ -391,11 +391,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!keyedDirection) return;
 
             isSwapInProgress = true;
-            searchDirection = keyedDirection;
 
             /* 見つからないときはメッセージを差し替えて知らせる。連打を邪魔しないようアラートは出さない
                Report a miss by swapping the message; an alert would interrupt repeated key presses */
-            messageText.text = swapWithNearestObject() ? getLabel("dialog.message") : getLabel("dialog.notFound");
+            statusText.text = swapWithNearestObject(keyedDirection) ? getLabel("status.prompt") : getLabel("status.notFound");
             app.redraw();
         }, false);
 
@@ -421,7 +420,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var selectedObjects = app.activeDocument.selection;
+        var doc = app.activeDocument;
+        var selectedObjects = doc.selection;
 
         /* 文字カーソルが立っていると selection は TextRange で、length は文字数になる
            A text caret gives a TextRange whose length counts characters */

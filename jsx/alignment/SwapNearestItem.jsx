@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "SwapNearestItem";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItem.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItem.md"; /* README (English) */
@@ -341,7 +341,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21a03e135423"; /* 紹�
             return;
         }
 
-        var selectedObjects = app.activeDocument.selection;
+        var doc = app.activeDocument;
+        var selectedObjects = doc.selection;
 
         /* 文字カーソルが立っていると selection は TextRange で、length は文字数になる
            A text caret gives a TextRange whose length counts characters */

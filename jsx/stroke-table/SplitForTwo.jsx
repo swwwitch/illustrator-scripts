@@ -1527,9 +1527,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         splitLayout.height = splitLayout.top - splitLayout.bottom;
         if (drawOptions.vertical) {
             /* 上下：オフセットが正なら分割位置が下がる / top/bottom: a positive offset moves the split down */
-            splitLayout.split = clampNumber(splitLayout.top - splitLayout.height / 2 - drawOptions.offsetPt, splitLayout.bottom, splitLayout.top);
+            splitLayout.split = clampNumber(splitLayout.top - splitLayout.height / 2 - drawOptions.offsetPt,
+                splitLayout.bottom, splitLayout.top);
         } else {
-            splitLayout.split = clampNumber(splitLayout.left + splitLayout.width / 2 + drawOptions.offsetPt, splitLayout.left, splitLayout.right);
+            splitLayout.split = clampNumber(splitLayout.left + splitLayout.width / 2 + drawOptions.offsetPt,
+                splitLayout.left, splitLayout.right);
         }
         return splitLayout;
     }
@@ -1613,13 +1615,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
         if (drawOptions.fillFirst) {
             firstFill = vertical
-                ? addFillRect(pathItems, splitLayout.top, splitLayout.left, splitLayout.width, splitLayout.top - splitLayout.split, drawOptions.firstColor)
-                : addFillRect(pathItems, splitLayout.top, splitLayout.left, splitLayout.split - splitLayout.left, splitLayout.height, drawOptions.firstColor);
+                ? addFillRect(pathItems, splitLayout.top, splitLayout.left,
+                    splitLayout.width, splitLayout.top - splitLayout.split, drawOptions.firstColor)
+                : addFillRect(pathItems, splitLayout.top, splitLayout.left,
+                    splitLayout.split - splitLayout.left, splitLayout.height, drawOptions.firstColor);
         }
         if (drawOptions.fillSecond) {
             secondFill = vertical
-                ? addFillRect(pathItems, splitLayout.split, splitLayout.left, splitLayout.width, splitLayout.split - splitLayout.bottom, drawOptions.secondColor)
-                : addFillRect(pathItems, splitLayout.top, splitLayout.split, splitLayout.right - splitLayout.split, splitLayout.height, drawOptions.secondColor);
+                ? addFillRect(pathItems, splitLayout.split, splitLayout.left,
+                    splitLayout.width, splitLayout.split - splitLayout.bottom, drawOptions.secondColor)
+                : addFillRect(pathItems, splitLayout.top, splitLayout.split,
+                    splitLayout.right - splitLayout.split, splitLayout.height, drawOptions.secondColor);
         }
         roundFillCorners(firstFill, secondFill, drawOptions, splitLayout);
 
