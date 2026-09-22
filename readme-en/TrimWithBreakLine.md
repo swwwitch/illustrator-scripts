@@ -14,15 +14,15 @@
 - A path spanning the artwork horizontally splits it top and bottom, one spanning it vertically splits it left and right (decided from how much of the artwork it spans).
 - When the path reaches an edge of the artwork (its top edge, say), the script keeps that side only and trims the rest away, leaving a single part.
 - Handy for shortening long screenshots or menus while keeping both ends visible.
-- The cut edge can be bent with a Flag, Rise or Rise (straight) warp, and break lines can be drawn along it.
+- The cut edge can be bent with a Flag, Rise or Straight warp, and break lines can be drawn along it.
 
-<img alt="The Trim and Break Line dialog" src="../png/ss-882-728-144-20260921-051717.png" width="50%" />
+<img alt="The Trim with Break Lines dialog" src="../png/ss-862-704-144-20260923-002405.png" width="50%" />
 
 ### Features
 
-- Trims the artwork to the width of the mask path (its height when cutting left and right)
+- Trims the artwork to the width of the mask path (its height when cutting left and right), which can be scaled in percent
 - Picks the cut direction automatically (top/bottom or left/right)
-- Cut-edge shape from Flag, Rise or Rise (straight), with the bend set in percent
+- Cut-edge shape from Flag, Rise or Straight, with the bend set in percent
 - Both cut edges come from the same curve, so the gap stays even after closing up
 - Keeps one side only, with a single break line, when the path covers an edge of the artwork
 - Gap between the parts, entered in the ruler unit
@@ -47,16 +47,17 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 | Item | Description |
 | --- | --- |
-| Height / Width | Size of the mask shape along the cut (%). 100% keeps it as drawn; the label follows the direction |
+| Width / Height (along the cut edge) | Size the artwork is trimmed to (%). 100% matches the mask shape. Width when cutting top and bottom, height when cutting left and right |
+| Height / Width (cut direction) | Size of the area to remove (%). 100% matches the mask shape. Height when cutting top and bottom, width when cutting left and right |
 | Offset | Position of the mask shape (ruler unit). Positive moves it down or right, negative up or left |
-| Warp style | Shape of the cut edge: Flag waves, Rise curves upward to the right, Rise (straight) slants in a straight line |
-| Bend | How much the cut edge bends (-100 to 100%). 0 cuts along a straight line; negative values bend it the other way |
+| Flag / Rise / Straight | Shape of the cut edge: Flag waves, Rise curves up toward one side, Straight slants in a straight line |
+| Bend | How much the cut edge bends (-100 to 100%); for Straight, how much it slants. 0 cuts straight across; negative values reverse the direction |
 | Gap | Distance between the two parts after closing up (ruler unit). Unused when only one side is kept |
 | Add break lines | Draws a break line along each cut edge |
+| Weight | Stroke weight of the break lines (Stroke unit) |
+| Cap | Butt or Round. Round rounds the line ends (each dash when dashed) |
 | Line style | Solid or dashed |
 | Segments | Number of dashes. Dash and gap are equal, and both ends finish with a dash |
-| Weight | Stroke weight of the break lines (Stroke unit) |
-| Cap | None (butt cap) or Round |
 | Group with parts | Groups each break line with the part it was cut from |
 
 ### Keyboard
@@ -81,6 +82,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
+- v1.0.7 (20260923) : Added the size along the cut edge (width when cutting top and bottom, height when cutting left and right) to the Mask shape panel. Renamed the Rise (straight) style to Straight, dropped the Warp style label and put Flag, Rise and Straight in one row. Reviewed the UI wording: the title is now Trim with Break Lines, the Trim panel is now Cut edge and the cap option None is now Butt; tooltips were rewritten to match the actual behavior and added to the panels, the styles and the row labels
 - v1.0.6 (20260921) : When cutting left and right, the left part now stays in place and the right part closes up to it
 - v1.0.5 (20260921) : Bend now accepts negative values (-100 to 100%) to bend the cut edge the other way
 - v1.0.4 (20260921) : A path covering an edge of the artwork now keeps that side only. Added the Rise (straight) cut-edge style. Stacked the radio buttons (style, line style, cap) and shortened the number fields by one character
