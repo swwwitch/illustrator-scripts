@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md"; /* README (English) */
@@ -85,11 +85,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在の言語（ja / en）/ Current language (ja / en) */
-    function getCurrentLanguage() {
+    /**
+     * UI の表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLanguage();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義（カテゴリ別）/ Japanese-English labels grouped by category */
     var LABELS = {
@@ -122,44 +125,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             styleSimple: { ja: "シンプル", en: "Simple" },
             styleButton: { ja: "ボタン風", en: "Button style" },
             useShape: { ja: "選択した図形に流し込む", en: "Pour into selected shape" },
-            useShapeDummy: { ja: "選択した図形にダミーテキスト", en: "Dummy text in selected shape" },
+            useShapeDummy: { ja: "選択した図形にダミーテキスト", en: "Dummy text in selected shape" }
+        },
+        iconButton: {
             justifyLeft: { ja: "左揃え", en: "Left" },
             justifyCenter: { ja: "中央揃え", en: "Center" },
             justifyRight: { ja: "右揃え", en: "Right" },
-            justifyLastLineLeft: {
-                ja: "均等配置（最終行左揃え）",
-                en: "Justify (last line left)"
-            },
+            justifyLastLineLeft: { ja: "均等配置（最終行左揃え）", en: "Justify (last line left)" },
             justifyAllLines: { ja: "両端揃え", en: "Justify all lines" },
             alignTop: { ja: "上揃え", en: "Top" },
             alignCenter: { ja: "中央揃え", en: "Center" },
             alignBottom: { ja: "下揃え", en: "Bottom" },
             alignJustify: { ja: "均等配置", en: "Justify" }
         },
-        kinsoku: {
-            none: { ja: "なし", en: "None" },
-            hard: { ja: "強い禁則", en: "Strict" },
-            soft: { ja: "弱い禁則", en: "Loose" },
-            softV2: { ja: "弱い禁則 v2", en: "Loose v2" }
-        },
-        mojikumi: {
-            none: { ja: "なし", en: "None" },
-            lineEndFullHalf: { ja: "行末約物全角/半角", en: "Line-end punct full/half" },
-            punctHalf: { ja: "約物半角", en: "Half-width punctuation" },
-            lineEndHalf: { ja: "行末約物半角", en: "Line-end punct half" },
-            lineEndFull: { ja: "行末約物全角", en: "Line-end punct full" },
-            punctFull: { ja: "約物全角", en: "Full-width punctuation" },
-            tight: { ja: "ツメ組み", en: "Tight" },
-            solid: { ja: "ベタ組み", en: "Solid" }
+        dropdown: {
+            kinsokuNone: { ja: "なし", en: "None" },
+            kinsokuHard: { ja: "強い禁則", en: "Strict" },
+            kinsokuSoft: { ja: "弱い禁則", en: "Loose" },
+            kinsokuSoftV2: { ja: "弱い禁則 v2", en: "Loose v2" },
+            mojikumiNone: { ja: "なし", en: "None" },
+            mojikumiLineEndFullHalf: { ja: "行末約物全角/半角", en: "Line-end punct full/half" },
+            mojikumiPunctHalf: { ja: "約物半角", en: "Half-width punctuation" },
+            mojikumiLineEndHalf: { ja: "行末約物半角", en: "Line-end punct half" },
+            mojikumiLineEndFull: { ja: "行末約物全角", en: "Line-end punct full" },
+            mojikumiPunctFull: { ja: "約物全角", en: "Full-width punctuation" },
+            mojikumiTight: { ja: "ツメ組み", en: "Tight" },
+            mojikumiSolid: { ja: "ベタ組み", en: "Solid" }
         },
         checkbox: {
             linkIndents: { ja: "連動", en: "Link" },
             autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
             resolveOverset: { ja: "オーバーセットを解決する", en: "Resolve overset" },
-            forceLineBreaks: {
-                ja: "見かけの改行を強制改行に変換",
-                en: "Convert visual line breaks to hard returns"
-            }
+            forceLineBreaks: { ja: "見かけの改行を強制改行に変換", en: "Convert visual line breaks to hard returns" }
         },
         button: {
             convert: { ja: "変換", en: "Convert" },
@@ -169,8 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
-        label: {
-            fontSize: { ja: "フォントサイズ", en: "Font size" },
+        fieldLabel: {
             leadingPercent: { ja: "行送り", en: "Leading" },
             leadingEffective: { ja: "実寸", en: "Actual" },
             width: { ja: "幅", en: "Width" },
@@ -181,7 +177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             indentLeft: { ja: "左", en: "Left" },
             indentRight: { ja: "右", en: "Right" }
         },
-        tip: {
+        tooltip: {
             styleSimple: {
                 ja: "ポイント文字の実寸＋1ptの長方形をフレームにします。",
                 en: "Uses a rectangle the size of the point text plus 1pt as the frame."
@@ -242,10 +238,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 ja: "文字組みアキ量設定を全段落に適用します。設定が混在しているときは選択が空になり、そのままなら変更しません。",
                 en: "Applies a mojikumi spacing set to every paragraph. With mixed settings the menu opens empty and nothing is changed."
             },
-            linkIndents: {
-                ja: "左インデントの値を右にも適用します。",
-                en: "Applies the left indent value to the right as well."
-            },
+            linkIndents: { ja: "左インデントの値を右にも適用します。", en: "Applies the left indent value to the right as well." },
             separateText: {
                 ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。選択したエリア内文字をまとめて処理します。",
                 en: "Breaks Area Type apart into a rectangle plus point text. A separate dialog picks how the frame is handled. Every selected Area Type frame is processed at once."
@@ -264,10 +257,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 ja: "ポイント文字・パス上文字・エリア内文字・図形を選択してください。",
                 en: "Please select point text, path text, area text, or a shape."
             },
-            noDocument: {
-                ja: "ドキュメントが開かれていません。",
-                en: "No document is open."
-            },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             lineBreakNotSupported: {
                 ja: "改行を含むテキストには対応していません。改行のないテキストを選択してください。",
                 en: "Text containing line breaks is not supported. Select text without line breaks."
@@ -283,25 +273,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         }
     };
 
-    /* ラベル取得（"category.key" 形式、{slash} は / に展開）/ Resolve "category.key" label, expand {slash} to / */
-    function getLabel(key) {
-        var keyParts = key.split(".");
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す（{slash} は / に展開）
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
-            if (!labelNode) break;
-            labelNode = labelNode[keyParts[i]];
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
         }
-        var resolvedText = key;
-        if (labelNode) {
-            if (typeof labelNode[currentLanguage] === "string") resolvedText = labelNode[currentLanguage];
-            else if (typeof labelNode.en === "string") resolvedText = labelNode.en;
-        }
+        var resolvedText = labelNode[uiLang] || labelNode.en || labelPath;
         return resolvedText.replace(/\{slash\}/g, "/");
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelWithColon(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -345,11 +339,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // =========================================
 
     /* 禁則・文字組みポップアップの幅（英語は語が長いので広め）/ Width of the kinsoku and mojikumi popups (wider in English) */
-    var JP_DROPDOWN_WIDTH = (currentLanguage === "ja") ? 140 : 190;
+    var JP_DROPDOWN_WIDTH = (uiLang === "ja") ? 140 : 190;
 
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];
     var PANEL_SPACING = 8;
+
+    var DIALOG_MARGINS = 20;               /* ダイアログの余白 / dialog margins */
+    var ICON_BUTTON_SIZE = 26;             /* 行揃え・配置のアイコンボタンの一辺 / side of the icon buttons */
+    var LEADING_LABEL_WIDTH = 48;          /* 行送りの行ラベルの幅 / width of the leading row labels */
+    var FRAME_LABEL_WIDTH = 28;            /* 幅・高さの行ラベルの幅 / width of the width and height labels */
+    var SMALL_FIELD_CHARACTERS = 4;        /* 数値欄の文字数 / width of a number field */
+    var SIZE_FIELD_CHARACTERS = 5;         /* 幅・高さ欄の文字数 / width of the width and height fields */
+    var ROW_GAP_HEIGHT = 5;                /* 行のあいだの空き / gap between rows */
 
     /* パネルの共通設定 / Apply shared panel layout */
     function applyPanelLayout(panel, spacing) {
@@ -399,11 +401,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 行揃えの選択肢（id・ラベル・Justification 値・アイコン種別・ショートカット）
        Justification options (id, label, Justification value, icon type, shortcut key) */
     var JUSTIFY_OPTIONS = [
-        { id: "left", labelKey: "radio.justifyLeft", value: Justification.LEFT, icon: "left", shortcut: "L" },
-        { id: "center", labelKey: "radio.justifyCenter", value: Justification.CENTER, icon: "center", shortcut: "C" },
-        { id: "right", labelKey: "radio.justifyRight", value: Justification.RIGHT, icon: "right", shortcut: "R" },
-        { id: "lastLineLeft", labelKey: "radio.justifyLastLineLeft", value: Justification.FULLJUSTIFYLASTLINELEFT, icon: "justifyLeft", shortcut: "J" },
-        { id: "allLines", labelKey: "radio.justifyAllLines", value: Justification.FULLJUSTIFY, icon: "justifyAll", shortcut: "F" }
+        { id: "left", labelKey: "iconButton.justifyLeft", value: Justification.LEFT, icon: "left", shortcut: "L" },
+        { id: "center", labelKey: "iconButton.justifyCenter", value: Justification.CENTER, icon: "center", shortcut: "C" },
+        { id: "right", labelKey: "iconButton.justifyRight", value: Justification.RIGHT, icon: "right", shortcut: "R" },
+        { id: "lastLineLeft", labelKey: "iconButton.justifyLastLineLeft", value: Justification.FULLJUSTIFYLASTLINELEFT, icon: "justifyLeft", shortcut: "J" },
+        { id: "allLines", labelKey: "iconButton.justifyAllLines", value: Justification.FULLJUSTIFY, icon: "justifyAll", shortcut: "F" }
     ];
 
     /* 行揃え id から Justification 値を引く / Resolve a justification id to a Justification value */
@@ -425,10 +427,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* テキストの配置の選択肢（id・ラベル・ダイナミックアクションの値・アイコン種別）
        Text-alignment options (id, label, dynamic-action value, icon type) */
     var ALIGN_OPTIONS = [
-        { id: "top", labelKey: "radio.alignTop", value: 0, icon: "top" },
-        { id: "center", labelKey: "radio.alignCenter", value: 1, icon: "center" },
-        { id: "bottom", labelKey: "radio.alignBottom", value: 2, icon: "bottom" },
-        { id: "justify", labelKey: "radio.alignJustify", value: 3, icon: "justify" }
+        { id: "top", labelKey: "iconButton.alignTop", value: 0, icon: "top" },
+        { id: "center", labelKey: "iconButton.alignCenter", value: 1, icon: "center" },
+        { id: "bottom", labelKey: "iconButton.alignBottom", value: 2, icon: "bottom" },
+        { id: "justify", labelKey: "iconButton.alignJustify", value: 3, icon: "justify" }
     ];
 
     /* 配置 id からアクションの値を引く / Resolve an alignment id to its action value */
@@ -563,23 +565,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）
        Kinsoku choices (id is the value passed to paragraphAttributes.kinsoku) */
     var KINSOKU_CHOICES = [
-        { id: "None", labelKey: "kinsoku.none" },
-        { id: "Hard", labelKey: "kinsoku.hard" },
-        { id: "Soft", labelKey: "kinsoku.soft" },
-        { id: "Soft_v2", labelKey: "kinsoku.softV2" }
+        { id: "None", labelKey: "dropdown.kinsokuNone" },
+        { id: "Hard", labelKey: "dropdown.kinsokuHard" },
+        { id: "Soft", labelKey: "dropdown.kinsokuSoft" },
+        { id: "Soft_v2", labelKey: "dropdown.kinsokuSoftV2" }
     ];
 
     /* 文字組みアキ量設定の選択肢（index は mojikumiSet の添字。-1 は「なし」）
        Mojikumi choices (index is the mojikumiSet index; -1 means "None") */
     var MOJIKUMI_CHOICES = [
-        { index: -1, labelKey: "mojikumi.none" },
-        { index: 0, labelKey: "mojikumi.lineEndFullHalf" },
-        { index: 1, labelKey: "mojikumi.punctHalf" },
-        { index: 2, labelKey: "mojikumi.lineEndHalf" },
-        { index: 3, labelKey: "mojikumi.lineEndFull" },
-        { index: 4, labelKey: "mojikumi.punctFull" },
-        { index: 5, labelKey: "mojikumi.tight" },
-        { index: 6, labelKey: "mojikumi.solid" }
+        { index: -1, labelKey: "dropdown.mojikumiNone" },
+        { index: 0, labelKey: "dropdown.mojikumiLineEndFullHalf" },
+        { index: 1, labelKey: "dropdown.mojikumiPunctHalf" },
+        { index: 2, labelKey: "dropdown.mojikumiLineEndHalf" },
+        { index: 3, labelKey: "dropdown.mojikumiLineEndFull" },
+        { index: 4, labelKey: "dropdown.mojikumiPunctFull" },
+        { index: 5, labelKey: "dropdown.mojikumiTight" },
+        { index: 6, labelKey: "dropdown.mojikumiSolid" }
     ];
 
     /* 選択肢テーブルからドロップダウン用のラベル配列を作る / Build the dropdown item list from a choice table */
@@ -1193,10 +1195,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var radUseShape = createMethodPanel.add("radiobutton", undefined, getLabel("radio.useShape"));
         var radUseShapeDummy = createMethodPanel.add("radiobutton", undefined, getLabel("radio.useShapeDummy"));
         radStyleSimple.value = true;
-        radStyleSimple.helpTip = getLabel("tip.styleSimple");
-        radStyleButton.helpTip = getLabel("tip.styleButton");
-        radUseShape.helpTip = getLabel("tip.useShape");
-        radUseShapeDummy.helpTip = getLabel("tip.useShapeDummy");
+        radStyleSimple.helpTip = getLabel("tooltip.styleSimple");
+        radStyleButton.helpTip = getLabel("tooltip.styleButton");
+        radUseShape.helpTip = getLabel("tooltip.useShape");
+        radUseShapeDummy.helpTip = getLabel("tooltip.useShapeDummy");
 
         // ボタンエリア：左から［キャンセル］［変換］
         var convertButtonRow = convertDialog.add("group");
@@ -1405,8 +1407,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 選択した閉じたパスをエリア内文字にしてダミー文字を流し込む / Turn selected closed paths into Area Type filled with dummy text */
     function fillShapesWithDummyText(doc, selection) {
         var createdFrames = [];
-        var dummyText = (currentLanguage === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
-        var dummyFont = findAvailableTextFont((currentLanguage === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
+        var dummyText = (uiLang === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
+        var dummyFont = findAvailableTextFont((uiLang === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
 
         for (var i = 0; i < selection.length; i++) {
             var sourceShape = selection[i];
@@ -1752,8 +1754,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         applyPanelLayout(textPanel);
         var chkResolveOverset = textPanel.add("checkbox", undefined, getLabel("checkbox.resolveOverset"));
         var chkForceLineBreaks = textPanel.add("checkbox", undefined, getLabel("checkbox.forceLineBreaks"));
-        chkResolveOverset.helpTip = getLabel("tip.resolveOverset");
-        chkForceLineBreaks.helpTip = getLabel("tip.forceLineBreaks");
+        chkResolveOverset.helpTip = getLabel("tooltip.resolveOverset");
+        chkForceLineBreaks.helpTip = getLabel("tooltip.forceLineBreaks");
         chkResolveOverset.value = true;
         chkForceLineBreaks.value = true;
 
@@ -1802,6 +1804,337 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         separateDialog.show();
         return didSeparate;
+    }
+
+    // ============================================================
+    // 調整ダイアログの組み立て / Building the adjust dialog
+    // ============================================================
+
+    /**
+     * 行揃え・テキストの配置のアイコンボタンを1つ追加する（描画は呼び出し側で onDraw に付ける）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} helpTipText - ツールチップ
+     * @param {string} iconType - アイコン種別
+     * @returns {Button} 追加したボタン
+     */
+    function addIconButton(parentPanel, helpTipText, iconType) {
+        var iconButton = parentPanel.add("button", undefined, "");
+        iconButton.helpTip = helpTipText;
+        iconButton.preferredSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+        iconButton.minimumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+        iconButton.maximumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+        iconButton.iconType = iconType;
+        return iconButton;
+    }
+
+    /**
+     * ラベル・数値欄・単位を並べた行を追加する
+     * @param {Group} parentGroup - 追加先
+     * @param {string} labelString - 行ラベル（空文字なら字下げ用の空きラベル）
+     * @param {number|null} labelWidth - 行ラベルの幅（null なら指定しない）
+     * @param {string} initialText - 欄の初期値
+     * @param {number} fieldCharacters - 欄の文字数
+     * @param {string} unitText - 単位
+     * @returns {Object} { row, label, field, unitLabel }
+     */
+    function addNumberRow(parentGroup, labelString, labelWidth, initialText, fieldCharacters, unitText) {
+        var fieldRow = parentGroup.add("group");
+        var rowLabel = fieldRow.add("statictext", undefined, labelString);
+        if (labelWidth !== null) { rowLabel.preferredSize.width = labelWidth; }
+        var numberField = fieldRow.add("edittext", undefined, initialText);
+        numberField.characters = fieldCharacters;
+        var unitLabel = fieldRow.add("statictext", undefined, unitText);
+        return { row: fieldRow, label: rowLabel, field: numberField, unitLabel: unitLabel };
+    }
+
+    /**
+     * 右カラム：種別（本文／見出し／メニュー）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @returns {void}
+     */
+    function addRolePanel(ui, parentColumn) {
+        var rolePanel = parentColumn.add("panel", undefined, getLabel("panel.role"));
+        applyPanelLayout(rolePanel, 4);
+        rolePanel.orientation = "row";
+        rolePanel.alignChildren = ["left", "center"];
+        ui.radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
+        ui.radRoleHeading = rolePanel.add("radiobutton", undefined, getLabel("radio.roleHeading"));
+        ui.radRoleMenu = rolePanel.add("radiobutton", undefined, getLabel("radio.roleMenu"));
+        ui.radRoleBody.helpTip = getLabel("tooltip.roleBody");
+        ui.radRoleHeading.helpTip = getLabel("tooltip.roleHeading");
+        ui.radRoleMenu.helpTip = getLabel("tooltip.roleMenu");
+        ui.roleRadios = [ui.radRoleBody, ui.radRoleHeading, ui.radRoleMenu];
+    }
+
+    /**
+     * 右カラム：行送り（実寸と自動行送り量％）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @returns {void}
+     */
+    function addLeadingPanel(ui, parentColumn) {
+        var leadingPanel = parentColumn.add("panel", undefined, getLabel("panel.leading"));
+        applyPanelLayout(leadingPanel);
+        ui.etLeadingEffective = addNumberRow(leadingPanel, labelText("fieldLabel.leadingEffective"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, "pt").field;
+        ui.etLeadingPercent = addNumberRow(leadingPanel, labelText("fieldLabel.leadingPercent"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, "%").field;
+        leadingPanel.helpTip = getLabel("tooltip.leading");
+        ui.etLeadingPercent.helpTip = leadingPanel.helpTip;
+        ui.etLeadingEffective.helpTip = leadingPanel.helpTip;
+    }
+
+    /**
+     * 右カラム：行揃え（アイコンボタン。ラベルはツールチップで見せる）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} justifyState - 選択中の id と UI 明暗（onDraw から参照）
+     * @returns {void}
+     */
+    function addJustificationPanel(ui, parentColumn, justifyState) {
+        var justificationPanel = parentColumn.add("panel", undefined, getLabel("panel.justification"));
+        applyPanelLayout(justificationPanel, 4);
+        justificationPanel.orientation = "row";
+        justificationPanel.alignChildren = ["center", "center"];
+
+        ui.justifyButtons = [];
+        for (var i = 0; i < JUSTIFY_OPTIONS.length; i++) {
+            var justifyOption = JUSTIFY_OPTIONS[i];
+            var justifyButton = addIconButton(justificationPanel, getLabel(justifyOption.labelKey) + " (" + justifyOption.shortcut + ")", justifyOption.icon);
+            justifyButton.justifyId = justifyOption.id;
+            justifyButton.onDraw = function () {
+                drawJustifyIcon(this, this.justifyId === justifyState.activeId, justifyState.isLight);
+            };
+            ui.justifyButtons.push(justifyButton);
+        }
+    }
+
+    /**
+     * 右カラム：インデント（左右と連動）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {string} rulerLabel - 定規の単位の表示名
+     * @returns {void}
+     */
+    function addIndentPanel(ui, parentColumn, rulerLabel) {
+        var indentPanel = parentColumn.add("panel", undefined, getLabel("panel.indent"));
+        applyPanelLayout(indentPanel);
+        indentPanel.orientation = "row";
+        indentPanel.alignChildren = ["left", "top"];
+        var indentFieldsColumn = indentPanel.add("group");
+        indentFieldsColumn.orientation = "column";
+        indentFieldsColumn.alignChildren = "left";
+        ui.etLeftIndent = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentLeft"), null, "0", SMALL_FIELD_CHARACTERS, rulerLabel).field;
+        ui.etRightIndent = addNumberRow(indentFieldsColumn, labelText("fieldLabel.indentRight"), null, "0", SMALL_FIELD_CHARACTERS, rulerLabel).field;
+        var linkColumn = indentPanel.add("group");
+        linkColumn.orientation = "column";
+        linkColumn.alignChildren = "left";
+        linkColumn.alignment = ["left", "center"];
+        ui.chkLinkIndents = linkColumn.add("checkbox", undefined, getLabel("checkbox.linkIndents"));
+        ui.chkLinkIndents.helpTip = getLabel("tooltip.linkIndents");
+        ui.chkLinkIndents.value = true;
+    }
+
+    /**
+     * ラベルと、幅を指定したドロップダウンを縦に並べて追加する（既定では fill でパネル幅いっぱいに広がるため幅を指定する）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - ラベルのパス
+     * @param {Object[]} choices - 選択肢テーブル
+     * @param {string} tooltipPath - ツールチップのラベルパス
+     * @returns {DropDownList} 追加したドロップダウン
+     */
+    function addLabeledDropdown(parentPanel, labelPath, choices, tooltipPath) {
+        var dropdownLabel = parentPanel.add("statictext", undefined, labelText(labelPath));
+        var choiceDropdown = parentPanel.add("dropdownlist", undefined, buildChoiceLabels(choices));
+        dropdownLabel.helpTip = getLabel(tooltipPath);
+        choiceDropdown.helpTip = dropdownLabel.helpTip;
+        return choiceDropdown;
+    }
+
+    /**
+     * 右カラム：日本語の組版（禁則・文字組みアキ量設定）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @returns {void}
+     */
+    function addJpCompositionPanel(ui, parentColumn) {
+        var jpCompositionPanel = parentColumn.add("panel", undefined, getLabel("panel.jpComposition"));
+        applyPanelLayout(jpCompositionPanel, 4);
+        ui.kinsokuDropdown = addLabeledDropdown(jpCompositionPanel, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
+        selectChoiceByValue(ui.kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
+        /* fill を打ち消して幅を指定する / Cancel fill and set the width */
+        ui.kinsokuDropdown.alignment = "left";
+        ui.kinsokuDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+        /* 禁則との間を少し空ける / A little breathing room after the kinsoku row */
+        var mojikumiGap = jpCompositionPanel.add("group");
+        mojikumiGap.preferredSize.height = ROW_GAP_HEIGHT;
+        ui.mojikumiDropdown = addLabeledDropdown(jpCompositionPanel, "fieldLabel.mojikumi", MOJIKUMI_CHOICES, "tooltip.mojikumi");
+        selectChoiceByValue(ui.mojikumiDropdown, MOJIKUMI_CHOICES, "index", DEFAULT_MOJIKUMI_INDEX);
+        ui.mojikumiDropdown.alignment = "left";
+        ui.mojikumiDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+    }
+
+    /**
+     * 左カラム：フォントサイズ（欄と［文字あふれ解消］［枠にフィット］）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @returns {void}
+     */
+    function addFontSizePanel(ui, parentColumn) {
+        var fontSizePanel = parentColumn.add("panel", undefined, getLabel("panel.fontSize"));
+        applyPanelLayout(fontSizePanel);
+        /* パネル名が「フォントサイズ」なので、行のラベルは省く / The panel title already says it, so the row label is dropped */
+        var fontSizeRow = fontSizePanel.add("group");
+        fontSizeRow.alignment = "left";
+        ui.etFontSize = fontSizeRow.add("edittext", undefined, "");
+        ui.etFontSize.characters = SMALL_FIELD_CHARACTERS;
+        fontSizeRow.add("statictext", undefined, "pt");
+        /* フォントサイズ欄との間を少し空ける / A little breathing room after the font-size field */
+        var fontSizeButtonGap = fontSizePanel.add("group");
+        fontSizeButtonGap.preferredSize.height = ROW_GAP_HEIGHT;
+
+        /* 縦並び。ボタンはラベル幅のまま（パネル幅いっぱいに伸ばさない）
+           Stacked vertically, each button keeping its label width (not stretched to the panel) */
+        var fontSizeButtonRow = fontSizePanel.add("group");
+        fontSizeButtonRow.orientation = "column";
+        fontSizeButtonRow.alignChildren = ["left", "top"];
+        ui.btnShrinkToFit = fontSizeButtonRow.add("button", undefined, getLabel("button.shrinkToFit"));
+        ui.btnFitFontSize = fontSizeButtonRow.add("button", undefined, getLabel("button.fitFontSize"));
+        ui.btnShrinkToFit.helpTip = getLabel("tooltip.shrinkToFit");
+        ui.btnFitFontSize.helpTip = getLabel("tooltip.fitFontSize");
+    }
+
+    /**
+     * 左カラム：フレームサイズ（幅・1行の文字数・高さ・自動サイズ調整）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {string} rulerLabel - 定規の単位の表示名
+     * @returns {void}
+     */
+    function addFrameSizePanel(ui, parentColumn, rulerLabel) {
+        var frameSizePanel = parentColumn.add("panel", undefined, getLabel("panel.frameSize"));
+        applyPanelLayout(frameSizePanel);
+        ui.etWidth = addNumberRow(frameSizePanel, labelText("fieldLabel.width"), FRAME_LABEL_WIDTH, "", SIZE_FIELD_CHARACTERS, rulerLabel).field;
+        /* 幅の下に字詰め欄。空きラベルで幅の入力欄と左端をそろえる
+           Chars per line goes under the width, lined up with the width field via an empty label */
+        var charsPerLineRow = addNumberRow(frameSizePanel, "", FRAME_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, getLabel("fieldLabel.charsPerLine"));
+        ui.etCharsPerLine = charsPerLineRow.field;
+        var lblCharsPerLine = charsPerLineRow.unitLabel;
+        lblCharsPerLine.helpTip = getLabel("tooltip.charsPerLine");
+        ui.etCharsPerLine.helpTip = lblCharsPerLine.helpTip;
+        var heightRow = addNumberRow(frameSizePanel, labelText("fieldLabel.height"), FRAME_LABEL_WIDTH, "", SIZE_FIELD_CHARACTERS, rulerLabel);
+        ui.heightRow = heightRow.row;
+        ui.etHeight = heightRow.field;
+        /* 高さの下に自動サイズ調整（heightRow の外に置く。ONのあいだ heightRow はディムするため）
+           Auto-size sits under the height (outside heightRow, which gets dimmed while it is on) */
+        ui.chkAutoSize = frameSizePanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
+        ui.chkAutoSize.helpTip = getLabel("tooltip.autoSize");
+        /* 英語UIでは字詰めの計算が不正確なため使用不可にする / Chars per line is disabled in the English UI, where it is inaccurate */
+        if (uiLang !== "ja") {
+            ui.etCharsPerLine.enabled = false;
+            lblCharsPerLine.enabled = false;
+        }
+    }
+
+    /**
+     * 左カラム：オフセット（パネル名で足りるので、チェックボックスのラベルは省く）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {string} rulerLabel - 定規の単位の表示名
+     * @returns {void}
+     */
+    function addOffsetPanel(ui, parentColumn, rulerLabel) {
+        var offsetPanel = parentColumn.add("panel", undefined, getLabel("panel.offset"));
+        applyPanelLayout(offsetPanel);
+        var spacingRow = offsetPanel.add("group");
+        ui.chkSpacing = spacingRow.add("checkbox", undefined, "");
+        ui.etSpacing = spacingRow.add("edittext", undefined, "0");
+        ui.etSpacing.characters = SMALL_FIELD_CHARACTERS;
+        ui.lblSpacingUnit = spacingRow.add("statictext", undefined, rulerLabel);
+        ui.etSpacing.enabled = false;
+        ui.lblSpacingUnit.enabled = false;
+    }
+
+    /**
+     * 左カラム：テキストの配置（アイコンボタン。ラベルはツールチップで見せる）パネルを追加する
+     * @param {Object} ui - コントロールの格納先
+     * @param {Group} parentColumn - 追加先の列
+     * @param {Object} alignState - 選択中の id と UI 明暗（onDraw から参照）
+     * @returns {void}
+     */
+    function addTextAlignPanel(ui, parentColumn, alignState) {
+        var textAlignPanel = parentColumn.add("panel", undefined, getLabel("panel.textAlign"));
+        applyPanelLayout(textAlignPanel, 4);
+        textAlignPanel.orientation = "row";
+        textAlignPanel.alignChildren = ["center", "center"];
+        textAlignPanel.helpTip = getLabel("tooltip.textAlign");
+
+        ui.alignButtons = [];
+        for (var i = 0; i < ALIGN_OPTIONS.length; i++) {
+            var alignOption = ALIGN_OPTIONS[i];
+            var alignButton = addIconButton(textAlignPanel, getLabel(alignOption.labelKey), alignOption.icon);
+            alignButton.alignId = alignOption.id;
+            alignButton.onDraw = function () {
+                drawAlignIcon(this, this.alignId === alignState.activeId, alignState.isLight);
+            };
+            ui.alignButtons.push(alignButton);
+        }
+    }
+
+    /**
+     * 調整ダイアログを組み立てる（イベントは showAdjustDialog() で付ける）
+     * @param {Object} rulerInfo - 定規の単位（getUnitInfo() の結果）
+     * @param {Object} justifyState - 行揃えの選択中 id と UI 明暗
+     * @param {Object} alignState - テキストの配置の選択中 id と UI 明暗
+     * @returns {Object} ダイアログ本体（window）と各コントロール
+     */
+    function buildAdjustDialog(rulerInfo, justifyState, alignState) {
+        var ui = {};
+        ui.window = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        ui.window.alignChildren = "fill";
+        ui.window.margins = DIALOG_MARGINS;
+
+        /* 2カラムレイアウト（左右カラムは上揃えで横いっぱいに）/ Two-column layout (columns fill width, top-aligned) */
+        var columnsGroup = ui.window.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = 10;
+
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = "fill";
+
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = "fill";
+
+        /* 右カラム：種別・行送り・行揃え・インデント・日本語の組版 / Right column */
+        addRolePanel(ui, rightColumn);
+        addLeadingPanel(ui, rightColumn);
+        addJustificationPanel(ui, rightColumn, justifyState);
+        addIndentPanel(ui, rightColumn, rulerInfo.label);
+        addJpCompositionPanel(ui, rightColumn);
+
+        /* 左カラム：フォントサイズ・フレームサイズ・オフセット・テキストの配置 / Left column */
+        addFontSizePanel(ui, leftColumn);
+        addFrameSizePanel(ui, leftColumn, rulerInfo.label);
+        addOffsetPanel(ui, leftColumn, rulerInfo.label);
+        addTextAlignPanel(ui, leftColumn, alignState);
+
+        /* ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
+           Button area: "Separate text..." on the left, Cancel and OK on the right */
+        var btnRowGroup = ui.window.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "fill";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        ui.btnSeparateText = btnRowGroup.add("button", undefined, getLabel("button.separateText"));
+        ui.btnSeparateText.alignment = ["left", "center"];
+        ui.btnSeparateText.helpTip = getLabel("tooltip.separateText");
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignment = ["right", "center"];
+        ui.btnCancelAdjust = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        ui.btnRun = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return ui;
     }
 
     // ============================================================
@@ -1871,244 +2204,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             return (targetAreaFrames && targetAreaFrames.length) ? targetAreaFrames : app.activeDocument.selection;
         }
 
-        var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        adjustDialog.alignChildren = "fill";
-        adjustDialog.margins = 20;
-
-        // 2カラムレイアウト（左右カラムは上揃えで横いっぱいに）/ Two-column layout (columns fill width, top-aligned)
-        var columnsGroup = adjustDialog.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = ["fill", "top"];
-        columnsGroup.spacing = 10;
-
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = "fill";
-
-        var rightColumn = columnsGroup.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = "fill";
-
-        // 右カラム：種別（本文／見出し／メニュー）。押すと関連する設定をまとめて適用する
-        // Right column: text role (Body / Heading / Menu); one click applies the whole preset
-        var rolePanel = rightColumn.add("panel", undefined, getLabel("panel.role"));
-        applyPanelLayout(rolePanel, 4);
-        rolePanel.orientation = "row";
-        rolePanel.alignChildren = ["left", "center"];
-        var radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
-        var radRoleHeading = rolePanel.add("radiobutton", undefined, getLabel("radio.roleHeading"));
-        var radRoleMenu = rolePanel.add("radiobutton", undefined, getLabel("radio.roleMenu"));
-        radRoleBody.helpTip = getLabel("tip.roleBody");
-        radRoleHeading.helpTip = getLabel("tip.roleHeading");
-        radRoleMenu.helpTip = getLabel("tip.roleMenu");
-
-        var roleRadios = [radRoleBody, radRoleHeading, radRoleMenu];
-
-        // 選択中の種別と、それが決めたタブ設定。tabMode が "none" のあいだはタブに触らない
-        var roleState = { activeId: "", tabMode: "none" };
-
-        // 右カラム：行送り（自動行送り量％と、その実寸）/ Right column: leading (auto-leading % and its effective size)
-        var leadingPanel = rightColumn.add("panel", undefined, getLabel("panel.leading"));
-        applyPanelLayout(leadingPanel);
-        var leadingEffectiveRow = leadingPanel.add("group");
-        var lblLeadingEffective = leadingEffectiveRow.add("statictext", undefined, labelWithColon("label.leadingEffective"));
-        lblLeadingEffective.preferredSize.width = 48;
-        var etLeadingEffective = leadingEffectiveRow.add("edittext", undefined, "");
-        etLeadingEffective.characters = 4;
-        leadingEffectiveRow.add("statictext", undefined, "pt");
-        var leadingPercentRow = leadingPanel.add("group");
-        var lblLeadingPercent = leadingPercentRow.add("statictext", undefined, labelWithColon("label.leadingPercent"));
-        lblLeadingPercent.preferredSize.width = 48;
-        var etLeadingPercent = leadingPercentRow.add("edittext", undefined, "");
-        etLeadingPercent.characters = 4;
-        leadingPercentRow.add("statictext", undefined, "%");
-        leadingPanel.helpTip = getLabel("tip.leading");
-        etLeadingPercent.helpTip = leadingPanel.helpTip;
-        etLeadingEffective.helpTip = leadingPanel.helpTip;
-
-        // 右カラム：行揃え（アイコンボタン。ラベルはツールチップで見せる）
-        // Right column: justification (icon buttons; the labels live in the tooltips)
-        var justificationPanel = rightColumn.add("panel", undefined, getLabel("panel.justification"));
-        applyPanelLayout(justificationPanel, 4);
-        justificationPanel.orientation = "row";
-        justificationPanel.alignChildren = ["center", "center"];
-
-        // 選択中の id と UI 明暗を共有する（onDraw のクロージャから参照）
+        /* 行揃え・テキストの配置の選択中 id と UI 明暗（onDraw のクロージャから参照）
+           Active ids and UI brightness, shared with the onDraw closures */
         var isLightTheme = isLightUI();
         var justifyState = { activeId: "left", isLight: isLightTheme };
-        var justifyButtons = [];
-        for (var justifyIndex = 0; justifyIndex < JUSTIFY_OPTIONS.length; justifyIndex++) {
-            var justifyOption = JUSTIFY_OPTIONS[justifyIndex];
-            var justifyButton = justificationPanel.add("button", undefined, "");
-            justifyButton.helpTip = getLabel(justifyOption.labelKey) + " (" + justifyOption.shortcut + ")";
-            justifyButton.preferredSize = [26, 26];
-            justifyButton.minimumSize = [26, 26];
-            justifyButton.maximumSize = [26, 26];
-            justifyButton.justifyId = justifyOption.id;
-            justifyButton.iconType = justifyOption.icon;
-            justifyButton.onDraw = function () {
-                drawJustifyIcon(this, this.justifyId === justifyState.activeId, justifyState.isLight);
-            };
-            justifyButtons.push(justifyButton);
-        }
-
-        // 右カラム：インデント（行揃えの下）/ Right column: indent (below the justification panel)
-        var indentPanel = rightColumn.add("panel", undefined, getLabel("panel.indent"));
-        applyPanelLayout(indentPanel);
-        indentPanel.orientation = "row";
-        indentPanel.alignChildren = ["left", "top"];
-        var indentFieldsColumn = indentPanel.add("group");
-        indentFieldsColumn.orientation = "column";
-        indentFieldsColumn.alignChildren = "left";
-        var leftIndentRow = indentFieldsColumn.add("group");
-        leftIndentRow.add("statictext", undefined, labelWithColon("label.indentLeft"));
-        var etLeftIndent = leftIndentRow.add("edittext", undefined, "0");
-        etLeftIndent.characters = 4;
-        leftIndentRow.add("statictext", undefined, rulerInfo.label);
-        var rightIndentRow = indentFieldsColumn.add("group");
-        rightIndentRow.add("statictext", undefined, labelWithColon("label.indentRight"));
-        var etRightIndent = rightIndentRow.add("edittext", undefined, "0");
-        etRightIndent.characters = 4;
-        rightIndentRow.add("statictext", undefined, rulerInfo.label);
-        var linkColumn = indentPanel.add("group");
-        linkColumn.orientation = "column";
-        linkColumn.alignChildren = "left";
-        linkColumn.alignment = ["left", "center"];
-        var chkLinkIndents = linkColumn.add("checkbox", undefined, getLabel("checkbox.linkIndents"));
-        chkLinkIndents.helpTip = getLabel("tip.linkIndents");
-        chkLinkIndents.value = true;
-
-        // 右カラム：日本語の組版（禁則・文字組みアキ量設定）/ Right column: Japanese composition (kinsoku and mojikumi)
-        var jpCompositionPanel = rightColumn.add("panel", undefined, getLabel("panel.jpComposition"));
-        applyPanelLayout(jpCompositionPanel, 4);
-        var lblKinsoku = jpCompositionPanel.add("statictext", undefined, labelWithColon("label.kinsoku"));
-        var kinsokuDropdown = jpCompositionPanel.add("dropdownlist", undefined, buildChoiceLabels(KINSOKU_CHOICES));
-        selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
-        // fill を打ち消して幅を指定する（既定ではパネル幅いっぱいに広がる）
-        kinsokuDropdown.alignment = "left";
-        kinsokuDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
-        lblKinsoku.helpTip = getLabel("tip.kinsoku");
-        kinsokuDropdown.helpTip = lblKinsoku.helpTip;
-        // 禁則との間を少し空ける / A little breathing room after the kinsoku row
-        var mojikumiGap = jpCompositionPanel.add("group");
-        mojikumiGap.preferredSize.height = 5;
-        var lblMojikumi = jpCompositionPanel.add("statictext", undefined, labelWithColon("label.mojikumi"));
-        var mojikumiDropdown = jpCompositionPanel.add("dropdownlist", undefined, buildChoiceLabels(MOJIKUMI_CHOICES));
-        selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", DEFAULT_MOJIKUMI_INDEX);
-        mojikumiDropdown.alignment = "left";
-        mojikumiDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
-        lblMojikumi.helpTip = getLabel("tip.mojikumi");
-        mojikumiDropdown.helpTip = lblMojikumi.helpTip;
-
-        // 左カラム：フォントサイズ / Left column: font size
-        var fontSizePanel = leftColumn.add("panel", undefined, getLabel("panel.fontSize"));
-        applyPanelLayout(fontSizePanel);
-        // パネル名が「フォントサイズ」なので、行のラベルは省く / The panel title already says it, so the row label is dropped
-        var fontSizeRow = fontSizePanel.add("group");
-        fontSizeRow.alignment = "left";
-        var etFontSize = fontSizeRow.add("edittext", undefined, "");
-        etFontSize.characters = 4;
-        fontSizeRow.add("statictext", undefined, "pt");
-        // フォントサイズ欄との間を少し空ける / A little breathing room after the font-size field
-        var fontSizeButtonGap = fontSizePanel.add("group");
-        fontSizeButtonGap.preferredSize.height = 5;
-
-        // 縦並び。ボタンはラベル幅のまま（パネル幅いっぱいに伸ばさない）
-        // Stacked vertically, each button keeping its label width (not stretched to the panel)
-        var fontSizeButtonRow = fontSizePanel.add("group");
-        fontSizeButtonRow.orientation = "column";
-        fontSizeButtonRow.alignChildren = ["left", "top"];
-        var btnShrinkToFit = fontSizeButtonRow.add("button", undefined, getLabel("button.shrinkToFit"));
-        var btnFitFontSize = fontSizeButtonRow.add("button", undefined, getLabel("button.fitFontSize"));
-        btnShrinkToFit.helpTip = getLabel("tip.shrinkToFit");
-        btnFitFontSize.helpTip = getLabel("tip.fitFontSize");
-
-        // 左カラム：フレームサイズ / Left column: frame size
-        var frameSizePanel = leftColumn.add("panel", undefined, getLabel("panel.frameSize"));
-        applyPanelLayout(frameSizePanel);
-        var widthRow = frameSizePanel.add("group");
-        var lblWidth = widthRow.add("statictext", undefined, labelWithColon("label.width"));
-        lblWidth.preferredSize.width = 28;
-        var etWidth = widthRow.add("edittext", undefined, "");
-        etWidth.characters = 5;
-        widthRow.add("statictext", undefined, rulerInfo.label);
-        // 幅の下に字詰め欄。空きラベルで幅の入力欄と左端をそろえる
-        // Chars per line goes under the width, lined up with the width field via an empty label
-        var charsPerLineRow = frameSizePanel.add("group");
-        var lblCharsPerLineSpacer = charsPerLineRow.add("statictext", undefined, "");
-        lblCharsPerLineSpacer.preferredSize.width = 28;
-        var etCharsPerLine = charsPerLineRow.add("edittext", undefined, "");
-        etCharsPerLine.characters = 4;
-        var lblCharsPerLine = charsPerLineRow.add("statictext", undefined, getLabel("label.charsPerLine"));
-        lblCharsPerLine.helpTip = getLabel("tip.charsPerLine");
-        etCharsPerLine.helpTip = lblCharsPerLine.helpTip;
-        var heightRow = frameSizePanel.add("group");
-        var lblHeight = heightRow.add("statictext", undefined, labelWithColon("label.height"));
-        lblHeight.preferredSize.width = 28;
-        var etHeight = heightRow.add("edittext", undefined, "");
-        etHeight.characters = 5;
-        heightRow.add("statictext", undefined, rulerInfo.label);
-        // 高さの下に自動サイズ調整（heightRow の外に置く。ONのあいだ heightRow はディムするため）
-        // Auto-size sits under the height (outside heightRow, which gets dimmed while it is on)
-        var chkAutoSize = frameSizePanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
-        chkAutoSize.helpTip = getLabel("tip.autoSize");
-        // 英語UIでは chars 計算は不正確なため使用不可にする
-        if (currentLanguage !== "ja") {
-            etCharsPerLine.enabled = false;
-            lblCharsPerLine.enabled = false;
-        }
-
-        // 左カラム：オフセット（パネル名で足りるので、チェックボックスのラベルは省く）
-        // Left column: offset (the panel title says it, so the checkbox label is dropped)
-        var offsetPanel = leftColumn.add("panel", undefined, getLabel("panel.offset"));
-        applyPanelLayout(offsetPanel);
-        var spacingRow = offsetPanel.add("group");
-        var chkSpacing = spacingRow.add("checkbox", undefined, "");
-        var etSpacing = spacingRow.add("edittext", undefined, "0");
-        etSpacing.characters = 4;
-        var lblSpacingUnit = spacingRow.add("statictext", undefined, rulerInfo.label);
-        etSpacing.enabled = false;
-        lblSpacingUnit.enabled = false;
-
-        // 左カラム：テキストの配置（アイコンボタン。ラベルはツールチップで見せる）
-        // Left column: text alignment (icon buttons; the labels live in the tooltips)
-        var textAlignPanel = leftColumn.add("panel", undefined, getLabel("panel.textAlign"));
-        applyPanelLayout(textAlignPanel, 4);
-        textAlignPanel.orientation = "row";
-        textAlignPanel.alignChildren = ["center", "center"];
-        textAlignPanel.helpTip = getLabel("tip.textAlign");
-
-        // ボタン風で変換したときは中央、それ以外は上揃えで開く
+        /* ボタン風で変換したときは中央、それ以外は上揃えで開く / Opens centered after a Button-style conversion, otherwise top */
         var alignState = { activeId: getAlignmentId(initialAlignmentValue), isLight: isLightTheme };
-        var alignButtons = [];
-        for (var alignIndex = 0; alignIndex < ALIGN_OPTIONS.length; alignIndex++) {
-            var alignOption = ALIGN_OPTIONS[alignIndex];
-            var alignButton = textAlignPanel.add("button", undefined, "");
-            alignButton.helpTip = getLabel(alignOption.labelKey);
-            alignButton.preferredSize = [26, 26];
-            alignButton.minimumSize = [26, 26];
-            alignButton.maximumSize = [26, 26];
-            alignButton.alignId = alignOption.id;
-            alignButton.iconType = alignOption.icon;
-            alignButton.onDraw = function () {
-                drawAlignIcon(this, this.alignId === alignState.activeId, alignState.isLight);
-            };
-            alignButtons.push(alignButton);
-        }
+        /* 選択中の種別と、それが決めたタブ設定。tabMode が "none" のあいだはタブに触らない
+           The active role and the tab setting it chose; tabs are left alone while tabMode is "none" */
+        var roleState = { activeId: "", tabMode: "none" };
 
-        // ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
-        // Button area: "Separate text..." on the left, Cancel and OK on the right
-        var bottomBar = adjustDialog.add("group");
-        bottomBar.orientation = "row";
-        bottomBar.alignment = "fill";
-        bottomBar.alignChildren = ["fill", "center"];
-        var btnSeparateText = bottomBar.add("button", undefined, getLabel("button.separateText"));
-        btnSeparateText.alignment = ["left", "center"];
-        btnSeparateText.helpTip = getLabel("tip.separateText");
-        var bottomButtonRow = bottomBar.add("group");
-        bottomButtonRow.alignment = ["right", "center"];
-        var btnCancelAdjust = bottomButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnRun = bottomButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var ui = buildAdjustDialog(rulerInfo, justifyState, alignState);
 
         // 状態変数
         var isPreviewActive = false;
@@ -2156,18 +2262,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* テキストの配置ボタンを再描画する / Repaint the text-alignment buttons */
         function redrawAlignButtons() {
-            for (var i = 0; i < alignButtons.length; i++) {
-                try { alignButtons[i].notify("onDraw"); } catch (e) { }
+            for (var i = 0; i < ui.alignButtons.length; i++) {
+                try { ui.alignButtons[i].notify("onDraw"); } catch (e) { }
             }
-            try { adjustDialog.update(); } catch (e2) { }
+            try { ui.window.update(); } catch (e2) { }
         }
 
         /* 行揃えボタンを再描画する / Repaint the justification buttons */
         function redrawJustifyButtons() {
-            for (var i = 0; i < justifyButtons.length; i++) {
-                try { justifyButtons[i].notify("onDraw"); } catch (e) { }
+            for (var i = 0; i < ui.justifyButtons.length; i++) {
+                try { ui.justifyButtons[i].notify("onDraw"); } catch (e) { }
             }
-            try { adjustDialog.update(); } catch (e2) { }
+            try { ui.window.update(); } catch (e2) { }
         }
 
         /* メニュー指定を解除し、設定済みのタブも削除する / Drop the Menu role and clear the tab stops it set */
@@ -2175,7 +2281,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             if (roleState.activeId !== "menu") return;
             roleState.activeId = "";
             roleState.tabMode = "clear";
-            selectRadio(roleRadios, null);
+            selectRadio(ui.roleRadios, null);
         }
 
         /* 行揃えを選ぶ（メニューの右揃え以外にしたら、メニュー指定を解除する）
@@ -2188,17 +2294,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 幅から差し引く余白（間隔×2＋左右インデント）/ Horizontal space taken out of the width (spacing x2 + both indents) */
         function getWidthAdjustmentPt() {
-            var spacingPt = chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0;
-            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
-            var rightIndentPt = chkLinkIndents.value ? leftIndentPt : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit);
+            var spacingPt = ui.chkSpacing.value ? (parseFloat(ui.etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0;
+            var leftIndentPt = (parseFloat(ui.etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
+            var rightIndentPt = ui.chkLinkIndents.value ? leftIndentPt : ((parseFloat(ui.etRightIndent.text) || 0) * rulerInfo.pointsPerUnit);
             return 2 * spacingPt + leftIndentPt + rightIndentPt;
         }
 
         /* 幅とフォントサイズから字詰め欄を更新する / Refresh the chars-per-line field from the width and font size */
         function updateCharsPerLineField() {
             if (currentFontSize <= 0) return;
-            var widthPt = (parseFloat(etWidth.text) || 0) * rulerInfo.pointsPerUnit;
-            etCharsPerLine.text = Math.round(((widthPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
+            var widthPt = (parseFloat(ui.etWidth.text) || 0) * rulerInfo.pointsPerUnit;
+            ui.etCharsPerLine.text = Math.round(((widthPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
         }
 
         /* 選択フレームの現在値をダイアログに読み込む / Load the frame's current values into the dialog */
@@ -2207,11 +2313,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             var frameHeight = sourceFrame.textPath.height / rulerInfo.pointsPerUnit;
             currentFontSize = 0;
             try { currentFontSize = sourceFrame.textRange.characterAttributes.size || 0; } catch (e) { }
-            if (currentFontSize > 0) { etFontSize.text = Math.round(currentFontSize * 100) / 100; }
-            etWidth.text = Math.round(frameWidth * 100) / 100;
-            etHeight.text = Math.round(frameHeight * 100) / 100;
-            lastValidWidth = parseFloat(etWidth.text);
-            lastValidHeight = parseFloat(etHeight.text);
+            if (currentFontSize > 0) { ui.etFontSize.text = Math.round(currentFontSize * 100) / 100; }
+            ui.etWidth.text = Math.round(frameWidth * 100) / 100;
+            ui.etHeight.text = Math.round(frameHeight * 100) / 100;
+            lastValidWidth = parseFloat(ui.etWidth.text);
+            lastValidHeight = parseFloat(ui.etHeight.text);
             try {
                 var justification = sourceFrame.paragraphs.length > 0
                     ? sourceFrame.paragraphs[0].paragraphAttributes.justification
@@ -2220,19 +2326,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             } catch (e) { justifyState.activeId = "left"; }
             try {
                 var spacingPt = sourceFrame.spacing || 0;
-                etSpacing.text = Math.round((spacingPt / rulerInfo.pointsPerUnit) * 100) / 100;
-                chkSpacing.value = (spacingPt !== 0);
+                ui.etSpacing.text = Math.round((spacingPt / rulerInfo.pointsPerUnit) * 100) / 100;
+                ui.chkSpacing.value = (spacingPt !== 0);
                 updateSpacingEnabled();
             } catch (e) { }
             try {
                 var firstParaAttrs = sourceFrame.paragraphs.length > 0 ? sourceFrame.paragraphs[0].paragraphAttributes : null;
                 var leftIndentPt = firstParaAttrs ? (firstParaAttrs.leftIndent || 0) : 0;
                 var rightIndentPt = firstParaAttrs ? (firstParaAttrs.rightIndent || 0) : 0;
-                etLeftIndent.text = Math.round((leftIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
-                etRightIndent.text = Math.round((rightIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
+                ui.etLeftIndent.text = Math.round((leftIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
+                ui.etRightIndent.text = Math.round((rightIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
                 // 左右が違うテキストは連動を外して開く（右の値を潰さないため）
                 // Open with the link off when the two differ, so the right value is not overwritten
-                if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { chkLinkIndents.value = false; }
+                if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { ui.chkLinkIndents.value = false; }
             } catch (e) { }
             // 設定済みならその値を表示して適用対象にする（表示＝実際の設定なので、当ててもフレームは変わらない）。
             // 未設定のときは、変換直後だけ初期値（DEFAULT_KINSOKU / DEFAULT_MOJIKUMI_INDEX）を当て、
@@ -2241,25 +2347,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             // When nothing is set, the defaults apply to freshly converted frames only; existing frames show "None".
             var frameKinsoku = getKinsokuId(sourceFrame);
             if (frameKinsoku !== "None") {
-                selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku);
+                selectChoiceByValue(ui.kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku);
                 userTouched.kinsoku = true;
             } else if (!isNewlyConverted) {
-                selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", "None");
+                selectChoiceByValue(ui.kinsokuDropdown, KINSOKU_CHOICES, "id", "None");
                 userTouched.kinsoku = true;
             }
             var frameMojikumi = getMojikumiIndex(sourceFrame);
             if (frameMojikumi >= 0) {
-                selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", frameMojikumi);
+                selectChoiceByValue(ui.mojikumiDropdown, MOJIKUMI_CHOICES, "index", frameMojikumi);
                 userTouched.mojikumi = true;
             } else if (frameMojikumi === -2) {
-                mojikumiDropdown.selection = null;
+                ui.mojikumiDropdown.selection = null;
             } else if (!isNewlyConverted) {
-                selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", -1);
+                selectChoiceByValue(ui.mojikumiDropdown, MOJIKUMI_CHOICES, "index", -1);
                 userTouched.mojikumi = true;
             }
 
             var leadingPercent = getAutoLeadingPercent(sourceFrame);
-            etLeadingPercent.text = (leadingPercent > 0) ? Math.round(leadingPercent * 10) / 10 : "";
+            ui.etLeadingPercent.text = (leadingPercent > 0) ? Math.round(leadingPercent * 10) / 10 : "";
             updateLeadingEffective();
 
             updateCharsPerLineField();
@@ -2267,31 +2373,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* ダイアログの入力を1つの設定オブジェクトにまとめる / Collect the dialog inputs into one settings object */
         function readAdjustmentSettings() {
-            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
+            var leftIndentPt = (parseFloat(ui.etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
 
             // 幅/高さの検証はここで1回だけ行う（不正なら null にして書き込まない）
             // Width and height are validated once here; null means the value is not written back
-            var widthValue = validateSizeField(etWidth, lastValidWidth);
-            var heightValue = validateSizeField(etHeight, lastValidHeight);
+            var widthValue = validateSizeField(ui.etWidth, lastValidWidth);
+            var heightValue = validateSizeField(ui.etHeight, lastValidHeight);
             if (widthValue !== null) { lastValidWidth = widthValue; }
             if (heightValue !== null) { lastValidHeight = heightValue; }
 
             return {
                 shrinkFont: (fontFitMode === "shrink"),
                 fitFont: (fontFitMode === "fit"),
-                autoSize: chkAutoSize.value,
+                autoSize: ui.chkAutoSize.value,
                 tabMode: roleState.tabMode,
                 justification: getJustificationValue(justifyState.activeId),
                 alignment: userTouched.alignment ? getAlignmentValue(alignState.activeId) : null,
                 widthPt: (widthValue !== null) ? widthValue * rulerInfo.pointsPerUnit : null,
                 heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.pointsPerUnit : null,
-                leadingPercent: parseFloat(etLeadingPercent.text),
-                kinsoku: (userTouched.kinsoku && kinsokuDropdown.selection) ? KINSOKU_CHOICES[kinsokuDropdown.selection.index].id : null,
-                mojikumiIndex: (userTouched.mojikumi && mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
+                leadingPercent: parseFloat(ui.etLeadingPercent.text),
+                kinsoku: (userTouched.kinsoku && ui.kinsokuDropdown.selection) ? KINSOKU_CHOICES[ui.kinsokuDropdown.selection.index].id : null,
+                mojikumiIndex: (userTouched.mojikumi && ui.mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[ui.mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: leftIndentPt,
-                rightIndentPt: chkLinkIndents.value ? leftIndentPt
-                    : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit),
-                spacingPt: chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0
+                rightIndentPt: ui.chkLinkIndents.value ? leftIndentPt
+                    : ((parseFloat(ui.etRightIndent.text) || 0) * rulerInfo.pointsPerUnit),
+                spacingPt: ui.chkSpacing.value ? (parseFloat(ui.etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0
             };
         }
 
@@ -2359,26 +2465,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 自動サイズ調整ONのあいだは高さ欄を使えなくする（枠が文字に追従して指定できないため）
            Disable the height field while auto-size is on (the frame follows the text, so it cannot be set) */
         function updateHeightEnabled() {
-            heightRow.enabled = !chkAutoSize.value;
+            ui.heightRow.enabled = !ui.chkAutoSize.value;
         }
 
         /* 連動中は右インデント欄を使えなくする（左の値をそのまま使うため）
            Disable the right indent field while linked (it just follows the left value) */
         function updateRightIndentEnabled() {
-            etRightIndent.enabled = !chkLinkIndents.value;
+            ui.etRightIndent.enabled = !ui.chkLinkIndents.value;
         }
 
         /* オフセット欄の使用可否を更新する / Update whether the offset field can be used */
         function updateSpacingEnabled() {
-            etSpacing.enabled = chkSpacing.value;
-            lblSpacingUnit.enabled = chkSpacing.value;
+            ui.etSpacing.enabled = ui.chkSpacing.value;
+            ui.lblSpacingUnit.enabled = ui.chkSpacing.value;
         }
 
         /* 実質行送り（フォントサイズ×％）の表示を更新する / Refresh the effective-leading display (font size × %) */
         function updateLeadingEffective() {
-            var size = parseFloat(etFontSize.text);
-            var percent = parseFloat(etLeadingPercent.text);
-            etLeadingEffective.text = (isNaN(size) || isNaN(percent))
+            var size = parseFloat(ui.etFontSize.text);
+            var percent = parseFloat(ui.etLeadingPercent.text);
+            ui.etLeadingEffective.text = (isNaN(size) || isNaN(percent))
                 ? "" : Math.round(size * percent / 100 * 10) / 10;
         }
 
@@ -2390,10 +2496,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 実質行送りの入力から行送り％を逆算する / Back-calculate the leading % from the effective value */
         function onLeadingEffectiveChange() {
-            var effective = parseFloat(etLeadingEffective.text);
-            var size = parseFloat(etFontSize.text);
+            var effective = parseFloat(ui.etLeadingEffective.text);
+            var size = parseFloat(ui.etFontSize.text);
             if (isNaN(effective) || isNaN(size) || size <= 0) return;
-            etLeadingPercent.text = Math.round((effective / size) * 100 * 10) / 10;
+            ui.etLeadingPercent.text = Math.round((effective / size) * 100 * 10) / 10;
             updatePreview();
         }
 
@@ -2434,12 +2540,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* チェックボックスの状態を対象フレームへ本適用する / Commit the checkbox state to the target frames */
         function applyAutoSize() {
-            setAutoSizeOnTargets(chkAutoSize.value);
+            setAutoSizeOnTargets(ui.chkAutoSize.value);
         }
 
         /* フォントサイズ欄の値を対象フレームに適用する / Apply the font-size field to the target frames */
         function applyFontSizeFromField() {
-            var newSize = parseFloat(etFontSize.text) || 0;
+            var newSize = parseFloat(ui.etFontSize.text) || 0;
             if (newSize <= 0) return;
             // プレビュー分を取り消してから本適用する（そうしないと後の undo がサイズ変更を巻き戻す）
             revertPreview();
@@ -2458,7 +2564,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 幅の変更を検証し、文字数表示とプレビューを更新する / Validate a width change, then refresh the chars-per-line field and the preview */
         function onWidthChange() {
-            var widthValue = validateSizeField(etWidth, lastValidWidth);
+            var widthValue = validateSizeField(ui.etWidth, lastValidWidth);
             if (widthValue !== null) { lastValidWidth = widthValue; }
             updateCharsPerLineField();
             updatePreview();
@@ -2466,7 +2572,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 高さの変更を検証してプレビューを更新する（以後、高さを枠へ書き戻す対象にする）
            Validate a height change and refresh the preview (the height is written back from now on) */
         function onHeightChange() {
-            var heightValue = validateSizeField(etHeight, lastValidHeight);
+            var heightValue = validateSizeField(ui.etHeight, lastValidHeight);
             if (heightValue !== null) { lastValidHeight = heightValue; }
             userTouched.height = true;
             updatePreview();
@@ -2474,10 +2580,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 1行の文字数から幅を逆算する / Work the width back out from the characters-per-line value */
         function onCharsPerLineChange() {
             if (currentFontSize > 0) {
-                var nextWidth = (((parseFloat(etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt()) / rulerInfo.pointsPerUnit);
+                var nextWidth = (((parseFloat(ui.etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt()) / rulerInfo.pointsPerUnit);
                 if (!isNaN(nextWidth) && isFinite(nextWidth) && nextWidth > 0) {
-                    etWidth.text = Math.round(nextWidth * 100) / 100;
-                    var widthValue = validateSizeField(etWidth, lastValidWidth);
+                    ui.etWidth.text = Math.round(nextWidth * 100) / 100;
+                    var widthValue = validateSizeField(ui.etWidth, lastValidWidth);
                     if (widthValue !== null) { lastValidWidth = widthValue; }
                 }
             }
@@ -2485,7 +2591,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         }
         /* インデント・間隔の変更を幅の再計算に回す / Feed indent and spacing changes into the width recalculation */
         function onIndentOrSpacingChange() {
-            if (chkLinkIndents.value) { etRightIndent.text = etLeftIndent.text; }
+            if (ui.chkLinkIndents.value) { ui.etRightIndent.text = ui.etLeftIndent.text; }
             onWidthChange();
         }
 
@@ -2507,19 +2613,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         }
 
         /* イベントハンドラ / Event handlers */
-        bindExclusiveRadios(roleRadios, function (radio) {
-            if (radio === radRoleBody) { applyRolePreset("body"); }
-            else if (radio === radRoleHeading) { applyRolePreset("heading"); }
+        bindExclusiveRadios(ui.roleRadios, function (radio) {
+            if (radio === ui.radRoleBody) { applyRolePreset("body"); }
+            else if (radio === ui.radRoleHeading) { applyRolePreset("heading"); }
             else { applyRolePreset("menu"); }
         });
-        for (var buttonIndex = 0; buttonIndex < justifyButtons.length; buttonIndex++) {
-            justifyButtons[buttonIndex].onClick = function () {
+        for (var buttonIndex = 0; buttonIndex < ui.justifyButtons.length; buttonIndex++) {
+            ui.justifyButtons[buttonIndex].onClick = function () {
                 setJustification(this.justifyId);
                 updatePreview();
             };
         }
-        for (var alignButtonIndex = 0; alignButtonIndex < alignButtons.length; alignButtonIndex++) {
-            alignButtons[alignButtonIndex].onClick = function () {
+        for (var alignButtonIndex = 0; alignButtonIndex < ui.alignButtons.length; alignButtonIndex++) {
+            ui.alignButtons[alignButtonIndex].onClick = function () {
                 alignState.activeId = this.alignId;
                 userTouched.alignment = true;
                 redrawAlignButtons();
@@ -2529,7 +2635,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 updatePreview();
             };
         }
-        addJustificationShortcuts(adjustDialog);
+        addJustificationShortcuts(ui.window);
 
         /* 種別プリセットをダイアログに反映して適用する / Push a role preset into the dialog and apply it */
         function applyRolePreset(roleId) {
@@ -2537,11 +2643,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             if (!preset) return;
             roleState.activeId = roleId;
             roleState.tabMode = preset.tabMode;
-            etLeadingPercent.text = preset.leadingPercent;
+            ui.etLeadingPercent.text = preset.leadingPercent;
             updateLeadingEffective();
             setJustification(preset.justifyId);
-            selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", preset.kinsoku);
-            selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", preset.mojikumiIndex);
+            selectChoiceByValue(ui.kinsokuDropdown, KINSOKU_CHOICES, "id", preset.kinsoku);
+            selectChoiceByValue(ui.mojikumiDropdown, MOJIKUMI_CHOICES, "index", preset.mojikumiIndex);
             alignState.activeId = preset.alignId;
             // 種別はまとめて指定するものなので、関係する項目をすべて適用対象にする
             userTouched.alignment = true;
@@ -2563,10 +2669,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 var frame = framesToAdjust[i];
                 if (!frame || frame.typename !== "TextFrame" || frame.kind !== TextType.AREATEXT) continue;
                 try {
-                    etWidth.text = Math.round((frame.textPath.width / rulerInfo.pointsPerUnit) * 100) / 100;
-                    etHeight.text = Math.round((frame.textPath.height / rulerInfo.pointsPerUnit) * 100) / 100;
-                    lastValidWidth = parseFloat(etWidth.text);
-                    lastValidHeight = parseFloat(etHeight.text);
+                    ui.etWidth.text = Math.round((frame.textPath.width / rulerInfo.pointsPerUnit) * 100) / 100;
+                    ui.etHeight.text = Math.round((frame.textPath.height / rulerInfo.pointsPerUnit) * 100) / 100;
+                    lastValidWidth = parseFloat(ui.etWidth.text);
+                    lastValidHeight = parseFloat(ui.etHeight.text);
                 } catch (e) { }
                 return;
             }
@@ -2585,7 +2691,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             }
             if (newSize <= 0) return;
             currentFontSize = newSize;
-            etFontSize.text = Math.round(newSize * 100) / 100;
+            ui.etFontSize.text = Math.round(newSize * 100) / 100;
             updateCharsPerLineField();
             updateLeadingEffective();
         }
@@ -2607,7 +2713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             // ONへ戻すのは applyAdjustments 内（settings.autoSize）。新しい文字サイズで枠が引き直される。
             // With auto-size on the frame follows the text and never oversets, so it is switched off first.
             // applyAdjustments turns it back on (settings.autoSize), redrawing the frame around the new size.
-            if (chkAutoSize.value) { setAutoSizeOnTargets(false); }
+            if (ui.chkAutoSize.value) { setAutoSizeOnTargets(false); }
 
             fontFitMode = mode;
             applyAdjustments(false);
@@ -2618,17 +2724,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             refreshFrameSizeFields();
         }
 
-        btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
-        btnFitFontSize.onClick = function () { runFontFit("fit"); };
-        kinsokuDropdown.onChange = function () {
+        ui.btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
+        ui.btnFitFontSize.onClick = function () { runFontFit("fit"); };
+        ui.kinsokuDropdown.onChange = function () {
             userTouched.kinsoku = true;
             updatePreview();
         };
-        mojikumiDropdown.onChange = function () {
+        ui.mojikumiDropdown.onChange = function () {
             userTouched.mojikumi = true;
             updatePreview();
         };
-        chkAutoSize.onClick = function () {
+        ui.chkAutoSize.onClick = function () {
             updateHeightEnabled();
             // プレビューを外してから ON/OFF を本適用し、あらためてプレビューを貼り直す
             revertPreview();
@@ -2637,38 +2743,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             refreshFrameSizeFields();
             updatePreview();
         };
-        chkSpacing.onClick = function () {
-            if (chkSpacing.value) { etSpacing.text = "1"; }
+        ui.chkSpacing.onClick = function () {
+            if (ui.chkSpacing.value) { ui.etSpacing.text = "1"; }
             updateSpacingEnabled();
             onIndentOrSpacingChange();
         };
-        chkLinkIndents.onClick = function () {
+        ui.chkLinkIndents.onClick = function () {
             // 連動中は右を左に追従させるので、右の欄は触れないようにする
-            if (chkLinkIndents.value) { etRightIndent.text = etLeftIndent.text; }
+            if (ui.chkLinkIndents.value) { ui.etRightIndent.text = ui.etLeftIndent.text; }
             updateRightIndentEnabled();
             onIndentOrSpacingChange();
         };
 
-        etFontSize.onChange = applyFontSizeFromField;
-        etLeadingPercent.onChange = onLeadingPercentChange;
-        etLeadingEffective.onChange = onLeadingEffectiveChange;
-        etSpacing.onChange = onIndentOrSpacingChange;
-        etWidth.onChange = onWidthChange;
-        etHeight.onChange = onHeightChange;
-        etCharsPerLine.onChange = onCharsPerLineChange;
-        etLeftIndent.onChange = onIndentOrSpacingChange;
-        etRightIndent.onChange = onIndentOrSpacingChange;
-        changeValueByArrowKey(etFontSize, false, applyFontSizeFromField);
-        changeValueByArrowKey(etLeadingPercent, false, onLeadingPercentChange);
-        changeValueByArrowKey(etLeadingEffective, false, onLeadingEffectiveChange);
-        changeValueByArrowKey(etSpacing, false, onIndentOrSpacingChange);
-        changeValueByArrowKey(etWidth, false, onWidthChange);
-        changeValueByArrowKey(etHeight, false, onHeightChange);
-        changeValueByArrowKey(etCharsPerLine, false, onCharsPerLineChange);
-        changeValueByArrowKey(etLeftIndent, false, onIndentOrSpacingChange);
-        changeValueByArrowKey(etRightIndent, false, onIndentOrSpacingChange);
+        ui.etFontSize.onChange = applyFontSizeFromField;
+        ui.etLeadingPercent.onChange = onLeadingPercentChange;
+        ui.etLeadingEffective.onChange = onLeadingEffectiveChange;
+        ui.etSpacing.onChange = onIndentOrSpacingChange;
+        ui.etWidth.onChange = onWidthChange;
+        ui.etHeight.onChange = onHeightChange;
+        ui.etCharsPerLine.onChange = onCharsPerLineChange;
+        ui.etLeftIndent.onChange = onIndentOrSpacingChange;
+        ui.etRightIndent.onChange = onIndentOrSpacingChange;
+        changeValueByArrowKey(ui.etFontSize, false, applyFontSizeFromField);
+        changeValueByArrowKey(ui.etLeadingPercent, false, onLeadingPercentChange);
+        changeValueByArrowKey(ui.etLeadingEffective, false, onLeadingEffectiveChange);
+        changeValueByArrowKey(ui.etSpacing, false, onIndentOrSpacingChange);
+        changeValueByArrowKey(ui.etWidth, false, onWidthChange);
+        changeValueByArrowKey(ui.etHeight, false, onHeightChange);
+        changeValueByArrowKey(ui.etCharsPerLine, false, onCharsPerLineChange);
+        changeValueByArrowKey(ui.etLeftIndent, false, onIndentOrSpacingChange);
+        changeValueByArrowKey(ui.etRightIndent, false, onIndentOrSpacingChange);
 
-        btnSeparateText.onClick = function () {
+        ui.btnSeparateText.onClick = function () {
             // プレビューを外し、いま見えている調整を本適用してから分離する
             // （囲み罫はフレームの現在の大きさから作るため）
             // Revert the preview and commit what is on screen before separating,
@@ -2691,20 +2797,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
             if (showSeparateTextDialog(doc, framesToSeparate, readAdjustmentSettings())) {
                 // 分離するとエリア内文字が無くなるので、調整ダイアログも閉じる
-                adjustDialog.close(1);
+                ui.window.close(1);
             } else {
                 // 分離しなかったときはプレビューを貼り直して調整を続ける
                 updatePreview();
             }
         };
-        btnRun.onClick = function () {
+        ui.btnRun.onClick = function () {
             revertPreview();
             applyAdjustments(false);
-            adjustDialog.close(1);
+            ui.window.close(1);
         };
-        btnCancelAdjust.onClick = function () {
+        ui.btnCancelAdjust.onClick = function () {
             revertPreview();
-            adjustDialog.close(0);
+            ui.window.close(0);
         };
 
         // 初期値読み込み
@@ -2719,11 +2825,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         // ［文字あふれ解消］［枠にフィット］だけ、上下2pxずつ詰めて小ぶりにする
         // Make the two font-fit buttons a little shorter (2px off the top and bottom)
-        adjustDialog.layout.layout(true);
-        trimButtonHeight(btnShrinkToFit, 4);
-        trimButtonHeight(btnFitFontSize, 4);
+        ui.window.layout.layout(true);
+        trimButtonHeight(ui.btnShrinkToFit, 4);
+        trimButtonHeight(ui.btnFitFontSize, 4);
 
-        adjustDialog.show();
+        ui.window.show();
     }
 
     // ============================================================

@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "GuideLineBuilder";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GuideLineBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GuideLineBuilder.md"; /* README (English) */
@@ -44,7 +44,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 (function() {
 
     // =========================================
-    // ユーザー設定 / User settings
+    // ユーザー設定 / User Settings
     // =========================================
 
     /* 生成物の目印（再実行時に削除してよいものを見分ける）/ Marker that flags generated items */
@@ -94,6 +94,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     var BUTTON_ROW_TOP_MARGIN   = 8;                  /* ボタン行の上余白 / top margin of the button row */
     var NUMBER_INPUT_CHARACTERS = 6;                  /* 数値入力欄の文字数 / numeric field width */
     var ZOOM_SLIDER_WIDTH       = 240;                /* ズームスライダーの幅 / zoom slider width */
+    var ZOOM_ROW_MARGINS        = [0, 0, 0, 10];      /* ズームの行の余白 / zoom row margins */
 
     /**
      * ウィンドウの共通レイアウトを設定する
@@ -109,12 +110,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
     /**
      * パネルを追加し、共通レイアウトを設定する
-     * @param {object} parent - 追加先のウィンドウまたはグループ
+     * @param {object} parentContainer - 追加先のウィンドウまたはグループ
      * @param {object} [titleSet] - ja/en を持つタイトル（省略時はタイトルなしの入れ子パネル）
      * @returns {Panel} 追加したパネル
      */
-    function addPanel(parent, titleSet) {
-        var newPanel = parent.add("panel", undefined, titleSet ? getLabel(titleSet) : "");
+    function addPanel(parentContainer, titleSet) {
+        var newPanel = parentContainer.add("panel", undefined, titleSet ? getLabel(titleSet) : "");
         newPanel.orientation = "column";
         newPanel.alignChildren = ["left", "top"];
         newPanel.alignment = ["fill", "top"];
@@ -125,12 +126,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
     /**
      * 行グループを追加し、共通レイアウトを設定する（横位置と天地を対で指定し、子は伸ばさない）
-     * @param {object} parent - 追加先のウィンドウまたはグループ
+     * @param {object} parentContainer - 追加先のウィンドウまたはグループ
      * @param {number} [spacing] - 要素間隔（省略時は ROW_SPACING）
      * @returns {Group} 追加した行グループ
      */
-    function addRow(parent, spacing) {
-        var rowGroup = parent.add("group");
+    function addRow(parentContainer, spacing) {
+        var rowGroup = parentContainer.add("group");
         rowGroup.orientation = "row";
         rowGroup.alignment = ["left", "center"];
         rowGroup.alignChildren = ["left", "center"];
@@ -149,26 +150,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         editText.addEventListener("keydown", function(event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
-            var current = Number(editText.text);
-            if (isNaN(current)) return;
+            var currentValue = Number(editText.text);
+            if (isNaN(currentValue)) return;
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var sign = (event.keyName === "Up") ? 1 : -1;
-            var next;
+            var keyboardState = ScriptUI.environment.keyboardState;
+            var stepSign = (event.keyName === "Up") ? 1 : -1;
+            var nextValue;
 
-            if (keyboard.shiftKey) {
+            if (keyboardState.shiftKey) {
                 /* shift 併用時は10の倍数にスナップ / Snap to multiples of 10 with shift */
-                next = (sign > 0) ? Math.ceil((current + 1) / 10) * 10 : Math.floor((current - 1) / 10) * 10;
-            } else if (keyboard.altKey) {
+                nextValue = (stepSign > 0) ? Math.ceil((currentValue + 1) / 10) * 10 : Math.floor((currentValue - 1) / 10) * 10;
+            } else if (keyboardState.altKey) {
                 /* option 併用時は0.1刻み / Step by 0.1 with option */
-                next = Math.round((current + sign * 0.1) * 10) / 10;
+                nextValue = Math.round((currentValue + stepSign * 0.1) * 10) / 10;
             } else {
-                next = Math.round(current + sign);
+                nextValue = Math.round(currentValue + stepSign);
             }
 
-            if (!allowNegative && next < 0) next = 0;
+            if (!allowNegative && nextValue < 0) nextValue = 0;
 
-            editText.text = String(next);
+            editText.text = String(nextValue);
             event.preventDefault();
             if (typeof onChange === "function") onChange();
         });
@@ -219,7 +220,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
             zoom: { ja: "ズーム", en: "Zoom" }
         },
         tooltip: {
-            arcFallback: { ja: "完全な円弧以外の場合", en: "For segments that are not true circular arcs" }
+            arcFallback: { ja: "完全な円弧以外の場合", en: "For segments that are not true circular arcs" },
+            straight: {
+                ja: "選択したパスの直線セグメントを、描画範囲いっぱいまで延長して描きます",
+                en: "Extends each straight segment of the selection across the drawing area"
+            },
+            soloDirection: {
+                ja: "option キーを押しながらクリックすると、この向きだけを残します",
+                en: "Option-click to keep only this direction"
+            },
+            arcToCircle: {
+                ja: "円弧とみなせる曲線セグメントから、その円を描きます",
+                en: "Draws the full circle of each curved segment that is a circular arc"
+            },
+            arcIgnore: { ja: "完全な円弧でないセグメントには何も描きません", en: "Draws nothing for segments that are not true arcs" },
+            arcChord: {
+                ja: "完全な円弧でないセグメントは、両端を結ぶ線分を描きます",
+                en: "Draws the chord between the end points of segments that are not true arcs"
+            },
+            arcExtendChord: {
+                ja: "完全な円弧でないセグメントは、両端を結ぶ直線を描画範囲いっぱいまで延長して描きます",
+                en: "Extends the chord of segments that are not true arcs across the drawing area"
+            },
+            group: {
+                ja: "補助線とアンカーポイントの図形を、それぞれグループにまとめます",
+                en: "Groups the construction lines and the anchor shapes separately"
+            },
+            separateLayer: {
+                ja: "補助線は「_construction_guide」、図形は「_construction_anchorpoint」レイヤーに描き、前回このスクリプトで描いたものは置き換えます",
+                en: "Draws lines on \"_construction_guide\" and shapes on \"_construction_anchorpoint\", replacing what this script drew there before"
+            },
+            guide: {
+                ja: "補助線と円をガイドにします（アンカーポイントの図形はガイドにしません）",
+                en: "Turns the lines and circles into guides (anchor shapes stay as paths)"
+            },
+            dedup: {
+                ja: "延長した補助線が同じ位置に重なるときは1本だけ描きます",
+                en: "Draws only one line when extended lines fall in the same place"
+            },
+            zoom: {
+                ja: "作業中の表示倍率を変えます。option キーでアートボードの中央、shift キーで選択の中央に合わせます",
+                en: "Changes the view zoom. Hold Option to center on the artboard, or Shift to center on the selection"
+            },
+            lightMode: {
+                ja: "ズームのスライダーを離したときだけ表示倍率を変えます",
+                en: "Applies the zoom only when you release the slider"
+            }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -313,7 +359,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {void}
      */
     function logError(err, context) {
-        try { $.writeln("[" + SCRIPT_NAME + "] " + context + ": " + err); } catch (e) { }
+        $.writeln("[" + SCRIPT_NAME + "] " + context + ": " + err);
     }
 
     /**
@@ -375,83 +421,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 線幅の単位コードごとの pt 係数 / Point factor per stroke unit code */
-    var STROKE_UNIT_PT_FACTOR = {
-        0: 72.0,             /* in */
-        1: 72.0 / 25.4,      /* mm */
-        2: 1.0,              /* pt */
-        3: 12.0,             /* pica */
-        4: 72.0 / 2.54,      /* cm */
-        5: 72.0 / 25.4 * 0.25, /* H */
-        6: 1.0,              /* px */
-        7: 72.0 * 12.0,      /* ft/in */
-        8: 72.0 / 25.4 * 1000.0, /* m */
-        9: 72.0 * 36.0,      /* yd */
-        10: 72.0 * 12.0      /* ft */
-    };
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 線幅の単位コードごとの表示名 / Unit label per stroke unit code */
-    var STROKE_UNIT_LABEL = {
-        0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "H",
-        6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft"
-    };
-
-    /* 定規の単位コードごとの pt 係数 / Point factor per ruler unit code */
-    var RULER_UNIT_PT_FACTOR = {
-        0: 72.0,             /* in */
-        1: 72.0 / 25.4,      /* mm */
-        2: 1.0,              /* pt */
-        3: 12.0,             /* pica */
-        4: 72.0 / 2.54,      /* cm */
-        5: 72.0 / 25.4 * 0.25, /* H */
-        6: 1.0               /* px */
-    };
-
-    /* 定規の単位コードごとの表示名 / Unit label per ruler unit code */
-    var RULER_UNIT_LABEL = {
-        0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "H", 6: "px"
-    };
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 環境設定の単位コードを読む
-     * @param {string} preferenceKey - 環境設定のキー（strokeUnits / rulerType）
-     * @returns {number} 単位コード（読めない場合は 2 = pt）
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getUnitCode(preferenceKey) {
-        try { return app.preferences.getIntegerPreference(preferenceKey); } catch (e) { }
-        return 2;
-    }
-
-    /**
-     * 単位テーブルから値を引く（未知のコードは pt 扱い）
-     * @param {object} table - 単位コードをキーにしたテーブル
-     * @param {number} code - 単位コード
-     * @param {number|string} fallback - 未知のコードのときに返す値
-     * @returns {number|string} テーブルの値
-     */
-    function lookupUnit(table, code, fallback) {
-        var value = table[code];
-        return (value === undefined) ? fallback : value;
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
      * 入力欄の文字列を pt に直す（読めない場合は直前の有効値を返す）
      * @param {EditText} editText - 対象の入力欄
-     * @param {object} unitTable - 単位コードをキーにした pt 係数のテーブル
-     * @param {string} preferenceKey - 環境設定のキー（strokeUnits / rulerType）
-     * @param {object} cache - 直前の有効値を持つ `{ value: number }`
+     * @param {string} prefKey - 単位を決める環境設定キー（strokeUnits / rulerType）
+     * @param {object} lastValidCache - 直前の有効値を持つ `{ value: number }`
      * @returns {number} ポイント値
      */
-    function readLengthAsPt(editText, unitTable, preferenceKey, cache) {
-        var factor = lookupUnit(unitTable, getUnitCode(preferenceKey), 1.0);
-        var value = parseNumberInput(editText.text);
-        if (!(value > 0)) return cache.value;
+    function readLengthAsPt(editText, prefKey, lastValidCache) {
+        var pointsPerUnit = getUnitInfo(prefKey).pointsPerUnit;
+        var inputValue = parseNumberInput(editText.text);
+        if (!(inputValue > 0)) return lastValidCache.value;
 
-        var pt = value * factor;
-        if (!(pt > 0)) return cache.value;
+        var lengthPt = inputValue * pointsPerUnit;
+        if (!(lengthPt > 0)) return lastValidCache.value;
 
-        cache.value = pt;
-        return pt;
+        lastValidCache.value = lengthPt;
+        return lengthPt;
     }
 
     // =========================================
@@ -476,13 +497,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {string} 重複しないレイヤー名
      */
     function createUniqueLayerName(doc, baseName) {
-        var name = baseName;
-        var index = 2;
-        while (findLayerByName(doc, name)) {
-            name = baseName + "_" + index;
-            index++;
+        var candidateName = baseName;
+        var suffixNumber = 2;
+        while (findLayerByName(doc, candidateName)) {
+            candidateName = baseName + "_" + suffixNumber;
+            suffixNumber++;
         }
-        return name;
+        return candidateName;
     }
 
     /**
@@ -492,9 +513,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {void}
      */
     function removeLayerIfExists(doc, layerName) {
-        var layer = findLayerByName(doc, layerName);
-        if (!layer) return;
-        try { layer.remove(); } catch (e) { logError(e, "removeLayerIfExists"); }
+        var targetLayer = findLayerByName(doc, layerName);
+        if (!targetLayer) return;
+        /* ロックなどで削除できないことがある / Removal can fail, e.g. on a locked layer */
+        try { targetLayer.remove(); } catch (e) { logError(e, "removeLayerIfExists"); }
     }
 
     /**
@@ -503,6 +525,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {boolean} 生成物なら true
      */
     function isGeneratedItem(item) {
+        /* note / name を読めないアイテムは生成物ではないとみなす / Treat unreadable items as not generated */
         try {
             if (item.note === SCRIPT_MARKER) return true;
             return String(item.name || "").indexOf(SCRIPT_MARKER) === 0;
@@ -517,10 +540,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      */
     function clearGeneratedItemsInLayer(layer) {
         if (!layer) return;
+        /* ロックされたアイテムなどは削除できない / Locked items cannot be removed */
         try {
             for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                var item = layer.pageItems[i];
-                if (item && isGeneratedItem(item)) item.remove();
+                var layerItem = layer.pageItems[i];
+                if (layerItem && isGeneratedItem(layerItem)) layerItem.remove();
             }
         } catch (e) { logError(e, "clearGeneratedItemsInLayer"); }
     }
@@ -534,9 +558,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     function isSelectionOnLayer(selectedItems, layerName) {
         if (!selectedItems || selectedItems.length === 0) return false;
         for (var i = 0; i < selectedItems.length; i++) {
-            var layer = null;
-            try { layer = selectedItems[i].layer; } catch (e) { }
-            if (!layer || layer.name !== layerName) return false;
+            var itemLayer = null;
+            /* layer を持たないアイテムがある / Some items have no layer */
+            try { itemLayer = selectedItems[i].layer; } catch (e) { }
+            if (!itemLayer || itemLayer.name !== layerName) return false;
         }
         return true;
     }
@@ -552,8 +577,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         if (isSelectionOnLayer(selectedItems, LINE_LAYER_NAME)) {
             /* 選択自体が対象レイヤー上にあるので、消さずに退避して新しく作る / Keep the selection by backing up the layer */
-            var existing = findLayerByName(doc, LINE_LAYER_NAME);
-            if (existing) existing.name = createUniqueLayerName(doc, LINE_LAYER_NAME + "_backup");
+            var existingLayer = findLayerByName(doc, LINE_LAYER_NAME);
+            if (existingLayer) existingLayer.name = createUniqueLayerName(doc, LINE_LAYER_NAME + "_backup");
             lineLayer = doc.layers.add();
             lineLayer.name = LINE_LAYER_NAME;
         } else {
@@ -592,15 +617,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
     /**
      * 目印付きのグループを追加する
-     * @param {Layer|GroupItem} parent - 追加先のレイヤーまたはグループ
+     * @param {Layer|GroupItem} parentContainer - 追加先のレイヤーまたはグループ
      * @param {string} groupName - グループ名
      * @returns {GroupItem} 追加したグループ
      */
-    function addMarkedGroup(parent, groupName) {
-        var newGroup = parent.groupItems.add();
-        newGroup.name = groupName;
-        newGroup.note = SCRIPT_MARKER;
-        return newGroup;
+    function addMarkedGroup(parentContainer, groupName) {
+        var markedGroup = parentContainer.groupItems.add();
+        markedGroup.name = groupName;
+        markedGroup.note = SCRIPT_MARKER;
+        return markedGroup;
     }
 
     // =========================================
@@ -615,13 +640,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      */
     function extractPathItems(items, collected) {
         for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === "PathItem") {
-                collected.push(item);
-            } else if (item.typename === "CompoundPathItem") {
-                extractPathItems(item.pathItems, collected);
-            } else if (item.typename === "GroupItem") {
-                extractPathItems(item.pageItems, collected);
+            var pageItem = items[i];
+            if (pageItem.typename === "PathItem") {
+                collected.push(pageItem);
+            } else if (pageItem.typename === "CompoundPathItem") {
+                extractPathItems(pageItem.pathItems, collected);
+            } else if (pageItem.typename === "GroupItem") {
+                extractPathItems(pageItem.pageItems, collected);
             }
         }
     }
@@ -636,19 +661,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         /**
          * アイテムをたどってテキストだけアウトライン化する
-         * @param {PageItem} item - 対象のアイテム
+         * @param {PageItem} pageItem - 対象のアイテム
          * @returns {void}
          */
-        function walk(item) {
-            if (!item) return;
+        function outlineTextInItem(pageItem) {
+            if (!pageItem) return;
 
-            if (item.typename === "TextFrame") {
+            if (pageItem.typename === "TextFrame") {
                 try {
                     /* 同じレイヤーの末尾に複製し、複製だけをアウトライン化する / Duplicate first, outline the copy only */
-                    var duplicated = item.duplicate(item.layer, ElementPlacement.PLACEATEND);
-                    var outlined = duplicated.createOutline();
-                    try { duplicated.remove(); } catch (e) { }
-                    if (outlined) outlineRoots.push(outlined);
+                    var textCopy = pageItem.duplicate(pageItem.layer, ElementPlacement.PLACEATEND);
+                    var outlineGroup = textCopy.createOutline();
+                    /* createOutline() は複製を消費するので、ふつうは例外になる / createOutline() consumes the copy, so this usually throws */
+                    try { textCopy.remove(); } catch (e) { }
+                    if (outlineGroup) outlineRoots.push(outlineGroup);
                 } catch (e) {
                     /* 1つ失敗しても全体は止めない / Keep going even if one frame fails */
                     logError(e, "outlineTextFromSelection/createOutline");
@@ -656,12 +682,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
                 return;
             }
 
-            if (item.typename === "GroupItem") {
-                for (var i = 0; i < item.pageItems.length; i++) walk(item.pageItems[i]);
+            if (pageItem.typename === "GroupItem") {
+                for (var i = 0; i < pageItem.pageItems.length; i++) outlineTextInItem(pageItem.pageItems[i]);
             }
         }
 
-        for (var i = 0; i < items.length; i++) walk(items[i]);
+        for (var i = 0; i < items.length; i++) outlineTextInItem(items[i]);
 
         return outlineRoots;
     }
@@ -674,6 +700,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     function cleanupTempOutlines(outlineRoots) {
         if (!outlineRoots) return;
         for (var i = outlineRoots.length - 1; i >= 0; i--) {
+            /* すでに消えているものは飛ばす / Skip items that are already gone */
             try { outlineRoots[i].remove(); } catch (e) { }
         }
     }
@@ -688,21 +715,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {Array<number>|null} [左, 上, 右, 下]（求められない場合は null）
      */
     function getUnionBounds(items) {
-        var bounds = null;
+        var unionBounds = null;
         for (var i = 0; i < items.length; i++) {
+            /* 空白だけの文字グループなどは geometricBounds で例外になる / geometricBounds throws for e.g. blank text groups */
             try {
                 var itemBounds = items[i].geometricBounds;
-                if (!bounds) {
-                    bounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                if (!unionBounds) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
                 } else {
-                    if (itemBounds[0] < bounds[0]) bounds[0] = itemBounds[0];
-                    if (itemBounds[1] > bounds[1]) bounds[1] = itemBounds[1];
-                    if (itemBounds[2] > bounds[2]) bounds[2] = itemBounds[2];
-                    if (itemBounds[3] < bounds[3]) bounds[3] = itemBounds[3];
+                    if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                    if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                    if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                    if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
                 }
             } catch (e) { logError(e, "getUnionBounds/item[" + i + "]"); }
         }
-        return bounds;
+        return unionBounds;
     }
 
     /**
@@ -721,33 +749,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      */
     function getDrawArea(doc, selectedItems) {
         var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        var area = {
+        var artboardArea = {
             left: artboardRect[0],
             top: artboardRect[1],
             right: artboardRect[2],
             bottom: artboardRect[3]
         };
 
-        var bounds = getUnionBounds(selectedItems);
-        if (!bounds) return area;
+        var selectionBounds = getUnionBounds(selectedItems);
+        if (!selectionBounds) return artboardArea;
 
-        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
+        var selectionLeft = selectionBounds[0], selectionTop = selectionBounds[1];
+        var selectionRight = selectionBounds[2], selectionBottom = selectionBounds[3];
 
         /* Illustrator 座標は上が大きい / In Illustrator coordinates, top is the larger Y */
-        var intersects = !(right < area.left || left > area.right || top < area.bottom || bottom > area.top);
-        if (intersects) return area;
+        var intersects = !(selectionRight < artboardArea.left || selectionLeft > artboardArea.right ||
+            selectionTop < artboardArea.bottom || selectionBottom > artboardArea.top);
+        if (intersects) return artboardArea;
 
         /* 選択がアートボードと全く重ならないときは、選択を中心にした矩形を使う / Use a rect around the selection instead */
-        var width = Math.max(right - left, 1) * OFF_ARTBOARD_SCALE;
-        var height = Math.max(top - bottom, 1) * OFF_ARTBOARD_SCALE;
-        var centerX = (left + right) / 2;
-        var centerY = (top + bottom) / 2;
+        var areaWidth = Math.max(selectionRight - selectionLeft, 1) * OFF_ARTBOARD_SCALE;
+        var areaHeight = Math.max(selectionTop - selectionBottom, 1) * OFF_ARTBOARD_SCALE;
+        var centerX = (selectionLeft + selectionRight) / 2;
+        var centerY = (selectionTop + selectionBottom) / 2;
 
         return {
-            left: centerX - width / 2,
-            top: centerY + height / 2,
-            right: centerX + width / 2,
-            bottom: centerY - height / 2
+            left: centerX - areaWidth / 2,
+            top: centerY + areaHeight / 2,
+            right: centerX + areaWidth / 2,
+            bottom: centerY - areaHeight / 2
         };
     }
 
@@ -908,12 +938,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {CMYKColor} 黒100%のカラー
      */
     function createBlackColor() {
-        var black = new CMYKColor();
-        black.cyan = 0;
-        black.magenta = 0;
-        black.yellow = 0;
-        black.black = 100;
-        return black;
+        var blackColor = new CMYKColor();
+        blackColor.cyan = 0;
+        blackColor.magenta = 0;
+        blackColor.yellow = 0;
+        blackColor.black = 100;
+        return blackColor;
     }
 
     /**
@@ -949,11 +979,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         pathItem.filled = true;
 
         if (anchorColor === ANCHOR_COLOR.BLUE) {
-            var blue = new RGBColor();
-            blue.red = ANCHOR_BLUE_RGB[0];
-            blue.green = ANCHOR_BLUE_RGB[1];
-            blue.blue = ANCHOR_BLUE_RGB[2];
-            pathItem.fillColor = blue;
+            var blueColor = new RGBColor();
+            blueColor.red = ANCHOR_BLUE_RGB[0];
+            blueColor.green = ANCHOR_BLUE_RGB[1];
+            blueColor.blue = ANCHOR_BLUE_RGB[2];
+            pathItem.fillColor = blueColor;
         } else {
             pathItem.fillColor = createBlackColor();
         }
@@ -971,48 +1001,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {void}
      */
     function createAnchorShapes(pathItems, container, settings) {
-        var size = settings.anchorSizePt;
-        var half = size / 2;
-        var seen = {};
+        var shapeSize = settings.anchorSizePt;
+        var halfSize = shapeSize / 2;
+        var placedPointKeys = {};
 
         for (var i = 0; i < pathItems.length; i++) {
-            var points = pathItems[i].pathPoints;
-            if (!points) continue;
+            var pathPoints = pathItems[i].pathPoints;
+            if (!pathPoints) continue;
 
-            for (var j = 0; j < points.length; j++) {
-                var anchor = points[j].anchor;
-                if (!anchor) continue;
+            for (var j = 0; j < pathPoints.length; j++) {
+                var anchorPosition = pathPoints[j].anchor;
+                if (!anchorPosition) continue;
 
                 /* 同じ位置に重ねて作らない / Do not stack shapes on the same position */
-                var key = makePointKey(anchor);
-                if (seen[key]) continue;
-                seen[key] = true;
+                var pointKey = makePointKey(anchorPosition);
+                if (placedPointKeys[pointKey]) continue;
+                placedPointKeys[pointKey] = true;
 
-                var top = anchor[1] + half;
-                var left = anchor[0] - half;
-                var shape = (settings.anchorShape === ANCHOR_SHAPE.CIRCLE) ?
-                    container.pathItems.ellipse(top, left, size, size) :
-                    container.pathItems.rectangle(top, left, size, size);
+                var shapeTop = anchorPosition[1] + halfSize;
+                var shapeLeft = anchorPosition[0] - halfSize;
+                var anchorShapeItem = (settings.anchorShape === ANCHOR_SHAPE.CIRCLE) ?
+                    container.pathItems.ellipse(shapeTop, shapeLeft, shapeSize, shapeSize) :
+                    container.pathItems.rectangle(shapeTop, shapeLeft, shapeSize, shapeSize);
 
-                shape.closed = true;
-                applyAnchorShapeStyle(shape, settings.anchorColor);
+                anchorShapeItem.closed = true;
+                applyAnchorShapeStyle(anchorShapeItem, settings.anchorColor);
             }
         }
     }
 
     /**
-     * 2点を結ぶ線分（弦）を描く
+     * 2点を結ぶ開いたパス（弦など）を描いて補助線のスタイルを適用する
      * @param {Layer|GroupItem} container - 線の追加先
      * @param {Array<number>} start - 始点 [x, y]
      * @param {Array<number>} end - 終点 [x, y]
      * @param {object} settings - ダイアログの設定
      * @returns {void}
      */
-    function drawChordLine(container, start, end, settings) {
-        var line = container.pathItems.add();
-        line.setEntirePath([start, end]);
-        line.closed = false;
-        applyLineStyle(line, settings);
+    function drawOpenLine(container, start, end, settings) {
+        var openLine = container.pathItems.add();
+        openLine.setEntirePath([start, end]);
+        openLine.closed = false;
+        applyLineStyle(openLine, settings);
     }
 
     /**
@@ -1091,15 +1121,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         if (!lineEnd) return;
 
         if (settings.dedup) {
-            var key = makeLineKey(lineStart, lineEnd);
-            if (dedupMap[key]) return;
-            dedupMap[key] = true;
+            var lineKey = makeLineKey(lineStart, lineEnd);
+            if (dedupMap[lineKey]) return;
+            dedupMap[lineKey] = true;
         }
 
-        var line = container.pathItems.add();
-        line.setEntirePath([lineStart, lineEnd]);
-        line.closed = false;
-        applyLineStyle(line, settings);
+        drawOpenLine(container, lineStart, lineEnd, settings);
+    }
+
+    /**
+     * パスのセグメント数を返す（3点以上の閉じたパスは最後の点から最初の点へのセグメントも数える）
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {number} セグメント数
+     */
+    function getSegmentCount(pathItem) {
+        var pointCount = pathItem.pathPoints.length;
+        return (pathItem.closed && pointCount >= 3) ? pointCount : pointCount - 1;
     }
 
     /**
@@ -1108,13 +1145,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {Array<object>} `{ start, end }` の配列
      */
     function getCurvedSegments(pathItem) {
-        var points = pathItem.pathPoints;
-        var segmentCount = (pathItem.closed && points.length >= 3) ? points.length : points.length - 1;
+        var pathPoints = pathItem.pathPoints;
+        var segmentCount = getSegmentCount(pathItem);
         var segments = [];
 
         for (var i = 0; i < segmentCount; i++) {
-            var startPoint = points[i];
-            var endPoint = points[(i + 1) % points.length];
+            var startPoint = pathPoints[i];
+            var endPoint = pathPoints[(i + 1) % pathPoints.length];
             if (!isStraightSegment(startPoint, endPoint)) {
                 segments.push({ start: startPoint, end: endPoint });
             }
@@ -1149,7 +1186,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
             if (!isApproxCircularArc(start, startHandle, endHandle, end, center, radius)) {
                 if (settings.arcFallback === ARC_FALLBACK.CHORD) {
-                    drawChordLine(container, start, end, settings);
+                    drawOpenLine(container, start, end, settings);
                 } else if (settings.arcFallback === ARC_FALLBACK.EXTEND) {
                     drawLineAcrossDrawArea(container, start, end, area, settings, dedupMap);
                 }
@@ -1189,14 +1226,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {void}
      */
     function drawExtensionsFromPath(pathItem, container, settings, area, dedupMap) {
-        var points = pathItem.pathPoints;
-        if (!points || points.length < 2) return;
+        var pathPoints = pathItem.pathPoints;
+        if (!pathPoints || pathPoints.length < 2) return;
 
-        var segmentCount = (pathItem.closed && points.length >= 3) ? points.length : points.length - 1;
+        var segmentCount = getSegmentCount(pathItem);
 
         for (var i = 0; i < segmentCount; i++) {
-            var startPoint = points[i];
-            var endPoint = points[(i + 1) % points.length];
+            var startPoint = pathPoints[i];
+            var endPoint = pathPoints[(i + 1) % pathPoints.length];
             if (!isStraightSegment(startPoint, endPoint)) continue;
 
             var start = startPoint.anchor;
@@ -1266,18 +1303,152 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
             anchorLayer = prepareAnchorLayer(doc, needsAnchors) || lineLayer;
         }
 
-        var containers = { lineContainer: lineLayer, anchorContainer: anchorLayer };
-        if (!settings.group) return containers;
+        var outputContainers = { lineContainer: lineLayer, anchorContainer: anchorLayer };
+        if (!settings.group) return outputContainers;
 
         /* 空のグループを残さないよう、描くものがある側だけグループを作る / Only group what will actually be drawn */
         if (settings.straightLines || settings.arcToCircle) {
-            containers.lineContainer = addMarkedGroup(lineLayer, SCRIPT_MARKER + "_" + getLabel(LABELS.itemName.lineGroup));
+            outputContainers.lineContainer = addMarkedGroup(lineLayer, SCRIPT_MARKER + "_" + getLabel(LABELS.itemName.lineGroup));
         }
         if (needsAnchors) {
-            containers.anchorContainer = addMarkedGroup(anchorLayer, SCRIPT_MARKER + "_AnchorShapes");
+            outputContainers.anchorContainer = addMarkedGroup(anchorLayer, SCRIPT_MARKER + "_AnchorShapes");
         }
 
-        return containers;
+        return outputContainers;
+    }
+
+    // =========================================
+    // 画面ズーム / Zoom controls
+    // =========================================
+
+    /**
+     * @typedef {object} ViewState
+     * @property {View} view - 対象のビュー
+     * @property {number} zoom - 倍率
+     * @property {Array<number>} center - 中心の座標 [x, y]
+     */
+
+    /**
+     * 現在の表示状態を控える
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {ViewState} 表示状態
+     */
+    function captureViewState(doc) {
+        var viewState = { view: null, zoom: null, center: null };
+        /* ビューが取れないことがある / The view may be unavailable */
+        try {
+            viewState.view = doc.activeView;
+            viewState.zoom = viewState.view.zoom;
+            viewState.center = viewState.view.centerPoint;
+        } catch (e) { logError(e, "captureViewState"); }
+        return viewState;
+    }
+
+    /**
+     * 控えておいた表示状態に戻す
+     * @param {ViewState} viewState - 表示状態
+     * @returns {void}
+     */
+    function restoreViewState(viewState) {
+        if (!viewState || !viewState.view) return;
+        /* ビューが閉じられていることがある / The view may be gone */
+        try {
+            if (viewState.zoom != null) viewState.view.zoom = viewState.zoom;
+            if (viewState.center != null) viewState.view.centerPoint = viewState.center;
+        } catch (e) { logError(e, "restoreViewState"); }
+    }
+
+    /**
+     * ズームの中心を修飾キーに応じて移す（option でアートボード中心、shift で選択中心）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {View} targetView - 対象のビュー
+     * @returns {boolean} メニューコマンドでズームまで処理した場合は true
+     */
+    function moveZoomCenterByModifier(doc, targetView) {
+        var keyboardState = ScriptUI.environment.keyboardState;
+        if (!keyboardState) return false;
+
+        var hasSelection = !!(doc.selection && doc.selection.length > 0);
+
+        /* option + shift：選択をウィンドウにフィット / Fit the selection in the window */
+        if (keyboardState.altKey && keyboardState.shiftKey && hasSelection) {
+            try {
+                app.executeMenuCommand("fitinwindow");
+                return true;
+            } catch (e) { logError(e, "moveZoomCenterByModifier/fitinwindow"); }
+            return false;
+        }
+
+        /* option：アートボード中心 / Center on the artboard */
+        if (keyboardState.altKey) {
+            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            targetView.centerPoint = [(artboardRect[0] + artboardRect[2]) / 2, (artboardRect[1] + artboardRect[3]) / 2];
+            return false;
+        }
+
+        /* shift：選択中心 / Center on the selection */
+        if (keyboardState.shiftKey && hasSelection) {
+            var selectionBounds = getUnionBounds(doc.selection);
+            if (selectionBounds) {
+                targetView.centerPoint = [(selectionBounds[0] + selectionBounds[2]) / 2, (selectionBounds[1] + selectionBounds[3]) / 2];
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * ズームのスライダーと軽量モードのチェックボックスを追加する
+     * @param {Window} parentWindow - 追加先のウィンドウ
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ViewState} initialState - 開いた時点の表示状態
+     * @returns {{restoreInitial: Function}} 開いた時点の表示に戻す関数
+     */
+    function addZoomControls(parentWindow, doc, initialState) {
+        var zoomRow = parentWindow.add("group");
+        zoomRow.orientation = "row";
+        zoomRow.alignChildren = ["center", "center"];
+        zoomRow.alignment = "center";
+        zoomRow.margins = ZOOM_ROW_MARGINS;
+
+        zoomRow.add("statictext", undefined, labelText(LABELS.fieldLabel.zoom));
+
+        var initialZoom = Number(initialState && initialState.zoom);
+        if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
+
+        var zoomSlider = zoomRow.add("slider", undefined, initialZoom, ZOOM_MIN, ZOOM_MAX);
+        zoomSlider.preferredSize.width = ZOOM_SLIDER_WIDTH;
+        zoomSlider.helpTip = getLabel(LABELS.tooltip.zoom);
+
+        var lightModeCheckbox = addCheckbox(zoomRow, LABELS.checkbox.lightMode, false, LABELS.tooltip.lightMode);
+
+        /**
+         * スライダーの値を画面に反映する
+         * @returns {void}
+         */
+        function applyZoom() {
+            var targetView = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!targetView) return;
+
+            /* ビューが閉じられている・メニューコマンドが失敗するときは何もしない / Ignore a missing view or a failed menu command */
+            try {
+                if (moveZoomCenterByModifier(doc, targetView)) return;
+                targetView.zoom = Number(zoomSlider.value);
+                app.redraw();
+            } catch (e) { logError(e, "addZoomControls/applyZoom"); }
+        }
+
+        /* 軽量モードではドラッグ中に再描画せず、離したときだけ反映する / Light mode applies on release only */
+        zoomSlider.onChanging = function() {
+            if (lightModeCheckbox.value) return;
+            applyZoom();
+        };
+        zoomSlider.onChange = applyZoom;
+        lightModeCheckbox.onClick = applyZoom;
+
+        return {
+            restoreInitial: function() { restoreViewState(initialState); }
+        };
     }
 
     // =========================================
@@ -1285,18 +1456,63 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     // =========================================
 
     /**
-     * 設定ダイアログを表示して設定を取得する
-     * @param {Document} doc - 対象のドキュメント
-     * @param {Array} selectedItems - 選択アイテム
-     * @param {Array<PathItem>} targetPaths - 対象のパス
-     * @returns {object|null} ダイアログの設定（キャンセル時は null）
+     * チェックボックスを追加する
+     * @param {object} parentContainer - 追加先のウィンドウ・パネル・グループ
+     * @param {object} labelSet - ja/en を持つラベル
+     * @param {boolean} initialValue - 初期値
+     * @param {object} [tooltipSet] - ja/en を持つ tooltip
+     * @returns {Checkbox} 追加したチェックボックス
      */
-    function showDialog(doc, selectedItems, targetPaths) {
-        var session = getSession();
+    function addCheckbox(parentContainer, labelSet, initialValue, tooltipSet) {
+        var newCheckbox = parentContainer.add("checkbox", undefined, getLabel(labelSet));
+        newCheckbox.value = initialValue;
+        if (tooltipSet) newCheckbox.helpTip = getLabel(tooltipSet);
+        return newCheckbox;
+    }
+
+    /**
+     * ラジオボタンを追加する
+     * @param {object} parentContainer - 追加先のパネル・グループ
+     * @param {object} labelSet - ja/en を持つラベル
+     * @param {object} [tooltipSet] - ja/en を持つ tooltip
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addRadio(parentContainer, labelSet, tooltipSet) {
+        var newRadio = parentContainer.add("radiobutton", undefined, getLabel(labelSet));
+        if (tooltipSet) newRadio.helpTip = getLabel(tooltipSet);
+        return newRadio;
+    }
+
+    /**
+     * 長さの入力行（項目名・入力欄・単位）を追加する
+     * @param {object} parentContainer - 追加先のパネル
+     * @param {object} labelSet - 項目名のラベル
+     * @param {string} prefKey - 単位を決める環境設定キー（strokeUnits / rulerType）
+     * @param {number} initialPt - 初期値（pt）
+     * @returns {{row: Group, input: EditText}} 追加した行と入力欄
+     */
+    function addLengthRow(parentContainer, labelSet, prefKey, initialPt) {
+        var lengthRow = addRow(parentContainer);
+        lengthRow.add("statictext", undefined, labelText(labelSet));
+
+        var lengthUnit = getUnitInfo(prefKey);
+        var lengthInput = lengthRow.add("edittext", undefined, (initialPt / lengthUnit.pointsPerUnit).toFixed(3));
+        lengthInput.characters = NUMBER_INPUT_CHARACTERS;
+        lengthRow.add("statictext", undefined, lengthUnit.label);
+        return { row: lengthRow, input: lengthInput };
+    }
+
+    /**
+     * 設定ダイアログを組み立てる（イベントは showDialog() で結線する）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {object} session - セッション記憶（前回のダイアログ位置）
+     * @returns {object} ダイアログと各コントロール
+     */
+    function buildDialog(doc, session) {
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(mainDialog);
 
-        /* 直前の表示位置を引き継ぐ / Restore the last dialog position */
+        /* 直前の表示位置を引き継ぐ（使えない値なら既定の位置のまま） / Restore the last dialog position if it is still valid */
         if (session.dialogLocation) {
             try { mainDialog.location = session.dialogLocation; } catch (e) { }
         }
@@ -1310,37 +1526,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         // --- 左カラム：補助線を描画 / Left column: construction lines ---
         var linesPanel = addPanel(columnsGroup, LABELS.panel.lines);
-
-        var straightCheckbox = linesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.straight));
-        straightCheckbox.value = true;
+        var straightCheckbox = addCheckbox(linesPanel, LABELS.checkbox.straight, true, LABELS.tooltip.straight);
 
         var directionPanel = addPanel(linesPanel);
-        var horizontalCheckbox = directionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.horizontal));
-        var verticalCheckbox = directionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.vertical));
-        var diagonalCheckbox = directionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.diagonal));
-        horizontalCheckbox.value = true;
-        verticalCheckbox.value = true;
-        diagonalCheckbox.value = true;
+        var horizontalCheckbox = addCheckbox(directionPanel, LABELS.checkbox.horizontal, true, LABELS.tooltip.soloDirection);
+        var verticalCheckbox = addCheckbox(directionPanel, LABELS.checkbox.vertical, true, LABELS.tooltip.soloDirection);
+        var diagonalCheckbox = addCheckbox(directionPanel, LABELS.checkbox.diagonal, true, LABELS.tooltip.soloDirection);
 
-        var arcToCircleCheckbox = linesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.arcToCircle));
-        arcToCircleCheckbox.value = true;
+        var arcToCircleCheckbox = addCheckbox(linesPanel, LABELS.checkbox.arcToCircle, true, LABELS.tooltip.arcToCircle);
 
         var arcFallbackPanel = addPanel(linesPanel);
         arcFallbackPanel.helpTip = getLabel(LABELS.tooltip.arcFallback);
-        var arcIgnoreRadio = arcFallbackPanel.add("radiobutton", undefined, getLabel(LABELS.radio.arcIgnore));
-        var arcChordRadio = arcFallbackPanel.add("radiobutton", undefined, getLabel(LABELS.radio.arcChord));
-        var arcExtendRadio = arcFallbackPanel.add("radiobutton", undefined, getLabel(LABELS.radio.arcExtendChord));
+        var arcIgnoreRadio = addRadio(arcFallbackPanel, LABELS.radio.arcIgnore, LABELS.tooltip.arcIgnore);
+        var arcChordRadio = addRadio(arcFallbackPanel, LABELS.radio.arcChord, LABELS.tooltip.arcChord);
+        var arcExtendRadio = addRadio(arcFallbackPanel, LABELS.radio.arcExtendChord, LABELS.tooltip.arcExtendChord);
         arcIgnoreRadio.value = true;
 
-        var strokeRow = addRow(linesPanel);
-        strokeRow.margins = [0, 6, 0, 0];
-        strokeRow.add("statictext", undefined, labelText(LABELS.fieldLabel.strokeWidth));
-
-        var strokeUnitFactor = lookupUnit(STROKE_UNIT_PT_FACTOR, getUnitCode("strokeUnits"), 1.0);
         var strokeWidthCache = { value: mmToPt(DEFAULT_STROKE_WIDTH_MM) };
-        var strokeWidthInput = strokeRow.add("edittext", undefined, (strokeWidthCache.value / strokeUnitFactor).toFixed(3));
-        strokeWidthInput.characters = NUMBER_INPUT_CHARACTERS;
-        strokeRow.add("statictext", undefined, lookupUnit(STROKE_UNIT_LABEL, getUnitCode("strokeUnits"), "pt"));
+        var strokeWidthField = addLengthRow(linesPanel, LABELS.fieldLabel.strokeWidth, "strokeUnits", strokeWidthCache.value);
+        strokeWidthField.row.margins = [0, 6, 0, 0];
 
         // --- 右カラム / Right column ---
         var rightColumn = columnsGroup.add("group");
@@ -1353,42 +1557,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         var anchorPanel = addPanel(rightColumn, LABELS.panel.anchorShapes);
 
         var anchorShapeRow = addRow(anchorPanel, RADIO_SPACING);
-        var anchorNoneRadio = anchorShapeRow.add("radiobutton", undefined, getLabel(LABELS.radio.anchorNone));
-        var anchorCircleRadio = anchorShapeRow.add("radiobutton", undefined, getLabel(LABELS.radio.anchorCircle));
-        var anchorSquareRadio = anchorShapeRow.add("radiobutton", undefined, getLabel(LABELS.radio.anchorSquare));
+        var anchorNoneRadio = addRadio(anchorShapeRow, LABELS.radio.anchorNone);
+        var anchorCircleRadio = addRadio(anchorShapeRow, LABELS.radio.anchorCircle);
+        var anchorSquareRadio = addRadio(anchorShapeRow, LABELS.radio.anchorSquare);
         anchorNoneRadio.value = true;
 
-        var anchorSizeRow = addRow(anchorPanel);
-        anchorSizeRow.add("statictext", undefined, labelText(LABELS.fieldLabel.anchorSize));
-
-        var rulerUnitFactor = lookupUnit(RULER_UNIT_PT_FACTOR, getUnitCode("rulerType"), 1.0);
         var anchorSizeCache = { value: mmToPt(DEFAULT_ANCHOR_SIZE_MM) };
-        var anchorSizeInput = anchorSizeRow.add("edittext", undefined, (anchorSizeCache.value / rulerUnitFactor).toFixed(3));
-        anchorSizeInput.characters = NUMBER_INPUT_CHARACTERS;
-        anchorSizeRow.add("statictext", undefined, lookupUnit(RULER_UNIT_LABEL, getUnitCode("rulerType"), "pt"));
+        var anchorSizeField = addLengthRow(anchorPanel, LABELS.fieldLabel.anchorSize, "rulerType", anchorSizeCache.value);
 
         var anchorColorRow = addRow(anchorPanel, RADIO_SPACING);
-        var anchorBlackRadio = anchorColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.colorBlack));
-        var anchorBlueRadio = anchorColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.colorBlue));
+        var anchorBlackRadio = addRadio(anchorColorRow, LABELS.radio.colorBlack);
+        var anchorBlueRadio = addRadio(anchorColorRow, LABELS.radio.colorBlue);
         anchorBlackRadio.value = true;
 
         // --- オプション / Options ---
         var optionsPanel = addPanel(rightColumn, LABELS.panel.options);
-        var groupCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.group));
-        var separateLayerCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.separateLayer));
-        var guideCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.guide));
-        var dedupCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.dedup));
-        groupCheckbox.value = true;
-        separateLayerCheckbox.value = true;
-        guideCheckbox.value = false;
-        dedupCheckbox.value = true;
+        var groupCheckbox = addCheckbox(optionsPanel, LABELS.checkbox.group, true, LABELS.tooltip.group);
+        var separateLayerCheckbox = addCheckbox(optionsPanel, LABELS.checkbox.separateLayer, true, LABELS.tooltip.separateLayer);
+        var guideCheckbox = addCheckbox(optionsPanel, LABELS.checkbox.guide, false, LABELS.tooltip.guide);
+        var dedupCheckbox = addCheckbox(optionsPanel, LABELS.checkbox.dedup, true, LABELS.tooltip.dedup);
 
         // --- 画面ズーム / Zoom controls ---
-        var zoomState = captureViewState(doc);
-        var zoomControls = addZoomControls(mainDialog, doc, zoomState, {
-            label: labelText(LABELS.fieldLabel.zoom),
-            lightModeLabel: getLabel(LABELS.checkbox.lightMode)
-        });
+        var zoomControls = addZoomControls(mainDialog, doc, captureViewState(doc));
 
         mainDialog.add("panel", undefined, undefined);
 
@@ -1400,8 +1590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         var btnLeftGroup = btnRowGroup.add("group");
         btnLeftGroup.alignChildren = ["left", "center"];
-        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
-        previewCheckbox.value = true;
+        var previewCheckbox = addCheckbox(btnLeftGroup, LABELS.checkbox.preview, true);
 
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -1412,6 +1601,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         btnRightGroup.spacing = BUTTON_SPACING;
         var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        return {
+            dialog: mainDialog,
+            straightCheckbox: straightCheckbox,
+            directionPanel: directionPanel,
+            horizontalCheckbox: horizontalCheckbox,
+            verticalCheckbox: verticalCheckbox,
+            diagonalCheckbox: diagonalCheckbox,
+            arcToCircleCheckbox: arcToCircleCheckbox,
+            arcFallbackPanel: arcFallbackPanel,
+            arcIgnoreRadio: arcIgnoreRadio,
+            arcChordRadio: arcChordRadio,
+            arcExtendRadio: arcExtendRadio,
+            strokeWidthInput: strokeWidthField.input,
+            strokeWidthCache: strokeWidthCache,
+            anchorNoneRadio: anchorNoneRadio,
+            anchorCircleRadio: anchorCircleRadio,
+            anchorSquareRadio: anchorSquareRadio,
+            anchorSizeRow: anchorSizeField.row,
+            anchorSizeInput: anchorSizeField.input,
+            anchorSizeCache: anchorSizeCache,
+            anchorColorRow: anchorColorRow,
+            anchorBlackRadio: anchorBlackRadio,
+            anchorBlueRadio: anchorBlueRadio,
+            groupCheckbox: groupCheckbox,
+            separateLayerCheckbox: separateLayerCheckbox,
+            guideCheckbox: guideCheckbox,
+            dedupCheckbox: dedupCheckbox,
+            zoomControls: zoomControls,
+            previewCheckbox: previewCheckbox,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
+
+    /**
+     * 設定ダイアログを表示して設定を取得する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array} selectedItems - 選択アイテム
+     * @param {Array<PathItem>} targetPaths - 対象のパス
+     * @returns {object|null} ダイアログの設定（キャンセル時は null）
+     */
+    function showDialog(doc, selectedItems, targetPaths) {
+        var session = getSession();
+        var dialogControls = buildDialog(doc, session);
+
+        var mainDialog = dialogControls.dialog;
+        var straightCheckbox = dialogControls.straightCheckbox;
+        var horizontalCheckbox = dialogControls.horizontalCheckbox;
+        var verticalCheckbox = dialogControls.verticalCheckbox;
+        var diagonalCheckbox = dialogControls.diagonalCheckbox;
+        var arcToCircleCheckbox = dialogControls.arcToCircleCheckbox;
+        var arcChordRadio = dialogControls.arcChordRadio;
+        var arcExtendRadio = dialogControls.arcExtendRadio;
+        var anchorNoneRadio = dialogControls.anchorNoneRadio;
+        var anchorCircleRadio = dialogControls.anchorCircleRadio;
+        var anchorSquareRadio = dialogControls.anchorSquareRadio;
+        var anchorBlueRadio = dialogControls.anchorBlueRadio;
+        var groupCheckbox = dialogControls.groupCheckbox;
+        var separateLayerCheckbox = dialogControls.separateLayerCheckbox;
+        var guideCheckbox = dialogControls.guideCheckbox;
+        var dedupCheckbox = dialogControls.dedupCheckbox;
+        var previewCheckbox = dialogControls.previewCheckbox;
+        var zoomControls = dialogControls.zoomControls;
 
         // =========================================
         // ダイアログの状態 / Dialog behavior
@@ -1440,8 +1693,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
                 anchorShape: anchorCircleRadio.value ? ANCHOR_SHAPE.CIRCLE :
                     (anchorSquareRadio.value ? ANCHOR_SHAPE.SQUARE : ANCHOR_SHAPE.NONE),
                 anchorColor: anchorBlueRadio.value ? ANCHOR_COLOR.BLUE : ANCHOR_COLOR.BLACK,
-                anchorSizePt: readLengthAsPt(anchorSizeInput, RULER_UNIT_PT_FACTOR, "rulerType", anchorSizeCache),
-                strokeWidthPt: readLengthAsPt(strokeWidthInput, STROKE_UNIT_PT_FACTOR, "strokeUnits", strokeWidthCache)
+                anchorSizePt: readLengthAsPt(dialogControls.anchorSizeInput, "rulerType", dialogControls.anchorSizeCache),
+                strokeWidthPt: readLengthAsPt(dialogControls.strokeWidthInput, "strokeUnits", dialogControls.strokeWidthCache)
             };
         }
 
@@ -1450,8 +1703,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
          * @returns {void}
          */
         function updateEnabledState() {
-            directionPanel.enabled = straightCheckbox.value;
-            arcFallbackPanel.enabled = arcToCircleCheckbox.value;
+            dialogControls.directionPanel.enabled = straightCheckbox.value;
+            dialogControls.arcFallbackPanel.enabled = arcToCircleCheckbox.value;
 
             /* 線を1本も描かないなら、ガイド化とダブり削除は効かない / Both options are moot without any line */
             var drawsLines = (straightCheckbox.value || arcToCircleCheckbox.value);
@@ -1459,8 +1712,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
             dedupCheckbox.enabled = drawsLines;
 
             var drawsAnchors = !anchorNoneRadio.value;
-            anchorSizeRow.enabled = drawsAnchors;
-            anchorColorRow.enabled = drawsAnchors;
+            dialogControls.anchorSizeRow.enabled = drawsAnchors;
+            dialogControls.anchorColorRow.enabled = drawsAnchors;
         }
 
         /**
@@ -1521,29 +1774,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
          * @returns {void}
          */
         function soloDirectionOnAltClick(clickedCheckbox, otherA, otherB) {
-            var keyboard = null;
-            try { keyboard = ScriptUI.environment.keyboardState; } catch (e) { }
-            if (!keyboard || !keyboard.altKey) return;
+            var keyboardState = ScriptUI.environment.keyboardState;
+            if (!keyboardState || !keyboardState.altKey) return;
             if (!clickedCheckbox.value) return;
 
             otherA.value = false;
             otherB.value = false;
         }
 
-        straightCheckbox.onClick = onSettingChanged();
-        arcToCircleCheckbox.onClick = onSettingChanged();
-        groupCheckbox.onClick = onSettingChanged();
-        separateLayerCheckbox.onClick = onSettingChanged();
-        guideCheckbox.onClick = onSettingChanged();
-        dedupCheckbox.onClick = onSettingChanged();
-        arcIgnoreRadio.onClick = onSettingChanged();
-        arcChordRadio.onClick = onSettingChanged();
-        arcExtendRadio.onClick = onSettingChanged();
-        anchorNoneRadio.onClick = onSettingChanged();
-        anchorCircleRadio.onClick = onSettingChanged();
-        anchorSquareRadio.onClick = onSettingChanged();
-        anchorBlackRadio.onClick = onSettingChanged();
-        anchorBlueRadio.onClick = onSettingChanged();
+        var settingControls = [
+            straightCheckbox, arcToCircleCheckbox, groupCheckbox, separateLayerCheckbox, guideCheckbox, dedupCheckbox,
+            dialogControls.arcIgnoreRadio, arcChordRadio, arcExtendRadio,
+            anchorNoneRadio, anchorCircleRadio, anchorSquareRadio, dialogControls.anchorBlackRadio, anchorBlueRadio
+        ];
+        for (var i = 0; i < settingControls.length; i++) {
+            settingControls[i].onClick = onSettingChanged();
+        }
 
         horizontalCheckbox.onClick = onSettingChanged(function() {
             soloDirectionOnAltClick(horizontalCheckbox, verticalCheckbox, diagonalCheckbox);
@@ -1560,17 +1806,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
             else clearPreview();
         };
 
-        strokeWidthInput.onChanging = refreshPreview;
-        anchorSizeInput.onChanging = refreshPreview;
-        changeValueByArrowKey(strokeWidthInput, false, refreshPreview);
-        changeValueByArrowKey(anchorSizeInput, false, refreshPreview);
+        dialogControls.strokeWidthInput.onChanging = refreshPreview;
+        dialogControls.anchorSizeInput.onChanging = refreshPreview;
+        changeValueByArrowKey(dialogControls.strokeWidthInput, false, refreshPreview);
+        changeValueByArrowKey(dialogControls.anchorSizeInput, false, refreshPreview);
 
-        btnOK.onClick = function() {
+        dialogControls.btnOK.onClick = function() {
             isAccepted = true;
             mainDialog.close(1);
         };
 
-        btnCancel.onClick = function() {
+        dialogControls.btnCancel.onClick = function() {
             zoomControls.restoreInitial();
             mainDialog.close(0);
         };
@@ -1587,6 +1833,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         var dialogResult = mainDialog.show();
 
         clearPreview();
+        /* 閉じたあとの位置が読めないときは記憶しない / Skip saving if the closed dialog has no readable location */
         try { session.dialogLocation = [mainDialog.location[0], mainDialog.location[1]]; } catch (e) { }
 
         return (dialogResult === 1) ? getUISettings() : null;
@@ -1663,137 +1910,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
             logError(e, "main");
             alert(getLabel(LABELS.alert.error) + e);
         }
-    }
-
-    // =========================================
-    // 画面ズーム / Zoom controls
-    // =========================================
-
-    /**
-     * @typedef {object} ViewState
-     * @property {View} view - 対象のビュー
-     * @property {number} zoom - 倍率
-     * @property {Array<number>} center - 中心の座標 [x, y]
-     */
-
-    /**
-     * 現在の表示状態を控える
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {ViewState} 表示状態
-     */
-    function captureViewState(doc) {
-        var state = { view: null, zoom: null, center: null };
-        try {
-            state.view = doc.activeView;
-            state.zoom = state.view.zoom;
-            state.center = state.view.centerPoint;
-        } catch (e) { logError(e, "captureViewState"); }
-        return state;
-    }
-
-    /**
-     * 控えておいた表示状態に戻す
-     * @param {ViewState} state - 表示状態
-     * @returns {void}
-     */
-    function restoreViewState(state) {
-        if (!state || !state.view) return;
-        try {
-            if (state.zoom != null) state.view.zoom = state.zoom;
-            if (state.center != null) state.view.centerPoint = state.center;
-        } catch (e) { logError(e, "restoreViewState"); }
-    }
-
-    /**
-     * ズームの中心を修飾キーに応じて移す（option でアートボード中心、shift で選択中心）
-     * @param {Document} doc - 対象のドキュメント
-     * @param {View} view - 対象のビュー
-     * @returns {boolean} メニューコマンドでズームまで処理した場合は true
-     */
-    function moveZoomCenterByModifier(doc, view) {
-        var keyboard = null;
-        try { keyboard = ScriptUI.environment.keyboardState; } catch (e) { }
-        if (!keyboard) return false;
-
-        var hasSelection = !!(doc.selection && doc.selection.length > 0);
-
-        /* option + shift：選択をウィンドウにフィット / Fit the selection in the window */
-        if (keyboard.altKey && keyboard.shiftKey && hasSelection) {
-            try {
-                app.executeMenuCommand("fitinwindow");
-                return true;
-            } catch (e) { logError(e, "moveZoomCenterByModifier/fitinwindow"); }
-            return false;
-        }
-
-        /* option：アートボード中心 / Center on the artboard */
-        if (keyboard.altKey) {
-            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            view.centerPoint = [(artboardRect[0] + artboardRect[2]) / 2, (artboardRect[1] + artboardRect[3]) / 2];
-            return false;
-        }
-
-        /* shift：選択中心 / Center on the selection */
-        if (keyboard.shiftKey && hasSelection) {
-            var bounds = getUnionBounds(doc.selection);
-            if (bounds) view.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
-        }
-
-        return false;
-    }
-
-    /**
-     * ズームのスライダーと軽量モードのチェックボックスを追加する
-     * @param {Window} parent - 追加先のウィンドウ
-     * @param {Document} doc - 対象のドキュメント
-     * @param {ViewState} initialState - 開いた時点の表示状態
-     * @param {object} options - `label` と `lightModeLabel` を持つ設定
-     * @returns {object} `restoreInitial()` を持つコントロール
-     */
-    function addZoomControls(parent, doc, initialState, options) {
-        var zoomRow = parent.add("group");
-        zoomRow.orientation = "row";
-        zoomRow.alignChildren = ["center", "center"];
-        zoomRow.alignment = "center";
-        zoomRow.margins = [0, 0, 0, 10];
-
-        zoomRow.add("statictext", undefined, options.label);
-
-        var initialZoom = Number(initialState && initialState.zoom);
-        if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
-
-        var zoomSlider = zoomRow.add("slider", undefined, initialZoom, ZOOM_MIN, ZOOM_MAX);
-        zoomSlider.preferredSize.width = ZOOM_SLIDER_WIDTH;
-
-        var lightModeCheckbox = zoomRow.add("checkbox", undefined, options.lightModeLabel);
-        lightModeCheckbox.value = false;
-
-        /**
-         * スライダーの値を画面に反映する
-         * @returns {void}
-         */
-        function applyZoom() {
-            var view = (initialState && initialState.view) ? initialState.view : doc.activeView;
-            if (!view) return;
-
-            try {
-                if (moveZoomCenterByModifier(doc, view)) return;
-                view.zoom = Number(zoomSlider.value);
-                app.redraw();
-            } catch (e) { logError(e, "addZoomControls/applyZoom"); }
-        }
-
-        /* 軽量モードではドラッグ中に再描画せず、離したときだけ反映する / Light mode applies on release only */
-        zoomSlider.onChanging = function() {
-            if (lightModeCheckbox.value) return;
-            applyZoom();
-        };
-        zoomSlider.onChange = applyZoom;
-        lightModeCheckbox.onClick = applyZoom;
-
-        return {
-            restoreInitial: function() { restoreViewState(initialState); }
-        };
     }
 
     main();

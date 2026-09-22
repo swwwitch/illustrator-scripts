@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "PathTextToolkit";              /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathTextToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathTextToolkit.md"; /* README (English) */
@@ -36,730 +36,984 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 表示言語を判定（ja / en）/ Detect the UI language (ja / en) */
-    function getCurrentLang() {
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var DIALOG_MARGINS        = [15, 20, 15, 15];  /* ダイアログの余白 / dialog margins */
+    var PANEL_MARGINS         = [15, 20, 15, 10];  /* パネルの余白 / panel margins */
+    var PANEL_SPACING         = 8;                 /* パネル内の間隔 / panel spacing */
+    var ARC_LABEL_WIDTH       = 70;                /* ［アーチ方向］の項目名の幅 / width of the arc direction label */
+    var ARC_SLIDER_WIDTH      = 130;               /* ［まるみ］スライダーの幅 / width of the roundness slider */
+    var FIT_PANEL_GAP         = 5;                 /* ［パス幅に合わせる］パネルの上の余白 / gap above the fit-to-path-width panel */
+    var POSITION_LABEL_WIDTH  = 60;                /* 開始／終了位置の項目名の幅 / width of the start/end labels */
+    var POSITION_FIELD_CHARS  = 5;                 /* 開始／終了位置の入力欄の幅 / width of the start/end fields */
+    var ADJUST_LABEL_WIDTH    = 95;                /* テキスト調整の項目名の幅 / width of the text-adjust labels */
+    var ADJUST_FIELD_CHARS    = 6;                 /* テキスト調整の入力欄の幅 / width of the text-adjust fields */
+    var ROW_SLIDER_WIDTH      = 180;               /* 各行のスライダーの幅 / width of the row sliders */
+    var EDIT_HINT_WIDTH       = 360;               /* テキスト編集ダイアログの説明の幅 / width of the text-edit hint */
+    var EDIT_FIELD_SIZE       = [320, 80];         /* テキスト編集ダイアログの入力欄 / size of the text-edit field */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "パス上文字（変換と調整）", en: "Text on a Path (Convert & Adjust)" },
-
-        /* Panels / パネル */
-        panelProcess: { ja: "パス上文字にする", en: "Create Path Text" },
-        panelSplit: { ja: "テキストを分離", en: "Split Text" },
-        panelAlign: { ja: "行揃え", en: "Alignment" },
-        panelOption: { ja: "オプション", en: "Options" },
-        panelEffect: { ja: "効果", en: "Effect" },
-        panelPosition: { ja: "位置", en: "Position" },
-        panelTextAdjust: { ja: "テキスト調整", en: "Text Adjust" },
-        panelFitWidth: { ja: "パス幅に合わせる", en: "Fit to Path Width" },
-
-        /* Process radios / 処理ラジオ */
-        toPathText: { ja: "パス上文字にする", en: "Convert to Path Text" },
-        genArcPath: { ja: "アーチ状のパスを生成", en: "Generate Arc Path" },
-        genCircle: { ja: "正円を生成", en: "Generate Circle" },
-        btnTextEdit: { ja: "テキスト編集", en: "Edit Text" },
-        dlgTextEditTitle: { ja: "テキスト編集", en: "Edit Text" },
-        dlgTextEditHint: { ja: "内容を編集してOKで反映します。複数選択の場合は全て置換します。", en: "Edit the content and press OK to apply. If multiple items are selected, it replaces all." },
-        splitTextAndPath: { ja: "書式を保持", en: "Keep Formatting" },
-        splitTextAndPathNoFormat: { ja: "書式を保持しない", en: "Do Not Keep Formatting" },
-        splitDeletePath: { ja: "パスを削除", en: "Remove Path" },
-
-        /* Alignment radios / 行揃え */
-        alignLeft: { ja: "左揃え", en: "Left" },
-        alignCenter: { ja: "中央", en: "Center" },
-        alignRight: { ja: "右揃え", en: "Right" },
-        alignFullJustify: { ja: "両端揃え", en: "Justify" },
-
-        /* Options / オプション */
-        optReverse: { ja: "内側配置", en: "Inside" },
-
-        arcDirection: { ja: "アーチ方向", en: "Arc Direction" },
-        arcUp: { ja: "上", en: "Up" },
-        arcDown: { ja: "下", en: "Down" },
-        arcRoundness: { ja: "まるみ", en: "Roundness" },
-
-        /* Fit to path width / パス幅に合わせる */
-        fitWidthNone: { ja: "しない", en: "None" },
-        fitWidthFontSize: { ja: "文字サイズを調整", en: "Adjust Font Size" },
-        fitWidthTracking: { ja: "トラッキングを調整", en: "Adjust Tracking" },
-
-        /* Effects / 効果 */
-        effectRainbow: { ja: "虹", en: "Rainbow" },
-        effectDistort: { ja: "歪み", en: "Skew" },
-        effectRibbon: { ja: "3D リボン", en: "3D Ribbon" },
-        effectStep: { ja: "階段", en: "Stair Step" },
-        effectGravity: { ja: "引力", en: "Gravity" },
-
-        /* Position / 位置 */
-        startPos: { ja: "開始位置", en: "Start" },
-        endPos: { ja: "終了位置", en: "End" },
-
-        /* Text Adjust / テキスト調整 */
-        baseShift: { ja: "ベースライン", en: "Baseline Shift" },
-        tracking: { ja: "トラッキング", en: "Tracking" },
-        fontSize: { ja: "文字サイズ", en: "Font Size" },
-
-        /* Footer / フッター */
-        preview: { ja: "プレビュー", en: "Preview" },
-        ok: { ja: "OK", en: "OK" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-
-        /* Tooltips / ツールチップ */
-        tipTextEdit: { ja: "選択したテキストの内容を、別ダイアログで書き換えます。", en: "Opens a separate dialog for rewriting the selected text." },
-        tipToPathText: { ja: "選択したテキストを、一緒に選んだパスの上に流し込みます。", en: "Flows the selected text onto the path selected with it." },
-        tipGenArcPath: { ja: "テキストの幅に合わせたアーチ状のパスを作り、その上に流し込みます。", en: "Builds an arc sized to the text and flows the text onto it." },
-        tipGenCircle: { ja: "テキストの幅を円周とする正円を作り、その上に流し込みます。", en: "Builds a circle whose circumference matches the text width and flows the text onto it." },
-        tipTextEdit: { ja: "選択したテキストの内容を、別ダイアログで書き換えます。", en: "Opens a separate dialog for rewriting the selected text." },
-        tipSplitKeepFormat: { ja: "パス上文字を、書式を保ったままテキストとパスに分けます。", en: "Splits path text into text and path, keeping the formatting." },
-        tipSplitNoFormat: { ja: "パス上文字を、書式を落としてテキストとパスに分けます。", en: "Splits path text into text and path, dropping the formatting." },
-        tipSplitDeletePath: { ja: "分離したあと、元のパスを削除します。", en: "Deletes the original path after the split." },
-        tipReverse: { ja: "文字をパスの反対側（内側）に配置します。", en: "Places the characters on the other side of the path." },
-        tipArcUp: { ja: "上に膨らんだアーチにします。", en: "Bulges the arc upward." },
-        tipArcDown: { ja: "下に膨らんだアーチにします。", en: "Bulges the arc downward." },
-        tipArcRoundness: { ja: "アーチの曲がり具合です。0で直線に近づきます。", en: "How strongly the arc curves. 0 is nearly straight." },
-        tipFitWidthNone: { ja: "文字の大きさも字間もそのままにします。", en: "Leaves both the size and the spacing as they are." },
-        tipFitWidthFontSize: { ja: "文字サイズを変えて、パスの長さいっぱいに収めます。", en: "Changes the font size so the text fills the path." },
-        tipFitWidthTracking: { ja: "字間を変えて、パスの長さいっぱいに収めます。", en: "Changes the tracking so the text fills the path." },
-        tipEffectRainbow: { ja: "1文字ずつ色を変えて虹色にします。", en: "Colours each character to make a rainbow." },
-        tipEffectDistort: { ja: "1文字ずつ斜めに傾けます。", en: "Skews each character." },
-        tipEffectRibbon: { ja: "奥行きのあるリボンのように、1文字ずつ変形します。", en: "Transforms each character like a ribbon with depth." },
-        tipEffectStep: { ja: "1文字ずつ高さをずらして階段状にします。", en: "Offsets each character vertically, like stairs." },
-        tipEffectGravity: { ja: "中央へ引き寄せられたように、1文字ずつ大きさと位置を変えます。", en: "Varies each character as if pulled toward the centre." },
-        tipStartPosEnabled: { ja: "開始位置を指定します。オフのときはパスの先頭から始めます。", en: "Sets the start position. When off, the text starts at the beginning of the path." },
-        tipStartPos: { ja: "文字の流し込みを始める位置です。", en: "Where the text begins along the path." },
-        tipEndPosEnabled: { ja: "終了位置を指定します。オフのときはパスの終端まで使います。", en: "Sets the end position. When off, the text runs to the end of the path." },
-        tipEndPos: { ja: "文字の流し込みを終える位置です。", en: "Where the text ends along the path." },
-        tipAlign: { ja: "開始位置と終了位置の間での文字の揃え方です。", en: "How the characters are aligned between the start and end positions." },
-        tipBaseShift: { ja: "パスから文字を浮かせる量です。負の値で沈みます。", en: "How far the characters sit above the path. Negative values sink below it." },
-        tipTracking: { ja: "文字と文字の間隔です。単位は1/1000em。", en: "Spacing between characters, in 1/1000 em." },
-        tipFontSize: { ja: "元の文字サイズからの増減です。", en: "Change applied to the original font size." },
-        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." },
-
-        /* Alerts / アラート */
-        alertNoDoc: { ja: "ドキュメントが開かれていません", en: "No document is open." },
-        alertNoText: { ja: "対象のテキストが見つかりません", en: "No target text found." },
-        alertNeedPath: { ja: "パスを一緒に選択してください", en: "Select a path together." },
-        alertDupPathFail: { ja: "パスの複製に失敗しました", en: "Failed to duplicate the path." },
-        alertArcFail: { ja: "アーチ状のパス生成に失敗しました", en: "Failed to generate an arc path." },
-        alertNeedPathText: { ja: "パス上文字を選択してください", en: "Select path text." }
+        dialog: {
+            title: { ja: "パス上文字（変換と調整）", en: "Text on a Path (Convert & Adjust)" },
+            textEditTitle: { ja: "テキスト編集", en: "Edit Text" },
+            textEditHint: {
+                ja: "内容を編集してOKで反映します。複数選択の場合は全て置換します。",
+                en: "Edit the content and press OK to apply. If multiple items are selected, it replaces all."
+            }
+        },
+        panel: {
+            process: { ja: "パス上文字にする", en: "Create Path Text" },
+            split: { ja: "テキストを分離", en: "Split Text" },
+            option: { ja: "オプション", en: "Options" },
+            effect: { ja: "効果", en: "Effect" },
+            position: { ja: "位置", en: "Position" },
+            textAdjust: { ja: "テキスト調整", en: "Text Adjust" },
+            fitWidth: { ja: "パス幅に合わせる", en: "Fit to Path Width" }
+        },
+        radio: {
+            toPathText: { ja: "パス上文字にする", en: "Convert to Path Text" },
+            genArcPath: { ja: "アーチ状のパスを生成", en: "Generate Arc Path" },
+            genCircle: { ja: "正円を生成", en: "Generate Circle" },
+            splitKeepFormat: { ja: "書式を保持", en: "Keep Formatting" },
+            splitNoFormat: { ja: "書式を保持しない", en: "Do Not Keep Formatting" },
+            alignLeft: { ja: "左揃え", en: "Left" },
+            alignCenter: { ja: "中央", en: "Center" },
+            alignRight: { ja: "右揃え", en: "Right" },
+            alignFullJustify: { ja: "両端揃え", en: "Justify" },
+            arcUp: { ja: "上", en: "Up" },
+            arcDown: { ja: "下", en: "Down" },
+            fitWidthNone: { ja: "しない", en: "None" },
+            fitWidthFontSize: { ja: "文字サイズを調整", en: "Adjust Font Size" },
+            fitWidthTracking: { ja: "トラッキングを調整", en: "Adjust Tracking" },
+            effectRainbow: { ja: "虹", en: "Rainbow" },
+            effectDistort: { ja: "歪み", en: "Skew" },
+            effectRibbon: { ja: "3D リボン", en: "3D Ribbon" },
+            effectStep: { ja: "階段", en: "Stair Step" },
+            effectGravity: { ja: "引力", en: "Gravity" }
+        },
+        checkbox: {
+            splitDeletePath: { ja: "パスを削除", en: "Remove Path" },
+            reverse: { ja: "内側配置", en: "Inside" },
+            preview: { ja: "プレビュー", en: "Preview" }
+        },
+        fieldLabel: {
+            align: { ja: "行揃え", en: "Alignment" },
+            arcDirection: { ja: "アーチ方向", en: "Arc Direction" },
+            arcRoundness: { ja: "まるみ", en: "Roundness" },
+            startPos: { ja: "開始位置", en: "Start" },
+            endPos: { ja: "終了位置", en: "End" },
+            baseShift: { ja: "ベースライン", en: "Baseline Shift" },
+            tracking: { ja: "トラッキング", en: "Tracking" },
+            fontSize: { ja: "文字サイズ", en: "Font Size" }
+        },
+        button: {
+            textEdit: { ja: "テキスト編集", en: "Edit Text" },
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        tooltip: {
+            textEdit: { ja: "選択したテキストの内容を、別ダイアログで書き換えます。", en: "Opens a separate dialog for rewriting the selected text." },
+            toPathText: { ja: "選択したテキストを、一緒に選んだパスの上に流し込みます。", en: "Flows the selected text onto the path selected with it." },
+            genArcPath: { ja: "テキストの幅に合わせたアーチ状のパスを作り、その上に流し込みます。", en: "Builds an arc sized to the text and flows the text onto it." },
+            genCircle: {
+                ja: "テキストの幅を円周とする正円を作り、その上に流し込みます。",
+                en: "Builds a circle whose circumference matches the text width and flows the text onto it."
+            },
+            splitKeepFormat: { ja: "パス上文字を、書式を保ったままテキストとパスに分けます。", en: "Splits path text into text and path, keeping the formatting." },
+            splitNoFormat: { ja: "パス上文字を、書式を落としてテキストとパスに分けます。", en: "Splits path text into text and path, dropping the formatting." },
+            splitDeletePath: { ja: "分離したあと、元のパスを削除します。", en: "Deletes the original path after the split." },
+            reverse: { ja: "文字をパスの反対側（内側）に配置します。", en: "Places the characters on the other side of the path." },
+            arcUp: { ja: "上に膨らんだアーチにします。", en: "Bulges the arc upward." },
+            arcDown: { ja: "下に膨らんだアーチにします。", en: "Bulges the arc downward." },
+            arcRoundness: { ja: "アーチの曲がり具合です。0で直線に近づきます。", en: "How strongly the arc curves. 0 is nearly straight." },
+            fitWidthNone: { ja: "文字の大きさも字間もそのままにします。", en: "Leaves both the size and the spacing as they are." },
+            fitWidthFontSize: { ja: "文字サイズを変えて、パスの長さいっぱいに収めます。", en: "Changes the font size so the text fills the path." },
+            fitWidthTracking: { ja: "字間を変えて、パスの長さいっぱいに収めます。", en: "Changes the tracking so the text fills the path." },
+            effectRainbow: { ja: "1文字ずつ色を変えて虹色にします。", en: "Colours each character to make a rainbow." },
+            effectDistort: { ja: "1文字ずつ斜めに傾けます。", en: "Skews each character." },
+            effectRibbon: { ja: "奥行きのあるリボンのように、1文字ずつ変形します。", en: "Transforms each character like a ribbon with depth." },
+            effectStep: { ja: "1文字ずつ高さをずらして階段状にします。", en: "Offsets each character vertically, like stairs." },
+            effectGravity: { ja: "中央へ引き寄せられたように、1文字ずつ大きさと位置を変えます。", en: "Varies each character as if pulled toward the centre." },
+            startPosEnabled: {
+                ja: "開始位置を指定します。オフのときはパスの先頭から始めます。",
+                en: "Sets the start position. When off, the text starts at the beginning of the path."
+            },
+            startPos: { ja: "文字の流し込みを始める位置です。", en: "Where the text begins along the path." },
+            endPosEnabled: {
+                ja: "終了位置を指定します。オフのときはパスの終端まで使います。",
+                en: "Sets the end position. When off, the text runs to the end of the path."
+            },
+            endPos: { ja: "文字の流し込みを終える位置です。", en: "Where the text ends along the path." },
+            align: { ja: "開始位置と終了位置の間での文字の揃え方です。", en: "How the characters are aligned between the start and end positions." },
+            baseShift: { ja: "パスから文字を浮かせる量です。負の値で沈みます。", en: "How far the characters sit above the path. Negative values sink below it." },
+            tracking: { ja: "文字と文字の間隔です。単位は1/1000em。", en: "Spacing between characters, in 1/1000 em." },
+            fontSize: { ja: "元の文字サイズからの増減です。", en: "Change applied to the original font size." },
+            preview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open." },
+            noText: { ja: "対象のテキストが見つかりません", en: "No target text found." },
+            needPath: { ja: "パスを一緒に選択してください", en: "Select a path together." },
+            dupPathFail: { ja: "パスの複製に失敗しました", en: "Failed to duplicate the path." },
+            arcFail: { ja: "アーチ状のパス生成に失敗しました", en: "Failed to generate an arc path." },
+            needPathText: { ja: "パス上文字を選択してください", en: "Select path text." }
+        }
     };
 
-    /* キーからラベル文字列を取得 / Resolve a label string from its key */
-    function getLabel(key) {
-        // LABELS は固定のオブジェクトリテラル。&& ガード済みで例外は起きないため try 不要
-        if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
-        if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
-        return key;
+    /**
+     * ドット区切りのパスで表示言語のラベルを取得する
+     * @param {string} labelPath - "panel.effect" のようなドット区切りキー
+     * @returns {string} 表示言語のラベル（無ければ ja、それも無ければパスをそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        if (labelNode[uiLang]) return labelNode[uiLang];
+        if (labelNode.ja) return labelNode.ja;
+        return labelPath;
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /* edittext の値を矢印キーで増減（Up/Down=±1, Shift=±10, Option=±0.1）/ Change an edittext value with arrow keys */
-    // Up/Down: ±1, Shift+Up/Down: ±10, Option(Alt)+Up/Down: ±0.1
-    // allowNegative: false -> clamp to >= 0
-    // onChanged: optional callback invoked after value change
+    // =========================================
+    // 共通ヘルパー / Shared helpers
+    // =========================================
+
+    /**
+     * 入力欄の値を ↑↓ キーで増減する（↑↓=±1、Shift=±10、Option=±0.1）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - false なら 0 未満にしない
+     * @param {Function} [onChanged] - 値が変わったあとに呼ぶ関数
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, allowNegative, onChanged) {
         if (!editText) return;
-        try {
-            editText.addEventListener('keydown', function (event) {
-                try {
-                    if (!event || (event.keyName !== 'Up' && event.keyName !== 'Down')) return;
+        editText.addEventListener("keydown", function (event) {
+            if (!event || (event.keyName !== "Up" && event.keyName !== "Down")) return;
 
-                    var value = Number(editText.text);
-                    if (isNaN(value)) return;
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
 
-                    var keyboard = ScriptUI.environment.keyboardState;
-                    var delta = 1;
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
 
-                    if (keyboard.shiftKey) {
-                        delta = 10;
-                        // Snap to multiples of 10 for Shift
-                        if (event.keyName === 'Up') {
-                            value = Math.ceil((value + 1) / delta) * delta;
-                        } else {
-                            value = Math.floor((value - 1) / delta) * delta;
-                        }
-                    } else if (keyboard.altKey) {
-                        delta = 0.1;
-                        if (event.keyName === 'Up') value += delta;
-                        else value -= delta;
-                    } else {
-                        delta = 1;
-                        if (event.keyName === 'Up') value += delta;
-                        else value -= delta;
-                    }
+            if (keyboard.shiftKey) {
+                delta = 10;
+                /* Shift は 10 の倍数へ寄せる / Snap to multiples of 10 for Shift */
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                } else {
+                    value = Math.floor((value - 1) / delta) * delta;
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            } else {
+                delta = 1;
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            }
 
-                    // Round
-                    if (keyboard.altKey) value = Math.round(value * 10) / 10;
-                    else value = Math.round(value);
+            if (keyboard.altKey) value = Math.round(value * 10) / 10;
+            else value = Math.round(value);
 
-                    // Clamp
-                    if (!allowNegative && value < 0) value = 0;
+            if (!allowNegative && value < 0) value = 0;
 
-                    editText.text = String(value);
+            editText.text = String(value);
 
-                    // Prevent default arrow key behavior (cursor move)
-                    try { event.preventDefault(); } catch (e) { }
+            /* 矢印キー本来のカーソル移動を止める / Prevent the default cursor move */
+            event.preventDefault();
 
-                    if (onChanged && typeof onChanged === 'function') {
-                        try { onChanged(); } catch (e) { }
-                    }
-                } catch (e) { }
-            });
-        } catch (e) { }
+            if (onChanged && typeof onChanged === "function") {
+                /* プレビュー更新で DOM の例外が出てもキー操作は続ける / keep the key handler alive if the preview throws */
+                try { onChanged(); } catch (e) { }
+            }
+        });
     }
 
-    // Get items
+    /**
+     * 値を min〜max の範囲に収める
+     * @param {number} value - 対象の値
+     * @param {number} min - 下限
+     * @param {number} max - 上限
+     * @returns {number} 範囲に収めた値
+     */
+    function clampNumber(value, min, max) {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    /**
+     * 文字列を数値へ変換する（失敗したら既定値）
+     * @param {string} text - 対象の文字列
+     * @param {number} fallback - 既定値
+     * @returns {number} 数値
+     */
+    function parseNumberOr(text, fallback) {
+        var parsed = Number(text);
+        if (isNaN(parsed)) return fallback;
+        return parsed;
+    }
+
+    /**
+     * 文字列を t 値（0〜5）として解釈する
+     * @param {string} text - 対象の文字列
+     * @param {number} fallback - 既定値
+     * @returns {number} t 値
+     */
+    function parseTValue(text, fallback) {
+        var parsed = Number(text);
+        if (isNaN(parsed)) return fallback;
+        return clampNumber(parsed, 0, 5);
+    }
+
+    /**
+     * 数値を小数1桁の文字列にする（0.1pt 単位）
+     * @param {number} value - 対象の値
+     * @returns {string} 小数1桁の文字列
+     */
+    function formatOneDecimal(value) {
+        return (Math.round(value * 10) / 10).toFixed(1);
+    }
+
+    /**
+     * スミ100%の CMYKColor を作る
+     * @returns {CMYKColor} 黒
+     */
+    function makeBlackCMYK() {
+        var black = new CMYKColor();
+        black.cyan = 0;
+        black.magenta = 0;
+        black.yellow = 0;
+        black.black = 100;
+        return black;
+    }
+
+    // =========================================
+    // 選択の解析 / Selection analysis
+    // =========================================
+
+    /**
+     * 選択内のポイント文字・パス上文字を再帰的に集める
+     * @param {PageItem[]} pageItems - 対象のオブジェクト
+     * @returns {TextFrame[]} 見つかったテキスト
+     */
+    function getTargetTextItems(pageItems) {
+        var textItems = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (pageItem.typename === "TextFrame") {
+                try {
+                    if (pageItem.kind === TextType.POINTTEXT || pageItem.kind === TextType.PATHTEXT) {
+                        textItems.push(pageItem);
+                    }
+                } catch (e) { }
+            } else if (pageItem.typename === "GroupItem") {
+                textItems = textItems.concat(getTargetTextItems(pageItem.pageItems));
+            }
+        }
+        return textItems;
+    }
+
+    /**
+     * 選択内のパス（PathItem / CompoundPathItem）を再帰的に集める（グループ内も）
+     * @param {PageItem[]} pageItems - 対象のオブジェクト
+     * @returns {PageItem[]} 見つかったパス
+     */
+    function getSelectedPathItems(pageItems) {
+        var pathItems = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (pageItem.typename === "PathItem") {
+                pathItems.push(pageItem);
+            } else if (pageItem.typename === "CompoundPathItem") {
+                pathItems.push(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                pathItems = pathItems.concat(getSelectedPathItems(pageItem.pageItems));
+            }
+        }
+        return pathItems;
+    }
+
+    /**
+     * 選択から、使える処理（パス上文字にする／分離）を判定する
+     * @param {TextFrame[]} textItems - 対象のテキスト
+     * @param {PageItem[]} pathItems - 一緒に選択されたパス
+     * @returns {{hasPathTextTarget: boolean, canToPathText: boolean, canSplit: boolean}} 判定結果
+     */
+    function detectModeAvailability(textItems, pathItems) {
+        var hasSelectedPath = (pathItems && pathItems.length > 0);
+        var hasPathTextTarget = false;
+        for (var i = 0; i < textItems.length; i++) {
+            try {
+                var textItem = textItems[i];
+                if (textItem && textItem.typename === "TextFrame" && textItem.kind === TextType.PATHTEXT && textItem.textPath) {
+                    hasPathTextTarget = true;
+                    break;
+                }
+            } catch (e) { }
+        }
+        /* 「パス上文字にする」はパスを選んでいるか、パス上文字が自分のパスを持っていれば使える
+           「分離」はパス上文字を選んでいるときだけ */
+        return {
+            hasPathTextTarget: hasPathTextTarget,
+            canToPathText: hasSelectedPath || hasPathTextTarget,
+            canSplit: hasPathTextTarget
+        };
+    }
+
+    // =========================================
+    // 前提チェック / Preconditions
+    // =========================================
     if (app.documents.length === 0) {
-        alert(getLabel('alertNoDoc'));
+        alert(getLabel("alert.noDocument"));
         return false;
     }
     var doc = app.activeDocument;
-    var selection = doc.selection;
-    // Base selection snapshot (used for stable preview while dialog is open)
-    var __baseSelection = [];
-    try { __baseSelection = selection.slice(0); } catch (e) { __baseSelection = []; }
+    var initialSelection = doc.selection;
 
-    var targetItems = getTargetTextItems(selection);
-    var selectedPaths = getSelectedPathItems(selection);
+    /* ダイアログ表示中のプレビューを安定させるための、最初の選択の控え / Base selection snapshot for a stable preview */
+    var baseSelection = [];
+    /* テキスト編集中の selection は配列ではない（slice が無い） / the selection is not an array while editing text */
+    try { baseSelection = initialSelection.slice(0); } catch (e) { baseSelection = []; }
 
-    /* 現在の選択からターゲット・パスと UI 有効状態を取り直す / Re-read targets, paths and UI enabled-state from the current selection */
-    function __refreshInputsFromSelection() {
-        var curSel = [];
-        try { curSel = doc.selection; } catch (e) { curSel = []; }
+    var targetItems = getTargetTextItems(initialSelection);
+    var selectedPaths = getSelectedPathItems(initialSelection);
 
-        // During preview, selection may become empty; fall back to the base selection.
-        if (!curSel || curSel.length === 0) {
-            curSel = __baseSelection;
-        }
-
-        targetItems = getTargetTextItems(curSel);
-        selectedPaths = getSelectedPathItems(curSel);
-
-        // Detect availability
-        var hasSelectedPath = (selectedPaths && selectedPaths.length > 0);
-        var hasPathTextTarget = false;
-        try {
-            for (var ti = 0; ti < targetItems.length; ti++) {
-                var t = targetItems[ti];
-                if (t && t.typename === 'TextFrame') {
-                    try {
-                        if (t.kind === TextType.PATHTEXT && t.textPath) {
-                            hasPathTextTarget = true;
-                            break;
-                        }
-                    } catch (e) { }
-                }
-            }
-        } catch (e) { }
-
-        // "パス上文字に" is available if a path is selected OR a PathText provides its own path
-        var canToPathText = hasSelectedPath || hasPathTextTarget;
-        // "テキストとパスに分離" is available only when PathText is selected
-        var canSplit = hasPathTextTarget;
-
-        // If UI is not yet constructed, stop here (selection analysis only)
-        if (!rbToPathText || !rbGenArcPath || !rbGenCircle || !rbSplitTextAndPath || !rbSplitTextAndPathNoFormat) {
-            return;
-        }
-
-        rbToPathText.enabled = canToPathText;
-        rbSplitTextAndPath.enabled = canSplit;
-        cbSplitDeletePath.enabled = canSplit;
-        rbSplitTextAndPathNoFormat.enabled = canSplit;
-        rbGenCircle.enabled = true;
-
-        // Auto-switch only if the currently selected mode is not available
-        try {
-            if (rbToPathText.value && !canToPathText) {
-                rbToPathText.value = false;
-                rbGenArcPath.value = true;
-                applyArcModePresets();
-            }
-            if ((rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value) && !canSplit) {
-                rbSplitTextAndPath.value = false;
-                rbSplitTextAndPathNoFormat.value = false;
-                rbGenArcPath.value = true;
-                applyArcModePresets();
-            }
-        } catch (e) { }
-
-        // Update panel enabled state only after UI is ready
-        try { __updatePanelsByMode(); } catch (e) { }
-    }
-
-    // Validation
     if (targetItems.length === 0) {
-        alert(getLabel('alertNoText'));
+        alert(getLabel("alert.noText"));
         return false;
     }
 
-    /* パネル共通設定 / Shared panel setup */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
-
-    /* パネルを縦並び・共通マージン/間隔で初期化 / Initialize a panel as a column with shared margins/spacing */
-    function setupPanel(panel, spacing) {
-        panel.orientation = 'column';
-        panel.alignChildren = ['fill', 'top'];
-        panel.alignment = 'fill';
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
+    /**
+     * 現在の選択を返す（プレビュー中に選択が空になったら最初の選択の控えを使う）
+     * @returns {Object[]} 選択
+     */
+    function readCurrentSelection() {
+        var currentSelection = [];
+        try { currentSelection = doc.selection; } catch (e) { currentSelection = []; }
+        if (!currentSelection || currentSelection.length === 0) currentSelection = baseSelection;
+        return currentSelection;
     }
 
-    /* ダイアログ表示 / Show dialog */
-    var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-    dlg.orientation = 'column';
-    dlg.alignChildren = ['fill', 'top'];
-    dlg.margins = [15, 20, 15, 15];
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * パネルを縦並び・共通の余白と間隔で初期化する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 横並び（左寄せ・上下中央）の行を追加する
+     * @param {Object} parentContainer - 追加先
+     * @returns {Group} 作成した行
+     */
+    function addRow(parentContainer) {
+        var newRow = parentContainer.add("group");
+        newRow.orientation = "row";
+        newRow.alignChildren = ["left", "center"];
+        return newRow;
+    }
+
+    /**
+     * 縦並び（上寄せ・幅いっぱい）のグループを追加する
+     * @param {Object} parentContainer - 追加先
+     * @param {string} orientation - "row" または "column"
+     * @returns {Group} 作成したグループ
+     */
+    function addFillGroup(parentContainer, orientation) {
+        var newGroup = parentContainer.add("group");
+        newGroup.orientation = orientation;
+        newGroup.alignChildren = ["fill", "top"];
+        newGroup.alignment = ["fill", "top"];
+        return newGroup;
+    }
+
+    /**
+     * tooltip 付きのラジオボタンを追加する
+     * @param {Object} parentContainer - 追加先
+     * @param {string} labelPath - ラベルのパス
+     * @param {string} tooltipPath - tooltip のパス
+     * @returns {RadioButton} 作成したラジオボタン
+     */
+    function addRadio(parentContainer, labelPath, tooltipPath) {
+        var radio = parentContainer.add("radiobutton", undefined, getLabel(labelPath));
+        radio.helpTip = getLabel(tooltipPath);
+        return radio;
+    }
+
+    /**
+     * 「項目名＋入力欄＋スライダー」の行を追加する（テキスト調整用）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - 項目名のパス
+     * @param {string} tooltipPath - 入力欄とスライダーの tooltip のパス
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} sliderMin - スライダーの最小値
+     * @param {number} sliderMax - スライダーの最大値
+     * @returns {{valueInput: EditText, slider: Slider}} 作成した入力欄とスライダー
+     */
+    function addAdjustRow(parentPanel, labelPath, tooltipPath, initialText, sliderMin, sliderMax) {
+        var adjustRow = addRow(parentPanel);
+        var adjustLabel = adjustRow.add("statictext", undefined, labelText(labelPath));
+        adjustLabel.preferredSize.width = ADJUST_LABEL_WIDTH;
+
+        var valueInput = adjustRow.add("edittext", undefined, initialText);
+        valueInput.helpTip = getLabel(tooltipPath);
+        valueInput.characters = ADJUST_FIELD_CHARS;
+        var slider = adjustRow.add("slider", undefined, 0, sliderMin, sliderMax);
+        slider.helpTip = getLabel(tooltipPath);
+        slider.preferredSize.width = ROW_SLIDER_WIDTH;
+        return { valueInput: valueInput, slider: slider };
+    }
+
+    /**
+     * 「チェック＋項目名＋入力欄＋スライダー」の行を追加する（開始／終了位置用）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelPath - 項目名のパス
+     * @param {string} enabledTooltipPath - チェックボックスの tooltip のパス
+     * @param {string} tooltipPath - 入力欄とスライダーの tooltip のパス
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} sliderValue - スライダーの初期値
+     * @param {number} sliderMax - スライダーの最大値
+     * @returns {{enabledCheckbox: Checkbox, valueInput: EditText, slider: Slider}} 作成したコントロール
+     */
+    function addPositionRow(parentPanel, labelPath, enabledTooltipPath, tooltipPath, initialText, sliderValue, sliderMax) {
+        var positionRow = addRow(parentPanel);
+        var enabledCheckbox = positionRow.add("checkbox", undefined, "");
+        enabledCheckbox.helpTip = getLabel(enabledTooltipPath);
+        enabledCheckbox.value = false;
+        var positionLabel = positionRow.add("statictext", undefined, getLabel(labelPath));
+        positionLabel.preferredSize.width = POSITION_LABEL_WIDTH;
+        var valueInput = positionRow.add("edittext", undefined, initialText);
+        valueInput.characters = POSITION_FIELD_CHARS;
+        valueInput.helpTip = getLabel(tooltipPath);
+        var slider = positionRow.add("slider", undefined, sliderValue, 0, sliderMax);
+        slider.preferredSize.width = ROW_SLIDER_WIDTH;
+        slider.helpTip = getLabel(tooltipPath);
+        return { enabledCheckbox: enabledCheckbox, valueInput: valueInput, slider: slider };
+    }
+
+    var pathTextDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    pathTextDialog.orientation = "column";
+    pathTextDialog.alignChildren = ["fill", "top"];
+    pathTextDialog.margins = DIALOG_MARGINS;
 
     /* 2カラムレイアウト / Two-column layout */
-    var mainRow = dlg.add('group');
-    mainRow.orientation = 'row';
-    mainRow.alignChildren = ['fill', 'top'];
-    mainRow.alignment = ['fill', 'top'];
+    var columnsRow = pathTextDialog.add("group");
+    columnsRow.orientation = "row";
+    columnsRow.alignChildren = ["fill", "top"];
+    columnsRow.alignment = ["fill", "top"];
 
-    var leftCol = mainRow.add('group');
-    leftCol.orientation = 'column';
-    leftCol.alignChildren = ['fill', 'top'];
-    leftCol.alignment = ['fill', 'top'];
+    var leftCol = addFillGroup(columnsRow, "column");
+    var rightCol = addFillGroup(columnsRow, "column");
 
-    var rightCol = mainRow.add('group');
-    rightCol.orientation = 'column';
-    rightCol.alignChildren = ['fill', 'top'];
-    rightCol.alignment = ['fill', 'top'];
-
-    // 処理パネル（パス上文字にする / アーチ生成 / 正円生成）/ Process panel
-    var pnlProcess = leftCol.add('panel', undefined, getLabel('panelProcess'));
+    /* 処理パネル（パス上文字にする / アーチ生成 / 正円生成） / Process panel */
+    var pnlProcess = leftCol.add("panel", undefined, getLabel("panel.process"));
     setupPanel(pnlProcess);
 
-    var rbToPathText = pnlProcess.add('radiobutton', undefined, getLabel('toPathText'));
-    rbToPathText.helpTip = getLabel('tipToPathText');
-    var rbGenArcPath = pnlProcess.add('radiobutton', undefined, getLabel('genArcPath'));
-    rbGenArcPath.helpTip = getLabel('tipGenArcPath');
-    var rbGenCircle = pnlProcess.add('radiobutton', undefined, getLabel('genCircle'));
-    rbGenCircle.helpTip = getLabel('tipGenCircle');
+    var rbToPathText = addRadio(pnlProcess, "radio.toPathText", "tooltip.toPathText");
+    var rbGenArcPath = addRadio(pnlProcess, "radio.genArcPath", "tooltip.genArcPath");
+    var rbGenCircle = addRadio(pnlProcess, "radio.genCircle", "tooltip.genCircle");
     rbToPathText.value = true;
 
-    // Text edit button (logic improved)
-    var btnTextEdit = pnlProcess.add('button', undefined, getLabel('btnTextEdit'));
-    btnTextEdit.helpTip = getLabel('tipTextEdit');
-    btnTextEdit.alignment = ['left', 'center'];
-    btnTextEdit.onClick = function () {
-        // --- Edit dialog logic ---
-        var editDlg = new Window('dialog', getLabel('dlgTextEditTitle'));
-        editDlg.orientation = 'column';
-        editDlg.alignChildren = ['fill', 'top'];
-        editDlg.margins = [15, 20, 15, 15];
+    var btnTextEdit = pnlProcess.add("button", undefined, getLabel("button.textEdit"));
+    btnTextEdit.helpTip = getLabel("tooltip.textEdit");
+    btnTextEdit.alignment = ["left", "center"];
 
-        // Hint
-        var hintLabel = editDlg.add('statictext', undefined, getLabel('dlgTextEditHint'), { multiline: true });
-        hintLabel.preferredSize.width = 360;
-
-        // Resolve targets at click-time (do not rely on stale snapshot)
-        var __editTargets = [];
-        try {
-            var __curSel = [];
-            try { __curSel = doc.selection; } catch (e) { __curSel = []; }
-            if (!__curSel || __curSel.length === 0) __curSel = __baseSelection;
-            __editTargets = getTargetTextItems(__curSel);
-        } catch (e) { __editTargets = []; }
-
-        // Initial text
-        var initText = '';
-        try {
-            if (__editTargets && __editTargets.length > 0 && __editTargets[0] && __editTargets[0].typename === 'TextFrame') {
-                initText = String(__editTargets[0].contents);
-            }
-        } catch (e) { initText = ''; }
-
-        var textEditInput = editDlg.add('edittext', undefined, initText, { multiline: true });
-        textEditInput.preferredSize = [320, 80];
-
-        var btnRow = editDlg.add('group');
-        btnRow.orientation = 'row';
-        btnRow.alignChildren = ['center', 'center'];
-        var btnEditCancel = btnRow.add('button', undefined, getLabel('cancel'));
-        var btnEditOk = btnRow.add('button', undefined, getLabel('ok'), { name: 'ok' });
-
-        btnEditCancel.onClick = function () {
-            editDlg.close(0);
-        };
-        btnEditOk.onClick = function () {
-            var newText = textEditInput.text;
-            // Apply to all current targets at click-time
-            for (var i = 0; i < __editTargets.length; i++) {
-                var textFrame = __editTargets[i];
-                if (!textFrame || textFrame.typename !== 'TextFrame') continue;
-                try { textFrame.contents = newText; } catch (e) { }
-            }
-            // Refresh input states and preview
-            __refreshInputsFromSelection();
-            refreshPreviewIfNeeded();
-            app.redraw();
-            editDlg.close(1);
-        };
-        editDlg.show();
-    };
-    btnTextEdit.height = 16;
-
-    // Split panel (under Process)
-    var pnlSplit = leftCol.add('panel', undefined, getLabel('panelSplit'));
+    /* 分離パネル（処理パネルの下） / Split panel (under Process) */
+    var pnlSplit = leftCol.add("panel", undefined, getLabel("panel.split"));
     setupPanel(pnlSplit);
 
-    var rbSplitTextAndPath = pnlSplit.add('radiobutton', undefined, getLabel('splitTextAndPath'));
-    rbSplitTextAndPath.helpTip = getLabel('tipSplitKeepFormat');
-    var rbSplitTextAndPathNoFormat = pnlSplit.add('radiobutton', undefined, getLabel('splitTextAndPathNoFormat'));
-    rbSplitTextAndPathNoFormat.helpTip = getLabel('tipSplitNoFormat');
+    var rbSplitTextAndPath = addRadio(pnlSplit, "radio.splitKeepFormat", "tooltip.splitKeepFormat");
+    var rbSplitTextAndPathNoFormat = addRadio(pnlSplit, "radio.splitNoFormat", "tooltip.splitNoFormat");
     rbSplitTextAndPath.value = false;
     rbSplitTextAndPathNoFormat.value = false;
 
-    var cbSplitDeletePath = pnlSplit.add('checkbox', undefined, getLabel('splitDeletePath'));
-    cbSplitDeletePath.helpTip = getLabel('tipSplitDeletePath');
-    cbSplitDeletePath.value = false; // デフォルトOFF
+    var cbSplitDeletePath = pnlSplit.add("checkbox", undefined, getLabel("checkbox.splitDeletePath"));
+    cbSplitDeletePath.helpTip = getLabel("tooltip.splitDeletePath");
+    cbSplitDeletePath.value = false; /* 既定はオフ / off by default */
 
-    // --- Mutually exclusive helpers for Process/Split radios ---
-    /* 「処理」ラジオをすべて OFF（排他制御用）/ Turn off all "Process" radios (mutual-exclusion helper) */
-    function __clearProcessRadios() {
+    /* 選択に応じて使える処理を切り替える（アーチの既定値は UI をすべて作ってから入れる）
+       Enable modes per selection (arc presets are applied once the whole UI exists) */
+    var initialAvailability = detectModeAvailability(targetItems, selectedPaths);
+    applyModeAvailability(initialAvailability);
+    switchToArcIfUnavailable(initialAvailability);
+
+    /* オプションパネル（右カラム） / Option panel (right column) */
+    var pnlOption = rightCol.add("panel", undefined, getLabel("panel.option"));
+    setupPanel(pnlOption);
+
+    var cbReverse = pnlOption.add("checkbox", undefined, getLabel("checkbox.reverse"));
+    cbReverse.helpTip = getLabel("tooltip.reverse");
+    cbReverse.value = false;
+
+    /* アーチ方向 / Arc direction */
+    var arcDirectionRow = addRow(pnlOption);
+    var arcDirectionLabel = arcDirectionRow.add("statictext", undefined, labelText("fieldLabel.arcDirection"));
+    arcDirectionLabel.preferredSize.width = ARC_LABEL_WIDTH;
+
+    var rbArcUp = addRadio(arcDirectionRow, "radio.arcUp", "tooltip.arcUp");
+    var rbArcDown = addRadio(arcDirectionRow, "radio.arcDown", "tooltip.arcDown");
+    rbArcUp.value = true;
+
+    /* まるみ（0=平ら、50=既定、100=最も丸い） / Arc roundness (0 = flat, 50 = default, 100 = roundest) */
+    var arcRoundnessRow = addRow(pnlOption);
+    arcRoundnessRow.add("statictext", undefined, getLabel("fieldLabel.arcRoundness"));
+    var slArcRoundness = arcRoundnessRow.add("slider", undefined, 50, 0, 100);
+    slArcRoundness.helpTip = getLabel("tooltip.arcRoundness");
+    slArcRoundness.preferredSize.width = ARC_SLIDER_WIDTH;
+
+    /* パス幅パネルの上の余白 / Spacer above the Fit-to-path-width panel */
+    var fitWidthSpacer = pnlOption.add("group");
+    fitWidthSpacer.preferredSize.height = FIT_PANEL_GAP;
+
+    /* パス幅に合わせるパネル（オプションパネル内の最下部） / Fit-to-path-width panel (bottom of the Options panel) */
+    var pnlFitWidth = pnlOption.add("panel", undefined, getLabel("panel.fitWidth"));
+    setupPanel(pnlFitWidth);
+
+    var rbFitWidthNone = addRadio(pnlFitWidth, "radio.fitWidthNone", "tooltip.fitWidthNone");
+    var rbFitWidthFontSize = addRadio(pnlFitWidth, "radio.fitWidthFontSize", "tooltip.fitWidthFontSize");
+    var rbFitWidthTracking = addRadio(pnlFitWidth, "radio.fitWidthTracking", "tooltip.fitWidthTracking");
+    rbFitWidthNone.value = true;
+
+    /* 全幅（2カラムの下）：効果 → 位置 → テキスト調整 / Full width: effect -> position -> text adjust */
+    var fullWidthColumn = addFillGroup(pathTextDialog, "column");
+
+    /* 効果パネル：5項目を横並びにするため setupPanel（縦並び）は使わない / Effect panel (5 radios in a row) */
+    var pnlEffect = fullWidthColumn.add("panel", undefined, getLabel("panel.effect"));
+    pnlEffect.orientation = "row";
+    pnlEffect.alignChildren = ["center", "center"];
+    pnlEffect.alignment = "fill";
+    pnlEffect.margins = PANEL_MARGINS;
+    pnlEffect.spacing = PANEL_SPACING;
+
+    var rbEffectRainbow = addRadio(pnlEffect, "radio.effectRainbow", "tooltip.effectRainbow");
+    var rbEffectDistort = addRadio(pnlEffect, "radio.effectDistort", "tooltip.effectDistort");
+    var rbEffectRibbon = addRadio(pnlEffect, "radio.effectRibbon", "tooltip.effectRibbon");
+    var rbEffectStep = addRadio(pnlEffect, "radio.effectStep", "tooltip.effectStep");
+    var rbEffectGravity = addRadio(pnlEffect, "radio.effectGravity", "tooltip.effectGravity");
+    var effectRadios = [rbEffectRainbow, rbEffectDistort, rbEffectRibbon, rbEffectStep, rbEffectGravity];
+
+    /* 既定は効果なし。パス上文字を選んでいるときだけ「虹」 / No effect by default; Rainbow when path text is selected */
+    for (var effectIndex = 0; effectIndex < effectRadios.length; effectIndex++) effectRadios[effectIndex].value = false;
+    if (initialAvailability.hasPathTextTarget) rbEffectRainbow.value = true;
+
+    /* 位置（開始／終了）パネル / Position (start/end) panel */
+    var pnlPosition = fullWidthColumn.add("panel", undefined, getLabel("panel.position"));
+    setupPanel(pnlPosition);
+
+    /* スライダーは t 値×100（開始 0.0〜4.0、終了 0.0〜5.0） / sliders hold t × 100 */
+    var startPosRow = addPositionRow(pnlPosition, "fieldLabel.startPos", "tooltip.startPosEnabled", "tooltip.startPos", "0.0", 0, 400);
+    var cbStartT = startPosRow.enabledCheckbox;
+    var etStartT = startPosRow.valueInput;
+    var slStartT = startPosRow.slider;
+    changeValueByArrowKey(etStartT, false, function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); });
+
+    var endPosRow = addPositionRow(pnlPosition, "fieldLabel.endPos", "tooltip.endPosEnabled", "tooltip.endPos", "1.0", 100, 500);
+    var cbEndT = endPosRow.enabledCheckbox;
+    var etEndT = endPosRow.valueInput;
+    var slEndT = endPosRow.slider;
+    changeValueByArrowKey(etEndT, false, function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); });
+
+    /* テキスト調整パネル / Text adjust panel */
+    var pnlTextAdjust = fullWidthColumn.add("panel", undefined, getLabel("panel.textAdjust"));
+    setupPanel(pnlTextAdjust);
+
+    /* 行揃え（パネル先頭の行） / Alignment (top row) */
+    var alignRow = addRow(pnlTextAdjust);
+    var alignLabel = alignRow.add("statictext", undefined, labelText("fieldLabel.align"));
+    alignLabel.preferredSize.width = ADJUST_LABEL_WIDTH;
+
+    var rbAlignLeft = addRadio(alignRow, "radio.alignLeft", "tooltip.align");
+    var rbAlignCenter = addRadio(alignRow, "radio.alignCenter", "tooltip.align");
+    var rbAlignRight = addRadio(alignRow, "radio.alignRight", "tooltip.align");
+    var rbAlignFullJustify = addRadio(alignRow, "radio.alignFullJustify", "tooltip.align");
+    rbAlignCenter.value = true;
+
+    /* ベースライン・文字サイズのスライダーは 0.1pt 単位で、範囲は ±文字サイズに合わせて更新する
+       Baseline and font-size sliders use 0.1pt steps; the range follows ±font size */
+    var baseShiftRow = addAdjustRow(pnlTextAdjust, "fieldLabel.baseShift", "tooltip.baseShift", "0.0", -1000, 1000);
+    var etBaseShift = baseShiftRow.valueInput;
+    var slBaseShift = baseShiftRow.slider;
+
+    var trackingRow = addAdjustRow(pnlTextAdjust, "fieldLabel.tracking", "tooltip.tracking", "0", -100, 500);
+    var etTracking = trackingRow.valueInput;
+    var slTracking = trackingRow.slider;
+
+    var fontSizeRow = addAdjustRow(pnlTextAdjust, "fieldLabel.fontSize", "tooltip.fontSize", "0.0", -1000, 1000);
+    var etFontSize = fontSizeRow.valueInput;
+    var slFontSize = fontSizeRow.slider;
+
+    changeValueByArrowKey(etBaseShift, true, function () { baseShiftSync.fromEdit(); refreshPreviewIfNeeded(); });
+    changeValueByArrowKey(etTracking, true, function () { syncTrackingFromEdit(); refreshPreviewIfNeeded(); });
+    changeValueByArrowKey(etFontSize, true, function () { fontSizeSync.fromEdit(); refreshPreviewIfNeeded(); });
+
+    /* ボタンエリア（左＝プレビュー、右＝キャンセル／OK） / Buttons (preview on the left, Cancel/OK on the right) */
+    var btnRowGroup = pathTextDialog.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.alignChildren = ["fill", "center"];
+    btnRowGroup.alignment = ["fill", "top"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.orientation = "row";
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.alignment = ["left", "center"];
+
+    var cbPreview = btnLeftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+    cbPreview.helpTip = getLabel("tooltip.preview");
+    cbPreview.value = true;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.orientation = "row";
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.alignment = ["right", "center"];
+
+    var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"));
+    var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+    // =========================================
+    // ダイアログの状態 / Dialog state
+    // =========================================
+
+    /**
+     * 「処理」ラジオをすべてオフにする（別パネルの「分離」と手動で排他にする）
+     * @returns {void}
+     */
+    function clearProcessRadios() {
         rbToPathText.value = false;
         rbGenArcPath.value = false;
         rbGenCircle.value = false;
     }
 
-    /* 「分離」ラジオをすべて OFF（排他制御用）/ Turn off all "Split" radios (mutual-exclusion helper) */
-    function __clearSplitRadios() {
+    /**
+     * 「分離」ラジオをすべてオフにする（別パネルの「処理」と手動で排他にする）
+     * @returns {void}
+     */
+    function clearSplitRadios() {
         rbSplitTextAndPath.value = false;
         rbSplitTextAndPathNoFormat.value = false;
     }
 
-    // Auto-enable/disable based on selection (selected path OR PathText can provide a path)
-    var hasSelectedPath = (selectedPaths && selectedPaths.length > 0);
-    var hasPathTextTarget = false;
-    try {
-        for (var t0 = 0; t0 < targetItems.length; t0++) {
-            if (targetItems[t0] && targetItems[t0].typename === 'TextFrame') {
-                if (targetItems[t0].kind === TextType.PATHTEXT && targetItems[t0].textPath) {
-                    hasPathTextTarget = true;
-                    break;
-                }
-            }
+    /**
+     * 使える処理に合わせてラジオの有効／無効を切り替える
+     * @param {{canToPathText: boolean, canSplit: boolean}} availability - detectModeAvailability() の結果
+     * @returns {void}
+     */
+    function applyModeAvailability(availability) {
+        rbToPathText.enabled = availability.canToPathText;
+        rbSplitTextAndPath.enabled = availability.canSplit;
+        rbSplitTextAndPathNoFormat.enabled = availability.canSplit;
+        cbSplitDeletePath.enabled = availability.canSplit;
+        rbGenCircle.enabled = true;
+    }
+
+    /**
+     * 選んでいる処理が使えないときだけ「アーチ状のパスを生成」へ切り替える
+     * @param {{canToPathText: boolean, canSplit: boolean}} availability - detectModeAvailability() の結果
+     * @returns {boolean} 切り替えたら true
+     */
+    function switchToArcIfUnavailable(availability) {
+        var switched = false;
+        if (rbToPathText.value && !availability.canToPathText) {
+            rbToPathText.value = false;
+            rbGenArcPath.value = true;
+            switched = true;
         }
-    } catch (e) { }
-
-    // If PathText is selected, default effect = Rainbow (apply after effect UI is created)
-    var __defaultRainbow = hasPathTextTarget;
-
-    var canToPathText = hasSelectedPath || hasPathTextTarget;
-    var canSplit = hasPathTextTarget;
-
-    rbToPathText.enabled = canToPathText;
-    rbSplitTextAndPath.enabled = canSplit;
-    rbSplitTextAndPathNoFormat.enabled = canSplit;
-    cbSplitDeletePath.enabled = canSplit;
-    rbGenCircle.enabled = true;
-
-    if (!canToPathText && rbToPathText.value) {
-        rbToPathText.value = false;
-        rbGenArcPath.value = true;
-        // Arc presets are applied after the whole UI is built (see applyArcModePresets call).
-    }
-    if (!canSplit && (rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value)) {
-        rbSplitTextAndPath.value = false;
-        rbSplitTextAndPathNoFormat.value = false;
-        rbGenArcPath.value = true;
-        // Arc presets are applied after the whole UI is built (see applyArcModePresets call).
+        if ((rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value) && !availability.canSplit) {
+            clearSplitRadios();
+            rbGenArcPath.value = true;
+            switched = true;
+        }
+        return switched;
     }
 
-    // Option panel (above Alignment in RIGHT column)
-    var pnlOption = rightCol.add('panel', undefined, getLabel('panelOption'));
-    setupPanel(pnlOption);
-
-    var cbReverse = pnlOption.add('checkbox', undefined, getLabel('optReverse'));
-    cbReverse.helpTip = getLabel('tipReverse');
-    cbReverse.value = false;
-
-    // Arc direction UI
-    var grpArcDir = pnlOption.add('group');
-    grpArcDir.orientation = 'row';
-    grpArcDir.alignChildren = ['left', 'center'];
-
-    var stArcDir = grpArcDir.add('statictext', undefined, labelText('arcDirection'));
-    stArcDir.preferredSize.width = 70;
-
-    var rbArcUp = grpArcDir.add('radiobutton', undefined, getLabel('arcUp'));
-    rbArcUp.helpTip = getLabel('tipArcUp');
-    var rbArcDown = grpArcDir.add('radiobutton', undefined, getLabel('arcDown'));
-    rbArcDown.helpTip = getLabel('tipArcDown');
-    rbArcUp.value = true;
-
-    // Arc roundness UI (controls how round/curved the generated arch is)
-    var grpArcRoundness = pnlOption.add('group');
-    grpArcRoundness.orientation = 'row';
-    grpArcRoundness.alignChildren = ['left', 'center'];
-
-    var stArcRoundness = grpArcRoundness.add('statictext', undefined, getLabel('arcRoundness'));
-
-    // Slider: 0 = flat, 50 = default arch, 100 = roundest
-    var slArcRoundness = grpArcRoundness.add('slider', undefined, 50, 0, 100);
-    slArcRoundness.helpTip = getLabel('tipArcRoundness');
-    slArcRoundness.preferredSize.width = 130;
-
-    // パス幅パネルの上に余白（10px）/ Spacer (10px) above the Fit-to-path-width panel
-    var fitWidthSpacer = pnlOption.add('group');
-    fitWidthSpacer.preferredSize.height = 5;
-
-    /* パス幅に合わせるパネル（オプションパネル内の最下部）/ Fit-to-path-width panel (bottom of the Options panel) */
-    var pnlFitWidth = pnlOption.add('panel', undefined, getLabel('panelFitWidth'));
-    setupPanel(pnlFitWidth);
-
-    var rbFitWidthNone = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthNone'));
-    rbFitWidthNone.helpTip = getLabel('tipFitWidthNone');
-    var rbFitWidthFontSize = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthFontSize'));
-    rbFitWidthFontSize.helpTip = getLabel('tipFitWidthFontSize');
-    var rbFitWidthTracking = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthTracking'));
-    rbFitWidthTracking.helpTip = getLabel('tipFitWidthTracking');
-
-    // Default: しない / Default: None
-    rbFitWidthNone.value = true;
-
-    /* パネル選択に応じてパス幅フィットを適用 / Apply path-width fit according to the panel selection */
-    function applyFitToPathWidth(frames) {
-        try {
-            if (rbFitWidthFontSize && rbFitWidthFontSize.value) {
-                fitTextToOpenPath(frames);            // 文字サイズで合わせる / fit by font size
-            } else if (rbFitWidthTracking && rbFitWidthTracking.value) {
-                fitTextToOpenPathByTracking(frames);  // トラッキングで合わせる / fit by tracking
-            }
-            // 「しない」: 何もしない / "None": do nothing
-        } catch (e) { }
-    }
-
-    // -------------------------------------------------
-    // Full-width (span across columns): 効果 -> 位置 -> ベースラインシフト
-    // -------------------------------------------------
-    var wideCol = dlg.add('group');
-    wideCol.orientation = 'column';
-    wideCol.alignChildren = ['fill', 'top'];
-    wideCol.alignment = ['fill', 'top'];
-
-    // Effect panel (full-width)
-    var pnlEffect = wideCol.add('panel', undefined, getLabel('panelEffect'));
-    // 効果は5項目を横並びにするため setupPanel（縦並び）は使わず個別設定
-    pnlEffect.orientation = 'row';
-    pnlEffect.alignChildren = ['center', 'center'];
-    pnlEffect.alignment = 'fill';
-    pnlEffect.margins = PANEL_MARGINS;
-    pnlEffect.spacing = PANEL_SPACING;
-
-    var rbEffectRainbow = pnlEffect.add('radiobutton', undefined, getLabel('effectRainbow'));
-    rbEffectRainbow.helpTip = getLabel('tipEffectRainbow');
-    var rbEffectDistort = pnlEffect.add('radiobutton', undefined, getLabel('effectDistort'));
-    rbEffectDistort.helpTip = getLabel('tipEffectDistort');
-    var rbEffectRibbon = pnlEffect.add('radiobutton', undefined, getLabel('effectRibbon'));
-    rbEffectRibbon.helpTip = getLabel('tipEffectRibbon');
-    var rbEffectStep = pnlEffect.add('radiobutton', undefined, getLabel('effectStep'));
-    rbEffectStep.helpTip = getLabel('tipEffectStep');
-    var rbEffectGravity = pnlEffect.add('radiobutton', undefined, getLabel('effectGravity'));
-    rbEffectGravity.helpTip = getLabel('tipEffectGravity');
-
-    // No effect selected by default
-    rbEffectRainbow.value = false;
-    rbEffectDistort.value = false;
-    rbEffectRibbon.value = false;
-    rbEffectStep.value = false;
-    rbEffectGravity.value = false;
-
-    // Apply default rainbow AFTER effect UI exists
-    if (__defaultRainbow) {
+    /**
+     * アーチモードの既定値（中央揃え・虹・文字サイズでフィット）を入れる
+     * @returns {void}
+     */
+    function applyArcModePresets() {
+        rbAlignCenter.value = true;
         rbEffectRainbow.value = true;
+        rbFitWidthFontSize.value = true;
     }
 
-    // Position (start/end) panel  (moved to FULL WIDTH)
-    var pnlPosition = wideCol.add('panel', undefined, getLabel('panelPosition'));
-    setupPanel(pnlPosition);
+    /**
+     * 処理に応じてパネルの有効／無効を切り替える
+     * （分離では処理・分離以外を無効に。正円ではオープンパス用のパス幅・アーチ方向・まるみも無効に）
+     * @returns {void}
+     */
+    function updatePanelsByMode() {
+        var isSplitMode = rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value;
+        var isCircleMode = rbGenCircle.value;
+        var isAdjustable = !isSplitMode;
 
-    var rowStart = pnlPosition.add('group');
-    rowStart.orientation = 'row';
-    rowStart.alignChildren = ['left', 'center'];
-    var cbStartT = rowStart.add('checkbox', undefined, '');
-    cbStartT.helpTip = getLabel('tipStartPosEnabled');
-    cbStartT.value = false;
-    var stStart = rowStart.add('statictext', undefined, getLabel('startPos'));
-    stStart.preferredSize.width = 60;
-    var etStartT = rowStart.add('edittext', undefined, '0.0');
-    etStartT.characters = 5;
-    etStartT.helpTip = getLabel('tipStartPos');
-    var slStartT = rowStart.add('slider', undefined, 0, 0, 400); // 0.0 - 4.0
-    slStartT.preferredSize.width = 180;
-    slStartT.helpTip = getLabel('tipStartPos');
-    // Arrow-key support for startT
-    changeValueByArrowKey(etStartT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
+        pnlProcess.enabled = true;
+        pnlSplit.enabled = true;
+        pnlOption.enabled = isAdjustable;
+        pnlEffect.enabled = isAdjustable;
+        pnlTextAdjust.enabled = isAdjustable;
+        pnlPosition.enabled = isAdjustable;
+        pnlFitWidth.enabled = isAdjustable && !isCircleMode;
+        arcDirectionRow.enabled = isAdjustable && !isCircleMode;
+        arcRoundnessRow.enabled = isAdjustable && !isCircleMode;
+    }
 
-    var rowEnd = pnlPosition.add('group');
-    rowEnd.orientation = 'row';
-    rowEnd.alignChildren = ['left', 'center'];
-    var cbEndT = rowEnd.add('checkbox', undefined, '');
-    cbEndT.helpTip = getLabel('tipEndPosEnabled');
-    cbEndT.value = false;
-    var stEnd = rowEnd.add('statictext', undefined, getLabel('endPos'));
-    stEnd.preferredSize.width = 60;
-    var etEndT = rowEnd.add('edittext', undefined, '1.0');
-    etEndT.characters = 5;
-    etEndT.helpTip = getLabel('tipEndPos');
-    var slEndT = rowEnd.add('slider', undefined, 100, 0, 500); // 0.0 - 5.0
-    slEndT.preferredSize.width = 180;
-    slEndT.helpTip = getLabel('tipEndPos');
-    // Arrow-key support for endT
-    changeValueByArrowKey(etEndT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
+    /**
+     * 現在の選択から対象テキスト・パスと、処理ラジオの有効状態を取り直す
+     * @returns {void}
+     */
+    function refreshTargetsFromSelection() {
+        var currentSelection = readCurrentSelection();
+        targetItems = getTargetTextItems(currentSelection);
+        selectedPaths = getSelectedPathItems(currentSelection);
 
-    // Baseline shift panel  (moved to FULL WIDTH)
-    var pnlTextAdjust = wideCol.add('panel', undefined, getLabel('panelTextAdjust'));
-    setupPanel(pnlTextAdjust);
+        var availability = detectModeAvailability(targetItems, selectedPaths);
+        applyModeAvailability(availability);
+        if (switchToArcIfUnavailable(availability)) applyArcModePresets();
+        updatePanelsByMode();
+    }
 
-    // 行揃え（テキスト調整パネル先頭の行）/ Alignment (top row of Text Adjust panel)
-    var rowAlign = pnlTextAdjust.add('group');
-    rowAlign.orientation = 'row';
-    rowAlign.alignChildren = ['left', 'center'];
+    // =========================================
+    // 数値欄とスライダーの同期 / Field-slider sync
+    // =========================================
 
-    var stAlign = rowAlign.add('statictext', undefined, labelText('panelAlign'));
-    stAlign.preferredSize.width = 95;
+    /**
+     * 基準の文字サイズ（先頭のテキスト）を pt で返す
+     * @returns {number} 文字サイズ（取れなければ 100）
+     */
+    function getReferenceFontSizePt() {
+        try {
+            var firstTarget = (targetItems && targetItems.length > 0) ? targetItems[0] : null;
+            if (firstTarget && firstTarget.typename === "TextFrame") {
+                /* 先頭の textRange を優先し、無ければ全体 / Prefer the first textRange, fall back to the whole range */
+                if (firstTarget.textRanges && firstTarget.textRanges.length > 0) {
+                    var firstRangeSize = firstTarget.textRanges[0].characterAttributes.size;
+                    if (firstRangeSize && !isNaN(firstRangeSize)) return firstRangeSize;
+                }
+                var fallbackSize = firstTarget.textRange.characterAttributes.size;
+                if (fallbackSize && !isNaN(fallbackSize)) return fallbackSize;
+            }
+        } catch (e) { }
+        return 100;
+    }
 
-    var rbAlignLeft = rowAlign.add('radiobutton', undefined, getLabel('alignLeft'));
-    rbAlignLeft.helpTip = getLabel('tipAlign');
-    var rbAlignCenter = rowAlign.add('radiobutton', undefined, getLabel('alignCenter'));
-    rbAlignCenter.helpTip = getLabel('tipAlign');
-    var rbAlignRight = rowAlign.add('radiobutton', undefined, getLabel('alignRight'));
-    rbAlignRight.helpTip = getLabel('tipAlign');
-    var rbAlignFullJustify = rowAlign.add('radiobutton', undefined, getLabel('alignFullJustify'));
-    rbAlignFullJustify.helpTip = getLabel('tipAlign');
+    /**
+     * 増減スライダーの範囲を ±文字サイズ（0.1pt 単位）にする
+     * @param {Slider} deltaSlider - 対象のスライダー
+     * @returns {void}
+     */
+    function updateDeltaSliderRange(deltaSlider) {
+        var sliderLimit = Math.max(1, Math.round(getReferenceFontSizePt() * 10));
+        deltaSlider.minvalue = -sliderLimit;
+        deltaSlider.maxvalue = sliderLimit;
+    }
 
-    // Default: 中央
-    rbAlignCenter.value = true;
+    /**
+     * 0.1pt 単位の増減欄とスライダーを相互に同期する関数の組を作る（ベースライン・文字サイズ用）
+     * @param {EditText} deltaInput - 入力欄
+     * @param {Slider} deltaSlider - スライダー（値＝増減×10）
+     * @returns {{fromEdit: Function, fromSlider: Function}} 入力欄→スライダー、スライダー→入力欄の同期
+     */
+    function createDeltaSliderSync(deltaInput, deltaSlider) {
+        var isSyncing = false;
+        return {
+            fromEdit: function () {
+                if (isSyncing) return;
+                isSyncing = true;
+                updateDeltaSliderRange(deltaSlider);
+                /* スライダーの範囲に収める / clamp to the slider range */
+                var deltaValue = clampNumber(parseNumberOr(deltaInput.text, 0), deltaSlider.minvalue / 10.0, deltaSlider.maxvalue / 10.0);
+                deltaInput.text = formatOneDecimal(deltaValue);
+                deltaSlider.value = Math.round(deltaValue * 10);
+                isSyncing = false;
+            },
+            fromSlider: function () {
+                if (isSyncing) return;
+                isSyncing = true;
+                updateDeltaSliderRange(deltaSlider);
+                deltaInput.text = formatOneDecimal(deltaSlider.value / 10.0);
+                isSyncing = false;
+            }
+        };
+    }
 
-    var rowBaseShift = pnlTextAdjust.add('group');
-    rowBaseShift.orientation = 'row';
-    rowBaseShift.alignChildren = ['left', 'center'];
+    var baseShiftSync = createDeltaSliderSync(etBaseShift, slBaseShift);
+    var fontSizeSync = createDeltaSliderSync(etFontSize, slFontSize);
 
-    var stBaseShift = rowBaseShift.add('statictext', undefined, labelText('baseShift'));
-    stBaseShift.preferredSize.width = 95;
+    var isTrackingSyncing = false;
 
-    var etBaseShift = rowBaseShift.add('edittext', undefined, '0.0');
-    etBaseShift.helpTip = getLabel('tipBaseShift');
-    etBaseShift.characters = 6;
-    // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
-    var slBaseShift = rowBaseShift.add('slider', undefined, 0, -1000, 1000);
-    slBaseShift.helpTip = getLabel('tipBaseShift');
-    slBaseShift.preferredSize.width = 180;
-    // Arrow-key support for baseline shift
-    changeValueByArrowKey(etBaseShift, true, function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); });
+    /**
+     * 入力欄からトラッキングのスライダーへ同期する（-100〜500 の整数）
+     * @returns {void}
+     */
+    function syncTrackingFromEdit() {
+        if (isTrackingSyncing) return;
+        isTrackingSyncing = true;
+        var trackingValue = Math.round(parseNumberOr(etTracking.text, 0));
+        if (trackingValue > 500) trackingValue = 500;
+        if (trackingValue < -100) trackingValue = -100;
+        etTracking.text = String(trackingValue);
+        slTracking.value = trackingValue;
+        isTrackingSyncing = false;
+    }
 
-    // Tracking panel row
-    var rowTracking = pnlTextAdjust.add('group');
-    rowTracking.orientation = 'row';
-    rowTracking.alignChildren = ['left', 'center'];
+    /**
+     * スライダーからトラッキングの入力欄へ同期する
+     * @returns {void}
+     */
+    function syncTrackingFromSlider() {
+        if (isTrackingSyncing) return;
+        isTrackingSyncing = true;
+        etTracking.text = String(Math.round(slTracking.value));
+        isTrackingSyncing = false;
+    }
 
-    var stTracking = rowTracking.add('statictext', undefined, labelText('tracking'));
-    stTracking.preferredSize.width = 95;
+    var isPositionSyncing = false;
 
-    var etTracking = rowTracking.add('edittext', undefined, '0');
-    etTracking.helpTip = getLabel('tipTracking');
-    etTracking.characters = 6;
-    var slTracking = rowTracking.add('slider', undefined, 0, -100, 500);
-    slTracking.helpTip = getLabel('tipTracking');
-    slTracking.preferredSize.width = 180;
-    // Arrow-key support for tracking
-    changeValueByArrowKey(etTracking, true, function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); });
+    /**
+     * チェックボックスに応じて開始／終了位置の入力を有効にする
+     * @returns {void}
+     */
+    function updatePositionInputsEnabled() {
+        etStartT.enabled = cbStartT.value;
+        slStartT.enabled = cbStartT.value;
+        etEndT.enabled = cbEndT.value;
+        slEndT.enabled = cbEndT.value;
+    }
 
-    // Font size panel row
-    var rowFontSize = pnlTextAdjust.add('group');
-    rowFontSize.orientation = 'row';
-    rowFontSize.alignChildren = ['left', 'center'];
+    /**
+     * 開始／終了位置の値を表示欄の範囲に収めて書き戻す（オフの側は既定値 0.0 / 1.0）
+     * @param {number} startValue - 開始位置
+     * @param {number} endValue - 終了位置
+     * @returns {{startValue: number, endValue: number}} 収めた値
+     */
+    function writePositionFields(startValue, endValue) {
+        startValue = clampNumber(startValue, 0.0, 4.0);
+        endValue = clampNumber(endValue, 0.0, 5.0);
+        if (!cbStartT.value) startValue = 0.0;
+        if (!cbEndT.value) endValue = 1.0;
+        etStartT.text = formatOneDecimal(startValue);
+        etEndT.text = formatOneDecimal(endValue);
+        return { startValue: startValue, endValue: endValue };
+    }
 
-    var stFontSize = rowFontSize.add('statictext', undefined, labelText('fontSize'));
-    stFontSize.preferredSize.width = 95;
+    /**
+     * 入力欄から開始／終了位置のスライダーへ同期する
+     * @returns {void}
+     */
+    function syncPositionFromEdits() {
+        if (isPositionSyncing) return;
+        isPositionSyncing = true;
+        updatePositionInputsEnabled();
+        var startValue = cbStartT.value ? parseTValue(etStartT.text, 0.0) : 0.0;
+        var endValue = cbEndT.value ? parseTValue(etEndT.text, 1.0) : 1.0;
+        var clampedValues = writePositionFields(startValue, endValue);
+        slStartT.value = Math.round(clampedValues.startValue * 100);
+        slEndT.value = Math.round(clampedValues.endValue * 100);
+        isPositionSyncing = false;
+    }
 
-    var etFontSize = rowFontSize.add('edittext', undefined, '0.0');
-    etFontSize.helpTip = getLabel('tipFontSize');
-    etFontSize.characters = 6;
-    // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
-    var slFontSize = rowFontSize.add('slider', undefined, 0, -1000, 1000);
-    slFontSize.helpTip = getLabel('tipFontSize');
-    slFontSize.preferredSize.width = 180;
-    // Arrow-key support for font size
-    changeValueByArrowKey(etFontSize, true, function () { __syncFSFromEdit(); refreshPreviewIfNeeded(); });
+    /**
+     * スライダーから開始／終了位置の入力欄へ同期する
+     * @returns {void}
+     */
+    function syncPositionFromSliders() {
+        if (isPositionSyncing) return;
+        isPositionSyncing = true;
+        updatePositionInputsEnabled();
+        var startValue = cbStartT.value ? (slStartT.value / 100.0) : 0.0;
+        var endValue = cbEndT.value ? (slEndT.value / 100.0) : 1.0;
+        writePositionFields(startValue, endValue);
+        isPositionSyncing = false;
+    }
 
-    // Footer (Preview independent) + Buttons (OK on the right)
-    var footer = dlg.add('group');
-    footer.orientation = 'row';
-    footer.alignChildren = ['fill', 'center'];
-    footer.alignment = ['fill', 'top'];
+    // =========================================
+    // プレビュー（取り消しを使わない） / Preview (no undo)
+    // =========================================
+    var previewTempItems = [];        /* プレビューで作ったもの / items created during preview */
+    var previewHiddenOriginals = [];  /* プレビュー中に隠した元のオブジェクト / originals hidden during preview */
+    var previewPathStates = [];       /* { item, stroked, filled, strokeWidth, strokeColor, opacity } */
 
-    var leftFooter = footer.add('group');
-    leftFooter.orientation = 'row';
-    leftFooter.alignChildren = ['left', 'center'];
-    leftFooter.alignment = ['left', 'center'];
-
-    var cbPreview = leftFooter.add('checkbox', undefined, getLabel('preview'));
-    cbPreview.helpTip = getLabel('tipPreview');
-    cbPreview.value = true;
-
-    var rightFooter = footer.add('group');
-    rightFooter.orientation = 'row';
-    rightFooter.alignChildren = ['right', 'center'];
-    rightFooter.alignment = ['right', 'center'];
-
-    var btnCancel = rightFooter.add('button', undefined, getLabel('cancel'));
-    var btnOk = rightFooter.add('button', undefined, getLabel('ok'), { name: 'ok' });
-
-    /* プレビュー（Undoなし） / Preview (no undo) */
-    var __previewTempItems = [];        // items created during preview (TextFrame etc.)
-    var __previewHiddenOriginals = [];  // original items hidden during preview
-
-    var __previewPathStates = [];       // { item: PathItem, stroked: Boolean, filled: Boolean, strokeWidth, strokeColor, opacity }
-
-    /* プレビューで作った一時オブジェクトを削除し元の状態へ戻す / Remove preview temp items and restore originals */
-    function __preview_clear() {
-        // Remove temp items
-        for (var i = __previewTempItems.length - 1; i >= 0; i--) {
-            try { __previewTempItems[i].remove(); } catch (e) { }
+    /**
+     * プレビューで作った一時オブジェクトを削除し、元の状態へ戻す
+     * @returns {void}
+     */
+    function clearPreview() {
+        for (var i = previewTempItems.length - 1; i >= 0; i--) {
+            try { previewTempItems[i].remove(); } catch (e) { }
         }
-        __previewTempItems = [];
+        previewTempItems = [];
 
-        // Restore originals visibility
-        for (var j = __previewHiddenOriginals.length - 1; j >= 0; j--) {
-            try { __previewHiddenOriginals[j].hidden = false; } catch (e) { }
+        for (var j = previewHiddenOriginals.length - 1; j >= 0; j--) {
+            try { previewHiddenOriginals[j].hidden = false; } catch (e) { }
         }
-        // Restore path appearance changed during preview
-        for (var p = __previewPathStates.length - 1; p >= 0; p--) {
+        /* プレビュー中に変えたパスの見た目を戻す / Restore path appearance changed during preview */
+        for (var k = previewPathStates.length - 1; k >= 0; k--) {
             try {
-                var st = __previewPathStates[p];
-                st.item.stroked = st.stroked;
-                st.item.filled = st.filled;
-                st.item.strokeWidth = st.strokeWidth;
-                st.item.strokeColor = st.strokeColor;
-                st.item.opacity = st.opacity;
+                var pathState = previewPathStates[k];
+                pathState.item.stroked = pathState.stroked;
+                pathState.item.filled = pathState.filled;
+                pathState.item.strokeWidth = pathState.strokeWidth;
+                pathState.item.strokeColor = pathState.strokeColor;
+                pathState.item.opacity = pathState.opacity;
             } catch (e) { }
         }
-        __previewPathStates = [];
-
-        __previewHiddenOriginals = [];
-        // Removed redundant redraw here to reduce flicker.
+        previewPathStates = [];
+        previewHiddenOriginals = [];
     }
 
-    /* プレビュー復元用にパスの元の見た目を記録 / Record a path's original appearance for preview restore */
-    function __preview_recordPathState(pathItem) {
+    /**
+     * プレビューの復元用に、パスの元の見た目を控える
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function recordPreviewPathState(pathItem) {
         try {
             if (!pathItem) return;
-            for (var i = 0; i < __previewPathStates.length; i++) {
-                if (__previewPathStates[i].item === pathItem) return;
+            for (var i = 0; i < previewPathStates.length; i++) {
+                if (previewPathStates[i].item === pathItem) return;
             }
-            __previewPathStates.push({
+            previewPathStates.push({
                 item: pathItem,
                 stroked: pathItem.stroked,
                 filled: pathItem.filled,
@@ -770,32 +1024,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
     }
 
-    /* CompoundPath も展開して各 PathItem に処理を適用 / Run a function on each underlying PathItem (handles CompoundPathItem) */
-    function __forEachPathItem(pathItem, styleFn) {
+    /**
+     * 複合パスも展開して、各 PathItem に処理を適用する
+     * @param {PageItem} pathItem - PathItem または CompoundPathItem
+     * @param {Function} styleFunction - 各 PathItem を受け取る関数
+     * @returns {void}
+     */
+    function forEachPathItem(pathItem, styleFunction) {
         try {
-            if (!pathItem || !styleFn) return;
-            if (pathItem.typename === 'CompoundPathItem') {
-                for (var cp = 0; cp < pathItem.pathItems.length; cp++) {
-                    try { styleFn(pathItem.pathItems[cp]); } catch (e) { }
+            if (!pathItem || !styleFunction) return;
+            if (pathItem.typename === "CompoundPathItem") {
+                for (var i = 0; i < pathItem.pathItems.length; i++) {
+                    try { styleFunction(pathItem.pathItems[i]); } catch (e) { }
                 }
             } else {
-                try { styleFn(pathItem); } catch (e) { }
+                try { styleFunction(pathItem); } catch (e) { }
             }
         } catch (e) { }
     }
 
-    /* スミ100%の CMYKColor を生成 / Create a 100%-black CMYKColor */
-    function makeBlackCMYK() {
-        var black = new CMYKColor();
-        black.cyan = 0;
-        black.magenta = 0;
-        black.yellow = 0;
-        black.black = 100;
-        return black;
-    }
-
-    /* パスを見えるガイド（塗りなし・黒1pt・不透明度50%）に整形 / Style a path as a visible guide (no fill, black 1pt stroke, 50% opacity) */
-    function __styleVisiblePath(pathItem) {
+    /**
+     * パスを見えるガイド（塗りなし・黒1pt・不透明度50%）にする
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function styleVisiblePath(pathItem) {
         pathItem.filled = false;
         pathItem.stroked = true;
         pathItem.strokeWidth = 1;
@@ -803,465 +1056,293 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pathItem.opacity = 50;
     }
 
-    /* パスを非表示（塗り・線なし）に整形 / Style a path as invisible (no fill, no stroke) */
-    function __styleInvisiblePath(pathItem) {
+    /**
+     * パスを見えない状態（塗り・線なし）にする
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function styleInvisiblePath(pathItem) {
         pathItem.filled = false;
         pathItem.stroked = false;
         pathItem.strokeWidth = 0;
     }
 
-    /* プレビュー：元の見た目を記録してから見えるガイドにする / Preview: record original style, then make the path a visible guide */
-    function __preview_applyPathStyle(basePath) {
-        __forEachPathItem(basePath, function (pathItem) {
-            __preview_recordPathState(pathItem);
-            __styleVisiblePath(pathItem);
+    /**
+     * プレビュー：元の見た目を控えてから、見えるガイドにする
+     * @param {PageItem} basePath - 対象のパス
+     * @returns {void}
+     */
+    function applyPreviewPathStyle(basePath) {
+        forEachPathItem(basePath, function (pathItem) {
+            recordPreviewPathState(pathItem);
+            styleVisiblePath(pathItem);
         });
     }
 
-    /* 実行：パスを見えるガイドのまま残す（復元不要）/ Execute: keep the path visible as a guide (no restore needed) */
-    function __applyExecutePathStyle(pathItem) {
-        __forEachPathItem(pathItem, __styleVisiblePath);
+    /**
+     * 実行：パスを見えるガイドのまま残す（戻さない）
+     * @param {PageItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function applyExecutePathStyle(pathItem) {
+        forEachPathItem(pathItem, styleVisiblePath);
     }
 
-    /* 生成パスを非表示ガイド（線幅0）にする / Make a generated path an invisible guide (zero stroke) */
-    function __applyInvisiblePathStyle(pathItem) {
-        __forEachPathItem(pathItem, __styleInvisiblePath);
+    /**
+     * 生成したパスを見えないガイド（線幅0）にする
+     * @param {PageItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function applyInvisiblePathStyle(pathItem) {
+        forEachPathItem(pathItem, styleInvisiblePath);
     }
 
-    /* 元オブジェクトをプレビュー中だけ非表示にする / Hide an original item during preview */
-    function __preview_hideOriginal(item) {
+    /**
+     * 元のオブジェクトをプレビュー中だけ隠す
+     * @param {PageItem} originalItem - 対象のオブジェクト
+     * @returns {void}
+     */
+    function hideOriginalForPreview(originalItem) {
+        /* ロック中のオブジェクトは hidden の代入が例外になりうる / hiding a locked item can throw */
         try {
-            if (!item) return;
-            // Avoid duplicates
-            for (var k = 0; k < __previewHiddenOriginals.length; k++) {
-                if (__previewHiddenOriginals[k] === item) return;
+            if (!originalItem) return;
+            for (var i = 0; i < previewHiddenOriginals.length; i++) {
+                if (previewHiddenOriginals[i] === originalItem) return;
             }
-            item.hidden = true;
-            __previewHiddenOriginals.push(item);
+            originalItem.hidden = true;
+            previewHiddenOriginals.push(originalItem);
         } catch (e) { }
     }
 
-    /* 現在の設定でプレビューを再生成（Undo なし）/ Rebuild the preview with the current settings (no undo) */
-    function __preview_apply() {
-        __preview_clear();
-        // Restore base selection so preview stays stable even after selection changes
-        try { doc.selection = __baseSelection; } catch (e) { }
-        __refreshInputsFromSelection();
+    /**
+     * 選んでいる処理を実行する
+     * @param {boolean} showAlerts - 失敗を alert で知らせるか
+     * @param {boolean} previewMode - プレビューとして実行するか
+     * @returns {void}
+     */
+    function runSelectedMode(showAlerts, previewMode) {
+        if (rbSplitTextAndPath.value) {
+            splitPathTextAndPath(showAlerts, previewMode, true);
+        } else if (rbSplitTextAndPathNoFormat.value) {
+            splitPathTextAndPath(showAlerts, previewMode, false);
+        } else if (rbToPathText.value) {
+            createPathTextOnSelectedPath(showAlerts, previewMode);
+        } else if (rbGenArcPath.value) {
+            createPathTextOnArc(showAlerts, previewMode);
+        } else if (rbGenCircle.value) {
+            createPathTextOnCircle(showAlerts, previewMode);
+        }
+    }
+
+    /**
+     * 現在の設定でプレビューを作り直す（取り消しは使わない）
+     * @returns {void}
+     */
+    function rebuildPreview() {
+        clearPreview();
+        /* 選択が変わってもプレビューが安定するよう、最初の選択に戻す / Restore the base selection for a stable preview */
+        try { doc.selection = baseSelection; } catch (e) { }
+        refreshTargetsFromSelection();
 
         if (!targetItems || targetItems.length === 0) {
             cbPreview.value = false;
             return;
         }
 
-        // Apply preview conversion (does NOT permanently modify paths)
-        if (rbSplitTextAndPath.value) {
-            splitPathTextAndPath(false, true, true);
-        } else if (rbSplitTextAndPathNoFormat.value) {
-            splitPathTextAndPath(false, true, false);
-        } else if (rbToPathText.value) {
-            mainProcess(false, true);
-        } else if (rbGenArcPath.value) {
-            mainProcessGenerateArcPath(false, true);
-        } else if (rbGenCircle.value) {
-            mainProcessGenerateCircle(false, true);
-        }
+        runSelectedMode(false, true);
         app.redraw();
     }
 
-    /* プレビューを適用 / Apply the preview */
-    function applyPreview() {
-        __preview_apply();
+    /**
+     * プレビューがオンのときだけ作り直す
+     * @returns {void}
+     */
+    function refreshPreviewIfNeeded() {
+        if (cbPreview.value) {
+            rebuildPreview();
+        }
     }
 
-    // Live preview handlers
+    // =========================================
+    // テキスト編集ダイアログ / Text edit dialog
+    // =========================================
+
+    /**
+     * 選択中のテキストの内容を書き換える小さなダイアログを開く
+     * @returns {void}
+     */
+    function showTextEditDialog() {
+        var textEditDialog = new Window("dialog", getLabel("dialog.textEditTitle"));
+        textEditDialog.orientation = "column";
+        textEditDialog.alignChildren = ["fill", "top"];
+        textEditDialog.margins = DIALOG_MARGINS;
+
+        var hintLabel = textEditDialog.add("statictext", undefined, getLabel("dialog.textEditHint"), { multiline: true });
+        hintLabel.preferredSize.width = EDIT_HINT_WIDTH;
+
+        /* 対象はクリック時の選択から取り直す（古い控えに頼らない） / Resolve targets at click time */
+        var editTargets = [];
+        /* テキスト編集中の選択は配列でなく、たどると例外になる / a text-editing selection throws when walked */
+        try { editTargets = getTargetTextItems(readCurrentSelection()); } catch (e) { editTargets = []; }
+
+        var initialText = "";
+        try {
+            if (editTargets && editTargets.length > 0 && editTargets[0] && editTargets[0].typename === "TextFrame") {
+                initialText = String(editTargets[0].contents);
+            }
+        } catch (e) { initialText = ""; }
+
+        var textEditInput = textEditDialog.add("edittext", undefined, initialText, { multiline: true });
+        textEditInput.preferredSize = EDIT_FIELD_SIZE;
+
+        var editBtnRowGroup = textEditDialog.add("group");
+        editBtnRowGroup.orientation = "row";
+        editBtnRowGroup.alignChildren = ["center", "center"];
+        var btnEditCancel = editBtnRowGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnEditOK = editBtnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        btnEditCancel.onClick = function () {
+            textEditDialog.close(0);
+        };
+        btnEditOK.onClick = function () {
+            var newText = textEditInput.text;
+            for (var i = 0; i < editTargets.length; i++) {
+                var textFrame = editTargets[i];
+                if (!textFrame || textFrame.typename !== "TextFrame") continue;
+                try { textFrame.contents = newText; } catch (e) { }
+            }
+            refreshTargetsFromSelection();
+            refreshPreviewIfNeeded();
+            app.redraw();
+            textEditDialog.close(1);
+        };
+        textEditDialog.show();
+    }
+
+    // =========================================
+    // イベント / Event handlers
+    // =========================================
+
+    btnTextEdit.onClick = showTextEditDialog;
+
     cbPreview.onClick = function () {
         if (cbPreview.value) {
-            applyPreview();
+            rebuildPreview();
         } else {
-            __preview_clear();
+            clearPreview();
             app.redraw();
         }
     };
 
-    /* プレビュー ON のときだけ再描画 / Refresh the preview only when it is ON */
-    function refreshPreviewIfNeeded() {
-        if (cbPreview.value) {
-            applyPreview();
-        }
+    /**
+     * 処理・分離ラジオを押したときの共通処理
+     * @param {Function} clearOtherGroup - もう一方のグループのラジオをオフにする関数
+     * @param {boolean} isArcMode - アーチモードなら true（既定値を入れる。ほかはパス幅フィットを「しない」に戻す）
+     * @returns {void}
+     */
+    function onModeRadioClick(clearOtherGroup, isArcMode) {
+        clearOtherGroup();
+        if (!isArcMode) rbFitWidthNone.value = true;
+        updatePanelsByMode();
+        if (isArcMode) applyArcModePresets();
+        refreshPreviewIfNeeded();
     }
 
-    /* アーチモード時の既定値（中央揃え・虹・文字サイズでフィット）を適用 / Apply arc-mode presets (center align, rainbow effect, fit by font size) */
-    function applyArcModePresets() {
-        try {
-            rbAlignCenter.value = true;
-            rbEffectRainbow.value = true;
-            rbFitWidthFontSize.value = true;
-        } catch (e) { }
+    rbToPathText.onClick = function () { onModeRadioClick(clearSplitRadios, false); };
+    rbGenCircle.onClick = function () { onModeRadioClick(clearSplitRadios, false); };
+    rbGenArcPath.onClick = function () { onModeRadioClick(clearSplitRadios, true); };
+    rbSplitTextAndPath.onClick = function () { onModeRadioClick(clearProcessRadios, false); };
+    rbSplitTextAndPathNoFormat.onClick = function () { onModeRadioClick(clearProcessRadios, false); };
+
+    /* 押したらプレビューを作り直すだけのコントロール / Controls that only refresh the preview */
+    var previewRefreshControls = [
+        cbReverse,
+        rbEffectRainbow, rbEffectDistort, rbEffectRibbon, rbEffectStep, rbEffectGravity,
+        rbAlignLeft, rbAlignCenter, rbAlignRight, rbAlignFullJustify,
+        rbArcUp, rbArcDown,
+        rbFitWidthNone, rbFitWidthFontSize, rbFitWidthTracking
+    ];
+    for (var controlIndex = 0; controlIndex < previewRefreshControls.length; controlIndex++) {
+        previewRefreshControls[controlIndex].onClick = refreshPreviewIfNeeded;
     }
 
-    rbToPathText.onClick = function () {
-        __clearSplitRadios();
-        rbFitWidthNone.value = true;
-        __updatePanelsByMode();
-        refreshPreviewIfNeeded();
-    };
-    rbGenCircle.onClick = function () {
-        __clearSplitRadios();
-        rbFitWidthNone.value = true;
-        __updatePanelsByMode();
-        refreshPreviewIfNeeded();
-    };
-    rbGenArcPath.onClick = function () {
-        __clearSplitRadios();
-        __updatePanelsByMode();
-        applyArcModePresets();
-        refreshPreviewIfNeeded();
-    };
-    rbSplitTextAndPath.onClick = function () {
-        __clearProcessRadios();
-        rbFitWidthNone.value = true;
-        __updatePanelsByMode();
-        refreshPreviewIfNeeded();
-    };
-    rbSplitTextAndPathNoFormat.onClick = function () {
-        __clearProcessRadios();
-        rbFitWidthNone.value = true;
-        __updatePanelsByMode();
-        refreshPreviewIfNeeded();
-    };
-    /* モードに応じてパネルの有効/無効を切り替え / Enable or disable panels depending on the current mode */
-    function __updatePanelsByMode() {
-        var isSplitMode = false;
-        var isCircleMode = false;
-        try {
-            isSplitMode = (rbSplitTextAndPath && rbSplitTextAndPath.value) ||
-                (rbSplitTextAndPathNoFormat && rbSplitTextAndPathNoFormat.value);
-            isCircleMode = (rbGenCircle && rbGenCircle.value);
-        } catch (e) {
-            isSplitMode = false;
-            isCircleMode = false;
-        }
-
-        // 各パネルの有効/無効をまとめて設定（UI 構築後のみ呼ばれるため try は1つで足りる）
-        var en = !isSplitMode;
-        try {
-            // 「処理」「分離」は常に有効
-            pnlProcess.enabled = true;
-            pnlSplit.enabled = true;
-            // Splitモード時はそれ以外をディム
-            pnlOption.enabled = en;
-            pnlEffect.enabled = en;
-            pnlTextAdjust.enabled = en;
-            pnlPosition.enabled = en;
-            // パス幅・アーチ方向・まるみは正円モードでも無効（オープンパスのみ対象）
-            pnlFitWidth.enabled = en && !isCircleMode;
-            grpArcDir.enabled = en && !isCircleMode;
-            grpArcRoundness.enabled = en && !isCircleMode;
-        } catch (e) { }
-    }
-
-    cbReverse.onClick = refreshPreviewIfNeeded;
-    rbEffectRainbow.onClick = refreshPreviewIfNeeded;
-    rbEffectDistort.onClick = refreshPreviewIfNeeded;
-    rbEffectRibbon.onClick = refreshPreviewIfNeeded;
-    rbEffectStep.onClick = refreshPreviewIfNeeded;
-    rbEffectGravity.onClick = refreshPreviewIfNeeded;
-
-    rbAlignLeft.onClick = refreshPreviewIfNeeded;
-    rbAlignCenter.onClick = refreshPreviewIfNeeded;
-    rbAlignRight.onClick = refreshPreviewIfNeeded;
-    rbAlignFullJustify.onClick = refreshPreviewIfNeeded;
-    // Arc direction radios: hook preview refresh
-    rbArcUp.onClick = refreshPreviewIfNeeded;
-    rbArcDown.onClick = refreshPreviewIfNeeded;
-    // Fit-to-path-width radios: hook preview refresh
-    rbFitWidthNone.onClick = refreshPreviewIfNeeded;
-    rbFitWidthFontSize.onClick = refreshPreviewIfNeeded;
-    rbFitWidthTracking.onClick = refreshPreviewIfNeeded;
-
-    // Arc roundness slider: refresh preview on release
+    /* まるみ：スライダーを離したら更新 / Roundness: refresh on release */
     slArcRoundness.onChange = refreshPreviewIfNeeded;
-    // Sync baseline shift UI (edittext <-> slider)
-    // - slider unit: 0.1pt (value = delta * 10)
-    // - slider range: ±fontSize (pt) based on current selection
-    var __bsSyncLock = false;
 
-    /* 数値を小数1桁の文字列へ整形（0.1pt 単位）/ Format a number to a one-decimal string (0.1pt steps) */
-    function formatOneDecimal(value) {
-        return (Math.round(value * 10) / 10).toFixed(1);
-    }
+    etBaseShift.onChanging = function () { baseShiftSync.fromEdit(); refreshPreviewIfNeeded(); };
+    slBaseShift.onChanging = function () { baseShiftSync.fromSlider(); };
+    slBaseShift.onChange = function () { baseShiftSync.fromSlider(); refreshPreviewIfNeeded(); };
+    baseShiftSync.fromEdit();
 
-    /* 基準フォントサイズ（先頭ターゲット）を pt で取得 / Get the reference font size in pt (first target) */
-    function getReferenceFontSizePt() {
-        try {
-            var firstTarget = (targetItems && targetItems.length > 0) ? targetItems[0] : null;
-            if (firstTarget && firstTarget.typename === 'TextFrame') {
-                // Prefer first textRange, fall back to whole range
-                if (firstTarget.textRanges && firstTarget.textRanges.length > 0) {
-                    var size = firstTarget.textRanges[0].characterAttributes.size;
-                    if (size && !isNaN(size)) return size;
-                }
-                var fallbackSize = firstTarget.textRange.characterAttributes.size;
-                if (fallbackSize && !isNaN(fallbackSize)) return fallbackSize;
-            }
-        } catch (e) { }
-        return 100; // fallback
-    }
+    etTracking.onChanging = function () { syncTrackingFromEdit(); refreshPreviewIfNeeded(); };
+    slTracking.onChanging = function () { syncTrackingFromSlider(); };
+    slTracking.onChange = function () { syncTrackingFromSlider(); refreshPreviewIfNeeded(); };
+    syncTrackingFromEdit();
 
-    /* 増減スライダーの範囲を ±フォントサイズ（0.1pt 単位）に更新 / Update a delta slider range to ±font size (0.1pt steps) */
-    function updateDeltaSliderRange(slider) {
-        try {
-            var limit = Math.max(1, Math.round(getReferenceFontSizePt() * 10));
-            slider.minvalue = -limit;
-            slider.maxvalue = limit;
-        } catch (e) { }
-    }
+    etFontSize.onChanging = function () { fontSizeSync.fromEdit(); refreshPreviewIfNeeded(); };
+    slFontSize.onChanging = function () { fontSizeSync.fromSlider(); };
+    slFontSize.onChange = function () { fontSizeSync.fromSlider(); refreshPreviewIfNeeded(); };
+    fontSizeSync.fromEdit();
 
-    /* 入力欄からベースラインのスライダーへ同期 / Sync the baseline-shift slider from the edit field */
-    function __syncBSFromEdit() {
-        if (__bsSyncLock) return;
-        __bsSyncLock = true;
-        try {
-            updateDeltaSliderRange(slBaseShift);
+    etStartT.onChanging = function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); };
+    etEndT.onChanging = function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); };
+    slStartT.onChanging = function () { syncPositionFromSliders(); };
+    slStartT.onChange = function () { syncPositionFromSliders(); refreshPreviewIfNeeded(); };
+    slEndT.onChanging = function () { syncPositionFromSliders(); };
+    slEndT.onChange = function () { syncPositionFromSliders(); refreshPreviewIfNeeded(); };
 
-            var v = __parseNumber(etBaseShift.text, 0);
-            if (isNaN(v)) v = 0;
+    cbStartT.onClick = function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); };
+    cbEndT.onClick = function () { syncPositionFromEdits(); refreshPreviewIfNeeded(); };
 
-            // clamp to slider range
-            var minPt = slBaseShift.minvalue / 10.0;
-            var maxPt = slBaseShift.maxvalue / 10.0;
-            v = __clamp(v, minPt, maxPt);
+    syncPositionFromEdits();
 
-            etBaseShift.text = formatOneDecimal(v);
-            slBaseShift.value = Math.round(v * 10);
-        } catch (e) { }
-        __bsSyncLock = false;
-    }
-
-    /* スライダーからベースラインの入力欄へ同期 / Sync the baseline-shift edit field from the slider */
-    function __syncBSFromSlider() {
-        if (__bsSyncLock) return;
-        __bsSyncLock = true;
-        try {
-            updateDeltaSliderRange(slBaseShift);
-            var v = (slBaseShift.value / 10.0);
-            etBaseShift.text = formatOneDecimal(v);
-        } catch (e) { }
-        __bsSyncLock = false;
-    }
-
-    etBaseShift.onChanging = function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); };
-    slBaseShift.onChanging = function () { __syncBSFromSlider(); };
-    slBaseShift.onChange = function () { __syncBSFromSlider(); refreshPreviewIfNeeded(); };
-    __syncBSFromEdit();
-
-    // Sync tracking UI (edittext <-> slider)
-    var __trkSyncLock = false;
-
-    /* 入力欄からトラッキングのスライダーへ同期 / Sync the tracking slider from the edit field */
-    function __syncTrkFromEdit() {
-        if (__trkSyncLock) return;
-        __trkSyncLock = true;
-        try {
-            var v = Math.round(__parseNumber(etTracking.text, 0));
-            if (v > 500) v = 500;
-            if (v < -100) v = -100;
-            etTracking.text = String(v);
-            slTracking.value = v;
-        } catch (e) { }
-        __trkSyncLock = false;
-    }
-
-    /* スライダーからトラッキングの入力欄へ同期 / Sync the tracking edit field from the slider */
-    function __syncTrkFromSlider() {
-        if (__trkSyncLock) return;
-        __trkSyncLock = true;
-        try {
-            var v = Math.round(slTracking.value);
-            etTracking.text = String(v);
-        } catch (e) { }
-        __trkSyncLock = false;
-    }
-
-    etTracking.onChanging = function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); };
-    slTracking.onChanging = function () { __syncTrkFromSlider(); };
-    slTracking.onChange = function () { __syncTrkFromSlider(); refreshPreviewIfNeeded(); };
-    __syncTrkFromEdit();
-
-    // Sync font size delta UI (edittext <-> slider)
-    // - slider unit: 0.1pt (value = delta * 10)
-    // - slider range: ±fontSize (pt) based on current selection
-    var __fsSyncLock = false;
-
-    /* 入力欄から文字サイズのスライダーへ同期 / Sync the font-size slider from the edit field */
-    function __syncFSFromEdit() {
-        if (__fsSyncLock) return;
-        __fsSyncLock = true;
-        try {
-            updateDeltaSliderRange(slFontSize);
-
-            var v = __parseNumber(etFontSize.text, 0);
-            if (isNaN(v)) v = 0;
-
-            var minPt = slFontSize.minvalue / 10.0;
-            var maxPt = slFontSize.maxvalue / 10.0;
-            v = __clamp(v, minPt, maxPt);
-
-            etFontSize.text = formatOneDecimal(v);
-            slFontSize.value = Math.round(v * 10);
-        } catch (e) { }
-        __fsSyncLock = false;
-    }
-
-    /* スライダーから文字サイズの入力欄へ同期 / Sync the font-size edit field from the slider */
-    function __syncFSFromSlider() {
-        if (__fsSyncLock) return;
-        __fsSyncLock = true;
-        try {
-            updateDeltaSliderRange(slFontSize);
-            var v = (slFontSize.value / 10.0);
-            etFontSize.text = formatOneDecimal(v);
-        } catch (e) { }
-        __fsSyncLock = false;
-    }
-
-    etFontSize.onChanging = function () { __syncFSFromEdit(); refreshPreviewIfNeeded(); };
-    slFontSize.onChanging = function () { __syncFSFromSlider(); };
-    slFontSize.onChange = function () { __syncFSFromSlider(); refreshPreviewIfNeeded(); };
-    __syncFSFromEdit();
-    // Sync t-value UI (edittext <-> slider)
-    var __tSyncLock = false;
-
-    /* チェックボックスに応じて開始/終了位置の入力を有効化 / Enable start/end position inputs per their checkboxes */
-    function __updateTEnableUI() {
-        try {
-            var sOn = (cbStartT && cbStartT.value);
-            var eOn = (cbEndT && cbEndT.value);
-            etStartT.enabled = sOn;
-            slStartT.enabled = sOn;
-            etEndT.enabled = eOn;
-            slEndT.enabled = eOn;
-        } catch (e) { }
-    }
-
-    /* 入力欄から開始/終了位置のスライダーへ同期 / Sync start/end position sliders from the edit fields */
-    function __syncTFromEdits() {
-        if (__tSyncLock) return;
-        __tSyncLock = true;
-        try {
-            __updateTEnableUI();
-
-            var sOn = (cbStartT && cbStartT.value);
-            var eOn = (cbEndT && cbEndT.value);
-
-            var s = sOn ? __parseTValue(etStartT.text, 0.0) : 0.0;
-            var e = eOn ? __parseTValue(etEndT.text, 1.0) : 1.0;
-
-            // clamp to UI ranges
-            s = __clamp(s, 0.0, 4.0);
-            e = __clamp(e, 0.0, 5.0);
-
-            if (!sOn) s = 0.0;
-            if (!eOn) e = 1.0;
-
-            etStartT.text = formatOneDecimal(s);
-            etEndT.text = formatOneDecimal(e);
-
-            slStartT.value = Math.round(s * 100);
-            slEndT.value = Math.round(e * 100);
-        } catch (e) { }
-        __tSyncLock = false;
-    }
-
-    /* スライダーから開始/終了位置の入力欄へ同期 / Sync start/end position edit fields from the sliders */
-    function __syncTFromSliders() {
-        if (__tSyncLock) return;
-        __tSyncLock = true;
-        try {
-            __updateTEnableUI();
-
-            var sOn = (cbStartT && cbStartT.value);
-            var eOn = (cbEndT && cbEndT.value);
-
-            var s = sOn ? (slStartT.value / 100.0) : 0.0;
-            var e = eOn ? (slEndT.value / 100.0) : 1.0;
-
-            // clamp to UI ranges
-            s = __clamp(s, 0.0, 4.0);
-            e = __clamp(e, 0.0, 5.0);
-
-            if (!sOn) s = 0.0;
-            if (!eOn) e = 1.0;
-
-            etStartT.text = formatOneDecimal(s);
-            etEndT.text = formatOneDecimal(e);
-        } catch (e) { }
-        __tSyncLock = false;
-    }
-
-    etStartT.onChanging = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
-    etEndT.onChanging = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
-    slStartT.onChanging = function () { __syncTFromSliders(); };
-    slStartT.onChange = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
-    slEndT.onChanging = function () { __syncTFromSliders(); };
-    slEndT.onChange = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
-
-    cbStartT.onClick = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
-    cbEndT.onClick = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
-
-    __syncTFromEdits();
-
-    // Buttons
     btnCancel.onClick = function () {
-        __preview_clear();
-        dlg.close(0);
+        clearPreview();
+        pathTextDialog.close(0);
     };
 
-    btnOk.onClick = function () {
-        // If preview is ON, clear it first so we don't stack temporary objects.
+    btnOK.onClick = function () {
+        /* プレビューが出ていれば先に消し、一時オブジェクトを重ねない / Clear the preview first so temp items do not stack */
         if (cbPreview.value) {
-            __preview_clear();
+            clearPreview();
         }
-
-        if (rbSplitTextAndPath.value) {
-            splitPathTextAndPath(true, false, true);
-        } else if (rbSplitTextAndPathNoFormat.value) {
-            splitPathTextAndPath(true, false, false);
-        } else if (rbToPathText.value) {
-            mainProcess(true, false);
-        } else if (rbGenArcPath.value) {
-            mainProcessGenerateArcPath(true, false);
-        } else if (rbGenCircle.value) {
-            mainProcessGenerateCircle(true, false);
-        }
-
-        dlg.close(1);
+        runSelectedMode(true, false);
+        pathTextDialog.close(1);
     };
 
-    // If arc mode ended up active at startup (auto-switched), apply its presets
-    // now that the whole UI exists.
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /* 起動時にアーチモードへ切り替わっていたら、UI がそろったここで既定値を入れる
+       If arc mode was chosen at startup, apply its presets now that the whole UI exists */
     if (rbGenArcPath.value) applyArcModePresets();
 
-    // Set initial panel enabled state
-    __updatePanelsByMode();
+    updatePanelsByMode();
 
-    // Auto-apply preview once on open (no undo)
+    /* 開いた直後に一度プレビュー（取り消しは使わない） / Preview once on open (no undo) */
+    /* 変換処理の DOM 例外でダイアログが開かなくならないように / keep the dialog opening even if the preview throws */
     try {
         if (cbPreview.value) {
-            __preview_apply();
+            rebuildPreview();
             app.redraw();
         }
     } catch (e) { }
 
-    var res = dlg.show();
-    if (res !== 1) return false;
+    var dialogResult = pathTextDialog.show();
+    if (dialogResult !== 1) return false;
     return true;
 
-    // Remove old preview hook for the checkbox
-    // cbFixOverset.onClick = refreshPreviewIfNeeded;
+    // =========================================
+    // 変換処理 / Conversion
+    // =========================================
 
-    /* メニューコマンドでパス上文字に効果（虹・歪み等）を適用 / Apply a path-text effect (rainbow, skew, etc.) via a menu command */
-    function applyPathTextEffect(textFrame, previewMode) {
+    /**
+     * 選んでいる効果をメニューコマンドでパス上文字に適用する
+     * @param {TextFrame} textFrame - 対象のパス上文字
+     * @returns {void}
+     */
+    function applyPathTextEffect(textFrame) {
         var effectCommand = getSelectedEffectCommand();
         if (!effectCommand) return;
 
@@ -1272,266 +1353,266 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { doc.selection = []; } catch (e) { }
             try { textFrame.selected = true; } catch (e) { }
             app.executeMenuCommand(effectCommand);
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) { }
 
-        // Always restore selection (safer)
+        /* 選択は必ず戻す / Always restore the selection */
         try { doc.selection = previousSelection; } catch (e) { }
     }
 
-    /* 選択中の効果に対応するメニューコマンド名を返す / Return the menu command name for the selected effect */
+    /**
+     * 選んでいる効果に対応するメニューコマンド名を返す
+     * @returns {string|null} メニューコマンド名（効果なしなら null）
+     */
     function getSelectedEffectCommand() {
-        if (rbEffectRainbow.value) return 'Rainbow';
-        if (rbEffectDistort.value) return 'Skew';
-        if (rbEffectRibbon.value) return '3D ribbon';
-        if (rbEffectStep.value) return 'Stair Step';
-        if (rbEffectGravity.value) return 'Gravity';
+        if (rbEffectRainbow.value) return "Rainbow";
+        if (rbEffectDistort.value) return "Skew";
+        if (rbEffectRibbon.value) return "3D ribbon";
+        if (rbEffectStep.value) return "Stair Step";
+        if (rbEffectGravity.value) return "Gravity";
         return null;
     }
 
-    /* 行揃え（段落揃え）をテキストフレームへ適用（複製後に呼ぶ）/ Apply paragraph justification to a text frame (call after content is duplicated) */
-    function applyJustificationToTextFrame(textFrame) {
+    /**
+     * ［行揃え］の選択を Justification に変換する（左揃えは「最終行左揃え」）
+     * @returns {Justification} 行揃え
+     */
+    function readSelectedJustification() {
+        if (rbAlignFullJustify.value) return Justification.FULLJUSTIFY;
+        if (rbAlignRight.value) return Justification.RIGHT;
+        if (rbAlignCenter.value) return Justification.CENTER;
+        return Justification.FULLJUSTIFYLASTLINELEFT;
+    }
+
+    /**
+     * テキストフレームの全段落と全体に行揃えを設定する（内容を複製したあとに呼ぶ）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Justification} justification - 行揃え
+     * @returns {void}
+     */
+    function setFrameJustification(textFrame, justification) {
+        if (!textFrame) return;
         try {
-            if (!textFrame) return;
-
-            var justification = Justification.FULLJUSTIFYLASTLINELEFT;
-            if (rbAlignFullJustify && rbAlignFullJustify.value) {
-                justification = Justification.FULLJUSTIFY;
-            } else if (rbAlignRight && rbAlignRight.value) {
-                justification = Justification.RIGHT;
-            } else if (rbAlignCenter && rbAlignCenter.value) {
-                justification = Justification.CENTER;
-            } else {
-                justification = Justification.FULLJUSTIFYLASTLINELEFT;
-            }
-
-            // Apply to all paragraphs if available
-            try {
-                if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
-                    for (var i = 0; i < textFrame.paragraphs.length; i++) {
-                        try { textFrame.paragraphs[i].paragraphAttributes.justification = justification; } catch (e) { }
-                    }
+            if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
+                for (var i = 0; i < textFrame.paragraphs.length; i++) {
+                    try { textFrame.paragraphs[i].paragraphAttributes.justification = justification; } catch (e) { }
                 }
-            } catch (e) { }
-
-            // Fallback apply to whole range
-            try { textFrame.textRange.paragraphAttributes.justification = justification; } catch (e) { }
+            }
         } catch (e) { }
+        /* 念のため全体にも / Also apply to the whole range */
+        try { textFrame.textRange.paragraphAttributes.justification = justification; } catch (e) { }
     }
 
-    /* 値を min〜max の範囲に収める / Clamp a number to the min–max range */
-    function __clamp(n, min, max) {
-        if (n < min) return min;
-        if (n > max) return max;
-        return n;
-    }
-
-    /* 文字列を t 値（0〜5）として解釈 / Parse a string as a t-value (0–5) */
-    function __parseTValue(str, fallback) {
-        var n = Number(str);
-        if (isNaN(n)) return fallback;
-        return __clamp(n, 0, 5);
-    }
-
-    /* UI の開始/終了位置をパス上文字へ適用 / Apply the start/end position from the UI to path text */
+    /**
+     * UI の開始／終了位置をパス上文字へ適用する
+     * @param {TextFrame} textFrame - 対象のパス上文字
+     * @returns {void}
+     */
     function applyStartEndTValue(textFrame) {
         try {
             if (!textFrame) return;
-
-            if (cbStartT && cbStartT.value) {
-                var startValue = __parseTValue(etStartT.text, 0.0);
-                textFrame.startTValue = startValue;
-            }
-
-            if (cbEndT && cbEndT.value) {
-                var endValue = __parseTValue(etEndT.text, 1.0);
-                textFrame.endTValue = endValue;
-            }
-
+            if (cbStartT.value) textFrame.startTValue = parseTValue(etStartT.text, 0.0);
+            if (cbEndT.value) textFrame.endTValue = parseTValue(etEndT.text, 1.0);
         } catch (e) { }
     }
 
-    /* 文字列を数値へ変換（失敗時は既定値）/ Parse a string as a number (fallback when invalid) */
-    function __parseNumber(str, fallback) {
-        var n = Number(str);
-        if (isNaN(n)) return fallback;
-        return n;
-    }
-
-    /* テキストフレームの textRange を配列で取得（無ければ textRange 単体）/ Collect a frame's textRanges as an array (falls back to its single textRange) */
+    /**
+     * テキストフレームの textRange を配列で返す（無ければ textRange 単体）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {TextRange[]} textRange の配列
+     */
     function collectTextRanges(textFrame) {
-        var ranges = [];
+        var textRanges = [];
         try {
             if (textFrame.textRanges && textFrame.textRanges.length > 0) {
-                for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
+                for (var i = 0; i < textFrame.textRanges.length; i++) textRanges.push(textFrame.textRanges[i]);
             }
         } catch (e) { }
-        if (ranges.length === 0) {
-            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (e) { ranges = []; }
+        if (textRanges.length === 0) {
+            try { if (textFrame.textRange) textRanges = [textFrame.textRange]; } catch (e) { textRanges = []; }
         }
-        return ranges;
+        return textRanges;
     }
 
-    /* 各 textRange の文字属性に delta を加算（clampMin 指定時は下限を適用）/ Add a delta to a character attribute of every textRange (optional lower clamp) */
+    /**
+     * 各 textRange の文字属性に増減を加える（clampMin があれば下限を適用）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} attributeName - 文字属性の名前
+     * @param {number} delta - 増減
+     * @param {number} [clampMin] - 下限
+     * @returns {void}
+     */
     function addDeltaToTextRanges(textFrame, attributeName, delta, clampMin) {
         if (!textFrame || !delta) return;
-        var ranges = collectTextRanges(textFrame);
-        for (var r = 0; r < ranges.length; r++) {
+        var textRanges = collectTextRanges(textFrame);
+        for (var i = 0; i < textRanges.length; i++) {
             try {
-                var attributes = ranges[r].characterAttributes;
+                var attributes = textRanges[i].characterAttributes;
                 var nextValue = attributes[attributeName] + delta;
-                if (typeof clampMin === 'number' && nextValue < clampMin) nextValue = clampMin;
+                if (typeof clampMin === "number" && nextValue < clampMin) nextValue = clampMin;
                 attributes[attributeName] = nextValue;
             } catch (e) { }
         }
     }
 
-    /* 各 textRange の既存ベースラインに UI 指定値を加算 / Add the UI delta to each textRange's baseline shift */
-    function applyBaselineShiftDelta(textFrame) {
-        addDeltaToTextRanges(textFrame, 'baselineShift', __parseNumber(etBaseShift.text, 0));
-    }
-
-    /* 各 textRange の既存トラッキングに UI 指定値を加算 / Add the UI delta to each textRange's tracking */
-    function applyTrackingDelta(textFrame) {
-        addDeltaToTextRanges(textFrame, 'tracking', Math.round(__parseNumber(etTracking.text, 0)));
-    }
-
-    /* 各 textRange の既存文字サイズに UI 指定値を加算（最小 0.1pt）/ Add the UI delta to each textRange's font size (min 0.1pt) */
+    /**
+     * 各 textRange の文字サイズに［文字サイズ］の増減を加える（最小 0.1pt）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {void}
+     */
     function applyFontSizeDelta(textFrame) {
-        addDeltaToTextRanges(textFrame, 'size', __parseNumber(etFontSize.text, 0), 0.1);
+        addDeltaToTextRanges(textFrame, "size", parseNumberOr(etFontSize.text, 0), 0.1);
     }
 
-    /* 指定パス上にパス上文字を作成し、元テキストの直前へ配置 / Create path text on the given path, placed just before the original */
+    /**
+     * 各 textRange のベースラインとトラッキングに［テキスト調整］の増減を加える（行揃えのあとに呼ぶ）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function applyShiftAndTrackingDelta(textFrame) {
+        addDeltaToTextRanges(textFrame, "baselineShift", parseNumberOr(etBaseShift.text, 0));
+        addDeltaToTextRanges(textFrame, "tracking", Math.round(parseNumberOr(etTracking.text, 0)));
+    }
+
+    /**
+     * 指定のパス上にパス上文字を作り、元のテキストの直前へ置く
+     * @param {PathItem} textPath - 使うパス
+     * @param {TextFrame} originalText - 元のテキスト
+     * @param {Layer} currentLayer - 作成先のレイヤー
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {TextFrame} 作成したパス上文字
+     */
     function createPathTextFrame(textPath, originalText, currentLayer, previewMode) {
         var textOnAPath = currentLayer.textFrames.pathText(textPath);
-        // 重ね順を保持（他オブジェクトの背面に回り込まないように）/ Keep stacking order
+        /* 重ね順を保つ（ほかのオブジェクトの背面に回り込まないように） / Keep stacking order */
         try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (e) { }
-        if (previewMode) __previewTempItems.push(textOnAPath);
+        if (previewMode) previewTempItems.push(textOnAPath);
         return textOnAPath;
     }
 
-    /* 段落をすべて中央揃えにする / Set every paragraph to center justification */
-    function applyCenterJustification(textFrame) {
-        try {
-            if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
-                for (var p = 0; p < textFrame.paragraphs.length; p++) {
-                    try { textFrame.paragraphs[p].paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
-                }
-            }
-        } catch (e) { }
-        try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
-    }
+    /**
+     * パス上文字の共通の仕上げ：内側配置・効果・内容の複製・各種調整を適用し、元のテキストを隠す／削除する
+     * @param {TextFrame} textOnAPath - 作成したパス上文字
+     * @param {TextFrame} originalText - 元のテキスト
+     * @param {boolean} previewMode - プレビューなら true
+     * @param {{forceCenter: boolean, circleInsideShift: boolean}} [decorateOptions] - 正円用の指定
+     * @returns {void}
+     */
+    function decoratePathText(textOnAPath, originalText, previewMode, decorateOptions) {
+        decorateOptions = decorateOptions || {};
 
-    /* パス上文字の共通仕上げ：内側配置・効果・内容複製・各種調整を適用し元テキストを除去 / Shared finishing of path text (inside placement, effect, content copy, adjustments, remove original) */
-    function decoratePathText(textOnAPath, originalText, previewMode, options) {
-        options = options || {};
-
-        // 内側配置 / Inside placement
+        /* 内側配置 / Inside placement */
         if (cbReverse.value) {
             try { textOnAPath.textPath.polarity = PolarityValues.NEGATIVE; } catch (e) { }
         }
 
-        applyPathTextEffect(textOnAPath, previewMode);
-        applyStartEndTValue(textOnAPath); // 位置（start/end）
+        applyPathTextEffect(textOnAPath);
+        applyStartEndTValue(textOnAPath);
 
-        // 正円＋内側：開始/終了位置を +0.5 ずらして見かけの開始位置を合わせる
-        if (options.circleInsideShift) {
+        /* 正円＋内側：開始／終了位置を +0.5 ずらして見かけの開始位置を合わせる（上限は 5、開始は 1 を超えてよい）
+           Circle + inside: shift start/end by +0.5 (clamped to the global cap of 5) */
+        if (decorateOptions.circleInsideShift) {
             try {
                 var shiftAmount = 0.5;
-                // Clamp only to the global end cap (0..5); start may exceed 1 for circles.
-                textOnAPath.startTValue = __clamp(textOnAPath.startTValue + shiftAmount, 0.0, 5.0);
-                textOnAPath.endTValue = __clamp(textOnAPath.endTValue + shiftAmount, 0.0, 5.0);
+                textOnAPath.startTValue = clampNumber(textOnAPath.startTValue + shiftAmount, 0.0, 5.0);
+                textOnAPath.endTValue = clampNumber(textOnAPath.endTValue + shiftAmount, 0.0, 5.0);
             } catch (e) { }
         }
 
-        // テキスト内容を元から複製 / Copy text content from the original
+        /* テキストの内容を元から複製 / Copy the text content from the original */
         for (var i = 0; i < originalText.textRanges.length; i++) {
             originalText.textRanges[i].duplicate(textOnAPath);
         }
 
-        applyFontSizeDelta(textOnAPath); // 文字サイズ（既存値 + 指定値）
+        applyFontSizeDelta(textOnAPath);
 
-        // 行揃え（duplicate 後に適用しないと上書きされる）/ Justification (apply after content is copied)
-        if (options.forceCenter) {
-            applyCenterJustification(textOnAPath);
-        } else {
-            applyJustificationToTextFrame(textOnAPath);
-        }
+        /* 行揃え（複製のあとでないと上書きされる） / Justification (apply after the content is copied) */
+        setFrameJustification(textOnAPath, decorateOptions.forceCenter ? Justification.CENTER : readSelectedJustification());
 
-        applyBaselineShiftDelta(textOnAPath); // ベースラインシフト（既存値 + 指定値）
-        applyTrackingDelta(textOnAPath);      // トラッキング（既存値 + 指定値）
+        applyShiftAndTrackingDelta(textOnAPath);
 
-        // 元テキストを隠す/削除 / Hide or remove the original text
         if (previewMode) {
-            __preview_hideOriginal(originalText);
+            hideOriginalForPreview(originalText);
         } else {
             try { originalText.remove(); } catch (e) { }
-        }
-
-        // 実行時は生成したパス上文字を選択 / Select the created path text on execute
-        if (!previewMode) {
+            /* 実行時は作ったパス上文字を選択 / Select the created path text on execute */
             try { textOnAPath.selected = true; } catch (e) { }
         }
     }
 
-    /* メイン処理：選択パスに沿ってパス上文字を作成 / Main process: lay text along the selected path */
-    function mainProcess(showAlerts, previewMode) {
-        if (typeof previewMode === 'undefined') previewMode = false;
-        if (typeof showAlerts === 'undefined') showAlerts = true;
-        var __createdTexts = [];
-
-        for (var j = 0; j < targetItems.length; j++) {
-            var originalText = targetItems[j];
-            var currentLayer = originalText.layer;
-
-            // この文字に使う元パスを決定 / Resolve the base path for this text
-            var basePath = resolveBasePathForText(selectedPaths, targetItems.length, j, originalText);
-            if (!basePath) {
-                // Validation 済みのため通常は来ないが、防御的に
-                if (showAlerts) alert(getLabel('alertNeedPath'));
-                return;
-            }
-
-            if (!previewMode) {
-                makeOriginalPathInvisible(basePath);
-            } else {
-                // Preview: show the original selected path with no fill/stroke (restored on preview clear)
-                __preview_applyPathStyle(basePath);
-            }
-
-            var textPath = duplicatePathForText(basePath, currentLayer);
-            if (!textPath) {
-                if (showAlerts) alert(getLabel('alertDupPathFail'));
-                continue;
-            }
-            if (previewMode) {
-                __previewTempItems.push(textPath);
-            } else {
-                __applyExecutePathStyle(textPath); // Execute: keep the duplicated path visible
-            }
-
-            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
-            decoratePathText(textOnAPath, originalText, previewMode);
-            __createdTexts.push(textOnAPath);
+    /**
+     * 各テキストに使う元のパスを決める（選択したパスを優先し、無ければ自分の textPath）
+     * @param {PageItem[]} pathItems - 選択したパス
+     * @param {number} textCount - テキストの数
+     * @param {number} textIndex - このテキストの位置
+     * @param {TextFrame} originalText - 元のテキスト
+     * @returns {PageItem|null} 使うパス
+     */
+    function resolveBasePathForText(pathItems, textCount, textIndex, originalText) {
+        if (pathItems && pathItems.length > 0) {
+            if (pathItems.length === textCount) return pathItems[textIndex];
+            return pathItems[0];
         }
-        applyFitToPathWidth(__createdTexts);
+        try {
+            if (originalText && originalText.typename === "TextFrame") {
+                if (originalText.kind === TextType.PATHTEXT && originalText.textPath) {
+                    return originalText.textPath;
+                }
+            }
+        } catch (e) { }
+        return null;
     }
 
-    /* ハンドル・ポイント種別を保持してパスを複製 / Duplicate a path preserving handles and point types */
+    /**
+     * 選択した元のパスを見えなくする（塗り・線なし）
+     * @param {PageItem} basePath - 対象のパス
+     * @returns {void}
+     */
+    function makeOriginalPathInvisible(basePath) {
+        try {
+            if (basePath.typename === "CompoundPathItem") {
+                for (var i = 0; i < basePath.pathItems.length; i++) {
+                    basePath.pathItems[i].stroked = false;
+                    basePath.pathItems[i].filled = false;
+                }
+            } else {
+                basePath.stroked = false;
+                basePath.filled = false;
+            }
+        } catch (e) { }
+    }
+
+    /**
+     * 複製に使う PathItem を返す（複合パスは先頭）
+     * @param {PageItem} basePath - 対象のパス
+     * @returns {PathItem|null} 複製に使うパス
+     */
+    function resolveSourcePath(basePath) {
+        try {
+            return (basePath.typename === "CompoundPathItem") ? basePath.pathItems[0] : basePath;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * ハンドルとポイントの種類を保ったままパスを複製する
+     * @param {PathItem} originalPath - 元のパス
+     * @param {Layer} targetLayer - 作成先のレイヤー
+     * @returns {PathItem|null} 複製したパス
+     */
     function duplicatePathWithHandles(originalPath, targetLayer) {
         try {
             if (!originalPath) return null;
-            var container = (targetLayer && targetLayer.pathItems) ? targetLayer.pathItems : doc.pathItems;
-            var newPath = container.add();
+            var pathContainer = (targetLayer && targetLayer.pathItems) ? targetLayer.pathItems : doc.pathItems;
+            var newPath = pathContainer.add();
 
-            for (var k = 0; k < originalPath.pathPoints.length; k++) {
-                var origPt = originalPath.pathPoints[k];
-                var newPt = newPath.pathPoints.add();
-                newPt.anchor = origPt.anchor;
-                newPt.leftDirection = origPt.leftDirection;
-                newPt.rightDirection = origPt.rightDirection;
-                newPt.pointType = origPt.pointType;
+            for (var i = 0; i < originalPath.pathPoints.length; i++) {
+                var originalPoint = originalPath.pathPoints[i];
+                var newPoint = newPath.pathPoints.add();
+                newPoint.anchor = originalPoint.anchor;
+                newPoint.leftDirection = originalPoint.leftDirection;
+                newPoint.rightDirection = originalPoint.rightDirection;
+                newPoint.pointType = originalPoint.pointType;
             }
             newPath.closed = originalPath.closed;
             return newPath;
@@ -1540,9 +1621,195 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 1件のパス上文字をパス＋ポイント文字に分離（処理したら true）/ Split one path text into a path + point text (returns true if processed) */
+    /**
+     * テキスト用にパスを複製し、同じレイヤーへ置く
+     * @param {PageItem} basePath - 元のパス
+     * @param {Layer} currentLayer - 置き先のレイヤー
+     * @returns {PathItem|null} 複製したパス
+     */
+    function duplicatePathForText(basePath, currentLayer) {
+        var sourcePath = resolveSourcePath(basePath);
+        if (!sourcePath) return null;
+
+        /* 1) まず標準の複製 / Try the native duplicate first */
+        try {
+            var duplicatedPath = sourcePath.duplicate();
+            try { duplicatedPath.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
+            return duplicatedPath;
+        } catch (e) {
+            /* 2) だめならアンカーとハンドルを写して作る / Fall back to copying anchors and handles */
+            try {
+                return duplicatePathWithHandles(sourcePath, currentLayer);
+            } catch (e2) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * 処理：選択したパスに沿ってパス上文字を作る
+     * @param {boolean} showAlerts - 失敗を alert で知らせるか
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {void}
+     */
+    function createPathTextOnSelectedPath(showAlerts, previewMode) {
+        var createdTexts = [];
+
+        for (var i = 0; i < targetItems.length; i++) {
+            var originalText = targetItems[i];
+            var currentLayer = originalText.layer;
+
+            var basePath = resolveBasePathForText(selectedPaths, targetItems.length, i, originalText);
+            if (!basePath) {
+                /* 事前に確かめているので通常は来ない / Normally unreachable after the availability check */
+                if (showAlerts) alert(getLabel("alert.needPath"));
+                return;
+            }
+
+            if (!previewMode) {
+                makeOriginalPathInvisible(basePath);
+            } else {
+                /* プレビュー：元のパスを見えるガイドにする（プレビューを消すと戻る） / Preview: show the base path as a guide */
+                applyPreviewPathStyle(basePath);
+            }
+
+            var textPath = duplicatePathForText(basePath, currentLayer);
+            if (!textPath) {
+                if (showAlerts) alert(getLabel("alert.dupPathFail"));
+                continue;
+            }
+            if (previewMode) {
+                previewTempItems.push(textPath);
+            } else {
+                applyExecutePathStyle(textPath);
+            }
+
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
+            decoratePathText(textOnAPath, originalText, previewMode);
+            createdTexts.push(textOnAPath);
+        }
+        applyFitToPathWidth(createdTexts);
+    }
+
+    /**
+     * アーチ／正円モードで一緒に選択したパスを、プレビューでは隠し、実行では削除する
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {void}
+     */
+    function handleArcModeSelectedPaths(previewMode) {
+        if (!selectedPaths || selectedPaths.length === 0) return;
+        for (var i = selectedPaths.length - 1; i >= 0; i--) {
+            var selectedPath = selectedPaths[i];
+            if (!selectedPath) continue;
+            if (previewMode) {
+                hideOriginalForPreview(selectedPath);
+            } else {
+                try { selectedPath.remove(); } catch (e) { }
+            }
+        }
+    }
+
+    /**
+     * 処理：アーチ状のパスを作ってパス上文字にする
+     * @param {boolean} showAlerts - 失敗を alert で知らせるか
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {void}
+     */
+    function createPathTextOnArc(showAlerts, previewMode) {
+        var createdTexts = [];
+        handleArcModeSelectedPaths(previewMode);
+
+        for (var i = 0; i < targetItems.length; i++) {
+            var originalText = targetItems[i];
+            var currentLayer = originalText.layer;
+
+            var textPath = createArcPathFromText(originalText, currentLayer);
+            if (!textPath) {
+                if (showAlerts) alert(getLabel("alert.arcFail"));
+                continue;
+            }
+
+            /* 生成したアーチは見えないガイド / The generated arc is an invisible guide */
+            applyInvisiblePathStyle(textPath);
+            if (previewMode) previewTempItems.push(textPath);
+
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
+
+            /* 変換時に Illustrator がスタイルを上書きするので、パス上文字のパスも見えなくする
+               Illustrator restyles the path on conversion, so hide the path-text path too */
+            try {
+                if (textOnAPath.textPath) applyInvisiblePathStyle(textOnAPath.textPath);
+            } catch (e) { }
+
+            decoratePathText(textOnAPath, originalText, previewMode);
+            createdTexts.push(textOnAPath);
+        }
+        applyFitToPathWidth(createdTexts);
+    }
+
+    /**
+     * 処理：テキストの幅を直径とする正円を作ってパス上文字にする
+     * @param {boolean} showAlerts - 失敗を alert で知らせるか
+     * @param {boolean} previewMode - プレビューなら true
+     * @returns {void}
+     */
+    function createPathTextOnCircle(showAlerts, previewMode) {
+        var createdTexts = [];
+        handleArcModeSelectedPaths(previewMode);
+
+        for (var i = 0; i < targetItems.length; i++) {
+            var originalText = targetItems[i];
+            var currentLayer = originalText.layer;
+
+            var textPath = createCirclePathFromText(originalText, currentLayer);
+            if (!textPath) {
+                if (showAlerts) alert(getLabel("alert.arcFail"));
+                continue;
+            }
+
+            if (previewMode) {
+                applyPreviewPathStyle(textPath);
+                previewTempItems.push(textPath);
+            } else {
+                applyExecutePathStyle(textPath);
+            }
+
+            /* 正円を中心まわりに 90° 回す / Rotate the circle 90° around its center */
+            try { textPath.rotate(90, true, true, true, true, Transformation.CENTER); } catch (e) { }
+
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
+
+            /* 変換時に Illustrator がスタイルを上書きするので、パス上文字のパスを整え直す
+               Illustrator restyles the path on conversion, so restyle the path-text path */
+            try {
+                if (textOnAPath.textPath) {
+                    if (previewMode) {
+                        applyPreviewPathStyle(textOnAPath.textPath);
+                    } else {
+                        applyExecutePathStyle(textOnAPath.textPath);
+                    }
+                }
+            } catch (e) { }
+
+            /* 正円は常に中央揃え。内側配置のときは開始／終了位置を +0.5 補正 / Circles are always centered */
+            decoratePathText(textOnAPath, originalText, previewMode, {
+                forceCenter: true,
+                circleInsideShift: cbReverse.value
+            });
+            createdTexts.push(textOnAPath);
+        }
+        applyFitToPathWidth(createdTexts);
+    }
+
+    /**
+     * 1件のパス上文字を、パスとポイント文字に分ける
+     * @param {TextFrame} pathText - 対象のパス上文字
+     * @param {boolean} previewMode - プレビューなら true
+     * @param {boolean} keepFormatting - 書式を保つなら true
+     * @returns {boolean} 処理したら true
+     */
     function splitOnePathText(pathText, previewMode, keepFormatting) {
-        if (!pathText || pathText.typename !== 'TextFrame') return false;
+        if (!pathText || pathText.typename !== "TextFrame") return false;
 
         var isPathText = false;
         try { isPathText = (pathText.kind === TextType.PATHTEXT); } catch (e) { isPathText = false; }
@@ -1552,31 +1819,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { originalPath = pathText.textPath; } catch (e) { originalPath = null; }
         if (!originalPath) return false;
 
-        var curLayer = null;
-        try { curLayer = pathText.layer; } catch (e) { curLayer = null; }
+        var pathTextLayer = null;
+        try { pathTextLayer = pathText.layer; } catch (e) { pathTextLayer = null; }
 
-        // 1) 「パスを削除」OFF ならハンドルを保持してパスを複製
-        var deletePath = false;
-        try { deletePath = (cbSplitDeletePath && cbSplitDeletePath.value); } catch (e) { deletePath = false; }
-
-        if (!deletePath) {
-            var newPath = duplicatePathWithHandles(originalPath, curLayer);
+        /* 1) 「パスを削除」がオフなら、ハンドルを保ってパスを複製（塗りなし・スミ1pt） / Keep a copy of the path */
+        if (!cbSplitDeletePath.value) {
+            var newPath = duplicatePathWithHandles(originalPath, pathTextLayer);
             if (newPath) {
-                // 塗りなし・スミ1pt / no fill, black 1pt stroke
                 try {
                     newPath.filled = false;
                     newPath.stroked = true;
                     newPath.strokeColor = makeBlackCMYK();
                     newPath.strokeWidth = 1;
                 } catch (e) { }
-                if (previewMode) __previewTempItems.push(newPath);
+                if (previewMode) previewTempItems.push(newPath);
             }
         }
 
-        // 2) 元の開始アンカー付近にポイント文字を作成
+        /* 2) 元の開始アンカーの位置にポイント文字を作る / Create point text at the first anchor */
         var newText = null;
         try {
-            newText = (curLayer ? curLayer.textFrames.add() : doc.textFrames.add());
+            newText = (pathTextLayer ? pathTextLayer.textFrames.add() : doc.textFrames.add());
         } catch (e) {
             newText = null;
         }
@@ -1587,40 +1850,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 newText.position = [anchorPoint[0], anchorPoint[1]];
             } catch (e) { }
 
-            // 内容コピー（書式を保持する/しない）/ Copy content (keep formatting or not)
+            /* 内容のコピー（書式を保つ／保たない） / Copy the content (with or without formatting) */
             if (keepFormatting) {
                 try { pathText.textRange.duplicate(newText); } catch (e) { }
             } else {
                 try { newText.contents = pathText.contents; } catch (e) { }
             }
 
-            applyFontSizeDelta(newText);      // 文字サイズ（既存値 + 指定値）
-            applyBaselineShiftDelta(newText); // ベースラインシフト（既存値 + 指定値）
-            applyTrackingDelta(newText);      // トラッキング（既存値 + 指定値）
+            applyFontSizeDelta(newText);
+            applyShiftAndTrackingDelta(newText);
 
-            // 書式保持時のみ塗り/線カラーを引き継ぐ
+            /* 書式を保つときだけ塗り／線の色を引き継ぐ / Carry over fill/stroke colors only when keeping formatting */
             if (keepFormatting) {
-                for (var c = 0; c < pathText.textRanges.length; c++) {
+                for (var i = 0; i < pathText.textRanges.length; i++) {
                     try {
-                        var srcAttr = pathText.textRanges[c].characterAttributes;
-                        var dstAttr = newText.textRanges[c].characterAttributes;
-                        dstAttr.fillColor = srcAttr.fillColor;
-                        dstAttr.strokeColor = srcAttr.strokeColor;
+                        var sourceAttributes = pathText.textRanges[i].characterAttributes;
+                        var newAttributes = newText.textRanges[i].characterAttributes;
+                        newAttributes.fillColor = sourceAttributes.fillColor;
+                        newAttributes.strokeColor = sourceAttributes.strokeColor;
                     } catch (e) { }
                 }
             }
 
-            // 行揃え（duplicate 後に適用）と重ね順の保持
-            try { applyJustificationToTextFrame(newText); } catch (e) { }
+            /* 行揃え（複製のあと）と重ね順の保持 / Justification after the copy, and keep the stacking order */
+            setFrameJustification(newText, readSelectedJustification());
             try { newText.move(pathText, ElementPlacement.PLACEBEFORE); } catch (e) { }
 
-            if (previewMode) __previewTempItems.push(newText);
+            if (previewMode) previewTempItems.push(newText);
         }
 
-        // 3) ポイント文字が作れたときだけ元のパス上文字を隠す/削除（失敗時は元を残す）
+        /* 3) ポイント文字を作れたときだけ元のパス上文字を隠す／削除（失敗したら元を残す） / Keep the original on failure */
         if (newText) {
             if (previewMode) {
-                __preview_hideOriginal(pathText);
+                hideOriginalForPreview(pathText);
             } else {
                 try { pathText.remove(); } catch (e) { }
             }
@@ -1628,180 +1890,88 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return true;
     }
 
-    /* パス上文字をパス（可視）とポイント文字に分離 / Split path text into a visible path and point text */
+    /**
+     * パス上文字を、見えるパスとポイント文字に分ける
+     * @param {boolean} showAlerts - 何も処理しなかったとき alert で知らせるか
+     * @param {boolean} previewMode - プレビューなら true
+     * @param {boolean} keepFormatting - 書式を保つなら true
+     * @returns {void}
+     */
     function splitPathTextAndPath(showAlerts, previewMode, keepFormatting) {
-        if (typeof keepFormatting === 'undefined') keepFormatting = true;
-        if (typeof previewMode === 'undefined') previewMode = false;
-        if (typeof showAlerts === 'undefined') showAlerts = true;
-
         var didAny = false;
-        for (var j = targetItems.length - 1; j >= 0; j--) {
-            if (splitOnePathText(targetItems[j], previewMode, keepFormatting)) didAny = true;
+        for (var i = targetItems.length - 1; i >= 0; i--) {
+            if (splitOnePathText(targetItems[i], previewMode, keepFormatting)) didAny = true;
         }
 
         if (!didAny && showAlerts) {
-            alert(getLabel('alertNeedPathText'));
+            alert(getLabel("alert.needPathText"));
         }
     }
 
-    /* アーチ/正円モードで一緒に選択されたパスを非表示（プレビュー）/削除（実行）/ Hide (preview) or remove (execute) paths selected together in arc/circle mode */
-    function handleArcModeSelectedPaths(previewMode) {
-        try {
-            if (!selectedPaths || selectedPaths.length === 0) return;
-            for (var i = selectedPaths.length - 1; i >= 0; i--) {
-                var p = selectedPaths[i];
-                if (!p) continue;
-                if (previewMode) {
-                    __preview_hideOriginal(p);
-                } else {
-                    try { p.remove(); } catch (e) { }
-                }
-            }
-        } catch (e) { }
-    }
+    // =========================================
+    // パスの生成 / Path generation
+    // =========================================
 
-    /* メイン処理：アーチパスを生成してパス上文字を作成 / Main process: generate an arc path and create path text */
-    function mainProcessGenerateArcPath(showAlerts, previewMode) {
-        if (typeof previewMode === 'undefined') previewMode = false;
-        if (typeof showAlerts === 'undefined') showAlerts = true;
-        var __createdTexts = [];
-
-        // アーチモードでは一緒に選択されたパスを隠す/削除
-        handleArcModeSelectedPaths(previewMode);
-
-        for (var j = 0; j < targetItems.length; j++) {
-            var originalText = targetItems[j];
-            var currentLayer = originalText.layer;
-
-            // テキスト範囲からアーチ状パスを生成
-            var textPath = createArcPathFromText(originalText, currentLayer);
-            if (!textPath) {
-                if (showAlerts) alert(getLabel('alertArcFail'));
-                continue;
-            }
-
-            // 生成アーチパスは非表示ガイド / Generated arc path is an invisible guide
-            __applyInvisiblePathStyle(textPath);
-            if (previewMode) __previewTempItems.push(textPath);
-
-            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
-
-            // 変換時に AI がスタイルを上書きするため、パス上文字のパスも非表示に
-            try {
-                if (textOnAPath.textPath) __applyInvisiblePathStyle(textOnAPath.textPath);
-            } catch (e) { }
-
-            decoratePathText(textOnAPath, originalText, previewMode);
-            __createdTexts.push(textOnAPath);
-        }
-        applyFitToPathWidth(__createdTexts);
-    }
-
-    /* メイン処理：テキスト幅を直径とする正円を生成してパス上文字を作成 / Main process: generate a circle (diameter = text width) and create path text */
-    function mainProcessGenerateCircle(showAlerts, previewMode) {
-        if (typeof previewMode === 'undefined') previewMode = false;
-        if (typeof showAlerts === 'undefined') showAlerts = true;
-        var __createdTexts = [];
-
-        // 正円モードでも一緒に選択されたパスを隠す/削除（アーチと同じ）
-        handleArcModeSelectedPaths(previewMode);
-
-        for (var j = 0; j < targetItems.length; j++) {
-            var originalText = targetItems[j];
-            var currentLayer = originalText.layer;
-
-            // テキスト幅を直径とする正円パスを生成
-            var textPath = createCirclePathFromText(originalText, currentLayer);
-            if (!textPath) {
-                if (showAlerts) alert(getLabel('alertArcFail'));
-                continue;
-            }
-
-            if (previewMode) {
-                __preview_applyPathStyle(textPath);
-                __previewTempItems.push(textPath);
-            } else {
-                __applyExecutePathStyle(textPath); // Execute: keep the generated circle visible
-            }
-
-            // 生成した正円を中心まわりに時計回り90°回転
-            try { textPath.rotate(90, true, true, true, true, Transformation.CENTER); } catch (e) { }
-
-            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
-
-            // 変換時に AI がスタイルを上書きするため、パス上文字のパスを再整形
-            try {
-                if (textOnAPath.textPath) {
-                    if (previewMode) {
-                        __preview_applyPathStyle(textOnAPath.textPath);
-                    } else {
-                        __applyExecutePathStyle(textOnAPath.textPath);
-                    }
-                }
-            } catch (e) { }
-
-            // 正円は常に中央揃え。内側配置時は開始/終了位置を +0.5 補正
-            decoratePathText(textOnAPath, originalText, previewMode, {
-                forceCenter: true,
-                circleInsideShift: cbReverse.value
-            });
-            __createdTexts.push(textOnAPath);
-        }
-        applyFitToPathWidth(__createdTexts);
-    }
-
-    /* アウトライン化でテキストの範囲を計測 / Measure the text bounds via outlines ([L, T, R, B]) */
+    /**
+     * テキストの範囲をアウトライン化して測る（ライブテキストの geometricBounds より安定する）
+     * @param {TextFrame} originalText - 対象のテキスト
+     * @returns {number[]} [左, 上, 右, 下]
+     */
     function measureArcTextBounds(originalText) {
-        // ライブテキストの geometricBounds より安定するためアウトライン化して計測
         var measureTexts = [originalText.duplicate(), originalText.duplicate()];
-        measureTexts[0].contents = '';
+        measureTexts[0].contents = "";
 
-        // 先頭行の textRange を measureTexts[0] に複製（レガシー手法、ポイント文字＋1行以上を前提）
+        /* 先頭行の textRange を measureTexts[0] に複製（ポイント文字＋1行以上が前提の旧来の手法）
+           Copy the first line's textRanges into measureTexts[0] (legacy approach) */
         for (var i = 0; i < originalText.lines[0].length; i++) {
             originalText.textRanges[i].duplicate(measureTexts[0]);
         }
-        for (var k = 0; k < measureTexts.length; k++) {
-            measureTexts[k] = measureTexts[k].createOutline();
+        for (var j = 0; j < measureTexts.length; j++) {
+            measureTexts[j] = measureTexts[j].createOutline();
         }
 
-        var textBounds = measureTexts[1].geometricBounds; // [L, T, R, B]
+        var textBounds = measureTexts[1].geometricBounds;
         textBounds[3] = measureTexts[0].geometricBounds[3];
 
-        for (var r = 0; r < measureTexts.length; r++) {
-            try { measureTexts[r].remove(); } catch (e) { }
+        for (var k = 0; k < measureTexts.length; k++) {
+            try { measureTexts[k].remove(); } catch (e) { }
         }
         return textBounds;
     }
 
-    /* まるみスライダー（0-100、50=既定）を読み取る / Read the roundness slider (0-100, 50 = default) */
+    /**
+     * ［まるみ］スライダーを読む（0〜100、既定 50）
+     * @returns {number} まるみ（%）
+     */
     function readArcRoundnessPercent() {
-        var percent = 50;
-        try {
-            if (typeof slArcRoundness !== 'undefined' && slArcRoundness) {
-                percent = Number(slArcRoundness.value);
-            }
-        } catch (e) { percent = 50; }
+        var percent = Number(slArcRoundness.value);
         if (isNaN(percent)) percent = 50;
         if (percent < 0) percent = 0;
         if (percent > 100) percent = 100;
         return percent;
     }
 
-    /* アーチ方向の符号を返す（上=+1 / 下=-1）/ Return the arc direction sign (Up=+1, Down=-1) */
+    /**
+     * アーチ方向の符号を返す（上=+1、下=-1）
+     * @returns {number} 符号
+     */
     function readArcDirectionSign() {
-        try {
-            if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) return -1;
-        } catch (e) { }
-        return 1;
+        return rbArcDown.value ? -1 : 1;
     }
 
-    /* 直線パスのハンドルを調整してアーチ状に曲げる / Bend a straight path into an arc by adjusting handles */
+    /**
+     * 直線のパスのハンドルを動かしてアーチ状に曲げる
+     * @param {PathItem} arcPath - 2点の直線パス
+     * @param {number} roundnessPercent - まるみ（%）
+     * @param {number} directionSign - 上=+1、下=-1
+     * @returns {void}
+     */
     function applyArcHandles(arcPath, roundnessPercent, directionSign) {
         var handleOffsetDivisors = [3.5, 4];
         var pathLength = arcPath.length;
 
-        // handleOffsets[0]: 水平ハンドル（固定）/ handleOffsets[1]: 垂直ハンドル＝カーブの深さ
-        // 50% で垂直ハンドルは pathLength / handleOffsetDivisors[1]（レガシー既定）
+        /* handleOffsets[0]: 水平ハンドル（固定）/ handleOffsets[1]: 垂直ハンドル＝カーブの深さ
+           50% で垂直ハンドルは pathLength / handleOffsetDivisors[1]（旧来の既定） */
         var handleOffsets = [
             pathLength / handleOffsetDivisors[0],
             pathLength * (roundnessPercent / 100) * (2 / handleOffsetDivisors[1])
@@ -1818,31 +1988,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ];
     }
 
-    /* テキストのアウトライン範囲からアーチ状のパスを生成 / Build an arc-like path from the text outline bounds */
-    function createArcPathFromText(originalText, layer) {
+    /**
+     * テキストのアウトラインの範囲からアーチ状のパスを作る
+     * @param {TextFrame} originalText - 対象のテキスト
+     * @param {Layer} targetLayer - 作成先のレイヤー
+     * @returns {PathItem|null} 作ったパス
+     */
+    function createArcPathFromText(originalText, targetLayer) {
         try {
-            // Guard: empty / invalid text
-            if (!originalText || originalText.typename !== 'TextFrame') return null;
+            if (!originalText || originalText.typename !== "TextFrame") return null;
             if (!originalText.lines || originalText.lines.length === 0) return null;
             if (!originalText.textRanges || originalText.textRanges.length === 0) return null;
 
             var textBounds = measureArcTextBounds(originalText);
 
-            // ベースラインに沿った直線パスを作成（baselineYMultiplier=1.02 はレガシー既定）
+            /* ベースラインに沿った直線を作る（1.02 は旧来の既定） / Straight line along the baseline */
             var baselineY = textBounds[3] * 1.02;
-            var arcPath = layer.pathItems.add();
+            var arcPath = targetLayer.pathItems.add();
             arcPath.setEntirePath([
                 [textBounds[0], baselineY],
                 [textBounds[2], baselineY]
             ]);
 
-            // 生成パスは非表示（塗り・線なし）/ Make the generated path invisible
             try {
                 arcPath.stroked = false;
                 arcPath.filled = false;
             } catch (e) { }
 
-            // ハンドルを調整してアーチ状に曲げる / Bend into an arc
             applyArcHandles(arcPath, readArcRoundnessPercent(), readArcDirectionSign());
             return arcPath;
         } catch (e) {
@@ -1850,37 +2022,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* テキスト幅を直径とする正円パスを生成 / Build a circle path whose diameter equals the full text width */
-    function createCirclePathFromText(originalText, layer) {
+    /**
+     * テキストの幅を直径とする正円のパスを作る
+     * @param {TextFrame} originalText - 対象のテキスト
+     * @param {Layer} targetLayer - 作成先のレイヤー
+     * @returns {PathItem|null} 作ったパス
+     */
+    function createCirclePathFromText(originalText, targetLayer) {
         try {
-            // Guard
-            if (!originalText || originalText.typename !== 'TextFrame') return null;
+            if (!originalText || originalText.typename !== "TextFrame") return null;
             if (!originalText.textRanges || originalText.textRanges.length === 0) return null;
 
-            // Use outline bounds for stability
+            /* 安定させるためアウトラインの範囲で測る / Measure the outline for stability */
             var measureText = originalText.duplicate();
             var measureOutline = null;
             try { measureOutline = measureText.createOutline(); } catch (e) { measureOutline = null; }
+            /* createOutline() は複製を消費するので通常ここは例外になる / createOutline() consumes the duplicate */
             try { measureText.remove(); } catch (e) { }
             if (!measureOutline) return null;
 
-            var outlineBounds = measureOutline.geometricBounds; // [L, T, R, B]
+            var outlineBounds = measureOutline.geometricBounds;
             try { measureOutline.remove(); } catch (e) { }
 
             var textWidth = outlineBounds[2] - outlineBounds[0];
             if (!textWidth || isNaN(textWidth) || textWidth <= 0) return null;
 
-            // Center of text outline
             var centerX = (outlineBounds[0] + outlineBounds[2]) / 2;
             var centerY = (outlineBounds[1] + outlineBounds[3]) / 2;
 
-            var diameter = textWidth; // diameter = text width
-            var left = centerX - (diameter / 2);
-            var top = centerY + (diameter / 2);
+            var diameter = textWidth;
+            var circlePath = targetLayer.pathItems.ellipse(centerY + (diameter / 2), centerX - (diameter / 2), diameter, diameter);
 
-            var circlePath = layer.pathItems.ellipse(top, left, diameter, diameter);
-
-            // Default invisible (caller will set preview style if needed)
+            /* 既定は見えない状態（プレビューの見た目は呼び出し側で付ける） / Invisible by default */
             try {
                 circlePath.stroked = false;
                 circlePath.filled = false;
@@ -1892,131 +2065,63 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 各テキストに使う元パスを決定（選択パス優先、無ければ自身の textPath）/ Decide the base path for each text (selected paths first, else its own textPath) */
-    function resolveBasePathForText(selectedPaths, textCount, index, originalText) {
-        if (selectedPaths && selectedPaths.length > 0) {
-            if (selectedPaths.length === textCount) return selectedPaths[index];
-            return selectedPaths[0];
-        }
-        // No selected path: try PathText's own path
-        try {
-            if (originalText && originalText.typename === 'TextFrame') {
-                if (originalText.kind === TextType.PATHTEXT && originalText.textPath) {
-                    return originalText.textPath;
-                }
-            }
-        } catch (e) { }
-        return null;
-    }
+    // =========================================
+    // パス幅に合わせる / Fit to path width
+    // =========================================
 
-    /* 選択された元パスを非表示（塗り・線なし）にする / Make the original selected path invisible (no fill, no stroke) */
-    function makeOriginalPathInvisible(basePath) {
-        try {
-            if (basePath.typename === 'CompoundPathItem') {
-                for (var cp = 0; cp < basePath.pathItems.length; cp++) {
-                    basePath.pathItems[cp].stroked = false;
-                    basePath.pathItems[cp].filled = false;
-                }
-            } else {
-                basePath.stroked = false;
-                basePath.filled = false;
-            }
-        } catch (e) { }
-    }
-
-    /* 複製対象の PathItem を取得（CompoundPath は先頭を使用）/ Resolve the PathItem to duplicate (first item for a CompoundPathItem) */
-    function resolveSourcePath(basePath) {
-        try {
-            return (basePath.typename === 'CompoundPathItem') ? basePath.pathItems[0] : basePath;
-        } catch (e) {
-            return null;
+    /**
+     * ［パス幅に合わせる］の選択に応じてフィットする
+     * @param {TextFrame[]} textFrames - 作成したパス上文字
+     * @returns {void}
+     */
+    function applyFitToPathWidth(textFrames) {
+        if (rbFitWidthFontSize.value) {
+            fitTextToOpenPath(textFrames);
+        } else if (rbFitWidthTracking.value) {
+            fitTextToOpenPathByTracking(textFrames);
         }
     }
 
-    /* テキスト用にパスを複製し同じレイヤーへ配置 / Duplicate a path for the text and place it on the same layer */
-    function duplicatePathForText(basePath, currentLayer) {
-        var srcPath = resolveSourcePath(basePath);
-        if (!srcPath) return null;
-
-        // 1) Try native duplicate first (fast)
+    /**
+     * パスが閉じているか判定する
+     * @param {PageItem} pathItem - 対象のパス
+     * @returns {boolean} 閉じていれば true
+     */
+    function isClosedPathItem(pathItem) {
         try {
-            var dup = srcPath.duplicate();
-            try { dup.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
-            return dup;
-        } catch (e) {
-            // 2) Fallback: duplicate by copying anchors/handles (more robust)
-            try {
-                var dup2 = duplicatePathWithHandles(srcPath, currentLayer);
-                return dup2;
-            } catch (e) {
-                return null;
-            }
-        }
-    }
-
-    /* 選択内のポイント文字/パス上文字を再帰的に収集 / Collect point/path text items recursively from the selection */
-    function getTargetTextItems(items) {
-        var textItems = [];
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === 'TextFrame') {
-                try {
-                    if (item.kind === TextType.POINTTEXT || item.kind === TextType.PATHTEXT) {
-                        textItems.push(item);
-                    }
-                } catch (e) { }
-            } else if (item.typename === 'GroupItem') {
-                textItems = textItems.concat(getTargetTextItems(item.pageItems));
-            }
-        }
-        return textItems;
-    }
-
-    /* 選択内のパス（PathItem/CompoundPathItem）を再帰的に収集 / Collect path items recursively from the selection (groups included) */
-    function getSelectedPathItems(items) {
-        var pathItems = [];
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            if (item.typename === 'PathItem') {
-                pathItems.push(item);
-            } else if (item.typename === 'CompoundPathItem') {
-                pathItems.push(item);
-            } else if (item.typename === 'GroupItem') {
-                pathItems = pathItems.concat(getSelectedPathItems(item.pageItems));
-            }
-        }
-        return pathItems;
-    }
-
-    /* パスが閉じているか判定 / Tell whether a path item is closed */
-    function isClosedPathItem(item) {
-        try {
-            if (!item) return false;
-            if (item.typename === 'CompoundPathItem') {
-                if (item.pathItems && item.pathItems.length > 0) return !!item.pathItems[0].closed;
+            if (!pathItem) return false;
+            if (pathItem.typename === "CompoundPathItem") {
+                if (pathItem.pathItems && pathItem.pathItems.length > 0) return !!pathItem.pathItems[0].closed;
                 return false;
             }
-            if (item.typename === 'PathItem') return !!item.closed;
+            if (pathItem.typename === "PathItem") return !!pathItem.closed;
         } catch (e) { }
         return false;
     }
 
-    /* フィット対象（編集可能なオープンパス上文字）か判定 / Tell whether a frame is editable open path text to fit */
+    /**
+     * フィットの対象（編集できるオープンパス上のパス上文字）か判定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} 対象なら true
+     */
     function isTargetPathText(textFrame) {
         try {
-            if (!textFrame || textFrame.typename !== 'TextFrame') return false;
+            if (!textFrame || textFrame.typename !== "TextFrame") return false;
             if (textFrame.kind !== TextType.PATHTEXT) return false;
             if (!textFrame.editable || textFrame.locked || textFrame.hidden) return false;
             var textPath = textFrame.textPath;
             if (!textPath) return false;
-            // Only OPEN paths
             if (isClosedPathItem(textPath)) return false;
             return true;
         } catch (e) { }
         return false;
     }
 
-    /* 表示行数を取得（最低1）/ Get the visible line count (at least 1) */
+    /**
+     * 表示されている行数を返す（最低1）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {number} 行数
+     */
     function getLineAmount(textFrame) {
         try {
             if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
@@ -2024,13 +2129,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return 1;
     }
 
-    /* テキストがあふれている（オーバーセット）か判定 / Detect whether the text is overset */
+    /**
+     * テキストがあふれているか判定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} lineAmount - 表示する行数
+     * @returns {boolean} あふれていれば true
+     */
     function isOverset(textFrame, lineAmount) {
         try {
             if (!textFrame) return false;
             if (textFrame.lines.length > 0) {
                 var charactersOnVisibleLines = 0;
-                if (typeof (lineAmount) === 'undefined' || lineAmount === null) {
+                if (typeof (lineAmount) === "undefined" || lineAmount === null) {
                     lineAmount = 1;
                 } else {
                     lineAmount = Math.floor(lineAmount);
@@ -2048,60 +2158,61 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return false;
     }
 
-    /* オープンパスの端まで文字サイズだけでパス上文字をフィット / Fit path text to the open-path endpoints by adjusting font size only */
-    // - If overset: shrink by small steps until it fits.
-    // - If NOT overset: grow to intentionally create overset, then shrink to fit (near-maximum).
-    function fitTextToOpenPath(frames) {
-        if (!frames || frames.length === 0) return false;
+    /**
+     * オープンパスの端まで、文字サイズだけでパス上文字を合わせる
+     * あふれていれば少しずつ縮め、収まっていれば一度あふれるまで広げてから縮める（ほぼ最大）
+     * @param {TextFrame[]} textFrames - 対象のパス上文字
+     * @returns {boolean} 対象があれば true
+     */
+    function fitTextToOpenPath(textFrames) {
+        if (!textFrames || textFrames.length === 0) return false;
 
-        var opt = {
+        var fitOptions = {
             increment: 0.1,
             minFontSize: 0.1,
             maxShrinkIter: 2000,
             maxGrowIter: 10,
-            maxFontSize: 2000,
-            alertOnMaxIter: false
+            maxFontSize: 2000
         };
 
-        /* オーバーセットになるまで拡大→収まるまで縮小 / Grow until overset, then shrink until it fits */
+        /**
+         * あふれるまで拡大してから、収まるまで縮小する
+         * @param {TextFrame} textFrame - 対象のパス上文字
+         * @returns {void}
+         */
         function shrinkFont(textFrame) {
             try {
                 if (!textFrame || textFrame.characters.length <= 0) return;
 
                 var lineAmount = getLineAmount(textFrame);
 
-                // If it is NOT overset, grow first (doubling) until it becomes overset (or hits safety limit)
+                /* 収まっていれば、あふれるまで倍にしていく（上限あり） / Grow by doubling until it overflows */
                 if (!isOverset(textFrame, lineAmount)) {
                     var growIterations = 0;
-                    while (!isOverset(textFrame, lineAmount) && growIterations < opt.maxGrowIter) {
+                    while (!isOverset(textFrame, lineAmount) && growIterations < fitOptions.maxGrowIter) {
                         var growSize = textFrame.textRange.characterAttributes.size;
-                        if (growSize >= opt.maxFontSize) break;
-                        textFrame.textRange.characterAttributes.size = Math.min(opt.maxFontSize, growSize * 2);
+                        if (growSize >= fitOptions.maxFontSize) break;
+                        textFrame.textRange.characterAttributes.size = Math.min(fitOptions.maxFontSize, growSize * 2);
                         growIterations++;
                     }
                 }
 
-                // Then shrink in small steps until it fits
+                /* 収まるまで少しずつ縮める / Then shrink in small steps until it fits */
                 var shrinkIterations = 0;
                 while (isOverset(textFrame, lineAmount)) {
                     var currentSize = textFrame.textRange.characterAttributes.size;
-                    if (currentSize <= opt.minFontSize) break;
+                    if (currentSize <= fitOptions.minFontSize) break;
 
-                    textFrame.textRange.characterAttributes.size = Math.max(opt.minFontSize, currentSize - opt.increment);
+                    textFrame.textRange.characterAttributes.size = Math.max(fitOptions.minFontSize, currentSize - fitOptions.increment);
 
                     shrinkIterations++;
-                    if (shrinkIterations >= opt.maxShrinkIter) {
-                        if (opt.alertOnMaxIter) {
-                            try { alert('フィット処理（縮小）が上限回数に達しました'); } catch (e) { }
-                        }
-                        break;
-                    }
+                    if (shrinkIterations >= fitOptions.maxShrinkIter) break;
                 }
             } catch (e) { }
         }
 
-        for (var i = 0; i < frames.length; i++) {
-            var textFrame = frames[i];
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
             if (!isTargetPathText(textFrame)) continue;
             shrinkFont(textFrame);
         }
@@ -2109,72 +2220,80 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return true;
     }
 
-    /* オープンパスの端までトラッキングだけで合わせる（文字サイズは維持）/ Fit path text to the open-path endpoints by adjusting tracking only (font size kept) */
-    function fitTextToOpenPathByTracking(frames) {
-        if (!frames || frames.length === 0) return false;
+    /**
+     * オープンパスの端まで、トラッキングだけで合わせる（文字サイズは保つ）
+     * @param {TextFrame[]} textFrames - 対象のパス上文字
+     * @returns {boolean} 対象があれば true
+     */
+    function fitTextToOpenPathByTracking(textFrames) {
+        if (!textFrames || textFrames.length === 0) return false;
 
-        var opt = {
-            coarseStep: 50,     // 粗調整1ステップのトラッキング量 / tracking units per coarse step
-            fineStep: 1,        // 微調整1ステップのトラッキング量 / tracking units per fine step
-            minTracking: -1000, // 累積トラッキングの下限 / tightest allowed cumulative delta
-            maxTracking: 20000, // 累積トラッキングの上限 / loosest allowed cumulative delta
+        var fitOptions = {
+            coarseStep: 50,     /* 粗調整1ステップのトラッキング量 / tracking units per coarse step */
+            fineStep: 1,        /* 微調整1ステップのトラッキング量 / tracking units per fine step */
+            minTracking: -1000, /* 累積トラッキングの下限 / tightest allowed cumulative delta */
+            maxTracking: 20000, /* 累積トラッキングの上限 / loosest allowed cumulative delta */
             maxIter: 4000
         };
 
-        /* 1フレームをトラッキングでパス幅にフィット / Fit a single frame to the path width by tracking */
+        /**
+         * 1つのパス上文字をトラッキングでパス幅に合わせる
+         * @param {TextFrame} textFrame - 対象のパス上文字
+         * @returns {void}
+         */
         function fitByTracking(textFrame) {
             try {
                 if (!textFrame || textFrame.characters.length <= 0) return;
 
                 var lineAmount = getLineAmount(textFrame);
-                var applied = 0; // これまでに適用した累積トラッキング / cumulative tracking delta applied so far
+                var appliedTracking = 0; /* これまでに加えた累積トラッキング / cumulative tracking delta applied so far */
                 var iterations;
 
                 if (isOverset(textFrame, lineAmount)) {
-                    // あふれている：収まるまで粗く詰める / too wide: tighten (coarse) until it fits
+                    /* あふれている：収まるまで粗く詰める / too wide: tighten (coarse) until it fits */
                     iterations = 0;
-                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
-                        if (applied - opt.coarseStep < opt.minTracking) break;
-                        addDeltaToTextRanges(textFrame, 'tracking', -opt.coarseStep);
-                        applied -= opt.coarseStep;
+                    while (isOverset(textFrame, lineAmount) && iterations < fitOptions.maxIter) {
+                        if (appliedTracking - fitOptions.coarseStep < fitOptions.minTracking) break;
+                        addDeltaToTextRanges(textFrame, "tracking", -fitOptions.coarseStep);
+                        appliedTracking -= fitOptions.coarseStep;
                         iterations++;
                     }
-                    // 再びあふれるまで微調整で広げる / loosen back (fine) until it overflows again
+                    /* 再びあふれるまで細かく広げる / loosen back (fine) until it overflows again */
                     iterations = 0;
-                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
-                        if (applied + opt.fineStep > opt.maxTracking) break;
-                        addDeltaToTextRanges(textFrame, 'tracking', opt.fineStep);
-                        applied += opt.fineStep;
+                    while (!isOverset(textFrame, lineAmount) && iterations < fitOptions.maxIter) {
+                        if (appliedTracking + fitOptions.fineStep > fitOptions.maxTracking) break;
+                        addDeltaToTextRanges(textFrame, "tracking", fitOptions.fineStep);
+                        appliedTracking += fitOptions.fineStep;
                         iterations++;
                     }
-                    // 1ステップ行き過ぎたら戻して収める / stepped one step too far: pull back once so it fits
+                    /* 1ステップ行き過ぎたら戻して収める / stepped one step too far: pull back once so it fits */
                     if (isOverset(textFrame, lineAmount)) {
-                        addDeltaToTextRanges(textFrame, 'tracking', -opt.fineStep);
-                        applied -= opt.fineStep;
+                        addDeltaToTextRanges(textFrame, "tracking", -fitOptions.fineStep);
+                        appliedTracking -= fitOptions.fineStep;
                     }
                 } else {
-                    // 余裕あり：あふれるまで粗く広げる / fits with room: loosen (coarse) until it overflows
+                    /* 余裕あり：あふれるまで粗く広げる / fits with room: loosen (coarse) until it overflows */
                     iterations = 0;
-                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
-                        if (applied + opt.coarseStep > opt.maxTracking) break;
-                        addDeltaToTextRanges(textFrame, 'tracking', opt.coarseStep);
-                        applied += opt.coarseStep;
+                    while (!isOverset(textFrame, lineAmount) && iterations < fitOptions.maxIter) {
+                        if (appliedTracking + fitOptions.coarseStep > fitOptions.maxTracking) break;
+                        addDeltaToTextRanges(textFrame, "tracking", fitOptions.coarseStep);
+                        appliedTracking += fitOptions.coarseStep;
                         iterations++;
                     }
-                    // 収まるまで微調整で詰める / tighten back (fine) until it fits
+                    /* 収まるまで細かく詰める / tighten back (fine) until it fits */
                     iterations = 0;
-                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
-                        if (applied - opt.fineStep < opt.minTracking) break;
-                        addDeltaToTextRanges(textFrame, 'tracking', -opt.fineStep);
-                        applied -= opt.fineStep;
+                    while (isOverset(textFrame, lineAmount) && iterations < fitOptions.maxIter) {
+                        if (appliedTracking - fitOptions.fineStep < fitOptions.minTracking) break;
+                        addDeltaToTextRanges(textFrame, "tracking", -fitOptions.fineStep);
+                        appliedTracking -= fitOptions.fineStep;
                         iterations++;
                     }
                 }
             } catch (e) { }
         }
 
-        for (var i = 0; i < frames.length; i++) {
-            var textFrame = frames[i];
+        for (var i = 0; i < textFrames.length; i++) {
+            var textFrame = textFrames[i];
             if (!isTargetPathText(textFrame)) continue;
             fitByTracking(textFrame);
         }

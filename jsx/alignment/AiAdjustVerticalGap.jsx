@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "AiAdjustVerticalGap";          /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGap.md"; /* README (English) */
@@ -43,12 +43,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
     var DEFAULT_GAP_VALUE = "3"; /* 間隔の初期値（定規の単位）/ Default gap (ruler unit) */
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
-    var COLUMN_SPACING = 12; /* 2カラムの間隔 / Gap between the two columns */
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var PANEL_MARGINS = [16, 20, 16, 12];  /* パネルの余白 / panel margins */
+    var PANEL_SPACING = 8;                 /* パネル・グループ内の間隔 / spacing inside panels and groups */
+    var FIELD_CHARS = 5;                   /* 数値欄の幅（文字数）/ width of the number fields */
+
+    /**
+     * パネルの共通設定
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループの共通設定（row は縦中央、column は左揃え）
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [orientation] - "row" または "column"（既定）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(targetGroup, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        targetGroup.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // 常駐パレットの参照 / Resident palette reference
+    // =========================================
 
     /* パレットの参照を常駐エンジンに保持 / Keep the palette reference alive in the resident engine */
     var paletteWindow = null;
@@ -57,41 +98,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在の言語を判定（ja / en）/ Detect current language (ja / en) */
+    /**
+     * 現在の言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
             title: { ja: "上下間隔を調整", en: "Adjust Vertical Gap" }
         },
-        anchor: {
-            title: { ja: "キーオブジェクト", en: "Key object" },
-            top: { ja: "上", en: "Top" },
-            bottom: { ja: "下", en: "Bottom" },
-            auto: { ja: "自動判定", en: "Auto" }
+        panel: {
+            anchor: { ja: "キーオブジェクト", en: "Key object" },
+            gap: { ja: "上下間隔", en: "Vertical Gap" },
+            align: { ja: "横方向の整列", en: "Horizontal Alignment" },
+            justify: { ja: "テキストの行揃え", en: "Text alignment" }
         },
-        gap: {
-            title: { ja: "上下間隔", en: "Vertical Gap" }
+        radio: {
+            anchorTop: { ja: "上", en: "Top" },
+            anchorBottom: { ja: "下", en: "Bottom" },
+            anchorAuto: { ja: "自動判定", en: "Auto" },
+            alignNone: { ja: "なし", en: "None" },
+            alignLeft: { ja: "左", en: "Left" },
+            alignCenter: { ja: "中央", en: "Center" },
+            alignRight: { ja: "右", en: "Right" },
+            justifyNone: { ja: "変更しない", en: "Keep current" },
+            justifyLink: { ja: "整列に連動", en: "Match alignment" },
+            justifyFull: { ja: "均等配置（最終行左）", en: "Justify (last line left-aligned)" }
         },
         checkbox: {
             previewBounds: { ja: "プレビュー境界", en: "Use preview bounds" }
         },
-        align: {
-            title: { ja: "横方向の整列", en: "Horizontal Alignment" },
-            none: { ja: "なし", en: "None" },
-            left: { ja: "左", en: "Left" },
-            center: { ja: "中央", en: "Center" },
-            right: { ja: "右", en: "Right" },
-            adjust: { ja: "横調整", en: "Offset" }
-        },
-        justify: {
-            title: { ja: "テキストの行揃え", en: "Text alignment" },
-            none: { ja: "変更しない", en: "Keep current" },
-            link: { ja: "整列に連動", en: "Match alignment" },
-            full: { ja: "均等配置（最終行左）", en: "Justify (last line left-aligned)" }
+        fieldLabel: {
+            alignAdjust: { ja: "横調整", en: "Offset" }
         },
         button: {
             record: { ja: "記録", en: "Record" },
@@ -150,30 +192,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         }
     };
 
-    /* ドット区切りパスでラベルを取得（途中欠落・null にも耐える）/ Look up a label by dotted path (tolerates missing or null nodes) */
-    function getLabel(path) {
-        var parts = path.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node === null || typeof node !== "object") {
-                return path; /* 途中階層が辿れない / cannot descend further */
+    /**
+     * ドット区切りのパスでラベルを取得する（途中の欠落・null にも耐える）
+     * @param {string} labelPath - "panel.gap" のようなドット区切りのキー
+     * @returns {string} 現在の言語のラベル（見つからなければ labelPath そのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            if (labelNode === null || typeof labelNode !== "object") {
+                return labelPath; /* 途中階層が辿れない / cannot descend further */
             }
-            node = node[parts[i]];
+            labelNode = labelNode[pathKeys[i]];
         }
-        if (node === null || typeof node !== "object") {
-            return path; /* 葉が { ja, en } でない / leaf is not a localized object */
+        if (labelNode === null || typeof labelNode !== "object") {
+            return labelPath; /* 葉が { ja, en } でない / leaf is not a localized object */
         }
-        return node[currentLanguage] || node.en || path;
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(path) {
-        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
-
-    // =========================================
-    // 単位 / Units
-    // =========================================
 
     // =========================================
     // 単位 / Units
@@ -210,33 +256,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     // =========================================
     // 委譲される処理 / Delegated worker functions
     //   メインエンジンへ送って実行する。toString() で連結するため、
-    //   この節の関数では // コメントを使わず /* */ のみ・必ずセミコロンで終える。
-    //   Sent to the main engine; use only /* */ comments and explicit semicolons here.
+    //   この節の関数には JSDoc を付けず、// コメントを使わず /* */ のみ・必ずセミコロンで終える。
+    //   Sent to the main engine: no JSDoc, only /* */ comments and explicit semicolons here.
     // =========================================
 
     /* クリップグループのクリップパスを返す（無ければ null）/ Return the clipping path of a clip group, or null */
     function getClippingPath(groupItem) {
-        var paths = groupItem.pathItems;
-        for (var i = 0; i < paths.length; i++) {
-            if (paths[i].clipping === true) {
-                return paths[i];
+        var groupPaths = groupItem.pathItems;
+        for (var i = 0; i < groupPaths.length; i++) {
+            if (groupPaths[i].clipping === true) {
+                return groupPaths[i];
             }
         }
         /* 複合パスでクリップしている場合 / When the clip path is a compound path */
-        var compounds = groupItem.compoundPathItems;
-        for (var j = 0; j < compounds.length; j++) {
-            if (compounds[j].pathItems.length > 0 && compounds[j].pathItems[0].clipping === true) {
-                return compounds[j];
+        var compoundPaths = groupItem.compoundPathItems;
+        for (var j = 0; j < compoundPaths.length; j++) {
+            if (compoundPaths[j].pathItems.length > 0 && compoundPaths[j].pathItems[0].clipping === true) {
+                return compoundPaths[j];
             }
         }
         return null;
     }
 
     /* 計算に使う境界を取得（クリップグループはクリップパス基準）/ Bounds for calculation (clip group uses its clipping path) */
-    function getItemBounds(item, usePreviewBounds) {
-        var boundsTarget = item;
-        if (item.constructor.name === "GroupItem" && item.clipped === true) {
-            var clipPath = getClippingPath(item);
+    function getItemBounds(targetItem, usePreviewBounds) {
+        var boundsTarget = targetItem;
+        if (targetItem.constructor.name === "GroupItem" && targetItem.clipped === true) {
+            var clipPath = getClippingPath(targetItem);
             if (clipPath !== null) {
                 boundsTarget = clipPath;
             }
@@ -244,26 +290,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         return usePreviewBounds ? boundsTarget.visibleBounds : boundsTarget.geometricBounds;
     }
 
-    /* UI の行揃え選択を実際のキーに解決（「整列に連動」は整列値を流用）/ Resolve the choice ("link" follows the align value) */
+    /* UI の行揃え選択を実際のキーに解決（「整列に連動」は整列値をそのまま使う。「なし」なら "none"）/
+       Resolve the choice ("link" reuses the align value; align "none" stays "none") */
     function resolveJustifyKey(justify, align) {
         if (justify === "link") {
-            return (align === "none") ? "none" : align;
+            return align;
         }
         return justify;
     }
 
     /* 行揃えキーを Justification 列挙値に変換 / Map key to Justification enum */
-    function resolveJustification(key) {
-        if (key === "left") {
+    function resolveJustification(justifyKey) {
+        if (justifyKey === "left") {
             return Justification.LEFT;
         }
-        if (key === "center") {
+        if (justifyKey === "center") {
             return Justification.CENTER;
         }
-        if (key === "right") {
+        if (justifyKey === "right") {
             return Justification.RIGHT;
         }
-        if (key === "full") {
+        if (justifyKey === "full") {
             return Justification.FULLJUSTIFYLASTLINELEFT;
         }
         return null;
@@ -271,11 +318,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* TextFrame なら段落の行揃えを設定。実際に変更したら true を返す（no-op 検出用）/
        Set justification on a TextFrame; return true if it actually changed (for no-op detection) */
-    function applyJustification(item, justification, force) {
+    function applyJustification(targetItem, justification, force) {
         if (justification === null) {
             return false;
         }
-        if (item.constructor.name !== "TextFrame") {
+        if (targetItem.constructor.name !== "TextFrame") {
             return false;
         }
         /* 既に目的の行揃えなら何もしない（無駄な undo ステップを作らない）。
@@ -284,7 +331,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
            Skip if already at the target justification (avoids a spurious undo step), except on
            commit (force): paragraphAttributes can report the pre-undo value right after an undo,
            and skipping the assignment there would leave the justification reverted */
-        if (force !== true && item.textRange.paragraphAttributes.justification === justification) {
+        if (force !== true && targetItem.textRange.paragraphAttributes.justification === justification) {
             return false;
         }
         if (justification === Justification.LEFT) {
@@ -294,16 +341,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
                Assigning Justification.LEFT is ignored by Illustrator; a temporary resize
                refreshes the paragraph attributes so the assignment takes effect (200% then
                50% leaves the real size unchanged; position is saved and restored). */
-            var savedPosition = [item.position[0], item.position[1]];
-            item.resize(200, 200);
-            item.textRange.paragraphAttributes.justification = Justification.LEFT;
-            item.resize(50, 50);
+            var savedPosition = [targetItem.position[0], targetItem.position[1]];
+            targetItem.resize(200, 200);
+            targetItem.textRange.paragraphAttributes.justification = Justification.LEFT;
+            targetItem.resize(50, 50);
+            /* 位置を戻せない種類がある / some items refuse the position assignment */
             try {
-                item.position = savedPosition;
+                targetItem.position = savedPosition;
             } catch (ePos) {}
             return true;
         }
-        item.textRange.paragraphAttributes.justification = justification;
+        targetItem.textRange.paragraphAttributes.justification = justification;
         return true;
     }
 
@@ -316,37 +364,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         /* 2点を含む通常グループ1つ（クリップグループは1オブジェクト扱いなので除外）/
            One regular group of exactly two items (clip groups count as a single object, so excluded) */
         if (currentSelection.length === 1 && currentSelection[0].constructor.name === "GroupItem" && currentSelection[0].clipped !== true) {
-            var children = currentSelection[0].pageItems;
-            if (children.length === 2) {
-                return [children[0], children[1]];
+            var groupChildren = currentSelection[0].pageItems;
+            if (groupChildren.length === 2) {
+                return [groupChildren[0], groupChildren[1]];
             }
         }
         return null;
     }
 
     /* 選択2点の現在の上下間隔を pt で返す（メインエンジンで実行）/ Return the current vertical gap (pt) of the two selected items */
-    function measureGap(options) {
+    function measureGap(adjustOptions) {
         if (app.documents.length === 0) {
             return "NODOC";
         }
-        var pair = resolveTargetPair(app.activeDocument.selection);
-        if (pair === null) {
+        var targetPair = resolveTargetPair(app.activeDocument.selection);
+        if (targetPair === null) {
             return "NOSEL";
         }
-        var boundsA = getItemBounds(pair[0], options.usePreviewBounds);
-        var boundsB = getItemBounds(pair[1], options.usePreviewBounds);
+        var boundsA = getItemBounds(targetPair[0], adjustOptions.usePreviewBounds);
+        var boundsB = getItemBounds(targetPair[1], adjustOptions.usePreviewBounds);
         /* top が大きい方が上 / The object with the larger top is the upper one */
-        var upper, lower;
+        var upperBounds, lowerBounds;
         if (boundsA[1] >= boundsB[1]) {
-            upper = boundsA;
-            lower = boundsB;
+            upperBounds = boundsA;
+            lowerBounds = boundsB;
         } else {
-            upper = boundsB;
-            lower = boundsA;
+            upperBounds = boundsB;
+            lowerBounds = boundsA;
         }
         /* 上のオブジェクトの下辺 − 下のオブジェクトの上辺（重なりは負）/
            Upper object's bottom edge − lower object's top edge (negative when overlapping) */
-        return String(upper[3] - lower[1]);
+        return String(upperBounds[3] - lowerBounds[1]);
     }
 
     /* 直前のプレビューを取り消す（メインエンジンで実行）/ Undo the previous preview (runs in the main engine) */
@@ -361,24 +409,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 1ペア（上下2点）に間隔・整列・行揃えを適用。実際に変更したら true /
        Apply gap, align and justify to one pair; return true if anything actually changed */
-    function applyToPair(itemA, itemB, options) {
+    function applyToPair(itemA, itemB, adjustOptions) {
         var changed = false;
         var MOVE_EPSILON = 0.0001;
 
         /* 行揃えを先に適用（ポイント文字は揃えで境界が変わるため）/ Justify first; point-text bounds depend on it */
-        var justifyKey = resolveJustifyKey(options.justify, options.align);
+        var justifyKey = resolveJustifyKey(adjustOptions.justify, adjustOptions.align);
         if (justifyKey !== "none") {
             var justification = resolveJustification(justifyKey);
-            if (applyJustification(itemA, justification, options.forceJustify)) {
+            if (applyJustification(itemA, justification, adjustOptions.forceJustify)) {
                 changed = true;
             }
-            if (applyJustification(itemB, justification, options.forceJustify)) {
+            if (applyJustification(itemB, justification, adjustOptions.forceJustify)) {
                 changed = true;
             }
         }
 
-        var boundsA = getItemBounds(itemA, options.usePreviewBounds);
-        var boundsB = getItemBounds(itemB, options.usePreviewBounds);
+        var boundsA = getItemBounds(itemA, adjustOptions.usePreviewBounds);
+        var boundsB = getItemBounds(itemB, adjustOptions.usePreviewBounds);
 
         /* top が大きい方が上 / The object with the larger top is the upper one */
         var upperItem, lowerItem;
@@ -390,17 +438,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             lowerItem = itemA;
         }
 
-        var anchorItem = options.anchorTop ? upperItem : lowerItem;
-        var movingItem = options.anchorTop ? lowerItem : upperItem;
+        var anchorItem = adjustOptions.anchorTop ? upperItem : lowerItem;
+        var movingItem = adjustOptions.anchorTop ? lowerItem : upperItem;
 
         /* 上下方向の移動（移動量が実質ゼロなら translate しない）/ Vertical move (skip if the delta is effectively zero) */
         var dy;
-        if (options.anchorTop) {
-            var targetLowerTop = getItemBounds(upperItem, options.usePreviewBounds)[3] - options.gapPoints;
-            dy = targetLowerTop - getItemBounds(movingItem, options.usePreviewBounds)[1];
+        if (adjustOptions.anchorTop) {
+            var targetLowerTop = getItemBounds(upperItem, adjustOptions.usePreviewBounds)[3] - adjustOptions.gapPoints;
+            dy = targetLowerTop - getItemBounds(movingItem, adjustOptions.usePreviewBounds)[1];
         } else {
-            var targetUpperBottom = getItemBounds(lowerItem, options.usePreviewBounds)[1] + options.gapPoints;
-            dy = targetUpperBottom - getItemBounds(movingItem, options.usePreviewBounds)[3];
+            var targetUpperBottom = getItemBounds(lowerItem, adjustOptions.usePreviewBounds)[1] + adjustOptions.gapPoints;
+            dy = targetUpperBottom - getItemBounds(movingItem, adjustOptions.usePreviewBounds)[3];
         }
         if (Math.abs(dy) > MOVE_EPSILON) {
             movingItem.translate(0, dy);
@@ -408,15 +456,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         }
 
         /* 左右方向の整列（同上）/ Horizontal alignment (same zero-skip) */
-        if (options.align !== "none") {
-            var anchorBounds = getItemBounds(anchorItem, options.usePreviewBounds);
-            var movingBounds = getItemBounds(movingItem, options.usePreviewBounds);
+        if (adjustOptions.align !== "none") {
+            var anchorBounds = getItemBounds(anchorItem, adjustOptions.usePreviewBounds);
+            var movingBounds = getItemBounds(movingItem, adjustOptions.usePreviewBounds);
             var dx = 0;
-            if (options.align === "left") {
+            if (adjustOptions.align === "left") {
                 dx = anchorBounds[0] - movingBounds[0];
-            } else if (options.align === "right") {
+            } else if (adjustOptions.align === "right") {
                 dx = anchorBounds[2] - movingBounds[2];
-            } else if (options.align === "center") {
+            } else if (adjustOptions.align === "center") {
                 dx = ((anchorBounds[0] + anchorBounds[2]) / 2) - ((movingBounds[0] + movingBounds[2]) / 2);
             }
             if (Math.abs(dx) > MOVE_EPSILON) {
@@ -427,8 +475,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         /* 整列後の左右ずらし（正＝右／負＝左）。整列「なし」でも適用 /
            Extra horizontal offset after alignment (positive = right, negative = left); applies even when align is none */
-        if (options.adjustPoints && Math.abs(options.adjustPoints) > MOVE_EPSILON) {
-            movingItem.translate(options.adjustPoints, 0);
+        if (adjustOptions.adjustPoints && Math.abs(adjustOptions.adjustPoints) > MOVE_EPSILON) {
+            movingItem.translate(adjustOptions.adjustPoints, 0);
             changed = true;
         }
 
@@ -436,22 +484,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     }
 
     /* ライブプレビュー：選択ペア1組に適用（メインエンジンで実行）/ Live preview: apply to the single selected pair */
-    function runAdjustment(options) {
+    function runAdjustment(adjustOptions) {
         /* ドキュメント確認を最優先（undo より先）/ Check for a document first, before any undo */
         if (app.documents.length === 0) {
             return "NODOC";
         }
         /* ライブプレビュー：前回適用分を取り消してからやり直す / Live preview: undo the previous apply first */
-        if (options.undoFirst === true) {
+        if (adjustOptions.undoFirst === true) {
             app.undo();
         }
-        var pair = resolveTargetPair(app.activeDocument.selection);
-        if (pair === null) {
+        var targetPair = resolveTargetPair(app.activeDocument.selection);
+        if (targetPair === null) {
             app.redraw();
             return "NOSEL";
         }
 
-        var changed = applyToPair(pair[0], pair[1], options);
+        var changed = applyToPair(targetPair[0], targetPair[1], adjustOptions);
 
         app.redraw();
         /* 変更があれば OK（undo ステップ1つ）、無ければ NOCHANGE（undo ステップ無し）/
@@ -462,48 +510,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     /* 選択から一括適用の対象ペア群を集める（各グループの2点／グループ無しなら2点選択を1組）/
        Collect target pairs for batch apply (each group's two children; or two loose items as one pair) */
     function collectTargetPairs(currentSelection) {
-        var pairs = [];
+        var targetPairs = [];
         for (var i = 0; i < currentSelection.length; i++) {
             if (currentSelection[i].constructor.name === "GroupItem" && currentSelection[i].clipped !== true && currentSelection[i].pageItems.length === 2) {
-                pairs.push([currentSelection[i].pageItems[0], currentSelection[i].pageItems[1]]);
+                targetPairs.push([currentSelection[i].pageItems[0], currentSelection[i].pageItems[1]]);
             }
         }
         /* グループが1つも無く、ちょうど2点選択なら単一ペア / no qualifying groups but exactly two loose items */
-        if (pairs.length === 0 && currentSelection.length === 2) {
-            pairs.push([currentSelection[0], currentSelection[1]]);
+        if (targetPairs.length === 0 && currentSelection.length === 2) {
+            targetPairs.push([currentSelection[0], currentSelection[1]]);
         }
-        return pairs;
+        return targetPairs;
     }
 
     /* 記録した設定を選択中の全対象ペアへ一括適用・確定（プレビューなし）/
        Batch-apply the recorded settings to every target pair in the selection (committed, no preview) */
-    function runBatchAdjustment(options) {
+    function runBatchAdjustment(adjustOptions) {
         if (app.documents.length === 0) {
             return "NODOC";
         }
         /* プレビュー分はここで取り消す（別送信で取り消すとプレビューと条件が変わる）/
            Undo the preview here, in the same send as the apply */
-        if (options.undoFirst === true) {
+        if (adjustOptions.undoFirst === true) {
             app.undo();
         }
         /* 確定なので行揃えは取得値で判定せず必ず適用する / Commit: always assign the justification */
-        options.forceJustify = true;
-        var pairs = collectTargetPairs(app.activeDocument.selection);
-        if (pairs.length === 0) {
+        adjustOptions.forceJustify = true;
+        var targetPairs = collectTargetPairs(app.activeDocument.selection);
+        if (targetPairs.length === 0) {
             app.redraw();
             return "NOSEL";
         }
-        for (var i = 0; i < pairs.length; i++) {
-            applyToPair(pairs[i][0], pairs[i][1], options);
+        for (var i = 0; i < targetPairs.length; i++) {
+            applyToPair(targetPairs[i][0], targetPairs[i][1], adjustOptions);
         }
         app.redraw();
         return "OK";
     }
 
     /* オブジェクトの位置を [x, y] で返す（取得できなければ null）/ Return the item position as [x, y], or null */
-    function getItemPosition(item) {
+    function getItemPosition(targetItem) {
+        /* position を持たない・読めない種類がある / some items have no readable position */
         try {
-            var itemPosition = item.position;
+            var itemPosition = targetItem.position;
             if (!itemPosition || itemPosition.length !== 2) {
                 return null;
             }
@@ -514,11 +563,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     }
 
     /* 判定で動かしたオブジェクトを元の位置へ戻す / Move every probed item back to its original position */
-    function restoreItemPositions(items, positions) {
+    function restoreItemPositions(targetItems, savedPositions) {
         var restored = true;
-        for (var i = 0; i < items.length; i++) {
+        for (var i = 0; i < targetItems.length; i++) {
             try {
-                items[i].position = [positions[i][0], positions[i][1]];
+                targetItems[i].position = [savedPositions[i][0], savedPositions[i][1]];
             } catch (e) {
                 /* 1つ失敗しても残りは必ず戻す / Keep restoring the rest even if one fails */
                 restored = false;
@@ -528,15 +577,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     }
 
     /* 整列で動いたオブジェクトを候補から外す / Drop candidates that moved during an align probe */
-    function rejectMovedCandidates(items, positions, candidates, tolerance) {
-        for (var i = 0; i < items.length; i++) {
+    function rejectMovedCandidates(targetItems, savedPositions, candidates, tolerance) {
+        for (var i = 0; i < targetItems.length; i++) {
             if (!candidates[i]) {
                 continue;
             }
-            var currentPosition = getItemPosition(items[i]);
+            var currentPosition = getItemPosition(targetItems[i]);
             if (currentPosition === null ||
-                Math.abs(currentPosition[0] - positions[i][0]) > tolerance ||
-                Math.abs(currentPosition[1] - positions[i][1]) > tolerance) {
+                Math.abs(currentPosition[0] - savedPositions[i][0]) > tolerance ||
+                Math.abs(currentPosition[1] - savedPositions[i][1]) > tolerance) {
                 candidates[i] = false;
             }
         }
@@ -546,16 +595,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
        キーオブジェクトが無くても4方向すべてで残ってしまう /
        Whether the item's bounds enclose every other item: such an item never moves during the
        probes, so it survives all four of them even when no key object is set */
-    function enclosesAllOthers(item, items) {
-        var bounds = getItemBounds(item, false);
-        for (var i = 0; i < items.length; i++) {
-            if (items[i] === item) {
+    function enclosesAllOthers(targetItem, targetItems) {
+        var itemBounds = getItemBounds(targetItem, false);
+        for (var i = 0; i < targetItems.length; i++) {
+            if (targetItems[i] === targetItem) {
                 continue;
             }
-            var otherBounds = getItemBounds(items[i], false);
+            var otherBounds = getItemBounds(targetItems[i], false);
             /* [left, top, right, bottom] */
-            if (otherBounds[0] < bounds[0] || otherBounds[2] > bounds[2] ||
-                otherBounds[1] > bounds[1] || otherBounds[3] < bounds[3]) {
+            if (otherBounds[0] < itemBounds[0] || otherBounds[2] > itemBounds[2] ||
+                otherBounds[1] > itemBounds[1] || otherBounds[3] < itemBounds[3]) {
                 return false;
             }
         }
@@ -568,29 +617,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
        Detect the key object: the single item that stays put through all four align probes.
        ExtendScript has no API for it, so align commands are run temporarily and every
        item is moved back afterwards */
-    function findKeyObject(items) {
+    function findKeyObject(targetItems) {
         var alignCommands = ["Horizontal Align Left", "Vertical Align Top", "Horizontal Align Right", "Vertical Align Bottom"];
         var tolerance = 0.001;
-        var positions = [];
+        var savedPositions = [];
         var candidates = [];
         var i;
-        for (i = 0; i < items.length; i++) {
-            positions[i] = getItemPosition(items[i]);
-            if (positions[i] === null) {
+        for (i = 0; i < targetItems.length; i++) {
+            savedPositions[i] = getItemPosition(targetItems[i]);
+            if (savedPositions[i] === null) {
                 return null;
             }
             candidates[i] = true;
         }
+        /* executeMenuCommand が失敗したら判定をあきらめる / give up when a menu command fails */
         try {
             for (i = 0; i < alignCommands.length; i++) {
                 /* 2回目以降だけ元位置へ戻す（初回は余計な移動をしない）/ Restore only from the second probe on */
-                if (i > 0 && !restoreItemPositions(items, positions)) {
+                if (i > 0 && !restoreItemPositions(targetItems, savedPositions)) {
                     return null;
                 }
                 app.executeMenuCommand(alignCommands[i]);
                 /* 候補が1つになっても打ち切らず、4方向すべてで動かないことを確認する /
                    Keep probing all four directions to avoid a false positive */
-                rejectMovedCandidates(items, positions, candidates, tolerance);
+                rejectMovedCandidates(targetItems, savedPositions, candidates, tolerance);
                 /* 候補が尽きたら残りのプローブは結果を変えられないので打ち切る /
                    No candidate left: the remaining probes cannot change the result */
                 var remaining = 0;
@@ -607,13 +657,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             return null;
         } finally {
             /* 判定中は redraw せず、最後に一度だけ元位置へ戻す / No redraw while probing; restore once at the end */
-            restoreItemPositions(items, positions);
+            restoreItemPositions(targetItems, savedPositions);
         }
         var keyItem = null;
         var candidateCount = 0;
         for (i = 0; i < candidates.length; i++) {
             if (candidates[i]) {
-                keyItem = items[i];
+                keyItem = targetItems[i];
                 candidateCount++;
             }
         }
@@ -622,11 +672,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         if (candidateCount !== 1) {
             return null;
         }
-        return enclosesAllOthers(keyItem, items) ? null : keyItem;
+        return enclosesAllOthers(keyItem, targetItems) ? null : keyItem;
     }
 
     /* 選択2点のキーオブジェクトが上下どちらかを返す / Report whether the key object is the upper or lower item */
-    function findKeyObjectAnchor(options) {
+    function findKeyObjectAnchor(adjustOptions) {
         if (app.documents.length === 0) {
             return "NODOC";
         }
@@ -641,8 +691,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         if (keyItem === null) {
             return "NONE";
         }
-        var keyBounds = getItemBounds(keyItem, options.usePreviewBounds);
-        var otherBounds = getItemBounds((currentSelection[0] === keyItem) ? currentSelection[1] : currentSelection[0], options.usePreviewBounds);
+        var keyBounds = getItemBounds(keyItem, adjustOptions.usePreviewBounds);
+        var otherBounds = getItemBounds((currentSelection[0] === keyItem) ? currentSelection[1] : currentSelection[0], adjustOptions.usePreviewBounds);
         /* top が大きい方が上 / The item with the larger top is the upper one */
         return (keyBounds[1] >= otherBounds[1]) ? "TOP" : "BOTTOM";
     }
@@ -680,103 +730,145 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         findKeyObjectAnchor
     ];
 
-    /* options を JS リテラル文字列に変換 / Serialize options to a JS object literal */
-    function optionsToLiteral(options) {
+    /**
+     * 設定を JS のオブジェクトリテラル文字列にする
+     * @param {object} adjustOptions - 設定（anchorTop / gapPoints / align / adjustPoints / justify / usePreviewBounds / undoFirst）
+     * @returns {string} オブジェクトリテラル
+     */
+    function optionsToLiteral(adjustOptions) {
         return "{"
-            + "anchorTop:" + options.anchorTop + ","
-            + "gapPoints:" + options.gapPoints + ","
-            + "align:\"" + options.align + "\","
-            + "adjustPoints:" + (options.adjustPoints || 0) + ","
-            + "justify:\"" + options.justify + "\","
-            + "usePreviewBounds:" + options.usePreviewBounds + ","
-            + "undoFirst:" + (options.undoFirst === true)
+            + "anchorTop:" + adjustOptions.anchorTop + ","
+            + "gapPoints:" + adjustOptions.gapPoints + ","
+            + "align:\"" + adjustOptions.align + "\","
+            + "adjustPoints:" + (adjustOptions.adjustPoints || 0) + ","
+            + "justify:\"" + adjustOptions.justify + "\","
+            + "usePreviewBounds:" + adjustOptions.usePreviewBounds + ","
+            + "undoFirst:" + (adjustOptions.undoFirst === true)
             + "}";
     }
 
-    /* worker 関数群 + ディスパッチ式のコードを組み立てる / Build worker source + a dispatch expression */
+    /**
+     * worker 関数群のソースと呼び出し式をつなげたコードを作る
+     * @param {function[]} workerFuncs - 送る worker 関数
+     * @param {string} dispatchExpr - 最後に評価する呼び出し式
+     * @returns {string} メインエンジンで評価するコード
+     */
     function buildWorkerCode(workerFuncs, dispatchExpr) {
-        var bodies = [];
+        var functionSources = [];
         for (var i = 0; i < workerFuncs.length; i++) {
-            bodies.push(workerFuncs[i].toString());
+            functionSources.push(workerFuncs[i].toString());
         }
-        return bodies.join("\n") + "\n" + dispatchExpr + ";";
+        return functionSources.join("\n") + "\n" + dispatchExpr + ";";
     }
 
-    /* メインエンジンへ同期委譲（%エンコードで文字化けを防ぐ）/ Delegate synchronously, %-encoded to avoid corruption */
-    function delegateToMainEngine(code) {
-        var bridge = new BridgeTalk();
-        bridge.target = "illustrator";
-        bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
-        var holder = { value: null };
-        bridge.onResult = function (response) {
-            holder.value = response.body;
+    /**
+     * メインエンジンへ同期で委譲する（% エンコードで文字化けを防ぐ）
+     * @param {string} workerCode - 評価するコード
+     * @returns {string} 結果の文字列（失敗時は "ERR:" で始まる）
+     */
+    function delegateToMainEngine(workerCode) {
+        var bridgeTalk = new BridgeTalk();
+        bridgeTalk.target = "illustrator";
+        bridgeTalk.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerCode) + "\"));";
+        var resultHolder = { value: null };
+        bridgeTalk.onResult = function (response) {
+            resultHolder.value = response.body;
         };
-        bridge.onError = function (response) {
-            holder.value = "ERR:" + response.body;
+        bridgeTalk.onError = function (response) {
+            resultHolder.value = "ERR:" + response.body;
         };
-        bridge.send(10); // 同期送信（最大10秒）/ Synchronous send (up to 10s)
-        return (holder.value === null) ? "ERR:timeout" : holder.value;
+        bridgeTalk.send(10); /* 同期送信（最大10秒）/ Synchronous send (up to 10s) */
+        return (resultHolder.value === null) ? "ERR:timeout" : resultHolder.value;
     }
 
-    /* プレビューを適用（前回分は worker 側で取り消し）/ Apply a preview (worker undoes the previous one) */
-    function runAdjustmentPreview(options) {
-        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runAdjustment(" + optionsToLiteral(options) + ")"));
+    /**
+     * プレビューを適用する（前回分は worker 側で取り消す）
+     * @param {object} adjustOptions - 設定
+     * @returns {string} OK / NOCHANGE / NODOC / NOSEL / ERR:…
+     */
+    function runAdjustmentPreview(adjustOptions) {
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runAdjustment(" + optionsToLiteral(adjustOptions) + ")"));
     }
 
-    /* 記録設定を選択中の全対象ペアへ一括適用・確定 / Batch-apply recorded settings to all target pairs */
-    function runBatchAdjustmentDelegate(options) {
-        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runBatchAdjustment(" + optionsToLiteral(options) + ")"));
+    /**
+     * 設定を選択中の全対象ペアへ一括適用・確定する
+     * @param {object} adjustOptions - 設定
+     * @returns {string} OK / NODOC / NOSEL / ERR:…
+     */
+    function runBatchAdjustmentDelegate(adjustOptions) {
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runBatchAdjustment(" + optionsToLiteral(adjustOptions) + ")"));
     }
 
-    /* 選択2点の現在の間隔を計測（pt 文字列 / NODOC / NOSEL）/ Measure the current gap (pt string / NODOC / NOSEL) */
-    function measureCurrentGap(options) {
-        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "measureGap(" + optionsToLiteral(options) + ")"));
+    /**
+     * 選択2点の現在の間隔を測る
+     * @param {object} adjustOptions - 設定（usePreviewBounds を使う）
+     * @returns {string} pt の数値文字列 / NODOC / NOSEL
+     */
+    function measureCurrentGap(adjustOptions) {
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "measureGap(" + optionsToLiteral(adjustOptions) + ")"));
     }
 
-    /* キーオブジェクトを判定（TOP / BOTTOM / NONE / NODOC / NOSEL）/ Detect the key object (TOP / BOTTOM / NONE / NODOC / NOSEL) */
+    /**
+     * キーオブジェクトが上下どちらかを判定する
+     * @param {boolean} usePreviewBounds - プレビュー境界で比べるか
+     * @returns {string} TOP / BOTTOM / NONE / NODOC / NOSEL
+     */
     function detectKeyObjectAnchor(usePreviewBounds) {
         return delegateToMainEngine(buildWorkerCode(KEY_OBJECT_FUNCS, "findKeyObjectAnchor({usePreviewBounds:" + (usePreviewBounds === true) + "})"));
     }
 
-    /* 直前のプレビューを取り消す / Revert the last preview */
+    /**
+     * 直前のプレビューを取り消す
+     * @returns {string} OK / NODOC / ERR:…
+     */
     function revertLastPreview() {
         return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "undoLast()"));
     }
 
     // =========================================
-    // テキストフィールド操作 / Text field helpers
+    // キー操作 / Keyboard helpers
     // =========================================
 
-    /* 現在値とキー・修飾キーから次の値を求める（↑↓以外は null）/
-       Compute the next value from the current value and modifiers (null for keys other than Up/Down) */
-    function steppedValue(value, keyName, keyboard) {
+    /**
+     * 現在値とキー・修飾キーから次の値を求める
+     * @param {number} currentValue - 現在値
+     * @param {string} keyName - 押されたキー名
+     * @param {object} keyboardState - ScriptUI.environment.keyboardState
+     * @returns {number|null} 次の値（↑↓以外は null）
+     */
+    function steppedValue(currentValue, keyName, keyboardState) {
         if (keyName !== "Up" && keyName !== "Down") {
             return null;
         }
-        var up = (keyName === "Up");
-        if (keyboard.shiftKey) {
+        var isUp = (keyName === "Up");
+        if (keyboardState.shiftKey) {
             /* Shiftは10の倍数にスナップ / Shift snaps to multiples of 10 */
-            return up ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            return isUp ? Math.ceil((currentValue + 1) / 10) * 10 : Math.floor((currentValue - 1) / 10) * 10;
         }
-        if (keyboard.altKey) {
+        if (keyboardState.altKey) {
             /* Optionは0.1ずつ（小数1桁に丸め）/ Option steps by 0.1 (rounded to 1 decimal) */
-            return Math.round((value + (up ? 0.1 : -0.1)) * 10) / 10;
+            return Math.round((currentValue + (isUp ? 0.1 : -0.1)) * 10) / 10;
         }
         /* 通常は整数グリッドへ±1スナップ（1.7→↑2.0／↓1.0）/ Default: snap to the integer grid by ±1 */
-        return up ? Math.floor(value) + 1 : Math.ceil(value) - 1;
+        return isUp ? Math.floor(currentValue) + 1 : Math.ceil(currentValue) - 1;
     }
 
-    /* ↑↓キーで値を増減（Shiftで±10・10スナップ、Optionで±0.1、通常は±1）/ Arrow keys change the value (Shift: ±10 snapped, Option: ±0.1, default: ±1) */
+    /**
+     * ↑↓キーで値を増減する（Shift で ±10・10 スナップ、Option で ±0.1、通常は ±1）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {function} [onChangeCallback] - 値を変えたあとに呼ぶ処理
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, onChangeCallback) {
         editText.addEventListener("keydown", function (event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+            var currentValue = Number(editText.text);
+            if (isNaN(currentValue)) return;
 
-            var next = steppedValue(value, event.keyName, ScriptUI.environment.keyboardState);
-            if (next === null) return;
+            var nextValue = steppedValue(currentValue, event.keyName, ScriptUI.environment.keyboardState);
+            if (nextValue === null) return;
 
             event.preventDefault();
-            editText.text = next;
+            editText.text = nextValue;
 
             /* 値変更を通知 / Notify the change */
             if (typeof onChangeCallback === "function") {
@@ -785,27 +877,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         });
     }
 
-    /* ロック中はパネル系ショートカットを無効化する述語（true で無効）/ When this returns true, panel shortcuts are disabled */
-    function shortcutsDisabled(isLocked) {
-        return typeof isLocked === "function" && isLocked();
+    /**
+     * ロック中かを返す述語を評価する（true ならパネル系ショートカットを無効にする）
+     * @param {function} [isLockedFn] - ロック中なら true を返す関数
+     * @returns {boolean} 無効にするなら true
+     */
+    function shortcutsDisabled(isLockedFn) {
+        return typeof isLockedFn === "function" && isLockedFn();
     }
 
-    /* ラジオを選んでプレビューするアクションを作る / Build an action that selects a radio then previews */
-    function pickThenPreview(radio, onPreview) {
+    /**
+     * ラジオを選んでからプレビューする処理を作る
+     * @param {RadioButton} targetRadio - 選ぶラジオ
+     * @param {function} onPreview - プレビューの処理
+     * @returns {function} キーに割り当てる処理
+     */
+    function pickThenPreview(targetRadio, onPreview) {
         return function () {
-            radio.value = true;
+            targetRadio.value = true;
             onPreview();
         };
     }
 
-    /* キー→アクションのテーブルを win に登録（gated:true のものはロック中無効）/
-       Register a key→action table on the window (entries with gated:true are disabled while locked) */
-    function addKeyHandlers(win, isLocked, bindings) {
-        win.addEventListener("keydown", function (event) {
-            for (var i = 0; i < bindings.length; i++) {
-                if (bindings[i].key !== event.keyName) continue;
-                if (bindings[i].gated && shortcutsDisabled(isLocked)) return;
-                bindings[i].run();
+    /**
+     * キー → 処理の表をウィンドウに登録する（gated: true のものはロック中は無効）
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {function} isLockedFn - ロック中なら true を返す関数
+     * @param {Array} keyBindings - { key, run, gated } の配列
+     * @returns {void}
+     */
+    function addKeyHandlers(targetWindow, isLockedFn, keyBindings) {
+        targetWindow.addEventListener("keydown", function (event) {
+            for (var i = 0; i < keyBindings.length; i++) {
+                if (keyBindings[i].key !== event.keyName) continue;
+                if (keyBindings[i].gated && shortcutsDisabled(isLockedFn)) return;
+                keyBindings[i].run();
                 event.preventDefault();
                 return;
             }
@@ -813,51 +919,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     }
 
     // =========================================
-    // レイアウト共通設定 / Shared layout helpers
-    // =========================================
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    // =========================================
     // パネル生成 / Panel builders
     // =========================================
 
-    /* 固定するオブジェクトパネル / Fixed-object panel */
-    function buildAnchorPanel(parent, onPreview, onAutoDetect) {
-        var panel = parent.add("panel", undefined, getLabel("anchor.title"));
-        setupPanel(panel);
-        panel.helpTip = getLabel("tooltip.anchorTop") + " / " + getLabel("tooltip.anchorBottom") + " / " + getLabel("tooltip.anchorAuto");
+    /**
+     * 定規単位の数値欄（↑↓キー対応）と単位ラベルを行に追加する
+     * @param {Group} parentRow - 追加先の行
+     * @param {string} initialText - 初期値
+     * @param {string} tooltipText - ツールチップ
+     * @param {object} rulerUnit - getUnitInfo() の結果
+     * @param {function} onPreview - 値が変わったときの処理
+     * @returns {EditText} 追加した入力欄
+     */
+    function addUnitField(parentRow, initialText, tooltipText, rulerUnit, onPreview) {
+        var unitField = parentRow.add("edittext", undefined, initialText);
+        unitField.characters = FIELD_CHARS;
+        unitField.helpTip = tooltipText;
+        changeValueByArrowKey(unitField, onPreview);
+        unitField.onChange = onPreview;
+        parentRow.add("statictext", undefined, rulerUnit.label);
+        return unitField;
+    }
+
+    /**
+     * ラジオの組すべてに同じツールチップと onClick を付ける
+     * @param {RadioButton[]} radioList - 対象のラジオ
+     * @param {string} tooltipText - ツールチップ
+     * @param {function} [clickHandler] - クリック時の処理（省略時は付けない）
+     * @returns {void}
+     */
+    function setupRadios(radioList, tooltipText, clickHandler) {
+        for (var i = 0; i < radioList.length; i++) {
+            radioList[i].helpTip = tooltipText;
+            if (clickHandler) radioList[i].onClick = clickHandler;
+        }
+    }
+
+    /**
+     * キーオブジェクトのパネル（上・下・自動判定）を追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {function} onPreview - 上・下を選んだときの処理
+     * @param {function} onAutoDetect - 自動判定を選んだときの処理
+     * @returns {{anchorTopRadio: RadioButton, anchorBottomRadio: RadioButton, anchorAutoRadio: RadioButton, autoAnchorTop: boolean}} ラジオと自動判定の結果
+     */
+    function buildAnchorPanel(parentGroup, onPreview, onAutoDetect) {
+        var anchorPanel = parentGroup.add("panel", undefined, getLabel("panel.anchor"));
+        setupPanel(anchorPanel);
+        anchorPanel.helpTip = getLabel("tooltip.anchorTop") + " / " + getLabel("tooltip.anchorBottom") + " / " + getLabel("tooltip.anchorAuto");
 
         /* 上・下・自動判定は横並び（ショートカット T/B/K はラベル非表示）/ Top, bottom and auto in a row (T/B/K shortcuts are not shown) */
-        var row = panel.add("group");
-        setupGroup(row, "row");
-        var anchorTopRadio = row.add("radiobutton", undefined, getLabel("anchor.top"));
-        var anchorBottomRadio = row.add("radiobutton", undefined, getLabel("anchor.bottom"));
-        var anchorAutoRadio = row.add("radiobutton", undefined, getLabel("anchor.auto"));
+        var anchorRow = anchorPanel.add("group");
+        setupGroup(anchorRow, "row");
+        var anchorTopRadio = anchorRow.add("radiobutton", undefined, getLabel("radio.anchorTop"));
+        var anchorBottomRadio = anchorRow.add("radiobutton", undefined, getLabel("radio.anchorBottom"));
+        var anchorAutoRadio = anchorRow.add("radiobutton", undefined, getLabel("radio.anchorAuto"));
         anchorAutoRadio.value = true; /* 既定は自動判定 / Auto by default */
-        anchorTopRadio.helpTip = getLabel("tooltip.anchorTop");
-        anchorBottomRadio.helpTip = getLabel("tooltip.anchorBottom");
-        anchorAutoRadio.helpTip = getLabel("tooltip.anchorAuto");
-        anchorTopRadio.onClick = onPreview;
-        anchorBottomRadio.onClick = onPreview;
-        anchorAutoRadio.onClick = onAutoDetect;
+        setupRadios([anchorTopRadio], getLabel("tooltip.anchorTop"), onPreview);
+        setupRadios([anchorBottomRadio], getLabel("tooltip.anchorBottom"), onPreview);
+        setupRadios([anchorAutoRadio], getLabel("tooltip.anchorAuto"), onAutoDetect);
 
         return {
             anchorTopRadio: anchorTopRadio,
@@ -867,22 +986,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         };
     }
 
-    /* 間隔値＋プレビュー境界パネル / Gap + preview-bounds panel */
-    function buildGapPanel(parent, rulerUnit, onPreview) {
-        var panel = parent.add("panel", undefined, getLabel("gap.title"));
-        setupPanel(panel);
-        panel.helpTip = getLabel("tooltip.gap");
+    /**
+     * 上下間隔の値とプレビュー境界のパネルを追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {object} rulerUnit - getUnitInfo() の結果
+     * @param {function} onPreview - 値が変わったときの処理
+     * @returns {{gapValueInput: EditText, previewBoundsCheckbox: Checkbox}} 入力欄とチェックボックス
+     */
+    function buildGapPanel(parentGroup, rulerUnit, onPreview) {
+        var gapPanel = parentGroup.add("panel", undefined, getLabel("panel.gap"));
+        setupPanel(gapPanel);
+        gapPanel.helpTip = getLabel("tooltip.gap");
 
-        var row = panel.add("group");
-        setupGroup(row, "row");
-        var gapValueInput = row.add("edittext", undefined, DEFAULT_GAP_VALUE);
-        gapValueInput.characters = 5;
-        gapValueInput.helpTip = getLabel("tooltip.gap");
-        changeValueByArrowKey(gapValueInput, onPreview);
-        gapValueInput.onChange = onPreview;
-        row.add("statictext", undefined, rulerUnit.label);
+        var gapRow = gapPanel.add("group");
+        setupGroup(gapRow, "row");
+        var gapValueInput = addUnitField(gapRow, DEFAULT_GAP_VALUE, getLabel("tooltip.gap"), rulerUnit, onPreview);
 
-        var previewBoundsCheckbox = panel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
+        var previewBoundsCheckbox = gapPanel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
         previewBoundsCheckbox.value = true;
         previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
         previewBoundsCheckbox.onClick = onPreview;
@@ -893,129 +1013,164 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         };
     }
 
-    /* 左右の整列パネル / Horizontal-alignment panel */
-    function buildAlignPanel(parent, rulerUnit, onPreview) {
-        var panel = parent.add("panel", undefined, getLabel("align.title"));
-        setupPanel(panel);
-        panel.helpTip = getLabel("tooltip.align");
+    /**
+     * 左右の整列のパネル（なし・左・中央・右と横調整）を追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {object} rulerUnit - getUnitInfo() の結果
+     * @param {function} onPreview - 値が変わったときの処理
+     * @returns {object} none / left / center / right のラジオ、adjustInput、selectCenter()
+     */
+    function buildAlignPanel(parentGroup, rulerUnit, onPreview) {
+        var alignPanel = parentGroup.add("panel", undefined, getLabel("panel.align"));
+        setupPanel(alignPanel);
+        alignPanel.helpTip = getLabel("tooltip.align");
 
         /* ラジオは横並び / Radios in a row */
-        var row = panel.add("group");
-        setupGroup(row, "row");
-        var radios = {
-            none: row.add("radiobutton", undefined, getLabel("align.none")),
-            left: row.add("radiobutton", undefined, getLabel("align.left")),
-            center: row.add("radiobutton", undefined, getLabel("align.center")),
-            right: row.add("radiobutton", undefined, getLabel("align.right"))
+        var alignRow = alignPanel.add("group");
+        setupGroup(alignRow, "row");
+        var alignRadios = {
+            none: alignRow.add("radiobutton", undefined, getLabel("radio.alignNone")),
+            left: alignRow.add("radiobutton", undefined, getLabel("radio.alignLeft")),
+            center: alignRow.add("radiobutton", undefined, getLabel("radio.alignCenter")),
+            right: alignRow.add("radiobutton", undefined, getLabel("radio.alignRight"))
         };
-        radios.none.value = true;
-        radios.none.onClick = onPreview;
-        radios.left.onClick = onPreview;
-        radios.right.onClick = onPreview;
-        radios.none.helpTip = getLabel("tooltip.align");
-        radios.left.helpTip = getLabel("tooltip.align");
-        radios.center.helpTip = getLabel("tooltip.align");
-        radios.right.helpTip = getLabel("tooltip.align");
+        alignRadios.none.value = true;
+        setupRadios([alignRadios.none, alignRadios.left, alignRadios.right], getLabel("tooltip.align"), onPreview);
+        setupRadios([alignRadios.center], getLabel("tooltip.align"));
 
         /* 整列後の左右ずらし量（正＝右／負＝左）/ Extra horizontal offset (positive = right, negative = left) */
-        var adjustRow = panel.add("group");
+        var adjustRow = alignPanel.add("group");
         setupGroup(adjustRow, "row");
-        adjustRow.add("statictext", undefined, labelText("align.adjust"));
-        var adjustInput = adjustRow.add("edittext", undefined, "0");
-        adjustInput.characters = 5;
-        adjustInput.helpTip = getLabel("tooltip.alignAdjust");
-        changeValueByArrowKey(adjustInput, onPreview);
-        adjustInput.onChange = onPreview;
-        adjustRow.add("statictext", undefined, rulerUnit.label);
-        radios.adjustInput = adjustInput;
+        adjustRow.add("statictext", undefined, labelText("fieldLabel.alignAdjust"));
+        var adjustInput = addUnitField(adjustRow, "0", getLabel("tooltip.alignAdjust"), rulerUnit, onPreview);
+        alignRadios.adjustInput = adjustInput;
 
         /* 中央に設定したら横調整を0へリセット（マウス・キー操作共通）/
            Selecting center resets the horizontal adjust to 0 (shared by mouse and keyboard) */
         function selectCenter() {
-            radios.center.value = true;
+            alignRadios.center.value = true;
             adjustInput.text = "0";
             onPreview();
         }
-        radios.center.onClick = selectCenter;
-        radios.selectCenter = selectCenter;
+        alignRadios.center.onClick = selectCenter;
+        alignRadios.selectCenter = selectCenter;
 
-        return radios;
+        return alignRadios;
     }
 
-    /* テキストの行揃えパネル / Paragraph-justification panel */
-    function buildJustifyPanel(parent, onPreview) {
-        var panel = parent.add("panel", undefined, getLabel("justify.title"));
-        setupPanel(panel);
-        panel.helpTip = getLabel("tooltip.justify");
+    /**
+     * テキストの行揃えのパネル（変更しない・整列に連動・均等配置）を追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {function} onPreview - 選択が変わったときの処理
+     * @returns {{none: RadioButton, link: RadioButton, full: RadioButton}} ラジオ
+     */
+    function buildJustifyPanel(parentGroup, onPreview) {
+        var justifyPanel = parentGroup.add("panel", undefined, getLabel("panel.justify"));
+        setupPanel(justifyPanel);
+        justifyPanel.helpTip = getLabel("tooltip.justify");
 
-        var radios = {
-            none: panel.add("radiobutton", undefined, getLabel("justify.none")),
-            link: panel.add("radiobutton", undefined, getLabel("justify.link")),
-            full: panel.add("radiobutton", undefined, getLabel("justify.full"))
+        var justifyRadios = {
+            none: justifyPanel.add("radiobutton", undefined, getLabel("radio.justifyNone")),
+            link: justifyPanel.add("radiobutton", undefined, getLabel("radio.justifyLink")),
+            full: justifyPanel.add("radiobutton", undefined, getLabel("radio.justifyFull"))
         };
-        radios.link.value = true;
-        radios.none.helpTip = getLabel("tooltip.justify");
-        radios.link.helpTip = getLabel("tooltip.justify");
-        radios.full.helpTip = getLabel("tooltip.justifyFull"); /* （最終行左）はツールチップに / "(last line left)" lives in the tooltip */
-        radios.none.onClick = onPreview;
-        radios.link.onClick = onPreview;
-        radios.full.onClick = onPreview;
-        return radios;
+        justifyRadios.link.value = true;
+        setupRadios([justifyRadios.none, justifyRadios.link], getLabel("tooltip.justify"), onPreview);
+        /* （最終行左）はツールチップに / "(last line left)" lives in the tooltip */
+        setupRadios([justifyRadios.full], getLabel("tooltip.justifyFull"), onPreview);
+        return justifyRadios;
     }
 
-    /* 選択中のラジオに対応するキーを返す / Return the key of the selected radio */
-    function selectedRadioKey(radios, keys) {
-        for (var i = 0; i < keys.length; i++) {
-            if (radios[keys[i]].value) {
-                return keys[i];
+    /**
+     * ［記録］［適用］のボタン行を追加する
+     * @param {Window} parentWindow - 追加先のパレット
+     * @param {function} onRecord - ［記録］／［編集］の処理
+     * @param {function} onApply - ［適用］の処理
+     * @returns {Button} ［記録］ボタン（ロック時に表示名を切り替える）
+     */
+    function buildButtonRow(parentWindow, onRecord, onApply) {
+        var btnRowGroup = parentWindow.add("group");
+        btnRowGroup.alignment = "right";
+        var btnRecord = btnRowGroup.add("button", undefined, getLabel("button.record"));
+        btnRecord.helpTip = getLabel("tooltip.record");
+        btnRecord.onClick = onRecord;
+        var btnApply = btnRowGroup.add("button", undefined, getLabel("button.apply"));
+        btnApply.helpTip = getLabel("tooltip.apply");
+        btnApply.onClick = onApply;
+        return btnRecord;
+    }
+
+    /**
+     * 選択中のラジオに対応するキーを返す
+     * @param {object} radioSet - キー → ラジオ
+     * @param {string[]} radioKeys - 調べる順のキー（どれも選ばれていなければ先頭）
+     * @returns {string} 選ばれているラジオのキー
+     */
+    function selectedRadioKey(radioSet, radioKeys) {
+        for (var i = 0; i < radioKeys.length; i++) {
+            if (radioSet[radioKeys[i]].value) {
+                return radioKeys[i];
             }
         }
-        return keys[0];
+        return radioKeys[0];
     }
 
-    /* 上を基準にするかを解決（自動判定は直近の判定結果を使う）/ Resolve whether the top item is the anchor (auto uses the last detection) */
-    function resolveAnchorTop(anchor) {
-        if (anchor.anchorAutoRadio.value) {
-            return anchor.autoAnchorTop;
+    /**
+     * 上のオブジェクトを基準にするかを決める（自動判定は直近の判定結果を使う）
+     * @param {object} anchorControls - buildAnchorPanel() の結果
+     * @returns {boolean} 上を基準にするなら true
+     */
+    function resolveAnchorTop(anchorControls) {
+        if (anchorControls.anchorAutoRadio.value) {
+            return anchorControls.autoAnchorTop;
         }
-        return anchor.anchorTopRadio.value;
+        return anchorControls.anchorTopRadio.value;
     }
 
-    // =========================================
-    // パレット / Palette
-    // =========================================
-
-    /* UI 値を読み取り、間隔は pt に換算 / Read UI values, convert gap to points */
-    function readOptions(controls, rulerUnit) {
-        var gapValue = parseFloat(controls.gap.gapValueInput.text);
+    /**
+     * パレットの値を読み取り、間隔と横調整を pt に換算する
+     * @param {object} paletteControls - 各パネルのコントロール
+     * @param {object} rulerUnit - getUnitInfo() の結果
+     * @returns {object} 設定（anchorTop / gapPoints / align / adjustPoints / justify / usePreviewBounds）
+     */
+    function readAdjustOptions(paletteControls, rulerUnit) {
+        var gapValue = parseFloat(paletteControls.gap.gapValueInput.text);
         if (isNaN(gapValue)) {
             gapValue = parseFloat(DEFAULT_GAP_VALUE);
         }
-        /* 負の値は重なり（オーバーラップ）として許容 / Negative values are allowed (objects overlap) */
-        /* 正規化した値を表示にも反映 / Reflect the normalized value back to the field */
-        if (controls.gap.gapValueInput.text !== String(gapValue)) {
-            controls.gap.gapValueInput.text = gapValue;
+        /* 負の値は重なり（オーバーラップ）として許容し、正規化した値を表示にも反映 /
+           Negative values are allowed (objects overlap); reflect the normalized value back to the field */
+        if (paletteControls.gap.gapValueInput.text !== String(gapValue)) {
+            paletteControls.gap.gapValueInput.text = gapValue;
         }
 
-        var adjustValue = parseFloat(controls.align.adjustInput.text);
+        var adjustValue = parseFloat(paletteControls.align.adjustInput.text);
         if (isNaN(adjustValue)) {
             adjustValue = 0;
         }
 
         return {
-            anchorTop: resolveAnchorTop(controls.anchor),
+            anchorTop: resolveAnchorTop(paletteControls.anchor),
             gapPoints: gapValue * rulerUnit.pointsPerUnit,
-            align: selectedRadioKey(controls.align, ["none", "left", "center", "right"]),
+            align: selectedRadioKey(paletteControls.align, ["none", "left", "center", "right"]),
             adjustPoints: adjustValue * rulerUnit.pointsPerUnit,
-            justify: selectedRadioKey(controls.justify, ["none", "link", "full"]),
-            usePreviewBounds: controls.gap.previewBoundsCheckbox.value
+            justify: selectedRadioKey(paletteControls.justify, ["none", "link", "full"]),
+            usePreviewBounds: paletteControls.gap.previewBoundsCheckbox.value
         };
     }
 
-    /* パレットを表示 / Show the palette */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * パレットを組み立てて表示する
+     * @returns {Window} 表示したパレット
+     */
     function showPalette() {
         /* 多重起動を防ぐ：既存パレットがあれば閉じる / Prevent duplicates: close any existing palette */
         if (paletteWindow) {
+            /* 破棄済みのウィンドウは close() が失敗することがある / close() may fail on a disposed window */
             try {
                 paletteWindow.close();
             } catch (e) {}
@@ -1024,24 +1179,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         var rulerUnit = getUnitInfo();
 
-        var win = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-        win.orientation = "column";
-        win.alignChildren = "fill";
+        var gapPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        gapPalette.orientation = "column";
+        gapPalette.alignChildren = "fill";
 
-        var controls = {};
+        var paletteControls = {};
         var previewState = { active: false }; /* プレビューが反映中か / Whether a preview is currently applied */
         var isBusy = false; /* 同期委譲中の再入防止 / Guard against re-entry during a synchronous delegation */
+        var recordedOptions = null; /* 記録した設定（間隔・キー・整列・行揃え・境界）/ The recorded recipe */
+        var isRecordLocked = false; /* 記録モード（パネルをロック中）か / Whether we are in recorded/locked mode */
+        var settingsColumn = null;
+        var btnRecord = null;
 
-        /* Illustrator のキーオブジェクトを判定して自動判定の基準を更新 /
-           Detect Illustrator's key object and update the anchor used by Auto */
+        /**
+         * Illustrator のキーオブジェクトを判定して、自動判定の基準を更新する
+         * @returns {boolean} 上下どちらかに決まったら true
+         */
         function loadAnchorFromKeyObject() {
-            var result = detectKeyObjectAnchor(controls.gap.previewBoundsCheckbox.value);
-            if (result === "TOP" || result === "BOTTOM") {
-                controls.anchor.autoAnchorTop = (result === "TOP");
+            var detectResult = detectKeyObjectAnchor(paletteControls.gap.previewBoundsCheckbox.value);
+            if (detectResult === "TOP" || detectResult === "BOTTOM") {
+                paletteControls.anchor.autoAnchorTop = (detectResult === "TOP");
                 return true;
             }
-            controls.anchor.autoAnchorTop = true;
-            if (result === "NOSEL" || result === "NODOC") {
+            paletteControls.anchor.autoAnchorTop = true;
+            if (detectResult === "NOSEL" || detectResult === "NODOC") {
                 /* 2点選択以外は判定そのものができない。グループ選択や複数ペアでも「自動」を
                    残したまま既定（上）を使う / Detection needs exactly two selected items;
                    keep Auto selected for groups and batches and fall back to the default (top) */
@@ -1049,18 +1210,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             }
             /* 2点選択でキーオブジェクトが無いときだけ「上」へ切り替え、実際に使う基準を見せる /
                Switch to Top only when two items are selected but no key object exists */
-            controls.anchor.anchorTopRadio.value = true;
+            paletteControls.anchor.anchorTopRadio.value = true;
             return false;
         }
 
-        /* 「自動判定」：判定し直してからプレビュー（判定は整列コマンドでドキュメントを触るため、
-           先にプレビューを戻す）/ Auto: re-detect then preview (the preview is reverted first
-           because detection moves objects with align commands) */
+        /**
+         * 「自動判定」：プレビューを戻してから判定し直し、プレビューする
+         * （判定は整列コマンドでドキュメントを触るため、先にプレビューを戻す）
+         * @returns {void}
+         */
         function refreshAutoAnchor() {
             if (isBusy) return; /* 委譲中の割り込みを無視（同期送信中もUIは動く）/ ignore clicks during a delegation */
             isBusy = true;
             try {
-                controls.anchor.anchorAutoRadio.value = true;
+                paletteControls.anchor.anchorAutoRadio.value = true;
                 revertActivePreview();
                 loadAnchorFromKeyObject();
             } finally {
@@ -1070,50 +1233,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             updatePreview();
         }
 
-        /* 選択2点の現在の間隔をフィールドへ取り込む / Load the current gap of the two selected items into the field */
+        /**
+         * 選択2点の現在の間隔を入力欄へ取り込む
+         * @returns {boolean} 取り込めたら true
+         */
         function loadGapFromSelection() {
-            var result = measureCurrentGap({
+            var measureResult = measureCurrentGap({
                 anchorTop: true,
                 gapPoints: 0,
                 align: "none",
                 justify: "none",
-                usePreviewBounds: controls.gap.previewBoundsCheckbox.value,
+                usePreviewBounds: paletteControls.gap.previewBoundsCheckbox.value,
                 undoFirst: false
             });
-            var gapPoints = parseFloat(result);
+            var gapPoints = parseFloat(measureResult);
             if (isNaN(gapPoints)) {
                 return false; /* NODOC / NOSEL など、計測できず初期値のまま / could not measure; keep default */
             }
-            /* 重なり（負の間隔）もそのまま取り込む / Keep negative gaps (overlap) as-is */
-            /* pt → 定規単位、0.1単位（小数1桁）に丸め / pt → ruler unit, rounded to 0.1 (1 decimal) */
+            /* 重なり（負の間隔）もそのまま取り込む。pt → 定規単位、0.1単位（小数1桁）に丸め /
+               Keep negative gaps (overlap) as-is; pt → ruler unit, rounded to 0.1 (1 decimal) */
             var gapValue = Math.round((gapPoints / rulerUnit.pointsPerUnit) * 10) / 10;
-            controls.gap.gapValueInput.text = String(gapValue);
+            paletteControls.gap.gapValueInput.text = String(gapValue);
             return true;
         }
 
-        /* ライブプレビュー更新（前回分は worker 側で取り消し）/ Refresh live preview (worker undoes the previous one) */
+        /**
+         * ライブプレビューを更新する（前回分は worker 側で取り消す）
+         * @returns {void}
+         */
         function updatePreview() {
             if (isBusy) return; /* 委譲中に発火した変更は無視 / ignore changes fired mid-delegation */
             isBusy = true;
             try {
-                var options = readOptions(controls, rulerUnit);
-                options.undoFirst = previewState.active;
-                var result = runAdjustmentPreview(options);
+                var adjustOptions = readAdjustOptions(paletteControls, rulerUnit);
+                adjustOptions.undoFirst = previewState.active;
+                var previewResult = runAdjustmentPreview(adjustOptions);
                 /* OK＝変更あり（undoステップ1つ）。それ以外（NOCHANGE／エラー）は undo ステップが
                    無いので active=false にし、次回 app.undo() で直前のユーザー操作を巻き戻さない /
                    OK = changed (one undo step). Otherwise (NOCHANGE / error) there is no undo step,
                    so keep active false so the next app.undo() won't revert the user's prior action. */
-                previewState.active = (result === "OK");
+                previewState.active = (previewResult === "OK");
             } finally {
                 /* 委譲が例外で抜けても再入ガードを必ず解除 / Always clear the re-entry guard, even on error */
                 isBusy = false;
             }
         }
 
-        /* 記録した設定（間隔・キー・整列・行揃え・境界）/ The recorded recipe */
-        var recordedOptions = null;
-
-        /* プレビュー中なら戻してドキュメントを元の状態へ / Revert any active preview so the document is clean */
+        /**
+         * プレビュー中なら戻して、ドキュメントを元の状態にする
+         * @returns {void}
+         */
         function revertActivePreview() {
             if (previewState.active) {
                 revertLastPreview();
@@ -1121,23 +1290,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             }
         }
 
-        /* 記録モード（パネルをロック中）か / Whether we are in recorded/locked mode */
-        var locked = false;
-
-        /* パネルのロック表示を切り替え（ボタン名・ツールチップ・ディムを連動。ボタンエリアは常に有効）/
-           Toggle the locked (dimmed) state of the setting panels; the button area stays enabled */
-        function setLocked(isLocked) {
-            locked = isLocked;
-            settingsColumn.enabled = !isLocked;
-            recordBtn.text = isLocked ? getLabel("button.edit") : getLabel("button.record");
-            recordBtn.helpTip = isLocked ? getLabel("tooltip.edit") : getLabel("tooltip.record");
+        /**
+         * パネルのロック表示を切り替える（ボタン名・ツールチップ・ディムを連動。ボタンエリアは常に有効）
+         * @param {boolean} shouldLock - ロックするなら true
+         * @returns {void}
+         */
+        function setLocked(shouldLock) {
+            isRecordLocked = shouldLock;
+            settingsColumn.enabled = !shouldLock;
+            btnRecord.text = shouldLock ? getLabel("button.edit") : getLabel("button.record");
+            btnRecord.helpTip = shouldLock ? getLabel("tooltip.edit") : getLabel("tooltip.record");
         }
 
-        /* 「記録」⇔「編集」トグル：記録時は設定を保存しパネルをディム、編集時はロック解除（プレビューは戻さない）/
-           Record/Edit toggle: on record, save settings and dim panels; on edit, unlock (preview is left as-is) */
+        /**
+         * 「記録」⇔「編集」の切り替え：記録時は設定を控えてパネルをディム、編集時はロック解除（プレビューは戻さない）
+         * @returns {void}
+         */
         function toggleRecord() {
-            if (!locked) {
-                recordedOptions = readOptions(controls, rulerUnit);
+            if (!isRecordLocked) {
+                recordedOptions = readAdjustOptions(paletteControls, rulerUnit);
                 /* プレビューを確定（取り消さず保持）。active=false にして、次の［適用］で
                    app.undo() が走り選択が壊れるのを防ぐ / Commit the preview (keep it) and clear
                    active so the next Apply won't app.undo() and clobber the selection */
@@ -1148,75 +1319,72 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             }
         }
 
-        /* 「適用」：記録設定（無ければ現在値）を選択中の全対象ペアへ一括適用・確定 /
-           Apply: batch-apply the recorded settings (or current values) to every target pair, committed */
+        /**
+         * 「適用」：記録した設定（無ければ現在値）を選択中の全対象ペアへ一括適用・確定する
+         * @returns {void}
+         */
         function applyBatch() {
-            var options = recordedOptions ? recordedOptions : readOptions(controls, rulerUnit);
+            var adjustOptions = recordedOptions ? recordedOptions : readAdjustOptions(paletteControls, rulerUnit);
             /* プレビュー分の取り消しは worker 側でまとめて行う（二重適用を防ぐ）/
                The worker undoes the preview in the same send (avoids double-applying it) */
-            options.undoFirst = previewState.active;
-            var result = runBatchAdjustmentDelegate(options);
+            adjustOptions.undoFirst = previewState.active;
+            var batchResult = runBatchAdjustmentDelegate(adjustOptions);
             /* 送信に失敗した場合はプレビューが適用されたまま残るので active を維持する /
                On a failed send the preview is still applied, so keep tracking it */
-            if (String(result).indexOf("ERR:") !== 0) {
+            if (String(batchResult).indexOf("ERR:") !== 0) {
                 previewState.active = false;
             }
+        }
+
+        /**
+         * ロック中か（記録中は true）。パネル系ショートカットの抑止に使う
+         * @returns {boolean} ロック中なら true
+         */
+        function isLockedNow() {
+            return isRecordLocked;
         }
 
         /* 1カラム：間隔値・キーオブジェクト・左右の整列・テキストの行揃えを縦に並べる /
            Single column: gap, key object, horizontal align, text alignment stacked vertically */
-        var settingsColumn = win.add("group");
+        settingsColumn = gapPalette.add("group");
         setupGroup(settingsColumn, "column");
-        controls.gap = buildGapPanel(settingsColumn, rulerUnit, updatePreview);
-        controls.anchor = buildAnchorPanel(settingsColumn, updatePreview, refreshAutoAnchor);
-        controls.align = buildAlignPanel(settingsColumn, rulerUnit, updatePreview);
-        controls.justify = buildJustifyPanel(settingsColumn, updatePreview);
+        paletteControls.gap = buildGapPanel(settingsColumn, rulerUnit, updatePreview);
+        paletteControls.anchor = buildAnchorPanel(settingsColumn, updatePreview, refreshAutoAnchor);
+        paletteControls.align = buildAlignPanel(settingsColumn, rulerUnit, updatePreview);
+        paletteControls.justify = buildJustifyPanel(settingsColumn, updatePreview);
 
         /* ボタン：記録／適用 / Buttons: Record / Apply */
-        var btnGroup = win.add("group");
-        btnGroup.alignment = "right";
-        var recordBtn = btnGroup.add("button", undefined, getLabel("button.record"));
-        recordBtn.helpTip = getLabel("tooltip.record");
-        recordBtn.onClick = toggleRecord;
-        var applyBtn = btnGroup.add("button", undefined, getLabel("button.apply"));
-        applyBtn.helpTip = getLabel("tooltip.apply");
-        applyBtn.onClick = applyBatch;
+        btnRecord = buildButtonRow(gapPalette, toggleRecord, applyBatch);
 
         /* 閉じる時：未確定のプレビューは取り消す（×・Esc 共通）/ On close: revert an uncommitted preview (X and Esc) */
-        win.onClose = function () {
-            if (previewState.active) {
-                revertLastPreview();
-                previewState.active = false;
-            }
+        gapPalette.onClose = function () {
+            revertActivePreview();
             return true;
         };
 
-        /* キー操作：A で適用、T/B で固定対象を選択、N/L/C/R で整列、S/J で行揃え、Esc で閉じる / Keys: A applies, T/B pick the anchor, N/L/C/R align, S/J justify, Esc closes */
-        /* ロック判定（記録中は true）。パネル系ショートカットの抑止に使う / Locked predicate to gate panel shortcuts */
-        function isLockedNow() {
-            return locked;
-        }
-        addKeyHandlers(win, isLockedNow, [
+        /* キー操作：A で適用、T/B で固定対象を選択、K で自動判定、N/L/C/R で整列、S/J で行揃え、Esc で閉じる
+           Keys: A applies, T/B pick the anchor, K re-detects, N/L/C/R align, S/J justify, Esc closes */
+        addKeyHandlers(gapPalette, isLockedNow, [
             { key: "A", run: applyBatch },
-            { key: "Escape", run: function () { win.close(); } },
-            { key: "T", gated: true, run: pickThenPreview(controls.anchor.anchorTopRadio, updatePreview) },
-            { key: "B", gated: true, run: pickThenPreview(controls.anchor.anchorBottomRadio, updatePreview) },
+            { key: "Escape", run: function () { gapPalette.close(); } },
+            { key: "T", gated: true, run: pickThenPreview(paletteControls.anchor.anchorTopRadio, updatePreview) },
+            { key: "B", gated: true, run: pickThenPreview(paletteControls.anchor.anchorBottomRadio, updatePreview) },
             { key: "K", gated: true, run: refreshAutoAnchor },
-            { key: "N", gated: true, run: pickThenPreview(controls.align.none, updatePreview) },
-            { key: "L", gated: true, run: pickThenPreview(controls.align.left, updatePreview) },
-            { key: "C", gated: true, run: controls.align.selectCenter },
-            { key: "R", gated: true, run: pickThenPreview(controls.align.right, updatePreview) },
-            { key: "S", gated: true, run: pickThenPreview(controls.justify.link, updatePreview) },
-            { key: "J", gated: true, run: pickThenPreview(controls.justify.full, updatePreview) }
+            { key: "N", gated: true, run: pickThenPreview(paletteControls.align.none, updatePreview) },
+            { key: "L", gated: true, run: pickThenPreview(paletteControls.align.left, updatePreview) },
+            { key: "C", gated: true, run: paletteControls.align.selectCenter },
+            { key: "R", gated: true, run: pickThenPreview(paletteControls.align.right, updatePreview) },
+            { key: "S", gated: true, run: pickThenPreview(paletteControls.justify.link, updatePreview) },
+            { key: "J", gated: true, run: pickThenPreview(paletteControls.justify.full, updatePreview) }
         ]);
 
-        win.center();
-        win.show();
+        gapPalette.center();
+        gapPalette.show();
         loadAnchorFromKeyObject(); /* 「自動判定」の初期値としてキーオブジェクトを判定 / Detect the key object for the initial Auto anchor */
         loadGapFromSelection(); /* 現在の間隔を取り込む（取り込めれば初期プレビューで動かない）/ Load current gap (no movement on initial preview when available) */
         updatePreview(); /* 初期プレビュー / Initial preview */
-        controls.gap.gapValueInput.active = true; /* 開いたら間隔値にフォーカス / Focus the gap field on open */
-        return win;
+        paletteControls.gap.gapValueInput.active = true; /* 開いたら間隔値にフォーカス / Focus the gap field on open */
+        return gapPalette;
     }
 
     paletteWindow = showPalette();

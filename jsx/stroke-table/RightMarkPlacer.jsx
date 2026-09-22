@@ -101,58 +101,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     /**
      * ウィンドウに共通のレイアウトを適用します。
      *
-     * @param {Window} win - 対象のウィンドウ。
+     * @param {Window} targetWindow - 対象のウィンドウ。
      * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING。
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルに共通のレイアウトを適用します。
      *
-     * @param {Panel} panel - 対象のパネル。
+     * @param {Panel} targetPanel - 対象のパネル。
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING。
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 縦並びのグループ（カラム）に共通のレイアウトを適用します。
      *
-     * @param {Group} group - 対象のグループ。
+     * @param {Group} columnGroup - 対象のグループ。
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING。
      * @returns {void}
      */
-    function setupColumn(group, spacing) {
-        group.orientation = "column";
-        group.alignChildren = ["fill", "top"];
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupColumn(columnGroup, spacing) {
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["fill", "top"];
+        columnGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 横並びのグループ（入力行など）に共通のレイアウトを適用します。
      *
-     * @param {Group} group - 対象のグループ。
+     * @param {Group} rowGroup - 対象のグループ。
      * @param {string} [alignment] - グループ自体の配置。省略時は "left"。
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING。
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignChildren = ["left", "center"];
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.alignment = alignment || "left";
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -306,11 +306,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      *
      * @returns {string} 日本語環境なら "ja"、それ以外は "en"。
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -365,7 +365,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             flatChevron: {
                 ja: "> と >> を、天地が水平な塗りの形状で作成します",
                 en: "Draws > and >> as filled shapes with horizontal top and bottom edges"
-            }
+            },
+            roundCorners: {
+                ja: "▶ の角を丸くします。半径は記号の大きさから自動で決まります",
+                en: "Rounds the corners of ▶. The radius is set automatically from the mark size"
+            },
+            offsetX: { ja: "記号を左右にずらします。正の値で右へ移動します", en: "Shifts the marks horizontally. Positive values move them right" },
+            offsetY: { ja: "記号を上下にずらします。正の値で上へ移動します", en: "Shifts the marks vertically. Positive values move them up" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -409,13 +415,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      */
     function getLabel(labelPath) {
         var pathParts = labelPath.split(".");
-        var entry = LABELS;
+        var labelNode = LABELS;
         for (var i = 0; i < pathParts.length; i++) {
-            if (!entry) break;
-            entry = entry[pathParts[i]];
+            if (!labelNode) break;
+            labelNode = labelNode[pathParts[i]];
         }
-        if (entry && entry[uiLang]) return entry[uiLang];
-        if (entry && entry.en) return entry.en;
+        if (labelNode && labelNode[uiLang]) return labelNode[uiLang];
+        if (labelNode && labelNode.en) return labelNode.en;
         return labelPath;
     }
 
@@ -437,12 +443,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {string} 置き換え後の文言。
      */
     function formatLabel(labelPath, replacements) {
-        var text = getLabel(labelPath);
-        if (!replacements) return text;
+        var formattedText = getLabel(labelPath);
+        if (!replacements) return formattedText;
         for (var i = 0; i < replacements.length; i++) {
-            text = text.replace("{" + i + "}", String(replacements[i]));
+            formattedText = formattedText.replace("{" + i + "}", String(replacements[i]));
         }
-        return text;
+        return formattedText;
     }
 
     // =========================================
@@ -574,12 +580,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             if (measuredBoundsCache[i].item === pageItem) return measuredBoundsCache[i].bounds;
         }
 
-        var bounds = (pageItem.typename === "TextFrame")
+        var measuredBounds = (pageItem.typename === "TextFrame")
             ? measureOutlinedTextBounds(pageItem)
             : pageItem.geometricBounds;
 
-        measuredBoundsCache.push({ item: pageItem, bounds: bounds });
-        return bounds;
+        measuredBoundsCache.push({ item: pageItem, bounds: measuredBounds });
+        return measuredBounds;
     }
 
     /**
@@ -589,8 +595,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 中心の X 座標。
      */
     function getItemCenterX(pageItem) {
-        var bounds = getItemMeasurementBounds(pageItem);
-        return (bounds[0] + bounds[2]) / 2;
+        var itemBounds = getItemMeasurementBounds(pageItem);
+        return (itemBounds[0] + itemBounds[2]) / 2;
     }
 
     /**
@@ -709,12 +715,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      */
     function withShapeDefaults(overrides) {
         var shapeConfig = {};
-        var key;
-        for (key in SHAPE_CONFIG_DEFAULTS) {
-            if (SHAPE_CONFIG_DEFAULTS.hasOwnProperty(key)) shapeConfig[key] = SHAPE_CONFIG_DEFAULTS[key];
+        var settingKey;
+        for (settingKey in SHAPE_CONFIG_DEFAULTS) {
+            if (SHAPE_CONFIG_DEFAULTS.hasOwnProperty(settingKey)) shapeConfig[settingKey] = SHAPE_CONFIG_DEFAULTS[settingKey];
         }
-        for (key in overrides) {
-            if (overrides.hasOwnProperty(key)) shapeConfig[key] = overrides[key];
+        for (settingKey in overrides) {
+            if (overrides.hasOwnProperty(settingKey)) shapeConfig[settingKey] = overrides[settingKey];
         }
         return shapeConfig;
     }
@@ -1419,6 +1425,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         dialogControls.flatChevronCheckbox.helpTip = getLabel("tooltip.flatChevron");
 
         dialogControls.roundCornersCheckbox = optionCheckboxGroup.add("checkbox", undefined, getLabel("checkbox.roundCorners"));
+        dialogControls.roundCornersCheckbox.helpTip = getLabel("tooltip.roundCorners");
         dialogControls.roundCornersCheckbox.value = true;
     }
 
@@ -1434,7 +1441,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         setupPanel(positionPanel, FIELD_ROW_SPACING);
 
         dialogControls.offsetXField = addLabeledField(positionPanel, "fieldLabel.offsetX", rulerUnitInfo.label, "0");
+        dialogControls.offsetXField.helpTip = getLabel("tooltip.offsetX");
         dialogControls.offsetYField = addLabeledField(positionPanel, "fieldLabel.offsetY", rulerUnitInfo.label, "0");
+        dialogControls.offsetYField.helpTip = getLabel("tooltip.offsetY");
     }
 
     /**
@@ -1558,16 +1567,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     /**
      * 入力エラーを知らせ、対象の入力欄にフォーカスを移します。
      *
-     * @param {EditText} field - 対象の入力欄。
+     * @param {EditText} invalidField - 対象の入力欄。
      * @param {string} alertPath - 表示するメッセージのドットパス。
      * @param {boolean} showAlert - 警告を表示するなら true。
      * @param {Array} [replacements] - メッセージに差し込む値。
      * @returns {null} 呼び出し元がそのまま返せるよう null を返します。
      */
-    function reportInvalidValue(field, alertPath, showAlert, replacements) {
+    function reportInvalidValue(invalidField, alertPath, showAlert, replacements) {
         if (showAlert) {
             alert(formatLabel(alertPath, replacements));
-            field.active = true;
+            invalidField.active = true;
         }
         return null;
     }
@@ -1696,7 +1705,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     // =========================================
 
     /**
-     * 選択を確認してダイアログを表示し、OK で記号を作成します。
+     * 選択を確認してダイアログを表示します。
      *
      * @returns {void}
      */
@@ -1728,6 +1737,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             return;
         }
 
+        showMarkDialog(activeDoc, sortedItems, narrowestGap);
+    }
+
+    /**
+     * ダイアログを表示し、プレビューと［OK］で記号を作成します。
+     *
+     * @param {Document} activeDoc - 対象のドキュメント。
+     * @param {PageItem[]} sortedItems - 左から右の順に並べたアイテム。
+     * @param {object} narrowestGap - measureNarrowestGap() の戻り値（幅の自動計算に使います）。
+     * @returns {void}
+     */
+    function showMarkDialog(activeDoc, sortedItems, narrowestGap) {
         var markDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(markDialog);
 

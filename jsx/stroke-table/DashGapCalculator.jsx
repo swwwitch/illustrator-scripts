@@ -510,14 +510,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     function readInitialValues(savedPrefs, strokeUnit) {
         var stored = savedPrefs || {};
         return {
-            segments:   toInitialNumber(stored.segments, 3, 1),
-            capMode:    toInitialNumber(stored.capMode, 0, 0),
-            mode:       toInitialNumber(stored.mode, 0, 0), /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
-            gapUnit:    toInitialUnit(stored.gapPt, 5, strokeUnit),
-            dashUnit:   toInitialUnit(stored.dashPt, 0, strokeUnit),
-            offsetUnit: toInitialUnit(stored.offsetPt, 0, strokeUnit),
-            useOffset:  toInitialFlag(stored.useOffset, false),
-            adjustEnds: toInitialFlag(stored.adjustEnds, true),
+            segments:    toInitialNumber(stored.segments, 3, 1),
+            capMode:     toInitialNumber(stored.capMode, 0, 0),
+            mode:        toInitialNumber(stored.mode, 0, 0), /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
+            gapUnit:     toInitialUnit(stored.gapPt, 5, strokeUnit),
+            dashUnit:    toInitialUnit(stored.dashPt, 0, strokeUnit),
+            offsetUnit:  toInitialUnit(stored.offsetPt, 0, strokeUnit),
+            useOffset:   toInitialFlag(stored.useOffset, false),
+            adjustEnds:  toInitialFlag(stored.adjustEnds, true),
             reversePath: toInitialFlag(stored.reversePath, false)
         };
     }
@@ -622,193 +622,108 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     }
 
     // =========================================
-    // メイン処理 / Main
+    // ダイアログ / Dialog
     // =========================================
 
     /**
-     * バウンディングボックスをリセットし、エッジ表示を切り替える
-     * 実行時と終了時に呼び、表示を元へ戻す。
-     * @returns {void}
+     * 右揃えの項目名を持つ行を追加する
+     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Object} labelNode - 項目名の LABELS ノード
+     * @returns {Group} 追加した行
      */
-    function resetBoundsAndToggleEdges() {
-        app.executeMenuCommand('AI Reset Bounding Box');
-        app.executeMenuCommand('edge');
+    function addFieldRow(parent, labelNode) {
+        var fieldRow = addRow(parent);
+        var fieldLabel = fieldRow.add("statictext", undefined, labelText(labelNode));
+        fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH;
+        fieldLabel.justify = "right";
+        return fieldRow;
     }
 
     /**
-     * 選択の中から PathItem だけを集める
-     * @param {Array} selection - ドキュメントの選択
-     * @returns {Array<PathItem>} 対象のパス
+     * 間隔・線分の行を追加する（入力欄と計算結果の表示を重ね、計算方法に応じて切り替える）
+     * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {Object} labelNode - 項目名の LABELS ノード
+     * @param {number} initialValue - 入力欄の初期値（単位値）
+     * @param {string} unitLabel - 単位の表示
+     * @param {Object} tooltipNode - tooltip の LABELS ノード
+     * @returns {{row: Group, field: EditText, resultLabel: StaticText}} 行・入力欄・結果表示
      */
-    function collectTargetPaths(selection) {
-        var paths = [];
-        for (var i = 0; i < selection.length; i++) {
-            if (selection[i] && selection[i].typename === "PathItem") paths.push(selection[i]);
-        }
-        return paths;
+    function addDashGapRow(parent, labelNode, initialValue, unitLabel, tooltipNode) {
+        var fieldRow = addFieldRow(parent, labelNode);
+
+        var fieldStack = fieldRow.add("group");
+        fieldStack.orientation = "stack";
+
+        var numberField = fieldStack.add("edittext", undefined, formatFieldNumber(initialValue));
+        numberField.characters = NUMBER_FIELD_CHARS;
+        changeValueByArrowKey(numberField, false, 0);
+
+        var resultLabel = fieldStack.add("statictext", undefined, "");
+        resultLabel.justify = "right";
+        resultLabel.preferredSize.width = numberField.preferredSize.width;
+
+        fieldRow.add("statictext", undefined, unitLabel);
+        fieldRow.helpTip = numberField.helpTip = getLabel(tooltipNode);
+        return { row: fieldRow, field: numberField, resultLabel: resultLabel };
     }
 
     /**
-     * ダイアログを表示し、対象のパスに破線を適用する
-     * @param {Document} doc - 対象ドキュメント
-     * @param {Array<PathItem>} targetPaths - 対象のパス
-     * @returns {void}
+     * 選択中のパス情報の表示文字列を作る
+     * @param {number} pathLength - 先頭のパスの長さ（pt）
+     * @param {number} pathCount - 選択しているパスの数
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @returns {string} 「パスの長さ：123.456 mm  (3)」形式の文字列
      */
-    function showDashDialog(doc, targetPaths) {
-        /* 先頭のパスをUI表示・計算の代表として扱う */
-        var primaryPath = targetPaths[0];
-        var primaryPathLength = primaryPath.length;
-        var strokeUnit = getUnitInfo("strokeUnits");
+    function formatPathInfoText(pathLength, pathCount, strokeUnit) {
+        var pathInfoText = labelText(LABELS.fieldLabel.pathLength) + " " +
+            ptToUnit(pathLength, strokeUnit).toFixed(3) + " " + strokeUnit.label;
+        if (pathCount > 1) pathInfoText += "  (" + pathCount + ")";
+        return pathInfoText;
+    }
 
-        /* ダイアログを開く前の状態（キャンセル時に復元）*/
-        var originalStates = [];
-        for (var i = 0; i < targetPaths.length; i++) {
-            var pathItem = targetPaths[i];
-            originalStates.push({
-                item: pathItem,
-                stroked: pathItem.stroked,
-                strokeCap: pathItem.strokeCap,
-                strokeDashes: (pathItem.strokeDashes && pathItem.strokeDashes.length) ? pathItem.strokeDashes.slice(0) : [],
-                strokeDashOffset: (typeof pathItem.strokeDashOffset === "number") ? pathItem.strokeDashOffset : 0
-            });
-        }
-
-        var closedByOK = false;
-        var directionReversed = false;
-        var isDashCleared = false;
-
-        /* ランダムパターン（線分・間隔を3組、pt）/ Random pattern in pt */
-        var randomDashesPt = null;
-
-        // -----------------------------------------
-        // 前回値の復元 / Restore previous values
-        // -----------------------------------------
-
-        var prefs = loadPrefs();
-
-        /**
-         * 前回値の長さ（pt）を現在の単位に変換して返す
-         * @param {number} storedPt - 保存されている長さ（pt）
-         * @param {number} fallbackUnit - 保存値がないときの値（単位値）
-         * @returns {number} 長さ（単位値）
-         */
-        function toInitialUnit(storedPt, fallbackUnit) {
-            return (typeof storedPt === "number" && storedPt >= 0) ? ptToUnit(storedPt, strokeUnit) : fallbackUnit;
-        }
-
-        /**
-         * 前回値の真偽値を返す
-         * @param {boolean} storedFlag - 保存されている値
-         * @param {boolean} fallbackFlag - 保存値がないときの値
-         * @returns {boolean} 復元した値
-         */
-        function toInitialFlag(storedFlag, fallbackFlag) {
-            return (typeof storedFlag === "boolean") ? storedFlag : fallbackFlag;
-        }
-
-        /**
-         * 前回値の数値を返す
-         * @param {number} storedNumber - 保存されている値
-         * @param {number} fallbackNumber - 保存値がないときの値
-         * @param {number} minValue - 許容する下限値
-         * @returns {number} 復元した値
-         */
-        function toInitialNumber(storedNumber, fallbackNumber, minValue) {
-            return (typeof storedNumber === "number" && storedNumber >= minValue) ? storedNumber : fallbackNumber;
-        }
-
-        var initialSegments   = toInitialNumber(prefs && prefs.segments, 3, 1);
-        var initialCapMode    = toInitialNumber(prefs && prefs.capMode, 0, 0);
-        var initialMode       = toInitialNumber(prefs && prefs.mode, 0, 0); /* 0:間隔→線分 / 1:線分→間隔 / 2:ランダム */
-        var initialGapUnit    = toInitialUnit(prefs && prefs.gapPt, 5);
-        var initialDashUnit   = toInitialUnit(prefs && prefs.dashPt, 0);
-        var initialOffsetUnit = toInitialUnit(prefs && prefs.offsetPt, 0);
-        var initialUseOffset  = toInitialFlag(prefs && prefs.useOffset, false);
-        var initialAdjustEnds = toInitialFlag(prefs && prefs.adjustEnds, true);
-        var initialReverse    = toInitialFlag(prefs && prefs.reversePath, false);
-
-        // -----------------------------------------
-        // ダイアログの構築 / Build dialog
-        // -----------------------------------------
-
-        var win = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        setupWindow(win);
+    /**
+     * ダイアログを組み立てる（イベントは設定しない）
+     * @param {string} pathInfoText - 選択中のパス情報の表示
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @param {Object} initialValues - readInitialValues() の戻り値
+     * @returns {Object} ダイアログと操作に使うコントロール
+     */
+    function buildDashDialog(pathInfoText, strokeUnit, initialValues) {
+        var dashDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(dashDialog);
 
         /* 選択中のパス情報（全幅）*/
-        var panelPathInfo = addPanel(win, getLabel(LABELS.panel.pathInfo));
-        var pathInfoText = labelText(LABELS.fieldLabel.pathLength) + " " +
-            ptToUnit(primaryPathLength, strokeUnit).toFixed(3) + " " + strokeUnit.label;
-        if (targetPaths.length > 1) pathInfoText += "  (" + targetPaths.length + ")";
-        var lblPathInfo = panelPathInfo.add("statictext", undefined, pathInfoText);
+        var pathInfoPanel = addPanel(dashDialog, getLabel(LABELS.panel.pathInfo));
+        var lblPathInfo = pathInfoPanel.add("statictext", undefined, pathInfoText);
         lblPathInfo.alignment = "center";
         lblPathInfo.helpTip = getLabel(LABELS.tooltip.pathInfo);
 
         /* 2カラム */
-        var mainColumns = win.add("group");
-        setupRow(mainColumns, "fill", COLUMN_SPACING);
-        mainColumns.alignChildren = ["fill", "top"];
+        var columnsGroup = dashDialog.add("group");
+        setupRow(columnsGroup, "fill", COLUMN_SPACING);
+        columnsGroup.alignChildren = ["fill", "top"];
 
-        var columnLeft = addColumn(mainColumns);
-        var columnRight = addColumn(mainColumns);
+        var leftColumn = addColumn(columnsGroup);
+        var rightColumn = addColumn(columnsGroup);
 
         /* 破線の計算（左カラム）*/
-        var panelDashCalc = addPanel(columnLeft, getLabel(LABELS.panel.dashCalc));
-        var dashInputColumn = addColumn(panelDashCalc, ["left", "top"], "left");
+        var dashCalcPanel = addPanel(leftColumn, getLabel(LABELS.panel.dashCalc));
+        var dashInputColumn = addColumn(dashCalcPanel, ["left", "top"], "left");
 
         /* 分割数 */
-        var segmentsRow = addRow(dashInputColumn);
-        var lblSegments = segmentsRow.add("statictext", undefined, labelText(LABELS.fieldLabel.segments));
-        lblSegments.preferredSize.width = FIELD_LABEL_WIDTH;
-        lblSegments.justify = "right";
-        var txtSegments = segmentsRow.add("edittext", undefined, String(initialSegments));
+        var segmentsRow = addFieldRow(dashInputColumn, LABELS.fieldLabel.segments);
+        var txtSegments = segmentsRow.add("edittext", undefined, String(initialValues.segments));
         txtSegments.characters = NUMBER_FIELD_CHARS;
         segmentsRow.helpTip = txtSegments.helpTip = getLabel(LABELS.tooltip.segments);
         changeValueByArrowKey(txtSegments, true, 1);
 
-        /* 間隔（入力欄と結果表示を重ねる）*/
-        var gapRow = addRow(dashInputColumn);
-        var lblGap = gapRow.add("statictext", undefined, labelText(LABELS.fieldLabel.gap));
-        lblGap.preferredSize.width = FIELD_LABEL_WIDTH;
-        lblGap.justify = "right";
-
-        var gapFieldStack = gapRow.add("group");
-        gapFieldStack.orientation = "stack";
-
-        var txtGap = gapFieldStack.add("edittext", undefined, formatFieldNumber(initialGapUnit));
-        txtGap.characters = NUMBER_FIELD_CHARS;
-        changeValueByArrowKey(txtGap, false, 0);
-
-        var lblGapResult = gapFieldStack.add("statictext", undefined, "");
-        lblGapResult.justify = "right";
-        lblGapResult.preferredSize.width = txtGap.preferredSize.width;
-        lblGapResult.visible = false;
-
-        gapRow.add("statictext", undefined, strokeUnit.label);
-        gapRow.helpTip = txtGap.helpTip = getLabel(LABELS.tooltip.gap);
-
-        /* 線分（入力欄と結果表示を重ねる）*/
-        var dashRow = addRow(dashInputColumn);
-        var lblDash = dashRow.add("statictext", undefined, labelText(LABELS.fieldLabel.dash));
-        lblDash.preferredSize.width = FIELD_LABEL_WIDTH;
-        lblDash.justify = "right";
-
-        var dashFieldStack = dashRow.add("group");
-        dashFieldStack.orientation = "stack";
-
-        var txtDash = dashFieldStack.add("edittext", undefined, formatFieldNumber(initialDashUnit));
-        txtDash.characters = NUMBER_FIELD_CHARS;
-        changeValueByArrowKey(txtDash, false, 0);
-
-        var lblDashResult = dashFieldStack.add("statictext", undefined, "");
-        lblDashResult.justify = "right";
-        lblDashResult.preferredSize.width = txtDash.preferredSize.width;
-
-        dashRow.add("statictext", undefined, strokeUnit.label);
-        dashRow.helpTip = txtDash.helpTip = getLabel(LABELS.tooltip.dash);
+        /* 間隔・線分 */
+        var gapRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.gap, initialValues.gapUnit, strokeUnit.label, LABELS.tooltip.gap);
+        var dashRow = addDashGapRow(dashInputColumn, LABELS.fieldLabel.dash, initialValues.dashUnit, strokeUnit.label, LABELS.tooltip.dash);
 
         /* 計算方法（左カラム）*/
-        var panelCalcMethod = addPanel(columnLeft, getLabel(LABELS.panel.calcMethod));
-        var calcModeColumn = addColumn(panelCalcMethod, ["left", "top"], "left");
+        var calcMethodPanel = addPanel(leftColumn, getLabel(LABELS.panel.calcMethod));
+        var calcModeColumn = addColumn(calcMethodPanel, ["left", "top"], "left");
 
         var rbModeGapToDash = calcModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.gapToDash));
         var rbModeDashToGap = calcModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.dashToGap));
@@ -816,19 +731,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         rbModeGapToDash.helpTip = getLabel(LABELS.tooltip.gapToDash);
         rbModeDashToGap.helpTip = getLabel(LABELS.tooltip.dashToGap);
         rbModeRandom.helpTip = getLabel(LABELS.tooltip.random);
-        rbModeGapToDash.value = (initialMode === 0);
-        rbModeDashToGap.value = (initialMode === 1);
-        rbModeRandom.value = (initialMode === 2);
+        rbModeGapToDash.value = (initialValues.mode === 0);
+        rbModeDashToGap.value = (initialValues.mode === 1);
+        rbModeRandom.value = (initialValues.mode === 2);
 
         /* 開始位置（右カラム）*/
-        var panelOffset = addPanel(columnRight, getLabel(LABELS.panel.offset), OFFSET_PANEL_SPACING);
+        var offsetPanel = addPanel(rightColumn, getLabel(LABELS.panel.offset), OFFSET_PANEL_SPACING);
 
-        var offsetRow = addRow(panelOffset);
+        var offsetRow = addRow(offsetPanel);
         var chkUseOffset = offsetRow.add("checkbox", undefined, "");
-        chkUseOffset.value = initialUseOffset;
+        chkUseOffset.value = initialValues.useOffset;
         chkUseOffset.preferredSize.width = LABELLESS_CHECKBOX_WIDTH;
 
-        var txtOffset = offsetRow.add("edittext", undefined, formatFieldNumber(initialOffsetUnit));
+        var txtOffset = offsetRow.add("edittext", undefined, formatFieldNumber(initialValues.offsetUnit));
         txtOffset.characters = NUMBER_FIELD_CHARS;
         txtOffset.enabled = chkUseOffset.value;
         changeValueByArrowKey(txtOffset, false, 0);
@@ -838,44 +753,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         offsetRow.helpTip = chkUseOffset.helpTip = txtOffset.helpTip = getLabel(LABELS.tooltip.useOffset);
 
         /* 1周期（線分＋間隔）を基準にしたプリセット */
-        var offsetPresetRow = addRow(panelOffset);
+        var offsetPresetRow = addRow(offsetPanel);
         offsetPresetRow.enabled = chkUseOffset.value;
-        offsetPresetRow.helpTip = getLabel(LABELS.tooltip.offsetPreset);
         var rbOffsetQuarter = offsetPresetRow.add("radiobutton", undefined, "1/4");
         var rbOffsetHalf = offsetPresetRow.add("radiobutton", undefined, "1/2");
         var rbOffsetThreeQuarter = offsetPresetRow.add("radiobutton", undefined, "3/4");
+        offsetPresetRow.helpTip = rbOffsetQuarter.helpTip = rbOffsetHalf.helpTip = rbOffsetThreeQuarter.helpTip =
+            getLabel(LABELS.tooltip.offsetPreset);
 
         /* 部分表示（右カラム）*/
-        var panelPartialDisplay = addPanel(columnRight, getLabel(LABELS.panel.partial));
-        var chkPartialDisplay = panelPartialDisplay.add("checkbox", undefined, getLabel(LABELS.checkbox.partialDisplay));
+        var partialPanel = addPanel(rightColumn, getLabel(LABELS.panel.partial));
+        var chkPartialDisplay = partialPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.partialDisplay));
         chkPartialDisplay.alignment = "left";
         chkPartialDisplay.value = false;
         chkPartialDisplay.helpTip = getLabel(LABELS.tooltip.partialDisplay);
 
         /* 線端（右カラム）*/
-        var panelCap = addPanel(columnRight, getLabel(LABELS.panel.cap));
-        var capRow = addRow(panelCap);
-        capRow.helpTip = getLabel(LABELS.tooltip.cap);
+        var capPanel = addPanel(rightColumn, getLabel(LABELS.panel.cap));
+        var capRow = addRow(capPanel);
         var rbCapButt = capRow.add("radiobutton", undefined, getLabel(LABELS.radio.capButt));
         var rbCapRound = capRow.add("radiobutton", undefined, getLabel(LABELS.radio.capRound));
         var rbCapProject = capRow.add("radiobutton", undefined, getLabel(LABELS.radio.capProject));
-        if (initialCapMode === 1) rbCapRound.value = true;
-        else if (initialCapMode === 2) rbCapProject.value = true;
+        capRow.helpTip = rbCapButt.helpTip = rbCapRound.helpTip = rbCapProject.helpTip = getLabel(LABELS.tooltip.cap);
+        if (initialValues.capMode === 1) rbCapRound.value = true;
+        else if (initialValues.capMode === 2) rbCapProject.value = true;
         else rbCapButt.value = true;
 
         /* 両端を調整・パスの方向反転（中央）*/
-        var pathOptionRow = addRow(win, "center", OPTION_ROW_SPACING);
+        var pathOptionRow = addRow(dashDialog, "center", OPTION_ROW_SPACING);
 
         var chkAdjustEnds = pathOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.adjustEnds));
-        chkAdjustEnds.value = initialAdjustEnds;
+        chkAdjustEnds.value = initialValues.adjustEnds;
         chkAdjustEnds.helpTip = getLabel(LABELS.tooltip.adjustEnds);
 
         var chkReversePath = pathOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.reversePath));
-        chkReversePath.value = initialReverse;
+        chkReversePath.value = initialValues.reversePath;
         chkReversePath.helpTip = getLabel(LABELS.tooltip.reversePath);
 
         /* ボタン（左：破線クリア／右：キャンセル・OK）*/
-        var btnRowGroup = win.add("group");
+        var btnRowGroup = dashDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = BUTTON_ROW_MARGINS;
         btnRowGroup.alignment = ["fill", "bottom"];
@@ -896,6 +812,139 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         btnRightGroup.alignChildren = ["right", "center"];
         var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        return {
+            dialog: dashDialog,
+            segmentsRow: segmentsRow,
+            txtSegments: txtSegments,
+            txtGap: gapRow.field,
+            lblGapResult: gapRow.resultLabel,
+            dashRow: dashRow.row,
+            txtDash: dashRow.field,
+            lblDashResult: dashRow.resultLabel,
+            rbModeGapToDash: rbModeGapToDash,
+            rbModeDashToGap: rbModeDashToGap,
+            rbModeRandom: rbModeRandom,
+            chkUseOffset: chkUseOffset,
+            txtOffset: txtOffset,
+            lblOffsetUnit: lblOffsetUnit,
+            offsetPresetRow: offsetPresetRow,
+            rbOffsetQuarter: rbOffsetQuarter,
+            rbOffsetHalf: rbOffsetHalf,
+            rbOffsetThreeQuarter: rbOffsetThreeQuarter,
+            chkPartialDisplay: chkPartialDisplay,
+            rbCapButt: rbCapButt,
+            rbCapRound: rbCapRound,
+            rbCapProject: rbCapProject,
+            chkAdjustEnds: chkAdjustEnds,
+            chkReversePath: chkReversePath,
+            btnClearDash: btnClearDash,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * バウンディングボックスをリセットし、エッジ表示を切り替える
+     * 実行時と終了時に呼び、表示を元へ戻す。
+     * @returns {void}
+     */
+    function resetBoundsAndToggleEdges() {
+        app.executeMenuCommand('AI Reset Bounding Box');
+        app.executeMenuCommand('edge');
+    }
+
+    /**
+     * 選択の中から PathItem だけを集める
+     * @param {Array} selectedItems - ドキュメントの選択
+     * @returns {Array<PathItem>} 対象のパス
+     */
+    function collectTargetPaths(selectedItems) {
+        var targetPaths = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (selectedItems[i] && selectedItems[i].typename === "PathItem") targetPaths.push(selectedItems[i]);
+        }
+        return targetPaths;
+    }
+
+    /**
+     * 線の状態（破線・線端・線の有無）を控える
+     * @param {Array<PathItem>} targetPaths - 対象のパス
+     * @returns {Array<Object>} パスと線の状態の組
+     */
+    function captureStrokeStates(targetPaths) {
+        var strokeStates = [];
+        for (var i = 0; i < targetPaths.length; i++) {
+            var pathItem = targetPaths[i];
+            strokeStates.push({
+                item: pathItem,
+                stroked: pathItem.stroked,
+                strokeCap: pathItem.strokeCap,
+                strokeDashes: (pathItem.strokeDashes && pathItem.strokeDashes.length) ? pathItem.strokeDashes.slice(0) : [],
+                strokeDashOffset: (typeof pathItem.strokeDashOffset === "number") ? pathItem.strokeDashOffset : 0
+            });
+        }
+        return strokeStates;
+    }
+
+    /**
+     * ダイアログを表示し、対象のパスに破線を適用する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PathItem>} targetPaths - 対象のパス
+     * @returns {void}
+     */
+    function showDashDialog(doc, targetPaths) {
+        /* 先頭のパスをUI表示・計算の代表として扱う */
+        var primaryPath = targetPaths[0];
+        var primaryPathLength = primaryPath.length;
+        var strokeUnit = getUnitInfo("strokeUnits");
+
+        /* ダイアログを開く前の状態（キャンセル時に復元）*/
+        var originalStates = captureStrokeStates(targetPaths);
+
+        var closedByOK = false;
+        var directionReversed = false;
+        var isDashCleared = false;
+
+        /* ランダムパターン（線分・間隔を3組、pt）/ Random pattern in pt */
+        var randomDashesPt = null;
+
+        var savedPrefs = loadPrefs();
+        var initialValues = readInitialValues(savedPrefs, strokeUnit);
+
+        var dialogControls = buildDashDialog(
+            formatPathInfoText(primaryPathLength, targetPaths.length, strokeUnit), strokeUnit, initialValues);
+        var dashDialog = dialogControls.dialog;
+        var segmentsRow = dialogControls.segmentsRow;
+        var txtSegments = dialogControls.txtSegments;
+        var txtGap = dialogControls.txtGap;
+        var lblGapResult = dialogControls.lblGapResult;
+        var dashRow = dialogControls.dashRow;
+        var txtDash = dialogControls.txtDash;
+        var lblDashResult = dialogControls.lblDashResult;
+        var rbModeGapToDash = dialogControls.rbModeGapToDash;
+        var rbModeDashToGap = dialogControls.rbModeDashToGap;
+        var rbModeRandom = dialogControls.rbModeRandom;
+        var chkUseOffset = dialogControls.chkUseOffset;
+        var txtOffset = dialogControls.txtOffset;
+        var lblOffsetUnit = dialogControls.lblOffsetUnit;
+        var offsetPresetRow = dialogControls.offsetPresetRow;
+        var rbOffsetQuarter = dialogControls.rbOffsetQuarter;
+        var rbOffsetHalf = dialogControls.rbOffsetHalf;
+        var rbOffsetThreeQuarter = dialogControls.rbOffsetThreeQuarter;
+        var chkPartialDisplay = dialogControls.chkPartialDisplay;
+        var rbCapButt = dialogControls.rbCapButt;
+        var rbCapRound = dialogControls.rbCapRound;
+        var rbCapProject = dialogControls.rbCapProject;
+        var chkAdjustEnds = dialogControls.chkAdjustEnds;
+        var chkReversePath = dialogControls.chkReversePath;
+        var btnClearDash = dialogControls.btnClearDash;
+        var btnCancel = dialogControls.btnCancel;
+        var btnOK = dialogControls.btnOK;
 
         // -----------------------------------------
         // 表示用の書式 / Display formatting
@@ -961,7 +1010,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         function ensureRandomPattern() {
             if (randomDashesPt && randomDashesPt.length === RANDOM_PATTERN_LENGTH) return;
 
-            var savedDashes = prefs ? prefs.randPt : null;
+            var savedDashes = savedPrefs ? savedPrefs.randPt : null;
             if (savedDashes && savedDashes.length >= RANDOM_PATTERN_LENGTH) {
                 randomDashesPt = savedDashes.slice(0, RANDOM_PATTERN_LENGTH);
                 return;
@@ -1134,9 +1183,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
             /* 部分表示：間隔0で計算し、線分1本だけを見せて残りは長い間隔で隠す */
             if (chkPartialDisplay.value) {
-                var partialResult = calcDashAndCyclePt(segments, 0, pathLen, isClosed, adjustEnds);
-                if (!partialResult || partialResult.dashPt <= 0) return null;
-                var partialDashPt = partialResult.dashPt;
+                var partialCycle = calcDashAndCyclePt(segments, 0, pathLen, isClosed, adjustEnds);
+                if (!partialCycle || partialCycle.dashPt <= 0) return null;
+                var partialDashPt = partialCycle.dashPt;
                 return {
                     dashPt: partialDashPt,
                     gapPt: 0,
@@ -1155,9 +1204,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             var gapUnit = parseFloat(txtGap.text);
             if (isNaN(gapUnit) || gapUnit < 0) return null;
             var enteredGapPt = unitToPt(gapUnit, strokeUnit);
-            var calcResult = calcDashAndCyclePt(segments, enteredGapPt, pathLen, isClosed, adjustEnds);
-            if (!calcResult || calcResult.dashPt <= 0) return null;
-            return { dashPt: calcResult.dashPt, gapPt: enteredGapPt, dashesPt: [calcResult.dashPt, enteredGapPt] };
+            var dashCycle = calcDashAndCyclePt(segments, enteredGapPt, pathLen, isClosed, adjustEnds);
+            if (!dashCycle || dashCycle.dashPt <= 0) return null;
+            return { dashPt: dashCycle.dashPt, gapPt: enteredGapPt, dashesPt: [dashCycle.dashPt, enteredGapPt] };
         }
 
         /**
@@ -1175,9 +1224,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
                 return ptToUnit(totalPt, strokeUnit);
             }
 
-            var pattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
-            if (!pattern) return null;
-            return ptToUnit(pattern.dashPt + pattern.gapPt, strokeUnit);
+            var dashPattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
+            if (!dashPattern) return null;
+            return ptToUnit(dashPattern.dashPt + dashPattern.gapPt, strokeUnit);
         }
 
         // -----------------------------------------
@@ -1222,13 +1271,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /**
          * 対象パスすべてに処理を行う（個別の失敗は無視する）
-         * @param {function} callback - 各パスに対して実行する処理
+         * @param {function} pathAction - 各パスに対して実行する処理
          * @returns {void}
          */
-        function forEachTargetPath(callback) {
+        function forEachTargetPath(pathAction) {
             for (var k = 0; k < targetPaths.length; k++) {
                 try {
-                    callback(targetPaths[k]);
+                    pathAction(targetPaths[k]);
                 } catch (e) { }
             }
         }
@@ -1266,8 +1315,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
          */
         function applyDashesToPaths(segments, offsetPt) {
             forEachTargetPath(function (pathItem) {
-                var pattern = calcDashPatternForPath(pathItem.length, pathItem.closed, segments);
-                if (pattern) applyStrokeDashes(pathItem, pattern.dashesPt, offsetPt);
+                var dashPattern = calcDashPatternForPath(pathItem.length, pathItem.closed, segments);
+                if (dashPattern) applyStrokeDashes(pathItem, dashPattern.dashesPt, offsetPt);
             });
         }
 
@@ -1353,27 +1402,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
                 return false;
             }
 
-            var pattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
-            if (!pattern) {
+            var dashPattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
+            if (!dashPattern) {
                 resultLabel.text = getLabel(LABELS.alert.calcError);
                 return false;
             }
 
-            lblDashResult.text = ptToResultText(pattern.dashPt);
-            lblGapResult.text = ptToResultText(pattern.gapPt);
+            lblDashResult.text = ptToResultText(dashPattern.dashPt);
+            lblGapResult.text = ptToResultText(dashPattern.gapPt);
 
             /* 表示を切り替えたときにずれないよう、隠れている入力欄も同期する */
             if (chkPartialDisplay.value) {
                 txtGap.text = "0";
-                txtDash.text = ptToFieldText(pattern.dashPt);
+                txtDash.text = ptToFieldText(dashPattern.dashPt);
             } else if (rbModeDashToGap.value) {
-                txtGap.text = ptToFieldText(pattern.gapPt);
+                txtGap.text = ptToFieldText(dashPattern.gapPt);
                 /* 全長ダッシュに置き換わった場合だけ入力欄を合わせる（入力中の値は書き換えない）*/
                 if (!primaryPath.closed && chkAdjustEnds.value && segments === 1) {
-                    txtDash.text = ptToFieldText(pattern.dashPt);
+                    txtDash.text = ptToFieldText(dashPattern.dashPt);
                 }
             } else {
-                txtDash.text = ptToFieldText(pattern.dashPt);
+                txtDash.text = ptToFieldText(dashPattern.dashPt);
             }
             return true;
         }
@@ -1446,8 +1495,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
                 };
             }
 
-            var pattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
-            if (pattern) return pattern;
+            var dashPattern = calcDashPatternForPath(primaryPathLength, primaryPath.closed, segments);
+            if (dashPattern) return dashPattern;
 
             /* 計算できないときは、設定できる最大値を知らせる */
             if (chkPartialDisplay.value) {
@@ -1545,11 +1594,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         /* キャンセル：ダイアログを開く前の状態に戻して閉じる */
         btnCancel.onClick = function () {
             restoreOriginalState();
-            win.close(0);
+            dashDialog.close(0);
         };
 
         /* ×ボタンやEscで閉じた場合も、OK以外は復元する */
-        win.onClose = function () {
+        dashDialog.onClose = function () {
             if (!closedByOK) restoreOriginalState();
             return true;
         };
@@ -1561,13 +1610,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             if (isDashCleared) {
                 clearDashesOnPaths();
                 saveCurrentPrefs(
-                    (segments == null) ? initialSegments : segments,
-                    unitToPt(initialDashUnit, strokeUnit),
-                    unitToPt(initialGapUnit, strokeUnit),
+                    (segments == null) ? initialValues.segments : segments,
+                    unitToPt(initialValues.dashUnit, strokeUnit),
+                    unitToPt(initialValues.gapUnit, strokeUnit),
                     0
                 );
                 closedByOK = true;
-                win.close(1);
+                dashDialog.close(1);
                 return;
             }
 
@@ -1581,15 +1630,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
                 return;
             }
 
-            var applied = validateBeforeApply(segments);
-            if (!applied) return;
+            var appliedPattern = validateBeforeApply(segments);
+            if (!appliedPattern) return;
 
             /* プレビューと同じ処理で対象のパスへ適用する */
             updatePreview();
-            saveCurrentPrefs(segments, applied.dashPt, applied.gapPt, unitToPt(offsetUnit, strokeUnit));
+            saveCurrentPrefs(segments, appliedPattern.dashPt, appliedPattern.gapPt, unitToPt(offsetUnit, strokeUnit));
 
             closedByOK = true;
-            win.close(1);
+            dashDialog.close(1);
         };
 
         // -----------------------------------------
@@ -1605,12 +1654,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* ランダム以外は分割数の入力欄をアクティブにして表示する */
         if (!rbModeRandom.value) txtSegments.active = true;
-        win.onShow = function () {
+        dashDialog.onShow = function () {
             if (rbModeRandom.value) txtGap.active = true;
             else txtSegments.active = true;
         };
 
-        win.show();
+        dashDialog.show();
     }
 
     /**

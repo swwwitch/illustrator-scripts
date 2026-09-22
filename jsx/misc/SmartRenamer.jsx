@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "SmartRenamer";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenamer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenamer.md"; /* README (English) */
@@ -42,6 +42,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
 (function () {
 
+    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 
@@ -98,11 +99,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * 現在のUI言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return ($.locale && $.locale.toLowerCase().indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* ラベル定義 / Label definitions (JA/EN) */
     var LABELS = {
@@ -166,6 +167,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             searchFilter: {
                 ja: "現在の名前に指定文字列を含む項目だけをチェックします",
                 en: "Check only items whose current names contain the specified text"
+            },
+            frontmost: {
+                ja: "各アートボードで最前面にあるテキストの内容を名前にします（アートボードのみ）",
+                en: "Uses the contents of the frontmost text on each artboard (artboards only)"
+            },
+            rangeItems: {
+                ja: "対象にする行を「順」列の番号で指定します（例：1-3,5）",
+                en: "Rows to include, by their numbers in the # column (e.g. 1-3,5)"
+            },
+            tokenSequence: { ja: "連番（1, 2, 3…）を入れます", en: "Inserts a sequence number (1, 2, 3...)" },
+            tokenSequencePadded: {
+                ja: "ゼロ埋めの連番（01, 02, 03…）を入れます",
+                en: "Inserts a zero-padded sequence number (01, 02, 03...)"
+            },
+            tokenFileName: { ja: "ドキュメント名（拡張子なし）を入れます", en: "Inserts the document name without its extension" },
+            tokenDate: { ja: "今日の日付（YYYYMMDD）を入れます", en: "Inserts today's date (YYYYMMDD)" },
+            tokenDigit: { ja: "正規表現の「数字1文字」（\\d）を入れます", en: "Inserts the regex for one digit (\\d)" },
+            tokenDigits: { ja: "正規表現の「続いた数字」（\\d+）を入れます", en: "Inserts the regex for a run of digits (\\d+)" },
+            tokenAnyText: { ja: "正規表現の「任意の文字列」（.+）を入れます", en: "Inserts the regex for any text (.+)" },
+            clearField: { ja: "入力欄を空にします", en: "Clears the field" },
+            moveTop: { ja: "チェックした行を先頭へ移動します", en: "Moves the checked rows to the top" },
+            moveUp: { ja: "チェックした行を1つ上へ移動します", en: "Moves the checked rows up one place" },
+            moveDown: { ja: "チェックした行を1つ下へ移動します", en: "Moves the checked rows down one place" },
+            moveBottom: { ja: "チェックした行を末尾へ移動します", en: "Moves the checked rows to the bottom" },
+            rowCheckbox: {
+                ja: "Option＋クリックで全行を同じ状態にします（全行がオンのときはこの行だけを残します）",
+                en: "Option-click sets every row the same way (when all rows are on, only this row stays on)"
+            },
+            refresh: {
+                ja: "現在の設定をドキュメントに反映します。ダイアログは閉じず、キャンセルすると元に戻ります",
+                en: "Applies the current settings to the document without closing. Cancel restores the original state"
             }
         }
     };
@@ -173,25 +205,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * ドット区切りのキーからUI言語のラベルを取得する
      * @param {string} labelPath - "panel.filter" のようなドット区切りのキー
-     * @param {object} [params] - {n: 3} のような差し込み値
+     * @param {object} [placeholderValues] - {n: 3} のような差し込み値
      * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
      */
-    function getLabel(labelPath, params) {
+    function getLabel(labelPath, placeholderValues) {
         var pathKeys = labelPath.split(".");
         var labelNode = LABELS;
         for (var i = 0; i < pathKeys.length; i++) {
             labelNode = labelNode[pathKeys[i]];
             if (!labelNode) return labelPath;
         }
-        var labelText = labelNode[uiLang] || labelNode["en"];
-        if (!labelText) return labelPath;
-        if (params) {
-            for (var paramKey in params) {
-                if (!params.hasOwnProperty(paramKey)) continue;
-                labelText = labelText.replace(new RegExp("\\{" + paramKey + "\\}", "g"), params[paramKey]);
+        var localizedText = labelNode[uiLang] || labelNode["en"];
+        if (!localizedText) return labelPath;
+        if (placeholderValues) {
+            for (var paramKey in placeholderValues) {
+                if (!placeholderValues.hasOwnProperty(paramKey)) continue;
+                localizedText = localizedText.replace(new RegExp("\\{" + paramKey + "\\}", "g"), placeholderValues[paramKey]);
             }
         }
-        return labelText;
+        return localizedText;
     }
 
     // =========================================
@@ -241,12 +273,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * ラベル付きパネルを生成する（共通レイアウト適用）
      * @param {Group|Window} parentContainer - 追加先
-     * @param {string} labelText - パネルのタイトル
+     * @param {string} panelTitle - パネルのタイトル
      * @param {number} [spacing] - パネル内の要素間隔
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parentContainer, labelText, spacing) {
-        var createdPanel = parentContainer.add("panel", undefined, labelText);
+    function addPanel(parentContainer, panelTitle, spacing) {
+        var createdPanel = parentContainer.add("panel", undefined, panelTitle);
         setupPanel(createdPanel, spacing);
         return createdPanel;
     }
@@ -267,12 +299,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * 幅を固定した statictext を追加する（一覧の列見出し・行ラベル用）
      * @param {Group} parentContainer - 追加先
-     * @param {string} text - 表示文字列
+     * @param {string} displayText - 表示文字列
      * @param {number} width - 列幅
      * @returns {StaticText} 生成したテキスト
      */
-    function addFixedWidthText(parentContainer, text, width) {
-        var staticText = parentContainer.add("statictext", undefined, text);
+    function addFixedWidthText(parentContainer, displayText, width) {
+        var staticText = parentContainer.add("statictext", undefined, displayText);
         staticText.preferredSize.width = width;
         return staticText;
     }
@@ -314,25 +346,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /* 接頭辞・接尾辞に挿入するトークン / Tokens inserted into the prefix and suffix fields */
     var AFFIX_TOKENS = [
-        { label: "1", value: "{#1}", width: NARROW_BUTTON_WIDTH },
-        { label: "01", value: "{#01}" },
+        { label: "1", value: "{#1}", width: NARROW_BUTTON_WIDTH, tooltip: "tooltip.tokenSequence" },
+        { label: "01", value: "{#01}", tooltip: "tooltip.tokenSequencePadded" },
         { label: "-", value: "-", width: NARROW_BUTTON_WIDTH },
         { label: "_", value: "_", width: NARROW_BUTTON_WIDTH },
-        { label: "#FN", value: "#FN", width: 40 },
-        { label: "#DT", value: "#DT", width: 40 }
+        { label: "#FN", value: "#FN", width: 40, tooltip: "tooltip.tokenFileName" },
+        { label: "#DT", value: "#DT", width: 40, tooltip: "tooltip.tokenDate" }
     ];
 
     /* 検索欄に挿入する正規表現ショートカット / Regex shortcuts inserted into the find field */
     var FIND_PATTERN_TOKENS = [
-        { label: "#", value: "\\d", width: NARROW_BUTTON_WIDTH },
-        { label: "##", value: "\\d+" },
-        { label: "*", value: ".+", width: NARROW_BUTTON_WIDTH }
+        { label: "#", value: "\\d", width: NARROW_BUTTON_WIDTH, tooltip: "tooltip.tokenDigit" },
+        { label: "##", value: "\\d+", tooltip: "tooltip.tokenDigits" },
+        { label: "*", value: ".+", width: NARROW_BUTTON_WIDTH, tooltip: "tooltip.tokenAnyText" }
     ];
 
     /* 置換欄に挿入するトークン / Tokens inserted into the replace field */
     var REPLACE_TOKENS = [
-        { label: "#", value: "{#1}", width: NARROW_BUTTON_WIDTH },
-        { label: "##", value: "{#01}" },
+        { label: "#", value: "{#1}", width: NARROW_BUTTON_WIDTH, tooltip: "tooltip.tokenSequence" },
+        { label: "##", value: "{#01}", tooltip: "tooltip.tokenSequencePadded" },
         { label: "-", value: "-", width: NARROW_BUTTON_WIDTH },
         { label: "_", value: "_", width: NARROW_BUTTON_WIDTH }
     ];
@@ -341,7 +373,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * トークン挿入ボタンの行を作る
      * @param {Panel|Group} parentContainer - 追加先
      * @param {EditText} targetInput - 挿入先の入力欄
-     * @param {Array<object>} tokens - {label, value, width} の配列
+     * @param {Array<object>} tokens - {label, value, width, tooltip} の配列（tooltip はラベルキー）
      * @param {boolean} withClearButton - 末尾にクリアボタン（x）を置くか
      * @returns {Group} 生成した行グループ
      */
@@ -353,6 +385,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             (function (token) {
                 var tokenButton = tokenRow.add("button", undefined, token.label);
                 tokenButton.preferredSize = [token.width || TOKEN_BUTTON_SIZE[0], TOKEN_BUTTON_SIZE[1]];
+                if (token.tooltip) tokenButton.helpTip = getLabel(token.tooltip);
                 tokenButton.onClick = function () {
                     targetInput.text = targetInput.text + token.value;
                     targetInput.notify("onChange");
@@ -362,6 +395,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         if (withClearButton) {
             var clearButton = tokenRow.add("button", undefined, "x");
             clearButton.preferredSize = [NARROW_BUTTON_WIDTH, TOKEN_BUTTON_SIZE[1]];
+            clearButton.helpTip = getLabel("tooltip.clearField");
             clearButton.onClick = function () {
                 targetInput.text = "";
                 targetInput.notify("onChange");
@@ -376,56 +410,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /**
      * 失敗内容を ExtendScript コンソールへ出力する
-     * @param {string} context - どこで失敗したかを示す文字列
+     * @param {string} logContext - どこで失敗したかを示す文字列
      * @param {object} error - 捕捉した例外
      * @returns {void}
      */
-    function logFailure(context, error) {
-        $.writeln("[" + SCRIPT_NAME + "] " + context + ": " + error);
+    function logFailure(logContext, error) {
+        $.writeln("[" + SCRIPT_NAME + "] " + logContext + ": " + error);
     }
 
     /**
      * アイテムに名前を設定する（失敗しても処理を続ける）
-     * @param {object} item - Artboard / SymbolItem / Layer / GraphicStyle
-     * @param {string} name - 設定する名前
-     * @param {string} context - ログ用の文字列
+     * @param {object} targetItem - Artboard / SymbolItem / Layer / GraphicStyle
+     * @param {string} newName - 設定する名前
+     * @param {string} logContext - ログ用の文字列
      * @returns {void}
      */
-    function setItemName(item, name, context) {
+    function setItemName(targetItem, newName, logContext) {
         try {
-            item.name = name;
+            targetItem.name = newName;
         } catch (nameError) {
-            logFailure(context, nameError);
+            logFailure(logContext, nameError);
         }
     }
 
     /**
      * アイテムをコレクションの先頭へ移動する（失敗しても処理を続ける）
      * @param {Document} doc - 対象ドキュメント
-     * @param {object} item - 移動するアイテム
-     * @param {string} context - ログ用の文字列
+     * @param {object} targetItem - 移動するアイテム
+     * @param {string} logContext - ログ用の文字列
      * @returns {void}
      */
-    function moveToBeginning(doc, item, context) {
+    function moveToBeginning(doc, targetItem, logContext) {
         try {
-            item.move(doc, ElementPlacement.PLACEATBEGINNING);
+            targetItem.move(doc, ElementPlacement.PLACEATBEGINNING);
         } catch (moveError) {
-            logFailure(context, moveError);
+            logFailure(logContext, moveError);
         }
     }
 
     /**
      * コレクションの名前と参照を控える
-     * @param {object} items - コレクションまたは配列
+     * @param {object} sourceItems - コレクションまたは配列
      * @returns {{names: Array<string>, refs: Array<object>}} 名前と参照の組
      */
-    function captureNamesAndRefs(items) {
-        var captured = { names: [], refs: [] };
-        for (var i = 0; i < items.length; i++) {
-            captured.names.push(items[i].name);
-            captured.refs.push(items[i]);
+    function captureNamesAndRefs(sourceItems) {
+        var capturedState = { names: [], refs: [] };
+        for (var i = 0; i < sourceItems.length; i++) {
+            capturedState.names.push(sourceItems[i].name);
+            capturedState.refs.push(sourceItems[i]);
         }
-        return captured;
+        return capturedState;
     }
 
     /**
@@ -450,11 +484,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * アートボードへ一時名を割り当てて名前の衝突を避ける
      * @param {object} artboards - アートボードのコレクション
-     * @param {number} count - 対象件数
+     * @param {number} artboardCount - 対象件数
      * @returns {void}
      */
-    function assignTemporaryArtboardNames(artboards, count) {
-        for (var i = 0; i < count; i++) {
+    function assignTemporaryArtboardNames(artboards, artboardCount) {
+        for (var i = 0; i < artboardCount; i++) {
             setItemName(artboards[i], TEMP_ARTBOARD_PREFIX + i + "__", "temporary artboard name at " + i);
         }
     }
@@ -463,17 +497,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * 控えておいた参照の並び順と名前を復元する
      * @param {Document} doc - 対象ドキュメント
      * @param {{names: Array<string>, refs: Array<object>}} capturedState - 控えた状態
-     * @param {string} context - ログ用の種類名
+     * @param {string} logContext - ログ用の種類名
      * @returns {void}
      */
-    function restoreOrderAndNames(doc, capturedState, context) {
-        var refs = capturedState.refs;
+    function restoreOrderAndNames(doc, capturedState, logContext) {
+        var itemRefs = capturedState.refs;
         /* 末尾の要素から順に先頭へ送ると、控えた並び順どおりに戻る */
-        for (var reverseIdx = refs.length - 1; reverseIdx >= 0; reverseIdx--) {
-            moveToBeginning(doc, refs[reverseIdx], context + " order restore at " + reverseIdx);
+        for (var reverseIdx = itemRefs.length - 1; reverseIdx >= 0; reverseIdx--) {
+            moveToBeginning(doc, itemRefs[reverseIdx], logContext + " order restore at " + reverseIdx);
         }
-        for (var nameIdx = 0; nameIdx < refs.length; nameIdx++) {
-            setItemName(refs[nameIdx], capturedState.names[nameIdx], context + " name restore at " + nameIdx);
+        for (var nameIdx = 0; nameIdx < itemRefs.length; nameIdx++) {
+            setItemName(itemRefs[nameIdx], capturedState.names[nameIdx], logContext + " name restore at " + nameIdx);
         }
     }
 
@@ -512,17 +546,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {string} 比較用の署名
      */
     function buildSettingsSignature(settings) {
-        var parts = [];
+        var signatureParts = [];
         var settingsKeys = ["itemType", "mode", "prefix", "suffix", "customText", "rangeMode", "rangeText", "findText", "replaceText"];
         for (var keyIdx = 0; keyIdx < settingsKeys.length; keyIdx++) {
-            parts.push(settingsKeys[keyIdx] + "=" + (settings[settingsKeys[keyIdx]] || ""));
+            signatureParts.push(settingsKeys[keyIdx] + "=" + (settings[settingsKeys[keyIdx]] || ""));
         }
-        parts.push("useRegex=" + (!!settings.useRegex));
+        signatureParts.push("useRegex=" + (!!settings.useRegex));
 
         if (settings.itemEntries) {
             for (var entryIdx = 0; entryIdx < settings.itemEntries.length; entryIdx++) {
                 var entry = settings.itemEntries[entryIdx];
-                parts.push([
+                signatureParts.push([
                     "entry",
                     entryIdx,
                     entry.originalIndex,
@@ -532,7 +566,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 ].join(":"));
             }
         }
-        return parts.join("\n");
+        return signatureParts.join("\n");
     }
 
     // =========================================
@@ -540,46 +574,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     // =========================================
 
     /**
-     * リネームダイアログのUIを構築する
-     * @param {Document} doc - 対象ドキュメント
-     * @returns {object} ダイアログ本体・各コントロール・操作用メソッドをまとめたオブジェクト
+     * 種類のラジオボタン行（ダイアログ最上段）を作る
+     * @param {Window} renameDialog - 追加先のダイアログ
+     * @returns {{artboard: RadioButton, symbol: RadioButton, layer: RadioButton, graphicStyle: RadioButton}} 種類ごとのラジオ
      */
-    function createRenameDialog(doc) {
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(dialog);
-
-        // --- 種類（ダイアログ最上段） / Item type (top of the dialog) ---
-        var itemTypeRow = dialog.add("group");
+    function addItemTypeRow(renameDialog) {
+        var itemTypeRow = renameDialog.add("group");
         itemTypeRow.orientation = "row";
         itemTypeRow.alignment = ["fill", "top"];
         itemTypeRow.alignChildren = ["center", "center"];   /* ラジオは行の中央にまとめて置く */
         itemTypeRow.margins = 0;
 
-        var itemTypeArtboardRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeArtboard"));
-        var itemTypeSymbolRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeSymbol"));
-        var itemTypeLayerRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeLayer"));
-        var itemTypeGraphicStyleRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeGraphicStyle"));
+        var artboardRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeArtboard"));
+        var symbolRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeSymbol"));
+        var layerRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeLayer"));
+        var graphicStyleRadio = itemTypeRow.add("radiobutton", undefined, getLabel("radio.itemTypeGraphicStyle"));
+        return { artboard: artboardRadio, symbol: symbolRadio, layer: layerRadio, graphicStyle: graphicStyleRadio };
+    }
 
-        // --- コンテンツ行（左：リネーム条件／右：フィルター＋一覧） ---
-        var contentRow = dialog.add("group");
-        contentRow.orientation = "row";
-        contentRow.alignChildren = ["left", "top"];
-        contentRow.spacing = COLUMN_SPACING;
+    /**
+     * 接頭辞・接尾辞のパネル（入力欄＋トークン挿入ボタン）を作る
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} titlePath - パネルタイトルのラベルキー
+     * @param {number} chars - 入力欄の文字数
+     * @returns {EditText} 作成した入力欄
+     */
+    function addAffixPanel(parentPanel, titlePath, chars) {
+        var affixPanel = addPanel(parentPanel, getLabel(titlePath));
+        var affixInput = affixPanel.add("edittext", undefined, "");
+        affixInput.characters = chars;
+        addTokenRow(affixPanel, affixInput, AFFIX_TOKENS, true);
+        return affixInput;
+    }
 
-        var leftColumn = addColumnGroup(contentRow);
-        var rightColumn = addColumnGroup(contentRow);
-
-        var renameRulesPanel = addPanel(leftColumn, getLabel("panel.renameRules"));
-
-        // --- 接頭辞 / Prefix ---
-        var prefixPanel = addPanel(renameRulesPanel, getLabel("panel.prefix"));
-        var prefixInput = prefixPanel.add("edittext", undefined, "");
-        prefixInput.characters = PREFIX_CHARS;
-        prefixInput.active = true;
-        addTokenRow(prefixPanel, prefixInput, AFFIX_TOKENS, true);
-
-        // --- 名前の基準 / Name source ---
-        var nameSourcePanel = addPanel(renameRulesPanel, getLabel("panel.nameSource"));
+    /**
+     * 「名前の基準」パネルを作る
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @returns {{originalNameRadio: RadioButton, customRadio: RadioButton, customInput: EditText, frontmostRadio: RadioButton}} 作成したコントロール
+     */
+    function addNameSourcePanel(parentPanel) {
+        var nameSourcePanel = addPanel(parentPanel, getLabel("panel.nameSource"));
         var originalNameRadio = nameSourcePanel.add("radiobutton", undefined, getLabel("radio.originalName"));
         originalNameRadio.alignment = "left";   /* パネル幅いっぱいに広げない */
 
@@ -592,14 +626,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         var frontmostRadio = nameSourcePanel.add("radiobutton", undefined, getLabel("radio.frontmost"));
         frontmostRadio.alignment = "left";
+        frontmostRadio.helpTip = getLabel("tooltip.frontmost");
 
         /* ラジオを全部追加してから初期値を設定する（途中で設定すると後続の追加で解除される） */
         originalNameRadio.value = true;
         customRadio.value = false;
         frontmostRadio.value = false;
 
-        // --- 検索・置換 / Find and replace ---
-        var findReplacePanel = addPanel(renameRulesPanel, getLabel("panel.findReplace"));
+        return {
+            originalNameRadio: originalNameRadio,
+            customRadio: customRadio,
+            customInput: customInput,
+            frontmostRadio: frontmostRadio
+        };
+    }
+
+    /**
+     * 「検索・置換」パネルを作る
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @returns {{findInput: EditText, replaceInput: EditText, regexCheckbox: Checkbox}} 作成したコントロール
+     */
+    function addFindReplacePanel(parentPanel) {
+        var findReplacePanel = addPanel(parentPanel, getLabel("panel.findReplace"));
 
         var findRow = findReplacePanel.add("group");
         setupRow(findRow);
@@ -619,14 +667,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var regexCheckbox = replaceTokenRow.add("checkbox", undefined, getLabel("checkbox.regex"));
         regexCheckbox.value = DEFAULT_USE_REGEX;
 
-        // --- 接尾辞 / Suffix ---
-        var suffixPanel = addPanel(renameRulesPanel, getLabel("panel.suffix"));
-        var suffixInput = suffixPanel.add("edittext", undefined, "");
-        suffixInput.characters = SUFFIX_CHARS;
-        addTokenRow(suffixPanel, suffixInput, AFFIX_TOKENS, true);
+        return { findInput: findInput, replaceInput: replaceInput, regexCheckbox: regexCheckbox };
+    }
 
-        // --- フィルター（右カラム上段） / Filter (top of the right column) ---
-        var filterPanel = addPanel(rightColumn, getLabel("panel.filter"), DENSE_SPACING);
+    /**
+     * 「フィルター」パネルを作る
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {{filterAllRadio: RadioButton, filterRangeRadio: RadioButton, rangeInput: EditText, searchFilterCheckbox: Checkbox, searchInput: EditText}} 作成したコントロール
+     */
+    function addFilterPanel(parentColumn) {
+        var filterPanel = addPanel(parentColumn, getLabel("panel.filter"), DENSE_SPACING);
 
         var rangeFilterRow = filterPanel.add("group");
         setupRow(rangeFilterRow);
@@ -634,6 +684,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var filterRangeRadio = rangeFilterRow.add("radiobutton", undefined, getLabel("radio.rangeItems"));
         var rangeInput = rangeFilterRow.add("edittext", undefined, "");
         rangeInput.characters = FILTER_CHARS;
+        rangeInput.helpTip = getLabel("tooltip.rangeItems");
         rangeInput.enabled = false;
         filterAllRadio.value = true;
         filterRangeRadio.value = false;
@@ -642,13 +693,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         setupRow(searchFilterRow);
         var searchFilterCheckbox = searchFilterRow.add("checkbox", undefined, getLabel("checkbox.searchFilter"));
         searchFilterCheckbox.value = false;
+        searchFilterCheckbox.helpTip = getLabel("tooltip.searchFilter");
         var searchInput = searchFilterRow.add("edittext", undefined, "");
         searchInput.characters = FILTER_CHARS;
         searchInput.helpTip = getLabel("tooltip.searchFilter");
         searchInput.enabled = false;
 
-        // --- 一覧（右カラム下段） / Item list (bottom of the right column) ---
-        var listPanel = addPanel(rightColumn, getLabel("panel.list"), DENSE_SPACING);
+        return {
+            filterAllRadio: filterAllRadio,
+            filterRangeRadio: filterRangeRadio,
+            rangeInput: rangeInput,
+            searchFilterCheckbox: searchFilterCheckbox,
+            searchInput: searchInput
+        };
+    }
+
+    /**
+     * 一覧のパネル（行を並べる領域＋並び替えボタン）を作る
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {{entryRowsHost: Group, moveToTopButton: Button, moveUpButton: Button, moveDownButton: Button, moveToBottomButton: Button}} 作成したコントロール
+     */
+    function addListPanel(parentColumn) {
+        var listPanel = addPanel(parentColumn, getLabel("panel.list"), DENSE_SPACING);
 
         var entryRowsHost = listPanel.add("group");
         entryRowsHost.orientation = "column";
@@ -659,20 +725,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var moveButtonRow = listPanel.add("group");
         setupRow(moveButtonRow, "center", TOKEN_SPACING);
         moveButtonRow.margins = [0, 10, 0, 0];
-        var moveToTopButton = moveButtonRow.add("button", undefined, getLabel("button.moveTop"));
-        var moveUpButton = moveButtonRow.add("button", undefined, getLabel("button.moveUp"));
-        var moveDownButton = moveButtonRow.add("button", undefined, getLabel("button.moveDown"));
-        var moveToBottomButton = moveButtonRow.add("button", undefined, getLabel("button.moveBottom"));
-        moveToTopButton.preferredSize = [MOVE_BUTTON_SIZE[0] + 4, MOVE_BUTTON_SIZE[1]];
-        moveUpButton.preferredSize = MOVE_BUTTON_SIZE;
-        moveDownButton.preferredSize = MOVE_BUTTON_SIZE;
-        moveToBottomButton.preferredSize = [MOVE_BUTTON_SIZE[0] + 4, MOVE_BUTTON_SIZE[1]];
 
-        // --- ボタンエリア（左：更新／右：キャンセル・OK） ---
-        var buttonArea = dialog.add("group");
+        /**
+         * 並び替えボタンを1つ追加する
+         * @param {string} labelPath - ボタン名のラベルキー
+         * @param {string} tooltipPath - tooltip のラベルキー
+         * @param {number} extraWidth - 既定の幅に足す幅
+         * @returns {Button} 追加したボタン
+         */
+        function addMoveButton(labelPath, tooltipPath, extraWidth) {
+            var moveButton = moveButtonRow.add("button", undefined, getLabel(labelPath));
+            moveButton.preferredSize = extraWidth ? [MOVE_BUTTON_SIZE[0] + extraWidth, MOVE_BUTTON_SIZE[1]] : MOVE_BUTTON_SIZE;
+            moveButton.helpTip = getLabel(tooltipPath);
+            return moveButton;
+        }
+
+        return {
+            entryRowsHost: entryRowsHost,
+            moveToTopButton: addMoveButton("button.moveTop", "tooltip.moveTop", 4),
+            moveUpButton: addMoveButton("button.moveUp", "tooltip.moveUp", 0),
+            moveDownButton: addMoveButton("button.moveDown", "tooltip.moveDown", 0),
+            moveToBottomButton: addMoveButton("button.moveBottom", "tooltip.moveBottom", 4)
+        };
+    }
+
+    /**
+     * ボタンエリア（左：更新／右：キャンセル・OK）を作る
+     * @param {Window} renameDialog - 追加先のダイアログ
+     * @returns {{refreshButton: Button, okButton: Button}} 作成したボタン（キャンセルは name で自動的に閉じる）
+     */
+    function addButtonArea(renameDialog) {
+        var buttonArea = renameDialog.add("group");
         setupRow(buttonArea, "fill");
         var refreshButton = buttonArea.add("button", undefined, getLabel("button.refresh"));
         refreshButton.alignment = ["left", "center"];
+        refreshButton.helpTip = getLabel("tooltip.refresh");
         var buttonSpacer = buttonArea.add("group");
         buttonSpacer.alignment = ["fill", "fill"];
         buttonSpacer.minimumSize.width = 0;
@@ -680,6 +767,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         cancelButton.alignment = ["right", "center"];
         var okButton = buttonArea.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         okButton.alignment = ["right", "center"];
+        return { refreshButton: refreshButton, okButton: okButton };
+    }
+
+    /**
+     * リネームダイアログのUIを構築する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {object} ダイアログ本体・各コントロール・操作用メソッドをまとめたオブジェクト
+     */
+    function createRenameDialog(doc) {
+        var renameDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(renameDialog);
+
+        var itemTypeRadios = addItemTypeRow(renameDialog);
+
+        // --- コンテンツ行（左：リネーム条件／右：フィルター＋一覧） ---
+        var contentRow = renameDialog.add("group");
+        contentRow.orientation = "row";
+        contentRow.alignChildren = ["left", "top"];
+        contentRow.spacing = COLUMN_SPACING;
+
+        var leftColumn = addColumnGroup(contentRow);
+        var rightColumn = addColumnGroup(contentRow);
+
+        /* 左カラム：リネーム条件（接頭辞・名前の基準・検索置換・接尾辞）/ Left column: rename rules */
+        var renameRulesPanel = addPanel(leftColumn, getLabel("panel.renameRules"));
+        var prefixInput = addAffixPanel(renameRulesPanel, "panel.prefix", PREFIX_CHARS);
+        prefixInput.active = true;
+        var nameSourceControls = addNameSourcePanel(renameRulesPanel);
+        var findReplaceControls = addFindReplacePanel(renameRulesPanel);
+        var suffixInput = addAffixPanel(renameRulesPanel, "panel.suffix", SUFFIX_CHARS);
+
+        /* 右カラム：フィルター（上段）と一覧（下段）/ Right column: filter and item list */
+        var filterControls = addFilterPanel(rightColumn);
+        var listControls = addListPanel(rightColumn);
+
+        var buttonControls = addButtonArea(renameDialog);
+
+        /* 以降の処理で使うコントロール / Controls used by the closures below */
+        var itemTypeArtboardRadio = itemTypeRadios.artboard;
+        var itemTypeSymbolRadio = itemTypeRadios.symbol;
+        var itemTypeLayerRadio = itemTypeRadios.layer;
+        var itemTypeGraphicStyleRadio = itemTypeRadios.graphicStyle;
+        var originalNameRadio = nameSourceControls.originalNameRadio;
+        var customRadio = nameSourceControls.customRadio;
+        var customInput = nameSourceControls.customInput;
+        var frontmostRadio = nameSourceControls.frontmostRadio;
+        var findInput = findReplaceControls.findInput;
+        var replaceInput = findReplaceControls.replaceInput;
+        var regexCheckbox = findReplaceControls.regexCheckbox;
+        var filterAllRadio = filterControls.filterAllRadio;
+        var filterRangeRadio = filterControls.filterRangeRadio;
+        var rangeInput = filterControls.rangeInput;
+        var searchFilterCheckbox = filterControls.searchFilterCheckbox;
+        var searchInput = filterControls.searchInput;
+        var entryRowsHost = listControls.entryRowsHost;
+        var moveToTopButton = listControls.moveToTopButton;
+        var moveUpButton = listControls.moveUpButton;
+        var moveDownButton = listControls.moveDownButton;
+        var moveToBottomButton = listControls.moveToBottomButton;
+        var refreshButton = buttonControls.refreshButton;
+        var okButton = buttonControls.okButton;
 
         // =====================================
         // 一覧の状態管理 / Item list state
@@ -700,18 +848,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          * @returns {Array<object>} エントリ配列
          */
         function buildEntriesForItemType(itemType) {
-            var items = getDocumentItems(doc, itemType);
+            var docItems = getDocumentItems(doc, itemType);
             var entries = [];
-            for (var i = 0; i < items.length; i++) {
+            for (var i = 0; i < docItems.length; i++) {
                 var entry = {
                     originalIndex: i,
-                    name: items[i].name,
-                    newName: items[i].name,
+                    name: docItems[i].name,
+                    newName: docItems[i].name,
                     checked: false,
                     userEdited: false
                 };
                 if (itemType === "artboard") {
-                    entry.rect = items[i].artboardRect;
+                    entry.rect = docItems[i].artboardRect;
                 }
                 entries.push(entry);
             }
@@ -744,9 +892,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             for (var i = 0; i < itemEntries.length; i++) {
                 if (itemEntries[i].checked) checkedIndices.push(itemEntries[i].originalIndex);
             }
-            var range = deriveRangeSettings(checkedIndices, itemEntries.length);
-            settings.rangeMode = range.rangeMode;
-            settings.rangeText = range.rangeText;
+            var rangeSettings = deriveRangeSettings(checkedIndices, itemEntries.length);
+            settings.rangeMode = rangeSettings.rangeMode;
+            settings.rangeText = rangeSettings.rangeText;
             return settings;
         }
 
@@ -767,10 +915,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          */
         function syncEditingValues() {
             for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                var row = entryRows[rowIdx];
-                itemEntries[row.dataIndex].checked = row.checkbox.value;
-                if (row.checkbox.value) {
-                    itemEntries[row.dataIndex].newName = row.newNameField.text;
+                var entryRow = entryRows[rowIdx];
+                itemEntries[entryRow.dataIndex].checked = entryRow.checkbox.value;
+                if (entryRow.checkbox.value) {
+                    itemEntries[entryRow.dataIndex].newName = entryRow.newNameField.text;
                 }
             }
         }
@@ -796,11 +944,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          */
         function syncRowsToEntries() {
             for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                var row = entryRows[rowIdx];
-                var entry = itemEntries[row.dataIndex];
-                row.checkbox.value = entry.checked;
-                row.newNameField.enabled = entry.checked;
-                if (!entry.checked) row.newNameField.text = entry.name;
+                var entryRow = entryRows[rowIdx];
+                var entry = itemEntries[entryRow.dataIndex];
+                entryRow.checkbox.value = entry.checked;
+                entryRow.newNameField.enabled = entry.checked;
+                if (!entry.checked) entryRow.newNameField.text = entry.name;
             }
         }
 
@@ -832,12 +980,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 if (itemEntries[i].checked) checkedPositions.push(i);
             }
             /* 「指定範囲」欄は一覧の表示位置を基準にする（applyFilterToCheckboxes も表示位置で読む） */
-            var range = deriveRangeSettings(checkedPositions, itemEntries.length);
-            var isAllChecked = (range.rangeMode === "all");
+            var rangeSettings = deriveRangeSettings(checkedPositions, itemEntries.length);
+            var isAllChecked = (rangeSettings.rangeMode === "all");
             filterAllRadio.value = isAllChecked;
             filterRangeRadio.value = !isAllChecked;
             rangeInput.enabled = !isAllChecked;
-            if (!isAllChecked) rangeInput.text = range.rangeText;
+            if (!isAllChecked) rangeInput.text = rangeSettings.rangeText;
         }
 
         // =====================================
@@ -851,9 +999,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          * @returns {void}
          */
         function swapEntries(indexA, indexB) {
-            var temp = itemEntries[indexA];
+            var swappedEntry = itemEntries[indexA];
             itemEntries[indexA] = itemEntries[indexB];
-            itemEntries[indexB] = temp;
+            itemEntries[indexB] = swappedEntry;
         }
 
         /**
@@ -975,35 +1123,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         /**
          * 一覧の1行（順・チェック・現在の名前・新しい名前）を作る
-         * @param {number} idx - エントリの位置
+         * @param {number} entryIdx - エントリの位置
          * @returns {void}
          */
-        function addEntryRow(idx) {
-            var row = entryRowsHost.add("group");
-            setupRow(row, "left", DENSE_SPACING);
+        function addEntryRow(entryIdx) {
+            var entryRow = entryRowsHost.add("group");
+            setupRow(entryRow, "left", DENSE_SPACING);
 
-            addFixedWidthText(row, (idx + 1) + "", LIST_COLUMN_WIDTHS.order);
+            addFixedWidthText(entryRow, (entryIdx + 1) + "", LIST_COLUMN_WIDTHS.order);
 
-            var rowCheckbox = row.add("checkbox", undefined, "");
-            rowCheckbox.value = itemEntries[idx].checked;
+            var rowCheckbox = entryRow.add("checkbox", undefined, "");
+            rowCheckbox.value = itemEntries[entryIdx].checked;
             rowCheckbox.preferredSize.width = LIST_COLUMN_WIDTHS.select;
+            rowCheckbox.helpTip = getLabel("tooltip.rowCheckbox");
 
-            var currentNameLabel = addFixedWidthText(row, itemEntries[idx].name, LIST_COLUMN_WIDTHS.currentName);
-            currentNameLabel.helpTip = itemEntries[idx].name;
+            var currentNameLabel = addFixedWidthText(entryRow, itemEntries[entryIdx].name, LIST_COLUMN_WIDTHS.currentName);
+            currentNameLabel.helpTip = itemEntries[entryIdx].name;
 
-            addFixedWidthText(row, "→", LIST_COLUMN_WIDTHS.arrow);
+            addFixedWidthText(entryRow, "→", LIST_COLUMN_WIDTHS.arrow);
 
-            var newNameField = row.add("edittext", undefined, itemEntries[idx].newName);
+            var newNameField = entryRow.add("edittext", undefined, itemEntries[entryIdx].newName);
             newNameField.preferredSize.width = LIST_COLUMN_WIDTHS.newName;
-            newNameField.enabled = itemEntries[idx].checked;
+            newNameField.enabled = itemEntries[entryIdx].checked;
 
             rowCheckbox.onClick = function () {
                 if (isOptionKeyHeld()) {
-                    applyOptionClickToggle(idx, rowCheckbox.value);
+                    applyOptionClickToggle(entryIdx, rowCheckbox.value);
                 } else {
-                    setEntryChecked(idx, rowCheckbox.value);
+                    setEntryChecked(entryIdx, rowCheckbox.value);
                     newNameField.enabled = rowCheckbox.value;
-                    if (!rowCheckbox.value) newNameField.text = itemEntries[idx].name;
+                    if (!rowCheckbox.value) newNameField.text = itemEntries[entryIdx].name;
                 }
                 syncFilterFromCheckboxes();
                 if (requestPreviewUpdate) requestPreviewUpdate();
@@ -1011,16 +1160,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             };
 
             newNameField.onChange = function () {
-                itemEntries[idx].newName = newNameField.text;
-                itemEntries[idx].userEdited = true;
+                itemEntries[entryIdx].newName = newNameField.text;
+                itemEntries[entryIdx].userEdited = true;
             };
 
             entryRows.push({
-                group: row,
+                group: entryRow,
                 checkbox: rowCheckbox,
                 currentNameLabel: currentNameLabel,
                 newNameField: newNameField,
-                dataIndex: idx
+                dataIndex: entryIdx
             });
         }
 
@@ -1041,7 +1190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
             updateMoveButtonsState();
             entryRowsHost.layout.layout(true);
-            dialog.layout.layout(true);
+            renameDialog.layout.layout(true);
         }
 
         /**
@@ -1050,24 +1199,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          * @returns {void}
          */
         function rebaselineEntriesAfterCommit() {
-            var items = getDocumentItems(doc, currentItemType);
+            var docItems = getDocumentItems(doc, currentItemType);
 
             /* 確定した結果アイテム数が変わることがある（例：グラフィックスタイル名が `[...]` になり
                RESERVED_STYLE_NAME に引っかかって対象から外れる）。ずれたまま参照を続けると
                範囲外アクセスになるので、件数が変わったら一覧ごと作り直す */
-            if (items.length !== itemEntries.length) {
+            if (docItems.length !== itemEntries.length) {
                 itemEntries = buildEntriesForItemType(currentItemType);
                 refreshReorderRows();
                 return;
             }
 
-            for (var i = 0; i < itemEntries.length && i < items.length; i++) {
+            for (var i = 0; i < itemEntries.length && i < docItems.length; i++) {
                 itemEntries[i].originalIndex = i;
-                itemEntries[i].name = items[i].name;
-                itemEntries[i].newName = items[i].name;
+                itemEntries[i].name = docItems[i].name;
+                itemEntries[i].newName = docItems[i].name;
                 itemEntries[i].userEdited = false;
                 if (currentItemType === "artboard") {
-                    itemEntries[i].rect = items[i].artboardRect;
+                    itemEntries[i].rect = docItems[i].artboardRect;
                 }
             }
         }
@@ -1104,9 +1253,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             }
             customInput.enabled = customRadio.value;
 
-            dialog.layout.layout(true);
+            renameDialog.layout.layout(true);
             refreshReorderRows();
             if (itemTypeChangeCallback) itemTypeChangeCallback();
+        }
+
+        /**
+         * エントリに対応する canvas 上の現在名を返す
+         * 確定でコレクションが縮むことがあるため、範囲外は現在のエントリ名で代替する
+         * @param {object} docItems - 種類ごとのコレクション
+         * @param {object} entry - 一覧のエントリ
+         * @returns {string} 現在名
+         */
+        function getCurrentNameOfEntry(docItems, entry) {
+            var currentItem = docItems[entry.originalIndex];
+            return currentItem ? currentItem.name : entry.name;
+        }
+
+        /**
+         * 「現在の名前」列の表示と tooltip（省略された全体名）を更新する
+         * @param {object} entryRow - 一覧の行
+         * @param {string} currentName - 表示する名前
+         * @returns {void}
+         */
+        function setCurrentNameLabel(entryRow, currentName) {
+            entryRow.currentNameLabel.text = currentName;
+            entryRow.currentNameLabel.helpTip = currentName;
         }
 
         okButton.onClick = function () {
@@ -1127,7 +1299,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                     skipApplyOnOk = true;
                 }
             }
-            dialog.close(1);
+            renameDialog.close(1);
         };
 
         /* 全UI構築後に初期状態をそろえる。ラジオを立てるだけでなく setItemType() を通すことで、
@@ -1139,7 +1311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         setItemType(DEFAULT_ITEM_TYPE);
 
         return {
-            dialog: dialog,
+            dialog: renameDialog,
             prefixInput: prefixInput,
             suffixInput: suffixInput,
             frontmostRadio: frontmostRadio,
@@ -1205,18 +1377,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
              * @returns {void}
              */
             syncReorderRowsToCurrentNames: function () {
-                var items = getDocumentItems(doc, currentItemType);
+                var docItems = getDocumentItems(doc, currentItemType);
                 for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                    var row = entryRows[rowIdx];
-                    var entry = itemEntries[row.dataIndex];
-                    /* 確定でコレクションが縮むことがあるため、範囲外は現在のエントリ名で代替する */
-                    var currentItem = items[entry.originalIndex];
-                    var currentName = currentItem ? currentItem.name : entry.name;
+                    var entryRow = entryRows[rowIdx];
+                    var entry = itemEntries[entryRow.dataIndex];
+                    var currentName = getCurrentNameOfEntry(docItems, entry);
 
-                    row.currentNameLabel.text = currentName;
-                    row.currentNameLabel.helpTip = currentName;
-                    row.newNameField.text = currentName;
-                    row.newNameField.enabled = entry.checked;
+                    setCurrentNameLabel(entryRow, currentName);
+                    entryRow.newNameField.text = currentName;
+                    entryRow.newNameField.enabled = entry.checked;
 
                     entry.name = currentName;
                     entry.newName = currentName;
@@ -1230,24 +1399,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
              * @returns {void}
              */
             syncPreviewToReorderRows: function (previewNames) {
-                var items = getDocumentItems(doc, currentItemType);
+                var docItems = getDocumentItems(doc, currentItemType);
                 for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                    var row = entryRows[rowIdx];
-                    var entry = itemEntries[row.dataIndex];
-                    /* 確定でコレクションが縮むことがあるため、範囲外は現在のエントリ名で代替する */
-                    var currentItem = items[entry.originalIndex];
-                    var currentName = currentItem ? currentItem.name : entry.name;
+                    var entryRow = entryRows[rowIdx];
+                    var entry = itemEntries[entryRow.dataIndex];
+                    var currentName = getCurrentNameOfEntry(docItems, entry);
 
                     /* 「現在の名前」列は canvas の現状（［更新］後は確定後の名前）を出す */
-                    row.currentNameLabel.text = currentName;
-                    row.currentNameLabel.helpTip = currentName;
+                    setCurrentNameLabel(entryRow, currentName);
 
                     /* 「新しい名前」列は未確定プレビュー。手動編集した行は上書きしない */
                     if (entry.userEdited) continue;
                     var previewName = (previewNames && previewNames[entry.originalIndex] != null)
                         ? previewNames[entry.originalIndex]
                         : currentName;
-                    row.newNameField.text = previewName;
+                    entryRow.newNameField.text = previewName;
                     entry.newName = previewName;
                 }
             },
@@ -1516,16 +1682,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * 参照を末尾から先頭へ送って、エントリの並び順に合わせる
      * @param {Document} doc - 対象ドキュメント
-     * @param {object} items - 並び替え前のコレクション
+     * @param {object} sourceItems - 並び替え前のコレクション
      * @param {Array<object>} itemEntries - 新しい並び順のエントリ配列
-     * @param {string} context - ログ用の種類名
+     * @param {string} logContext - ログ用の種類名
      * @returns {void}
      */
-    function reorderByMove(doc, items, itemEntries, context) {
-        var refs = [];
-        for (var initIdx = 0; initIdx < items.length; initIdx++) refs.push(items[initIdx]);
+    function reorderByMove(doc, sourceItems, itemEntries, logContext) {
+        var itemRefs = [];
+        for (var initIdx = 0; initIdx < sourceItems.length; initIdx++) itemRefs.push(sourceItems[initIdx]);
         for (var reverseIdx = itemEntries.length - 1; reverseIdx >= 0; reverseIdx--) {
-            moveToBeginning(doc, refs[itemEntries[reverseIdx].originalIndex], context + " move at entry " + reverseIdx);
+            moveToBeginning(doc, itemRefs[itemEntries[reverseIdx].originalIndex], logContext + " move at entry " + reverseIdx);
         }
     }
 
@@ -1550,9 +1716,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         }
 
         /* 並び替え済みなので表示位置＝canvas 順。ここは表示位置を基準にする */
-        var range = deriveRangeSettings(checkedPositions, itemCount);
-        reorderedSettings.rangeMode = range.rangeMode;
-        reorderedSettings.rangeText = range.rangeText;
+        var rangeSettings = deriveRangeSettings(checkedPositions, itemCount);
+        reorderedSettings.rangeMode = rangeSettings.rangeMode;
+        reorderedSettings.rangeText = rangeSettings.rangeText;
         return reorderedSettings;
     }
 
@@ -1570,8 +1736,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         invalidateFrontmostTextCache();
 
         var itemType = (settings && settings.itemType) || "artboard";
-        var items = getDocumentItems(doc, itemType);
-        var itemCount = items.length;
+        var docItems = getDocumentItems(doc, itemType);
+        var itemCount = docItems.length;
 
         /* ユーザーが手動で上書きした行を、新しい位置で控える */
         var userOverridesByNewPosition = {};
@@ -1584,7 +1750,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         /* 並び替え前の canvas 名を originalIndex で控える（［更新］済みの名前を保つ） */
         var currentNamesByOriginalIndex = [];
         for (var origIdx = 0; origIdx < itemCount; origIdx++) {
-            currentNamesByOriginalIndex.push(items[origIdx].name);
+            currentNamesByOriginalIndex.push(docItems[origIdx].name);
         }
 
         if (itemType === "artboard") {
@@ -1592,15 +1758,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                一時名を付ける件数と並べ替える件数は必ず同じにする。ずれると try の外にある
                artboardRect 代入で落ち、全アートボードが一時名のまま残る */
             var reorderCount = Math.min(itemEntries.length, itemCount);
-            assignTemporaryArtboardNames(items, reorderCount);
+            assignTemporaryArtboardNames(docItems, reorderCount);
             for (var newPos = 0; newPos < reorderCount; newPos++) {
-                items[newPos].artboardRect = itemEntries[newPos].rect;
-                setItemName(items[newPos], currentNamesByOriginalIndex[itemEntries[newPos].originalIndex], "artboard reorder at " + newPos);
+                docItems[newPos].artboardRect = itemEntries[newPos].rect;
+                setItemName(docItems[newPos], currentNamesByOriginalIndex[itemEntries[newPos].originalIndex], "artboard reorder at " + newPos);
             }
         } else {
             /* シンボル・レイヤー・グラフィックスタイルは安定参照を move() で並べ替える */
-            reorderByMove(doc, items, itemEntries, itemType);
-            items = getDocumentItems(doc, itemType);
+            reorderByMove(doc, docItems, itemEntries, itemType);
+            docItems = getDocumentItems(doc, itemType);
         }
 
         /* 並び替え後の位置を基準にチェック範囲を作り直してからリネームする */
@@ -1609,12 +1775,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         }
 
         /* 手動上書きを適用する（move() 後の最新参照に追随するため items を取り直す） */
-        items = getDocumentItems(doc, itemType);
+        docItems = getDocumentItems(doc, itemType);
         for (var posKey in userOverridesByNewPosition) {
             if (!userOverridesByNewPosition.hasOwnProperty(posKey)) continue;
             var positionIndex = parseInt(posKey, 10);
-            if (positionIndex >= 0 && positionIndex < items.length) {
-                setItemName(items[positionIndex], userOverridesByNewPosition[posKey], "manual override at " + positionIndex);
+            if (positionIndex >= 0 && positionIndex < docItems.length) {
+                setItemName(docItems[positionIndex], userOverridesByNewPosition[posKey], "manual override at " + positionIndex);
             }
         }
     }
@@ -1639,19 +1805,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * 名前の基準ごとに、各アイテムのベース文字列を作る
      * @param {Document} doc - 対象ドキュメント
-     * @param {object} items - 対象アイテムのコレクション
+     * @param {object} docItems - 対象アイテムのコレクション
      * @param {object} settings - 現在の設定
      * @param {string} itemType - 正規化済みの種類（呼び出し側で "artboard" に既定化したもの）
      * @returns {object} インデックスをキーにした文字列配列のマップ
      */
-    function buildItemTextMap(doc, items, settings, itemType) {
+    function buildItemTextMap(doc, docItems, settings, itemType) {
         var itemTextMap = {};
         if (settings.mode === "frontmost" && itemType === "artboard") {
-            return mapTextFramesToArtboards(getCachedFrontmostTextFrames(doc), items);
+            return mapTextFramesToArtboards(getCachedFrontmostTextFrames(doc), docItems);
         }
-        for (var itemIdx = 0; itemIdx < items.length; itemIdx++) {
+        for (var itemIdx = 0; itemIdx < docItems.length; itemIdx++) {
             if (settings.mode === "original") {
-                itemTextMap[itemIdx] = [items[itemIdx].name];
+                itemTextMap[itemIdx] = [docItems[itemIdx].name];
             } else if (settings.mode === "custom") {
                 itemTextMap[itemIdx] = [settings.customText];
             }
@@ -1663,24 +1829,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * 設定に従ってアイテムをリネームし canvas を更新する
      * @param {Document} doc - 対象ドキュメント
      * @param {object} settings - 現在の設定
-     * @param {object} [options] - {silent: true} で警告を出さない
+     * @param {object} [renameOptions] - {silent: true} で警告を出さない
      * @returns {boolean} リネームを実行したら true
      */
-    function executeRename(doc, settings, options) {
+    function executeRename(doc, settings, renameOptions) {
         if (hasNoRenameInput(settings)) {
-            if (!(options && options.silent)) alert(getLabel("alert.needSettings"));
+            if (!(renameOptions && renameOptions.silent)) alert(getLabel("alert.needSettings"));
             return false;
         }
 
         var itemType = settings.itemType || "artboard";
-        var items = getDocumentItems(doc, itemType);
-        var itemTextMap = buildItemTextMap(doc, items, settings, itemType);
-        var selectedIndices = getRangeItemIndices(items.length, settings.rangeMode, settings.rangeText);
-        var renamePlan = buildRenamePlan(items, itemTextMap, settings, selectedIndices);
+        var docItems = getDocumentItems(doc, itemType);
+        var itemTextMap = buildItemTextMap(doc, docItems, settings, itemType);
+        var selectedIndices = getRangeItemIndices(docItems.length, settings.rangeMode, settings.rangeText);
+        var renamePlan = buildRenamePlan(docItems, itemTextMap, settings, selectedIndices);
 
         for (var finalIdx = 0; finalIdx < renamePlan.indices.length; finalIdx++) {
             setItemName(
-                items[renamePlan.indices[finalIdx]],
+                docItems[renamePlan.indices[finalIdx]],
                 renamePlan.names[finalIdx],
                 "rename item index " + renamePlan.indices[finalIdx] + " to '" + renamePlan.names[finalIdx] + "'"
             );
@@ -1700,18 +1866,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      */
     function computePreviewNames(doc, settings) {
         var itemType = settings.itemType || "artboard";
-        var items = getDocumentItems(doc, itemType);
+        var docItems = getDocumentItems(doc, itemType);
 
         /* 既存の名前で初期化する（未選択アイテムは現在の名前を保つ） */
         var previewNames = [];
-        for (var initIdx = 0; initIdx < items.length; initIdx++) {
-            previewNames.push(items[initIdx].name);
+        for (var initIdx = 0; initIdx < docItems.length; initIdx++) {
+            previewNames.push(docItems[initIdx].name);
         }
         if (hasNoRenameInput(settings)) return previewNames;
 
-        var itemTextMap = buildItemTextMap(doc, items, settings, itemType);
-        var selectedIndices = getRangeItemIndices(items.length, settings.rangeMode, settings.rangeText);
-        var renamePlan = buildRenamePlan(items, itemTextMap, settings, selectedIndices);
+        var itemTextMap = buildItemTextMap(doc, docItems, settings, itemType);
+        var selectedIndices = getRangeItemIndices(docItems.length, settings.rangeMode, settings.rangeText);
+        var renamePlan = buildRenamePlan(docItems, itemTextMap, settings, selectedIndices);
         for (var finalIdx = 0; finalIdx < renamePlan.indices.length; finalIdx++) {
             previewNames[renamePlan.indices[finalIdx]] = renamePlan.names[finalIdx];
         }
@@ -1720,13 +1886,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /**
      * 選択アイテムの最終名プランを作る（プレビューと本番で共用）
-     * @param {object} items - 対象アイテムのコレクション
+     * @param {object} docItems - 対象アイテムのコレクション
      * @param {object} itemTextMap - インデックスごとのベース文字列
      * @param {object} settings - 現在の設定
      * @param {Array<number>} selectedIndices - 対象インデックス
      * @returns {{indices: Array<number>, names: Array<string>}} リネーム対象と最終名
      */
-    function buildRenamePlan(items, itemTextMap, settings, selectedIndices) {
+    function buildRenamePlan(docItems, itemTextMap, settings, selectedIndices) {
         var prefixTemplate = settings.prefix || "";
         var suffixTemplate = settings.suffix || "";
         var findText = settings.findText || "";
@@ -1736,14 +1902,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var skipUniquification = hasSequenceToken(prefixTemplate)
             || hasSequenceToken(suffixTemplate)
             || (findText && hasSequenceToken(replaceText));
-        var reservedNames = getReservedItemNames(items, selectedIndices);
+        var reservedNames = getReservedItemNames(docItems, selectedIndices);
         var selectedIndexSet = makeIndexSet(selectedIndices);
         var tokenContext = createTokenContext();
         var plannedBaseNames = [];
         var plannedIndices = [];
         var sequenceIndex = 1;
 
-        for (var itemIdx = 0; itemIdx < items.length; itemIdx++) {
+        for (var itemIdx = 0; itemIdx < docItems.length; itemIdx++) {
             if (!selectedIndexSet[itemIdx]) continue;
             var expandedPrefix = expandTemplateTokens(prefixTemplate, sequenceIndex, tokenContext);
             var expandedSuffix = expandTemplateTokens(suffixTemplate, sequenceIndex, tokenContext);
@@ -1752,7 +1918,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
             /* 接頭辞・基準・接尾辞のどれも未指定なら、検索・置換だけで現在名を加工する */
             if (!baseName && findText) {
-                baseName = items[itemIdx].name;
+                baseName = docItems[itemIdx].name;
             }
 
             if (findText) {
@@ -1766,7 +1932,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 sequenceIndex++;
             } else {
                 /* 選択済みだが結果が空になる行はスキップし、現在の名前を予約して衝突を防ぐ */
-                reservedNames.push(items[itemIdx].name);
+                reservedNames.push(docItems[itemIdx].name);
             }
         }
 
@@ -1778,29 +1944,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /**
      * 検索・置換を適用する（正規表現対応）
-     * @param {string} name - 元の名前
+     * @param {string} sourceName - 元の名前
      * @param {string} findPattern - 検索文字列
      * @param {string} replaceText - 置換文字列
      * @param {boolean} useRegex - 正規表現として扱うか
      * @returns {string} 置換後の名前（不正な正規表現なら元の名前）
      */
-    function applyFindReplace(name, findPattern, replaceText, useRegex) {
-        if (!findPattern) return name;
+    function applyFindReplace(sourceName, findPattern, replaceText, useRegex) {
+        if (!findPattern) return sourceName;
         try {
-            var regex;
+            var findRegex;
             var effectiveReplace = replaceText;
             if (useRegex) {
-                regex = new RegExp(findPattern, "g");
+                findRegex = new RegExp(findPattern, "g");
             } else {
                 var escapedPattern = findPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                regex = new RegExp(escapedPattern, "g");
+                findRegex = new RegExp(escapedPattern, "g");
                 /* リテラル置換では replaceText 中の $ も無効化する（$1 や $& を特殊解釈させない） */
                 effectiveReplace = replaceText.replace(/\$/g, "$$$$");
             }
-            return name.replace(regex, effectiveReplace);
+            return sourceName.replace(findRegex, effectiveReplace);
         } catch (regexError) {
             logFailure("invalid find pattern '" + findPattern + "'", regexError);
-            return name;
+            return sourceName;
         }
     }
 
@@ -1827,39 +1993,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {Array<object>} リネーム可能なグラフィックスタイル
      */
     function getRenamableGraphicStyles(doc) {
-        var renamable = [];
-        for (var gsi = 0; gsi < doc.graphicStyles.length; gsi++) {
-            var graphicStyle = doc.graphicStyles[gsi];
+        var renamableStyles = [];
+        for (var styleIdx = 0; styleIdx < doc.graphicStyles.length; styleIdx++) {
+            var graphicStyle = doc.graphicStyles[styleIdx];
             if (RESERVED_STYLE_NAME.test(graphicStyle.name)) continue;
-            renamable.push(graphicStyle);
+            renamableStyles.push(graphicStyle);
         }
-        return renamable;
+        return renamableStyles;
     }
 
     /**
      * 未選択アイテムの名前を予約名として返す（衝突回避用）
-     * @param {object} items - 対象アイテムのコレクション
+     * @param {object} docItems - 対象アイテムのコレクション
      * @param {Array<number>} selectedIndices - 選択インデックス
      * @returns {Array<string>} 予約名
      */
-    function getReservedItemNames(items, selectedIndices) {
+    function getReservedItemNames(docItems, selectedIndices) {
         var selectedIndexSet = makeIndexSet(selectedIndices);
-        var reserved = [];
-        for (var i = 0; i < items.length; i++) {
-            if (!selectedIndexSet[i]) reserved.push(items[i].name);
+        var reservedNames = [];
+        for (var i = 0; i < docItems.length; i++) {
+            if (!selectedIndexSet[i]) reservedNames.push(docItems[i].name);
         }
-        return reserved;
+        return reservedNames;
     }
 
     /**
      * 名前をハッシュのキーとして安全な形にする
      * 接頭辞を付けないと `toString` や `valueOf` が Object.prototype のメンバーと衝突し、
      * 重複判定やカウンターが壊れる
-     * @param {string} name - アイテム名
+     * @param {string} itemName - アイテム名
      * @returns {string} ハッシュ用のキー
      */
-    function nameKey(name) {
-        return "name:" + name;
+    function nameKey(itemName) {
+        return "name:" + itemName;
     }
 
     /**
@@ -1921,39 +2087,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {{fileName: string, dateString: string}} トークン展開用の値
      */
     function createTokenContext() {
-        var now = new Date();
+        var currentDate = new Date();
         return {
             fileName: app.activeDocument.name.replace(/\.[^.]+$/, ""),
-            dateString: now.getFullYear().toString() +
-                ("0" + (now.getMonth() + 1)).slice(-2) +
-                ("0" + now.getDate()).slice(-2)
+            dateString: currentDate.getFullYear().toString() +
+                ("0" + (currentDate.getMonth() + 1)).slice(-2) +
+                ("0" + currentDate.getDate()).slice(-2)
         };
     }
 
     /**
      * テンプレート文字列の連番・#FN・#DT トークンを展開する
      * @param {string} template - テンプレート文字列
-     * @param {number} index - 1 始まりの連番
-     * @param {object} [context] - createTokenContext() の戻り値
+     * @param {number} sequenceIndex - 1 始まりの連番
+     * @param {object} [sharedTokenContext] - createTokenContext() の戻り値
      * @returns {string} 展開後の文字列
      */
-    function expandTemplateTokens(template, index, context) {
-        var tokenContext = context || createTokenContext();
+    function expandTemplateTokens(template, sequenceIndex, sharedTokenContext) {
+        var tokenContext = sharedTokenContext || createTokenContext();
 
         /* 連番トークン {#N} を展開する（ゼロパディング対応：{#01} → 01, 02, ...） */
-        var result = template.replace(/\{#(\d+)\}/g, function (match, token) {
-            var value = parseInt(token, 10) + index - 1;
+        var expandedText = template.replace(/\{#(\d+)\}/g, function (match, token) {
+            var sequenceValue = parseInt(token, 10) + sequenceIndex - 1;
             if (token.charAt(0) === "0" && token.length > 1) {
-                return ("0000000000" + value).slice(-token.length);
+                return ("0000000000" + sequenceValue).slice(-token.length);
             }
-            return value.toString();
+            return sequenceValue.toString();
         });
 
         /* 差し込む値に `$&` や `$$` が含まれても置換パターンとして解釈されないよう、
            文字列ではなく関数を渡す（ファイル名が "A$$B" や "Price$&List" のケース） */
-        result = result.replace(/#FN/g, function () { return tokenContext.fileName; });
-        result = result.replace(/#DT/g, function () { return tokenContext.dateString; });
-        return result;
+        expandedText = expandedText.replace(/#FN/g, function () { return tokenContext.fileName; });
+        expandedText = expandedText.replace(/#DT/g, function () { return tokenContext.dateString; });
+        return expandedText;
     }
 
     /**
@@ -1975,20 +2141,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {Array<number>} 0 始まりのインデックス
      */
     function parseItemRangeString(rangeText) {
-        var result = [];
-        var parts = rangeText.split(",");
-        for (var i = 0; i < parts.length; i++) {
-            var part = parts[i].replace(/\s+/g, "");
-            if (/^\d+$/.test(part)) {
-                result.push(parseInt(part, 10) - 1);
-            } else if (/^\d+-\d+$/.test(part)) {
-                var range = part.split("-");
-                var rangeStart = parseInt(range[0], 10);
-                var rangeEnd = parseInt(range[1], 10);
-                for (var j = rangeStart; j <= rangeEnd; j++) result.push(j - 1);
+        var rangeIndices = [];
+        var rangeParts = rangeText.split(",");
+        for (var i = 0; i < rangeParts.length; i++) {
+            var rangePart = rangeParts[i].replace(/\s+/g, "");
+            if (/^\d+$/.test(rangePart)) {
+                rangeIndices.push(parseInt(rangePart, 10) - 1);
+            } else if (/^\d+-\d+$/.test(rangePart)) {
+                var rangeBounds = rangePart.split("-");
+                var rangeStart = parseInt(rangeBounds[0], 10);
+                var rangeEnd = parseInt(rangeBounds[1], 10);
+                for (var j = rangeStart; j <= rangeEnd; j++) rangeIndices.push(j - 1);
             }
         }
-        return result;
+        return rangeIndices;
     }
 
     /**
@@ -2014,35 +2180,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      */
     function buildRangeString(zeroBasedIndices) {
         if (!zeroBasedIndices || zeroBasedIndices.length === 0) return "";
-        var sorted = [];
-        for (var i = 0; i < zeroBasedIndices.length; i++) sorted.push(zeroBasedIndices[i]);
-        sorted.sort(function (a, b) { return a - b; });
+        var sortedIndices = [];
+        for (var i = 0; i < zeroBasedIndices.length; i++) sortedIndices.push(zeroBasedIndices[i]);
+        sortedIndices.sort(function (a, b) { return a - b; });
 
-        var parts = [];
-        var rangeStart = sorted[0];
-        var rangeEnd = sorted[0];
+        var rangeParts = [];
+        var rangeStart = sortedIndices[0];
+        var rangeEnd = sortedIndices[0];
 
         /**
          * 連続した並びを "start" または "start-end" として書き出す
          * @returns {void}
          */
         function pushRange() {
-            parts.push(rangeStart === rangeEnd
+            rangeParts.push(rangeStart === rangeEnd
                 ? (rangeStart + 1) + ""
                 : (rangeStart + 1) + "-" + (rangeEnd + 1));
         }
 
-        for (var j = 1; j < sorted.length; j++) {
-            if (sorted[j] === rangeEnd + 1) {
-                rangeEnd = sorted[j];
+        for (var j = 1; j < sortedIndices.length; j++) {
+            if (sortedIndices[j] === rangeEnd + 1) {
+                rangeEnd = sortedIndices[j];
             } else {
                 pushRange();
-                rangeStart = sorted[j];
-                rangeEnd = sorted[j];
+                rangeStart = sortedIndices[j];
+                rangeEnd = sortedIndices[j];
             }
         }
         pushRange();
-        return parts.join(",");
+        return rangeParts.join(",");
     }
 
     /**
@@ -2065,9 +2231,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {object} メンバー判定用のハッシュ集合
      */
     function makeIndexSet(indices) {
-        var set = {};
-        for (var i = 0; i < indices.length; i++) set[indices[i]] = true;
-        return set;
+        var indexSet = {};
+        for (var i = 0; i < indices.length; i++) indexSet[indices[i]] = true;
+        return indexSet;
     }
 
     // =========================================
@@ -2080,8 +2246,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {Array<number>} [x, y] の中心座標
      */
     function getTextCenter(textFrame) {
-        var bounds = textFrame.visibleBounds;
-        return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+        var textBounds = textFrame.visibleBounds;
+        return [(textBounds[0] + textBounds[2]) / 2, (textBounds[1] + textBounds[3]) / 2];
     }
 
     /**
@@ -2102,17 +2268,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {object} アートボードのインデックスをキーにした文字列配列
      */
     function mapTextFramesToArtboards(textFrames, artboards) {
-        var map = {};
+        var textMap = {};
         for (var i = 0; i < textFrames.length; i++) {
             var center = getTextCenter(textFrames[i]);
             for (var j = 0; j < artboards.length; j++) {
                 if (!isCenterInsideBounds(center, artboards[j].artboardRect)) continue;
-                if (!map[j]) map[j] = [];
-                map[j].push(textFrames[i].contents.replace(/[\r\n\t]/g, ""));
+                if (!textMap[j]) textMap[j] = [];
+                textMap[j].push(textFrames[i].contents.replace(/[\r\n\t]/g, ""));
                 break;
             }
         }
-        return map;
+        return textMap;
     }
 
     /* 最前面テキストの走査結果キャッシュ / Cached frontmost-text scan
@@ -2150,20 +2316,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         /**
          * コンテナ内を再帰的に走査して最初に見つかった TextFrame を返す
-         * @param {Layer|GroupItem} container - 走査対象
+         * @param {Layer|GroupItem} containerItem - 走査対象
          * @param {Array<number>} artboardBounds - artboardRect
          * @returns {TextFrame|null} 見つかったテキストフレーム
          */
-        function findFrontmostTextFrameInContainer(container, artboardBounds) {
-            var items = container.pageItems;
-            for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-                var item = items[itemIndex];
-                if (item.hidden || item.locked) continue;
+        function findFrontmostTextFrameInContainer(containerItem, artboardBounds) {
+            var childItems = containerItem.pageItems;
+            for (var itemIndex = 0; itemIndex < childItems.length; itemIndex++) {
+                var childItem = childItems[itemIndex];
+                if (childItem.hidden || childItem.locked) continue;
 
-                if (item.typename === "TextFrame") {
-                    if (isCenterInsideBounds(getTextCenter(item), artboardBounds)) return item;
-                } else if (item.typename === "GroupItem") {
-                    var nestedTextFrame = findFrontmostTextFrameInContainer(item, artboardBounds);
+                if (childItem.typename === "TextFrame") {
+                    if (isCenterInsideBounds(getTextCenter(childItem), artboardBounds)) return childItem;
+                } else if (childItem.typename === "GroupItem") {
+                    var nestedTextFrame = findFrontmostTextFrameInContainer(childItem, artboardBounds);
                     if (nestedTextFrame) return nestedTextFrame;
                 }
             }
@@ -2172,24 +2338,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         /**
          * レイヤーとサブレイヤーを再帰的に走査する
-         * @param {Layer} layer - 走査対象のレイヤー
+         * @param {Layer} targetLayer - 走査対象のレイヤー
          * @param {Array<number>} artboardBounds - artboardRect
          * @returns {TextFrame|null} 見つかったテキストフレーム
          */
-        function findFrontmostTextFrameInLayer(layer, artboardBounds) {
-            if (!layer.visible || layer.locked) return null;
+        function findFrontmostTextFrameInLayer(targetLayer, artboardBounds) {
+            if (!targetLayer.visible || targetLayer.locked) return null;
 
-            var textFrame = findFrontmostTextFrameInContainer(layer, artboardBounds);
+            var textFrame = findFrontmostTextFrameInContainer(targetLayer, artboardBounds);
             if (textFrame) return textFrame;
 
-            for (var layerIndex = 0; layerIndex < layer.layers.length; layerIndex++) {
-                var nestedTextFrame = findFrontmostTextFrameInLayer(layer.layers[layerIndex], artboardBounds);
+            for (var layerIndex = 0; layerIndex < targetLayer.layers.length; layerIndex++) {
+                var nestedTextFrame = findFrontmostTextFrameInLayer(targetLayer.layers[layerIndex], artboardBounds);
                 if (nestedTextFrame) return nestedTextFrame;
             }
             return null;
         }
 
-        var result = [];
+        var frontmostFrames = [];
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var artboardBounds = doc.artboards[artboardIndex].artboardRect;
             var frontmostFrame = null;
@@ -2197,9 +2363,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 frontmostFrame = findFrontmostTextFrameInLayer(doc.layers[layerIndex], artboardBounds);
                 if (frontmostFrame) break;
             }
-            if (frontmostFrame) result.push(frontmostFrame);
+            if (frontmostFrame) frontmostFrames.push(frontmostFrame);
         }
-        return result;
+        return frontmostFrames;
     }
 
     // =========================================

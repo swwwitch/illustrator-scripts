@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "titlemaker";                   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/titlemaker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/titlemaker.md"; /* README (English) */
@@ -38,29 +38,114 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    /* 改行対象文字と、開いたときのチェック状態 / Line-break characters and whether each starts checked */
     var TARGET_CHARS = [
-        { mark: "、", on: true },
-        { mark: "。", on: true },
-        { mark: "〜", on: false }
+        { mark: "、", defaultOn: true },
+        { mark: "。", defaultOn: true },
+        { mark: "〜", defaultOn: false }
     ];
 
+    /* サイズ調整のデフォルト倍率（%）/ Default scale for size adjustment (%) */
+    var DEFAULT_SIZE_PERCENT = 80;
+
+    // =========================================
+    // UI レイアウト設定 / UI Layout
+    // =========================================
+    /* パネルの余白と間隔 / Panel margins and spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_SPACING = 8;
+    var PANEL_ITEM_SPACING = 6;   /* チェックボックスが並ぶパネルの間隔 / spacing inside the checkbox panels */
+    var SIZE_ROW_SPACING = 4;     /* サイズ入力行の間隔 / spacing of the size row */
+    var SIZE_FIELD_CHARS = 4;     /* サイズ欄の文字数 / size field width */
+
+    /**
+     * パネルに共通のレイアウト設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - パネル内の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループに共通のレイアウト設定を適用する（row は縦中央、column は左揃え）
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - グループ内の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(targetGroup, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        targetGroup.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        targetGroup.alignment = "fill";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // 文字種の判定 / Character Matching
+    // =========================================
     /* 格助詞本体の正規表現ソース（長い候補を先に）/ Regex source for the case particle itself (longer alternatives first) */
     var CASE_PARTICLE_SOURCE = "(?:から|より|が|を|に|へ|と|で|の)";
 
     /* 助詞の直前に許される文字クラス（漢字・ひらがな・カタカナ・英数字）。ExtendScript は lookbehind 非対応のため手動判定に使う / Allowed preceding-char class for a particle (kanji / hiragana / katakana / alphanumeric); used manually because ExtendScript lacks lookbehind */
     var PARTICLE_PRECURSOR_SOURCE = "[一-龯ぁ-んァ-ヶA-Za-z0-9]";
 
-    /* サイズ調整のデフォルト倍率（%）/ Default scale for size adjustment (%) */
-    var DEFAULT_SIZE_PERCENT = 80;
+    /**
+     * ひらがなかどうか判定する（U+3041〜U+309F）
+     * @param {string} oneChar - 判定する1文字
+     * @returns {boolean} ひらがななら true
+     */
+    function isHiragana(oneChar) {
+        var charCode = oneChar.charCodeAt(0);
+        return charCode >= 0x3041 && charCode <= 0x309F;
+    }
+
+    /**
+     * 格助詞として縮小する文字のインデックスを集める（直前が漢字・かな・英数字のものだけ）
+     * @param {string} sourceText - 対象の文字列
+     * @returns {Object} インデックスをキーにした集合（値は true）
+     */
+    function findCaseParticleIndices(sourceText) {
+        var markedIndices = {};
+        var particlePattern = new RegExp(CASE_PARTICLE_SOURCE, "g");
+        var precursorPattern = new RegExp(PARTICLE_PRECURSOR_SOURCE);
+        var particleMatch;
+
+        while ((particleMatch = particlePattern.exec(sourceText)) !== null) {
+            var matchStart = particleMatch.index;
+            /* lookbehind の代わりに直前の1文字を判定 / Emulate lookbehind by testing the single preceding char */
+            var prevChar = (matchStart > 0) ? sourceText.charAt(matchStart - 1) : "";
+            if (prevChar !== "" && precursorPattern.test(prevChar)) {
+                for (var k = 0; k < particleMatch[0].length; k++) markedIndices[matchStart + k] = true;
+            }
+            /* 空マッチによる無限ループを防ぐ / Guard against infinite loops on zero-length matches */
+            if (particleMatch.index === particlePattern.lastIndex) particlePattern.lastIndex++;
+        }
+        return markedIndices;
+    }
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    /* 現在の言語を取得（ja で始まれば日本語、それ以外は英語）/ Get current language (ja-prefixed = Japanese, otherwise English) */
-    function getCurrentLang() {
+
+    /**
+     * UI の表示言語を判定する（ja で始まれば日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     var LABELS = {
         dialog: {
@@ -74,17 +159,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             caseParticle: { ja: "格助詞", en: "Case particles" },
             hiragana: { ja: "ひらがな", en: "Hiragana" }
         },
-        field: {
+        fieldLabel: {
             size: { ja: "サイズ", en: "Size" }
         },
         button: {
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
         tooltip: {
             targetChar: { ja: "この文字の後ろで改行します。", en: "Inserts a line break after this character." },
-            caseParticle: { ja: "「が」「を」「に」などの格助詞を小さくします。", en: "Shrinks case particles such as \u0022\u304c\u0022, \u0022\u3092\u0022, and \u0022\u306b\u0022." },
+            caseParticle: {
+                ja: "「が」「を」「に」などの格助詞を小さくします。",
+                en: "Shrinks case particles such as \u0022\u304c\u0022, \u0022\u3092\u0022, and \u0022\u306b\u0022."
+            },
             hiragana: { ja: "ひらがなをまとめて小さくします。", en: "Shrinks all hiragana." },
-            size: { ja: "小さくするときの大きさです。元のフォントサイズに対する割合で指定します。", en: "Size applied when shrinking, as a percentage of the original font size." }
+            size: {
+                ja: "小さくするときの大きさです。元のフォントサイズに対する割合で指定します。",
+                en: "Size applied when shrinking, as a percentage of the original font size."
+            }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -100,108 +192,135 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /* ドット区切りキーでラベルを取得 / Resolve a label by dot-separated key */
+    /**
+     * ドット区切りのキーで表示言語の文言を返す
+     * @param {string} keyPath - "dialog.title" のようなキー
+     * @returns {string} 表示言語の文言
+     */
     function getLabel(keyPath) {
-        var parts = keyPath.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            node = node[parts[i]];
+        var keyParts = keyPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < keyParts.length; i++) {
+            labelNode = labelNode[keyParts[i]];
         }
-        return node[currentLanguage];
+        return labelNode[uiLang];
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} keyPath - ラベルのキー
+     * @returns {string} コロン付きの項目名
+     */
     function labelText(keyPath) {
-        return getLabel(keyPath) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(keyPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
-    // UI レイアウト設定 / UI Layout
+    // テキストの加工 / Text processing
     // =========================================
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /**
+     * 対象文字の後ろで改行し、欧文ベースラインを適用する
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {string[]} breakMarks - 改行する文字
+     * @returns {void}
+     */
+    function insertLineBreaksAfterMarks(textFrame, breakMarks) {
+        var frameContents = textFrame.contents;
+
+        /* 各対象文字の後ろに改行を挿入 / Insert a line break after each target character */
+        for (var i = 0; i < breakMarks.length; i++) {
+            var breakMark = breakMarks[i];
+            frameContents = frameContents.split(breakMark).join(breakMark + "\r");
+        }
+
+        /* 連続改行を整理 / Collapse consecutive line breaks */
+        frameContents = frameContents.replace(/\r\r+/g, "\r");
+
+        textFrame.contents = frameContents;
+
+        /* 文字揃え：欧文ベースライン / Character alignment: Roman baseline */
+        textFrame.textRange.characterAttributes.baselinePosition =
+            FontBaselineOption.NORMALBASELINE;
     }
 
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
+    /**
+     * 格助詞・ひらがなのフォントサイズを指定の割合に縮小する
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @param {{adjustCaseParticle: boolean, adjustHiragana: boolean, sizePercent: number}} sizeOptions - サイズ調整の設定
+     * @returns {void}
+     */
+    function adjustCharacterSizes(textFrame, sizeOptions) {
+        var sizeScale = sizeOptions.sizePercent / 100;
+        var frameText = textFrame.contents;
+        var frameCharacters = textFrame.textRange.characters;
 
-    // =========================================
-    // 文字種の判定 / Character Matching
-    // =========================================
-    /* ひらがなかどうか（U+3041〜U+309F）/ Whether the glyph is hiragana (U+3041–U+309F) */
-    function isHiragana(glyph) {
-        var code = glyph.charCodeAt(0);
-        return code >= 0x3041 && code <= 0x309F;
-    }
+        /* 縮小対象の文字のインデックス（文字列のインデックスと characters は 1:1 対応）/ Indices to scale (string index maps 1:1 to characters) */
+        var markedIndices = sizeOptions.adjustCaseParticle ? findCaseParticleIndices(frameText) : {};
 
-    /* 格助詞として縮小するグリフのインデックス集合を返す / Return the set of glyph indices to scale as case particles */
-    function findCaseParticleIndices(text) {
-        var marked = {};
-        var pattern = new RegExp(CASE_PARTICLE_SOURCE, "g");
-        var precursor = new RegExp(PARTICLE_PRECURSOR_SOURCE);
-        var match;
-
-        while ((match = pattern.exec(text)) !== null) {
-            var start = match.index;
-            /* lookbehind の代わりに直前の1文字を判定 / Emulate lookbehind by testing the single preceding char */
-            var prevChar = (start > 0) ? text.charAt(start - 1) : "";
-            if (prevChar !== "" && precursor.test(prevChar)) {
-                for (var p = 0; p < match[0].length; p++) marked[start + p] = true;
+        /* ひらがなは1文字ずつ判定して追加 / Add hiragana per character */
+        if (sizeOptions.adjustHiragana) {
+            for (var i = 0; i < frameText.length; i++) {
+                if (isHiragana(frameText.charAt(i))) markedIndices[i] = true;
             }
-            /* 空マッチによる無限ループを防ぐ / Guard against infinite loops on zero-length matches */
-            if (match.index === pattern.lastIndex) pattern.lastIndex++;
         }
-        return marked;
+
+        /* マーク済みの文字を縮小 / Scale the marked characters */
+        for (var j = 0; j < frameCharacters.length; j++) {
+            if (markedIndices[j]) {
+                var charAttributes = frameCharacters[j].characterAttributes;
+                charAttributes.size = charAttributes.size * sizeScale;
+            }
+        }
     }
 
-    (function () {
+    /**
+     * 選択中の各テキストフレームに改行挿入とサイズ調整を適用する
+     * @param {string[]} breakMarks - 改行する文字（空なら改行しない）
+     * @param {Object|null} sizeOptions - サイズ調整の設定（null なら調整しない）
+     * @returns {void}
+     */
+    function processSelection(breakMarks, sizeOptions) {
+        var docSelection = app.activeDocument.selection;
+        for (var i = 0; i < docSelection.length; i++) {
+            var selectedItem = docSelection[i];
 
-        /* 事前チェック / Pre-flight checks */
-        if (app.documents.length === 0) {
-            alert(getLabel("alert.noDocument"));
-            return;
-        }
-        if (app.selection.length === 0) {
-            alert(getLabel("alert.noSelection"));
-            return;
-        }
+            if (selectedItem.typename !== "TextFrame") continue;
 
-        /* ダイアログを構築（タイトルバーにバージョンを表示）/ Build the dialog (version shown in the title bar) */
+            if (breakMarks.length > 0) insertLineBreaksAfterMarks(selectedItem, breakMarks);
+            if (sizeOptions) adjustCharacterSizes(selectedItem, sizeOptions);
+        }
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ダイアログを組み立てる（イベントの配線は main() で行う）
+     * @returns {Object} 作成したダイアログとコントロール
+     */
+    function buildTitleMakerDialog() {
+        /* タイトルバーにバージョンを表示 / Version shown in the title bar */
         var lineBreakDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         lineBreakDialog.orientation = "column";
         lineBreakDialog.alignChildren = "fill";
 
         /* 改行対象文字のチェックボックスパネル / Checkbox panel for target characters */
         var targetPanel = lineBreakDialog.add("panel", undefined, getLabel("panel.targets"));
-        setupPanel(targetPanel, 6);
+        setupPanel(targetPanel, PANEL_ITEM_SPACING);
 
         var targetCheckboxes = [];
         for (var i = 0; i < TARGET_CHARS.length; i++) {
             var targetCheckbox = targetPanel.add("checkbox", undefined, TARGET_CHARS[i].mark);
             targetCheckbox.helpTip = getLabel("tooltip.targetChar");
-            targetCheckbox.value = TARGET_CHARS[i].on;
+            targetCheckbox.value = TARGET_CHARS[i].defaultOn;
             targetCheckboxes.push(targetCheckbox);
         }
 
         /* フォントサイズ調整のパネル / Panel for font size adjustment */
         var sizePanel = lineBreakDialog.add("panel", undefined, getLabel("panel.sizeAdjust"));
-        setupPanel(sizePanel, 6);
+        setupPanel(sizePanel, PANEL_ITEM_SPACING);
 
         var caseParticleCheckbox = sizePanel.add("checkbox", undefined, getLabel("checkbox.caseParticle"));
         caseParticleCheckbox.helpTip = getLabel("tooltip.caseParticle");
@@ -209,38 +328,71 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         hiraganaCheckbox.helpTip = getLabel("tooltip.hiragana");
 
         /* サイズ：［　］% の入力行 / Size: [ ] % input row */
-        var sizeGroup = sizePanel.add("group");
-        setupGroup(sizeGroup, "row", 4);
-        sizeGroup.add("statictext", undefined, labelText("field.size"));
-        var sizeField = sizeGroup.add("edittext", undefined, String(DEFAULT_SIZE_PERCENT));
-        sizeField.characters = 4;
+        var sizeRow = sizePanel.add("group");
+        setupGroup(sizeRow, "row", SIZE_ROW_SPACING);
+        sizeRow.add("statictext", undefined, labelText("fieldLabel.size"));
+        var sizeField = sizeRow.add("edittext", undefined, String(DEFAULT_SIZE_PERCENT));
+        sizeField.characters = SIZE_FIELD_CHARS;
         sizeField.helpTip = getLabel("tooltip.size");
-        sizeGroup.add("statictext", undefined, "%");
+        sizeRow.add("statictext", undefined, "%");
 
         /* ボタン（Mac 規約: キャンセル → OK、OK は右）/ Buttons (Mac convention: Cancel → OK, OK on the right) */
-        var buttonGroup = lineBreakDialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "right";
+        var btnRowGroup = lineBreakDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "right";
 
-        var cancelButton = buttonGroup.add("button", undefined, getLabel("button.cancel"));
-        var okButton = buttonGroup.add("button", undefined, "OK");
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"));
 
-        cancelButton.onClick = function () {
+        return {
+            lineBreakDialog: lineBreakDialog,
+            targetCheckboxes: targetCheckboxes,
+            caseParticleCheckbox: caseParticleCheckbox,
+            hiraganaCheckbox: hiraganaCheckbox,
+            sizeField: sizeField,
+            btnCancel: btnCancel,
+            btnOK: btnOK
+        };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択を確かめてダイアログを表示し、OK で改行とサイズ調整を行う
+     * @returns {void}
+     */
+    function main() {
+        /* 事前チェック / Pre-flight checks */
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        if (app.activeDocument.selection.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+
+        var dialogControls = buildTitleMakerDialog();
+        var lineBreakDialog = dialogControls.lineBreakDialog;
+
+        dialogControls.btnCancel.onClick = function () {
             lineBreakDialog.close();
         };
 
-        okButton.onClick = function () {
+        dialogControls.btnOK.onClick = function () {
             /* チェックされた改行対象文字を収集 / Collect the checked line-break characters */
             var selectedMarks = [];
-            for (var j = 0; j < targetCheckboxes.length; j++) {
-                if (targetCheckboxes[j].value) selectedMarks.push(TARGET_CHARS[j].mark);
+            for (var i = 0; i < dialogControls.targetCheckboxes.length; i++) {
+                if (dialogControls.targetCheckboxes[i].value) selectedMarks.push(TARGET_CHARS[i].mark);
             }
 
             /* サイズ調整の設定を収集 / Collect the size-adjustment settings */
             var sizeOptions = {
-                adjustCaseParticle: caseParticleCheckbox.value,
-                adjustHiragana: hiraganaCheckbox.value,
-                sizePercent: parseFloat(sizeField.text)
+                adjustCaseParticle: dialogControls.caseParticleCheckbox.value,
+                adjustHiragana: dialogControls.hiraganaCheckbox.value,
+                sizePercent: parseFloat(dialogControls.sizeField.text)
             };
             var wantsSizeAdjust = sizeOptions.adjustCaseParticle || sizeOptions.adjustHiragana;
 
@@ -259,63 +411,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         lineBreakDialog.center();
         lineBreakDialog.show();
+    }
 
-        /* 選択中の各テキストフレームに改行挿入とサイズ調整を適用 / Apply line breaks and size adjustment to each selected text frame */
-        function processSelection(marks, sizeOptions) {
-            for (var i = 0; i < app.selection.length; i++) {
-                var selectedItem = app.selection[i];
-
-                if (selectedItem.typename !== "TextFrame") continue;
-
-                if (marks.length > 0) insertLineBreaksAfterMarks(selectedItem, marks);
-                if (sizeOptions) adjustCharacterSizes(selectedItem, sizeOptions);
-            }
-        }
-
-        /* 対象文字の後ろで改行し、欧文ベースラインを適用 / Insert line breaks after target characters and apply the Roman baseline */
-        function insertLineBreaksAfterMarks(textFrame, marks) {
-            var frameContents = textFrame.contents;
-
-            /* 各対象文字の後ろに改行を挿入 / Insert a line break after each target character */
-            for (var j = 0; j < marks.length; j++) {
-                var mark = marks[j];
-                frameContents = frameContents.split(mark).join(mark + "\r");
-            }
-
-            /* 連続改行を整理 / Collapse consecutive line breaks */
-            frameContents = frameContents.replace(/\r\r+/g, "\r");
-
-            textFrame.contents = frameContents;
-
-            /* 文字揃え：欧文ベースライン / Character alignment: Roman baseline */
-            textFrame.textRange.characterAttributes.baselinePosition =
-                FontBaselineOption.NORMALBASELINE;
-        }
-
-        /* 格助詞・ひらがなのフォントサイズを指定倍率に縮小 / Scale font size of case particles / hiragana to the given percentage */
-        function adjustCharacterSizes(textFrame, sizeOptions) {
-            var scale = sizeOptions.sizePercent / 100;
-            var text = textFrame.contents;
-            var glyphs = textFrame.textRange.characters;
-
-            /* 縮小対象グリフのインデックス集合（文字列インデックスと glyphs は 1:1 対応）/ Indices of glyphs to scale (string index maps 1:1 to glyphs) */
-            var marked = sizeOptions.adjustCaseParticle ? findCaseParticleIndices(text) : {};
-
-            /* ひらがなは1文字ずつ判定して追加 / Add hiragana per character */
-            if (sizeOptions.adjustHiragana) {
-                for (var h = 0; h < text.length; h++) {
-                    if (isHiragana(text.charAt(h))) marked[h] = true;
-                }
-            }
-
-            /* マーク済みのグリフを縮小 / Scale the marked glyphs */
-            for (var c = 0; c < glyphs.length; c++) {
-                if (marked[c]) {
-                    var attributes = glyphs[c].characterAttributes;
-                    attributes.size = attributes.size * scale;
-                }
-            }
-        }
-    })();
+    main();
 
 })();

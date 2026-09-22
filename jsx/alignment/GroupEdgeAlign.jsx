@@ -31,7 +31,7 @@ var SCRIPT_NAME     = "GroupEdgeAlign";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlign.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlign.md"; /* README (English) */
@@ -92,6 +92,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
     /* 9軸ウィジェットが未選択のときのインデックス / Index used while no cell is selected */
     var NO_ANCHOR_INDEX = -1;
 
+    /* 矢印キーの向きと、1段階の整列で使う整列先 / Arrow keys mapped to the target of one step */
+    var STEP_SIDE_BY_KEY = { "Up": "top", "Down": "bottom", "Left": "left", "Right": "right" };
+
     /* 整列先ごとの座標の取り出し方。
        axis＝動かす軸、boundsIndex＝境界配列 [左,上,右,下] のインデックス（null は2辺の中点）、
        ahead＝揃える向き（座標が増える向きなら +1、中央揃えは 0＝ガイド吸着の対象外）
@@ -138,10 +141,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
      * Illustrator のロケールから表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function detectUILanguage() {
         return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -201,7 +204,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
     function labelText(labelPath) {
         return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
@@ -337,7 +344,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         var widgetWidth = anchorWidget.size[0];
         var widgetHeight = anchorWidget.size[1];
 
-        /* 背景はコントロールの地色で塗り、パネルと同色に見せる / Paint the control background so the widget blends into the panel */
+        /* 背景はコントロールの地色で塗り、パネルと同色に見せる（backgroundColor を持たない環境がある）
+           Paint the control background so the widget blends into the panel; some builds lack backgroundColor */
         try {
             graphics.newPath();
             graphics.rectPath(0, 0, widgetWidth, widgetHeight);
@@ -672,25 +680,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
     // =========================================
 
     /**
-     * 整列オプションのダイアログを表示し、選択内容を返す
-     * @param {object} initialSettings - 境界とガイドの初期値
-     * @param {object} alignmentSession - プレビューとステップ移動を担う整列セッション
-     * @returns {object} 整列軸・境界・ガイドの設定。キャンセル時は null
+     * 9軸ウィジェット（onDraw で描くボタン）を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {Function} onCellPicked - クリックしたセルの番号（0〜8、行優先）を受け取る関数
+     * @returns {Button} 9軸ウィジェット
      */
-    function showAlignmentDialog(initialSettings, alignmentSession) {
-        initAnchorColors();
-
-        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        alignDialog.orientation = "column";
-        alignDialog.alignChildren = ["fill", "top"];
-        alignDialog.margins = WINDOW_MARGINS;
-        alignDialog.spacing = WINDOW_SPACING;
-
-        var alignmentPanel = addPanel(alignDialog, getLabel("panel.alignment"));
-        alignmentPanel.margins = ANCHOR_PANEL_MARGINS;
-        alignmentPanel.alignChildren = ["center", "top"];
-
-        var anchorWidget = alignmentPanel.add("button", undefined, "");
+    function addAnchorWidget(parentPanel, onCellPicked) {
+        var anchorWidget = parentPanel.add("button", undefined, "");
         anchorWidget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
         anchorWidget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
         anchorWidget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
@@ -700,18 +696,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
             drawAnchorWidget(this);
         };
 
-        var optionPanel = addPanel(alignDialog, getLabel("panel.option"));
-        optionPanel.alignChildren = ["left", "top"];
+        /* クリックした3×3のセルを整列先にする（座標はウィジェット基準）
+           Set the target from the clicked 3x3 cell (coordinates are widget-relative) */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            var column = clampGridIndex(Math.floor(event.clientX / (anchorWidget.size[0] / 3)));
+            var row = clampGridIndex(Math.floor(event.clientY / (anchorWidget.size[1] / 3)));
+            onCellPicked(row * 3 + column);
+        });
+        return anchorWidget;
+    }
 
-        var previewBoundsCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
-        previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
-        previewBoundsCheckbox.value = initialSettings.usePreviewBounds;
-
-        var useGuidesCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.useGuides"));
-        useGuidesCheckbox.helpTip = getLabel("tooltip.useGuides");
-        useGuidesCheckbox.value = initialSettings.useGuides;
-
-        /* ボタンエリア：左にプレビュー、右にキャンセル・OK / Button row: preview on the left, Cancel/OK on the right */
+    /**
+     * ボタンエリア（左にプレビュー、右にキャンセル・OK）を追加する
+     * @param {Window} alignDialog - ダイアログ
+     * @returns {Checkbox} プレビューのチェックボックス
+     */
+    function addButtonRow(alignDialog) {
         var btnRowGroup = alignDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
@@ -731,31 +731,104 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         var btnRightGroup = btnRowGroup.add("group");
         setupRow(btnRightGroup, "right", 10);
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        /**
-         * 現在のダイアログの状態を設定オブジェクトにまとめる
-         * @returns {object} 整列軸・境界・ガイドの設定（整列先が未選択なら alignmentAxes は null）
-         */
-        function getCurrentSettings() {
-            var selectedIndex = anchorWidget.selectedAnchorIndex;
-            var hasAnchor = (selectedIndex !== NO_ANCHOR_INDEX);
-            return {
-                /* ANCHOR_DEFINITIONS の要素はそのまま整列軸として使える / Each entry doubles as the axes pair */
-                alignmentAxes: hasAnchor ? ANCHOR_DEFINITIONS[selectedIndex] : null,
-                usePreviewBounds: previewBoundsCheckbox.value,
-                /* 整列先を選んだときはアートボード基準に固定 / A chosen target always aligns to the artboard */
-                useGuides: !hasAnchor && useGuidesCheckbox.value
-            };
+        return previewCheckbox;
+    }
+
+    /**
+     * 整列ダイアログを組み立てる
+     * @param {object} initialSettings - 境界とガイドの初期値
+     * @param {Function} onCellPicked - 9軸ウィジェットのセルをクリックしたときに呼ぶ関数
+     * @returns {{alignDialog: Window, anchorWidget: Button, previewBoundsCheckbox: Checkbox, useGuidesCheckbox: Checkbox, previewCheckbox: Checkbox}} ダイアログと主なコントロール
+     */
+    function buildAlignmentDialog(initialSettings, onCellPicked) {
+        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        alignDialog.orientation = "column";
+        alignDialog.alignChildren = ["fill", "top"];
+        alignDialog.margins = WINDOW_MARGINS;
+        alignDialog.spacing = WINDOW_SPACING;
+
+        var alignmentPanel = addPanel(alignDialog, getLabel("panel.alignment"));
+        alignmentPanel.margins = ANCHOR_PANEL_MARGINS;
+        alignmentPanel.alignChildren = ["center", "top"];
+        var anchorWidget = addAnchorWidget(alignmentPanel, onCellPicked);
+
+        var optionPanel = addPanel(alignDialog, getLabel("panel.option"));
+        optionPanel.alignChildren = ["left", "top"];
+
+        var previewBoundsCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
+        previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
+        previewBoundsCheckbox.value = initialSettings.usePreviewBounds;
+
+        var useGuidesCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.useGuides"));
+        useGuidesCheckbox.helpTip = getLabel("tooltip.useGuides");
+        useGuidesCheckbox.value = initialSettings.useGuides;
+
+        var previewCheckbox = addButtonRow(alignDialog);
+
+        return {
+            alignDialog: alignDialog,
+            anchorWidget: anchorWidget,
+            previewBoundsCheckbox: previewBoundsCheckbox,
+            useGuidesCheckbox: useGuidesCheckbox,
+            previewCheckbox: previewCheckbox
+        };
+    }
+
+    /**
+     * ダイアログの状態を設定オブジェクトにまとめる
+     * @param {object} dialogControls - buildAlignmentDialog() の戻り値
+     * @returns {object} 整列軸・境界・ガイドの設定（整列先が未選択なら alignmentAxes は null）
+     */
+    function readAlignSettings(dialogControls) {
+        var selectedIndex = dialogControls.anchorWidget.selectedAnchorIndex;
+        var hasAnchor = (selectedIndex !== NO_ANCHOR_INDEX);
+        return {
+            /* ANCHOR_DEFINITIONS の要素はそのまま整列軸として使える / Each entry doubles as the axes pair */
+            alignmentAxes: hasAnchor ? ANCHOR_DEFINITIONS[selectedIndex] : null,
+            usePreviewBounds: dialogControls.previewBoundsCheckbox.value,
+            /* 整列先を選んだときはアートボード基準に固定 / A chosen target always aligns to the artboard */
+            useGuides: !hasAnchor && dialogControls.useGuidesCheckbox.value
+        };
+    }
+
+    /**
+     * ショートカットキーに対応するセルの番号を返す
+     * @param {string} pressedKey - 押されたキー名
+     * @returns {number} ANCHOR_DEFINITIONS 上のインデックス。対応が無ければ NO_ANCHOR_INDEX
+     */
+    function findAnchorIndexByShortcutKey(pressedKey) {
+        for (var anchorIndex = 0; anchorIndex < ANCHOR_DEFINITIONS.length; anchorIndex++) {
+            if (ANCHOR_DEFINITIONS[anchorIndex].shortcutKey === pressedKey) return anchorIndex;
         }
+        return NO_ANCHOR_INDEX;
+    }
+
+    /**
+     * 整列オプションのダイアログを表示し、選択内容を返す
+     * @param {object} initialSettings - 境界とガイドの初期値
+     * @param {object} alignmentSession - プレビューとステップ移動を担う整列セッション
+     * @returns {object} 整列軸・境界・ガイドの設定。キャンセル時は null
+     */
+    function showAlignmentDialog(initialSettings, alignmentSession) {
+        initAnchorColors();
+
+        var dialogControls = buildAlignmentDialog(initialSettings, function (cellIndex) {
+            selectAnchorAt(cellIndex);
+            triggerPreview();
+        });
+        var previewBoundsCheckbox = dialogControls.previewBoundsCheckbox;
+        var useGuidesCheckbox = dialogControls.useGuidesCheckbox;
+        var previewCheckbox = dialogControls.previewCheckbox;
 
         /**
          * プレビューを更新する（OFF・整列先未選択のときは基準位置へ戻す）
          * @returns {void}
          */
         function triggerPreview() {
-            var currentSettings = getCurrentSettings();
+            var currentSettings = readAlignSettings(dialogControls);
             /* 整列先が未選択なら戻すだけ（ファイル名由来のフォールバックを抑止）
                With no target selected, only restore; the filename fallback must not kick in here */
             alignmentSession.preview((previewCheckbox.value && currentSettings.alignmentAxes) ? currentSettings : null);
@@ -767,75 +840,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
          * @returns {void}
          */
         function selectAnchorAt(selectedIndex) {
-            anchorWidget.selectedAnchorIndex = selectedIndex;
-            redrawAnchorWidget(anchorWidget);
+            dialogControls.anchorWidget.selectedAnchorIndex = selectedIndex;
+            redrawAnchorWidget(dialogControls.anchorWidget);
             /* 整列先を選ぶとガイドは使わないので、チェックボックスも無効にする
                A chosen target ignores guides, so the checkbox goes dim */
             useGuidesCheckbox.enabled = (selectedIndex === NO_ANCHOR_INDEX);
         }
 
         /**
-         * ショートカットキーに対応する整列先を選ぶ
-         * @param {string} pressedKey - 押されたキー名
-         * @returns {boolean} 対応する整列先があれば true
+         * ダイアログでのキー操作を処理する（矢印キー、W〜V のセル選択、G・B の切り替え）
+         * @param {string} keyName - 離したキーの名前
+         * @returns {void}
          */
-        function selectAnchorByShortcutKey(pressedKey) {
-            for (var anchorIndex = 0; anchorIndex < ANCHOR_DEFINITIONS.length; anchorIndex++) {
-                if (ANCHOR_DEFINITIONS[anchorIndex].shortcutKey !== pressedKey) continue;
-                selectAnchorAt(anchorIndex);
-                return true;
-            }
-            return false;
-        }
-
-        /* クリックした3×3のセルを整列先にする（座標はウィジェット基準）
-           Set the target from the clicked 3x3 cell (coordinates are widget-relative) */
-        anchorWidget.addEventListener("mousedown", function (event) {
-            var column = clampGridIndex(Math.floor(event.clientX / (anchorWidget.size[0] / 3)));
-            var row = clampGridIndex(Math.floor(event.clientY / (anchorWidget.size[1] / 3)));
-            selectAnchorAt(row * 3 + column);
-            triggerPreview();
-        });
-
-        previewBoundsCheckbox.onClick = triggerPreview;
-        useGuidesCheckbox.onClick = triggerPreview;
-        previewCheckbox.onClick = triggerPreview;
-
-        /* 矢印キーの向きと、1段階の整列で使う整列先 / Arrow keys mapped to the target of one step */
-        var STEP_SIDE_BY_KEY = { "Up": "top", "Down": "bottom", "Left": "left", "Right": "right" };
-
-        alignDialog.addEventListener("keyup", function (keyEvent) {
-            var stepSide = STEP_SIDE_BY_KEY[keyEvent.keyName];
+        function handleKeyUp(keyName) {
+            var stepSide = STEP_SIDE_BY_KEY[keyName];
             if (stepSide) {
                 /* 矢印キー：押すたびに「スクリプトを1回実行」相当のステップ移動。
                    整列先の選択は解除する（OK 時に最終整列が二重適用されないようにするため）
                    Arrow keys step as if the script ran once; the target selection is cleared so
                    the final alignment on OK is not applied twice */
                 selectAnchorAt(NO_ANCHOR_INDEX);
-                alignmentSession.step(stepSide, getCurrentSettings());
+                alignmentSession.step(stepSide, readAlignSettings(dialogControls));
                 return;
             }
-            if (selectAnchorByShortcutKey(keyEvent.keyName)) {
+            var anchorIndex = findAnchorIndexByShortcutKey(keyName);
+            if (anchorIndex !== NO_ANCHOR_INDEX) {
+                selectAnchorAt(anchorIndex);
                 triggerPreview();
                 return;
             }
-            if (keyEvent.keyName === "G" && useGuidesCheckbox.enabled) {
+            if (keyName === "G" && useGuidesCheckbox.enabled) {
                 useGuidesCheckbox.value = !useGuidesCheckbox.value;
                 triggerPreview();
                 return;
             }
-            if (keyEvent.keyName === "B") {
+            if (keyName === "B") {
                 previewBoundsCheckbox.value = !previewBoundsCheckbox.value;
                 triggerPreview();
             }
+        }
+
+        previewBoundsCheckbox.onClick = triggerPreview;
+        useGuidesCheckbox.onClick = triggerPreview;
+        previewCheckbox.onClick = triggerPreview;
+        dialogControls.alignDialog.addEventListener("keyup", function (keyEvent) {
+            handleKeyUp(keyEvent.keyName);
         });
 
-        var dialogShowResult = alignDialog.show();
+        var dialogShowResult = dialogControls.alignDialog.show();
 
         /* OK / キャンセルどちらでも、閉じる際はいったん基準位置へ戻す（最終整列は main 側で改めて適用）
            On both OK and Cancel the items go back to the baseline; main re-applies the final alignment */
         alignmentSession.preview(null);
-        return (dialogShowResult === 1) ? getCurrentSettings() : null;
+        return (dialogShowResult === 1) ? readAlignSettings(dialogControls) : null;
     }
 
     // =========================================

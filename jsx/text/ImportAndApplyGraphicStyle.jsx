@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "ImportAndApplyGraphicStyle";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportAndApplyGraphicStyle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportAndApplyGraphicStyle.md"; /* README (English) */
@@ -38,6 +38,57 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
+    /* 大きさ調整「する」の既定倍率（幅・高さ）/ Default size-adjustment ratios (width, height) */
+    var BUTTON_WIDTH_RATIO = 1.2;   // 元の幅に対する倍率 / Ratio of original width
+    var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var PALETTE_MARGINS        = 15;                /* パレットの余白 / palette margins */
+    var PANEL_MARGINS          = [16, 20, 16, 12];  /* パネルの余白 / panel margins */
+    var PANEL_SPACING          = 8;                 /* パネル内の既定の間隔 / default panel spacing */
+    var INNER_PANEL_SPACING    = 6;                 /* このパレットのパネル内の間隔 / spacing inside this palette's panels */
+    var SIZE_LABEL_WIDTH       = 44;                /* 「サイズ」ラベルの幅 / width of the Size label */
+    var RATIO_INPUT_WIDTH      = 40;                /* 幅・高さの入力欄の幅 / width of the ratio fields */
+    var STYLE_LIST_HEIGHT      = 120;               /* スタイル一覧の高さ / height of the style list */
+    var STYLE_FOOTER_MARGINS   = [0, 5, 0, 0];      /* スタイルパネル下部のボタン行の余白 / margins of the style panel's button row */
+    var FILE_NAME_WIDTH        = 240;               /* ファイル名表示の幅 / width of the file name label */
+    var LOAD_BUTTON_ROW_MARGINS = [0, 7, 0, 0];     /* 読み込みボタン行の余白 / margins of the load button row */
+    var BUTTON_HEIGHT_TRIM     = 2;                 /* パネル内のボタンの高さを詰める量（px）/ px trimmed from panel buttons */
+
+    /**
+     * パネルの共通設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - パネル内の間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無いことがある / size may be unavailable before layout */
+        try {
+            targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+        } catch (e) { }
+    }
 
     // =========================================
     // 設定ファイル / Preferences file
@@ -50,24 +101,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ローカライズ / Localization
     // =========================================
 
-    /* 表示言語を判定 / Detect display language */
-    function getCurrentLang() {
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義（カテゴリ構造）/ Japanese-English label definitions (categorized) */
     var LABELS = {
-        /* 警告メッセージ / Alerts */
+        dialog: {
+            title: { ja: "エリア内文字に変換", en: "Convert to Area Type" },
+            pickFile: { ja: "スタイルの AI ファイルを選択", en: "Select a style AI file" }
+        },
+        panel: {
+            areaTypeOption: { ja: "エリア内文字オプション", en: "Area Type Options" },
+            graphicStyle: { ja: "グラフィックスタイル", en: "Graphic style" },
+            loadStyles: { ja: "スタイルの読み込み", en: "Load Styles" }
+        },
+        checkbox: {
+            convertToAreaType: { ja: "エリア内文字に変換", en: "Convert to area type" },
+            usedOnly: { ja: "ドキュメント内で使用しているもののみ", en: "Only those used in the document" }
+        },
+        radio: {
+            doAdjust: { ja: "調整する", en: "Adjust" },
+            dontAdjust: { ja: "調整しない", en: "Don't adjust" }
+        },
+        fieldLabel: {
+            size: { ja: "サイズ", en: "Size" },
+            widthRatio: { ja: "幅", en: "Width" },
+            heightRatio: { ja: "高さ", en: "Height" }
+        },
+        listItem: {
+            styleOriginal: { ja: "元の見た目", en: "Original appearance" }
+        },
+        status: {
+            noFileSelected: { ja: "ファイル未選択", en: "No file selected" }
+        },
+        button: {
+            runConvert: { ja: "変換", en: "Convert" },
+            clearStyle: { ja: "クリア", en: "Clear" },
+            openStylePanel: { ja: "パネル", en: "Panel" },
+            load: { ja: "読み込み", en: "Load" },
+            reload: { ja: "再読み込み", en: "Reload" }
+        },
+        tooltip: {
+            convertToAreaType: {
+                ja: "オンにすると、［変換］でポイント文字・パス上文字（またはテキストと長方形）をエリア内文字に変換します。オフのときは選んだグラフィックスタイルを適用するだけです。",
+                en: "When on, Convert turns point text, path text, or text plus a rectangle into area type. When off, Convert only applies the chosen graphic style."
+            },
+            doAdjust: {
+                ja: "ポイント文字を変換するとき、実寸に幅・高さの倍率を掛けた枠にし、元の見た目ならボタン状の背景を付けます。",
+                en: "When converting point text, sizes the frame to the measured size times the width and height ratios, and adds a button-shaped background for the original appearance."
+            },
+            dontAdjust: { ja: "ポイント文字を変換するとき、実寸と同じ大きさの枠にします。", en: "When converting point text, makes the frame the same size as the text." },
+            widthRatio: { ja: "枠の幅を、テキストの実寸に対する割合（%）で指定します。", en: "Frame width as a percentage of the text's measured width." },
+            heightRatio: { ja: "枠の高さを、テキストの実寸に対する割合（%）で指定します。", en: "Frame height as a percentage of the text's measured height." },
+            styleList: {
+                ja: "選ぶと、選択中のオブジェクトにすぐ適用します。「元の見た目」は何も適用しません。",
+                en: "Picking a style applies it to the selected objects right away. “Original appearance” applies nothing."
+            },
+            runConvert: {
+                ja: "［エリア内文字に変換］がオンなら選択をエリア内文字に変換し、オフなら選んだグラフィックスタイルを選択に適用します。",
+                en: "Converts the selection to area type when “Convert to area type” is on; otherwise applies the chosen graphic style to the selection."
+            },
+            openStylePanel: { ja: "グラフィックスタイルパネルに移動", en: "Go to the Graphic Styles panel." },
+            clearStyle: { ja: "未使用のグラフィックスタイルを削除", en: "Delete unused graphic styles." },
+            load: {
+                ja: "「読み込み」でスタイルの AI ファイルを選択してください。",
+                en: "Click “Load” to choose a style AI file."
+            },
+            reload: { ja: "記憶したファイルからスタイルを取り込み直します。", en: "Re-import styles from the remembered file." }
+        },
         alert: {
             selectText: {
                 ja: "ポイント文字・パス上文字、またはテキストと図形を選択してください。",
                 en: "Please select point text, path text, or text and a shape."
             },
-            noDocument: {
-                ja: "ドキュメントが開かれていません。",
-                en: "No document is open."
-            },
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             rectangleOnly: {
                 ja: "フレームに使える図形は長方形のみです。長方形を選択してください。",
                 en: "Only a rectangle can serve as the frame. Please select a rectangle."
@@ -75,71 +188,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             fileNotFound: {
                 ja: "指定されたファイルが見つかりません：\n",
                 en: "The specified file was not found:\n"
-            },
-            styleNotFound: {
-                ja: "指定したグラフィックスタイルが見つかりません：\n",
-                en: "The graphic style was not found:\n"
             }
-        },
-        /* パレットUI / Palette UI */
-        ui: {
-            dialogTitle: { ja: "エリア内文字に変換", en: "Convert to Area Type" },
-            areaTypeOptionPanel: { ja: "エリア内文字オプション", en: "Area Type Options" },
-            convertToAreaType: { ja: "エリア内文字に変換", en: "Convert to area type" },
-            sizeLabel: { ja: "サイズ：", en: "Size:" },
-            doAdjust: { ja: "調整する", en: "Adjust" },
-            dontAdjust: { ja: "調整しない", en: "Don't adjust" },
-            widthRatio: { ja: "幅：", en: "Width:" },
-            heightRatio: { ja: "高さ：", en: "Height:" },
-            stylePanel: { ja: "グラフィックスタイル", en: "Graphic style" },
-            styleOriginal: { ja: "元の見た目", en: "Original appearance" },
-            usedOnly: { ja: "ドキュメント内で使用しているもののみ", en: "Only those used in the document" },
-            loadPanel: { ja: "スタイルの読み込み", en: "Load Styles" },
-            loadButton: { ja: "読み込み", en: "Load" },
-            reloadButton: { ja: "再読み込み", en: "Reload" },
-            openStylePanel: { ja: "パネル", en: "Panel" },
-            openStylePanelHint: {
-                ja: "グラフィックスタイルパネルに移動",
-                en: "Go to the Graphic Styles panel."
-            },
-            clearStyle: { ja: "クリア", en: "Clear" },
-            clearStyleHint: {
-                ja: "未使用のグラフィックスタイルを削除",
-                en: "Delete unused graphic styles."
-            },
-            pickFile: { ja: "スタイルの AI ファイルを選択", en: "Select a style AI file" },
-            noFileSelected: { ja: "ファイル未選択", en: "No file selected" },
-            noStylesHint: {
-                ja: "「読み込み」でスタイルの AI ファイルを選択してください。",
-                en: "Click “Load” to choose a style AI file."
-            },
-            reloadHint: {
-                ja: "記憶したファイルからスタイルを取り込み直します。",
-                en: "Re-import styles from the remembered file."
-            },
-            runConvert: { ja: "変換", en: "Convert" }
         }
     };
 
-    /* ドット区切りキーから LABELS のエントリを取得 / Resolve a LABELS entry from a dot-separated key */
-    function getLabelEntry(key) {
-        var parts = key.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node && typeof node[parts[i]] !== "undefined") { node = node[parts[i]]; }
-            else { return null; }
+    /**
+     * "category.key" 形式のキーからラベルを取得する
+     * @param {string} labelPath - ラベルキー（例: "panel.graphicStyle"）
+     * @returns {string} 現在の言語のラベル文字列（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            if (labelNode && typeof labelNode[labelPathKeys[i]] !== "undefined") { labelNode = labelNode[labelPathKeys[i]]; }
+            else { return labelPath; }
         }
-        return node;
+        if (labelNode[uiLang]) return labelNode[uiLang];
+        if (labelNode.en) return labelNode.en;
+        return labelPath;
     }
 
-    /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function getLabel(key) {
-        var entry = getLabelEntry(key);
-        if (entry) {
-            if (entry[currentLanguage]) return entry[currentLanguage];
-            if (entry.en) return entry.en;
-        }
-        return key;
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelSet - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -165,69 +241,84 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 再入防止ガード / Re-entrancy guard */
     var isBusy = false;
 
-    /* 登録された worker 関数を連結して worker ソースを生成 / Concatenate registered workers into the worker source */
+    /**
+     * 登録された worker 関数を連結して worker ソースを生成する
+     * @returns {string} worker 関数のソース
+     */
     function buildWorkerSource() {
-        var source = "";
+        var workerSource = "";
         for (var i = 0; i < WORKER_FUNCS.length; i++) {
-            source += WORKER_FUNCS[i].toString() + "\n";
+            workerSource += WORKER_FUNCS[i].toString() + "\n";
         }
-        return source;
+        return workerSource;
     }
 
-    /* worker 呼び出し式をメインエンジンへ同期委譲し、戻り値の文字列を返す
-       callExpr は文字列を返す式（例: 'workerOpenStylePanel()'）
-       Delegate a worker call expression to the main engine synchronously; returns its string result.
-       callExpr is an expression that returns a string (e.g. 'workerOpenStylePanel()'). */
+    /**
+     * worker 呼び出し式をメインエンジンへ同期委譲し、戻り値の文字列を返す
+     * @param {string} callExpr - 文字列を返す式（例: 'workerOpenStylePanel()'）
+     * @returns {string} worker の戻り値（失敗時は "ERR:..."）
+     */
     function delegate(callExpr) {
         if (isBusy) return MARKER_ERR + ":busy";
         isBusy = true;
-        var holder = { result: null };
+        var resultHolder = { result: null };
+        /* BridgeTalk の送信は失敗しうる / Sending through BridgeTalk can fail */
         try {
             var payload = buildWorkerSource() + "\n" + callExpr + ";";
-            var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
+            var bridgeTalk = new BridgeTalk();
+            bridgeTalk.target = "illustrator";
             /* バックスラッシュ・多バイト・改行の破損を避けるため encodeURIComponent で包む
                Wrap via encodeURIComponent to avoid backslash / multibyte / newline corruption */
-            bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(payload) + "\"));";
-            bridge.onResult = function (message) { holder.result = message.body; };
-            bridge.onError = function (message) { holder.result = MARKER_ERR + ":" + message.body; };
-            bridge.send(10); /* 同期送信 / Synchronous send */
+            bridgeTalk.body = "eval(decodeURIComponent(\"" + encodeURIComponent(payload) + "\"));";
+            bridgeTalk.onResult = function (message) { resultHolder.result = message.body; };
+            bridgeTalk.onError = function (message) { resultHolder.result = MARKER_ERR + ":" + message.body; };
+            bridgeTalk.send(10); /* 同期送信 / Synchronous send */
         } catch (e) {
-            holder.result = MARKER_ERR + ":" + e;
+            resultHolder.result = MARKER_ERR + ":" + e;
         } finally {
             isBusy = false;
         }
-        return (holder.result === null) ? (MARKER_ERR + ":noresult") : holder.result;
+        return (resultHolder.result === null) ? (MARKER_ERR + ":noresult") : resultHolder.result;
     }
 
-    /* 文字列を委譲用の JS 文字列リテラルへエスケープ / Escape a string as a JS string literal for the call expression */
+    /**
+     * 文字列を委譲用の JS 文字列リテラルへエスケープする
+     * @param {string} text - エスケープする文字列
+     * @returns {string} ダブルクォートで囲んだ文字列リテラル
+     */
     function jsStringLiteral(text) {
-        text = String(text);
-        var out = '"';
-        for (var i = 0; i < text.length; i++) {
-            var ch = text.charAt(i);
-            if (ch === '\\') out += '\\\\';
-            else if (ch === '"') out += '\\"';
-            else if (ch === '\n') out += '\\n';
-            else if (ch === '\r') out += '\\r';
-            else if (ch === '\t') out += '\\t';
-            else out += ch;
+        var sourceText = String(text);
+        var literalText = '"';
+        for (var i = 0; i < sourceText.length; i++) {
+            var character = sourceText.charAt(i);
+            if (character === '\\') literalText += '\\\\';
+            else if (character === '"') literalText += '\\"';
+            else if (character === '\n') literalText += '\\n';
+            else if (character === '\r') literalText += '\\r';
+            else if (character === '\t') literalText += '\\t';
+            else literalText += character;
         }
-        return out + '"';
+        return literalText + '"';
     }
 
-    /* worker の "OK\t<改行連結>" 形式を解析 / Parse the worker's "OK\t<newline-joined>" result */
-    function parseMarkerList(result) {
-        if (!result) return { ok: false, marker: MARKER_ERR, items: [] };
-        var tabIndex = result.indexOf("\t");
-        var marker = (tabIndex >= 0) ? result.substring(0, tabIndex) : result;
+    /**
+     * worker の "OK\t<改行連結>" 形式の戻り値を解析する
+     * @param {string} resultText - worker の戻り値
+     * @returns {{ok: boolean, marker: string, items: string[]}} 解析結果
+     */
+    function parseMarkerList(resultText) {
+        if (!resultText) return { ok: false, marker: MARKER_ERR, items: [] };
+        var tabIndex = resultText.indexOf("\t");
+        var marker = (tabIndex >= 0) ? resultText.substring(0, tabIndex) : resultText;
         if (marker !== MARKER_OK) return { ok: false, marker: marker, items: [] };
-        var rest = (tabIndex >= 0) ? result.substring(tabIndex + 1) : "";
-        var items = rest.length ? rest.split("\n") : [];
-        return { ok: true, marker: MARKER_OK, items: items };
+        var listText = (tabIndex >= 0) ? resultText.substring(tabIndex + 1) : "";
+        var listItems = listText.length ? listText.split("\n") : [];
+        return { ok: true, marker: MARKER_OK, items: listItems };
     }
 
     // ---- worker 関数 / Worker functions（メインエンジンで実行 / run in the main engine）----
+    // toString() で送るため JSDoc を付けず、説明は関数の外の1行コメントにする
+    // Serialized with toString(), so no JSDoc: each worker is described by a one-line comment outside it
 
     /* worker: グラフィックスタイルパネルを表示 / Show the Graphic Styles panel */
     function workerOpenStylePanel() {
@@ -242,42 +333,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: 文字列を16進へ / Convert a string to hex */
     function workerHexAscii(text) {
-        var hex = "";
+        var hexText = "";
         var i;
         for (i = 0; i < text.length; i++) {
-            var pair = text.charCodeAt(i).toString(16);
-            if (pair.length < 2) { pair = "0" + pair; }
-            hex += pair;
+            var hexPair = text.charCodeAt(i).toString(16);
+            if (hexPair.length < 2) { hexPair = "0" + hexPair; }
+            hexText += hexPair;
         }
-        return hex;
+        return hexText;
     }
     WORKER_FUNCS.push(workerHexAscii);
 
     /* worker: メニューコマンド1件のイベントブロックを組み立て / Build one menu-command event block */
     function workerMenuEventBlock(eventIndex, internalName, localizedNameHex, commandNameHex, value, hasDialog) {
-        var lines = [];
-        lines.push("\t/event-" + eventIndex + " {");
-        lines.push("\t\t/useRulersIn1stQuadrant 1");
-        lines.push("\t\t/internalName (" + internalName + ")");
-        lines.push("\t\t/localizedName [ " + (localizedNameHex.length / 2));
-        lines.push("\t\t\t" + localizedNameHex);
-        lines.push("\t\t]");
-        lines.push("\t\t/isOpen 0");
-        lines.push("\t\t/isOn 1");
-        lines.push("\t\t/hasDialog " + (hasDialog ? "1" : "0"));
-        if (hasDialog) { lines.push("\t\t/showDialog 0"); }
-        lines.push("\t\t/parameterCount 1");
-        lines.push("\t\t/parameter-1 {");
-        lines.push("\t\t\t/key 1835363957");
-        lines.push("\t\t\t/showInPalette 1");
-        lines.push("\t\t\t/type (enumerated)");
-        lines.push("\t\t\t/name [ " + (commandNameHex.length / 2));
-        lines.push("\t\t\t\t" + commandNameHex);
-        lines.push("\t\t\t]");
-        lines.push("\t\t\t/value " + value);
-        lines.push("\t\t}");
-        lines.push("\t}");
-        return lines.join("\n");
+        var blockLines = [];
+        blockLines.push("\t/event-" + eventIndex + " {");
+        blockLines.push("\t\t/useRulersIn1stQuadrant 1");
+        blockLines.push("\t\t/internalName (" + internalName + ")");
+        blockLines.push("\t\t/localizedName [ " + (localizedNameHex.length / 2));
+        blockLines.push("\t\t\t" + localizedNameHex);
+        blockLines.push("\t\t]");
+        blockLines.push("\t\t/isOpen 0");
+        blockLines.push("\t\t/isOn 1");
+        blockLines.push("\t\t/hasDialog " + (hasDialog ? "1" : "0"));
+        if (hasDialog) { blockLines.push("\t\t/showDialog 0"); }
+        blockLines.push("\t\t/parameterCount 1");
+        blockLines.push("\t\t/parameter-1 {");
+        blockLines.push("\t\t\t/key 1835363957");
+        blockLines.push("\t\t\t/showInPalette 1");
+        blockLines.push("\t\t\t/type (enumerated)");
+        blockLines.push("\t\t\t/name [ " + (commandNameHex.length / 2));
+        blockLines.push("\t\t\t\t" + commandNameHex);
+        blockLines.push("\t\t\t]");
+        blockLines.push("\t\t\t/value " + value);
+        blockLines.push("\t\t}");
+        blockLines.push("\t}");
+        return blockLines.join("\n");
     }
     WORKER_FUNCS.push(workerMenuEventBlock);
 
@@ -290,25 +381,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var deleteValue = 3;
         var deleteNameHex = "44656c657465205374796c65";
         var selectAllUnusedHex = "53656c65637420416c6c20556e75736564";
-        var parts = [];
-        parts.push("/version 3");
-        parts.push("/name [ " + setName.length);
-        parts.push("\t" + workerHexAscii(setName));
-        parts.push("]");
-        parts.push("/isOpen 1");
-        parts.push("/actionCount 1");
-        parts.push("/action-1 {");
-        parts.push("\t/name [ " + actionName.length);
-        parts.push("\t\t" + workerHexAscii(actionName));
-        parts.push("\t]");
-        parts.push("\t/keyIndex 0");
-        parts.push("\t/colorIndex 0");
-        parts.push("\t/isOpen 1");
-        parts.push("\t/eventCount 2");
-        parts.push(workerMenuEventBlock(1, internalName, localizedNameHex, selectAllUnusedHex, selectValue, false));
-        parts.push(workerMenuEventBlock(2, internalName, localizedNameHex, deleteNameHex, deleteValue, true));
-        parts.push("}");
-        return parts.join("\n");
+        var aiaParts = [];
+        aiaParts.push("/version 3");
+        aiaParts.push("/name [ " + setName.length);
+        aiaParts.push("\t" + workerHexAscii(setName));
+        aiaParts.push("]");
+        aiaParts.push("/isOpen 1");
+        aiaParts.push("/actionCount 1");
+        aiaParts.push("/action-1 {");
+        aiaParts.push("\t/name [ " + actionName.length);
+        aiaParts.push("\t\t" + workerHexAscii(actionName));
+        aiaParts.push("\t]");
+        aiaParts.push("\t/keyIndex 0");
+        aiaParts.push("\t/colorIndex 0");
+        aiaParts.push("\t/isOpen 1");
+        aiaParts.push("\t/eventCount 2");
+        aiaParts.push(workerMenuEventBlock(1, internalName, localizedNameHex, selectAllUnusedHex, selectValue, false));
+        aiaParts.push(workerMenuEventBlock(2, internalName, localizedNameHex, deleteNameHex, deleteValue, true));
+        aiaParts.push("}");
+        return aiaParts.join("\n");
     }
     WORKER_FUNCS.push(workerBuildPruneAction);
 
@@ -354,45 +445,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* worker: 未使用スタイル名の集合を取得（未使用削除→残りから判定→削除があれば undo で復元）
        Get the set of unused style names (delete unused, classify by what remains, undo only if deleted) */
     function workerComputeUnusedSet(doc) {
-        var unused = {};
-        var before = [];
+        var unusedNames = {};
+        var namesBefore = [];
         var i;
-        for (i = 1; i < doc.graphicStyles.length; i++) { before.push(doc.graphicStyles[i].name); }
-        if (before.length === 0) { return unused; }
+        for (i = 1; i < doc.graphicStyles.length; i++) { namesBefore.push(doc.graphicStyles[i].name); }
+        if (namesBefore.length === 0) { return unusedNames; }
         var lengthBefore = doc.graphicStyles.length;
         workerPruneUnusedCore(doc);
-        var remaining = {};
+        var remainingNames = {};
         var j;
-        for (j = 1; j < doc.graphicStyles.length; j++) { remaining[doc.graphicStyles[j].name] = true; }
+        for (j = 1; j < doc.graphicStyles.length; j++) { remainingNames[doc.graphicStyles[j].name] = true; }
         var k;
-        for (k = 0; k < before.length; k++) {
-            if (!remaining[before[k]]) { unused[before[k]] = true; }
+        for (k = 0; k < namesBefore.length; k++) {
+            if (!remainingNames[namesBefore[k]]) { unusedNames[namesBefore[k]] = true; }
         }
         if (doc.graphicStyles.length < lengthBefore) {
             try { app.undo(); app.redraw(); } catch (e) { /* ignore */ }
         }
-        return unused;
+        return unusedNames;
     }
     WORKER_FUNCS.push(workerComputeUnusedSet);
 
-    /* worker: 現書類のグラフィックスタイル名を返す（既定と temp_style を除外、usedOnly で未使用も除外）
+    /* worker: 現在のドキュメントのグラフィックスタイル名を返す（既定と temp_style を除外、usedOnly で未使用も除外）
        戻り値: "OK\t" + 名前を \n 連結 / "NODOC"
        Return the document's graphic-style names (skip default and temp_style; usedOnly also skips unused).
        Returns "OK\t" + names joined by \n, or "NODOC" */
     function workerGetStyleNames(usedOnly) {
         if (app.documents.length === 0) { return "NODOC"; }
         var doc = app.activeDocument;
-        var unused = {};
-        if (usedOnly) { unused = workerComputeUnusedSet(doc); }
-        var names = [];
+        var unusedNames = {};
+        if (usedOnly) { unusedNames = workerComputeUnusedSet(doc); }
+        var styleNames = [];
         var i;
         for (i = 1; i < doc.graphicStyles.length; i++) {
-            var nm = doc.graphicStyles[i].name;
-            if (nm === "temp_style") { continue; }
-            if (usedOnly && unused[nm]) { continue; }
-            names.push(nm);
+            var styleName = doc.graphicStyles[i].name;
+            if (styleName === "temp_style") { continue; }
+            if (usedOnly && unusedNames[styleName]) { continue; }
+            styleNames.push(styleName);
         }
-        return "OK\t" + names.join("\n");
+        return "OK\t" + styleNames.join("\n");
     }
     WORKER_FUNCS.push(workerGetStyleNames);
 
@@ -405,7 +496,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
     WORKER_FUNCS.push(workerPruneUnused);
 
-    /* worker: 指定 AI ファイルからグラフィックスタイルを現書類へ取り込む
+    /* worker: 指定 AI ファイルからグラフィックスタイルを現在のドキュメントへ取り込む
        戻り値: "OK\t" + 実際に登録された名前を \n 連結 / "NOFILE" / "NODOC"
        Import graphic styles from the AI file into the current document.
        Returns "OK\t" + registered names joined by \n, or "NOFILE" / "NODOC" */
@@ -432,14 +523,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         app.executeMenuCommand("paste");
         try { importLayer.remove(); } catch (e2) { /* ignore */ }
         try { app.redraw(); } catch (e3) { /* ignore */ }
-        var imported = [];
+        var importedNames = [];
         var k;
         for (k = 0; k < sourceStyleNames.length; k++) {
-            var exists = false;
-            try { destinationDoc.graphicStyles.getByName(sourceStyleNames[k]); exists = true; } catch (e4) { exists = false; }
-            if (exists) { imported.push(sourceStyleNames[k]); }
+            var styleExists = false;
+            try { destinationDoc.graphicStyles.getByName(sourceStyleNames[k]); styleExists = true; } catch (e4) { styleExists = false; }
+            if (styleExists) { importedNames.push(sourceStyleNames[k]); }
         }
-        return "OK\t" + imported.join("\n");
+        return "OK\t" + importedNames.join("\n");
     }
     WORKER_FUNCS.push(workerImportStyles);
 
@@ -465,12 +556,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         var currentSelection = doc.selection;
         if (!currentSelection || currentSelection.length === 0) { return "NOSEL"; }
-        var style = null;
-        try { style = doc.graphicStyles.getByName(styleName); } catch (e2) { style = null; }
-        if (!style) { return "NOSTYLE"; }
+        var graphicStyle = null;
+        try { graphicStyle = doc.graphicStyles.getByName(styleName); } catch (e2) { graphicStyle = null; }
+        if (!graphicStyle) { return "NOSTYLE"; }
         var i;
         for (i = 0; i < currentSelection.length; i++) {
-            try { style.applyTo(currentSelection[i]); } catch (e3) { /* ignore */ }
+            try { graphicStyle.applyTo(currentSelection[i]); } catch (e3) { /* ignore */ }
         }
         try { app.redraw(); } catch (e4) { /* ignore */ }
         return "OK";
@@ -487,12 +578,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: アクションセット定義(.aia)文字列を組み立て / Build an action set (.aia) string */
     function workerBuildActionSetAIA(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
-        var aia = "/version 3" + workerNameBlockAscii(setName) + "/isOpen 1" + "/actionCount " + actionDefs.length;
+        var aiaText = "/version 3" + workerNameBlockAscii(setName) + "/isOpen 1" + "/actionCount " + actionDefs.length;
         var i;
         for (i = 0; i < actionDefs.length; i++) {
-            var d = actionDefs[i];
-            aia += "/action-" + (i + 1) + " {" +
-                " " + workerNameBlockAscii(d.name) +
+            var actionDef = actionDefs[i];
+            aiaText += "/action-" + (i + 1) + " {" +
+                " " + workerNameBlockAscii(actionDef.name) +
                 " /keyIndex 0" +
                 " /colorIndex 0" +
                 " /isOpen 1" +
@@ -509,25 +600,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 " /key " + paramKeyInt +
                 " /showInPalette 4294967295" +
                 " /type (integer)" +
-                " /value " + d.value +
+                " /value " + actionDef.value +
                 " }" +
                 " }" +
                 "}";
         }
-        return aia;
+        return aiaText;
     }
     WORKER_FUNCS.push(workerBuildActionSetAIA);
 
-    /* worker: アクションセットを読み込む（temp に .aia を書き出して loadAction）/ Load an action set */
+    /* worker: アクションセットを読み込む（既存は先に外し、temp に .aia を書き出して loadAction）/ Load an action set */
     function workerLoadActionSet(setName, aiaString) {
+        workerUnloadActionSet(setName);
         try {
-            try { app.unloadAction(setName, ""); } catch (e0) { /* ignore */ }
             var actionFile = new File(Folder.temp + "/IAAGS_action_" + setName + ".aia");
             actionFile.open("w");
             actionFile.write(aiaString);
             actionFile.close();
             app.loadAction(actionFile);
-            try { actionFile.remove(); } catch (e1) { /* ignore */ }
+            actionFile.remove();
         } catch (e) { /* ignore */ }
     }
     WORKER_FUNCS.push(workerLoadActionSet);
@@ -540,7 +631,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: フレーム整列アクション（AlignTop/Center/Bottom/Justify）を読み込む / Load frame-alignment actions */
     function workerLoadAreaTextActions() {
-        var aia = workerBuildActionSetAIA(
+        var aiaText = workerBuildActionSetAIA(
             "AreaText",
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
@@ -552,7 +643,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 { name: "AlignJustify", value: 3 }
             ]
         );
-        workerLoadActionSet("AreaText", aia);
+        workerLoadActionSet("AreaText", aiaText);
     }
     WORKER_FUNCS.push(workerLoadAreaTextActions);
 
@@ -564,12 +655,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: 縦方向の配置アクションを実行（0=上,1=中央,2=下,3=均等）/ Run vertical-placement action */
     function workerRunFrameAlignment(valueInt) {
+        var actionNames = ["AlignTop", "AlignCenter", "AlignBottom", "AlignJustify"];
         if (valueInt !== 0 && valueInt !== 1 && valueInt !== 2 && valueInt !== 3) { return; }
-        var actionName = "AlignTop";
-        if (valueInt === 1) { actionName = "AlignCenter"; }
-        else if (valueInt === 2) { actionName = "AlignBottom"; }
-        else if (valueInt === 3) { actionName = "AlignJustify"; }
-        try { app.doScript(actionName, "AreaText", false); } catch (e) { /* ignore */ }
+        try { app.doScript(actionNames[valueInt], "AreaText", false); } catch (e) { /* ignore */ }
     }
     WORKER_FUNCS.push(workerRunFrameAlignment);
 
@@ -596,8 +684,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         doc.selection = null;
         try { textFrame.selected = true; } catch (selErr) { return null; }
         var countBefore = graphicStyles.length;
-        var aia = '/version 3 /name [ 12 477261706869635374796c65 ] /isOpen 1 /actionCount 1 /action-1 { /name [ 17 4164644e6577576974686f75744e616d65 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_styles) /localizedName [ 30 e382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab ] /isOpen 1 /isOn 1 /hasDialog 1 /showDialog 0 /parameterCount 1 /parameter-1 { /key 1835363957 /showInPalette 4294967295 /type (enumerated) /name [ 36 e696b0e8a68fe382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab ] /value 1 } } }';
-        workerLoadActionSet("GraphicStyle", aia);
+        var aiaText = '/version 3 /name [ 12 477261706869635374796c65 ] /isOpen 1 /actionCount 1 /action-1 { /name [ 17 4164644e6577576974686f75744e616d65 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_styles) /localizedName [ 30 e382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab ] /isOpen 1 /isOn 1 /hasDialog 1 /showDialog 0 /parameterCount 1 /parameter-1 { /key 1835363957 /showInPalette 4294967295 /type (enumerated) /name [ 36 e696b0e8a68fe382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab ] /value 1 } } }';
+        workerLoadActionSet("GraphicStyle", aiaText);
         try { app.doScript("AddNewWithoutName", "GraphicStyle", false); } catch (runErr) { /* ignore */ }
         workerUnloadActionSet("GraphicStyle");
         if (graphicStyles.length <= countBefore) { return null; }
@@ -607,16 +695,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     WORKER_FUNCS.push(workerRegisterTempStyle);
 
     /* worker: 名前でグラフィックスタイルを適用 / Apply a graphic style by name */
-    function workerApplyStyleByName(name, item) {
-        if (!name || !item) { return false; }
-        try { app.activeDocument.graphicStyles.getByName(name).applyTo(item); return true; } catch (e) { return false; }
+    function workerApplyStyleByName(styleName, targetItem) {
+        if (!styleName || !targetItem) { return false; }
+        try { app.activeDocument.graphicStyles.getByName(styleName).applyTo(targetItem); return true; } catch (e) { return false; }
     }
     WORKER_FUNCS.push(workerApplyStyleByName);
 
     /* worker: 名前でグラフィックスタイルを削除 / Remove a graphic style by name */
-    function workerRemoveStyleByName(name) {
-        if (!name) { return; }
-        try { app.activeDocument.graphicStyles.getByName(name).remove(); } catch (e) { /* ignore */ }
+    function workerRemoveStyleByName(styleName) {
+        if (!styleName) { return; }
+        try { app.activeDocument.graphicStyles.getByName(styleName).remove(); } catch (e) { /* ignore */ }
     }
     WORKER_FUNCS.push(workerRemoveStyleByName);
 
@@ -626,13 +714,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var left = null, top = null, right = null, bottom = null;
         var i;
         for (i = 0; i < currentSelection.length; i++) {
-            var b;
-            try { b = currentSelection[i].visibleBounds; } catch (e) { continue; }
-            if (!b) { continue; }
-            if (left === null || b[0] < left) { left = b[0]; }
-            if (top === null || b[1] > top) { top = b[1]; }
-            if (right === null || b[2] > right) { right = b[2]; }
-            if (bottom === null || b[3] < bottom) { bottom = b[3]; }
+            var itemBounds;
+            try { itemBounds = currentSelection[i].visibleBounds; } catch (e) { continue; }
+            if (!itemBounds) { continue; }
+            if (left === null || itemBounds[0] < left) { left = itemBounds[0]; }
+            if (top === null || itemBounds[1] > top) { top = itemBounds[1]; }
+            if (right === null || itemBounds[2] > right) { right = itemBounds[2]; }
+            if (bottom === null || itemBounds[3] < bottom) { bottom = itemBounds[3]; }
         }
         if (left === null) { return null; }
         return [left, top, right, bottom];
@@ -640,48 +728,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     WORKER_FUNCS.push(workerSelectionVisibleBounds);
 
     /* worker: 複製→アピアランス分割→アウトラインで正確な可視サイズを計測 / Measure accurate visible size */
-    function workerMeasureAccurateBounds(item) {
+    function workerMeasureAccurateBounds(sourceItem) {
         var doc = app.activeDocument;
-        var savedSel = doc.selection;
+        var savedSelection = doc.selection;
         var measured = null;
         var duplicatedItem = null;
         try {
-            duplicatedItem = item.duplicate();
+            duplicatedItem = sourceItem.duplicate();
             doc.selection = null;
             duplicatedItem.selected = true;
             app.redraw();
             try { app.executeMenuCommand("expandStyle"); } catch (e) { /* ignore */ }
             try { app.executeMenuCommand("outline"); } catch (e5) { /* ignore */ }
             app.redraw();
-            var resultSel = doc.selection;
-            var bounds = workerSelectionVisibleBounds(resultSel);
-            if (bounds) {
-                measured = { left: bounds[0], top: bounds[1], right: bounds[2], bottom: bounds[3], width: bounds[2] - bounds[0], height: bounds[1] - bounds[3] };
+            var resultSelection = doc.selection;
+            var unionBounds = workerSelectionVisibleBounds(resultSelection);
+            if (unionBounds) {
+                measured = { left: unionBounds[0], top: unionBounds[1], right: unionBounds[2], bottom: unionBounds[3], width: unionBounds[2] - unionBounds[0], height: unionBounds[1] - unionBounds[3] };
             }
-            var d;
-            for (d = resultSel.length - 1; d >= 0; d--) {
-                try { resultSel[d].remove(); } catch (e2) { /* ignore */ }
+            var k;
+            for (k = resultSelection.length - 1; k >= 0; k--) {
+                try { resultSelection[k].remove(); } catch (e2) { /* ignore */ }
             }
         } catch (e0) {
             if (duplicatedItem) { try { duplicatedItem.remove(); } catch (e3) { /* ignore */ } }
         }
-        try { doc.selection = savedSel; } catch (e4) { /* ignore */ }
+        try { doc.selection = savedSelection; } catch (e4) { /* ignore */ }
         return measured;
     }
     WORKER_FUNCS.push(workerMeasureAccurateBounds);
 
     /* worker: geometricBounds を {left, top, width, height} で返す / geometricBounds as an object */
-    function workerGeometricBounds(item) {
-        var b = item.geometricBounds;
-        return { left: b[0], top: b[1], width: b[2] - b[0], height: b[1] - b[3] };
+    function workerGeometricBounds(sourceItem) {
+        var itemBounds = sourceItem.geometricBounds;
+        return { left: itemBounds[0], top: itemBounds[1], width: itemBounds[2] - itemBounds[0], height: itemBounds[1] - itemBounds[3] };
     }
     WORKER_FUNCS.push(workerGeometricBounds);
 
     /* worker: 軸並行・直線コーナーの長方形か判定 / Is this an axis-aligned straight-corner rectangle */
-    function workerIsRectanglePath(item) {
-        if (!item || item.typename !== "PathItem" || !item.closed) { return false; }
+    function workerIsRectanglePath(pageItem) {
+        if (!pageItem || pageItem.typename !== "PathItem" || !pageItem.closed) { return false; }
         var points;
-        try { points = item.pathPoints; } catch (e) { return false; }
+        try { points = pageItem.pathPoints; } catch (e) { return false; }
         if (!points || points.length !== 4) { return false; }
         var i;
         for (i = 0; i < points.length; i++) {
@@ -705,25 +793,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: 元テキストの自動カーニングと文字組みを取得 / Capture auto-kerning and mojikumi */
     function workerReadKerningMojikumi(sourceText) {
-        var snap = { kerningMethod: null, mojikumi: null };
-        try { snap.kerningMethod = sourceText.textRange.characterAttributes.kerningMethod; } catch (e) { /* ignore */ }
+        var textSnapshot = { kerningMethod: null, mojikumi: null };
+        try { textSnapshot.kerningMethod = sourceText.textRange.characterAttributes.kerningMethod; } catch (e) { /* ignore */ }
         try {
-            if (sourceText.paragraphs.length > 0) { snap.mojikumi = sourceText.paragraphs[0].paragraphAttributes.mojikumi; }
+            if (sourceText.paragraphs.length > 0) { textSnapshot.mojikumi = sourceText.paragraphs[0].paragraphAttributes.mojikumi; }
         } catch (e2) { /* ignore */ }
-        return snap;
+        return textSnapshot;
     }
     WORKER_FUNCS.push(workerReadKerningMojikumi);
 
     /* worker: 自動カーニングと文字組みをエリア内文字へ適用 / Apply auto-kerning and mojikumi */
-    function workerApplyKerningMojikumi(areaType, snap) {
-        if (snap.kerningMethod !== null) {
-            try { areaType.textRange.characterAttributes.kerningMethod = snap.kerningMethod; } catch (e) { /* ignore */ }
+    function workerApplyKerningMojikumi(areaType, textSnapshot) {
+        if (textSnapshot.kerningMethod !== null) {
+            try { areaType.textRange.characterAttributes.kerningMethod = textSnapshot.kerningMethod; } catch (e) { /* ignore */ }
         }
-        if (snap.mojikumi !== null && snap.mojikumi !== undefined) {
-            var paragraphs = areaType.paragraphs;
+        if (textSnapshot.mojikumi !== null && textSnapshot.mojikumi !== undefined) {
+            var areaParagraphs = areaType.paragraphs;
             var i;
-            for (i = 0; i < paragraphs.length; i++) {
-                try { paragraphs[i].paragraphAttributes.mojikumi = snap.mojikumi; } catch (e2) { /* ignore */ }
+            for (i = 0; i < areaParagraphs.length; i++) {
+                try { areaParagraphs[i].paragraphAttributes.mojikumi = textSnapshot.mojikumi; } catch (e2) { /* ignore */ }
             }
         }
     }
@@ -733,18 +821,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function workerFillAreaType(doc, framePath, sourceText, graphicStyleName) {
         var sourceFont = null, sourceSize = 0;
         try {
-            var sa = sourceText.textRange.characterAttributes;
-            sourceFont = sa.textFont;
-            sourceSize = sa.size;
+            var sourceAttributes = sourceText.textRange.characterAttributes;
+            sourceFont = sourceAttributes.textFont;
+            sourceSize = sourceAttributes.size;
         } catch (e) { /* ignore */ }
-        var snap = workerReadKerningMojikumi(sourceText);
+        var textSnapshot = workerReadKerningMojikumi(sourceText);
         var areaType = doc.textFrames.areaText(framePath);
         areaType.contents = sourceText.contents;
         try {
             if (sourceFont) { areaType.textRange.characterAttributes.textFont = sourceFont; }
             if (sourceSize > 0) { areaType.textRange.characterAttributes.size = sourceSize; }
         } catch (e2) { /* ignore */ }
-        workerApplyKerningMojikumi(areaType, snap);
+        workerApplyKerningMojikumi(areaType, textSnapshot);
         if (graphicStyleName) { workerApplyStyleByName(graphicStyleName, areaType); }
         return areaType;
     }
@@ -772,68 +860,68 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* worker: パス上文字を字形を保ったままポイント文字へ分離 / Detach path text into point text */
     function workerDetachPathText(doc, pathTextFrames) {
-        function safe(fn) { try { return fn(); } catch (e) { return undefined; } }
-        var created = [];
-        if (!doc || !pathTextFrames || !pathTextFrames.length) { return created; }
-        safe(function () { doc.selection = null; });
+        function ignoreErrors(attemptAction) { try { return attemptAction(); } catch (e) { return undefined; } }
+        var createdTexts = [];
+        if (!doc || !pathTextFrames || !pathTextFrames.length) { return createdTexts; }
+        ignoreErrors(function () { doc.selection = null; });
         var j;
         for (j = pathTextFrames.length - 1; j >= 0; j--) {
             var pathText = pathTextFrames[j];
             if (!pathText || pathText.typename !== "TextFrame" || pathText.kind !== TextType.PATHTEXT) { continue; }
             var originalPath = null;
-            safe(function () { originalPath = pathText.textPath; });
+            ignoreErrors(function () { originalPath = pathText.textPath; });
             if (!originalPath) { continue; }
-            var charAttrs = [];
-            var c;
-            for (c = 0; c < pathText.characters.length; c++) {
-                var ca = pathText.characters[c].characterAttributes;
-                charAttrs.push({ font: ca.textFont, size: ca.size, fillColor: ca.fillColor, strokeColor: ca.strokeColor, strokeWeight: ca.strokeWeight, autoLeading: ca.autoLeading, leading: ca.leading });
+            var attributeSnapshots = [];
+            var i;
+            for (i = 0; i < pathText.characters.length; i++) {
+                var sourceAttributes = pathText.characters[i].characterAttributes;
+                attributeSnapshots.push({ font: sourceAttributes.textFont, size: sourceAttributes.size, fillColor: sourceAttributes.fillColor, strokeColor: sourceAttributes.strokeColor, strokeWeight: sourceAttributes.strokeWeight, autoLeading: sourceAttributes.autoLeading, leading: sourceAttributes.leading });
             }
             var textContents = "";
-            safe(function () { textContents = pathText.contents; });
+            ignoreErrors(function () { textContents = pathText.contents; });
             var justification = null;
-            safe(function () {
+            ignoreErrors(function () {
                 if (pathText.paragraphs && pathText.paragraphs.length > 0) { justification = pathText.paragraphs[0].paragraphAttributes.justification; }
             });
-            var newText = doc.textFrames.add();
+            var pointText = doc.textFrames.add();
             var anchorPoint = null;
-            safe(function () {
+            ignoreErrors(function () {
                 if (originalPath.pathPoints && originalPath.pathPoints.length > 0) { anchorPoint = originalPath.pathPoints[0].anchor; }
             });
-            if (anchorPoint) { newText.position = [anchorPoint[0], anchorPoint[1]]; }
-            newText.contents = textContents;
-            if (justification !== null && newText.paragraphs && newText.paragraphs.length > 0) {
-                safe(function () { newText.paragraphs[0].paragraphAttributes.justification = justification; });
+            if (anchorPoint) { pointText.position = [anchorPoint[0], anchorPoint[1]]; }
+            pointText.contents = textContents;
+            if (justification !== null && pointText.paragraphs && pointText.paragraphs.length > 0) {
+                ignoreErrors(function () { pointText.paragraphs[0].paragraphAttributes.justification = justification; });
             }
-            safe(function () {
+            ignoreErrors(function () {
                 var noColor = new NoColor();
-                newText.textRange.characterAttributes.strokeColor = noColor;
-                newText.textRange.characterAttributes.strokeWeight = 0;
+                pointText.textRange.characterAttributes.strokeColor = noColor;
+                pointText.textRange.characterAttributes.strokeWeight = 0;
             });
-            var restoreCount = Math.min(newText.characters.length, charAttrs.length);
+            var restoreCount = Math.min(pointText.characters.length, attributeSnapshots.length);
             var k;
             for (k = 0; k < restoreCount; k++) {
-                var targetAttr = newText.characters[k].characterAttributes;
-                var sourceAttr = charAttrs[k];
-                safe(function () { targetAttr.textFont = sourceAttr.font; });
-                safe(function () { targetAttr.size = sourceAttr.size; });
-                safe(function () { targetAttr.fillColor = sourceAttr.fillColor; });
-                safe(function () {
-                    var sourceStroke = sourceAttr.strokeColor;
-                    targetAttr.strokeColor = sourceStroke;
-                    targetAttr.strokeWeight = (sourceStroke && sourceStroke.typename === "NoColor") ? 0 : sourceAttr.strokeWeight;
+                var targetAttr = pointText.characters[k].characterAttributes;
+                var savedAttr = attributeSnapshots[k];
+                ignoreErrors(function () { targetAttr.textFont = savedAttr.font; });
+                ignoreErrors(function () { targetAttr.size = savedAttr.size; });
+                ignoreErrors(function () { targetAttr.fillColor = savedAttr.fillColor; });
+                ignoreErrors(function () {
+                    var savedStroke = savedAttr.strokeColor;
+                    targetAttr.strokeColor = savedStroke;
+                    targetAttr.strokeWeight = (savedStroke && savedStroke.typename === "NoColor") ? 0 : savedAttr.strokeWeight;
                 });
-                safe(function () { targetAttr.baselineShift = 0; });
-                safe(function () { targetAttr.horizontalScale = 100; });
-                safe(function () { targetAttr.verticalScale = 100; });
-                safe(function () { targetAttr.autoLeading = sourceAttr.autoLeading; });
-                if (!sourceAttr.autoLeading) { safe(function () { targetAttr.leading = sourceAttr.leading; }); }
+                ignoreErrors(function () { targetAttr.baselineShift = 0; });
+                ignoreErrors(function () { targetAttr.horizontalScale = 100; });
+                ignoreErrors(function () { targetAttr.verticalScale = 100; });
+                ignoreErrors(function () { targetAttr.autoLeading = savedAttr.autoLeading; });
+                if (!savedAttr.autoLeading) { ignoreErrors(function () { targetAttr.leading = savedAttr.leading; }); }
             }
-            safe(function () { pathText.remove(); });
-            safe(function () { newText.selected = true; });
-            created.push(newText);
+            ignoreErrors(function () { pathText.remove(); });
+            ignoreErrors(function () { pointText.selected = true; });
+            createdTexts.push(pointText);
         }
-        return created;
+        return createdTexts;
     }
     WORKER_FUNCS.push(workerDetachPathText);
 
@@ -843,14 +931,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pathTexts = [];
         var i;
         for (i = 0; i < currentSelection.length; i++) {
-            var item = currentSelection[i];
+            var selectedItem = currentSelection[i];
             try {
-                if (item && item.typename === "TextFrame" && item.kind === TextType.PATHTEXT) { pathTexts.push(item); }
+                if (selectedItem && selectedItem.typename === "TextFrame" && selectedItem.kind === TextType.PATHTEXT) { pathTexts.push(selectedItem); }
             } catch (e0) { /* ignore */ }
         }
         if (!pathTexts.length) { return currentSelection; }
-        var newTexts = workerDetachPathText(doc, pathTexts);
-        if (!newTexts.length) { return currentSelection; }
+        var pointTexts = workerDetachPathText(doc, pathTexts);
+        if (!pointTexts.length) { return currentSelection; }
         var replaced = [];
         var j;
         for (j = 0; j < currentSelection.length; j++) {
@@ -861,7 +949,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e1) { /* ignore */ }
         }
         var k;
-        for (k = 0; k < newTexts.length; k++) { replaced.push(newTexts[k]); }
+        for (k = 0; k < pointTexts.length; k++) { replaced.push(pointTexts[k]); }
         try { doc.selection = replaced; } catch (e) { /* ignore */ }
         try { app.redraw(); } catch (e2) { /* ignore */ }
         return replaced;
@@ -876,16 +964,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     WORKER_FUNCS.push(workerResolveStyle);
 
     /* worker: テキスト＋図形 → 図形を複製してエリア内文字に / Text + shape -> duplicate the shape into area type */
-    function workerConvertTextIntoShape(doc, selection, externalStyleName) {
-        var created = [];
+    function workerConvertTextIntoShape(doc, selectedItems, externalStyleName) {
+        var createdFrames = [];
         var sourceText = null, sourceShape = null;
         var i;
-        for (i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (!sourceText && item.typename === "TextFrame") { sourceText = item; }
-            else if (!sourceShape && workerIsRectanglePath(item)) { sourceShape = item; }
+        for (i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (!sourceText && selectedItem.typename === "TextFrame") { sourceText = selectedItem; }
+            else if (!sourceShape && workerIsRectanglePath(selectedItem)) { sourceShape = selectedItem; }
         }
-        if (!sourceText || !sourceShape) { return created; }
+        if (!sourceText || !sourceShape) { return createdFrames; }
         var styleInfo = workerResolveStyle(externalStyleName, sourceText);
         try {
             var framePath = sourceShape.duplicate();
@@ -896,31 +984,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (styleInfo.isTemp) { workerApplyButtonShape(areaType); }
             sourceText.remove();
             sourceShape.remove();
-            created.push(areaType);
+            createdFrames.push(areaType);
         } catch (e) {
             /* ignore */
         } finally {
             if (styleInfo.isTemp) { workerRemoveStyleByName(styleInfo.name); }
         }
-        return created;
+        return createdFrames;
     }
     WORKER_FUNCS.push(workerConvertTextIntoShape);
 
     /* worker: ポイント文字のみ → 計測した実寸でフレームを作り中央配置 / Point text -> frame at measured size, centered */
-    function workerConvertPointText(doc, selection, adjust, widthRatio, heightRatio, externalStyleName) {
-        var created = [];
-        var wRatio = adjust ? widthRatio : 1;
-        var hRatio = adjust ? heightRatio : 1;
+    function workerConvertPointText(doc, selectedItems, adjust, widthRatio, heightRatio, externalStyleName) {
+        var createdFrames = [];
+        var appliedWidthRatio = adjust ? widthRatio : 1;
+        var appliedHeightRatio = adjust ? heightRatio : 1;
         var i;
-        for (i = selection.length - 1; i >= 0; i--) {
-            var sourceText = selection[i];
+        for (i = selectedItems.length - 1; i >= 0; i--) {
+            var sourceText = selectedItems[i];
             if (!(sourceText.typename === "TextFrame" && sourceText.kind === TextType.POINTTEXT)) { continue; }
             var styleInfo = workerResolveStyle(externalStyleName, sourceText);
             try {
                 var measuredBounds = workerMeasureAccurateBounds(sourceText);
                 if (!measuredBounds) { measuredBounds = workerGeometricBounds(sourceText); }
-                var frameWidth = measuredBounds.width * wRatio;
-                var frameHeight = measuredBounds.height * hRatio;
+                var frameWidth = measuredBounds.width * appliedWidthRatio;
+                var frameHeight = measuredBounds.height * appliedHeightRatio;
                 var centerX = measuredBounds.left + measuredBounds.width / 2;
                 var centerY = measuredBounds.top - measuredBounds.height / 2;
                 var frameLeft = centerX - frameWidth / 2;
@@ -933,7 +1021,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (adjust) {
                     if (styleInfo.isTemp) { workerApplyButtonShape(areaType); }
                 }
-                created.push(areaType);
+                createdFrames.push(areaType);
                 sourceText.remove();
             } catch (e) {
                 /* ignore */
@@ -941,7 +1029,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (styleInfo.isTemp) { workerRemoveStyleByName(styleInfo.name); }
             }
         }
-        return created;
+        return createdFrames;
     }
     WORKER_FUNCS.push(workerConvertPointText);
 
@@ -959,24 +1047,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         workerLoadAreaTextActions();
         var resultMarker = "OK";
         try {
-            currentSelection = workerPreprocessPathText(doc, currentSelection);
-            var selection = doc.selection;
-            if (!selection || selection.length === 0) { return "NOSEL"; }
+            workerPreprocessPathText(doc, currentSelection);
+            var updatedSelection = doc.selection;
+            if (!updatedSelection || updatedSelection.length === 0) { return "NOSEL"; }
             var hasSourceText = false, hasFrameShape = false, hasNonRectShape = false;
             var i;
-            for (i = 0; i < selection.length; i++) {
-                var item = selection[i];
-                if (item.typename === "TextFrame" && (item.kind === TextType.POINTTEXT || item.kind === TextType.PATHTEXT)) { hasSourceText = true; }
-                if (workerIsRectanglePath(item)) { hasFrameShape = true; }
-                else if (item.typename === "PathItem" && item.closed) { hasNonRectShape = true; }
+            for (i = 0; i < updatedSelection.length; i++) {
+                var selectedItem = updatedSelection[i];
+                if (selectedItem.typename === "TextFrame" && (selectedItem.kind === TextType.POINTTEXT || selectedItem.kind === TextType.PATHTEXT)) { hasSourceText = true; }
+                if (workerIsRectanglePath(selectedItem)) { hasFrameShape = true; }
+                else if (selectedItem.typename === "PathItem" && selectedItem.closed) { hasNonRectShape = true; }
             }
             if (!hasSourceText) { return "NOTEXT"; }
             if (hasNonRectShape && !hasFrameShape) { return "RECTONLY"; }
-            var created = hasFrameShape
-                ? workerConvertTextIntoShape(doc, selection, externalStyleName)
-                : workerConvertPointText(doc, selection, adjust, widthRatio, heightRatio, externalStyleName);
-            if (created.length > 0) {
-                try { doc.selection = created; app.redraw(); } catch (e) { /* ignore */ }
+            var createdFrames = hasFrameShape
+                ? workerConvertTextIntoShape(doc, updatedSelection, externalStyleName)
+                : workerConvertPointText(doc, updatedSelection, adjust, widthRatio, heightRatio, externalStyleName);
+            if (createdFrames.length > 0) {
+                try { doc.selection = createdFrames; app.redraw(); } catch (e) { /* ignore */ }
             }
         } catch (eMain) {
             resultMarker = "ERR:" + eMain;
@@ -991,40 +1079,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 設定ファイルとファイル選択 / Prefs & file picking
     // =========================================
 
-    /* パスから表示用ファイル名を取得 / Get a display-friendly filename from a path */
+    /**
+     * パスから表示用ファイル名を取得する
+     * @param {string} filePath - ファイルのパス
+     * @returns {string} 表示用のファイル名（デコードできなければパスのまま）
+     */
     function getDisplayFileName(filePath) {
+        /* 不正なエスケープは decodeURI が例外を投げる / decodeURI throws on malformed escapes */
         try { return decodeURI(new File(filePath).name); } catch (e) { return filePath; }
     }
 
-    /* 設定ファイル（前回のスタイルファイルのパスとスタイル名を記憶）/ Prefs file remembering the last style file and names */
+    /**
+     * 設定ファイル（前回のスタイルファイルのパスとスタイル名を記憶）を返す
+     * @returns {File} 設定ファイル
+     */
     function getPrefsFile() {
         return new File(Folder.userData + "/" + PREFS_FILE_NAME);
     }
 
-    /* 記憶しているスタイルファイルのパスとスタイル名を読み込む / Load the remembered style-file path and names */
+    /**
+     * 記憶しているスタイルファイルのパスとスタイル名を読み込む
+     * @returns {{filePath: string, styleNames: string[]}} 記憶していた内容（無ければ空）
+     */
     function loadSavedStyleState() {
-        var state = { filePath: "", styleNames: [] };
+        var savedState = { filePath: "", styleNames: [] };
         var prefsFile = getPrefsFile();
-        if (!prefsFile.exists) return state;
+        if (!prefsFile.exists) return savedState;
         try {
             prefsFile.encoding = "UTF-8";
             prefsFile.open("r");
-            var content = prefsFile.read();
+            var prefsText = prefsFile.read();
             prefsFile.close();
-            var lines = content.split(/\r\n|\r|\n/);
-            for (var i = 0; i < lines.length; i++) {
-                var separatorIndex = lines[i].indexOf("=");
+            var prefsLines = prefsText.split(/\r\n|\r|\n/);
+            for (var i = 0; i < prefsLines.length; i++) {
+                var separatorIndex = prefsLines[i].indexOf("=");
                 if (separatorIndex < 0) continue;
-                var key = lines[i].substring(0, separatorIndex);
-                var value = lines[i].substring(separatorIndex + 1);
-                if (key === "styleFilePath") state.filePath = value;
-                else if (key === "styleNames") state.styleNames = value ? value.split("\t") : [];
+                var prefsKey = prefsLines[i].substring(0, separatorIndex);
+                var prefsValue = prefsLines[i].substring(separatorIndex + 1);
+                if (prefsKey === "styleFilePath") savedState.filePath = prefsValue;
+                else if (prefsKey === "styleNames") savedState.styleNames = prefsValue ? prefsValue.split("\t") : [];
             }
         } catch (e) { }
-        return state;
+        return savedState;
     }
 
-    /* スタイルファイルのパスとスタイル名を記憶する（key=value 形式）/ Remember the style-file path and names (key=value) */
+    /**
+     * スタイルファイルのパスとスタイル名を記憶する（key=value 形式）
+     * @param {string} filePath - スタイルファイルのパス
+     * @param {string[]} styleNames - 取り込んだスタイル名
+     * @returns {void}
+     */
     function saveStyleState(filePath, styleNames) {
         var prefsFile = getPrefsFile();
         try {
@@ -1036,103 +1140,62 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
     }
 
-    /* スタイル用 AI ファイルを選ばせる（キャンセルで空文字）/ Let the user pick a style AI file */
+    /**
+     * スタイル用 AI ファイルを選ばせる
+     * @returns {string} 選んだファイルのパス（キャンセルで空文字）
+     */
     function pickStyleFile() {
-        var picked = File.openDialog(getLabel("ui.pickFile"), function (candidate) {
+        var pickedFile = File.openDialog(getLabel("dialog.pickFile"), function (candidate) {
             return (candidate instanceof Folder) || /\.ai$/i.test(candidate.name);
         });
-        return picked ? picked.fsName : "";
+        return pickedFile ? pickedFile.fsName : "";
     }
 
     // =========================================
     // パレット / Palette
     // =========================================
 
-    /* 大きさ調整「する」の既定倍率（幅・高さ）/ Default size-adjustment ratios (width, height) */
-    var BUTTON_WIDTH_RATIO = 1.2;   // 元の幅に対する倍率 / Ratio of original width
-    var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
-
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
-
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) { }
-    }
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* 常駐パレットを構築して表示。「変換」ボタンで選択をエリア内文字化（DOM 処理はメインエンジンへ委譲）
-       「読み込み」ボタンで別の AI ファイルを選ぶと、その場でリストを組み直す
-       Build and show the resident palette. The "Convert" button converts the selection to area type
-       (DOM work is delegated to the main engine). The "Load" button re-imports and rebuilds the list */
-    function showPalette(savedStyleState) {
-        // すでにパレットが開いていれば前面に出して終了 / If the palette already exists, bring it forward and return
-        try {
-            if ($.global.__importAndApplyGraphicStylePalette && $.global.__importAndApplyGraphicStylePalette.visible) {
-                $.global.__importAndApplyGraphicStylePalette.show();
-                return;
-            }
-        } catch (eExisting) { /* ignore */ }
-
-        var styleState = {
-            filePath: (savedStyleState && savedStyleState.filePath) || "",
-            styleNames: (savedStyleState && savedStyleState.styleNames) || []
-        };
-
-        var paletteWindow = new Window("palette", getLabel("ui.dialogTitle") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-        $.global.__importAndApplyGraphicStylePalette = paletteWindow;
-        paletteWindow.orientation = "column";
-        paletteWindow.alignChildren = "fill";
-        paletteWindow.margins = 15;
-
-        var areaTypeOptionPanel = paletteWindow.add("panel", undefined, getLabel("ui.areaTypeOptionPanel"));
-        setupPanel(areaTypeOptionPanel, 6);
+    /**
+     * ［エリア内文字オプション］パネルを組み立てる（マスターのチェックでほかの項目を有効化）
+     * @param {Window} paletteWindow - 追加先のパレット
+     * @returns {object} パネル内のコントロール（convertCheckbox / adjustOnRadio / widthInput / heightInput / convertButton）
+     */
+    function addAreaTypeOptionPanel(paletteWindow) {
+        var areaTypeOptionPanel = paletteWindow.add("panel", undefined, getLabel("panel.areaTypeOption"));
+        setupPanel(areaTypeOptionPanel, INNER_PANEL_SPACING);
 
         // マスターチェック：オンのときだけ他パーツを有効化 / Master checkbox: enables the other parts only when checked
-        var convertCheckbox = areaTypeOptionPanel.add("checkbox", undefined, getLabel("ui.convertToAreaType"));
+        var convertCheckbox = areaTypeOptionPanel.add("checkbox", undefined, getLabel("checkbox.convertToAreaType"));
+        convertCheckbox.helpTip = getLabel("tooltip.convertToAreaType");
         convertCheckbox.value = false; // 既定はオフ / Default: off
 
         // サイズ：調整する / 調整しない / Size: adjust / don't adjust
-        var LABEL_WIDTH = 44; // サイズ／幅／高さのラベル幅を統一 / Shared label width for Size/Width/Height
         var adjustModeGroup = areaTypeOptionPanel.add("group");
-        var sizeLabel = adjustModeGroup.add("statictext", undefined, getLabel("ui.sizeLabel"));
-        sizeLabel.preferredSize.width = LABEL_WIDTH;
-        var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.doAdjust"));
-        var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.dontAdjust"));
+        var sizeLabel = adjustModeGroup.add("statictext", undefined, labelText("fieldLabel.size"));
+        sizeLabel.preferredSize.width = SIZE_LABEL_WIDTH;
+        var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("radio.doAdjust"));
+        adjustOnRadio.helpTip = getLabel("tooltip.doAdjust");
+        var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("radio.dontAdjust"));
+        adjustOffRadio.helpTip = getLabel("tooltip.dontAdjust");
         adjustOffRadio.value = true; // 既定は「しない」/ Default: off
 
         // 幅・高さの倍率（1行に横並び、百分率 % で入力）/ Width and height ratios (one row, entered as %)
         var ratioRow = areaTypeOptionPanel.add("group");
-        var widthLabel = ratioRow.add("statictext", undefined, getLabel("ui.widthRatio"));
-        var widthInput = ratioRow.add("edittext", undefined, String(Math.round(BUTTON_WIDTH_RATIO * 100)));
-        widthInput.characters = 4;
-        widthInput.preferredSize.width = 40;
-        ratioRow.add("statictext", undefined, "%");
-
-        var heightLabel = ratioRow.add("statictext", undefined, getLabel("ui.heightRatio"));
-        var heightInput = ratioRow.add("edittext", undefined, String(Math.round(BUTTON_HEIGHT_RATIO * 100)));
-        heightInput.characters = 4;
-        heightInput.preferredSize.width = 40;
-        ratioRow.add("statictext", undefined, "%");
+        var widthInput = addRatioField(ratioRow, "widthRatio", BUTTON_WIDTH_RATIO);
+        var heightInput = addRatioField(ratioRow, "heightRatio", BUTTON_HEIGHT_RATIO);
 
         // 変換ボタン（このパネル内・主アクション）。パネル幅いっぱいに広げず右寄せ・自然幅に
         // onClick は各パネル構築後に割り当て
         // Convert button (primary action, inside this panel); right-aligned at its natural width (not full width)
         // onClick is assigned after all panels are built
-        var convertButton = areaTypeOptionPanel.add("button", undefined, getLabel("ui.runConvert"), { name: "ok" });
+        var convertButton = areaTypeOptionPanel.add("button", undefined, getLabel("button.runConvert"), { name: "ok" });
+        convertButton.helpTip = getLabel("tooltip.runConvert");
         convertButton.alignment = ["right", "center"]; // 親の fill を上書きして広げない / Override the panel's fill so it doesn't stretch
 
+        /**
+         * マスターのチェックと「する／しない」に合わせて各項目の有効・無効を切り替える
+         * @returns {void}
+         */
         function updateAreaTypeOptionEnabled() {
             var convertOn = convertCheckbox.value;
             // マスターがオフなら する/しない ラジオごとディム / Dim the on/off radios when the master is off
@@ -1147,96 +1210,212 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         adjustOffRadio.onClick = updateAreaTypeOptionEnabled;
         updateAreaTypeOptionEnabled();
 
-        // グラフィックスタイル（元の見た目／読み込んだスタイル）/ Graphic style (original appearance / loaded styles)
-        var stylePanel = paletteWindow.add("panel", undefined, getLabel("ui.stylePanel"));
-        setupPanel(stylePanel, 6);
+        return {
+            convertCheckbox: convertCheckbox,
+            adjustOnRadio: adjustOnRadio,
+            widthInput: widthInput,
+            heightInput: heightInput,
+            convertButton: convertButton
+        };
+    }
+
+    /**
+     * 倍率の入力欄（ラベル＋入力欄＋%）を追加する
+     * @param {Group} ratioRow - 追加先の行
+     * @param {string} labelKey - LABELS.fieldLabel と LABELS.tooltip のキー
+     * @param {number} defaultRatio - 初期値の倍率（1 = 100%）
+     * @returns {EditText} 追加した入力欄
+     */
+    function addRatioField(ratioRow, labelKey, defaultRatio) {
+        ratioRow.add("statictext", undefined, labelText("fieldLabel." + labelKey));
+        var ratioInput = ratioRow.add("edittext", undefined, String(Math.round(defaultRatio * 100)));
+        ratioInput.characters = 4;
+        ratioInput.preferredSize.width = RATIO_INPUT_WIDTH;
+        ratioInput.helpTip = getLabel("tooltip." + labelKey);
+        ratioRow.add("statictext", undefined, "%");
+        return ratioInput;
+    }
+
+    /**
+     * ［グラフィックスタイル］パネルを組み立てる
+     * @param {Window} paletteWindow - 追加先のパレット
+     * @returns {object} パネル内のコントロール（usedOnlyCheckbox / styleListbox / clearButton / openStylePanelButton）
+     */
+    function addStylePanel(paletteWindow) {
+        var stylePanel = paletteWindow.add("panel", undefined, getLabel("panel.graphicStyle"));
+        setupPanel(stylePanel, INNER_PANEL_SPACING);
 
         // 使用中のみ表示するフィルタ / Filter to show only styles used in the document
-        var usedOnlyCheckbox = stylePanel.add("checkbox", undefined, getLabel("ui.usedOnly"));
+        var usedOnlyCheckbox = stylePanel.add("checkbox", undefined, getLabel("checkbox.usedOnly"));
         usedOnlyCheckbox.value = false;
 
-        // スタイル選択リスト（先頭が「元の見た目」、以降が現書類のグラフィックスタイル）
+        // スタイル選択リスト（先頭が「元の見た目」、以降が現在のドキュメントのグラフィックスタイル）
         // Style list (first row = original appearance, then the document's graphic styles)
         var styleListbox = stylePanel.add("listbox", undefined, [], { multiselect: false });
-        styleListbox.preferredSize.height = 120;
-        var styleListValues = []; // 各行に対応する値（null=元の見た目、以降はスタイル名）/ Value per row (null = original, else style name)
+        styleListbox.preferredSize.height = STYLE_LIST_HEIGHT;
+        styleListbox.helpTip = getLabel("tooltip.styleList");
 
         // 最下部：左右分割（左＝クリア／スペーサー／右＝パネル）/ Bottom row: split layout (left = Clear, spacer, right = Panel)
         var styleFooterRow = stylePanel.add("group");
         styleFooterRow.orientation = "row";
         styleFooterRow.alignment = ["fill", "bottom"];
-        styleFooterRow.margins = [0, 5, 0, 0]; // ボタンエリア上部にマージン / Top margin above the button area
+        styleFooterRow.margins = STYLE_FOOTER_MARGINS; // ボタンエリア上部にマージン / Top margin above the button area
 
         // 左側グループ：未使用のグラフィックスタイルを削除 / Left group: delete unused graphic styles
-        var styleFooterLeft = styleFooterRow.add("group");
-        styleFooterLeft.alignChildren = ["left", "center"];
-        var clearButton = styleFooterLeft.add("button", undefined, getLabel("ui.clearStyle"));
-        clearButton.helpTip = getLabel("ui.clearStyleHint");
-        clearButton.onClick = function () {
-            // 未使用削除はメインエンジンへ委譲（ダイナミックアクション）/ Delegate the unused-prune to the main engine (dynamic action)
-            delegate("workerPruneUnused()");
-            rebuildStyleList();
-        };
+        var btnLeftGroup = styleFooterRow.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var clearButton = btnLeftGroup.add("button", undefined, getLabel("button.clearStyle"));
+        clearButton.helpTip = getLabel("tooltip.clearStyle");
 
         // スペーサー（伸縮）/ Spacer (stretchable)
-        var styleFooterSpacer = styleFooterRow.add("group");
-        styleFooterSpacer.alignment = ["fill", "fill"];
-        styleFooterSpacer.minimumSize.width = 0;
+        var spacer = styleFooterRow.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
         // 右側グループ：グラフィックスタイルパネルへ移動 / Right group: jump to the Graphic Styles panel
-        var styleFooterRight = styleFooterRow.add("group");
-        styleFooterRight.alignChildren = ["right", "center"];
-        var openStylePanelButton = styleFooterRight.add("button", undefined, getLabel("ui.openStylePanel"));
-        openStylePanelButton.helpTip = getLabel("ui.openStylePanelHint");
-        openStylePanelButton.onClick = function () {
-            // DOM/メニュー操作はメインエンジンへ委譲 / Delegate the DOM/menu op to the main engine
-            delegate("workerOpenStylePanel()");
-        };
+        var btnRightGroup = styleFooterRow.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var openStylePanelButton = btnRightGroup.add("button", undefined, getLabel("button.openStylePanel"));
+        openStylePanelButton.helpTip = getLabel("tooltip.openStylePanel");
 
-        // スタイルの読み込みパネル（ファイル名を上、ボタンを下に表示）/ Load-styles panel (filename on top, buttons below)
-        var loadPanel = paletteWindow.add("panel", undefined, getLabel("ui.loadPanel"));
-        setupPanel(loadPanel, 6);
+        return {
+            usedOnlyCheckbox: usedOnlyCheckbox,
+            styleListbox: styleListbox,
+            clearButton: clearButton,
+            openStylePanelButton: openStylePanelButton
+        };
+    }
+
+    /**
+     * ［スタイルの読み込み］パネルを組み立てる（ファイル名を上、ボタンを下に表示）
+     * @param {Window} paletteWindow - 追加先のパレット
+     * @returns {object} パネル内のコントロール（fileNameText / loadButton / reloadButton）
+     */
+    function addLoadPanel(paletteWindow) {
+        var loadPanel = paletteWindow.add("panel", undefined, getLabel("panel.loadStyles"));
+        setupPanel(loadPanel, INNER_PANEL_SPACING);
         var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
-        fileNameText.preferredSize.width = 240;
+        fileNameText.preferredSize.width = FILE_NAME_WIDTH;
         // 読み込み / 再読み込みボタンを左寄せで横並び / Load & Reload buttons in a left-aligned row
         var loadButtonRow = loadPanel.add("group");
         loadButtonRow.alignment = "left";
-        loadButtonRow.margins = [0, 7, 0, 0];
-        var loadButton = loadButtonRow.add("button", undefined, getLabel("ui.loadButton"));
-        loadButton.helpTip = getLabel("ui.noStylesHint"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
-        var reloadButton = loadButtonRow.add("button", undefined, getLabel("ui.reloadButton"));
-        reloadButton.helpTip = getLabel("ui.reloadHint"); // 記憶したファイルから再取り込み / Re-import from the remembered file
+        loadButtonRow.margins = LOAD_BUTTON_ROW_MARGINS;
+        var loadButton = loadButtonRow.add("button", undefined, getLabel("button.load"));
+        loadButton.helpTip = getLabel("tooltip.load"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
+        var reloadButton = loadButtonRow.add("button", undefined, getLabel("button.reload"));
+        reloadButton.helpTip = getLabel("tooltip.reload"); // 記憶したファイルから再取り込み / Re-import from the remembered file
 
-        /* 選択中のファイル名表示と再読み込みボタンの有効状態を更新 / Update the file-name label and Reload's enabled state */
-        function refreshFileLabel() {
-            fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : getLabel("ui.noFileSelected");
-            reloadButton.enabled = !!styleState.filePath; // 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file
-        }
+        return { fileNameText: fileNameText, loadButton: loadButton, reloadButton: reloadButton };
+    }
+
+    /**
+     * 百分率の入力を倍率に換算する（不正な値は既定の倍率）
+     * @param {EditText} ratioInput - 倍率の入力欄（%）
+     * @param {number} defaultRatio - 既定の倍率
+     * @returns {number} 倍率
+     */
+    function readRatio(ratioInput, defaultRatio) {
+        var percentValue = parseFloat(ratioInput.text);
+        return (isNaN(percentValue) || percentValue <= 0) ? defaultRatio : percentValue / 100;
+    }
+
+    /**
+     * 常駐パレットを構築して表示する。「変換」ボタンで選択をエリア内文字化（DOM 処理はメインエンジンへ委譲）
+     * 「読み込み」ボタンで別の AI ファイルを選ぶと、その場でリストを組み直す
+     * @param {{filePath: string, styleNames: string[]}} savedStyleState - 記憶していたスタイルファイルとスタイル名
+     * @returns {void}
+     */
+    function showPalette(savedStyleState) {
+        // すでにパレットが開いていれば前面に出して終了 / If the palette already exists, bring it forward and return
+        /* 閉じたパレットの参照は読めないことがある / A closed palette's reference may be unreadable */
+        try {
+            if ($.global.__importAndApplyGraphicStylePalette && $.global.__importAndApplyGraphicStylePalette.visible) {
+                $.global.__importAndApplyGraphicStylePalette.show();
+                return;
+            }
+        } catch (eExisting) { /* ignore */ }
+
+        var styleState = {
+            filePath: (savedStyleState && savedStyleState.filePath) || "",
+            styleNames: (savedStyleState && savedStyleState.styleNames) || []
+        };
+
+        var paletteWindow = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        $.global.__importAndApplyGraphicStylePalette = paletteWindow;
+        paletteWindow.orientation = "column";
+        paletteWindow.alignChildren = "fill";
+        paletteWindow.margins = PALETTE_MARGINS;
+
+        var optionControls = addAreaTypeOptionPanel(paletteWindow);
+        var styleControls = addStylePanel(paletteWindow);
+        var loadControls = addLoadPanel(paletteWindow);
+        var styleListbox = styleControls.styleListbox;
+
+        var styleListValues = []; // 各行に対応する値（null=元の見た目、以降はスタイル名）/ Value per row (null = original, else style name)
 
         // リビルド中は onChange の即時適用を抑止 / Suppress live-apply during a rebuild
         var isRebuildingStyleList = false;
 
-        /* 現在のグラフィックスタイルでリストを組み直す（一覧取得はメインエンジンへ委譲）
-           Rebuild the list from the current graphic styles (names fetched via the main engine) */
+        /**
+         * 選択中のファイル名表示と再読み込みボタンの有効状態を更新する
+         * @returns {void}
+         */
+        function refreshFileLabel() {
+            loadControls.fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : getLabel("status.noFileSelected");
+            loadControls.reloadButton.enabled = !!styleState.filePath; // 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file
+        }
+
+        /**
+         * 現在のグラフィックスタイルでリストを組み直す（一覧取得はメインエンジンへ委譲）
+         * @returns {void}
+         */
         function rebuildStyleList() {
             styleListbox.removeAll();
             styleListValues = [];
             // 先頭に「元の見た目」/ First row = original appearance
-            styleListbox.add("item", getLabel("ui.styleOriginal"));
+            styleListbox.add("item", getLabel("listItem.styleOriginal"));
             styleListValues.push(null);
 
             // 「使用中のみ」ON のときだけ未使用を除外（判定は worker 内で実施）
             // Skip unused only when the filter is on (classification happens inside the worker)
-            var parsed = parseMarkerList(delegate("workerGetStyleNames(" + (usedOnlyCheckbox.value ? "true" : "false") + ")"));
-            for (var j = 0; j < parsed.items.length; j++) {
-                styleListbox.add("item", parsed.items[j]);
-                styleListValues.push(parsed.items[j]);
+            var parsedNames = parseMarkerList(delegate("workerGetStyleNames(" + (styleControls.usedOnlyCheckbox.value ? "true" : "false") + ")"));
+            for (var j = 0; j < parsedNames.items.length; j++) {
+                styleListbox.add("item", parsedNames.items[j]);
+                styleListValues.push(parsedNames.items[j]);
             }
             isRebuildingStyleList = true;
             styleListbox.selection = 0; // 既定は「元の見た目」/ Default: original appearance
             isRebuildingStyleList = false;
         }
-        usedOnlyCheckbox.onClick = function () { rebuildStyleList(); };
+
+        /**
+         * AI ファイルからスタイルを取り込み（メインエンジンへ委譲）、記憶してリストを組み直す
+         * @param {string} filePath - スタイルの AI ファイルのパス
+         * @returns {void}
+         */
+        function importAndRemember(filePath) {
+            var parsedNames = parseMarkerList(delegate("workerImportStyles(" + jsStringLiteral(filePath) + ")"));
+            if (!parsedNames.ok) {
+                if (parsedNames.marker === "NOFILE") alert(getLabel("alert.fileNotFound") + getDisplayFileName(filePath));
+                return;
+            }
+            styleState.filePath = filePath;
+            styleState.styleNames = parsedNames.items;
+            saveStyleState(filePath, parsedNames.items); // 次回以降このファイルを参照 / Remember for next runs
+            refreshFileLabel();
+            rebuildStyleList();
+        }
+
+        styleControls.clearButton.onClick = function () {
+            // 未使用削除はメインエンジンへ委譲（ダイナミックアクション）/ Delegate the unused-prune to the main engine (dynamic action)
+            delegate("workerPruneUnused()");
+            rebuildStyleList();
+        };
+        styleControls.openStylePanelButton.onClick = function () {
+            // DOM/メニュー操作はメインエンジンへ委譲 / Delegate the DOM/menu op to the main engine
+            delegate("workerOpenStylePanel()");
+        };
+        styleControls.usedOnlyCheckbox.onClick = function () { rebuildStyleList(); };
 
         // listbox で選んだグラフィックスタイルを、その時点の選択オブジェクトへ即適用（「適用」ボタン無し）
         // 「元の見た目」行・リビルド時は適用しない。選択なし等はクリックごとに警告せず無言で無視
@@ -1251,35 +1430,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // onClick で連結（addEventListener は発火しない環境があるため）/ Use onClick, not addEventListener
-        loadButton.onClick = function () {
+        loadControls.loadButton.onClick = function () {
             var pickedPath = pickStyleFile();
             if (!pickedPath) return;
-            // 取り込みはメインエンジンへ委譲 / Delegate the import to the main engine
-            var parsed = parseMarkerList(delegate("workerImportStyles(" + jsStringLiteral(pickedPath) + ")"));
-            if (!parsed.ok) {
-                if (parsed.marker === "NOFILE") alert(getLabel("alert.fileNotFound") + getDisplayFileName(pickedPath));
-                return;
-            }
-            styleState.filePath = pickedPath;
-            styleState.styleNames = parsed.items;
-            saveStyleState(pickedPath, parsed.items); // 次回以降このファイルを参照 / Remember for next runs
-            refreshFileLabel();
-            rebuildStyleList();
+            importAndRemember(pickedPath);
         };
 
         // 記憶したファイルを選び直さずに再取り込み（別ドキュメントでも同じファイルを再利用）
         // Re-import from the remembered file without re-picking (reuse the same file in another document)
-        reloadButton.onClick = function () {
+        loadControls.reloadButton.onClick = function () {
             if (!styleState.filePath) return;
-            var parsed = parseMarkerList(delegate("workerImportStyles(" + jsStringLiteral(styleState.filePath) + ")"));
-            if (!parsed.ok) {
-                if (parsed.marker === "NOFILE") alert(getLabel("alert.fileNotFound") + getDisplayFileName(styleState.filePath));
-                return;
-            }
-            styleState.styleNames = parsed.items;
-            saveStyleState(styleState.filePath, parsed.items); // スタイル名の変化を反映 / Reflect any style-name changes
-            refreshFileLabel();
-            rebuildStyleList();
+            importAndRemember(styleState.filePath);
         };
 
         refreshFileLabel();
@@ -1287,34 +1448,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 「変換」：現在の UI 設定で選択をエリア内文字化。DOM 処理はメインエンジンへ委譲し、パレットは開いたまま
         // "Convert": convert the selection using the current UI settings. DOM work is delegated; the palette stays open.
-        convertButton.onClick = function () {
+        optionControls.convertButton.onClick = function () {
             // 幅・高さは百分率 % 入力を倍率へ換算 / Width/height: convert the % input to a ratio
-            var wPercent = parseFloat(widthInput.text);
-            var hPercent = parseFloat(heightInput.text);
-            var widthRatio = (isNaN(wPercent) || wPercent <= 0) ? BUTTON_WIDTH_RATIO : wPercent / 100;
-            var heightRatio = (isNaN(hPercent) || hPercent <= 0) ? BUTTON_HEIGHT_RATIO : hPercent / 100;
+            var widthRatio = readRatio(optionControls.widthInput, BUTTON_WIDTH_RATIO);
+            var heightRatio = readRatio(optionControls.heightInput, BUTTON_HEIGHT_RATIO);
             // 「元の見た目」なら null、スタイル選択時はその名前 / null for original, else the selected style name
             var externalStyleName = null;
             if (styleListbox.selection) { externalStyleName = styleListValues[styleListbox.selection.index]; }
-            var extName = externalStyleName ? externalStyleName : "";
 
-            if (convertCheckbox.value) {
-                // エリア内文字変換はメインエンジンへ委譲（スタイルは読み込み済みで現書類に存在）
+            if (optionControls.convertCheckbox.value) {
+                // エリア内文字変換はメインエンジンへ委譲（スタイルは読み込み済みで現在のドキュメントに存在）
                 // Delegate the area-type conversion to the main engine (the style is already imported in the doc)
-                var convRes = delegate("workerConvertSelection(" +
-                    (adjustOnRadio.value ? "true" : "false") + "," +
+                var convertResult = delegate("workerConvertSelection(" +
+                    (optionControls.adjustOnRadio.value ? "true" : "false") + "," +
                     widthRatio + "," +
                     heightRatio + "," +
-                    jsStringLiteral(extName) + ",false)");
-                if (convRes === "NODOC") { alert(getLabel("alert.noDocument")); }
-                else if (convRes === "RECTONLY") { alert(getLabel("alert.rectangleOnly")); }
-                else if (convRes === "NOSEL" || convRes === "NOTEXT") { alert(getLabel("alert.selectText")); }
+                    jsStringLiteral(externalStyleName ? externalStyleName : "") + ",false)");
+                if (convertResult === "NODOC") { alert(getLabel("alert.noDocument")); }
+                else if (convertResult === "RECTONLY") { alert(getLabel("alert.rectangleOnly")); }
+                else if (convertResult === "NOSEL" || convertResult === "NOTEXT") { alert(getLabel("alert.selectText")); }
             } else if (externalStyleName) {
                 // 変換OFF：選択したグラフィックスタイルを選択オブジェクトへ適用（メインエンジンへ委譲）
                 // Convert off: apply the chosen graphic style to the selection (delegated to the main engine)
-                var applyRes = delegate("workerApplyStyleToSelection(" + jsStringLiteral(externalStyleName) + ",false)");
-                if (applyRes === "NODOC") { alert(getLabel("alert.noDocument")); }
-                else if (applyRes === "NOSEL") { alert(getLabel("alert.selectText")); }
+                var applyResult = delegate("workerApplyStyleToSelection(" + jsStringLiteral(externalStyleName) + ",false)");
+                if (applyResult === "NODOC") { alert(getLabel("alert.noDocument")); }
+                else if (applyResult === "NOSEL") { alert(getLabel("alert.selectText")); }
             }
         };
 
@@ -1323,12 +1481,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (event && event.keyName === "Escape") { paletteWindow.close(); }
         });
 
-        // パネル内のボタンはレイアウト確定後に高さを 2px 詰める / Trim panel buttons' height by 2px after layout
+        // パネル内のボタンはレイアウト確定後に高さを詰める / Trim panel buttons' height after layout
         paletteWindow.onShow = function () {
-            trimButtonHeight(loadButton, 2);
-            trimButtonHeight(reloadButton, 2);
-            trimButtonHeight(clearButton, 2);
-            trimButtonHeight(openStylePanelButton, 2);
+            trimButtonHeight(loadControls.loadButton, BUTTON_HEIGHT_TRIM);
+            trimButtonHeight(loadControls.reloadButton, BUTTON_HEIGHT_TRIM);
+            trimButtonHeight(styleControls.clearButton, BUTTON_HEIGHT_TRIM);
+            trimButtonHeight(styleControls.openStylePanelButton, BUTTON_HEIGHT_TRIM);
         };
         // 閉じたらグローバル参照を解放 / Release the global reference when closed
         paletteWindow.onClose = function () {
@@ -1346,8 +1504,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 変換・スタイル適用は「変換」ボタンから実行（DOM 処理はメインエンジンへ委譲）
         // Load the remembered file/style names, then show the resident palette.
         // Conversion / style application runs from the "Convert" button (DOM work delegated to the main engine).
-        var savedStyleState = loadSavedStyleState();
-        showPalette(savedStyleState);
+        showPalette(loadSavedStyleState());
     } else {
         alert(getLabel("alert.noDocument"));
     }

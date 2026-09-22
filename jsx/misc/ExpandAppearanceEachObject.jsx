@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "ExpandAppearanceEachObject";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandAppearanceEachObject.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandAppearanceEachObject.md"; /* README (English) */
@@ -36,20 +36,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    // Illustrator用のJavaScript
-    // 選択しているオブジェクトごとにアピアランスを分割
-
+    /* 選択しているオブジェクトを1つずつ選び直し、アピアランスを分割する / Reselect each selected object in turn and expand its appearance */
     var doc = app.activeDocument;
-    var currentSelection = doc.selection;
+    var selectedItems = doc.selection;
 
-    if (currentSelection.length === 0) {
+    if (selectedItems.length === 0) {
         alert("オブジェクトを選択してください。");
     } else {
-        for (var i = currentSelection.length - 1; i >= 0; i--) {
+        for (var i = selectedItems.length - 1; i >= 0; i--) {
             doc.selection = null;
-            currentSelection[i].selected = true;
+            selectedItems[i].selected = true;
             app.executeMenuCommand('expandStyle');
-            // app.executeMenuCommand('group');
         }
     }
 

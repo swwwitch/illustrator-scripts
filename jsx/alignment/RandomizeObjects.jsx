@@ -32,7 +32,7 @@ var SCRIPT_NAME     = "RandomizeObjects";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeObjects.md"; /* README (English) */
@@ -913,18 +913,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
 
     /**
      * チェックがONのセクションから振れ幅を取り出す
-     * @param {object} section - { check: Checkbox, field: EditText, sliderMax: number } を持つセクション
+     * @param {object} rangeSection - { check: Checkbox, field: EditText, sliderMax: number } を持つセクション
      * @returns {number} 振れ幅（OFF・数値でない・負の値の場合は0）
      */
-    function getEnabledRange(section) {
-        if (!section.check.value) return 0;
+    function getEnabledRange(rangeSection) {
+        if (!rangeSection.check.value) return 0;
 
-        var range = parseFloat(section.field.text);
-        if (isNaN(range) || range < 0) return 0;
+        var rangeValue = parseFloat(rangeSection.field.text);
+        if (isNaN(rangeValue) || rangeValue < 0) return 0;
 
         /* スライダーの上限を持つ項目は、その範囲に収める（表示と実際の適用量を食い違わせない）/ Clamp to the slider range so the UI and the applied amount agree */
-        if (section.sliderMax !== undefined && range > section.sliderMax) return section.sliderMax;
-        return range;
+        if (rangeSection.sliderMax !== undefined && rangeValue > rangeSection.sliderMax) return rangeSection.sliderMax;
+        return rangeValue;
     }
 
     /**
@@ -988,13 +988,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     /**
      * 振れ幅から resize() へ渡す倍率（%）を求める
      * @param {boolean} applyScale - この軸に拡大縮小を掛けるか
-     * @param {number} range - 振れ幅（%）
+     * @param {number} rangePercent - 振れ幅（%）
      * @returns {number} resize() に渡す倍率（%）
      */
-    function getScalePercent(applyScale, range) {
+    function getScalePercent(applyScale, rangePercent) {
         if (!applyScale) return 100;
         /* 1%未満に潰れないよう下限を設ける / Keep at least 1% so nothing collapses */
-        return Math.max(1, 100 * (1 + randomSignedRatio() * (range / 100)));
+        return Math.max(1, 100 * (1 + randomSignedRatio() * (rangePercent / 100)));
     }
 
     /**
@@ -1004,11 +1004,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @returns {void}
      */
     function previewRotate(dialogControls, itemStates) {
-        var range = getEnabledRange(dialogControls.rotate);
-        if (!range) return;
+        var rotateRange = getEnabledRange(dialogControls.rotate);
+        if (!rotateRange) return;
 
         eachItemState(itemStates, function (itemState) {
-            var rotation = randomSignedRatio() * range;
+            var rotation = randomSignedRatio() * rotateRange;
             itemState.item.rotate(rotation);
             /* 打ち消せるように掛けた角度を控える / Remember the angle so it can be undone */
             itemState.appliedRotation = rotation;
@@ -1022,15 +1022,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @returns {void}
      */
     function previewOpacity(dialogControls, itemStates) {
-        var range = getEnabledRange(dialogControls.opacity);
-        if (!range) return;
+        var opacityRange = getEnabledRange(dialogControls.opacity);
+        if (!opacityRange) return;
 
         eachItemState(itemStates, function (itemState) {
             if (itemState.item.opacity === undefined) return;
             /* 元の不透明度を中心に、指定した幅で振る / Vary around the original opacity */
             var baseOpacity = (itemState.opacity !== undefined) ? itemState.opacity : itemState.item.opacity;
-            var minOpacity = Math.max(0, baseOpacity - range);
-            var maxOpacity = Math.min(OPACITY_RANGE_MAX, baseOpacity + range);
+            var minOpacity = Math.max(0, baseOpacity - opacityRange);
+            var maxOpacity = Math.min(OPACITY_RANGE_MAX, baseOpacity + opacityRange);
             itemState.item.opacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
         });
     }

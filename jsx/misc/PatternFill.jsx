@@ -28,7 +28,7 @@ var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md"; /* README (English) */
@@ -38,97 +38,72 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 現在のロケールを判定 / Detect current locale */
-    function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-      dialogTitle: {
-        // ダイアログボックスのタイトルバーに必ずバージョンを表示する形式
-        // Always show version in dialog title
-        ja: "敷き詰め設定",
-        en: "Tile Fill Settings"
-      },
-      gridCount: {
-        ja: "グリッド数",
-        en: "Grid count"
-      },
-      columns: {
-        ja: "列",
-        en: "Columns"
-      },
-      rows: {
-        ja: "行",
-        en: "Rows"
-      },
-      spacing: {
-        ja: "間隔",
-        en: "Spacing"
-      },
-      margin: {
-        ja: "マージン",
-        en: "Margin"
-      },
-      brick: {
-        ja: "レンガ状",
-        en: "Brick pattern"
-      },
-      symbolize: {
-        ja: "シンボル化",
-        en: "Symbolize"
-      },
-      ok: {
-        ja: "OK",
-        en: "OK"
-      },
-      cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-      },
-      tipColumns: {
-        ja: "横に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
-        en: "How many tiles to place horizontally. 0 fills the container automatically."
-      },
-      tipRows: {
-        ja: "縦に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
-        en: "How many tiles to place vertically. 0 fills the container automatically."
-      },
-      tipSpacing: {
-        ja: "隣り合うタイルのアキです。縦横とも同じ値になります。",
-        en: "Space between neighbouring tiles, applied both horizontally and vertically."
-      },
-      tipMargin: {
-        ja: "容器の内側に空ける余白です。負の値も入力できます。",
-        en: "Inset kept inside the container. Negative values are allowed."
-      },
-      tipBrick: {
-        ja: "1行おきに半個分ずらして、レンガのように並べます。",
-        en: "Offsets every other row by half a tile, like brickwork."
-      },
-      tipSymbolize: {
-        ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。",
-        en: "Duplicates the tile as a symbol, so every copy can be swapped later at once."
-      }
-    };
+    /* 間隔の初期値を決める比率（タイルの幅に掛ける）/ Initial spacing as a ratio of the tile width */
+    var DEFAULT_GAP_RATIO = 0.2;
 
-    /* ラベル取得関数 / Label resolver */
-    function getLabel(key) {
-      var entry = LABELS[key];
-      if (!entry) return key;
-      return entry[uiLang] || entry.en || key;
+    /* プレビューの不透明度（%）/ Opacity of the preview (%) */
+    var PREVIEW_OPACITY = 60;
+
+    /* 敷き詰めたタイルを入れるグループ名（プレビューは名前で探して消す）/ Group names; previews are found and removed by name */
+    var GRID_GROUP_NAME = 'TiledGrid';
+    var PREVIEW_GROUP_NAME = 'TiledGrid_preview';
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_OFFSET_X = 300;    /* ダイアログを右へずらす量（px）/ Horizontal shift of the dialog */
+    var DIALOG_OPACITY = 0.98;    /* ダイアログの不透明度 / Dialog opacity */
+    var LABEL_WIDTH = 60;         /* 項目名の幅 / Field label width */
+    var FIELD_CHARACTERS = 4;     /* 数値入力欄の桁数 / Width of the number fields in characters */
+
+    /**
+     * ダイアログを表示するときに、既定の位置からずらす
+     * @param {Window} targetDialog - 対象ダイアログ
+     * @param {number} offsetX - 横のずらし量
+     * @param {number} offsetY - 縦のずらし量
+     * @returns {void}
+     */
+    function shiftDialogPosition(targetDialog, offsetX, offsetY) {
+        targetDialog.onShow = function() {
+            var currentX = targetDialog.location[0];
+            var currentY = targetDialog.location[1];
+            targetDialog.location = [currentX + offsetX, currentY + offsetY];
+        };
     }
 
-    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
-    function labelText(key) {
-      return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    /**
+     * 右揃えの項目名と入力欄を並べる行を作る
+     * @param {Window} parentDialog - 親ダイアログ
+     * @param {string} labelPath - 項目名のラベルのパス
+     * @returns {Group} 項目名を追加済みの行
+     */
+    function addFieldRow(parentDialog, labelPath) {
+        var fieldRow = parentDialog.add('group');
+        fieldRow.alignment = ['fill', 'top'];
+        fieldRow.alignChildren = ['left', 'center'];
+        var fieldLabel = fieldRow.add('statictext', undefined, labelText(labelPath));
+        fieldLabel.justify = 'right';
+        fieldLabel.preferredSize.width = LABEL_WIDTH;
+        return fieldRow;
     }
 
-    /* 単位を括弧でくくった表記を返す（日本語は全角括弧） / Return a parenthesised unit label */
-    function unitSuffix(unitLabel) {
-      return (uiLang === "ja") ? ("（" + unitLabel + "）") : (" (" + unitLabel + ")");
+    /**
+     * 行に数値入力欄を追加する
+     * @param {Group} fieldRow - 追加先の行
+     * @param {string} initialText - 初期値
+     * @param {string} tooltipPath - helpTip のラベルのパス
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberField(fieldRow, initialText, tooltipPath) {
+        var numberField = fieldRow.add('edittext', undefined, initialText);
+        numberField.characters = FIELD_CHARACTERS;
+        numberField.helpTip = getLabel(tooltipPath);
+        return numberField;
     }
 
     // =========================================
@@ -166,42 +141,438 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* タイルグリッド共通ユーティリティ / Tile Grid Common Utilities */
-    // ---- Namespace: TG (Tile Grid) common utilities ----
-    var TG = {
-        /* 境界情報を取得 / Get visible bounds info */
-        boundsInfo: function(item) {
-            var b = item.visibleBounds; // [l,t,r,b]
-            var w = b[2] - b[0];
-            var h = b[1] - b[3];
-            return {
-                left: b[0],
-                top: b[1],
-                right: b[2],
-                bottom: b[3],
-                width: w,
-                height: h,
-                area: Math.abs(w * h)
-            };
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = detectUILanguage();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "敷き詰め設定", en: "Tile Fill Settings" }
         },
-        /* ルーラー単位マップ / Ruler unit map */
-        isRectanglePath: function(p) {
-            if (p.typename !== 'PathItem' || !p.closed || p.pathPoints.length !== 4) return false;
-            for (var i = 0; i < 4; i++) {
-                if (p.pathPoints[i].pointType !== PointType.CORNER) return false;
-            }
-            return true;
+        fieldLabel: {
+            gridCount: { ja: "グリッド数", en: "Grid count" },
+            spacing: { ja: "間隔", en: "Spacing" },
+            margin: { ja: "マージン", en: "Margin" }
         },
-        /* 楕円っぽいパスかどうか判定 / Check if path is ellipse-like */
-        isEllipseLike: function(p) {
-            if (p.typename !== 'PathItem' || !p.closed || p.pathPoints.length !== 4) return false;
-            for (var i = 0; i < 4; i++) {
-                if (p.pathPoints[i].pointType !== PointType.SMOOTH) return false;
+        unit: {
+            columns: { ja: "列", en: "Columns" },
+            rows: { ja: "行", en: "Rows" }
+        },
+        checkbox: {
+            brick: { ja: "レンガ状", en: "Brick pattern" },
+            symbolize: { ja: "シンボル化", en: "Symbolize" }
+        },
+        tooltip: {
+            columns: {
+                ja: "横に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
+                en: "How many tiles to place horizontally. 0 fills the container automatically."
+            },
+            rows: {
+                ja: "縦に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
+                en: "How many tiles to place vertically. 0 fills the container automatically."
+            },
+            spacing: {
+                ja: "隣り合うタイルのアキです。縦横とも同じ値になります。",
+                en: "Space between neighbouring tiles, applied both horizontally and vertically."
+            },
+            margin: {
+                ja: "容器の内側に空ける余白です。負の値も入力できます。",
+                en: "Inset kept inside the container. Negative values are allowed."
+            },
+            brick: {
+                ja: "1行おきに半個分ずらして、レンガのように並べます。",
+                en: "Offsets every other row by half a tile, like brickwork."
+            },
+            symbolize: {
+                ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。",
+                en: "Duplicates the tile as a symbol, so every copy can be swapped later at once."
             }
-            return true;
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
 
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "fieldLabel.spacing" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 単位を括弧でくくった表記を返す（日本語は全角括弧）
+     * @param {string} unitLabel - 単位の表示名
+     * @returns {string} 括弧付きの単位
+     */
+    function unitSuffix(unitLabel) {
+        return (uiLang === "ja") ? ("（" + unitLabel + "）") : (" (" + unitLabel + ")");
+    }
+
+    // =========================================
+    // 形状と配置の計算 / Geometry
+    // =========================================
+
+    /**
+     * オブジェクトの表示上の境界と寸法を取得する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number, area: number}} 境界情報
+     */
+    function getBoundsInfo(pageItem) {
+        var visibleBounds = pageItem.visibleBounds; /* [left, top, right, bottom] */
+        var itemWidth = visibleBounds[2] - visibleBounds[0];
+        var itemHeight = visibleBounds[1] - visibleBounds[3];
+        return {
+            left: visibleBounds[0],
+            top: visibleBounds[1],
+            right: visibleBounds[2],
+            bottom: visibleBounds[3],
+            width: itemWidth,
+            height: itemHeight,
+            area: Math.abs(itemWidth * itemHeight)
+        };
+    }
+
+    /**
+     * 4点の閉じたパスで、すべてのアンカーが指定の種類か判定する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @param {PointType} pointType - アンカーの種類
+     * @returns {boolean} 当てはまれば true
+     */
+    function isFourPointPathOfType(pageItem, pointType) {
+        if (pageItem.typename !== 'PathItem' || !pageItem.closed || pageItem.pathPoints.length !== 4) return false;
+        for (var i = 0; i < 4; i++) {
+            if (pageItem.pathPoints[i].pointType !== pointType) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 長方形のパス（4点すべてがコーナー）か判定する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {boolean} 長方形なら true
+     */
+    function isRectanglePath(pageItem) {
+        return isFourPointPathOfType(pageItem, PointType.CORNER);
+    }
+
+    /**
+     * 楕円らしいパス（4点すべてがスムーズ）か判定する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {boolean} 楕円らしければ true
+     */
+    function isEllipseLikePath(pageItem) {
+        return isFourPointPathOfType(pageItem, PointType.SMOOTH);
+    }
+
+    /**
+     * 並べる列数と行数を決める。指定が 0 のときは容器に収まるだけ並べる
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {number} stepX - 横の送り（pt）
+     * @param {number} stepY - 縦の送り（pt）
+     * @param {boolean} isBrick - レンガ状に並べるか
+     * @param {number} fixedColumns - 指定の列数（0 で自動）
+     * @param {number} fixedRows - 指定の行数（0 で自動）
+     * @returns {{columns: number, rows: number}} 列数と行数
+     */
+    function computeGridSize(containerInfo, stepX, stepY, isBrick, fixedColumns, fixedRows) {
+        return {
+            columns: (fixedColumns > 0)
+                ? Math.round(fixedColumns)
+                : Math.max(1, Math.ceil((containerInfo.width + (isBrick ? stepX * 0.5 : 0)) / stepX)),
+            rows: (fixedRows > 0)
+                ? Math.round(fixedRows)
+                : Math.max(1, Math.ceil(containerInfo.height / stepY))
+        };
+    }
+
+    /**
+     * グリッドの各マスの左上座標を、行ごとに左から順に渡す（レンガ状なら奇数行を半個ずらす）
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {number} stepX - 横の送り（pt）
+     * @param {number} stepY - 縦の送り（pt）
+     * @param {{columns: number, rows: number}} gridSize - 列数と行数
+     * @param {boolean} isBrick - レンガ状に並べるか
+     * @param {Function} visitCell - (xLeft, yTop) を受け取る関数
+     * @returns {void}
+     */
+    function forEachGridCell(containerInfo, stepX, stepY, gridSize, isBrick, visitCell) {
+        for (var r = 0; r < gridSize.rows; r++) {
+            var yTop = containerInfo.top - r * stepY;
+            for (var c = 0; c < gridSize.columns; c++) {
+                var xLeft = containerInfo.left + c * stepX + ((isBrick && (r % 2 === 1)) ? stepX * 0.5 : 0);
+                visitCell(xLeft, yTop);
+            }
+        }
+    }
+
+    /**
+     * タイルを残すかどうかの判定に使う、容器の形とマージンを差し引いた範囲をまとめる
+     * @param {PageItem} container - 容器
+     * @param {Object} containerInfo - 容器の境界情報
+     * @param {number} marginPt - マージン（pt）
+     * @returns {Object} 容器の形（isRect / isEllipse）と判定に使う範囲
+     */
+    function buildContainerShape(container, containerInfo, marginPt) {
+        var isPath = (container.typename === 'PathItem');
+        return {
+            isRect: isPath && isRectanglePath(container),
+            isEllipse: isPath && isEllipseLikePath(container),
+            left: containerInfo.left + marginPt,
+            right: containerInfo.right - marginPt,
+            top: containerInfo.top - marginPt,
+            bottom: containerInfo.bottom + marginPt,
+            centerX: (containerInfo.left + containerInfo.right) / 2.0,
+            centerY: (containerInfo.top + containerInfo.bottom) / 2.0,
+            radiusX: Math.max(0, Math.abs(containerInfo.right - containerInfo.left) / 2.0 - marginPt),
+            radiusY: Math.max(0, Math.abs(containerInfo.top - containerInfo.bottom) / 2.0 - marginPt)
+        };
+    }
+
+    /**
+     * タイルが容器の内側に収まっているか判定する。
+     * 長方形は外接矩形が丸ごと内側、楕円は4隅が楕円の内側、それ以外は中心が内側なら残す
+     * @param {Object} tileBounds - タイルの境界情報
+     * @param {Object} containerShape - buildContainerShape() の結果
+     * @returns {boolean} 残すなら true
+     */
+    function isTileInside(tileBounds, containerShape) {
+        if (containerShape.isRect) {
+            return (tileBounds.left >= containerShape.left && tileBounds.right <= containerShape.right &&
+                tileBounds.top <= containerShape.top && tileBounds.bottom >= containerShape.bottom);
+        }
+        if (containerShape.isEllipse) {
+            if (!(containerShape.radiusX > 0 && containerShape.radiusY > 0)) return false;
+            var corners = [
+                [tileBounds.left, tileBounds.top],
+                [tileBounds.right, tileBounds.top],
+                [tileBounds.left, tileBounds.bottom],
+                [tileBounds.right, tileBounds.bottom]
+            ];
+            for (var k = 0; k < 4; k++) {
+                var dx = (corners[k][0] - containerShape.centerX) / containerShape.radiusX;
+                var dy = (corners[k][1] - containerShape.centerY) / containerShape.radiusY;
+                if (!((dx * dx + dy * dy) <= 1.000001)) return false;
+            }
+            return true;
+        }
+        var tileCenterX = (tileBounds.left + tileBounds.right) / 2.0;
+        var tileCenterY = (tileBounds.top + tileBounds.bottom) / 2.0;
+        return (tileCenterX >= containerShape.left && tileCenterX <= containerShape.right &&
+            tileCenterY <= containerShape.top && tileCenterY >= containerShape.bottom);
+    }
+
+    /**
+     * グループ内のタイルのうち、容器に収まらないものを削除する（マスクは使わない）
+     * @param {GroupItem} tileGroup - タイルを入れたグループ
+     * @param {Object} containerShape - buildContainerShape() の結果
+     * @returns {void}
+     */
+    function trimTilesOutside(tileGroup, containerShape) {
+        for (var i = tileGroup.pageItems.length - 1; i >= 0; i--) {
+            var gridItem = tileGroup.pageItems[i];
+            if (!isTileInside(getBoundsInfo(gridItem), containerShape)) gridItem.remove();
+        }
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * テキストフィールドに↑↓キーでの値の増減を組み込む
+     * ↑↓で±1、shift併用で±10（10の倍数にスナップ）、option併用で±0.1
+     * @param {EditText} editText - 対象のテキストフィールド
+     * @param {boolean} allowNegative - 負の値を許すか
+     * @param {Function} onValueChanged - キーを押したあとに呼ぶ関数
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, allowNegative, onValueChanged) {
+        allowNegative = !!allowNegative;
+        editText.addEventListener("keydown", function(event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                if (event.keyName == "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    if (!allowNegative && value < 0) value = 0;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    if (!allowNegative && value < 0) value = 0;
+                    event.preventDefault();
+                }
+            }
+
+            if (keyboard.altKey) {
+                value = Math.round(value * 10) / 10;
+            } else {
+                value = Math.round(value);
+            }
+
+            editText.text = value;
+            onValueChanged();
+        });
+    }
+
+    /**
+     * 敷き詰め設定のダイアログを表示する
+     * @param {number} tileWidthPt - タイルの幅（pt）。間隔の初期値に使う
+     * @param {Function} onPreview - 入力が変わるたびに設定（pt 換算済み）を受け取る関数
+     * @returns {{gap: number, margin: number, isBrick: boolean, symbolize: boolean, columns: number, rows: number}|null} 設定（pt）。キャンセル時は null
+     */
+    function showFillDialog(tileWidthPt, onPreview) {
+        /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
+        var fillDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+
+        /* ウィンドウ見た目 / Window appearance */
+        fillDialog.opacity = DIALOG_OPACITY;
+        shiftDialogPosition(fillDialog, DIALOG_OFFSET_X, 0);
+        fillDialog.alignChildren = 'fill';
+
+        var rulerUnit = getUnitInfo("rulerType");
+        var unitLabel = rulerUnit.label;
+
+        /* グリッド数（0 で容器に合わせて自動）/ Grid count (0 fits the container automatically) */
+        var gridCountRow = addFieldRow(fillDialog, 'fieldLabel.gridCount');
+        var columnsField = addNumberField(gridCountRow, '0', 'tooltip.columns');
+        gridCountRow.add('statictext', undefined, getLabel('unit.columns'));
+        var rowsField = addNumberField(gridCountRow, '0', 'tooltip.rows');
+        gridCountRow.add('statictext', undefined, getLabel('unit.rows'));
+
+        /* 間隔 / Spacing */
+        var spacingRow = addFieldRow(fillDialog, 'fieldLabel.spacing');
+        var defaultGapValue = Math.round(tileWidthPt / rulerUnit.pointsPerUnit * DEFAULT_GAP_RATIO);
+        var gapField = addNumberField(spacingRow, String(defaultGapValue), 'tooltip.spacing');
+        spacingRow.add('statictext', undefined, unitSuffix(unitLabel));
+        gapField.active = true;
+        changeValueByArrowKey(gapField, false, updatePreviewFromFields);
+
+        /* マージン / Margin */
+        var marginRow = addFieldRow(fillDialog, 'fieldLabel.margin');
+        var marginField = addNumberField(marginRow, '0', 'tooltip.margin');
+        marginRow.add('statictext', undefined, unitSuffix(unitLabel));
+        changeValueByArrowKey(marginField, true, updatePreviewFromFields); /* マージンは負OK / margin can be negative */
+
+        /* 入力欄の値を pt に換算して読む（チェックボックスは作成前なら false）
+           Read the fields converted to points (checkboxes read false before they exist) */
+        function readFillSettings() {
+            var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
+            var gapValue = Math.max(0, parseFloat(gapField.text) || 0);
+            var marginValue = parseFloat(marginField.text);
+            if (isNaN(marginValue)) marginValue = 0;
+            return {
+                gap: gapValue * pointsPerUnit,
+                margin: marginValue * pointsPerUnit,
+                isBrick: !!(brickCheckbox && brickCheckbox.value),
+                symbolize: !!(symbolizeCheckbox && symbolizeCheckbox.value),
+                columns: Math.max(0, parseInt(columnsField.text, 10) || 0),
+                rows: Math.max(0, parseInt(rowsField.text, 10) || 0)
+            };
+        }
+
+        /* プレビュー更新 / Update preview */
+        function updatePreviewFromFields() {
+            onPreview(readFillSettings());
+        }
+        gapField.onChanging = updatePreviewFromFields;
+        columnsField.onChanging = updatePreviewFromFields;
+        rowsField.onChanging = updatePreviewFromFields;
+        changeValueByArrowKey(columnsField, false, updatePreviewFromFields);
+        changeValueByArrowKey(rowsField, false, updatePreviewFromFields);
+        updatePreviewFromFields();
+
+        /* レンガ状・シンボル化は中央にまとめる / Brick pattern and Symbolize sit centered */
+        var optionRow = fillDialog.add('group');
+        optionRow.alignment = ['fill', 'top'];
+        optionRow.alignChildren = ['center', 'center'];
+
+        /* レンガ状 / Brick pattern */
+        var brickGroup = optionRow.add('group');
+        brickGroup.alignChildren = ['left', 'center'];
+        var brickCheckbox = brickGroup.add('checkbox', undefined, getLabel('checkbox.brick'));
+        brickCheckbox.helpTip = getLabel('tooltip.brick');
+        brickCheckbox.value = false;
+        brickCheckbox.onClick = updatePreviewFromFields;
+
+        /* シンボル化して複製 / Duplicate as Symbol */
+        var symbolizeGroup = optionRow.add('group');
+        symbolizeGroup.alignChildren = ['left', 'center'];
+        var symbolizeCheckbox = symbolizeGroup.add('checkbox', undefined, getLabel('checkbox.symbolize'));
+        symbolizeCheckbox.helpTip = getLabel('tooltip.symbolize');
+        symbolizeCheckbox.value = false;
+
+        /* ボタン / Buttons */
+        var btnRowGroup = fillDialog.add('group');
+        btnRowGroup.alignment = 'right';
+        btnRowGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        btnRowGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+
+        if (fillDialog.show() !== 1) return null;
+
+        /* OKで確定値をptに変換 / Convert to pt on OK */
+        return readFillSettings();
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択した2つのオブジェクトを容器とタイルに振り分け、ダイアログで設定して敷き詰める
+     * @returns {void}
+     */
     function main() {
         var doc = app.documents.length ? app.activeDocument : null;
         if (!doc) {
@@ -215,495 +586,185 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 容器とタイルを面積で判定 / Detect container and tile by area */
-        var a = doc.selection[0];
-        var b = doc.selection[1];
-        var infoA = TG.boundsInfo(a);
-        var infoB = TG.boundsInfo(b);
-        var container = infoA.area >= infoB.area ? a : b;
-        var tile = (container === a) ? b : a;
-        var cInfo = TG.boundsInfo(container);
-        var tInfo = TG.boundsInfo(tile);
+        var firstItem = doc.selection[0];
+        var secondItem = doc.selection[1];
+        var firstInfo = getBoundsInfo(firstItem);
+        var secondInfo = getBoundsInfo(secondItem);
+        var isFirstContainer = (firstInfo.area >= secondInfo.area);
+        var fillTarget = {
+            container: isFirstContainer ? firstItem : secondItem,
+            tile: isFirstContainer ? secondItem : firstItem,
+            containerInfo: isFirstContainer ? firstInfo : secondInfo,
+            tileInfo: isFirstContainer ? secondInfo : firstInfo,
+            previewGroup: null
+        };
 
-        if (tInfo.width <= 0 || tInfo.height <= 0) {
+        if (fillTarget.tileInfo.width <= 0 || fillTarget.tileInfo.height <= 0) {
             alert('タイルのサイズが不正です / Invalid tile size.');
             return;
         }
 
-        // --- プレビュー用変数 / Preview tracking ---
-        var _previewGroup = null;
-
-        /* プレビューを削除 / Clear preview */
-        function clearPreview() {
-            try {
-                if (_previewGroup && _previewGroup.isValid) {
-                    _previewGroup.remove();
-                }
-            } catch (e1) {}
-            _previewGroup = null;
-
-            // 名前で余分なプレビューを掃除 / Sweep stray previews
-            try {
-                var lay = container.layer;
-                for (var i = lay.groupItems.length - 1; i >= 0; i--) {
-                    var gi = lay.groupItems[i];
-                    if (gi.name === 'TiledGrid_preview' || gi.name.indexOf('TiledGrid_preview') === 0) {
-                        try {
-                            gi.remove();
-                        } catch (e2) {}
-                    }
-                }
-            } catch (e3) {}
-        }
-
-        /* プレビューを描画 / Render preview */
-        function renderPreview(gapXpt, gapYpt, marginPt, brick, fixedColumns, fixedRows) {
-            marginPt = marginPt || 0;
-            brick = !!brick;
-            clearPreview();
-
-            var tileW = tInfo.width;
-            var tileH = tInfo.height;
-            var stepXp = tileW + gapXpt;
-            var stepYp = tileH + gapYpt;
-            if (stepXp <= 0 || stepYp <= 0) return;
-            var colsPrev = (fixedColumns > 0)
-                ? Math.round(fixedColumns)
-                : Math.max(1, Math.ceil((cInfo.width + (brick ? stepXp * 0.5 : 0)) / stepXp));
-            var rowsPrev = (fixedRows > 0)
-                ? Math.round(fixedRows)
-                : Math.max(1, Math.ceil(cInfo.height / stepYp));
-
-            var targetLayer = container.layer;
-            var group = targetLayer.groupItems.add();
-            group.name = 'TiledGrid_preview';
-            _previewGroup = group;
-
-            var originLeft = cInfo.left;
-            var originTop = cInfo.top;
-
-            var adjLeft = cInfo.left + marginPt;
-            var adjRight = cInfo.right - marginPt;
-            var adjTop = cInfo.top - marginPt;
-            var adjBottom = cInfo.bottom + marginPt;
-
-            var containerIsRect = (container.typename === 'PathItem') && TG.isRectanglePath(container);
-            var containerIsEllipse = (container.typename === 'PathItem') && TG.isEllipseLike(container);
-
-            var cxC = (cInfo.left + cInfo.right) / 2.0;
-            var cyC = (cInfo.top + cInfo.bottom) / 2.0;
-            var rxC = Math.abs(cInfo.right - cInfo.left) / 2.0;
-            var ryC = Math.abs(cInfo.top - cInfo.bottom) / 2.0;
-            var rxAdj = Math.max(0, rxC - marginPt);
-            var ryAdj = Math.max(0, ryC - marginPt);
-
-            function pointInEllipse(x, y) {
-                if (rxAdj === 0 || ryAdj === 0) return false;
-                var dx = (x - cxC) / rxAdj;
-                var dy = (y - cyC) / ryAdj;
-                return (dx * dx + dy * dy) <= 1.000001;
-            }
-
-            for (var r = 0; r < rowsPrev; r++) {
-                var yTop = originTop - r * stepYp;
-                for (var c = 0; c < colsPrev; c++) {
-                    var xLeft = originLeft + c * stepXp + ((brick && (r % 2 === 1)) ? stepXp * 0.5 : 0);
-                    var dup = tile.duplicate(group, ElementPlacement.PLACEATBEGINNING);
-                    dup.position = [xLeft, yTop];
-                }
-            }
-
-            // プレビューもトリム / Trim preview too
-            for (var i = group.pageItems.length - 1; i >= 0; i--) {
-                var it = group.pageItems[i];
-                var ib = TG.boundsInfo(it);
-                var keep = false;
-                if (containerIsRect) {
-                    keep = (ib.left >= adjLeft && ib.right <= adjRight && ib.top <= adjTop && ib.bottom >= adjBottom);
-                } else if (containerIsEllipse) {
-                    var corners = [
-                        [ib.left, ib.top],
-                        [ib.right, ib.top],
-                        [ib.left, ib.bottom],
-                        [ib.right, ib.bottom]
-                    ];
-                    keep = true;
-                    for (var k = 0; k < 4; k++) {
-                        if (!pointInEllipse(corners[k][0], corners[k][1])) {
-                            keep = false;
-                            break;
-                        }
-                    }
-                } else {
-                    var cxTile = (ib.left + ib.right) / 2.0;
-                    var cyTile = (ib.top + ib.bottom) / 2.0;
-                    keep = (cxTile >= adjLeft && cxTile <= adjRight && cyTile <= adjTop && cyTile >= adjBottom);
-                }
-                if (!keep) it.remove();
-            }
-
-            try {
-                group.opacity = 60;
-            } catch (e) {}
-            app.redraw();
-        }
-
-        // --- ダイアログの値 / Dialog values ---
-        var gapX = 0,
-            gapY = 0,
-            marginVal = 0,
-            brickMode = false,
-            useSymbolDup = false,
-            columnCount = 0,  /* 0 = 容器に合わせて自動 / 0 = fit the container automatically */
-            rowCount = 0;
-        var isCancelled = false;
-
-        /* ダイアログボックス生成 / Create Dialog Box */
-        (function createSpacingDialog() {
-            /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
-            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-
-            // ウィンドウ見た目 / Window appearance
-            var offsetX = 300;
-            var dialogOpacity = 0.98;
-            function shiftDialogPosition(dlg, offsetX, offsetY) {
-                dlg.onShow = function() {
-                    var currentX = dlg.location[0];
-                    var currentY = dlg.location[1];
-                    dlg.location = [currentX + offsetX, currentY + offsetY];
-                };
-            }
-            function setDialogOpacity(dlg, opacityValue) {
-                dlg.opacity = opacityValue;
-            }
-            setDialogOpacity(dlg, dialogOpacity);
-            shiftDialogPosition(dlg, offsetX, 0);
-            dlg.alignChildren = 'fill';
-
-            var rulerUnit = getUnitInfo("rulerType");
-            var unitLabel = rulerUnit.label;
-            var labelWidth = 60;
-
-            /* グリッド数（0 で容器に合わせて自動）/ Grid count (0 fits the container automatically) */
-            var rowGrid = dlg.add('group');
-            rowGrid.alignment = ['fill', 'top'];
-            rowGrid.alignChildren = ['left', 'center'];
-            var lblGrid = rowGrid.add('statictext', undefined, labelText('gridCount'));
-            lblGrid.justify = 'right';
-            lblGrid.preferredSize.width = 60;
-            var columnsEdit = rowGrid.add('edittext', undefined, '0');
-            columnsEdit.characters = 4;
-            columnsEdit.helpTip = getLabel('tipColumns');
-            rowGrid.add('statictext', undefined, getLabel('columns'));
-            var rowsEdit = rowGrid.add('edittext', undefined, '0');
-            rowsEdit.characters = 4;
-            rowsEdit.helpTip = getLabel('tipRows');
-            rowGrid.add('statictext', undefined, getLabel('rows'));
-
-            /* 間隔 / Spacing */
-            var rowS = dlg.add('group');
-            rowS.alignment = ['fill', 'top'];
-            rowS.alignChildren = ['left', 'center'];
-            var lblS = rowS.add('statictext', undefined, labelText('spacing'));
-            lblS.justify = 'right';
-            lblS.preferredSize.width = labelWidth;
-            var tileWidthInUnits = tInfo.width / rulerUnit.pointsPerUnit;
-            var defaultGapVal = Math.round(tileWidthInUnits * 0.2);
-            var gapEdit = rowS.add('edittext', undefined, String(defaultGapVal));
-            gapEdit.characters = 4;
-            gapEdit.helpTip = getLabel('tipSpacing');
-            rowS.add('statictext', undefined, unitSuffix(unitLabel));
-            gapEdit.active = true;
-
-            /* キー操作で値を変更するヘルパー / Helper to change value by arrow keys */
-            function changeValueByArrowKey(editText, allowNegative) {
-                allowNegative = !!allowNegative;
-                editText.addEventListener("keydown", function(event) {
-                    var value = Number(editText.text);
-                    if (isNaN(value)) return;
-                    var keyboard = ScriptUI.environment.keyboardState;
-                    var delta = 1;
-
-                    if (keyboard.shiftKey) {
-                        delta = 10;
-                        if (event.keyName == "Up") {
-                            value = Math.ceil((value + 1) / delta) * delta;
-                            event.preventDefault();
-                        } else if (event.keyName == "Down") {
-                            value = Math.floor((value - 1) / delta) * delta;
-                            if (!allowNegative && value < 0) value = 0;
-                            event.preventDefault();
-                        }
-                    } else if (keyboard.altKey) {
-                        delta = 0.1;
-                        if (event.keyName == "Up") {
-                            value += delta;
-                            event.preventDefault();
-                        } else if (event.keyName == "Down") {
-                            value -= delta;
-                            event.preventDefault();
-                        }
-                    } else {
-                        delta = 1;
-                        if (event.keyName == "Up") {
-                            value += delta;
-                            event.preventDefault();
-                        } else if (event.keyName == "Down") {
-                            value -= delta;
-                            if (!allowNegative && value < 0) value = 0;
-                            event.preventDefault();
-                        }
-                    }
-
-                    if (keyboard.altKey) {
-                        value = Math.round(value * 10) / 10;
-                    } else {
-                        value = Math.round(value);
-                    }
-
-                    editText.text = value;
-                    updatePreviewFromFields();
-                });
-            }
-            changeValueByArrowKey(gapEdit);
-
-            /* マージン / Margin */
-            var rowM = dlg.add('group');
-            rowM.alignment = ['fill', 'top'];
-            rowM.alignChildren = ['left', 'center'];
-            var lblM = rowM.add('statictext', undefined, labelText('margin'));
-            lblM.justify = 'right';
-            lblM.preferredSize.width = labelWidth;
-            var marginEdit = rowM.add('edittext', undefined, '0');
-            marginEdit.characters = 4;
-            marginEdit.helpTip = getLabel('tipMargin');
-            rowM.add('statictext', undefined, unitSuffix(unitLabel));
-            changeValueByArrowKey(marginEdit, true); // マージンは負OK / margin can be negative
-
-            /* プレビュー更新 / Update preview */
-            function updatePreviewFromFields() {
-                var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
-                var s = Math.max(0, parseFloat(gapEdit.text) || 0);
-                var m = parseFloat(marginEdit.text);
-                if (isNaN(m)) m = 0;
-                s *= pointsPerUnit;
-                m *= pointsPerUnit;
-                var b = false;
-                try { b = !!(brickChk && brickChk.value); } catch (e) {}
-                var cols = Math.max(0, parseInt(columnsEdit.text, 10) || 0);
-                var rows = Math.max(0, parseInt(rowsEdit.text, 10) || 0);
-                renderPreview(s, s, m, b, cols, rows);
-            }
-            gapEdit.onChanging = function() {
-                updatePreviewFromFields();
-            };
-            columnsEdit.onChanging = function() {
-                updatePreviewFromFields();
-            };
-            rowsEdit.onChanging = function() {
-                updatePreviewFromFields();
-            };
-            changeValueByArrowKey(columnsEdit);
-            changeValueByArrowKey(rowsEdit);
-            updatePreviewFromFields();
-
-            /* レンガ状 / Brick pattern */
-            var rowBWrap = dlg.add('group');
-            rowBWrap.alignment = ['fill', 'top'];
-            rowBWrap.alignChildren = ['center', 'center'];
-
-            var rowB = rowBWrap.add('group');
-            rowB.alignChildren = ['left', 'center'];
-            var brickChk = rowB.add('checkbox', undefined, getLabel('brick'));
-            brickChk.helpTip = getLabel('tipBrick');
-            brickChk.value = false;
-            brickChk.onClick = function() {
-                updatePreviewFromFields();
-            };
-
-            /* シンボル化して複製 / Duplicate as Symbol */
-            var rowSym = rowBWrap.add('group');
-            rowSym.alignChildren = ['left', 'center'];
-            var symChk = rowSym.add('checkbox', undefined, getLabel('symbolize'));
-            symChk.helpTip = getLabel('tipSymbolize');
-            symChk.value = false;
-
-            /* ボタン / Buttons */
-            var btns = dlg.add('group');
-            btns.alignment = 'right';
-            btns.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-            btns.add('button', undefined, getLabel('ok'), { name: 'ok' });
-
-            var dialogResult = dlg.show();
-            if (dialogResult !== 1) {
-                clearPreview();
-                isCancelled = true;
-                return;
-            }
-
-            // --- OKで確定値をptに変換 / Convert to pt on OK ---
-            var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
-            var sVal = Math.max(0, parseFloat(gapEdit.text) || 0);
-            brickMode = !!(brickChk && brickChk.value);
-            useSymbolDup = !!(symChk && symChk.value);
-
-            columnCount = Math.max(0, parseInt(columnsEdit.text, 10) || 0);
-            rowCount = Math.max(0, parseInt(rowsEdit.text, 10) || 0);
-
-            marginVal = parseFloat(marginEdit.text);
-            if (isNaN(marginVal)) marginVal = 0;
-            sVal *= pointsPerUnit;
-            gapX = sVal;
-            gapY = sVal;
-            marginVal *= pointsPerUnit;
-
-        })();
-        if (isCancelled) {
+        var fillSettings = showFillDialog(fillTarget.tileInfo.width, function(previewSettings) {
+            renderPreview(fillTarget, previewSettings);
+        });
+        clearPreview(fillTarget);
+        if (!fillSettings) {
             app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
             return;
         }
 
-        clearPreview();
+        placeTileGrid(doc, fillTarget, fillSettings);
+    }
 
-        // --- 必要ならシンボル作成 / Symbolize if needed ---
-        var symDef = null;
-        if (useSymbolDup) {
-            try {
-                var tmpForSym = tile.duplicate();
-                symDef = doc.symbols.add(tmpForSym);
-                try { tmpForSym.remove(); } catch (_eTmp) {}
-            } catch (_eSym) {
-                symDef = null; // 失敗時は通常複製 / fallback
+    /**
+     * プレビューを削除する（参照で消し、さらに名前で残りを掃除する）
+     * @param {Object} fillTarget - 容器・タイル・プレビューの参照
+     * @returns {void}
+     */
+    function clearPreview(fillTarget) {
+        try {
+            if (fillTarget.previewGroup && fillTarget.previewGroup.isValid) {
+                fillTarget.previewGroup.remove();
             }
-        }
+        } catch (e1) {}
+        fillTarget.previewGroup = null;
 
-        // --- 配置数を計算 / Compute counts ---
-        var tileWFinal = tInfo.width;
-        var tileHFinal = tInfo.height;
-        var stepX = tileWFinal + gapX;
-        var stepY = tileHFinal + gapY;
-        var cols = (columnCount > 0)
-            ? columnCount
-            : Math.max(1, Math.ceil((cInfo.width + (brickMode ? stepX * 0.5 : 0)) / stepX));
-        var rows = (rowCount > 0)
-            ? rowCount
-            : Math.max(1, Math.ceil(cInfo.height / stepY));
+        /* 名前で余分なプレビューを掃除 / Sweep stray previews */
+        try {
+            var containerLayer = fillTarget.container.layer;
+            for (var i = containerLayer.groupItems.length - 1; i >= 0; i--) {
+                var groupItem = containerLayer.groupItems[i];
+                if (groupItem.name.indexOf(PREVIEW_GROUP_NAME) === 0) {
+                    try {
+                        groupItem.remove();
+                    } catch (e2) {}
+                }
+            }
+        } catch (e3) {}
+    }
+
+    /**
+     * プレビューを描画する（半透明のグループにタイルを複製し、はみ出すものを削除）
+     * @param {Object} fillTarget - 容器・タイル・プレビューの参照
+     * @param {Object} previewSettings - showFillDialog() と同じ形の設定（pt）
+     * @returns {void}
+     */
+    function renderPreview(fillTarget, previewSettings) {
+        var marginPt = previewSettings.margin || 0;
+        var isBrick = !!previewSettings.isBrick;
+        clearPreview(fillTarget);
+
+        var stepX = fillTarget.tileInfo.width + previewSettings.gap;
+        var stepY = fillTarget.tileInfo.height + previewSettings.gap;
+        if (stepX <= 0 || stepY <= 0) return;
+        var gridSize = computeGridSize(fillTarget.containerInfo, stepX, stepY, isBrick, previewSettings.columns, previewSettings.rows);
+
+        var previewGroup = fillTarget.container.layer.groupItems.add();
+        previewGroup.name = PREVIEW_GROUP_NAME;
+        fillTarget.previewGroup = previewGroup;
+
+        var containerShape = buildContainerShape(fillTarget.container, fillTarget.containerInfo, marginPt);
+
+        forEachGridCell(fillTarget.containerInfo, stepX, stepY, gridSize, isBrick, function(xLeft, yTop) {
+            var tileCopy = fillTarget.tile.duplicate(previewGroup, ElementPlacement.PLACEATBEGINNING);
+            tileCopy.position = [xLeft, yTop];
+        });
+
+        /* プレビューもトリム / Trim preview too */
+        trimTilesOutside(previewGroup, containerShape);
+
+        try {
+            previewGroup.opacity = PREVIEW_OPACITY;
+        } catch (e) {}
+        app.redraw();
+    }
+
+    /**
+     * タイルをシンボルとして登録する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} tile - タイル
+     * @returns {Symbol|null} 登録したシンボル。失敗時は null（通常の複製に切り替える）
+     */
+    function createTileSymbol(doc, tile) {
+        try {
+            var symbolSource = tile.duplicate();
+            var symbolDefinition = doc.symbols.add(symbolSource);
+            try { symbolSource.remove(); } catch (eSource) {}
+            return symbolDefinition;
+        } catch (eSymbol) {
+            return null; /* 失敗時は通常複製 / fallback */
+        }
+    }
+
+    /**
+     * 確定した設定でタイルを敷き詰め、容器からはみ出すものを削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} fillTarget - 容器・タイルの参照
+     * @param {Object} fillSettings - showFillDialog() の結果（pt）
+     * @returns {void}
+     */
+    function placeTileGrid(doc, fillTarget, fillSettings) {
+        var tile = fillTarget.tile;
+        var tileInfo = fillTarget.tileInfo;
+        var containerInfo = fillTarget.containerInfo;
+
+        /* 必要ならシンボル作成 / Symbolize if needed */
+        var symbolDefinition = fillSettings.symbolize ? createTileSymbol(doc, tile) : null;
+
+        /* 配置数を計算 / Compute counts */
+        var stepX = tileInfo.width + fillSettings.gap;
+        var stepY = tileInfo.height + fillSettings.gap;
+        var gridSize = computeGridSize(containerInfo, stepX, stepY, fillSettings.isBrick, fillSettings.columns, fillSettings.rows);
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
         app.redraw();
 
         /* 複製グループを作成 / Create group for final duplicates */
-        var targetLayer = container.layer;
-        var gridGroup = targetLayer.groupItems.add();
-        gridGroup.name = 'TiledGrid';
-
-        var originLeft = cInfo.left;
-        var originTop = cInfo.top;
-
-        // 元タイルの位置を記録して上書き重複を防ぐ / Remember original tile position
-        var origTileLeft = tInfo.left;
-        var origTileTop  = tInfo.top;
+        var gridGroup = fillTarget.container.layer.groupItems.add();
+        gridGroup.name = GRID_GROUP_NAME;
 
         /* 敷き詰め実行 / Duplicate and place in grid */
-        for (var r = 0; r < rows; r++) {
-            var yTop = originTop - r * stepY;
-            for (var c = 0; c < cols; c++) {
-                var xLeft = originLeft + c * stepX + ((brickMode && (r % 2 === 1)) ? stepX * 0.5 : 0);
-                // 同じ場所に元タイルがある場合はスキップ / Skip if same as original tile
-                if (Math.abs(xLeft - origTileLeft) < 0.01 && Math.abs(yTop - origTileTop) < 0.01) {
-                    continue;
-                }
-                if (useSymbolDup && symDef) {
-                    var si = doc.symbolItems.add(symDef);
-                    si.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
-                    si.position = [xLeft, yTop];
-                } else {
-                    var dup = tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
-                    dup.position = [xLeft, yTop];
-                }
-            }
-        }
-
-        // --- マスクなしトリム / Trim without mask ---
-        var containerIsRect = (container.typename === 'PathItem') && TG.isRectanglePath(container);
-        var containerIsEllipse = (container.typename === 'PathItem') && TG.isEllipseLike(container);
-
-        var cx = (cInfo.left + cInfo.right) / 2.0;
-        var cy = (cInfo.top + cInfo.bottom) / 2.0;
-        var rx = Math.abs(cInfo.right - cInfo.left) / 2.0;
-        var ry = Math.abs(cInfo.top - cInfo.bottom) / 2.0;
-        var adjLeftF = cInfo.left + marginVal;
-        var adjRightF = cInfo.right - marginVal;
-        var adjTopF = cInfo.top - marginVal;
-        var adjBottomF = cInfo.bottom + marginVal;
-        var rxAdjF = Math.max(0, rx - marginVal);
-        var ryAdjF = Math.max(0, ry - marginVal);
-
-        function pointInEllipse(x, y) {
-            if (rx === 0 || ry === 0) return false;
-            var dx = (x - cx) / rx;
-            var dy = (y - cy) / ry;
-            return (dx * dx + dy * dy) <= 1.000001;
-        }
-
-        for (var i = gridGroup.pageItems.length - 1; i >= 0; i--) {
-            var it = gridGroup.pageItems[i];
-            var ib = TG.boundsInfo(it);
-            var keep = false;
-
-            if (containerIsRect) {
-                /* 矩形：バウンディングが内側に完全に入っているか / Rect: full bbox inside */
-                keep = (ib.left >= adjLeftF && ib.right <= adjRightF && ib.top <= adjTopF && ib.bottom >= adjBottomF);
-            } else if (containerIsEllipse) {
-                /* 楕円：4隅が楕円の内側にあるか / Ellipse: 4 corners inside */
-                var corners = [
-                    [ib.left, ib.top],
-                    [ib.right, ib.top],
-                    [ib.left, ib.bottom],
-                    [ib.right, ib.bottom]
-                ];
-                keep = (rxAdjF > 0 && ryAdjF > 0);
-                if (keep) {
-                    for (var k = 0; k < 4; k++) {
-                        var dx = (corners[k][0] - cx) / rxAdjF;
-                        var dy = (corners[k][1] - cy) / ryAdjF;
-                        if ((dx * dx + dy * dy) > 1.000001) {
-                            keep = false;
-                            break;
-                        }
-                    }
-                }
+        forEachGridCell(containerInfo, stepX, stepY, gridSize, fillSettings.isBrick, function(xLeft, yTop) {
+            /* 同じ場所に元タイルがある場合はスキップ / Skip if same as original tile */
+            if (Math.abs(xLeft - tileInfo.left) < 0.01 && Math.abs(yTop - tileInfo.top) < 0.01) return;
+            if (fillSettings.symbolize && symbolDefinition) {
+                var symbolItem = doc.symbolItems.add(symbolDefinition);
+                symbolItem.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
+                symbolItem.position = [xLeft, yTop];
             } else {
-                /* その他：中心点が内側にあるか / Others: center point inside */
-                var cxTile = (ib.left + ib.right) / 2.0;
-                var cyTile = (ib.top + ib.bottom) / 2.0;
-                keep = (cxTile >= adjLeftF && cxTile <= adjRightF && cyTile <= adjTopF && cyTile >= adjBottomF);
+                var tileCopy = tile.duplicate(gridGroup, ElementPlacement.PLACEATBEGINNING);
+                tileCopy.position = [xLeft, yTop];
             }
+        });
 
-            if (!keep) it.remove();
-        }
+        /* マスクなしトリム / Trim without mask */
+        trimTilesOutside(gridGroup, buildContainerShape(fillTarget.container, containerInfo, fillSettings.margin));
 
         app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
         app.redraw();
     }
 
-    /* メインを1アクションで実行 / Run main in single undo */
-    function __runMain() {
+    /**
+     * メイン処理を実行し、例外はアラートで知らせる
+     * @returns {void}
+     */
+    function runMainWithErrorAlert() {
         try {
             main();
         } catch (e) {
-            try {
-                alert('[TileSmallIntoLarge] Error:\n' + e);
-            } catch (e) {}
+            alert('[TileSmallIntoLarge] Error:\n' + e);
         }
     }
+
+    /* メインを1アクションで実行（ScriptLanguage / UndoModes がある環境のみ）/ Run main in single undo where the enums exist */
     try {
         if (typeof app.doScript === 'function' && typeof ScriptLanguage !== 'undefined' && typeof UndoModes !== 'undefined') {
-            app.doScript(__runMain, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, 'TileSmallIntoLarge');
+            app.doScript(runMainWithErrorAlert, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, 'TileSmallIntoLarge');
         } else {
-            __runMain();
+            runMainWithErrorAlert();
         }
     } catch (e) {
-        __runMain();
+        runMainWithErrorAlert();
     }
 
 })();

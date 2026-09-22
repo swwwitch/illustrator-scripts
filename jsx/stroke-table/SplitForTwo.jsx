@@ -90,12 +90,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {Panel} 追加したパネル
      */
     function addPanel(parent, titleText, childAlignment) {
-        var panel = parent.add("panel", undefined, titleText);
-        panel.orientation = "column";
-        panel.alignChildren = [childAlignment || "left", "top"];
-        panel.alignment = ["fill", "top"];
-        panel.margins = PANEL_MARGINS;
-        return panel;
+        var newPanel = parent.add("panel", undefined, titleText);
+        newPanel.orientation = "column";
+        newPanel.alignChildren = [childAlignment || "left", "top"];
+        newPanel.alignment = ["fill", "top"];
+        newPanel.margins = PANEL_MARGINS;
+        return newPanel;
     }
 
     /**
@@ -132,10 +132,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {Checkbox} 追加したチェックボックス
      */
     function addCheckbox(parent, labelKey, tooltipKey, checked) {
-        var checkbox = parent.add("checkbox", undefined, getLabel(labelKey));
-        checkbox.helpTip = getLabel(tooltipKey);
-        checkbox.value = !!checked;
-        return checkbox;
+        var newCheckbox = parent.add("checkbox", undefined, getLabel(labelKey));
+        newCheckbox.helpTip = getLabel(tooltipKey);
+        newCheckbox.value = !!checked;
+        return newCheckbox;
     }
 
     /**
@@ -146,9 +146,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {RadioButton} 追加したラジオボタン
      */
     function addRadio(parent, labelKey, tooltipKey) {
-        var radio = parent.add("radiobutton", undefined, getLabel(labelKey));
-        radio.helpTip = getLabel(tooltipKey);
-        return radio;
+        var newRadio = parent.add("radiobutton", undefined, getLabel(labelKey));
+        newRadio.helpTip = getLabel(tooltipKey);
+        return newRadio;
     }
 
     /**
@@ -338,6 +338,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
                 ja: "CMYKのK版だけで色を作ります（グレースケール）。",
                 en: "Builds the color from the K plate only, giving a grayscale."
             },
+            swatch: { ja: "クリックすると色を選べます。", en: "Click to choose a color." },
             preset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
             presetName: { ja: "保存する設定の名前です。", en: "Name the settings are saved under." }
         },
@@ -431,13 +432,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * ダイアログの不透明度を設定する
-     * @param {Window} dialog - 対象のダイアログ
+     * @param {Window} targetDialog - 対象のダイアログ
      * @param {number} opacityValue - 不透明度（0〜1）
      * @returns {void}
      */
-    function setDialogOpacity(dialog, opacityValue) {
+    function setDialogOpacity(targetDialog, opacityValue) {
         try {
-            dialog.opacity = opacityValue;
+            targetDialog.opacity = opacityValue;
         } catch (e) {
             /* 不透明度を持たない環境では既定のまま / keep the default where opacity is unsupported */
         }
@@ -445,23 +446,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * ダイアログの位置を覚えておき、次に開くときに同じ位置へ出す（既存の onShow は先に呼ぶ）
-     * @param {Window} dialog - 対象のダイアログ
+     * @param {Window} targetDialog - 対象のダイアログ
      * @param {Object} locationStore - 位置を持っておくオブジェクト
      * @param {string} locationKey - locationStore のキー
      * @returns {void}
      */
-    function keepDialogLocation(dialog, locationStore, locationKey) {
-        var previousOnShow = dialog.onShow;
-        dialog.onShow = function () {
+    function keepDialogLocation(targetDialog, locationStore, locationKey) {
+        var previousOnShow = targetDialog.onShow;
+        targetDialog.onShow = function () {
             if (typeof previousOnShow === "function") previousOnShow();
             var savedLocation = locationStore[locationKey];
-            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (savedLocation) targetDialog.location = [savedLocation[0], savedLocation[1]];
         };
         var saveLocation = function () {
-            locationStore[locationKey] = [dialog.location[0], dialog.location[1]];
+            locationStore[locationKey] = [targetDialog.location[0], targetDialog.location[1]];
         };
-        dialog.onMove = saveLocation;
-        dialog.onClose = saveLocation;
+        targetDialog.onMove = saveLocation;
+        targetDialog.onClose = saveLocation;
     }
 
     /**
@@ -511,6 +512,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             editText.text = String(value);
 
             if (typeof onChange === "function") {
+                /* プレビューの描き直しで失敗しても入力は続けられるようにする / keep the field usable if redrawing the preview fails */
                 try { onChange(); } catch (e) { }
             }
         });
@@ -577,13 +579,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * 削除する（createOutline() に消費された複製など、すでに無いものは無視する）
-     * @param {PageItem} item - 削除するオブジェクト
+     * @param {PageItem} pageItem - 削除するオブジェクト
      * @returns {void}
      */
-    function removeItem(item) {
-        if (!item) return;
+    function removeItem(pageItem) {
+        if (!pageItem) return;
         try {
-            item.remove();
+            pageItem.remove();
         } catch (e) {
             /* すでに無い / already gone */
         }
@@ -597,37 +599,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function getOutlineBounds(textFrame) {
         var duplicateText = null;
         var outlineGroup = null;
-        var bounds = null;
+        var outlineBounds = null;
         try {
             duplicateText = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING);
             outlineGroup = duplicateText.createOutline();
-            bounds = outlineGroup.geometricBounds;
+            outlineBounds = outlineGroup.geometricBounds;
         } catch (e) {
             /* 空白だけのテキストは中身の無いグループになり、geometricBounds が例外になる / whitespace-only text outlines to an empty group whose bounds throw */
-            bounds = null;
+            outlineBounds = null;
         } finally {
             removeItem(outlineGroup);
             /* createOutline() が成功していれば複製は消費済み / the duplicate is already consumed when createOutline() succeeds */
             removeItem(duplicateText);
         }
-        return bounds;
+        return outlineBounds;
     }
 
     /**
      * オブジェクトの外接矩形を返す。テキストはアウトライン、クリップグループはマスクの範囲で測る
-     * @param {PageItem} item - 対象のオブジェクト
+     * @param {PageItem} pageItem - 対象のオブジェクト
      * @returns {number[]} 外接矩形 [左, 上, 右, 下]
      */
-    function getItemBounds(item) {
-        var bounds = null;
-        if (item.typename === "TextFrame") {
-            bounds = getOutlineBounds(item);
-        } else if (item.typename === "GroupItem" && item.clipped && item.pageItems.length > 0) {
+    function getItemBounds(pageItem) {
+        var itemBounds = null;
+        if (pageItem.typename === "TextFrame") {
+            itemBounds = getOutlineBounds(pageItem);
+        } else if (pageItem.typename === "GroupItem" && pageItem.clipped && pageItem.pageItems.length > 0) {
             /* クリップグループのマスクは pageItems[0] / the mask of a clip group is pageItems[0] */
-            bounds = getItemBounds(item.pageItems[0]);
+            itemBounds = getItemBounds(pageItem.pageItems[0]);
         }
-        if (!bounds) bounds = item.geometricBounds;
-        return [bounds[0], bounds[1], bounds[2], bounds[3]];
+        if (!itemBounds) itemBounds = pageItem.geometricBounds;
+        return [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
     }
 
     // =========================================
@@ -698,12 +700,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {{c: number, m: number, y: number, k: number}} CMYK（0〜100）
      */
     function parseCmykString(colorText) {
-        var parts = String(colorText).replace("cmyk:", "").split(",");
+        var cmykParts = String(colorText).replace("cmyk:", "").split(",");
         return {
-            c: parseFloat(parts[0]) || 0,
-            m: parseFloat(parts[1]) || 0,
-            y: parseFloat(parts[2]) || 0,
-            k: parseFloat(parts[3]) || 0
+            c: parseFloat(cmykParts[0]) || 0,
+            m: parseFloat(cmykParts[1]) || 0,
+            y: parseFloat(cmykParts[2]) || 0,
+            k: parseFloat(cmykParts[3]) || 0
         };
     }
 
@@ -784,11 +786,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {RGBColor} 色
      */
     function makeRGBColor(rgb) {
-        var color = new RGBColor();
-        color.red = rgb.r;
-        color.green = rgb.g;
-        color.blue = rgb.b;
-        return color;
+        var rgbColor = new RGBColor();
+        rgbColor.red = rgb.r;
+        rgbColor.green = rgb.g;
+        rgbColor.blue = rgb.b;
+        return rgbColor;
     }
 
     /**
@@ -797,12 +799,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {CMYKColor} 色
      */
     function makeCMYKColor(cmyk) {
-        var color = new CMYKColor();
-        color.cyan = cmyk.c;
-        color.magenta = cmyk.m;
-        color.yellow = cmyk.y;
-        color.black = cmyk.k;
-        return color;
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = cmyk.c;
+        cmykColor.magenta = cmyk.m;
+        cmykColor.yellow = cmyk.y;
+        cmykColor.black = cmyk.k;
+        return cmykColor;
     }
 
     /**
@@ -1316,6 +1318,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function addColorSwatch(parent, initialColor) {
         var colorSwatch = { colorText: initialColor, onChange: null };
         var swatchImage = parent.add("image", undefined, undefined, { name: "swatch" });
+        swatchImage.helpTip = getLabel("tooltip.swatch");
         swatchImage.preferredSize = SWATCH_SIZE;
         swatchImage.onDraw = function () { paintSolidColor(this, colorStringToRgb(colorSwatch.colorText), true); };
 
@@ -1514,21 +1517,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number, split: number}} 範囲と分割位置（左右なら X、上下なら Y）
      */
     function computeSplitLayout(drawOptions) {
-        var layout = {
+        var splitLayout = {
             left: targetBounds[0],
             top: targetBounds[1],
             right: targetBounds[2],
             bottom: targetBounds[3]
         };
-        layout.width = layout.right - layout.left;
-        layout.height = layout.top - layout.bottom;
+        splitLayout.width = splitLayout.right - splitLayout.left;
+        splitLayout.height = splitLayout.top - splitLayout.bottom;
         if (drawOptions.vertical) {
             /* 上下：オフセットが正なら分割位置が下がる / top/bottom: a positive offset moves the split down */
-            layout.split = clampNumber(layout.top - layout.height / 2 - drawOptions.offsetPt, layout.bottom, layout.top);
+            splitLayout.split = clampNumber(splitLayout.top - splitLayout.height / 2 - drawOptions.offsetPt, splitLayout.bottom, splitLayout.top);
         } else {
-            layout.split = clampNumber(layout.left + layout.width / 2 + drawOptions.offsetPt, layout.left, layout.right);
+            splitLayout.split = clampNumber(splitLayout.left + splitLayout.width / 2 + drawOptions.offsetPt, splitLayout.left, splitLayout.right);
         }
-        return layout;
+        return splitLayout;
     }
 
     /**
@@ -1536,10 +1539,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @param {PathItem|null} firstFill - 左（上）側の塗り
      * @param {PathItem|null} secondFill - 右（下）側の塗り
      * @param {Object} drawOptions - 描画の設定
-     * @param {Object} layout - computeSplitLayout() の戻り値
+     * @param {Object} splitLayout - computeSplitLayout() の戻り値
      * @returns {void}
      */
-    function roundFillCorners(firstFill, secondFill, drawOptions, layout) {
+    function roundFillCorners(firstFill, secondFill, drawOptions, splitLayout) {
         var firstCornerKeys = drawOptions.vertical ? ["tl", "tr"] : ["tl", "bl"];
         var secondCornerKeys = drawOptions.vertical ? ["bl", "br"] : ["tr", "br"];
 
@@ -1548,7 +1551,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             roundEachEnabledCorner(secondFill, secondCornerKeys, drawOptions.perCorner);
         } else if (drawOptions.pillShape) {
             /* 短辺の半分で丸める / round with half the short side */
-            var pillRadiusPt = (drawOptions.vertical ? layout.width : layout.height) / 2;
+            var pillRadiusPt = (drawOptions.vertical ? splitLayout.width : splitLayout.height) / 2;
             if (firstFill) roundPathCorners(firstFill, firstCornerKeys, pillRadiusPt);
             if (secondFill) roundPathCorners(secondFill, secondCornerKeys, pillRadiusPt);
             if (firstFill) applyLivePathfinderAdd(firstFill);
@@ -1560,10 +1563,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * 外枠の角を丸める（角ごとの角丸か、ピル形状）
      * @param {PathItem} frameRect - 外枠
      * @param {Object} drawOptions - 描画の設定
-     * @param {Object} layout - computeSplitLayout() の戻り値
+     * @param {Object} splitLayout - computeSplitLayout() の戻り値
      * @returns {void}
      */
-    function roundFrameCorners(frameRect, drawOptions, layout) {
+    function roundFrameCorners(frameRect, drawOptions, splitLayout) {
         var perCorner = drawOptions.perCorner;
         if (perCorner) {
             var enabledKeys = [];
@@ -1590,7 +1593,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
                 roundEachEnabledCorner(frameRect, enabledKeys, perCorner);
             }
         } else if (drawOptions.pillShape) {
-            roundPathCorners(frameRect, CORNER_KEYS, Math.min(layout.width, layout.height) / 2);
+            roundPathCorners(frameRect, CORNER_KEYS, Math.min(splitLayout.width, splitLayout.height) / 2);
             applyLivePathfinderAdd(frameRect);
         }
     }
@@ -1602,7 +1605,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {{firstFill: PathItem, secondFill: PathItem, frame: PathItem, divider: PathItem}} 描いたオブジェクト（描かなかったものは null）
      */
     function drawSplitBackground(drawOptions, targetLayer) {
-        var layout = computeSplitLayout(drawOptions);
+        var splitLayout = computeSplitLayout(drawOptions);
         var pathItems = targetLayer.pathItems;
         var vertical = drawOptions.vertical;
         var firstFill = null;
@@ -1610,21 +1613,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
         if (drawOptions.fillFirst) {
             firstFill = vertical
-                ? addFillRect(pathItems, layout.top, layout.left, layout.width, layout.top - layout.split, drawOptions.firstColor)
-                : addFillRect(pathItems, layout.top, layout.left, layout.split - layout.left, layout.height, drawOptions.firstColor);
+                ? addFillRect(pathItems, splitLayout.top, splitLayout.left, splitLayout.width, splitLayout.top - splitLayout.split, drawOptions.firstColor)
+                : addFillRect(pathItems, splitLayout.top, splitLayout.left, splitLayout.split - splitLayout.left, splitLayout.height, drawOptions.firstColor);
         }
         if (drawOptions.fillSecond) {
             secondFill = vertical
-                ? addFillRect(pathItems, layout.split, layout.left, layout.width, layout.split - layout.bottom, drawOptions.secondColor)
-                : addFillRect(pathItems, layout.top, layout.split, layout.right - layout.split, layout.height, drawOptions.secondColor);
+                ? addFillRect(pathItems, splitLayout.split, splitLayout.left, splitLayout.width, splitLayout.split - splitLayout.bottom, drawOptions.secondColor)
+                : addFillRect(pathItems, splitLayout.top, splitLayout.split, splitLayout.right - splitLayout.split, splitLayout.height, drawOptions.secondColor);
         }
-        roundFillCorners(firstFill, secondFill, drawOptions, layout);
+        roundFillCorners(firstFill, secondFill, drawOptions, splitLayout);
 
         var frameRect = null;
         if (drawOptions.overallFrame) {
-            frameRect = pathItems.rectangle(layout.top, layout.left, layout.width, layout.height);
+            frameRect = pathItems.rectangle(splitLayout.top, splitLayout.left, splitLayout.width, splitLayout.height);
             styleLine(frameRect, drawOptions.strokeWidthPt, drawOptions.strokeColor);
-            roundFrameCorners(frameRect, drawOptions, layout);
+            roundFrameCorners(frameRect, drawOptions, splitLayout);
             frameRect.zOrder(ZOrderMethod.BRINGTOFRONT);
         }
 
@@ -1633,8 +1636,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             dividerLine = pathItems.add();
             styleLine(dividerLine, drawOptions.strokeWidthPt, drawOptions.strokeColor);
             dividerLine.setEntirePath(vertical
-                ? [[layout.left, layout.split], [layout.right, layout.split]]
-                : [[layout.split, layout.top], [layout.split, layout.bottom]]);
+                ? [[splitLayout.left, splitLayout.split], [splitLayout.right, splitLayout.split]]
+                : [[splitLayout.split, splitLayout.top], [splitLayout.split, splitLayout.bottom]]);
             dividerLine.zOrder(ZOrderMethod.BRINGTOFRONT);
         }
 
@@ -1816,7 +1819,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      */
     function exportSettingsToDesktop(controls) {
         var presetData = collectPresetData(controls);
-        var lines = [
+        var settingLines = [
             "splitDirection=" + presetData.splitDirection,
             "fillLeft=" + (presetData.fillLeft ? "1" : "0"),
             "fillRight=" + (presetData.fillRight ? "1" : "0"),
@@ -1839,7 +1842,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
         exportFile.encoding = "UTF-8";
         if (exportFile.open("w")) {
-            exportFile.write(lines.join("\n"));
+            exportFile.write(settingLines.join("\n"));
             exportFile.close();
             alert(getLabel("alert.exportedSettings") + "\n" + exportFile.fsName);
         } else {
@@ -1849,12 +1852,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * プリセットの行（ドロップダウン・保存・書き出し）を組み立てて隠す
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} settingsDialog - 追加先のダイアログ
      * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
      * @returns {void}
      */
-    function buildPresetRow(dialog, controls) {
-        var presetRowGroup = addRow(dialog);
+    function buildPresetRow(settingsDialog, controls) {
+        var presetRowGroup = addRow(settingsDialog);
         presetRowGroup.alignment = ["center", "top"];
         presetRowGroup.add("statictext", undefined, labelText("fieldLabel.preset"));
 
@@ -1895,37 +1898,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      */
     function buildSettingsDialog(session) {
         var controls = {};
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.margins = DIALOG_MARGINS;
-        setDialogOpacity(dialog, DIALOG_OPACITY);
-        controls.dialog = dialog;
+        var settingsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        settingsDialog.orientation = "column";
+        settingsDialog.alignChildren = ["fill", "top"];
+        settingsDialog.margins = DIALOG_MARGINS;
+        setDialogOpacity(settingsDialog, DIALOG_OPACITY);
+        controls.dialog = settingsDialog;
 
-        buildPresetRow(dialog, controls);
-        buildSplitDirectionPanel(dialog, controls);
-        buildBalancePanel(dialog, controls);
+        buildPresetRow(settingsDialog, controls);
+        buildSplitDirectionPanel(settingsDialog, controls);
+        buildBalancePanel(settingsDialog, controls);
 
         /* 2カラム：左＝塗り、右＝線 / Two columns: fill on the left, stroke on the right */
-        var columnsGroup = dialog.add("group");
+        var columnsGroup = settingsDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignment = ["fill", "top"];
         columnsGroup.alignChildren = ["fill", "top"];
         buildFillPanel(addColumn(columnsGroup, "fill"), controls, session);
         buildStrokePanel(addColumn(columnsGroup, "fill"), controls, session);
 
-        buildCornerPanel(dialog, controls, session);
+        buildCornerPanel(settingsDialog, controls, session);
 
-        controls.groupItemsCheckbox = addCheckbox(dialog, "checkbox.groupItems", "tooltip.groupItems", DEFAULT_GROUP_ITEMS);
+        controls.groupItemsCheckbox = addCheckbox(settingsDialog, "checkbox.groupItems", "tooltip.groupItems", DEFAULT_GROUP_ITEMS);
         controls.groupItemsCheckbox.alignment = ["center", "center"];
 
-        var btnRowGroup = dialog.add("group");
+        var btnRowGroup = settingsDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = ["center", "center"];
         controls.btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         controls.btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        dialog.defaultElement = controls.btnOK;
-        dialog.cancelElement = controls.btnCancel;
+        settingsDialog.defaultElement = controls.btnOK;
+        settingsDialog.cancelElement = controls.btnCancel;
 
         updateBalanceRange(controls);
         updateStrokeEnabled(controls);
@@ -1935,12 +1938,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * ［分割方法］パネルを組み立てる（縦長なら上下、それ以外は左右を選んでおく）
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} settingsDialog - 追加先のダイアログ
      * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
      * @returns {void}
      */
-    function buildSplitDirectionPanel(dialog, controls) {
-        var splitDirectionPanel = addPanel(dialog, getLabel("panel.splitDirection"));
+    function buildSplitDirectionPanel(settingsDialog, controls) {
+        var splitDirectionPanel = addPanel(settingsDialog, getLabel("panel.splitDirection"));
         splitDirectionPanel.orientation = "row";
         splitDirectionPanel.alignChildren = ["center", "center"];
         controls.splitLRRadio = addRadio(splitDirectionPanel, "radio.splitLR", "tooltip.splitLR");
@@ -1974,12 +1977,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * ［バランス］パネル（左右の幅・％とスライダー）を組み立てる
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} settingsDialog - 追加先のダイアログ
      * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
      * @returns {void}
      */
-    function buildBalancePanel(dialog, controls) {
-        var balancePanel = addPanel(dialog, getLabel("panel.balance"), "fill");
+    function buildBalancePanel(settingsDialog, controls) {
+        var balancePanel = addPanel(settingsDialog, getLabel("panel.balance"), "fill");
         var balanceGroup = addColumn(balancePanel, "fill");
         balanceGroup.spacing = BALANCE_SPACING;
 
@@ -2075,13 +2078,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
 
     /**
      * ［角丸］パネル（ピル形状・連動・4つの角）を組み立てる
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} settingsDialog - 追加先のダイアログ
      * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
      * @param {Object} session - セッションに残した前回の値
      * @returns {void}
      */
-    function buildCornerPanel(dialog, controls, session) {
-        var cornerPanel = addPanel(dialog, getLabel("panel.cornerRadius") + " (" + getUnitInfo("rulerType").label + ")");
+    function buildCornerPanel(settingsDialog, controls, session) {
+        var cornerPanel = addPanel(settingsDialog, getLabel("panel.cornerRadius") + " (" + getUnitInfo("rulerType").label + ")");
         controls.pillCheckbox = addCheckbox(cornerPanel, "checkbox.pillShape", "tooltip.pillShape", session.pillShape);
         controls.cornerLinkCheckbox = addCheckbox(cornerPanel, "checkbox.cornerLink", "tooltip.cornerLink", session.cornerLink);
 
@@ -2093,13 +2096,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var leftColumn = addColumn(cornerColumnsGroup, "left");
         var rightColumn = addColumn(cornerColumnsGroup, "left");
 
-        var enabled = session.cornerEnabled;
-        var radiusPt = session.cornerRadiusPt;
+        var cornerEnabled = session.cornerEnabled;
+        var cornerRadiusPt = session.cornerRadiusPt;
         controls.corners = {};
-        controls.corners.tl = addCornerRow(leftColumn, "checkbox.cornerTL", enabled.tl, radiusPt.tl);
-        controls.corners.bl = addCornerRow(leftColumn, "checkbox.cornerBL", enabled.bl, radiusPt.bl);
-        controls.corners.tr = addCornerRow(rightColumn, "checkbox.cornerTR", enabled.tr, radiusPt.tr);
-        controls.corners.br = addCornerRow(rightColumn, "checkbox.cornerBR", enabled.br, radiusPt.br);
+        controls.corners.tl = addCornerRow(leftColumn, "checkbox.cornerTL", cornerEnabled.tl, cornerRadiusPt.tl);
+        controls.corners.bl = addCornerRow(leftColumn, "checkbox.cornerBL", cornerEnabled.bl, cornerRadiusPt.bl);
+        controls.corners.tr = addCornerRow(rightColumn, "checkbox.cornerTR", cornerEnabled.tr, cornerRadiusPt.tr);
+        controls.corners.br = addCornerRow(rightColumn, "checkbox.cornerBR", cornerEnabled.br, cornerRadiusPt.br);
     }
 
     /**

@@ -29,7 +29,7 @@ var SCRIPT_NAME     = "DrawLinesBetween";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawLinesBetween.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesBetween.md"; /* README (English) */
@@ -64,145 +64,128 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         / Persist last-used settings and restore on next run (stroke/extension/cap etc.)
     */
 
-    // ----------------------------------------
-    // Version / Localization
-    // ----------------------------------------
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    function getCurrentLang() {
+    var DEFAULT_LINE_WEIGHT = 0.25; /* 線幅の既定値（pt）/ default stroke weight in pt */
+    var DEFAULT_EXTENSION   = 0;    /* 延長の既定値（pt）。左右にどれだけ伸ばすか / default extension on each side in pt */
+    var ROW_OVERLAP_RATIO   = 0.5;  /* 同じ行とみなす縦方向の重なり率（0.0–1.0）/ vertical overlap ratio for one row */
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_OFFSET_X    = 300;              /* ダイアログの表示位置のずらし量 / dialog position offset */
+    var DIALOG_OFFSET_Y    = 0;
+    var DIALOG_OPACITY     = 0.98;             /* ダイアログの不透明度 / dialog opacity */
+    var PANEL_MARGINS      = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / panel margins */
+    var NUMBER_FIELD_CHARS = 6;                /* 数値入力欄の幅（文字数）/ number field width in characters */
+
+    /**
+     * ダイアログを表示するときに位置をずらす
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @param {number} offsetX - 横方向のずらし量
+     * @param {number} offsetY - 縦方向のずらし量
+     * @returns {void}
+     */
+    function shiftDialogPosition(targetDialog, offsetX, offsetY) {
+        targetDialog.onShow = function () {
+            var currentX = targetDialog.location[0];
+            var currentY = targetDialog.location[1];
+            targetDialog.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    /**
+     * ダイアログの不透明度を設定する
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @param {number} opacityValue - 不透明度（0〜1）
+     * @returns {void}
+     */
+    function setDialogOpacity(targetDialog, opacityValue) {
+        try {
+            targetDialog.opacity = opacityValue;
+        } catch (e) { /* 環境によっては opacity を持たない / opacity is not supported in some environments */ }
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境のロケールから表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getCurrentLang();
+    var uiLang = detectUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "オブジェクト間に罫線",
-            en: "Rules Between Objects"
+        dialog: {
+            title: { ja: "オブジェクト間に罫線", en: "Rules Between Objects" }
         },
-        lineWidth: {
-            ja: "線幅",
-            en: "Stroke"
+        panel: {
+            lineCap:    { ja: "線端", en: "Line Cap" },
+            ruleLength: { ja: "ケイ線の長さ", en: "Rule Length" }
         },
-        extension: {
-            ja: "延長",
-            en: "Extension"
+        fieldLabel: {
+            lineWeight: { ja: "線幅", en: "Stroke" },
+            extension:  { ja: "延長", en: "Extension" }
         },
-        lineCap: {
-            ja: "線端",
-            en: "Line Cap"
+        radio: {
+            capButt:          { ja: "なし", en: "Butt" },
+            capRound:         { ja: "丸型線端", en: "Round" },
+            capProjecting:    { ja: "突出線端", en: "Projecting" },
+            ruleLengthObject: { ja: "オブジェクトに合わせる", en: "Match Objects" },
+            ruleLengthCommon: { ja: "共通", en: "Common" }
         },
-        tipLineWidth: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
-        tipMargin: { ja: "オブジェクトの端からケイ線を離す距離です。", en: "How far the rules sit from the edge of the objects." },
-        tipCapButt: { ja: "線の端を切りっぱなしにします。", en: "Leaves the line ends flat." },
-        tipCapRound: { ja: "線の端を丸くします。", en: "Rounds the line ends." },
-        tipCapProjecting: { ja: "線の端を太さの半分だけ延ばします。", en: "Extends the line ends by half the weight." },
-        tipLengthObject: { ja: "ケイ線の長さを、上下のオブジェクトの幅に合わせます。", en: "Matches each rule to the width of the objects it sits between." },
-        tipLengthCommon: { ja: "すべてのケイ線を同じ長さにそろえます。", en: "Gives every rule the same length." },
-        capButt: {
-            ja: "なし",
-            en: "Butt"
+        tooltip: {
+            lineWeight:       { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+            extension:        { ja: "オブジェクトの端からケイ線を離す距離です。", en: "How far the rules sit from the edge of the objects." },
+            capButt:          { ja: "線の端を切りっぱなしにします。", en: "Leaves the line ends flat." },
+            capRound:         { ja: "線の端を丸くします。", en: "Rounds the line ends." },
+            capProjecting:    { ja: "線の端を太さの半分だけ延ばします。", en: "Extends the line ends by half the weight." },
+            ruleLengthObject: {
+                ja: "ケイ線の長さを、上下のオブジェクトの幅に合わせます。",
+                en: "Matches each rule to the width of the objects it sits between."
+            },
+            ruleLengthCommon: { ja: "すべてのケイ線を同じ長さにそろえます。", en: "Gives every rule the same length." }
         },
-        capRound: {
-            ja: "丸型線端",
-            en: "Round"
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         },
-        capProjecting: {
-            ja: "突出線端",
-            en: "Projecting"
-        },
-        ruleLength: {
-            ja: "ケイ線の長さ",
-            en: "Rule Length"
-        },
-        ruleLengthObject: {
-            ja: "オブジェクトに合わせる",
-            en: "Match Objects"
-        },
-        ruleLengthCommon: {
-            ja: "共通",
-            en: "Common"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        alertNeedPositiveStroke: {
-            ja: "線幅は正の数値を入力してください。",
-            en: "Please enter a positive number for stroke."
-        },
-        alertNeedNumberExtension: {
-            ja: "延長は数値を入力してください。",
-            en: "Please enter a number for extension."
-        },
-        alertNoDoc: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
-        },
-        alertNeedSelection2: {
-            ja: "2つ以上のオブジェクトを選択してください。",
-            en: "Please select at least two objects."
+        alert: {
+            needPositiveStroke:  { ja: "線幅は正の数値を入力してください。", en: "Please enter a positive number for stroke." },
+            needNumberExtension: { ja: "延長は数値を入力してください。", en: "Please enter a number for extension." },
+            noDocument:          { ja: "ドキュメントが開かれていません。", en: "No document is open." }
         }
     };
 
-    function getLabel(key) {
-        if (!LABELS[key]) return key;
-        return LABELS[key][uiLang] || LABELS[key].en || key;
-    }
-
-    // ----------------------------------------
-    // Settings persistence (last used values)
-    // ----------------------------------------
-
-    var SETTINGS_KEY = "RulesBetweenObjectsSettings";
-
-    function sid(s) {
-        return stringIDToTypeID(s);
-    }
-
-    function loadSettings() {
-        try {
-            var d = app.getCustomOptions(SETTINGS_KEY);
-            return {
-                lineWeightPt: d.getReal(sid("lineWeightPt")),
-                marginPt: d.getReal(sid("marginPt")),
-                capIndex: d.getInteger(sid("capIndex"))
-            };
-        } catch (e) {
-            return null;
+    /**
+     * LABELS からドット区切りのパスで表示言語の文言を取り出す
+     * @param {string} labelPath - "category.key" 形式のパス
+     * @returns {string} 表示用の文言（見つからないときはパスそのもの）
+     */
+    function getLabel(labelPath) {
+        var labelNode = LABELS;
+        var pathKeys = labelPath.split(".");
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
         }
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
-    function saveSettings(lineWeightPt, marginPt, capIndex) {
-        try {
-            var d = new ActionDescriptor();
-            d.putReal(sid("lineWeightPt"), lineWeightPt);
-            d.putReal(sid("marginPt"), marginPt);
-            d.putInteger(sid("capIndex"), capIndex);
-            app.putCustomOptions(SETTINGS_KEY, d, true);
-        } catch (e) {
-            // ignore
-        }
-    }
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    function formatNumberForUI(n) {
-        // UI表示用に適度に丸める（単位に依存しすぎない）
-        var v = Math.round(n * 100) / 100;
-        // -0 を防ぐ
-        if (Math.abs(v) < 0.000001) v = 0;
-        return String(v);
-    }
-
-    var DEFAULT_LINE_WEIGHT = 0.25; // デフォルト線幅（pt）
-    var DEFAULT_MARGIN = 0; // デフォルト延長量（pt）左右にどれだけ伸ばすか
-
-    // 単位（strokeUnits）ユーティリティ / Units (strokeUnits) utilities
-
-    // 単位コード → ラベル（Q/H分岐あり）
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -222,54 +205,82 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* 指定単位の値を pt に変換 / Convert a value in the given unit to points */
-    function toPt(value, unitCode) {
-        return value * (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
-    }
+    // =========================================
+    // 前回値の記憶 / Session settings
+    // =========================================
 
-    /* pt を指定単位の値に変換 / Convert points to a value in the given unit */
-    function fromPt(ptValue, unitCode) {
-        return ptValue / (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
-    }
+    var SETTINGS_KEY = "RulesBetweenObjectsSettings";
 
-    // ダイアログ外観ユーティリティ / Dialog appearance utilities
-
-    var DIALOG_OFFSET_X = 300;
-    var DIALOG_OFFSET_Y = 0;
-    var DIALOG_OPACITY = 0.98;
-
-    function shiftDialogPosition(dialog, offsetX, offsetY) {
-        dialog.onShow = function () {
-            try {
-                var currentX = dialog.location[0];
-                var currentY = dialog.location[1];
-                dialog.location = [currentX + offsetX, currentY + offsetY];
-            } catch (e) {
-                // location が取得できない環境向けフォールバック
-            }
-        };
-    }
-
-    function setDialogOpacity(dialog, opacityValue) {
+    /**
+     * 前回の設定を読み込む
+     * @returns {{lineWeightPt: number, extensionPt: number, capIndex: number}} 保存値（無いときは null）
+     */
+    function loadSettings() {
         try {
-            dialog.opacity = opacityValue;
+            /* 保存値が無いと例外になる / throws when nothing is saved */
+            var settingsDescriptor = app.getCustomOptions(SETTINGS_KEY);
+            return {
+                lineWeightPt: settingsDescriptor.getReal(stringIDToTypeID("lineWeightPt")),
+                extensionPt: settingsDescriptor.getReal(stringIDToTypeID("marginPt")),
+                capIndex: settingsDescriptor.getInteger(stringIDToTypeID("capIndex"))
+            };
         } catch (e) {
-            // opacity 未対応環境向けフォールバック
+            return null;
         }
     }
 
+    /**
+     * 最後に使った設定を保存する（長さは pt で持つ）
+     * @param {number} lineWeightPt - 線幅（pt）
+     * @param {number} extensionPt - 延長（pt）
+     * @param {number} capIndex - 線端（0:なし / 1:丸型 / 2:突出）
+     * @returns {void}
+     */
+    function saveSettings(lineWeightPt, extensionPt, capIndex) {
+        try {
+            var settingsDescriptor = new ActionDescriptor();
+            settingsDescriptor.putReal(stringIDToTypeID("lineWeightPt"), lineWeightPt);
+            settingsDescriptor.putReal(stringIDToTypeID("marginPt"), extensionPt);
+            settingsDescriptor.putInteger(stringIDToTypeID("capIndex"), capIndex);
+            app.putCustomOptions(SETTINGS_KEY, settingsDescriptor, true);
+        } catch (e) { }
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 数値を入力欄向けに丸める（小数第2位まで）
+     * @param {number} numberValue - 表示したい数値
+     * @returns {string} 整形後の文字列
+     */
+    function formatNumberForUI(numberValue) {
+        var roundedValue = Math.round(numberValue * 100) / 100;
+        /* -0 を防ぐ / avoid -0 */
+        if (Math.abs(roundedValue) < 0.000001) roundedValue = 0;
+        return String(roundedValue);
+    }
+
+    /**
+     * 入力欄に↑↓キーでの数値増減を設定する（Shift で 10 刻み、Option で 0.1 刻み）
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText) {
         editText.addEventListener("keydown", function(event) {
             var value = Number(editText.text);
@@ -323,384 +334,430 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    function showDialog() {
-        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-        setDialogOpacity(dialog, DIALOG_OPACITY);
-        shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-        dialog.orientation = 'column';
-        dialog.alignChildren = ['fill', 'top'];
-        var saved = loadSettings();
-        var strokeUnitForUI = getUnitInfo("strokeUnits");
-        var strokeUnitCodeForUI = strokeUnitForUI.code;
-        var strokeUnitLabel = strokeUnitForUI.label;
+    /**
+     * 「項目名＋数値欄＋（単位）」の行を追加する
+     * @param {Window} parent - 追加先のダイアログ
+     * @param {string} labelPath - 項目名のラベルのパス
+     * @param {number} initialValue - 初期値（現在の線の単位）
+     * @param {string} unitLabel - 単位の表示
+     * @param {string} tooltipPath - tooltip のラベルのパス
+     * @returns {EditText} 追加した数値欄
+     */
+    function addNumberRow(parent, labelPath, initialValue, unitLabel, tooltipPath) {
+        var numberRow = parent.add("group");
+        numberRow.add("statictext", undefined, getLabel(labelPath));
+        var numberInput = numberRow.add("edittext", undefined, formatNumberForUI(initialValue));
+        numberInput.helpTip = getLabel(tooltipPath);
+        numberInput.characters = NUMBER_FIELD_CHARS;
+        changeValueByArrowKey(numberInput);
+        numberRow.add("statictext", undefined, "(" + unitLabel + ")");
+        return numberInput;
+    }
 
-        // 既定値（pt）→ 現在の strokeUnits 表示値へ変換
-        var defaultLineWeightUI = fromPt(DEFAULT_LINE_WEIGHT, strokeUnitCodeForUI);
-        var defaultMarginUI = fromPt(DEFAULT_MARGIN, strokeUnitCodeForUI);
+    /**
+     * ラジオボタンを縦に並べるパネルを追加する
+     * @param {Window} parent - 追加先のダイアログ
+     * @param {string} titlePath - パネル見出しのラベルのパス
+     * @returns {Group} ラジオボタンを入れるグループ
+     */
+    function addRadioPanel(parent, titlePath) {
+        var radioPanel = parent.add("panel", undefined, getLabel(titlePath));
+        radioPanel.orientation = "column";
+        radioPanel.alignChildren = ["left", "top"];
+        radioPanel.margins = PANEL_MARGINS;
 
-        // 保存済みがあればそれを優先
-        if (saved) {
-            if (typeof saved.lineWeightPt === "number") defaultLineWeightUI = fromPt(saved.lineWeightPt, strokeUnitCodeForUI);
-            if (typeof saved.marginPt === "number") defaultMarginUI = fromPt(saved.marginPt, strokeUnitCodeForUI);
-        }
+        var radioGroup = radioPanel.add("group");
+        radioGroup.orientation = "column";
+        radioGroup.alignChildren = ["left", "center"];
+        return radioGroup;
+    }
 
-        var lineGroup = dialog.add('group');
-        lineGroup.add('statictext', undefined, getLabel('lineWidth'));
-        var lineWidthInput = lineGroup.add('edittext', undefined, formatNumberForUI(defaultLineWeightUI));
-        lineWidthInput.helpTip = getLabel('tipLineWidth');
-        lineWidthInput.characters = 6;
-        changeValueByArrowKey(lineWidthInput);
-        lineGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
+    /**
+     * tooltip 付きのラジオボタンを追加する
+     * @param {Group} parent - 追加先のグループ
+     * @param {string} labelKey - radio と tooltip に共通のキー
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addRadioButton(parent, labelKey) {
+        var radioButton = parent.add("radiobutton", undefined, getLabel("radio." + labelKey));
+        radioButton.helpTip = getLabel("tooltip." + labelKey);
+        return radioButton;
+    }
 
-        var marginGroup = dialog.add('group');
-        marginGroup.add('statictext', undefined, getLabel('extension'));
-        var marginInput = marginGroup.add('edittext', undefined, formatNumberForUI(defaultMarginUI));
-        marginInput.helpTip = getLabel('tipMargin');
-        marginInput.characters = 6;
-        changeValueByArrowKey(marginInput);
-        marginGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
+    /**
+     * ダイアログを組み立てる
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @param {{lineWeight: number, extension: number, capIndex: number}} initialValues - 初期値（長さは現在の線の単位）
+     * @returns {Object} ダイアログと入力の読み取りに使うコントロール
+     */
+    function buildRulesDialog(strokeUnit, initialValues) {
+        var rulesDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setDialogOpacity(rulesDialog, DIALOG_OPACITY);
+        shiftDialogPosition(rulesDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+        rulesDialog.orientation = "column";
+        rulesDialog.alignChildren = ["fill", "top"];
 
-        var capPanel = dialog.add('panel', undefined, getLabel('lineCap'));
-        capPanel.orientation = 'column';
-        capPanel.alignChildren = ['left', 'top'];
-        capPanel.margins = [15, 20, 15, 10];
+        var lineWeightInput = addNumberRow(rulesDialog, "fieldLabel.lineWeight", initialValues.lineWeight,
+            strokeUnit.label, "tooltip.lineWeight");
+        var extensionInput = addNumberRow(rulesDialog, "fieldLabel.extension", initialValues.extension,
+            strokeUnit.label, "tooltip.extension");
 
-        var capGroup = capPanel.add('group');
-        capGroup.orientation = 'column';
-        capGroup.alignChildren = ['left', 'center'];
+        /* 線端（既定は「なし」、前回値があれば反映）/ Line cap: Butt by default, or the saved one */
+        var capRadioGroup = addRadioPanel(rulesDialog, "panel.lineCap");
+        var capButtRadio = addRadioButton(capRadioGroup, "capButt");
+        var capRoundRadio = addRadioButton(capRadioGroup, "capRound");
+        var capProjectingRadio = addRadioButton(capRadioGroup, "capProjecting");
+        capButtRadio.value = true;
+        if (initialValues.capIndex === 1) capRoundRadio.value = true;
+        else if (initialValues.capIndex === 2) capProjectingRadio.value = true;
 
-        var capNoneRadio = capGroup.add('radiobutton', undefined, getLabel('capButt'));
-        capNoneRadio.helpTip = getLabel('tipCapButt');
-        var capRoundRadio = capGroup.add('radiobutton', undefined, getLabel('capRound'));
-        capRoundRadio.helpTip = getLabel('tipCapRound');
-        var capProjectingRadio = capGroup.add('radiobutton', undefined, getLabel('capProjecting'));
-        capProjectingRadio.helpTip = getLabel('tipCapProjecting');
-
-        // デフォルト：なし（BUTT）/ Default: Butt
-        capNoneRadio.value = true;
-        // 保存済みの線端があれば反映 / Apply saved line cap selection
-        if (saved && typeof saved.capIndex === "number") {
-            if (saved.capIndex === 1) {
-                capRoundRadio.value = true;
-            } else if (saved.capIndex === 2) {
-                capProjectingRadio.value = true;
-            } else {
-                capNoneRadio.value = true;
-            }
-        }
-
-        // --- Rule Length Panel 追加 ---
-        var lengthPanel = dialog.add('panel', undefined, getLabel('ruleLength'));
-        lengthPanel.orientation = 'column';
-        lengthPanel.alignChildren = ['left', 'top'];
-        lengthPanel.margins = [15, 20, 15, 10];
-
-        var lengthGroup = lengthPanel.add('group');
-        lengthGroup.orientation = 'column';
-        lengthGroup.alignChildren = ['left', 'center'];
-
-        var lengthObjectRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthObject'));
-        lengthObjectRadio.helpTip = getLabel('tipLengthObject');
-        var lengthCommonRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthCommon'));
-        lengthCommonRadio.helpTip = getLabel('tipLengthCommon');
-
-        // デフォルト：共通
+        /* ケイ線の長さ（既定は「共通」）/ Rule length: Common by default */
+        var lengthRadioGroup = addRadioPanel(rulesDialog, "panel.ruleLength");
+        var lengthObjectRadio = addRadioButton(lengthRadioGroup, "ruleLengthObject");
+        var lengthCommonRadio = addRadioButton(lengthRadioGroup, "ruleLengthCommon");
         lengthCommonRadio.value = true;
 
-        var btnGroup = dialog.add('group');
-        btnGroup.alignment = ['right', 'center'];
-        btnGroup.orientation = 'row';
-        var cancelBtn = btnGroup.add('button', undefined, getLabel('cancel'), {name: 'cancel'});
-        var okBtn = btnGroup.add('button', undefined, getLabel('ok'), {name: 'ok'});
-        okBtn.active = true;          // Enterキー＝OK
-        dialog.defaultElement = okBtn;  // 環境依存対策
-
-        if (dialog.show() !== 1) {
-            return null;
-        }
-
-        var lineWeightVal = Number(lineWidthInput.text);
-        if (isNaN(lineWeightVal) || lineWeightVal <= 0) {
-            alert(getLabel('alertNeedPositiveStroke'));
-            return null;
-        }
-
-        var marginVal = Number(marginInput.text);
-        if (isNaN(marginVal)) {
-            alert(getLabel('alertNeedNumberExtension'));
-            return null;
-        }
-        var strokeUnitCode = strokeUnitCodeForUI;
-        var lineWeightPt = toPt(lineWeightVal, strokeUnitCode);
-        var marginPt = toPt(marginVal, strokeUnitCode);
-
-        var lineCap = StrokeCap.BUTTENDCAP;
-        if (capRoundRadio.value) {
-            lineCap = StrokeCap.ROUNDENDCAP;
-        } else if (capProjectingRadio.value) {
-            lineCap = StrokeCap.PROJECTINGENDCAP;
-        }
-
-        var capIndex = 0;
-        if (capRoundRadio.value) {
-            capIndex = 1;
-        } else if (capProjectingRadio.value) {
-            capIndex = 2;
-        }
-
-        // 最後に使った設定を保存（内部はptで保持）/ Persist last-used settings (stored in pt)
-        saveSettings(lineWeightPt, marginPt, capIndex);
-
-        // --- ruleLengthMode 取得 ---
-        var ruleLengthMode = lengthObjectRadio.value ? "object" : "common";
+        var btnRowGroup = rulesDialog.add("group");
+        btnRowGroup.alignment = ["right", "center"];
+        btnRowGroup.orientation = "row";
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        btnOK.active = true;              /* Enterキー＝OK / Enter = OK */
+        rulesDialog.defaultElement = btnOK; /* 環境依存対策 / for environments that ignore active */
 
         return {
-            lineWeight: lineWeightPt,
-            margin: marginPt,
-            lineCap: lineCap,
-            ruleLengthMode: ruleLengthMode
+            dialog: rulesDialog,
+            lineWeightInput: lineWeightInput,
+            extensionInput: extensionInput,
+            capRoundRadio: capRoundRadio,
+            capProjectingRadio: capProjectingRadio,
+            lengthObjectRadio: lengthObjectRadio
         };
     }
 
-    function main() {
-        var settings = showDialog();
-        if (settings === null) return;
+    /**
+     * ダイアログの入力を検証して設定にまとめる
+     * @param {Object} dialogControls - buildRulesDialog() の戻り値
+     * @param {Object} strokeUnit - 線の単位（getUnitInfo() の戻り値）
+     * @returns {Object} 線幅・延長（pt）・線端・長さの基準（入力が不正なときは null）
+     */
+    function readRuleSettings(dialogControls, strokeUnit) {
+        var lineWeightValue = Number(dialogControls.lineWeightInput.text);
+        if (isNaN(lineWeightValue) || lineWeightValue <= 0) {
+            alert(getLabel("alert.needPositiveStroke"));
+            return null;
+        }
 
-        var lineWeight = settings.lineWeight;
-        var margin = settings.margin;
-        var lineCap = settings.lineCap;
-        var ruleLengthMode = settings.ruleLengthMode || "object";
+        var extensionValue = Number(dialogControls.extensionInput.text);
+        if (isNaN(extensionValue)) {
+            alert(getLabel("alert.needNumberExtension"));
+            return null;
+        }
 
-        // 線の色設定（デフォルトは黒 K=100）/ Line color setting (default black K=100)
+        var capIndex = 0;
+        if (dialogControls.capRoundRadio.value) capIndex = 1;
+        else if (dialogControls.capProjectingRadio.value) capIndex = 2;
+
+        return {
+            lineWeight: lineWeightValue * strokeUnit.pointsPerUnit,
+            extension: extensionValue * strokeUnit.pointsPerUnit,
+            capIndex: capIndex,
+            lineCap: [StrokeCap.BUTTENDCAP, StrokeCap.ROUNDENDCAP, StrokeCap.PROJECTINGENDCAP][capIndex],
+            ruleLengthMode: dialogControls.lengthObjectRadio.value ? "object" : "common"
+        };
+    }
+
+    /**
+     * ダイアログを表示し、確定した設定を保存して返す
+     * @returns {Object} readRuleSettings() の戻り値（キャンセル・入力エラーのときは null）
+     */
+    function showRulesDialog() {
+        var savedSettings = loadSettings();
+        var strokeUnit = getUnitInfo("strokeUnits");
+
+        /* 保存値（pt）があれば優先し、現在の線の単位で表示する / Show saved pt values in the current stroke unit */
+        var initialValues = {
+            lineWeight: (savedSettings ? savedSettings.lineWeightPt : DEFAULT_LINE_WEIGHT) / strokeUnit.pointsPerUnit,
+            extension: (savedSettings ? savedSettings.extensionPt : DEFAULT_EXTENSION) / strokeUnit.pointsPerUnit,
+            capIndex: savedSettings ? savedSettings.capIndex : 0
+        };
+
+        var dialogControls = buildRulesDialog(strokeUnit, initialValues);
+        if (dialogControls.dialog.show() !== 1) return null;
+
+        var ruleSettings = readRuleSettings(dialogControls, strokeUnit);
+        if (ruleSettings) saveSettings(ruleSettings.lineWeight, ruleSettings.extension, ruleSettings.capIndex);
+        return ruleSettings;
+    }
+
+    // =========================================
+    // 行の検出 / Row detection
+    // =========================================
+
+    /**
+     * グループ内のテキストをアウトライン化する（境界を安定させるため。複製に対して使う）
+     * @param {GroupItem} container - 対象のグループ
+     * @returns {void}
+     */
+    function outlineTextFramesInContainer(container) {
+        if (!container || !container.textFrames || container.textFrames.length === 0) return;
+
+        /* textFrames はライブコレクションになり得るので、いったん配列化 / snapshot the live collection */
+        var textFrameList = [];
+        for (var i = 0; i < container.textFrames.length; i++) {
+            textFrameList.push(container.textFrames[i]);
+        }
+
+        for (var j = 0; j < textFrameList.length; j++) {
+            try {
+                /* createOutline() は元のテキストを消費してアウトラインのグループを返す / consumes the text frame */
+                var outlineGroup = textFrameList[j].createOutline();
+                outlineGroup.hidden = true;
+            } catch (e) { /* 変換できないテキストは無視 / skip frames that cannot be outlined */ }
+        }
+    }
+
+    /**
+     * 境界の計測に使うオブジェクトを返す
+     * テキストとグループは複製してアウトライン化したもの（非表示）を返し、tempItems に控える。
+     * @param {PageItem} item - 選択中のオブジェクト
+     * @param {PageItem[]} tempItems - 一時オブジェクトの控え（追加される）
+     * @returns {PageItem} 計測用のオブジェクト（複製できないときは元のオブジェクト）
+     */
+    function makeBoundsProxy(item, tempItems) {
+        if (!item) return item;
+
+        if (item.typename === "TextFrame") {
+            try {
+                /* createOutline() は複製を消費してアウトラインのグループを返す / consumes the duplicate */
+                var outlineGroup = item.duplicate().createOutline();
+                try { outlineGroup.hidden = true; } catch (e) { }
+                tempItems.push(outlineGroup);
+                return outlineGroup;
+            } catch (e) {
+                /* 変換できない場合は元のテキストを使う / fall back to the original text */
+                return item;
+            }
+        }
+
+        if (item.typename === "GroupItem") {
+            try {
+                var groupDuplicate = item.duplicate();
+                /* グループ内のテキストもアウトライン化してから境界を見る / outline nested text too */
+                outlineTextFramesInContainer(groupDuplicate);
+                try { groupDuplicate.hidden = true; } catch (e) { }
+                tempItems.push(groupDuplicate);
+                return groupDuplicate;
+            } catch (e) {
+                return item;
+            }
+        }
+
+        return item;
+    }
+
+    /**
+     * 2つのオブジェクトの縦方向の重なり率を返す（低いほうの高さに対する比率）
+     * @param {Object} itemA - visibleBounds を持つオブジェクト
+     * @param {Object} itemB - visibleBounds を持つオブジェクト
+     * @returns {number} 重なり率（重ならないときは 0）
+     */
+    function getVerticalOverlapRatio(itemA, itemB) {
+        /* visibleBounds: [left, top, right, bottom] */
+        var boundsA = itemA.visibleBounds;
+        var boundsB = itemB.visibleBounds;
+        var overlap = Math.min(boundsA[1], boundsB[1]) - Math.max(boundsA[3], boundsB[3]);
+        if (overlap <= 0) return 0;
+
+        var minHeight = Math.min(boundsA[1] - boundsA[3], boundsB[1] - boundsB[3]);
+        return overlap / minHeight;
+    }
+
+    /**
+     * 複数のオブジェクトを囲む境界を返す
+     * @param {Object[]} items - visibleBounds を持つオブジェクト
+     * @returns {{visibleBounds: number[]}} まとめた境界
+     */
+    function mergeBounds(items) {
+        var firstBounds = items[0].visibleBounds;
+        var left = firstBounds[0];
+        var top = firstBounds[1];
+        var right = firstBounds[2];
+        var bottom = firstBounds[3];
+
+        for (var i = 1; i < items.length; i++) {
+            var itemBounds = items[i].visibleBounds;
+            left = Math.min(left, itemBounds[0]);
+            top = Math.max(top, itemBounds[1]);
+            right = Math.max(right, itemBounds[2]);
+            bottom = Math.min(bottom, itemBounds[3]);
+        }
+
+        return { visibleBounds: [left, top, right, bottom] };
+    }
+
+    /**
+     * 左右に並ぶオブジェクトを同じ行として束ね、行ごとの境界を返す
+     * @param {Object[]} items - visibleBounds を持つオブジェクト
+     * @returns {Object[]} 行ごとの境界（{visibleBounds}）
+     */
+    function groupItemsByRow(items) {
+        var rowMembers = [];
+
+        for (var i = 0; i < items.length; i++) {
+            var isPlaced = false;
+            for (var r = 0; r < rowMembers.length; r++) {
+                /* 行の代表要素（最初の1つ）と縦方向の重なりを比較 / compare with the first item of the row */
+                if (getVerticalOverlapRatio(items[i], rowMembers[r][0]) >= ROW_OVERLAP_RATIO) {
+                    rowMembers[r].push(items[i]);
+                    isPlaced = true;
+                    break;
+                }
+            }
+            if (!isPlaced) rowMembers.push([items[i]]);
+        }
+
+        var rowBoundsList = [];
+        for (var j = 0; j < rowMembers.length; j++) {
+            rowBoundsList.push(mergeBounds(rowMembers[j]));
+        }
+        return rowBoundsList;
+    }
+
+    /**
+     * 選択を行にまとめ、上から順に並べた行の境界を返す
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @param {PageItem[]} tempItems - 計測用に作った一時オブジェクトの控え（追加される）
+     * @returns {Object[]} 上から順の行の境界（{visibleBounds}）
+     */
+    function collectSortedRows(selectedItems, tempItems) {
+        var proxyItems = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            proxyItems.push(makeBoundsProxy(selectedItems[i], tempItems));
+        }
+
+        var rowBoundsList = groupItemsByRow(proxyItems);
+        rowBoundsList.sort(function (rowA, rowB) {
+            /* top が大きいほうが上（一般的な定規の設定を想定）/ larger top = higher */
+            return rowB.visibleBounds[1] - rowA.visibleBounds[1];
+        });
+        return rowBoundsList;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 複数の境界の左右の端を返す
+     * @param {Object[]} boundsItems - visibleBounds を持つオブジェクト
+     * @returns {{left: number, right: number}} 左端と右端
+     */
+    function getHorizontalSpan(boundsItems) {
+        var left = boundsItems[0].visibleBounds[0];
+        var right = boundsItems[0].visibleBounds[2];
+        for (var i = 1; i < boundsItems.length; i++) {
+            left = Math.min(left, boundsItems[i].visibleBounds[0]);
+            right = Math.max(right, boundsItems[i].visibleBounds[2]);
+        }
+        return { left: left, right: right };
+    }
+
+    /**
+     * 上下に並ぶ行の間にケイ線を描く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} rowBoundsList - 上から順の行の境界
+     * @param {Object} ruleSettings - showRulesDialog() の戻り値
+     * @returns {PathItem[]} 描いたケイ線
+     */
+    function drawRulesBetweenRows(doc, rowBoundsList, ruleSettings) {
+        /* 線の色（K=100）/ Line color: black K=100 */
         var lineColor = new CMYKColor();
         lineColor.cyan = 0;
         lineColor.magenta = 0;
         lineColor.yellow = 0;
         lineColor.black = 100;
 
-        // 線の長さの調整（0ならオブジェクトと同じ幅、正の数なら長く、負の数なら短く）/ Adjust line length (0 = same as objects, positive = longer, negative = shorter)
-        var padding = margin;
+        /* 延長：0 ならオブジェクトと同じ幅、正の数なら長く、負の数なら短く / 0 = same width, + longer, - shorter */
+        var extension = ruleSettings.extension;
 
-        // メイン処理 / Main process
+        /* 「共通」は全体の左右幅、「オブジェクトに合わせる」は上下の行の左右幅 / common span vs per-pair span */
+        var commonSpan = (ruleSettings.ruleLengthMode === "common" && rowBoundsList.length > 1)
+            ? getHorizontalSpan(rowBoundsList)
+            : null;
+
+        var createdLines = [];
+        for (var i = 0; i < rowBoundsList.length - 1; i++) {
+            var upperRow = rowBoundsList[i];
+            var lowerRow = rowBoundsList[i + 1];
+
+            /* 上の行の下端と下の行の上端の中間 / midway between the upper bottom and the lower top */
+            var midY = (upperRow.visibleBounds[3] + lowerRow.visibleBounds[1]) / 2;
+            var ruleSpan = commonSpan || getHorizontalSpan([upperRow, lowerRow]);
+
+            var ruleLine = doc.pathItems.add();
+            ruleLine.setEntirePath([[ruleSpan.left - extension, midY], [ruleSpan.right + extension, midY]]);
+            ruleLine.filled = false;
+            ruleLine.stroked = true;
+            ruleLine.strokeWidth = ruleSettings.lineWeight;
+            ruleLine.strokeColor = lineColor;
+            ruleLine.strokeCap = ruleSettings.lineCap;
+            createdLines.push(ruleLine);
+        }
+        return createdLines;
+    }
+
+    /**
+     * 計測用に作った一時オブジェクトを削除する
+     * @param {PageItem[]} tempItems - 一時オブジェクト
+     * @returns {void}
+     */
+    function removeTemporaryItems(tempItems) {
+        for (var i = 0; i < tempItems.length; i++) {
+            try {
+                if (tempItems[i] && tempItems[i].typename) tempItems[i].remove();
+            } catch (e) { }
+        }
+    }
+
+    /**
+     * 描いたケイ線を選択する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem[]} createdLines - 描いたケイ線
+     * @returns {void}
+     */
+    function selectCreatedLines(doc, createdLines) {
+        if (createdLines.length === 0) return;
+        doc.selection = null;
+        for (var i = 0; i < createdLines.length; i++) {
+            try {
+                createdLines[i].selected = true;
+            } catch (e) { }
+        }
+    }
+
+    /**
+     * ダイアログで設定を受け取り、選択したオブジェクトの間にケイ線を描く
+     * @returns {void}
+     */
+    function main() {
+        var ruleSettings = showRulesDialog();
+        if (ruleSettings === null) return;
+
         if (app.documents.length === 0) {
-            alert(getLabel('alertNoDoc'));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
         var doc = app.activeDocument;
-        var currentSelection = doc.selection;
 
-        // テキストは複製→アウトライン化してから bounds を参照し、最後に複製物を削除
-        // / For TextFrame: duplicate -> create outlines -> use outlined bounds -> remove duplicates at the end
-        var tempOutlinedItems = [];
+        /* テキストとグループは複製→アウトライン化した境界で計算し、最後に削除する / measured on outlined duplicates */
+        var tempItems = [];
+        var rowBoundsList = collectSortedRows(doc.selection, tempItems);
+        var createdLines = drawRulesBetweenRows(doc, rowBoundsList, ruleSettings);
 
-        function outlineTextFramesInContainer(container) {
-            // container 配下の TextFrame を複製アウトライン化して置換（bounds 安定用）
-            // / Outline all TextFrames inside the container (for stable bounds)
-            try {
-                if (!container || !container.textFrames || container.textFrames.length === 0) return;
-
-                // textFrames はライブコレクションになり得るので、いったん配列化
-                var tfs = [];
-                for (var i = 0; i < container.textFrames.length; i++) {
-                    tfs.push(container.textFrames[i]);
-                }
-
-                for (var j = 0; j < tfs.length; j++) {
-                    var tf = tfs[j];
-                    try {
-                        // createOutline は新しい GroupItem を作成して返す
-                        var outlined = tf.createOutline();
-                        // 元テキストを削除（アウトライン側を残す）
-                        try { tf.remove(); } catch (e1) {}
-                        // 目視されないように隠す（可能なら）
-                        try { outlined.hidden = true; } catch (e2) {}
-                    } catch (e) {
-                        // 変換できない TextFrame は無視
-                    }
-                }
-            } catch (eOuter) {}
-        }
-
-        function makeBoundsProxy(item) {
-            if (!item) return item;
-
-            if (item.typename === "TextFrame") {
-                try {
-                    var dupText = item.duplicate();
-                    var outlined = dupText.createOutline(); // GroupItem (outlined paths) is created in the document
-                    try { dupText.remove(); } catch (e1) {}
-                    try { outlined.hidden = true; } catch (e2) {}
-                    outlineTextFramesInContainer(outlined);
-                    tempOutlinedItems.push(outlined);
-                    return outlined;
-                } catch (e) {
-                    // フォールバック：変換できない場合は元のテキストを使う
-                    return item;
-                }
-            }
-
-            if (item.typename === "GroupItem") {
-                try {
-                    var dupGroup = item.duplicate();
-                    // グループ内テキストもアウトライン化してから bounds を参照する
-                    outlineTextFramesInContainer(dupGroup);
-                    try { dupGroup.hidden = true; } catch (e3) {}
-                    tempOutlinedItems.push(dupGroup);
-                    return dupGroup;
-                } catch (eG) {
-                    return item;
-                }
-            }
-
-            return item;
-        }
-
-        // 同じ行（左右に並ぶ要素）を1グループとして扱うためのユーティリティ
-        // / Treat horizontally aligned items as a single row group
-        var ROW_OVERLAP_RATIO = 0.5; // 縦方向の重なり率のしきい値（0.0–1.0）
-
-        function getVerticalOverlapRatio(a, b) {
-            // visibleBounds: [left, top, right, bottom]
-            var top = Math.min(a.visibleBounds[1], b.visibleBounds[1]);
-            var bottom = Math.max(a.visibleBounds[3], b.visibleBounds[3]);
-            var overlap = Math.min(a.visibleBounds[1], b.visibleBounds[1]) - Math.max(a.visibleBounds[3], b.visibleBounds[3]);
-            if (overlap <= 0) return 0;
-
-            var heightA = a.visibleBounds[1] - a.visibleBounds[3];
-            var heightB = b.visibleBounds[1] - b.visibleBounds[3];
-            var minHeight = Math.min(heightA, heightB);
-            return overlap / minHeight;
-        }
-
-        function mergeBounds(items) {
-            var left = items[0].visibleBounds[0];
-            var top = items[0].visibleBounds[1];
-            var right = items[0].visibleBounds[2];
-            var bottom = items[0].visibleBounds[3];
-
-            for (var i = 1; i < items.length; i++) {
-                left = Math.min(left, items[i].visibleBounds[0]);
-                top = Math.max(top, items[i].visibleBounds[1]);
-                right = Math.max(right, items[i].visibleBounds[2]);
-                bottom = Math.min(bottom, items[i].visibleBounds[3]);
-            }
-
-            return {
-                visibleBounds: [left, top, right, bottom]
-            };
-        }
-
-        function groupItemsByRow(items) {
-            var rows = [];
-
-            for (var i = 0; i < items.length; i++) {
-                var placed = false;
-                for (var r = 0; r < rows.length; r++) {
-                    // 行の代表要素（最初の1つ）と縦方向の重なりを比較
-                    if (getVerticalOverlapRatio(items[i], rows[r][0]) >= ROW_OVERLAP_RATIO) {
-                        rows[r].push(items[i]);
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) {
-                    rows.push([items[i]]);
-                }
-            }
-
-            // 各行を1つの bounds にまとめる
-            var merged = [];
-            for (var j = 0; j < rows.length; j++) {
-                merged.push(mergeBounds(rows[j]));
-            }
-            return merged;
-        }
-
-        var proxyItems = [];
-        for (var i = 0; i < currentSelection.length; i++) {
-            proxyItems.push(makeBoundsProxy(currentSelection[i]));
-        }
-
-        // 左右に並ぶ要素を行単位でグループ化
-        var sortedItems = groupItemsByRow(proxyItems);
-
-        sortedItems.sort(function(a, b) {
-            // topの値が大きいほうが上（Illustratorの座標系に依存するが通常はtopが大きい＝上）
-            // ※定規の原点設定によっては逆になる場合もあるが、一般的なDTP設定を想定
-            return b.visibleBounds[1] - a.visibleBounds[1];
-        });
-
-        var createdLines = []; // 生成した線を保持 / Store created lines
-
-        // 順番に処理して間を計算
-        for (var i = 0; i < sortedItems.length - 1; i++) {
-            var upperObj = sortedItems[i];
-            var lowerObj = sortedItems[i + 1];
-
-            // 上のオブジェクトの下端
-            var upperBottom = upperObj.visibleBounds[3];
-            // 下のオブジェクトの上端
-            var lowerTop = lowerObj.visibleBounds[1];
-
-            // 中間のY座標
-            var midY = (upperBottom + lowerTop) / 2;
-
-            // 線のX座標（左右の幅）を決める
-            // ruleLengthMode に応じてロジックを切り替え
-            var leftX, rightX;
-
-            if (ruleLengthMode === "common") {
-                // 共通：全体で共通の左右幅（最初に計算）
-                if (i === 0) {
-                    var commonLeft = upperObj.visibleBounds[0];
-                    var commonRight = upperObj.visibleBounds[2];
-                    for (var k = 1; k < sortedItems.length; k++) {
-                        commonLeft = Math.min(commonLeft, sortedItems[k].visibleBounds[0]);
-                        commonRight = Math.max(commonRight, sortedItems[k].visibleBounds[2]);
-                    }
-                    // ループ外参照用に保持
-                    main._commonLeft = commonLeft;
-                    main._commonRight = commonRight;
-                }
-                leftX = main._commonLeft - padding;
-                rightX = main._commonRight + padding;
-            } else {
-                // オブジェクトに合わせる（従来挙動）
-                leftX = Math.min(upperObj.visibleBounds[0], lowerObj.visibleBounds[0]) - padding;
-                rightX = Math.max(upperObj.visibleBounds[2], lowerObj.visibleBounds[2]) + padding;
-            }
-
-            // 線を描画
-            var pathLine = doc.pathItems.add();
-            pathLine.setEntirePath([[leftX, midY], [rightX, midY]]);
-
-            pathLine.filled = false;
-            pathLine.stroked = true;
-            pathLine.strokeWidth = lineWeight;
-            pathLine.strokeColor = lineColor;
-            pathLine.strokeCap = lineCap;
-            createdLines.push(pathLine);
-        }
-
-        // 複製してアウトライン化した一時オブジェクトを削除 / Remove temporary outlined duplicates
-        for (var t = 0; t < tempOutlinedItems.length; t++) {
-            try {
-                if (tempOutlinedItems[t] && tempOutlinedItems[t].typename) {
-                    tempOutlinedItems[t].remove();
-                }
-            } catch (e) {}
-        }
-
-        // 描画した線を選択状態に / Select created lines
-        if (createdLines.length > 0) {
-            doc.selection = null;
-            for (var s = 0; s < createdLines.length; s++) {
-                try {
-                    createdLines[s].selected = true;
-                } catch (e) {}
-            }
-        }
+        removeTemporaryItems(tempItems);
+        selectCreatedLines(doc, createdLines);
     }
 
     main();
