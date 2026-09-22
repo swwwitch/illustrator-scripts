@@ -337,10 +337,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
      */
     function findOutermostGroup(targetItem) {
         var outermostGroup = null;
-        var container = targetItem.parent;
-        while (container.typename === "GroupItem") {
-            outermostGroup = container;
-            container = container.parent;
+        var currentContainer = targetItem.parent;
+        while (currentContainer.typename === "GroupItem") {
+            outermostGroup = currentContainer;
+            currentContainer = currentContainer.parent;
         }
         return outermostGroup;
     }
@@ -389,20 +389,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
      * @returns {void}
      */
     function groupEachItem(doc, selectedItems, skipGroups) {
-        var resultItems = [];
+        var itemsToSelect = [];
         for (var i = 0; i < selectedItems.length; i++) {
             var targetItem = selectedItems[i];
             if (skipGroups && targetItem.typename === "GroupItem") {
-                resultItems.push(targetItem);
+                itemsToSelect.push(targetItem);
                 continue;
             }
             var wrapperGroup = targetItem.parent.groupItems.add();
             /* 元の位置のすぐ前面にグループを置いてから中へ入れ、重ね順を保つ / Put the group right in front of the item, then move the item in */
             wrapperGroup.move(targetItem, ElementPlacement.PLACEBEFORE);
             targetItem.move(wrapperGroup, ElementPlacement.PLACEATEND);
-            resultItems.push(wrapperGroup);
+            itemsToSelect.push(wrapperGroup);
         }
-        doc.selection = resultItems;
+        doc.selection = itemsToSelect;
     }
 
     // =========================================
@@ -418,12 +418,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
 
     /**
      * パネルを追加する
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} parentWindow - 追加先のダイアログ
      * @param {string} panelTitle - パネルの見出し
      * @returns {Panel} 追加したパネル
      */
-    function addPanel(dialog, panelTitle) {
-        var addedPanel = dialog.add("panel", undefined, panelTitle);
+    function addPanel(parentWindow, panelTitle) {
+        var addedPanel = parentWindow.add("panel", undefined, panelTitle);
         addedPanel.orientation = "column";
         addedPanel.alignChildren = ["left", "top"];
         addedPanel.alignment = "fill";
@@ -433,15 +433,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
     }
 
     /**
-     * ラジオボタンを、LABELS.radio と LABELS.tooltip のキーで追加する
-     * @param {Panel|Group} parentContainer - 追加先
-     * @param {string} labelKey - LABELS.radio と LABELS.tooltip のキー
-     * @returns {RadioButton} 追加したラジオボタン
+     * ラジオボタンかチェックボックスを、LABELS のキーで追加する
+     * @param {Panel|Group} parentContainer - 追加先のパネルかグループ
+     * @param {string} controlType - "radiobutton" / "checkbox"
+     * @param {string} labelKey - LABELS.radio（または LABELS.checkbox）と LABELS.tooltip のキー
+     * @returns {RadioButton|Checkbox} 追加したコントロール
      */
-    function addRadio(parentContainer, labelKey) {
-        var addedRadio = parentContainer.add("radiobutton", undefined, getLabel(LABELS.radio[labelKey]));
-        addedRadio.helpTip = getLabel(LABELS.tooltip[labelKey]);
-        return addedRadio;
+    function addLabeledControl(parentContainer, controlType, labelKey) {
+        var labelCategory = (controlType === "radiobutton") ? LABELS.radio : LABELS.checkbox;
+        var addedControl = parentContainer.add(controlType, undefined, getLabel(labelCategory[labelKey]));
+        addedControl.helpTip = getLabel(LABELS.tooltip[labelKey]);
+        return addedControl;
     }
 
     /**
@@ -450,25 +452,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
      * @returns {MembershipOptions|null} キャンセル時は null
      */
     function showDialog(selectionState) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.spacing = WINDOW_SPACING;
-        dialog.margins = WINDOW_MARGINS;
+        var membershipDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        membershipDialog.orientation = "column";
+        membershipDialog.alignChildren = ["fill", "top"];
+        membershipDialog.spacing = WINDOW_SPACING;
+        membershipDialog.margins = WINDOW_MARGINS;
 
         /* 処理 / Action */
-        var actionPanel = addPanel(dialog, getLabel(LABELS.panel.action));
-        var addToGroupRadio = addRadio(actionPanel, "addToGroup");
-        var releaseRadio = addRadio(actionPanel, "releaseFromGroup");
-        var groupEachRadio = addRadio(actionPanel, "groupEach");
+        var actionPanel = addPanel(membershipDialog, getLabel(LABELS.panel.action));
+        var addToGroupRadio = addLabeledControl(actionPanel, "radiobutton", "addToGroup");
+        var releaseFromGroupRadio = addLabeledControl(actionPanel, "radiobutton", "releaseFromGroup");
+        var groupEachRadio = addLabeledControl(actionPanel, "radiobutton", "groupEach");
         addToGroupRadio.enabled = selectionState.canAdd;
-        releaseRadio.enabled = selectionState.canRelease;
+        releaseFromGroupRadio.enabled = selectionState.canRelease;
         addToGroupRadio.value = (selectionState.defaultAction === "addToGroup");
-        releaseRadio.value = (selectionState.defaultAction === "releaseFromGroup");
+        releaseFromGroupRadio.value = (selectionState.defaultAction === "releaseFromGroup");
         groupEachRadio.value = (selectionState.defaultAction === "groupEach");
 
         /* オプション / Options */
-        var optionsPanel = addPanel(dialog, getLabel(LABELS.panel.options));
+        var optionsPanel = addPanel(membershipDialog, getLabel(LABELS.panel.options));
 
         /* 出す位置のラジオは別グループなので、処理のラジオとは排他にならない / These radios sit in their own group, apart from the action radios */
         var placementRow = optionsPanel.add("group");
@@ -476,13 +478,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
         placementRow.alignChildren = ["left", "center"];
         placementRow.spacing = PANEL_SPACING;
         placementRow.add("statictext", undefined, labelText(LABELS.fieldLabel.releasePlacement));
-        var layerTopRadio = addRadio(placementRow, "layerTop");
-        var beforeGroupRadio = addRadio(placementRow, "beforeGroup");
+        var layerTopRadio = addLabeledControl(placementRow, "radiobutton", "layerTop");
+        var beforeGroupRadio = addLabeledControl(placementRow, "radiobutton", "beforeGroup");
         layerTopRadio.value = (DEFAULT_RELEASE_PLACEMENT !== "beforeGroup");
         beforeGroupRadio.value = !layerTopRadio.value;
 
-        var skipGroupsCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.skipGroups));
-        skipGroupsCheckbox.helpTip = getLabel(LABELS.tooltip.skipGroups);
+        var skipGroupsCheckbox = addLabeledControl(optionsPanel, "checkbox", "skipGroups");
         skipGroupsCheckbox.value = DEFAULT_SKIP_GROUPS;
 
         /**
@@ -490,16 +491,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
          * @returns {void}
          */
         function updateOptionState() {
-            placementRow.enabled = releaseRadio.value;
+            placementRow.enabled = releaseFromGroupRadio.value;
             skipGroupsCheckbox.enabled = groupEachRadio.value;
         }
         addToGroupRadio.onClick = updateOptionState;
-        releaseRadio.onClick = updateOptionState;
+        releaseFromGroupRadio.onClick = updateOptionState;
         groupEachRadio.onClick = updateOptionState;
         updateOptionState();
 
         /* ボタンエリア（右寄せ） / Button row (right-aligned) */
-        var btnRowGroup = dialog.add("group");
+        var btnRowGroup = membershipDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = BUTTON_BAR_MARGINS;
         btnRowGroup.alignment = ["fill", "bottom"];
@@ -513,11 +514,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
         var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        if (dialog.show() !== 1) return null;
+        if (membershipDialog.show() !== 1) return null;
 
         var selectedAction = "groupEach";
         if (addToGroupRadio.value) selectedAction = "addToGroup";
-        if (releaseRadio.value) selectedAction = "releaseFromGroup";
+        if (releaseFromGroupRadio.value) selectedAction = "releaseFromGroup";
         return {
             action: selectedAction,
             releasePlacement: beforeGroupRadio.value ? "beforeGroup" : "layerTop",

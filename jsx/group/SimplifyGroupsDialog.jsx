@@ -187,14 +187,14 @@ var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last update
 
     /**
      * ロック・非表示を付け直す（非表示にしてからロックする）
-     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {PageItem[]} targetItems - 対象オブジェクト
      * @param {{locked: boolean, hidden: boolean}} lockState - 付け直す状態
      * @returns {void}
      */
-    function applyLockState(items, lockState) {
-        for (var i = 0; i < items.length; i++) {
-            if (lockState.hidden) items[i].hidden = true;
-            if (lockState.locked) items[i].locked = true;
+    function applyLockState(targetItems, lockState) {
+        for (var i = 0; i < targetItems.length; i++) {
+            if (lockState.hidden) targetItems[i].hidden = true;
+            if (lockState.locked) targetItems[i].locked = true;
         }
     }
 
@@ -328,12 +328,12 @@ var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last update
 
     /**
      * パネルを追加する
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Window} parentWindow - 追加先のダイアログ
      * @param {string} panelTitle - パネルの見出し
      * @returns {Panel} 追加したパネル
      */
-    function addPanel(dialog, panelTitle) {
-        var addedPanel = dialog.add("panel", undefined, panelTitle);
+    function addPanel(parentWindow, panelTitle) {
+        var addedPanel = parentWindow.add("panel", undefined, panelTitle);
         addedPanel.orientation = "column";
         addedPanel.alignChildren = "left";
         addedPanel.margins = PANEL_MARGINS;
@@ -342,14 +342,14 @@ var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last update
 
     /**
      * ラジオボタンかチェックボックスを、LABELS のキーで追加する
-     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {Panel|Group} parentContainer - 追加先のパネルかグループ
      * @param {string} controlType - "radiobutton" / "checkbox"
      * @param {string} labelKey - LABELS.radio（または LABELS.checkbox）と LABELS.tooltip のキー
      * @returns {RadioButton|Checkbox} 追加したコントロール
      */
-    function addLabeledControl(parentPanel, controlType, labelKey) {
-        var labelGroup = (controlType === "radiobutton") ? LABELS.radio : LABELS.checkbox;
-        var addedControl = parentPanel.add(controlType, undefined, getLabel(labelGroup[labelKey]));
+    function addLabeledControl(parentContainer, controlType, labelKey) {
+        var labelCategory = (controlType === "radiobutton") ? LABELS.radio : LABELS.checkbox;
+        var addedControl = parentContainer.add(controlType, undefined, getLabel(labelCategory[labelKey]));
         addedControl.helpTip = getLabel(LABELS.tooltip[labelKey]);
         return addedControl;
     }
@@ -360,33 +360,33 @@ var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last update
      * @returns {SimplifyOptions|null} キャンセル時は null
      */
     function showDialog(hasGroup) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = DIALOG_MARGINS;
+        var simplifyDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        simplifyDialog.orientation = "column";
+        simplifyDialog.alignChildren = "fill";
+        simplifyDialog.margins = DIALOG_MARGINS;
 
-        var methodPanel = addPanel(dialog, getLabel(LABELS.panel.method));
+        var methodPanel = addPanel(simplifyDialog, getLabel(LABELS.panel.method));
         var keepOuterRadio = addLabeledControl(methodPanel, "radiobutton", "keepOuter");
         var rebuildRadio = addLabeledControl(methodPanel, "radiobutton", "rebuild");
         keepOuterRadio.enabled = hasGroup;
         keepOuterRadio.value = hasGroup && DEFAULT_METHOD === "keepOuter";
         rebuildRadio.value = !keepOuterRadio.value;
 
-        var optionsPanel = addPanel(dialog, getLabel(LABELS.panel.options));
+        var optionsPanel = addPanel(simplifyDialog, getLabel(LABELS.panel.options));
         var keepClipGroupsCheckbox = addLabeledControl(optionsPanel, "checkbox", "keepClipGroups");
         keepClipGroupsCheckbox.value = DEFAULT_KEEP_CLIP_GROUPS;
         var skipLockedHiddenCheckbox = addLabeledControl(optionsPanel, "checkbox", "skipLockedHidden");
         skipLockedHiddenCheckbox.value = DEFAULT_SKIP_LOCKED_HIDDEN;
 
         /* ボタンエリア（右寄せ） / Button row (right-aligned) */
-        var btnRowGroup = dialog.add("group");
+        var btnRowGroup = simplifyDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = ["right", "bottom"];
         btnRowGroup.alignChildren = ["right", "center"];
         var btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        if (dialog.show() !== 1) return null;
+        if (simplifyDialog.show() !== 1) return null;
         return {
             method: keepOuterRadio.value ? "keepOuter" : "rebuild",
             keepClipGroups: keepClipGroupsCheckbox.value,
