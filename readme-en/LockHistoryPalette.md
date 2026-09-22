@@ -64,10 +64,11 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.1 (2026-09-23): List entries now read "#1" instead of the Japanese ordinal
 - v1.0.0 (2026-09-23): First release
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1
 - First release: 2026-09-23
 - Last updated: 2026-09-23

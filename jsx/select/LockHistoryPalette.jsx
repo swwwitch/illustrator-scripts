@@ -39,7 +39,7 @@ palette. Objects locked with command+2 are not recorded.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LockHistoryPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
@@ -153,7 +153,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
             }
         },
         listItem: {
-            entry: { ja: "{id}回目（{count}個 / {type}）", en: "#{id} ({count} items / {type})" }
+            entry: { ja: "#{id}（{count}個 / {type}）", en: "#{id} ({count} items / {type})" }
         },
         status: {
             summary: { ja: "{units}件 ／ {items}個", en: "{units} entries / {items} items" },
