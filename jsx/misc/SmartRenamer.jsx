@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenam
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartRenamer";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
@@ -77,7 +77,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     var MOVE_BUTTON_SIZE    = [56, 22];           /* 並び替えボタンのサイズ [幅,高さ] / reorder button size */
     var FIELD_LABEL_WIDTH   = 36;                 /* 「検索」「置換」ラベルの幅 / width of the find/replace labels */
     var REGEX_GAP_WIDTH     = 20;                 /* 「正規表現」の手前に置く余白 / gap before the Regex checkbox */
-    var LIST_MAX_HEIGHT     = 320;                /* 一覧の最大高さ / maximum height of the item list */
+    var LIST_VISIBLE_ROWS   = 12;                 /* 一覧に一度に表示する行数 / rows shown at once in the item list */
+    var SCROLLBAR_WIDTH     = 16;                 /* 一覧のスクロールバーの幅 / width of the item list scrollbar */
     var LIST_COLUMN_WIDTHS  = {                   /* 一覧の列幅 / column widths of the item list */
         order: 24,
         select: 28,
@@ -155,8 +156,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         },
         alert: {
             needSettings: {
-                ja: "接頭辞・接尾辞・検索文字列のいずれかを入力してください。",
-                en: "Enter a prefix, suffix, or find text to rename."
+                ja: "接頭辞・接尾辞・「指定」の文字列・検索文字列のいずれかを入力してください。",
+                en: "Enter a prefix, suffix, custom text, or find text to rename."
             },
             emptyName: {
                 ja: "{n} 番目の新しい名前が空です。名前を入力してください。",
@@ -435,6 +436,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     }
 
     /**
+     * アートボードの位置を設定する（失敗しても処理を続け、名前の復元を止めない）
+     * @param {Artboard} targetArtboard - 対象のアートボード
+     * @param {Array<number>} artboardBounds - artboardRect [左, 上, 右, 下]
+     * @param {string} logContext - ログ用の文字列
+     * @returns {void}
+     */
+    function setArtboardRect(targetArtboard, artboardBounds, logContext) {
+        try {
+            targetArtboard.artboardRect = artboardBounds;
+        } catch (rectError) {
+            logFailure(logContext, rectError);
+        }
+    }
+
+    /**
      * アイテムをコレクションの先頭へ移動する（失敗しても処理を続ける）
      * @param {Document} doc - 対象ドキュメント
      * @param {object} targetItem - 移動するアイテム
@@ -495,6 +511,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     }
 
     /**
+     * 種類ごとに並び替えできるか（Symbol / GraphicStyle には move() が無い。実測済み）
+     * @param {string} itemType - "artboard" / "symbol" / "layer" / "graphicstyle"
+     * @returns {boolean} 並び替えできれば true
+     */
+    function canReorderItemType(itemType) {
+        return itemType === "artboard" || itemType === "layer";
+    }
+
+    /**
+     * 控えておいた名前を復元する
+     * @param {{names: Array<string>, refs: Array<object>}} capturedState - 控えた状態
+     * @param {string} logContext - ログ用の種類名
+     * @returns {void}
+     */
+    function restoreNames(capturedState, logContext) {
+        for (var nameIdx = 0; nameIdx < capturedState.refs.length; nameIdx++) {
+            setItemName(capturedState.refs[nameIdx], capturedState.names[nameIdx], logContext + " name restore at " + nameIdx);
+        }
+    }
+
+    /**
      * 控えておいた参照の並び順と名前を復元する
      * @param {Document} doc - 対象ドキュメント
      * @param {{names: Array<string>, refs: Array<object>}} capturedState - 控えた状態
@@ -507,9 +544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         for (var reverseIdx = itemRefs.length - 1; reverseIdx >= 0; reverseIdx--) {
             moveToBeginning(doc, itemRefs[reverseIdx], logContext + " order restore at " + reverseIdx);
         }
-        for (var nameIdx = 0; nameIdx < itemRefs.length; nameIdx++) {
-            setItemName(itemRefs[nameIdx], capturedState.names[nameIdx], logContext + " name restore at " + nameIdx);
-        }
+        restoreNames(capturedState, logContext);
     }
 
     /**
@@ -524,16 +559,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var artboardCount = Math.min(artboards.length, originalState.artboard.names.length);
         assignTemporaryArtboardNames(artboards, artboardCount);
         for (var abIdx = 0; abIdx < artboardCount; abIdx++) {
-            try {
-                artboards[abIdx].artboardRect = originalState.artboard.rects[abIdx];
-                artboards[abIdx].name = originalState.artboard.names[abIdx];
-            } catch (artboardError) {
-                logFailure("artboard restore at " + abIdx, artboardError);
-            }
+            setArtboardRect(artboards[abIdx], originalState.artboard.rects[abIdx], "artboard rect restore at " + abIdx);
+            setItemName(artboards[abIdx], originalState.artboard.names[abIdx], "artboard name restore at " + abIdx);
         }
-        restoreOrderAndNames(doc, originalState.symbol, "symbol");
+        /* シンボル・グラフィックスタイルは並び替えできないので名前だけ戻す */
+        restoreNames(originalState.symbol, "symbol");
         restoreOrderAndNames(doc, originalState.layer, "layer");
-        restoreOrderAndNames(doc, originalState.graphicStyle, "graphic style");
+        restoreNames(originalState.graphicStyle, "graphic style");
         invalidateFrontmostTextCache();
     }
 
@@ -713,16 +745,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     /**
      * 一覧のパネル（行を並べる領域＋並び替えボタン）を作る
      * @param {Group} parentColumn - 追加先のカラム
-     * @returns {{entryRowsHost: Group, moveToTopButton: Button, moveUpButton: Button, moveDownButton: Button, moveToBottomButton: Button}} 作成したコントロール
+     * @returns {{entryRowsHost: Group, listScrollbar: Scrollbar, moveToTopButton: Button, moveUpButton: Button, moveDownButton: Button, moveToBottomButton: Button}} 作成したコントロール
      */
     function addListPanel(parentColumn) {
         var listPanel = addPanel(parentColumn, getLabel("panel.list"), DENSE_SPACING);
 
-        var entryRowsHost = listPanel.add("group");
+        /* ScriptUI のグループはスクロールしないので、LIST_VISIBLE_ROWS 行だけを描き、スクロールバーで表示位置をずらす */
+        var listBodyRow = listPanel.add("group");
+        listBodyRow.orientation = "row";
+        listBodyRow.alignment = ["fill", "top"];
+        listBodyRow.alignChildren = ["left", "fill"];
+        listBodyRow.spacing = DENSE_SPACING;
+
+        var entryRowsHost = listBodyRow.add("group");
         entryRowsHost.orientation = "column";
         entryRowsHost.alignChildren = ["fill", "top"];
         entryRowsHost.spacing = TOKEN_SPACING;
-        entryRowsHost.maximumSize.height = LIST_MAX_HEIGHT;
+
+        var listScrollbar = listBodyRow.add("scrollbar", undefined, 0, 0, 0);
+        listScrollbar.preferredSize.width = SCROLLBAR_WIDTH;
+        listScrollbar.alignment = ["right", "fill"];
+        listScrollbar.stepdelta = 1;
+        listScrollbar.jumpdelta = LIST_VISIBLE_ROWS;
 
         var moveButtonRow = listPanel.add("group");
         setupRow(moveButtonRow, "center", TOKEN_SPACING);
@@ -744,6 +788,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         return {
             entryRowsHost: entryRowsHost,
+            listScrollbar: listScrollbar,
             moveToTopButton: addMoveButton("button.moveTop", "tooltip.moveTop", 4),
             moveUpButton: addMoveButton("button.moveUp", "tooltip.moveUp", 0),
             moveDownButton: addMoveButton("button.moveDown", "tooltip.moveDown", 0),
@@ -795,7 +840,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         /* 左カラム：リネーム条件（接頭辞・名前の基準・検索置換・接尾辞）/ Left column: rename rules */
         var renameRulesPanel = addPanel(leftColumn, getLabel("panel.renameRules"));
         var prefixInput = addAffixPanel(renameRulesPanel, "panel.prefix", PREFIX_CHARS);
-        prefixInput.active = true;
+        focusField(prefixInput);
         var nameSourceControls = addNameSourcePanel(renameRulesPanel);
         var findReplaceControls = addFindReplacePanel(renameRulesPanel);
         var suffixInput = addAffixPanel(renameRulesPanel, "panel.suffix", SUFFIX_CHARS);
@@ -824,6 +869,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var searchFilterCheckbox = filterControls.searchFilterCheckbox;
         var searchInput = filterControls.searchInput;
         var entryRowsHost = listControls.entryRowsHost;
+        var listScrollbar = listControls.listScrollbar;
         var moveToTopButton = listControls.moveToTopButton;
         var moveUpButton = listControls.moveUpButton;
         var moveDownButton = listControls.moveDownButton;
@@ -837,6 +883,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         var currentItemType = DEFAULT_ITEM_TYPE;
         var entryRows = [];
+        var listScrollOffset = 0;   /* 一覧の先頭に表示しているエントリの位置 / index of the first visible entry */
 
         /* bindDialogEvents から注入されるコールバック / Callbacks injected by bindDialogEvents */
         var requestPreviewUpdate = null;
@@ -913,14 +960,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         /**
          * 一覧のチェックと入力内容をエントリへ書き戻す
+         * フォーカスが残ったままの欄は onChange が発火しないので、欄と控えの差分でも手動編集とみなす
          * @returns {void}
          */
         function syncEditingValues() {
             for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
                 var entryRow = entryRows[rowIdx];
-                itemEntries[entryRow.dataIndex].checked = entryRow.checkbox.value;
-                if (entryRow.checkbox.value) {
-                    itemEntries[entryRow.dataIndex].newName = entryRow.newNameField.text;
+                var entry = itemEntries[entryRow.dataIndex];
+                entry.checked = entryRow.checkbox.value;
+                if (entry.checked && entryRow.newNameField.text !== entry.newName) {
+                    entry.newName = entryRow.newNameField.text;
+                    entry.userEdited = true;
                 }
             }
         }
@@ -986,7 +1036,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             var isAllChecked = (rangeSettings.rangeMode === "all");
             filterAllRadio.value = isAllChecked;
             filterRangeRadio.value = !isAllChecked;
-            rangeInput.enabled = !isAllChecked;
+            /* 検索フィルター ON の間は「指定範囲」欄を無効のまま保つ */
+            rangeInput.enabled = !isAllChecked && !searchFilterCheckbox.value;
             if (!isAllChecked) rangeInput.text = rangeSettings.rangeText;
         }
 
@@ -1028,6 +1079,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             for (var i = 1; i < itemEntries.length; i++) {
                 if (itemEntries[i].checked && !itemEntries[i - 1].checked) swapEntries(i, i - 1);
             }
+            scrollToFirstCheckedEntry();
             refreshReorderRows();
         }
 
@@ -1040,6 +1092,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             for (var i = itemEntries.length - 2; i >= 0; i--) {
                 if (itemEntries[i].checked && !itemEntries[i + 1].checked) swapEntries(i, i + 1);
             }
+            scrollToFirstCheckedEntry();
             refreshReorderRows();
         }
 
@@ -1051,6 +1104,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             syncEditingValues();
             var partition = partitionEntriesByChecked();
             itemEntries = partition.checked.concat(partition.unchecked);
+            scrollToFirstCheckedEntry();
             refreshReorderRows();
         }
 
@@ -1062,6 +1116,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             syncEditingValues();
             var partition = partitionEntriesByChecked();
             itemEntries = partition.unchecked.concat(partition.checked);
+            scrollToFirstCheckedEntry();
             refreshReorderRows();
         }
 
@@ -1092,8 +1147,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
          * @returns {void}
          */
         function updateMoveButtonsState() {
-            var canMoveUpwards = canMoveUp();
-            var canMoveDownwards = canMoveDown();
+            var isReorderable = canReorderItemType(currentItemType);
+            var canMoveUpwards = isReorderable && canMoveUp();
+            var canMoveDownwards = isReorderable && canMoveDown();
             moveToTopButton.enabled = canMoveUpwards;
             moveUpButton.enabled = canMoveUpwards;
             moveDownButton.enabled = canMoveDownwards;
@@ -1185,8 +1241,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             }
             entryRows = [];
 
+            /* 表示位置を件数に収めてから、見えている範囲の行だけを作る */
+            var maxScrollOffset = Math.max(0, itemEntries.length - LIST_VISIBLE_ROWS);
+            listScrollOffset = Math.max(0, Math.min(listScrollOffset, maxScrollOffset));
+            listScrollbar.maxvalue = maxScrollOffset;
+            listScrollbar.value = listScrollOffset;
+            listScrollbar.enabled = (maxScrollOffset > 0);
+
             addListHeaderRow();
-            for (var entryIndex = 0; entryIndex < itemEntries.length; entryIndex++) {
+            var visibleEnd = Math.min(itemEntries.length, listScrollOffset + LIST_VISIBLE_ROWS);
+            for (var entryIndex = listScrollOffset; entryIndex < visibleEnd; entryIndex++) {
                 addEntryRow(entryIndex);
             }
 
@@ -1194,6 +1258,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             entryRowsHost.layout.layout(true);
             renameDialog.layout.layout(true);
         }
+
+        /**
+         * 最初のチェック行が見える位置まで一覧をスクロールする（並び替えのあとに呼ぶ）
+         * @returns {void}
+         */
+        function scrollToFirstCheckedEntry() {
+            for (var i = 0; i < itemEntries.length; i++) {
+                if (!itemEntries[i].checked) continue;
+                if (i < listScrollOffset || i >= listScrollOffset + LIST_VISIBLE_ROWS) listScrollOffset = i;
+                return;
+            }
+        }
+
+        listScrollbar.onChanging = function () {
+            var newScrollOffset = Math.round(listScrollbar.value);
+            if (newScrollOffset === listScrollOffset) return;
+            /* 行を作り直す前に、見えている行の入力を控えへ書き戻す */
+            syncEditingValues();
+            listScrollOffset = newScrollOffset;
+            refreshReorderRows();
+        };
 
         /**
          * ［更新］確定後にエントリを canvas の現状へ再ベースライン化する
@@ -1205,14 +1290,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
             /* 確定した結果アイテム数が変わることがある（例：グラフィックスタイル名が `[...]` になり
                RESERVED_STYLE_NAME に引っかかって対象から外れる）。ずれたまま参照を続けると
-               範囲外アクセスになるので、件数が変わったら一覧ごと作り直す */
+               範囲外アクセスになるので、件数が変わったら一覧ごと作り直す
+               作り直した行は未チェックになるので、「すべて／指定範囲」もその状態にそろえる */
             if (docItems.length !== itemEntries.length) {
                 itemEntries = buildEntriesForItemType(currentItemType);
                 refreshReorderRows();
+                syncFilterFromCheckboxes();
                 return;
             }
 
-            for (var i = 0; i < itemEntries.length && i < docItems.length; i++) {
+            for (var i = 0; i < itemEntries.length; i++) {
                 itemEntries[i].originalIndex = i;
                 itemEntries[i].name = docItems[i].name;
                 itemEntries[i].newName = docItems[i].name;
@@ -1231,6 +1318,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         function setItemType(itemType) {
             currentItemType = itemType;
             itemEntries = buildEntriesForItemType(itemType);
+            listScrollOffset = 0;
             lastCommittedSignature = null;
             skipApplyOnOk = false;
 
@@ -1292,14 +1380,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 }
             }
 
-            /* ［更新］以降に何も変わっていなければ、OK では何もしない（二重適用の防止） */
+            var okSettings = readSettings();
+            okSettings.itemEntries = itemEntries;
             skipApplyOnOk = false;
-            if (lastCommittedSignature !== null) {
-                var okSettings = readSettings();
-                okSettings.itemEntries = itemEntries;
-                if (buildSettingsSignature(okSettings) === lastCommittedSignature) {
-                    skipApplyOnOk = true;
+
+            /* 入力がなく並び替え・手動編集もないときは、閉じる前に知らせる。
+               ただし［更新］で確定済みなら、キャンセルでその確定を戻させないよう何もせずに閉じる */
+            if (hasNoRenameInput(okSettings) && !hasReorderOrRename(itemEntries)) {
+                if (lastCommittedSignature === null) {
+                    alert(getLabel("alert.needSettings"));
+                    return;
                 }
+                skipApplyOnOk = true;
+            }
+
+            /* ［更新］以降に何も変わっていなければ、OK では何もしない（二重適用の防止） */
+            if (lastCommittedSignature !== null && buildSettingsSignature(okSettings) === lastCommittedSignature) {
+                skipApplyOnOk = true;
             }
             renameDialog.close(1);
         };
@@ -1379,19 +1476,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
              * @returns {void}
              */
             syncReorderRowsToCurrentNames: function () {
+                /* 見えていない行のエントリもそろえる（スクロールで行を作り直すとエントリの値が出る） */
                 var docItems = getDocumentItems(doc, currentItemType);
-                for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                    var entryRow = entryRows[rowIdx];
-                    var entry = itemEntries[entryRow.dataIndex];
+                for (var entryIdx = 0; entryIdx < itemEntries.length; entryIdx++) {
+                    var entry = itemEntries[entryIdx];
                     var currentName = getCurrentNameOfEntry(docItems, entry);
-
-                    setCurrentNameLabel(entryRow, currentName);
-                    entryRow.newNameField.text = currentName;
-                    entryRow.newNameField.enabled = entry.checked;
-
                     entry.name = currentName;
                     entry.newName = currentName;
                     entry.userEdited = false;
+                }
+                for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
+                    var entryRow = entryRows[rowIdx];
+                    var rowEntry = itemEntries[entryRow.dataIndex];
+                    setCurrentNameLabel(entryRow, rowEntry.name);
+                    entryRow.newNameField.text = rowEntry.newName;
+                    entryRow.newNameField.enabled = rowEntry.checked;
                 }
             },
 
@@ -1401,22 +1500,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
              * @returns {void}
              */
             syncPreviewToReorderRows: function (previewNames) {
+                /* 入力途中の行を手動編集として控えてから、見えていない行のエントリにもプレビュー名を入れる */
+                syncEditingValues();
                 var docItems = getDocumentItems(doc, currentItemType);
-                for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
-                    var entryRow = entryRows[rowIdx];
-                    var entry = itemEntries[entryRow.dataIndex];
-                    var currentName = getCurrentNameOfEntry(docItems, entry);
-
+                for (var entryIdx = 0; entryIdx < itemEntries.length; entryIdx++) {
+                    var entry = itemEntries[entryIdx];
                     /* 「現在の名前」列は canvas の現状（［更新］後は確定後の名前）を出す */
-                    setCurrentNameLabel(entryRow, currentName);
-
+                    var currentName = getCurrentNameOfEntry(docItems, entry);
+                    entry.name = currentName;
                     /* 「新しい名前」列は未確定プレビュー。手動編集した行は上書きしない */
                     if (entry.userEdited) continue;
-                    var previewName = (previewNames && previewNames[entry.originalIndex] != null)
+                    entry.newName = (previewNames && previewNames[entry.originalIndex] != null)
                         ? previewNames[entry.originalIndex]
                         : currentName;
-                    entryRow.newNameField.text = previewName;
-                    entry.newName = previewName;
+                }
+                for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
+                    var entryRow = entryRows[rowIdx];
+                    var rowEntry = itemEntries[entryRow.dataIndex];
+                    setCurrentNameLabel(entryRow, rowEntry.name);
+                    if (!rowEntry.userEdited) entryRow.newNameField.text = rowEntry.newName;
                 }
             },
 
@@ -1615,15 +1717,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             /* フォーカスが外れていない edittext も確定させるため、関連フィールドの onChange を一括で発火する
                Force onChange on all edittexts so pending edits commit even without losing focus
                各 onChange はプレビューを走らせるので、確定前の中間状態では抑制する
-               （抑制しないと1クリックで7回、「最前面のテキスト」ではドキュメント全体の走査が7回起きる） */
+               （抑制しないと1クリックで5回、「最前面のテキスト」ではドキュメント全体の走査が5回起きる）
+               フィルター欄（指定範囲・検索）は発火させない。発火させると一覧で手動で付け外ししたチェックが
+               フィルター結果で上書きされ、見えているチェックと違う範囲が確定される */
             var pendingFields = [
                 dialogUI.prefixInput,
                 dialogUI.suffixInput,
                 dialogUI.customInput,
                 dialogUI.findInput,
-                dialogUI.replaceInput,
-                dialogUI.rangeInput,
-                dialogUI.searchInput
+                dialogUI.replaceInput
             ];
             suppressPreview = true;
             for (var pendingIdx = 0; pendingIdx < pendingFields.length; pendingIdx++) {
@@ -1757,16 +1859,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         if (itemType === "artboard") {
             /* rect と現在名を新しい位置へ並べ替える（一時名で衝突を避ける）
-               一時名を付ける件数と並べ替える件数は必ず同じにする。ずれると try の外にある
-               artboardRect 代入で落ち、全アートボードが一時名のまま残る */
+               一時名を付ける件数と並べ替える件数は必ず同じにする。rect の代入が失敗しても名前は戻す */
             var reorderCount = Math.min(itemEntries.length, itemCount);
             assignTemporaryArtboardNames(docItems, reorderCount);
             for (var newPos = 0; newPos < reorderCount; newPos++) {
-                docItems[newPos].artboardRect = itemEntries[newPos].rect;
+                setArtboardRect(docItems[newPos], itemEntries[newPos].rect, "artboard rect reorder at " + newPos);
                 setItemName(docItems[newPos], currentNamesByOriginalIndex[itemEntries[newPos].originalIndex], "artboard reorder at " + newPos);
             }
-        } else {
-            /* シンボル・レイヤー・グラフィックスタイルは安定参照を move() で並べ替える */
+        } else if (canReorderItemType(itemType)) {
+            /* レイヤーは安定参照を move() で並べ替える（シンボル・グラフィックスタイルは一覧でも並び替え不可） */
             reorderByMove(doc, docItems, itemEntries, itemType);
         }
 
@@ -1796,8 +1897,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * @returns {boolean} 何も入力されていなければ true
      */
     function hasNoRenameInput(settings) {
-        return settings.mode === "custom"
-            && !settings.customText
+        /* 「元の名称」で何も入力していなければ名前は変わらない。リネームを走らせると
+           重複した名前にだけ "_1" が付いてしまうので、入力なしとして扱う */
+        var hasNoBaseText = settings.mode === "original" || (settings.mode === "custom" && !settings.customText);
+        return hasNoBaseText
             && !settings.prefix
             && !settings.suffix
             && !settings.findText;
@@ -1814,7 +1917,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     function buildItemTextMap(doc, docItems, settings, itemType) {
         var itemTextMap = {};
         if (settings.mode === "frontmost" && itemType === "artboard") {
-            return mapTextFramesToArtboards(getCachedFrontmostTextFrames(doc), docItems);
+            return buildFrontmostTextMap(getCachedFrontmostTextFrames(doc));
         }
         for (var itemIdx = 0; itemIdx < docItems.length; itemIdx++) {
             if (settings.mode === "original") {
@@ -1843,7 +1946,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
         var docItems = getDocumentItems(doc, itemType);
         var itemTextMap = buildItemTextMap(doc, docItems, settings, itemType);
         var selectedIndices = getRangeItemIndices(docItems.length, settings.rangeMode, settings.rangeText);
-        var renamePlan = buildRenamePlan(docItems, itemTextMap, settings, selectedIndices);
+        var renamePlan = buildRenamePlan(doc, docItems, itemTextMap, settings, selectedIndices);
 
         for (var finalIdx = 0; finalIdx < renamePlan.indices.length; finalIdx++) {
             setItemName(
@@ -1878,7 +1981,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
         var itemTextMap = buildItemTextMap(doc, docItems, settings, itemType);
         var selectedIndices = getRangeItemIndices(docItems.length, settings.rangeMode, settings.rangeText);
-        var renamePlan = buildRenamePlan(docItems, itemTextMap, settings, selectedIndices);
+        var renamePlan = buildRenamePlan(doc, docItems, itemTextMap, settings, selectedIndices);
         for (var finalIdx = 0; finalIdx < renamePlan.indices.length; finalIdx++) {
             previewNames[renamePlan.indices[finalIdx]] = renamePlan.names[finalIdx];
         }
@@ -1887,13 +1990,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /**
      * 選択アイテムの最終名プランを作る（プレビューと本番で共用）
+     * @param {Document} doc - 対象ドキュメント
      * @param {object} docItems - 対象アイテムのコレクション
      * @param {object} itemTextMap - インデックスごとのベース文字列
      * @param {object} settings - 現在の設定
      * @param {Array<number>} selectedIndices - 対象インデックス
      * @returns {{indices: Array<number>, names: Array<string>}} リネーム対象と最終名
      */
-    function buildRenamePlan(docItems, itemTextMap, settings, selectedIndices) {
+    function buildRenamePlan(doc, docItems, itemTextMap, settings, selectedIndices) {
         var prefixTemplate = settings.prefix || "";
         var suffixTemplate = settings.suffix || "";
         var findText = settings.findText || "";
@@ -1905,7 +2009,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
             || (findText && hasSequenceToken(replaceText));
         var reservedNames = getReservedItemNames(docItems, selectedIndices);
         var selectedIndexSet = makeIndexSet(selectedIndices);
-        var tokenContext = createTokenContext();
+        var tokenContext = createTokenContext(doc);
         var plannedBaseNames = [];
         var plannedIndices = [];
         var sequenceIndex = 1;
@@ -2085,12 +2189,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
 
     /**
      * expandTemplateTokens 用の実行コンテキストを作る（fileName / dateString は呼び出しごとに同一）
+     * @param {Document} doc - 対象ドキュメント
      * @returns {{fileName: string, dateString: string}} トークン展開用の値
      */
-    function createTokenContext() {
+    function createTokenContext(doc) {
         var currentDate = new Date();
         return {
-            fileName: app.activeDocument.name.replace(/\.[^.]+$/, ""),
+            fileName: doc.name.replace(/\.[^.]+$/, ""),
             dateString: currentDate.getFullYear().toString() +
                 ("0" + (currentDate.getMonth() + 1)).slice(-2) +
                 ("0" + currentDate.getDate()).slice(-2)
@@ -2101,19 +2206,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * テンプレート文字列の連番・#FN・#DT トークンを展開する
      * @param {string} template - テンプレート文字列
      * @param {number} sequenceIndex - 1 始まりの連番
-     * @param {object} [sharedTokenContext] - createTokenContext() の戻り値
+     * @param {object} tokenContext - createTokenContext() の戻り値
      * @returns {string} 展開後の文字列
      */
-    function expandTemplateTokens(template, sequenceIndex, sharedTokenContext) {
-        var tokenContext = sharedTokenContext || createTokenContext();
+    function expandTemplateTokens(template, sequenceIndex, tokenContext) {
 
         /* 連番トークン {#N} を展開する（ゼロパディング対応：{#01} → 01, 02, ...） */
         var expandedText = template.replace(/\{#(\d+)\}/g, function (match, token) {
-            var sequenceValue = parseInt(token, 10) + sequenceIndex - 1;
-            if (token.charAt(0) === "0" && token.length > 1) {
-                return ("0000000000" + sequenceValue).slice(-token.length);
+            var sequenceText = (parseInt(token, 10) + sequenceIndex - 1).toString();
+            /* 足りない桁だけを埋める。slice で切り詰めると {#01} の100件目が "00" になる */
+            if (token.charAt(0) === "0") {
+                while (sequenceText.length < token.length) sequenceText = "0" + sequenceText;
             }
-            return sequenceValue.toString();
+            return sequenceText;
         });
 
         /* 差し込む値に `$&` や `$$` が含まれても置換パターンとして解釈されないよう、
@@ -2263,21 +2368,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
     }
 
     /**
-     * テキストフレームを所属アートボードに紐付けてマッピングする
-     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
-     * @param {object} artboards - アートボードのコレクション
+     * アートボードごとの最前面 TextFrame から、名前の基準にする文字列のマップを作る
+     * 走査で見つけたアートボードにそのまま結び付ける。中心座標で探し直すと、
+     * アートボードが重なっているときに手前の番号のアートボードへ取られる
+     * @param {Array<TextFrame|null>} frontmostFrames - アートボードの位置ごとの TextFrame（無ければ null）
      * @returns {object} アートボードのインデックスをキーにした文字列配列
      */
-    function mapTextFramesToArtboards(textFrames, artboards) {
+    function buildFrontmostTextMap(frontmostFrames) {
         var textMap = {};
-        for (var i = 0; i < textFrames.length; i++) {
-            var center = getTextCenter(textFrames[i]);
-            for (var j = 0; j < artboards.length; j++) {
-                if (!isCenterInsideBounds(center, artboards[j].artboardRect)) continue;
-                if (!textMap[j]) textMap[j] = [];
-                textMap[j].push(textFrames[i].contents.replace(/[\r\n\t]/g, ""));
-                break;
-            }
+        for (var i = 0; i < frontmostFrames.length; i++) {
+            if (!frontmostFrames[i]) continue;
+            textMap[i] = [frontmostFrames[i].contents.replace(/[\r\n\t]/g, "")];
         }
         return textMap;
     }
@@ -2290,7 +2391,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * 最前面 TextFrame の走査結果を返す（キャッシュがあれば再利用する）
      * 走査は O(アートボード数 × ページアイテム数) なので、入力のたびに回すと大きなドキュメントで止まる
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array<TextFrame>} 見つかったテキストフレーム
+     * @returns {Array<TextFrame|null>} アートボードの位置ごとのテキストフレーム（無ければ null）
      */
     function getCachedFrontmostTextFrames(doc) {
         if (!frontmostTextFrameCache) {
@@ -2311,7 +2412,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
      * 各アートボードの最前面 TextFrame を、レイヤー・グループ階層を再帰して取得する
      * 判定順はレイヤー順・pageItems 順に依存する（Illustrator の厳密な描画Z順ではない）
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array<TextFrame>} 見つかったテキストフレーム
+     * @returns {Array<TextFrame|null>} アートボードの位置ごとのテキストフレーム（無ければ null）
      */
     function getFrontmostTextFramesPerArtboard(doc) {
 
@@ -2364,7 +2465,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 frontmostFrame = findFrontmostTextFrameInLayer(doc.layers[layerIndex], artboardBounds);
                 if (frontmostFrame) break;
             }
-            if (frontmostFrame) frontmostFrames.push(frontmostFrame);
+            frontmostFrames.push(frontmostFrame);   /* 見つからないアートボードも null で位置を詰めない */
         }
         return frontmostFrames;
     }

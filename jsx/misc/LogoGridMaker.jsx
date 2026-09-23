@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
@@ -71,6 +71,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         horizontalMinRun: 0.5,       /* 水平とみなす最小の長さ（pt） / minimum run that counts as horizontal */
         fallbackLineRatio: 0.3,      /* 内部の線を推定できないときの位置比率 / ratio used when inner lines are unknown */
         descenderRatio: 0.15,        /* ディセンダーとみなす下方向の比率 / ratio that still counts as a descender */
+        xHeightRatio: 0.68,          /* ミーンライン候補が並んだときに優先する高さの比率 / preferred x-height ratio when mean line candidates tie */
         diagonalAngleTolerance: 2.0, /* 同じ傾きとみなす角度差（度） / angle gap that counts as the same slope */
         diagonalMinAngle: 45,        /* 斜線として扱う角度の下限（度） / lower angle bound of diagonal elements */
         diagonalMaxAngle: 90,        /* 斜線として扱う角度の上限（度） / upper angle bound of diagonal elements */
@@ -619,14 +620,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     }
 
     /**
+     * パスが属する複合パスの番号を返します（複合パスに属さないときは null）。
+     *
+     * @param {PathItem} pathItem - 対象のパス。
+     * @param {Array<CompoundPathItem>} compoundParents - これまでに見つかった複合パス（見つかるたびに追加）。
+     * @returns {number|null} 複合パスの番号。
+     */
+    function getCompoundId(pathItem, compoundParents) {
+        var parentItem = pathItem.parent;
+        if (parentItem.typename !== "CompoundPathItem") return null;
+        for (var i = 0; i < compoundParents.length; i++) {
+            if (compoundParents[i] === parentItem) return i;
+        }
+        compoundParents.push(parentItem);
+        return compoundParents.length - 1;
+    }
+
+    /**
      * 選択範囲のアンカーポイントと直線セグメントを、向きごとに集めます。
      *
      * @param {Array<PageItem>} pageItems - 選択中のオブジェクト。
-     * @returns {{points: Array<Object>, horizontal: Array<Object>, vertical: Array<Object>, diagonal: Array<Object>, top: number, bottom: number}} 解析用のジオメトリ。
+     * @returns {{points: Array<Object>, shapes: Array<Object>, horizontal: Array<Object>, vertical: Array<Object>, diagonal: Array<Object>, top: number, bottom: number}} 解析用のジオメトリ。
      */
     function collectGeometry(pageItems) {
+        var compoundParents = [];
         var geometry = {
             points: [],
+            shapes: [],
             horizontal: [],
             vertical: [],
             diagonal: [],
@@ -637,6 +657,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         forEachPathItem(pageItems, function (pathItem) {
             var pathPoints = pathItem.pathPoints;
             var count = pathPoints.length;
+            var shapeBounds = pathItem.geometricBounds;
+            var shape = {
+                left: shapeBounds[0],
+                top: shapeBounds[1],
+                right: shapeBounds[2],
+                bottom: shapeBounds[3],
+                compoundId: getCompoundId(pathItem, compoundParents),
+                points: []
+            };
+            geometry.shapes.push(shape);
             for (var i = 0; i < count; i++) {
                 var nextIndex = (i + 1) % count;
                 var startAnchor = pathPoints[i].anchor;
@@ -648,7 +678,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
                 /* 水平に近い辺の端点は、自動判定で横線の手がかりにする */
                 var onHorizontal = Math.abs(startAnchor[1] - endAnchor[1]) < DETECTION.horizontalFlatness &&
                     Math.abs(startAnchor[0] - endAnchor[0]) > DETECTION.horizontalMinRun;
-                geometry.points.push({ x: startAnchor[0], y: startAnchor[1], onHorizontal: onHorizontal });
+                var anchorPoint = { x: startAnchor[0], y: startAnchor[1], onHorizontal: onHorizontal };
+                geometry.points.push(anchorPoint);
+                shape.points.push(anchorPoint);
 
                 /* 開いたパスの終端は次の点とつながらない / The last point of an open path has no next segment */
                 if (i >= count - 1 && !pathItem.closed) continue;
@@ -716,95 +748,234 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     // =========================================
 
     /**
-     * アンカーポイントのクラスタから、代表となる横線の位置を求めます。
+     * 形状 inner の範囲が、形状 outer の範囲に収まっているか判定します。
      *
-     * @param {Array<Object>} points - 同じ高さに集まったアンカーポイント。
-     * @returns {{y: number, count: number, onHorizontal: boolean}} 代表位置と手がかり。
+     * @param {Object} inner - 判定する形状の範囲。
+     * @param {Object} outer - 外側の形状の範囲。
+     * @returns {boolean} 収まっているとき true。
      */
-    function summarizeAnchorCluster(points) {
-        var frequency = {};
-        var onHorizontal = false;
-
-        for (var i = 0; i < points.length; i++) {
-            if (points[i].onHorizontal) onHorizontal = true;
-            var yKey = points[i].y.toFixed(3);
-            frequency[yKey] = (frequency[yKey] || 0) + 1;
-        }
-
-        var bestY = points[0].y;
-        var bestCount = -1;
-        for (var frequencyKey in frequency) {
-            if (frequency.hasOwnProperty(frequencyKey) && frequency[frequencyKey] > bestCount) {
-                bestCount = frequency[frequencyKey];
-                bestY = parseFloat(frequencyKey);
-            }
-        }
-
-        return { y: bestY, count: points.length, onHorizontal: onHorizontal };
+    function isShapeInside(inner, outer) {
+        return outer.left <= inner.left && outer.right >= inner.right &&
+            outer.top >= inner.top && outer.bottom <= inner.bottom;
     }
 
     /**
-     * 候補のうち、もっとも横線らしい1本を選びます（水平な辺を持つものを優先）。
+     * 基準線の推定に使う字形の本体を選びます。
+     * 同じ複合パスの内側にある形状（o や A の穴）と、上半分に浮いている形状（アクセント・点・引用符など）を除きます。
+     * すべて除かれてしまうときは、穴を除いた形状を返します。
      *
-     * @param {Array<Object>} candidateLines - 候補の横線。
-     * @returns {Object} 選ばれた横線。
+     * @param {Array<Object>} shapes - collectGeometry() の形状。
+     * @returns {Array<Object>} 推定に使う形状。
      */
-    function pickDominantLine(candidateLines) {
-        var dominantLine = candidateLines[0];
+    function getBodyShapes(shapes) {
+        var outerShapes = [];
+        var top = -Infinity;
+        var bottom = Infinity;
+        var i, j;
+
+        for (i = 0; i < shapes.length; i++) {
+            var isCounter = false;
+            for (j = 0; j < shapes.length && !isCounter; j++) {
+                if (j !== i && shapes[i].compoundId !== null && shapes[j].compoundId === shapes[i].compoundId &&
+                    isShapeInside(shapes[i], shapes[j])) isCounter = true;
+            }
+            if (isCounter) continue;
+            outerShapes.push(shapes[i]);
+            if (shapes[i].top > top) top = shapes[i].top;
+            if (shapes[i].bottom < bottom) bottom = shapes[i].bottom;
+        }
+
+        var middleY = (top + bottom) / 2;
+        var bodyShapes = [];
+        for (i = 0; i < outerShapes.length; i++) {
+            if (outerShapes[i].bottom <= middleY) bodyShapes.push(outerShapes[i]);
+        }
+        return bodyShapes.length > 0 ? bodyShapes : outerShapes;
+    }
+
+    /**
+     * 輪郭の前後のアンカーより低い（または高い）アンカーポイントを集めます。
+     * 同じ高さが続く区間は、その前後の点と比べます。
+     *
+     * @param {Object} shape - collectGeometry() の形状。
+     * @param {boolean} findLowest - 低い点を集めるとき true、高い点を集めるとき false。
+     * @returns {Array<Object>} 該当するアンカーポイント。
+     */
+    function collectExtremePoints(shape, findLowest) {
+        var points = shape.points;
+        var count = points.length;
+        var extremePoints = [];
+
+        for (var i = 0; i < count; i++) {
+            var y = points[i].y;
+            var prevIndex = (i - 1 + count) % count;
+            var nextIndex = (i + 1) % count;
+            var guard = 0;
+            while (isSameCoord(points[prevIndex].y, y) && guard++ < count) prevIndex = (prevIndex - 1 + count) % count;
+            guard = 0;
+            while (isSameCoord(points[nextIndex].y, y) && guard++ < count) nextIndex = (nextIndex + 1) % count;
+
+            var isExtreme = findLowest ?
+                (points[prevIndex].y >= y && points[nextIndex].y >= y) :
+                (points[prevIndex].y <= y && points[nextIndex].y <= y);
+            if (isExtreme) extremePoints.push(points[i]);
+        }
+        return extremePoints;
+    }
+
+    /**
+     * 形状ごとの候補の高さをクラスタに分け、クラスタごとに乗っている形状の数と代表位置をまとめます。
+     *
+     * @param {Array<Object>} entries - y・shapeIndex・onHorizontal・isBottom を持つ候補。
+     * @param {number} tolerance - 同じ線とみなす差（pt）。
+     * @returns {Array<Object>} 上から順の候補線（shapeCount・bottomCount・flatY・flatMaxY・minY・maxY）。
+     */
+    function summarizeShapeLines(entries, tolerance) {
+        var sortedEntries = entries.slice().sort(function (a, b) { return b.y - a.y; });
+        var clusters = clusterByValue(sortedEntries, function (entry) { return entry.y; }, tolerance);
+        var candidateLines = [];
+
+        for (var i = 0; i < clusters.length; i++) {
+            var seenShapes = {};
+            var seenBottoms = {};
+            var flatFrequency = {};
+            var candidateLine = { shapeCount: 0, bottomCount: 0, flatY: null, flatMaxY: null, minY: Infinity, maxY: -Infinity };
+            var bestFlatCount = 0;
+
+            for (var j = 0; j < clusters[i].length; j++) {
+                var entry = clusters[i][j];
+                if (!seenShapes[entry.shapeIndex]) {
+                    seenShapes[entry.shapeIndex] = true;
+                    candidateLine.shapeCount++;
+                }
+                if (entry.isBottom && !seenBottoms[entry.shapeIndex]) {
+                    seenBottoms[entry.shapeIndex] = true;
+                    candidateLine.bottomCount++;
+                }
+                if (entry.y < candidateLine.minY) candidateLine.minY = entry.y;
+                if (entry.y > candidateLine.maxY) candidateLine.maxY = entry.y;
+
+                /* 水平な辺の高さを優先して代表位置にする（丸みのはみ出しを避ける） */
+                if (entry.onHorizontal) {
+                    var yKey = entry.y.toFixed(3);
+                    flatFrequency[yKey] = (flatFrequency[yKey] || 0) + 1;
+                    if (flatFrequency[yKey] > bestFlatCount) {
+                        bestFlatCount = flatFrequency[yKey];
+                        candidateLine.flatY = entry.y;
+                    }
+                    if (candidateLine.flatMaxY === null || entry.y > candidateLine.flatMaxY) candidateLine.flatMaxY = entry.y;
+                }
+            }
+            candidateLines.push(candidateLine);
+        }
+        return candidateLines;
+    }
+
+    /**
+     * 字形の下向きの極値から、ベースラインを推定します。
+     * 極値に乗る形状がもっとも多い高さを選び、同数なら形状の下端が多い高さを選びます。
+     *
+     * @param {Array<Object>} bodyShapes - getBodyShapes() の結果。
+     * @param {number} tolerance - 同じ線とみなす差（pt）。
+     * @returns {number} ベースラインのY座標。
+     */
+    function detectBaseline(bodyShapes, tolerance) {
+        var entries = [];
+        for (var i = 0; i < bodyShapes.length; i++) {
+            var lowestPoints = collectExtremePoints(bodyShapes[i], true);
+            for (var j = 0; j < lowestPoints.length; j++) {
+                entries.push({
+                    y: lowestPoints[j].y,
+                    shapeIndex: i,
+                    onHorizontal: lowestPoints[j].onHorizontal,
+                    isBottom: Math.abs(lowestPoints[j].y - bodyShapes[i].bottom) <= tolerance
+                });
+            }
+        }
+
+        var candidateLines = summarizeShapeLines(entries, tolerance);
+        var baseLine = null;
         var bestScore = -Infinity;
-        for (var i = 0; i < candidateLines.length; i++) {
-            var score = candidateLines[i].count + (candidateLines[i].onHorizontal ? 1000 : 0);
+        for (var k = 0; k < candidateLines.length; k++) {
+            var score = candidateLines[k].shapeCount * 10 + candidateLines[k].bottomCount;
             if (score > bestScore) {
                 bestScore = score;
-                dominantLine = candidateLines[i];
+                baseLine = candidateLines[k];
             }
         }
-        return dominantLine;
+        return baseLine.flatY !== null ? baseLine.flatY : baseLine.maxY;
     }
 
     /**
-     * アンカーポイントの分布から、書体の基準線（アセンダー〜ディセンダー）を推定します。
+     * 字形の上端をまとめて、上から順の候補線を作ります。
+     *
+     * @param {Array<Object>} bodyShapes - getBodyShapes() の結果。
+     * @param {number} tolerance - 同じ線とみなす差（pt）。
+     * @returns {Array<Object>} summarizeShapeLines() の結果。
+     */
+    function collectTopLines(bodyShapes, tolerance) {
+        var entries = [];
+        for (var i = 0; i < bodyShapes.length; i++) {
+            var shapeTop = bodyShapes[i].top;
+            entries.push({ y: shapeTop, shapeIndex: i, onHorizontal: false, isBottom: false });
+
+            /* 上端に水平な辺があれば、その高さも候補に加える */
+            var highestPoints = collectExtremePoints(bodyShapes[i], false);
+            for (var j = 0; j < highestPoints.length; j++) {
+                if (highestPoints[j].onHorizontal && Math.abs(highestPoints[j].y - shapeTop) <= tolerance) {
+                    entries.push({ y: highestPoints[j].y, shapeIndex: i, onHorizontal: true, isBottom: false });
+                }
+            }
+        }
+        return summarizeShapeLines(entries, tolerance);
+    }
+
+    /**
+     * 字形の形から、書体の基準線（アセンダー〜ディセンダー）を推定します。
      *
      * @param {Object} geometry - collectGeometry() の結果。
      * @returns {{ascenderY: number, meanY: number, baseY: number, descenderY: number, hasDescender: boolean}} 推定した基準線。
      */
     function detectTypographicLines(geometry) {
-        var tolerance = getClusterTolerance(geometry.top - geometry.bottom);
-        var sortedPoints = geometry.points.slice().sort(function (a, b) { return b.y - a.y; });
-        var clusters = clusterByValue(sortedPoints, function (point) { return point.y; }, tolerance);
-
-        var anchorLines = [];
-        for (var i = 0; i < clusters.length; i++) {
-            anchorLines.push(summarizeAnchorCluster(clusters[i]));
+        var bodyShapes = getBodyShapes(geometry.shapes);
+        var bodyTop = -Infinity;
+        var bodyBottom = Infinity;
+        var i;
+        for (i = 0; i < bodyShapes.length; i++) {
+            if (bodyShapes[i].top > bodyTop) bodyTop = bodyShapes[i].top;
+            if (bodyShapes[i].bottom < bodyBottom) bodyBottom = bodyShapes[i].bottom;
         }
+        /* 小さい文字でも線が混ざらないよう、下限は設けずに高さへ比例させる */
+        var tolerance = Math.min(DETECTION.clusterMax, (bodyTop - bodyBottom) * DETECTION.clusterRatio);
 
-        var ascenderY = anchorLines[0].y;
-        var descenderY = anchorLines[anchorLines.length - 1].y;
-        var height = ascenderY - descenderY;
-        var middleY = (ascenderY + descenderY) / 2;
+        var baseY = detectBaseline(bodyShapes, tolerance);
 
-        /* 上下端から離れた候補だけを、ミーンラインとベースラインの候補にする */
-        var upperLines = [];
-        var lowerLines = [];
-        for (var j = 1; j < anchorLines.length - 1; j++) {
-            if (Math.abs(ascenderY - anchorLines[j].y) <= tolerance || Math.abs(anchorLines[j].y - descenderY) <= tolerance) continue;
-            if (anchorLines[j].y > middleY) {
-                upperLines.push(anchorLines[j]);
-            } else {
-                lowerLines.push(anchorLines[j]);
+        var topLines = collectTopLines(bodyShapes, tolerance);
+        var ascenderY = topLines[0].flatMaxY !== null ? topLines[0].flatMaxY : topLines[0].minY;
+        var height = ascenderY - baseY;
+
+        /* ミーンライン：上端がそろう形状がもっとも多い高さ。同数なら x-height らしい高さを選ぶ */
+        var meanY = null;
+        var bestScore = -Infinity;
+        for (i = 1; i < topLines.length; i++) {
+            var lineY = topLines[i].flatY !== null ? topLines[i].flatY : topLines[i].minY;
+            if (lineY <= baseY + height * DETECTION.fallbackLineRatio) continue;
+            var score = topLines[i].shapeCount * 10 - Math.abs((lineY - baseY) / height - DETECTION.xHeightRatio);
+            if (score > bestScore) {
+                bestScore = score;
+                meanY = lineY;
             }
         }
+        if (meanY === null) meanY = ascenderY - height * DETECTION.fallbackLineRatio;
 
-        var meanY, baseY;
-        if (upperLines.length > 0 && lowerLines.length > 0) {
-            meanY = pickDominantLine(upperLines).y;
-            baseY = pickDominantLine(lowerLines).y;
-        } else {
-            meanY = ascenderY - height * DETECTION.fallbackLineRatio;
-            baseY = descenderY + height * DETECTION.fallbackLineRatio;
+        /* ディセンダー：ベースラインより十分上まで伸びる形状の下端（カンマ・ピリオドは除く） */
+        var descenderY = baseY;
+        for (i = 0; i < bodyShapes.length; i++) {
+            if (bodyShapes[i].top < baseY + height * DETECTION.fallbackLineRatio) continue;
+            if (bodyShapes[i].bottom < descenderY) descenderY = bodyShapes[i].bottom;
         }
-
-        var hasDescender = !(height > 0 && (baseY - descenderY) / height < DETECTION.descenderRatio);
+        var hasDescender = (baseY - descenderY) > (ascenderY - descenderY) * DETECTION.descenderRatio;
+        if (!hasDescender) descenderY = baseY;
 
         return {
             ascenderY: ascenderY,

@@ -40,5 +40,6 @@ https://note.com/dtp_tranist/n/n95a285784495 (Japanese)
 
 ### Update History
 
+- v1.4.4 (2026-09-23) Rebuilt the auto line detection for more accurate baseline, mean line and descender. Fixed the baseline landing mid-letter when the text has no descenders, the ascender and mean line being pulled by accents, dots and quotation marks, and the baseline floating on small text
 - v1.4.2 (2026-09-17) Preview is now on by default. Reorganized the internal naming and functions, and added tooltips. Fixed Highlight Bounds being missed because of rounding, the target layer being left behind on Cancel, and the conversion of stroke widths given in H/Q
 - v1.4.1 (2026-04-10)
