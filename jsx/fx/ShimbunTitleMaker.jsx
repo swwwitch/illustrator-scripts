@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShimbunTitleMaker.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ndb9bee6b7a2e
+
 ### Overview
 
 Draws double rules on both sides of the selected headline and lays newspaper-style dummy columns around it.
@@ -25,13 +28,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTit
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ShimbunTitleMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-24";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShimbunTitleMaker.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTitleMaker.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShimbunTitleMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShimbunTitleMaker.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndb9bee6b7a2e"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -47,6 +51,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_LINE_GAP_PT = 5;         /* 二重線の間隔の既定値（pt）/ Default gap between the two rules */
     var RULE_STROKE_WIDTH_PT = 0.6;      /* 二重線の線幅（pt）/ Stroke width of the rules */
     var DEFAULT_ROTATION_DEG = 3;        /* 回転の既定値（°）/ Default rotation angle */
+    var DEFAULT_USE_MASK = true;         /* マスクの既定値 / Default for the mask option */
     var DEFAULT_CHARS_PER_LINE = 11;     /* 新聞ダミーの1行あたりの文字数 / Dummy characters per line */
     var DEFAULT_TIER_COUNT = 3;          /* 新聞ダミーの段数（0で作らない）/ Dummy tiers (0 = none) */
     var DEFAULT_EXTRA_TIER_COUNT = 1;    /* 新聞ダミーの上下に足す段数 / Dummy tiers added above and below */
@@ -60,9 +65,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var RULE_CMYK = [0, 0, 0, 100];      /* 二重線・区切り罫の色 [C,M,Y,K]（%）/ Color of the rules */
     var DEFAULT_BLUR_RADIUS = 8;         /* 新聞ダミーのぼかし（ガウス）の半径（px、0でかけない）/ Dummy blur radius in px (0 = none) */
     var EFFECT_RESOLUTION = 300;         /* 効果のプレビュー解像度（ppi）/ effect preview resolution */
-    /* 新聞ダミーの文字列（約物・小書きかな・長音は行頭禁則で行がずれるので入れない）
-       Dummy text; no punctuation, small kana or long vowel marks, which kinsoku would push between lines */
-    var DUMMY_TEXT = "吾輩は猫である名前はまだ無いどこで生れたかとんと見当がつかぬ何でも薄暗い所で泣いていた事だけは記憶している";
+    /* 新聞ダミーの文字列。句点は禁則を「なし」にして行頭にも置く / Dummy text; kinsoku is turned off so periods may start a line */
+    var DUMMY_TEXT = "吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗い所で泣いていた事だけは記憶している。";
 
     // =========================================
     // レイアウト / Layout
@@ -70,7 +74,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var DIALOG_MARGINS = 15;              /* ダイアログの余白 / dialog margins */
     var PANEL_MARGINS = [15, 20, 15, 10]; /* パネルの余白 [左,上,右,下] / panel margins */
-    var FIELD_LABEL_WIDTH = 96;           /* 項目名の幅 / width of the field labels */
+    var FIELD_LABEL_WIDTH = 104;          /* 項目名の幅 / width of the field labels */
     var FIELD_CHARS = 5;                  /* 数値入力欄の幅（文字数）/ width of the numeric fields */
     var FIELD_ROW_SPACING = 6;            /* 入力行の間隔 / spacing inside a field row */
     var BUTTON_SPACING = 10;              /* ボタンの間隔 / spacing between buttons */
@@ -120,6 +124,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             blurRadius: { ja: "ぼかし", en: "Blur" },
             rotation: { ja: "回転", en: "Rotation" }
         },
+        checkbox: {
+            useMask: { ja: "マスク", en: "Mask" }
+        },
         unit: {
             chars: { ja: "文字", en: "chars" },
             tiers: { ja: "段", en: "tiers" }
@@ -148,6 +155,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rotation: {
                 ja: "全体のグループに［変形］効果で適用する回転角度。0で効果を付けません。",
                 en: "Rotation applied to the whole group with the Transform effect. 0 adds no effect."
+            },
+            useMask: {
+                ja: "回転後も角が欠けない長方形で全体をマスクする。［上下に追加］を0にするとOFFになります。",
+                en: "Masks the whole piece with a rectangle that leaves no corner missing after the rotation. Turns off when Extra tiers is set to 0."
             }
         },
         button: {
@@ -600,6 +611,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dummyFrame = targetLayer.textFrames.areaText(framePath, TextOrientation.VERTICAL);
         dummyFrame.contents = buildDummyText(lineCount * charsPerLine);
 
+        /* 句点が行頭に来ても字詰どおりに流す / keep every line at the set length even when a period starts it */
+        dummyFrame.textRange.paragraphAttributes.kinsoku = "None";
+
         var dummyAttributes = dummyFrame.textRange.characterAttributes;
         if (tierContext.textFont) dummyAttributes.textFont = tierContext.textFont;
         dummyAttributes.size = tierContext.fontSize;
@@ -626,11 +640,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 対象・二重線・新聞ダミーをグループ化し、新聞ダミーをぼかし、回転があれば［変形］効果で回転する。
-     * 最後に、回転後も欠けない長方形で全体をマスクする
+     * 最後に、マスクがONなら回転後も欠けない長方形で全体をマスクする
      * @param {Document} doc - 対象のドキュメント
      * @param {PageItem} targetItem - 基準にするテキストまたはグループ
      * @param {Object} headlineSettings - readHeadlineSettings() でまとめた設定
-     * @returns {GroupItem} 全体をまとめたグループ（マスクできたときはクリップグループ）
+     * @returns {GroupItem} 全体をまとめたグループ（マスクしたときはクリップグループ）
      */
     function buildHeadlineGroup(doc, targetItem, headlineSettings) {
         var ruleFrame = getRuleFrame(targetItem, headlineSettings);
@@ -660,6 +674,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (headlineSettings.rotationDeg !== 0) {
             headlineGroup.applyEffect(buildTransformEffectXml(headlineSettings.rotationDeg));
         }
+        if (!headlineSettings.useMask) return headlineGroup;
         return maskWithInscribedRect(headlineGroup, contentBounds, blurInset, headlineSettings.rotationDeg);
     }
 
@@ -857,7 +872,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} unitLabel - 入力欄に添える単位の表示名
      * @param {number} pointsPerUnit - 1単位あたりのポイント数
      * @param {Function} onValueChange - 入力値が変わったときに呼ぶ関数
-     * @returns {{dialog: Window, fieldInputs: Object}} ダイアログと、キーごとの入力欄
+     * @returns {{dialog: Window, fieldInputs: Object, maskCheckbox: Checkbox}} ダイアログ、キーごとの入力欄、マスクのチェックボックス
      */
     function buildDialog(unitLabel, pointsPerUnit, onValueChange) {
         var headlineDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -868,12 +883,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 入力欄はキー名で fieldLabel／tooltip のラベルを引く。pt の既定値は現在の単位に換算して表示
            Each field looks up its fieldLabel/tooltip by key; point defaults are shown in the current unit */
         var fieldInputs = {};
+        var maskCheckbox = null;
+        var lastExtraTierCount = DEFAULT_EXTRA_TIER_COUNT;
+
+        /**
+         * ［上下に追加］が0になったらマスクをOFFにしてから、変更を通知する。0のままでも手動でONに戻せる
+         * @returns {void}
+         */
+        function handleValueChange() {
+            /* 空欄は入力途中なので0と見なさない（NaN）/ an empty field is mid-edit, not 0 */
+            var extraTierCount = Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, NaN, false));
+            if (extraTierCount === 0 && lastExtraTierCount !== 0) maskCheckbox.value = false;
+            lastExtraTierCount = extraTierCount;
+            onValueChange();
+        }
 
         addNumericFieldPanel(headlineDialog, "panel.sideRules", [
             { key: "marginVertical", initialText: formatUnitValue(DEFAULT_VERTICAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "marginHorizontal", initialText: formatUnitValue(DEFAULT_HORIZONTAL_MARGIN_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "lineGap", initialText: formatUnitValue(DEFAULT_LINE_GAP_PT, pointsPerUnit), unitLabel: unitLabel }
-        ], fieldInputs, onValueChange);
+        ], fieldInputs, handleValueChange);
 
         addNumericFieldPanel(headlineDialog, "panel.newspaperDummy", [
             { key: "charsPerLine", initialText: String(DEFAULT_CHARS_PER_LINE), unitLabel: getLabel("unit.chars") },
@@ -881,14 +910,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             { key: "extraTierCount", initialText: String(DEFAULT_EXTRA_TIER_COUNT), unitLabel: getLabel("unit.tiers") },
             { key: "dummyWidth", initialText: formatUnitValue(DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit), unitLabel: unitLabel },
             { key: "blurRadius", initialText: String(DEFAULT_BLUR_RADIUS), unitLabel: "px" }
-        ], fieldInputs, onValueChange);
+        ], fieldInputs, handleValueChange);
 
-        addNumericFieldPanel(headlineDialog, "panel.options", [
+        var optionsPanel = addNumericFieldPanel(headlineDialog, "panel.options", [
             { key: "rotation", initialText: String(DEFAULT_ROTATION_DEG), unitLabel: "°", allowNegative: true }
-        ], fieldInputs, onValueChange);
+        ], fieldInputs, handleValueChange);
+        maskCheckbox = addCheckboxRow(optionsPanel, "useMask", DEFAULT_USE_MASK && DEFAULT_EXTRA_TIER_COUNT > 0, onValueChange);
 
         addButtonRow(headlineDialog);
-        return { dialog: headlineDialog, fieldInputs: fieldInputs };
+        return { dialog: headlineDialog, fieldInputs: fieldInputs, maskCheckbox: maskCheckbox };
     }
 
     /**
@@ -937,6 +967,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 入力欄の列にそろえてチェックボックスの行を作る。表示名と helpTip は checkbox.<key> / tooltip.<key> から引く
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} checkboxKey - ラベルのキー
+     * @param {boolean} initialValue - 初期状態
+     * @param {Function} onValueChange - 状態が変わったときに呼ぶ関数
+     * @returns {Checkbox} 生成したチェックボックス
+     */
+    function addCheckboxRow(parentContainer, checkboxKey, initialValue, onValueChange) {
+        var checkboxRow = parentContainer.add("group");
+        checkboxRow.orientation = "row";
+        checkboxRow.alignChildren = ["left", "center"];
+        checkboxRow.spacing = FIELD_ROW_SPACING;
+
+        /* 項目名の欄を空けて入力欄の左端にそろえる / leave the label column empty to line up with the fields */
+        var labelSpacer = checkboxRow.add("statictext", undefined, "");
+        labelSpacer.preferredSize = [FIELD_LABEL_WIDTH, -1];
+
+        var optionCheckbox = checkboxRow.add("checkbox", undefined, getLabel("checkbox." + checkboxKey));
+        optionCheckbox.value = initialValue;
+        optionCheckbox.helpTip = getLabel("tooltip." + checkboxKey);
+        optionCheckbox.onClick = onValueChange;
+        return optionCheckbox;
+    }
+
+    /**
      * ボタンエリア（キャンセル・OK を左右中央）を作る
      * @param {Window} parentDialog - 追加先のダイアログ
      * @returns {void}
@@ -978,7 +1033,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /**
          * 入力欄の値を設定値にまとめる
-         * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, charsPerLine: number, tierCount: number, extraTierCount: number, dummyWidthPt: number, blurRadius: number, rotationDeg: number}} マージン・間隔・幅（pt）、文字数・段数、ぼかし（px）、回転（°）
+         * @returns {{marginVerticalPt: number, marginHorizontalPt: number, lineGapPt: number, charsPerLine: number, tierCount: number, extraTierCount: number, dummyWidthPt: number, blurRadius: number, rotationDeg: number, useMask: boolean}} マージン・間隔・幅（pt）、文字数・段数、ぼかし（px）、回転（°）、マスクの有無
          */
         function readHeadlineSettings() {
             var fieldInputs = dialogUI.fieldInputs;
@@ -992,7 +1047,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 extraTierCount: Math.floor(readFieldAsNumber(fieldInputs.extraTierCount, DEFAULT_EXTRA_TIER_COUNT, false)),
                 dummyWidthPt: readFieldAsPoints(fieldInputs.dummyWidth, DEFAULT_DUMMY_WIDTH_PT, pointsPerUnit),
                 blurRadius: readFieldAsNumber(fieldInputs.blurRadius, DEFAULT_BLUR_RADIUS, false),
-                rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true)
+                rotationDeg: readFieldAsNumber(fieldInputs.rotation, DEFAULT_ROTATION_DEG, true),
+                useMask: dialogUI.maskCheckbox.value
             };
         }
 
