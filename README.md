@@ -175,6 +175,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択中のオブジェクトに対して、複合パスの解除 → パスの合体 → アピアランスの拡張 → グループ解除を一括…](readme-ja/PathUnite.md)
 - [選択中のオブジェクトに対して複合パス解除 → パスの合体 → アピアランス拡張 → グループ解除 → オフセ…](readme-ja/PathUniteOffsetTool.md)
 - [選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換](readme-ja/RectangleToArc.md)
+- [テキストやオブジェクトの背面に図形を敷く](readme-ja/AddBackdrop.md)
 
 
 ## アートワークやファイル

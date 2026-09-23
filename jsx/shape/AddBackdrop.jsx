@@ -7,8 +7,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく図形を生成して配置します。
-既存の背面図形があれば検出して置き換え、プレビューは［OK］時に1ステップで確定します。
+選択したテキストやオブジェクトの背面に、正円・スーパー楕円・長方形の図形を敷きます。
+既存の背面図形を一緒に選んでいれば、形状を読み取って置き換えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md
@@ -18,8 +18,8 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Overview
 
-Generates a shape sized to the visual bounds of the selected text (or objects) and places it behind them.
-An existing backdrop is detected and replaced, and the undo-based preview commits in one step on OK.
+Lays a circle, superellipse or rectangle behind the selected text or objects.
+When an existing backdrop is selected too, the script reads its shape and replaces it.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md
