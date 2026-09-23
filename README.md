@@ -75,7 +75,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [クリップボードの複数行テキストを1行ずつ順に流し込む](readme-ja/ReplaceTextWithPasteSequential.md)
 - [フォントサイズと水平比率／垂直比率を調整](readme-ja/AdjustFontSize.md)
 - [選択したテキストフレームの各行の先頭に、箇条書き記号または連番を付与します](readme-ja/AddBulletsAndNumbers.md)
-- [選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整する](readme-ja/AdjustFontSizePallete.md)
 - [Illustrator 用のメモ入力フローティングパレット](readme-ja/AiMemoPallete.md)
 - [選択中の「ポイント文字」を、同時に選択しているパス（PathItem）上の文字に変換します](readme-ja/AttachTextToPath.md)
 - [選択したテキストの自動カーニング方式（和文等幅／0／メトリクス／オプティカル）を](readme-ja/AutoKerning.md)

@@ -68,7 +68,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Outline text and restore it later](readme-en/AiTextOutlineRestorePalette.md)
 - [Adjust font size and horizontal / vertical scale](readme-en/AdjustFontSize.md)
 - [Adds a bullet or a sequential number to the start of e…](readme-en/AddBulletsAndNumbers.md)
-- [Adjusts the font size and horizontal / vertical scale…](readme-en/AdjustFontSizePallete.md)
 - [A floating memo palette for Illustrator](readme-en/AiMemoPallete.md)
 - [Converts the selected point type into type on the path…](readme-en/AttachTextToPath.md)
 - [Sets the auto-kerning method (Metrics - Roman Only / 0…](readme-en/AutoKerning.md)
