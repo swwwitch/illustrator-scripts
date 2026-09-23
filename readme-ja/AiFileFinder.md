@@ -180,6 +180,10 @@ option + ダブルクリックでの「Finderでファイルを選択して表�
 
 ExtendScript には Finder でファイルを選択表示する手段がないため、一時ファイル経由で Automator アプリにパスを渡す形を取っています。
 
+### 紹介記事
+
+[【Illustrator】「あのロゴのIllustratorファイル、どこだっけ？」を10秒で解決！目的の.aiファイルを10秒で爆速発掘するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n91b2fcf1e2d8)
+
 ### 更新履歴
 
 - v1.0.2（2026-09-18）：ファイル名リストを複数選択できるようにし、選んだファイルをまとめて開けるように変更

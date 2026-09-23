@@ -180,6 +180,10 @@ Revealing a file in the Finder with Option-double-click uses the Automator app a
 
 ExtendScript has no way to select a file in the Finder, so the path is handed to the Automator app through a temporary file.
 
+### Article
+
+[Finding the Illustrator file you need in 10 seconds — an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/n91b2fcf1e2d8)
+
 ### Version history
 
 - v1.0.2 (2026-09-18): Multi-select in the file list, so the selected files open together

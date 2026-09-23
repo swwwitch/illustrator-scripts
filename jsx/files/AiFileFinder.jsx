@@ -12,7 +12,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileFinder.md
 
 note記事も参照してください。
-https://note.com/dtp_tranist/n/xxxxxxxx
+https://note.com/dtp_tranist/n/n91b2fcf1e2d8
 
 ### Overview
 
@@ -35,7 +35,7 @@ var SCRIPT_UPDATED  = "2026-09-18";                   /* 更新日 / last update
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileFinder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileFinder.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

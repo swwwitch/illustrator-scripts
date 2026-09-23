@@ -8,19 +8,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストフレームから、Illustrator標準の「箇条書きと番号付きリスト」を解除します。
 テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。
 
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearBulletsAndNumbering.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/xxxxxxxx
-
 ### Overview
 
 Removes Illustrator's built-in Bullets and Numbering from the selected text frames.
 The text content, character attributes, paragraph settings and tab stops are captured and restored, so only the list formatting comes off.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearBulletsAndNumbering.md
 
 */
 
@@ -32,10 +23,6 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
-
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearBulletsAndNumbering.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearBulletsAndNumbering.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
