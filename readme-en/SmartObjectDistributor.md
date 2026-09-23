@@ -55,12 +55,14 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Notes
 
-- The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell.
+- The rectangle in the "_target" layer is hidden while the script runs and is never placed into a cell. A rectangle you had already hidden stays hidden afterwards.
+- When the "_target" layer holds several paths, a rectangle wins; open lines and paths with no area are never used as the placement area.
 - When Backmost Object is selected, that framing object is excluded from the objects to place.
 - Objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
-- Any existing "cell-background" layer is removed on launch, which clears the result of the previous run.
+- Any existing "cell-background" layer is hidden while the dialog is open and removed when you click OK, which clears the result of the previous run. Cancel restores its original visibility.
 - With Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
-- Up to 100 rows and 100 columns, and up to 1000 cells. Nothing is drawn when the margin or gutter leaves no room for cells.
+- Up to 100 rows and 100 columns, and up to 1000 cells. Out-of-range values are clamped when the field commits.
+- Nothing is drawn when the margin or gutter leaves no room for cells, and clicking OK keeps the dialog open and explains why.
 - Each preview redraw undoes the previous one, so changing settings does not keep growing Illustrator's edit history (your pre-run history is not pushed out). Anything Undo fails to revert is cleaned up by restoring the recorded centers and dropping the preview layer.
 - Besides Cancel, pressing Esc or closing the window also discards the preview and restores the original state.
 - With Keep as Rectangle, the cell rectangles are selected after clicking OK.
@@ -72,6 +74,8 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v1.9.7 (2026-09-23): Fixed Cancel leaving the "cell-background" layer deleted (it is now removed only on OK). A "_target" rectangle that was already hidden is no longer revealed. Fixed OK closing silently when the settings cannot form a grid; the dialog now stays open and explains why. Field values are clamped on commit (no negative margins, no opacity above 100%). Fixed re-clicking the selected color radio resetting a typed opacity. The "_target" layer now prefers a rectangle and never uses open lines or paths with no area. Unit code 5 is labelled H for distances and Q for type sizes. The live preview is throttled while typing on large grids. The default division no longer exceeds the cell cap
+- v1.9.6 (2026-09-19): Unified unit handling into one table covering every ruler unit (m, yd, ft, pica, and so on). Split out the layout constants and tidied naming and JSDoc
 - v1.9.5 (2026-07-27): Preview rollback now uses app.undo(), so the edit history no longer grows on every change; whatever Undo cannot revert is cleaned up by restoring the centers and dropping the preview layer. Added cleanup on Esc and window close. Fixed Undo reverting the "_target" rectangle's visibility toggle instead of the preview when switching the placement area
 - v1.9.0 (2026-07-27): Made the preview independent of Undo (fixes objects changing when a button is clicked repeatedly), added input validation and limits, reorganized UI wording and tooltips
 - v1.8.0 (2026-04-30): Cell handling as radio buttons, placement separated from cell drawing, transparency grid state restored

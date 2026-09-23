@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
@@ -53,6 +53,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
         maxDivision: 100,            /* 行・列の上限 / max rows or columns */
         maxCellCount: 1000,          /* セル総数の上限 / max total cells */
+        previewThrottleCells: 200,   /* この数を超えるセルでは入力中のプレビューを間引く / throttle preview above this many cells */
+        previewThrottleMs: 200,      /* 間引く間隔（ミリ秒） / throttle window in milliseconds */
         parkingStep: 200,            /* 退避時の移動量（pt） / step when parking objects */
         overlapTolerance: 1,         /* 重なり判定の余裕（pt） / overlap tolerance */
         artboardBuffer: 10,          /* 他アートボードとの余裕（pt） / buffer around artboards */
@@ -149,16 +151,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
      * 環境設定キーの単位を返す
      * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
      * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
         /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
-        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -254,6 +263,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." },
+            invalidGrid: {
+                ja: "この設定ではグリッドを作れません。行数・列数・間隔・マージンを見直してください。",
+                en: "These settings cannot form a grid. Check the rows, columns, gutter, and margin."
+            },
             artboardError: { ja: "アートボードの作成中にエラーが発生しました。", en: "Error occurred while creating artboards." },
             artboardCreated: { ja: " 個のアートボードを作成しました。", en: " artboards created." }
         }
@@ -413,19 +426,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     // 対象の検出 / Target detection
     // =========================================
 
+    /* スクリプトが作る・使うレイヤー名の集合。最背面の検出ではこれらを飛ばす
+       Layer names this script manages; skipped when looking for the backmost object */
+    var SYSTEM_LAYER_NAMES = {};
+    SYSTEM_LAYER_NAMES[CONFIG.targetLayerName] = true;
+    SYSTEM_LAYER_NAMES[CONFIG.cellLayerName] = true;
+    SYSTEM_LAYER_NAMES[CONFIG.previewCellLayerName] = true;
+    SYSTEM_LAYER_NAMES[CONFIG.legacyPreviewLayerName] = true;
+
     /**
-     * 「_target」レイヤー内の最初の長方形を返します。/ Return the first rectangle in the "_target" layer.
+     * パスが枠として使える広がりを持つか判定します。/ Whether a path has usable extents for a frame.
+     *
+     * @param {PathItem} pathItem - 対象のパス。
+     * @returns {boolean} 幅・高さともに正なら true。
+     */
+    function hasUsableArea(pathItem) {
+        try {
+            var bounds = pathItem.geometricBounds;
+            return (bounds[2] - bounds[0] > 0) && (bounds[1] - bounds[3] > 0);
+        } catch (e) {
+            /* 空のパスなどは geometricBounds が例外 / geometricBounds throws on empty paths */
+            return false;
+        }
+    }
+
+    /**
+     * パスが長方形か判定します（閉じた4点で、各点が角）。/ Whether a path is a rectangle.
+     *
+     * @param {PathItem} pathItem - 対象のパス。
+     * @returns {boolean} 長方形とみなせる場合は true。
+     */
+    function isRectanglePath(pathItem) {
+        try {
+            if (!pathItem.closed || pathItem.pathPoints.length !== 4) return false;
+            for (var i = 0; i < 4; i++) {
+                var pathPoint = pathItem.pathPoints[i];
+                /* ハンドルが出ていれば角丸などで長方形ではない / Handles mean rounded or curved corners */
+                if (pathPoint.leftDirection[0] !== pathPoint.anchor[0]) return false;
+                if (pathPoint.leftDirection[1] !== pathPoint.anchor[1]) return false;
+                if (pathPoint.rightDirection[0] !== pathPoint.anchor[0]) return false;
+                if (pathPoint.rightDirection[1] !== pathPoint.anchor[1]) return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 「_target」レイヤーの長方形を返します。/ Return the rectangle on the "_target" layer.
+     * 長方形が無ければ、枠として使える閉じたパスで代用します。開いた線や面積のないパスは対象外です。
      *
      * @param {Document} doc - 対象ドキュメント。
      * @returns {PathItem|null} 見つかった長方形。無ければ null。
      */
     function findTargetLayerRectangle(doc) {
+        var fallbackPath = null;
         for (var i = 0; i < doc.layers.length; i++) {
             var candidateLayer = doc.layers[i];
             if (candidateLayer.name !== CONFIG.targetLayerName) continue;
-            return (candidateLayer.pathItems.length > 0) ? candidateLayer.pathItems[0] : null;
+
+            for (var j = 0; j < candidateLayer.pathItems.length; j++) {
+                var pathItem = candidateLayer.pathItems[j];
+                /* 枠の上に引いた線などを配置先にしない / A stray line must not become the placement area */
+                if (!hasUsableArea(pathItem)) continue;
+                if (isRectanglePath(pathItem)) return pathItem;
+                if (!fallbackPath && pathItem.closed) fallbackPath = pathItem;
+            }
         }
-        return null;
+        return fallbackPath;
     }
 
     /**
@@ -436,16 +505,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @returns {PageItem|null} 最背面のオブジェクト。無ければ null。
      */
     function findBackmostPageItem(doc) {
-        var systemLayerNames = {
-            "_target": 1,
-            "_Preview_Guides": 1,
-            "_Preview_Background": 1,
-            "cell-background": 1,
-            "placement_layer": 1
-        };
         for (var i = doc.layers.length - 1; i >= 0; i--) {
             var candidateLayer = doc.layers[i];
-            if (!candidateLayer.visible || candidateLayer.locked || systemLayerNames[candidateLayer.name]) continue;
+            if (!candidateLayer.visible || candidateLayer.locked || SYSTEM_LAYER_NAMES[candidateLayer.name]) continue;
             for (var j = candidateLayer.pageItems.length - 1; j >= 0; j--) {
                 var pageItem = candidateLayer.pageItems[j];
                 if (pageItem.hidden || pageItem.locked) continue;
@@ -487,12 +549,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         var areaHeight = targetRect[1] - targetRect[3];
         if (areaWidth <= 0 || areaHeight <= 0) return fallbackDivision;
 
-        var bestDivision = { rowCount: 1, columnCount: itemCount };
+        /* セル総数の上限を超える分はどのみち溢れるので、上限の範囲で割り付ける
+           Anything beyond the cell cap overflows anyway, so lay out within the cap */
+        var cellBudget = Math.min(itemCount, CONFIG.maxCellCount);
+
+        var bestDivision = fallbackDivision;
         var bestAspectRatio = Infinity;
-        for (var columnCount = 1; columnCount <= itemCount; columnCount++) {
-            var rowCount = Math.ceil(itemCount / columnCount);
-            var emptyCellCount = rowCount * columnCount - itemCount;
+        for (var columnCount = 1; columnCount <= cellBudget; columnCount++) {
+            var rowCount = Math.ceil(cellBudget / columnCount);
+            var emptyCellCount = rowCount * columnCount - cellBudget;
             if (emptyCellCount > 0 && emptyCellCount >= Math.min(rowCount, columnCount)) continue;
+
+            /* computeGridMetrics() が拒む組み合わせは初期値にしない / Never default to a grid the metrics reject */
+            if (rowCount > CONFIG.maxDivision || columnCount > CONFIG.maxDivision) continue;
+            if (rowCount * columnCount > CONFIG.maxCellCount) continue;
 
             var cellWidth = areaWidth / columnCount;
             var cellHeight = areaHeight / rowCount;
@@ -510,6 +580,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     // =========================================
 
     /**
+     * 指定名のレイヤーを探します。/ Find the layer with the given name.
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @param {string} layerName - 探すレイヤー名。
+     * @returns {Layer|null} 見つかったレイヤー。無ければ null。
+     */
+    function findLayerByName(doc, layerName) {
+        try {
+            return doc.layers.getByName(layerName);
+        } catch (e) {
+            /* getByName は見つからないと例外 / getByName throws when the layer is missing */
+            return null;
+        }
+    }
+
+    /**
      * 指定名のレイヤーがあれば削除します。/ Remove the layer with the given name if present.
      *
      * @param {Document} doc - 対象ドキュメント。
@@ -517,12 +603,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @returns {void}
      */
     function removeLayerByName(doc, layerName) {
+        var foundLayer = findLayerByName(doc, layerName);
+        if (!foundLayer) return;
         try {
-            var foundLayer = doc.layers.getByName(layerName);
             foundLayer.locked = false;
             foundLayer.remove();
         } catch (e) {
-            /* 見つからない場合は何もしない / Nothing to do when the layer is missing */
+            /* 消せない場合は何もしない / Nothing to do when the layer cannot be removed */
         }
     }
 
@@ -531,19 +618,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      *
      * @param {Document} doc - 対象ドキュメント。
      * @param {string} layerName - レイヤー名。
-     * @returns {Layer} 取得または作成したレイヤー（ロック解除済み）。
+     * @returns {Layer} 取得または作成したレイヤー（ロック解除・表示済み）。
      */
     function getOrCreateLayer(doc, layerName) {
-        var foundLayer;
-        try {
-            foundLayer = doc.layers.getByName(layerName);
-        } catch (e) {
-            /* getByName は見つからないと例外 / getByName throws when the layer is missing */
+        var foundLayer = findLayerByName(doc, layerName);
+        if (!foundLayer) {
             foundLayer = doc.layers.add();
             foundLayer.name = layerName;
         }
         foundLayer.locked = false;
+        /* これから描き込むレイヤーは必ず表示にする / A layer we are about to draw into must be visible */
+        foundLayer.visible = true;
         return foundLayer;
+    }
+
+    /**
+     * ロック中でも失敗しないようにレイヤーの表示状態を切り替えます。/ Toggle a layer without failing on locks.
+     *
+     * @param {Layer|null} layer - 対象のレイヤー。null なら何もしません。
+     * @param {boolean} visible - 表示する場合は true。
+     * @returns {void}
+     */
+    function setLayerVisible(layer, visible) {
+        if (!layer) return;
+        try {
+            layer.visible = visible;
+        } catch (e) { }
     }
 
     /**
@@ -660,12 +760,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @returns {void}
      */
     function drawCells(cellLayer, gridMetrics, asGuide, fillColor, opacity) {
+        /* 省略された場合も「塗りなし」として扱う / Treat a missing argument as no fill */
+        var hasFill = (fillColor !== null && fillColor !== undefined);
+
         forEachCell(gridMetrics, function (cellRect) {
             var cellRectangle = cellLayer.pathItems.rectangle(
                 cellRect[1], cellRect[0], gridMetrics.cellWidth, gridMetrics.cellHeight);
             cellRectangle.stroked = false;
-            cellRectangle.filled = (fillColor !== null);
-            if (fillColor) cellRectangle.fillColor = fillColor;
+            cellRectangle.filled = hasFill;
+            if (hasFill) cellRectangle.fillColor = fillColor;
             if (opacity !== null) cellRectangle.opacity = opacity;
             if (asGuide) cellRectangle.guides = true;
         });
@@ -999,6 +1102,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
 
     /**
      * 入力欄の値を pt 換算の長さとして読み取ります。/ Read a length in points from a field.
+     * 負の値は配置先からはみ出したグリッドを生むため、0 で止めます。
      *
      * @param {EditText} inputField - 対象の入力欄。
      * @param {number} pointsPerUnit - 定規単位 1 あたりの pt。
@@ -1006,19 +1110,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      */
     function readLengthPt(inputField, pointsPerUnit) {
         var parsedLength = parseFloat(inputField.text);
-        return isFinite(parsedLength) ? parsedLength * pointsPerUnit : 0;
+        if (!isFinite(parsedLength)) return 0;
+        return Math.max(0, parsedLength) * pointsPerUnit;
     }
 
     /**
-     * 上下キーで数値を増減します（Shift:10単位、Option:0.1単位）。/ Step a value with arrow keys.
+     * 数値入力欄に、上下キーの増減（Shift:10単位、Option:0.1単位）と範囲の正規化を組み込みます。
+     * Wire arrow-key stepping and range clamping into a numeric field.
      *
      * @param {EditText} inputField - 対象の入力欄。
      * @param {boolean} allowsDecimal - 小数の増減を許可する場合は true。
      * @param {number} minValue - 下限値。
-     * @param {function(): void} onStep - 値を変えたあとに呼ぶ処理。
+     * @param {number|null} maxValue - 上限値。上限なしは null。
+     * @param {function(): void} onCommit - 値を変えたあとに呼ぶ処理。
      * @returns {void}
      */
-    function enableArrowKeyStep(inputField, allowsDecimal, minValue, onStep) {
+    function enableNumericField(inputField, allowsDecimal, minValue, maxValue, onCommit) {
+        /** 入力欄を書き換えている最中か（onChange の再入を防ぐ） / Guard against re-entering onChange. */
+        var isNormalizing = false;
+
+        /**
+         * 値を下限・上限に収めます。/ Clamp a value into range.
+         *
+         * @param {number} value - 対象の値。
+         * @returns {number} 範囲内に収めた値。
+         */
+        function clampValue(value) {
+            var clamped = Math.max(minValue, value);
+            return (maxValue === null) ? clamped : Math.min(maxValue, clamped);
+        }
+
         inputField.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
@@ -1037,11 +1158,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
                 fieldValue = Math.round(fieldValue) + direction;
             }
 
-            inputField.text = String(Math.max(minValue, fieldValue));
+            inputField.text = String(clampValue(fieldValue));
             event.preventDefault();
 
-            onStep();
+            onCommit();
         });
+
+        /* 入力を確定した時点で範囲外の値を直し、表示と描画を一致させる
+           Normalize out-of-range text on commit so the field matches what is drawn */
+        inputField.onChange = function () {
+            if (isNormalizing) return;
+
+            var fieldValue = parseFloat(inputField.text);
+            if (isFinite(fieldValue)) {
+                var clamped = clampValue(fieldValue);
+                if (clamped !== fieldValue) {
+                    isNormalizing = true;
+                    inputField.text = String(clamped);
+                    isNormalizing = false;
+                }
+            }
+            onCommit();
+        };
     }
 
     // =========================================
@@ -1056,8 +1194,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     function showDistributeDialog() {
         var doc = app.activeDocument;
 
-        /* 前回実行時のセル描画レイヤーが残っていれば削除 / Remove the cell layer left by a previous run */
-        removeLayerByName(doc, CONFIG.cellLayerName);
+        /* 前回実行時のセル描画レイヤーは、OK を押すまで消さずに隠しておく。
+           ここで削除するとキャンセルしても戻せない（app.undo() はここまで巻き戻せない）
+           Hide the cell layer from a previous run instead of deleting it, so Cancel can restore it */
+        var previousCellLayer = findLayerByName(doc, CONFIG.cellLayerName);
+        var wasPreviousCellLayerVisible = previousCellLayer ? previousCellLayer.visible : false;
+        setLayerVisible(previousCellLayer, false);
 
         /* 以後の計算は「ダイアログ起動時点のアクティブアートボード」を基準に固定 / Fix the base to the artboard active at launch */
         var baseArtboardIndex = doc.artboards.getActiveArtboardIndex();
@@ -1075,7 +1217,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         /* 初期ターゲット矩形（_target 矩形があればそれ、なければ現在のアートボード）/ Initial target rect */
         var initialTargetRect = targetRectItem ? targetRectItem.geometricBounds : baseArtboardRect;
 
-        /* 「_target」レイヤーの矩形は対象として選ばれている間は非表示にする / Hide the _target rectangle while it is the target */
+        /* 「_target」レイヤーの矩形は対象として選ばれている間は非表示にする。
+           元から隠されていた矩形を勝手に表示しないよう、元の状態を控えておく
+           Hide the _target rectangle while it is the target, remembering its original state */
+        var wasTargetRectHidden = targetRectItem ? targetRectItem.hidden : false;
         if (targetRectItem) setItemHidden(targetRectItem, true);
 
         var rulerUnit = getUnitInfo();
@@ -1098,25 +1243,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         var hasUncommittedPreview = false;
         /** @type {boolean} OK／キャンセルで後始末済みか（onClose の二重実行を防ぐ）。 */
         var isCleanedUp = false;
+        /** @type {number} 直近にプレビューを描き直した時刻（ミリ秒）。入力中の間引きに使います。 */
+        var lastPreviewTime = 0;
 
         bindDialogEvents();
 
         /**
-         * ↑↓キーで値を変えたあとに間隔欄とプレビューを更新します。/ Refresh after an arrow-key step.
+         * 行数・列数を変えたあとに間隔欄とプレビューを更新します。/ Refresh after a row or column change.
          *
          * @returns {void}
          */
-        function handleArrowKeyStep() {
+        function handleDivisionChange() {
             syncGutterEnabled();
             updatePreview();
         }
 
-        /* 行数・列数は 1 未満にしない（0 ではグリッドが成立しない）/ Rows and columns never go below 1 */
-        enableArrowKeyStep(divisionUI.rowCountInput, false, 1, handleArrowKeyStep);
-        enableArrowKeyStep(divisionUI.columnCountInput, false, 1, handleArrowKeyStep);
-        enableArrowKeyStep(divisionUI.gutterInput, true, 0, handleArrowKeyStep);
-        enableArrowKeyStep(divisionUI.marginInput, true, 0, handleArrowKeyStep);
-        enableArrowKeyStep(cellUI.opacityInput, true, 0, handleArrowKeyStep);
+        /* 行数・列数は 1 以上、上限はグリッドが成立する範囲まで / Rows and columns stay within a workable grid */
+        enableNumericField(divisionUI.rowCountInput, false, 1, CONFIG.maxDivision, handleDivisionChange);
+        enableNumericField(divisionUI.columnCountInput, false, 1, CONFIG.maxDivision, handleDivisionChange);
+        /* 間隔・マージンは負にしない（配置先の外へはみ出す）/ Gutter and margin never go negative */
+        enableNumericField(divisionUI.gutterInput, true, 0, null, updatePreview);
+        enableNumericField(divisionUI.marginInput, true, 0, null, updatePreview);
+        /* 不透明度は 0〜100%（描画側のクランプと表示を一致させる）/ Opacity matches what is actually drawn */
+        enableNumericField(cellUI.opacityInput, true, 0, 100, updatePreview);
 
         /* 初期状態を反映してプレビューを表示 / Apply the initial state and show the preview */
         syncGutterEnabled();
@@ -1265,7 +1414,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
            保険として必ず併走させる（どちらも差分が無ければ何もしない）。
 
            undo の回数は「自分が積んだ 1 回分」に限る。ダイアログ表示前に
-           cell-background レイヤーの削除と _target 矩形の非表示という 2 つの
+           cell-background レイヤーの非表示と _target 矩形の非表示という 2 つの
            変更を済ませており、そこまで巻き戻すと状態が壊れるため。
            Each preview is peeled off with one app.undo() so typing does not flood the history;
            layer removal and center restoring back it up, and undo never reaches the two changes
@@ -1309,6 +1458,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
                 clearPreview();
             }
             app.redraw();
+            lastPreviewTime = (new Date()).getTime();
+        }
+
+        /**
+         * 入力中のプレビューを更新します（重いグリッドでは打鍵を間引きます）。
+         * Refresh the preview while typing, throttling only when each redraw is slow.
+         *
+         * セル数が多いと1回の描き直しで数百〜数千の長方形を作り直すため、
+         * 「100」と打つだけで同じ処理が3回走る。見送った分は入力欄の確定（onChange）で
+         * 必ず描き直されるので、表示が取り残されたままにはならない。
+         * A skipped redraw is always flushed when the field commits, so the preview never stays stale.
+         *
+         * @returns {void}
+         */
+        function updatePreviewWhileTyping() {
+            var rowCount = readCount(divisionUI.rowCountInput);
+            var columnCount = readCount(divisionUI.columnCountInput);
+            var cellCount = (rowCount !== null && columnCount !== null) ? rowCount * columnCount : 0;
+
+            /* 軽いグリッドは打鍵ごとに描き直す / Small grids stay fully live */
+            if (cellCount <= CONFIG.previewThrottleCells) {
+                updatePreview();
+                return;
+            }
+            if ((new Date()).getTime() - lastPreviewTime < CONFIG.previewThrottleMs) return;
+            updatePreview();
         }
 
         // -----------------------------------------
@@ -1378,7 +1553,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
                app.undo() がプレビューではなく setItemHidden を取り消してしまう
                Peel the preview first; otherwise app.undo() would revert setItemHidden instead */
             clearPreview();
-            if (targetRectItem) setItemHidden(targetRectItem, placementUI.rectLayerRadio.value === true);
+            /* 元から隠されていた矩形は、対象を外しても隠したままにする / A rectangle hidden by the user stays hidden */
+            if (targetRectItem) {
+                setItemHidden(targetRectItem, wasTargetRectHidden || placementUI.rectLayerRadio.value === true);
+            }
             updatePreview();
         }
 
@@ -1407,12 +1585,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
          * @returns {void}
          */
         function commitDistribution() {
+            /* グリッドが成立しない入力では、閉じずに理由を知らせる / Explain instead of closing on an invalid grid */
+            if (!readGridMetrics()) {
+                alert(getLabel(LABELS.alert.invalidGrid));
+                return;
+            }
+
             var cellMode = getCellMode();
             var createdCount = -1;
             var artboardFailed = false;
 
             /* プレビューを undo で破棄してから本番処理へ（プレビューの痕跡も履歴も残さない）/ Undo the preview before the real run */
             clearPreview();
+
+            /* 前回実行時のセル描画レイヤーは、実際に描き直すこの時点で捨てる
+               Discard the previous run's cell layer only now that we are really redrawing */
+            removeLayerByName(doc, CONFIG.cellLayerName);
+
             if (cellMode === "artboard") {
                 try {
                     createdCount = createArtboardsFromCells(doc, readGridMetrics(), baseArtboardIndex);
@@ -1423,8 +1612,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             /* 本番は undo の対象にしない（ユーザーの取り消し操作に委ねる）/ The real run is left to the user's own undo */
             renderDistribution(false);
 
-            /* 「_target」レイヤーの矩形を再表示（プレビュー時に隠していた場合）/ Show the _target rectangle again */
-            if (targetRectItem) setItemHidden(targetRectItem, false);
+            /* 「_target」レイヤーの矩形を元の表示状態へ戻す / Restore the _target rectangle's original state */
+            if (targetRectItem) setItemHidden(targetRectItem, wasTargetRectHidden);
 
             /* セル描画を残した場合はその長方形を、それ以外は元の選択を選択状態にする / Select the kept cells, or the original selection */
             if (cellMode !== "keep" || !selectCellRectangles(doc)) {
@@ -1444,13 +1633,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         }
 
         /**
-         * プレビューを消し、「_target」矩形を再表示します。/ Discard the preview and show the _target rectangle again.
+         * プレビューを消し、ダイアログ表示前の状態へ戻します。/ Discard the preview and restore the pre-dialog state.
          *
          * @returns {void}
          */
         function discardDialogChanges() {
             clearPreview();
-            if (targetRectItem) setItemHidden(targetRectItem, false);
+            if (targetRectItem) setItemHidden(targetRectItem, wasTargetRectHidden);
+            /* 起動時に隠した前回のセル描画レイヤーを元へ戻す / Restore the cell layer hidden at launch */
+            setLayerVisible(previousCellLayer, wasPreviousCellLayerVisible);
             app.redraw();
         }
 
@@ -1474,20 +1665,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             };
 
             cellUI.blackCellRadio.onClick = cellUI.whiteCellRadio.onClick = cellUI.transparentCellRadio.onClick = function () {
-                /* モードを往復してもカラー選択が失われないように覚えておく / Remember the color across mode switches */
-                lastCellColorRadio = cellUI.whiteCellRadio.value ? cellUI.whiteCellRadio
+                var selectedColorRadio = cellUI.whiteCellRadio.value ? cellUI.whiteCellRadio
                     : (cellUI.transparentCellRadio.value ? cellUI.transparentCellRadio : cellUI.blackCellRadio);
-                syncOpacityEnabled(true);
+
+                /* 選択済みのラジオを押し直しても onClick は呼ばれる。カラーが変わっていなければ
+                   入力済みの不透明度を既定値で上書きしない
+                   A radio fires onClick even when re-clicked; keep a typed opacity when the color did not change */
+                var hasColorChanged = (selectedColorRadio !== lastCellColorRadio);
+
+                /* モードを往復してもカラー選択が失われないように覚えておく / Remember the color across mode switches */
+                lastCellColorRadio = selectedColorRadio;
+                syncOpacityEnabled(hasColorChanged);
                 updatePreview();
             };
 
             divisionUI.rowCountInput.onChanging = divisionUI.columnCountInput.onChanging = function () {
                 syncGutterEnabled();
-                updatePreview();
+                updatePreviewWhileTyping();
             };
-            divisionUI.gutterInput.onChanging = updatePreview;
-            divisionUI.marginInput.onChanging = updatePreview;
-            cellUI.opacityInput.onChanging = updatePreview;
+            divisionUI.gutterInput.onChanging = updatePreviewWhileTyping;
+            divisionUI.marginInput.onChanging = updatePreviewWhileTyping;
+            cellUI.opacityInput.onChanging = updatePreviewWhileTyping;
 
             cellUI.transparencyGridButton.onClick = function () {
                 app.executeMenuCommand('TransparencyGrid Menu Item');
@@ -1521,7 +1719,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     }
 
     if (app.documents.length === 0) {
-        alert(LABELS.alert.noDocument.ja + "\n" + LABELS.alert.noDocument.en);
+        alert(getLabel(LABELS.alert.noDocument));
     } else {
         showDistributeDialog();
     }
