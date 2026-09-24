@@ -11,7 +11,7 @@
 ### Description
 
 - A utility that gathers the Illustrator preferences you actually touch often into a single dialog.
-- Items that normally live in separate categories — General, Type, Guides, Performance, File Handling and so on — can be changed in one place without switching tabs.
+- Items that normally live in separate categories — General, Selection & Anchor Display, Type, Guides, Performance, File Handling and so on — can be changed in one place without switching tabs.
 - The dialog opens with the current preferences loaded. Choosing [Default] or [Preset 1] from the dropdown fills the UI with a whole set of values.
 - Nothing is written while you work; every change is saved at once when [OK] is pressed (pressing [Cancel] changes nothing).
 
@@ -39,7 +39,10 @@ The two middle labels are shortened to keep the dialog compact. The full wording
 | Item | Preference key |
 | --- | --- |
 | Zoom to Selection | zoomToSelection |
+| Unlock on Canvas | showLockIcon |
 | Anchor Point Size | anchorSizePref |
+
+[Unlock on Canvas] is also shortened. The full wording used by Preferences ("Select and Unlock Objects and Artboards on Canvas") appears as a tooltip.
 
 Anchor Point Size is a four-step slider. The values written are 5 / 7 / 9 / 11, with 5 as the default. When the stored value matches none of the steps, the slider snaps to the closest one.
 
@@ -132,6 +135,7 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 | 'Print Bleed' generative AI buttons | ON | OFF |
 | Move Locked and Hidden Artwork | OFF | ON |
 | Zoom to Selection | ON | OFF |
+| Unlock on Canvas | OFF | OFF |
 | Anchor Point Size | 5 | 7 |
 | Object Selection by Path Only | OFF | OFF |
 | Type Object Selection by Path Only | OFF | OFF |
@@ -170,7 +174,7 @@ Every checkbox item is declared once, on a single line that carries its preferen
 
 - Preference changes are not always reflected on screen right away, so [OK] runs zoom out → zoom in to force a redraw (skipped when no document is open).
 - Preference reads and writes go through a shared guard, so keys missing in a given Illustrator version do not stop the script.
-- Note, however, that Illustrator returns 0 / false for unknown keys instead of throwing. A key absent from your version therefore shows as OFF (or 0) and is written back with that value on [OK]. Keys where 0 is not a valid value (History States, for example) treat 0 as "not present" and fall back to their default.
+- Note, however, that Illustrator does not throw when reading an unknown key, and the value it returns is not consistent: it may be 0 / false or true / 1. A key absent from your version, or one never changed from its default, may therefore show a value that differs from the actual state, and that value is written back on [OK]. Keys where 0 is not a valid value (History States, for example) treat 0 as "not present" and fall back to their default.
 - Closing with [Cancel] leaves the preferences untouched, even if a preset was selected.
 
 ### Article
@@ -184,3 +188,4 @@ Every checkbox item is declared once, on a single line that carries its preferen
 - v1.7.0 (20260422): Refined localization, naming, comments, and structure
 - v1.8.0 (20260727): Reorganized naming, label definitions and UI layout (brightness swatches commented out, [Open File Handling] button removed)
 - v1.8.1 (20260801): Added Anchor Point Size (four-step slider). Added guide style to the presets. Fixed History States dropping to 1 and the recent-fonts field saving 0 while checked. Removed the dialog position offset. Shortened long labels and moved the full wording to tooltips. Brightness swatches are now toggled with `SHOW_BRIGHTNESS_UI`
+- v1.8.2 (20260924): Added [Unlock on Canvas] (Select and Unlock Objects and Artboards on Canvas) to [Selection & Anchor Display]. Added tooltips to the preset menu and Number of Recent Fonts. Reorganized the code (dialog building, loading and saving split into functions)
