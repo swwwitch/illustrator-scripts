@@ -15,6 +15,8 @@
 - Guides are collected on "_guide" and objects that belong to no artboard on "_pasteboard" (both created only when needed).
 - Layer order is aligned with artboard order (1 -> 2 -> 3 ... from the top).
 
+<img alt="The Organize Layers by Artboard dialog" src="../png/ss-678-1154-144-20260925-054219.png" width="40%" />
+
 ### Main Features
 
 - Target Artboards
@@ -26,10 +28,10 @@
   - The resulting name is previewed live in the dialog, e.g. "Example: 1_Cover"
   - Falls back to "Artboard" when the artboard name is empty
 - Exclude options
-  - Locked: Layer / Object, Hidden: Layer / Object (all on by default)
+  - Locked: Layers / Objects / Guides, Hidden: Layers / Objects / Guides (on by default except Guides)
   - Whatever you turn off is temporarily unlocked / shown for the move, then restored to its original state
-  - "Specify by name" accepts comma-separated layer names to leave untouched (default: bg)
-  - Guides bypass the name-based exclusion and are still collected on _guide (locked / hidden ancestors are respected)
+  - "Layer names" accepts comma-separated layer names to leave untouched (default: bg)
+  - Guides bypass the name-based exclusion and are still collected on _guide (locked / hidden ancestors and the Guides setting are respected)
 - "After Organizing" toggle removes empty layers and sub-layers (on by default)
   - Sub-layers matching an exclusion rule are kept together with their contents
 - Legacy layers (named after the artboard only) are merged into the new layers and removed
@@ -51,12 +53,13 @@
 
 - No open document (an alert is shown and the script exits)
 - Locked or hidden layers and objects when the corresponding exclusions are on, plus any object under such an ancestor
-- Layers listed under "Specify by name" and their contents (guides excepted)
+- Layers listed under "Layer names" and their contents (guides excepted)
 - Objects nested inside groups or symbols (only top-level objects are processed)
 - The _pasteboard pass and legacy-layer merge are skipped in "Current artboard" mode
 - Protected layers (_guide / _pasteboard) are never deleted, even when empty
 
 ### Update History
 
+- v1.4.0 (2026-09-25): Added "Guides" to the Locked / Hidden exclusions. Fixed individually locked guides failing to move and being counted as failures (when off, they are unlocked for the move). Removed the separator checkbox; use "None" in the dropdown instead. Revised UI wording and tooltips
 - v1.3.1 (2026-08-17): Fixed objects being counted as failures instead of moved when the Locked / Hidden exclusions were turned off. Fixed the script aborting while removing empty layers, and failures being counted twice. Excluded sub-layers are now kept together with their contents. Added the layer name preview, revised the UI wording, and cached centroid calculation for speed
 - v1.3.0 (2026-05-26)
