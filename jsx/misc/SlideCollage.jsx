@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md"; /* README (English) */
@@ -73,8 +73,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Item panel
         cropArt: { ja: "アート", en: "Art" },
-        cropTrim: { ja: "トリミング", en: "Trim" },
-        cropCrop: { ja: "仕上がり", en: "Crop" },
+        cropCrop: { ja: "トリミング", en: "Crop" },
+        cropTrim: { ja: "仕上がり", en: "Trim" },
         cropBleed: { ja: "裁ち落とし", en: "Bleed" },
         round: { ja: "角丸", en: "Round" },
 
@@ -201,11 +201,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     // UI mode constants
-    var __SC_CROP_ART = 4;
-    var __SC_CROP_TRIM = 3;
-    var __SC_CROP_BLEED = 2;
+    // plugin/PDFImport/CropTo の値（実測）/ Values of plugin/PDFImport/CropTo (measured)
+    var __SC_CROP_ART = 0;
     var __SC_CROP_CROP = 1;
-    var __SC_CROP_MEDIA = 0;
+    var __SC_CROP_TRIM = 2;
+    var __SC_CROP_BLEED = 3;
+    var __SC_CROP_MEDIA = 4;
 
     // ============================================================
     // TMK Page Count Module (collision-safe)
@@ -396,21 +397,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * Set PDF import crop box preference.
-     * Illustrator のバージョン差異を吸収するため、複数キーに試行します。
-     * 期待する値（多くの環境で）: 0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
+     * 値は 0=アート / 1=トリミング（CropBox）/ 2=仕上がり（TrimBox）/ 3=裁ち落とし / 4=メディア（実測）
      */
     function __SC_setPdfCropPreference(cropVal) {
-        var keys = [
-            "plugin/PDFImport/CropToBox",
-            "plugin/PDFImport/CropTo",
-            "plugin/PDFImport/CropBox",
-            "plugin/PDFImport/CropToType"
-        ];
-        for (var i = 0; i < keys.length; i++) {
-            try {
-                app.preferences.setIntegerPreference(keys[i], cropVal);
-            } catch (e) { }
-        }
+        app.preferences.setIntegerPreference("plugin/PDFImport/CropTo", cropVal);
     }
 
     // Placing .ai in Illustrator uses the PDF import pipeline as well (AI is PDF-compatible),
@@ -985,8 +975,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 __previewCache.group = null;
             }
 
-            var cropMode = 2;
-            try { cropMode = getCropModeFromUI(); } catch (e) { cropMode = 2; }
+            var cropMode = __SC_CROP_TRIM;
+            try { cropMode = getCropModeFromUI(); } catch (e) { cropMode = __SC_CROP_TRIM; }
 
             __previewCache.items = [];
             __previewCache.baseW = [];
@@ -1182,7 +1172,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panelCrop.margins = [15, 20, 15, 10];
 
         // panelCrop.add("statictext", undefined, "トリミング");
-        var ddCrop = panelCrop.add("dropdownlist", undefined, [getLabel("cropArt"), getLabel("cropTrim"), getLabel("cropCrop"), getLabel("cropBleed")]);
+        var ddCrop = panelCrop.add("dropdownlist", undefined, [getLabel("cropArt"), getLabel("cropCrop"), getLabel("cropTrim"), getLabel("cropBleed")]);
         ddCrop.minimumSize.width = 160;
 
         /* 角丸 / Round corners */
@@ -1232,10 +1222,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
             // 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし
             if (idx === 0) return __SC_CROP_ART;
-            if (idx === 1) return __SC_CROP_TRIM;
+            if (idx === 1) return __SC_CROP_CROP;
             if (idx === 3) return __SC_CROP_BLEED;
-            // 仕上がりは CropBox を想定（環境差があるため失敗時は無視される）
-            return __SC_CROP_CROP;
+            return __SC_CROP_TRIM;
         }
 
         // -----------------------------------------

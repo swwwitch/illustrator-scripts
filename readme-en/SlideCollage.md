@@ -32,4 +32,8 @@ https://slide-collage.vercel.app/
 
 ### Script info
 
-- Version: v1.5
+- Version: v1.5.2
+
+### Update History
+
+- v1.5.2 (2026-09-25): Fixed the crop box values so Trim, Bleed and Art place the box you choose, and corrected the English names of Crop and Trim

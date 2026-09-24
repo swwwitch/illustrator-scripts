@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage-mihiraki";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md"; /* README (English) */
@@ -84,8 +84,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         dropdown: {
             cropArt: { ja: "アート", en: "Art" },
-            cropTrim: { ja: "トリミング", en: "Trim" },
-            cropCrop: { ja: "仕上がり", en: "Crop" },
+            cropCrop: { ja: "トリミング", en: "Crop" },
+            cropTrim: { ja: "仕上がり", en: "Trim" },
             cropBleed: { ja: "裁ち落とし", en: "Bleed" }
         },
         button: {
@@ -170,32 +170,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* トリミングの種類ごとの環境設定値 / Preference value for each crop box */
     var CROP_MODE = {
-        art: 4,
-        trim: 3,
-        bleed: 2,
-        crop: 1
+        art: 0,
+        crop: 1,
+        trim: 2,
+        bleed: 3
     };
 
     /**
      * PDF 読み込み時のトリミング（クロップボックス）の環境設定を書き込む
-     * Illustrator のバージョン差を吸収するため、候補のキーすべてに書き込む
-     * 期待する値（多くの環境で）：0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
+     * 値は 0=アート / 1=トリミング（CropBox）/ 2=仕上がり（TrimBox）/ 3=裁ち落とし / 4=メディア（実測）
      * @param {number} cropMode - CROP_MODE の値
      * @returns {void}
      */
     function setPdfCropPreference(cropMode) {
-        var cropPrefKeys = [
-            "plugin/PDFImport/CropToBox",
-            "plugin/PDFImport/CropTo",
-            "plugin/PDFImport/CropBox",
-            "plugin/PDFImport/CropToType"
-        ];
-        for (var i = 0; i < cropPrefKeys.length; i++) {
-            /* 環境によって存在しないキーがある / Some keys do not exist in every version */
-            try {
-                app.preferences.setIntegerPreference(cropPrefKeys[i], cropMode);
-            } catch (e) { }
-        }
+        app.preferences.setIntegerPreference("plugin/PDFImport/CropTo", cropMode);
     }
 
     /**
@@ -743,11 +731,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         itemPanel.margins = PANEL_MARGINS;
 
         var cropDropdown = itemPanel.add("dropdownlist", undefined, [
-            getLabel("dropdown.cropArt"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropBleed")
+            getLabel("dropdown.cropArt"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropBleed")
         ]);
         cropDropdown.minimumSize.width = CROP_DROPDOWN_MIN_WIDTH;
         cropDropdown.helpTip = getLabel("tooltip.cropBox");
-        /* 既定：仕上がり / Default: Crop */
+        /* 既定：仕上がり / Default: Trim */
         cropDropdown.selection = 2;
 
         /* 綴じ方向（右綴じ / 左綴じ） / Binding direction */
@@ -881,13 +869,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {number} CROP_MODE の値
          */
         function getSelectedCropMode() {
-            /* 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし / 0: Art, 1: Trim, 2: Crop, 3: Bleed */
+            /* 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし / 0: Art, 1: Crop, 2: Trim, 3: Bleed */
             var cropIndex = (itemControls.cropDropdown.selection) ? itemControls.cropDropdown.selection.index : 2;
             if (cropIndex === 0) return CROP_MODE.art;
-            if (cropIndex === 1) return CROP_MODE.trim;
+            if (cropIndex === 1) return CROP_MODE.crop;
             if (cropIndex === 3) return CROP_MODE.bleed;
-            /* 仕上がりは CropBox を想定（環境差で失敗しても無視される） / Crop maps to CropBox; failures are ignored */
-            return CROP_MODE.crop;
+            return CROP_MODE.trim;
         }
 
         /* 初期表示：選択中の配置画像から読み込む / Initial state: read from the selected placed item */

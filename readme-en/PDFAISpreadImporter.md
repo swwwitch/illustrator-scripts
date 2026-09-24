@@ -14,6 +14,8 @@ Imports a PDF/AI file over a given page range and places each page on its own ar
 
 Landscape pages are detected as spreads and split into two artboards, left and right.
 
+<img alt="The PDF/AI Spread Placement dialog" src="../png/ss-870-628-144-20260925-061426.png" width="50%" />
+
 ### Features
 
 - Page range selection (all pages / first page only / specific pages)
@@ -29,6 +31,23 @@ Landscape pages are detected as spreads and split into two artboards, left and r
 3. Set the page range, the even-page position, the crop box and the color mode.
 4. Run it, and the artboards are laid out in a new document.
 
+### Options
+
+#### Crop to
+
+Chooses which PDF box the pages are placed from. Not used for AI files (available only for PDFs).
+
+<img alt="The Crop to options" src="../png/ss-412-240-144-20260925-061158.png" width="25%" />
+
+| Option | Box | What it covers |
+|---|---|---|
+| Art | ArtBox | The art area set by the author; same as Crop when the PDF has none |
+| Crop | CropBox | The visible/printed area (what Acrobat shows) |
+| Trim (default) | TrimBox | The finished size after trimming; same as Crop when the PDF has none |
+| Bleed | BleedBox | The trim area plus bleed; same as Crop when the PDF has none |
+
+For print-ready PDFs with crop marks or bleed, use Trim so each spread splits at the finished page edge.
+
 ### Notes
 
 - The page count is estimated from the selected placed image or the chosen file and applied to the page range.
@@ -42,5 +61,6 @@ Landscape pages are detected as spreads and split into two artboards, left and r
 
 ### Update History
 
+- v1.1.2 (2026-09-25): Added colons to field labels, a label and tooltip for the crop box and color mode, renamed the button to “Choose File...” and the panel to “Pages”, fixed the crop box values so Trim, Bleed and Art place the box you choose, wrapped artboards onto a new row at the canvas edge to fix an error with many pages, and removed internal duplication
 - v1.1.1 (2026-09-19): Added a link to the article and tooltips to each option, and reorganised the internal naming and structure
 - v1.1.0 (2026-03-18)

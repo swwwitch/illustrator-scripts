@@ -316,7 +316,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      * @param {Document} targetDoc - 対象ドキュメント
      * @param {File} fileObj - 読み込み元ファイル
      * @param {number} pageNum - 計測するページ番号
-     * @param {number} cropMode - 仕上がり（crop）種別
+     * @param {number} cropMode - トリミング指定（CropTo の値）
      * @returns {object} width と height を持つオブジェクト
      */
     function placementMeasurePlacedPageSize(targetDoc, fileObj, pageNum, cropMode) {
@@ -345,7 +345,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      * @param {Document} targetDoc - 対象ドキュメント
      * @param {File} fileObj - 読み込み元ファイル
      * @param {Array} targetPages - 対象ページ番号の配列
-     * @param {number} cropMode - 仕上がり（crop）種別
+     * @param {number} cropMode - トリミング指定（CropTo の値）
      * @returns {Array} 計測結果の配列。計測できなかったページは null
      */
     function placementMeasurePages(targetDoc, fileObj, targetPages, cropMode) {
@@ -437,7 +437,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      * @param {File} fileObj - 読み込み元ファイル
      * @param {number} pageNum - 配置するページ番号
      * @param {Array} pos - 配置位置 [left, top]
-     * @param {number} cropMode - 仕上がり（crop）種別
+     * @param {number} cropMode - トリミング指定（CropTo の値）
      * @param {number} scalePct - 配置倍率（%）
      * @returns {PlacedItem} 配置したアイテム
      */
@@ -646,12 +646,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     }
 
     // =========================================
-    // 配置時の仕上がり設定
-    // Illustrator のバージョン差異を吸収するため、複数キーに試行する
-    // 期待する値（多くの環境で）: 0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
+    // 配置時のトリミング設定
+    // 効くのは plugin/PDFImport/CropTo。値は 0=アート / 1=トリミング（CropBox）/ 2=仕上がり（TrimBox）/ 3=裁ち落とし / 4=メディア（実測）
     // =========================================
 
-    // 配置時に使う仕上がり。現状は「仕上がり」＝ CropBox 固定
+    // 配置時に使うトリミング。「トリミング」＝ CropBox 固定
     // Crop box used when placing; fixed to CropBox
     var DEFAULT_CROP_MODE = 1;
 
