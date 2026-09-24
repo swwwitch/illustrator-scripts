@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 複数のIllustratorドキュメントが開いているときに、別のドキュメントへ素早く切り替えます。
-2つだけ開いているときは自動で切り替え、3つ以上のときはダイアログのリストから選びます。
+2つだけ開いているときは自動で切り替え、3つ以上のときはダイアログのリストから選びます（キャンセルすると元のドキュメントに戻ります）。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md
@@ -17,7 +17,7 @@ https://note.com/dtp_tranist/n/nd9c7b7c077fb
 ### Overview
 
 Quickly switches to another Illustrator document when several are open.
-With two documents it switches automatically; with three or more it offers a list in a dialog.
+With two documents it switches automatically; with three or more it offers a list in a dialog (Cancel returns to the original document).
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md
@@ -28,14 +28,21 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSwitchDocs";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.5.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.5.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-24";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹介記事 / article URL */
+
+/**
+ * @discussion
+ * 矢印キーでの連続切り替え（ダイアログへのフォーカス戻し）、表示時の即時切り替え、
+ * preferredSize によるレイアウトは Yusuke SAEGUSA 氏の改良による
+ * https://uske-s.hatenablog.com/entry/2025/04/03/113115
+ */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -45,9 +52,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var TARGET_PANEL_MARGINS  = [10, 15, 10, 10]; /* 切り替え先パネルの余白 [左,上,右,下] / Target panel margins */
-    var CURRENT_PANEL_MARGINS = [15, 20, 15, 15]; /* 現在のドキュメントパネルの余白 [左,上,右,下] / Current document panel margins */
-    var DOC_LIST_SIZE         = [300, 150];       /* ドキュメント一覧の大きさ [幅,高さ] / Document list size */
+    var TARGET_PANEL_MARGINS   = [10, 15, 10, 10]; /* 切り替え先パネルの余白 [左,上,右,下] / Target panel margins */
+    var ORIGINAL_PANEL_MARGINS = [15, 20, 15, 15]; /* 元のドキュメントパネルの余白 [左,上,右,下] / Original document panel margins */
+    var DOC_LIST_SIZE          = [300, 150];       /* ドキュメント一覧の大きさ [幅,高さ] / Document list size */
 
     // =========================================
     // ローカライズ / Localization
@@ -61,7 +68,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         },
         panel: {
             targetDoc:  { ja: "切り替え先ドキュメント", en: "Target Document" },
-            currentDoc: { ja: "現在のドキュメント", en: "Current Document" }
+            originalDoc: { ja: "元のドキュメント", en: "Original Document" }
         },
         checkbox: {
             preview: { ja: "プレビュー", en: "Preview" }
@@ -74,7 +81,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
             preview: {
                 ja: "オンのときは選択と同時に切り替え、オフのときは［OK］をクリックしてから切り替えます",
                 en: "On: switch as soon as the selection changes. Off: switch only after OK is clicked"
-            }
+            },
+            originalDoc: { ja: "キャンセルするとこのドキュメントに戻ります", en: "Cancel returns to this document" },
+            targetDoc:   { ja: "ダブルクリックで切り替えて閉じます", en: "Double-click to switch and close" }
         }
     };
 
@@ -141,44 +150,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
     // =========================================
 
     /**
-     * 切り替え先を選ぶダイアログを表示し、選択に応じてドキュメントを切り替える
+     * 起動時のドキュメント名を表示するパネルを追加する
+     * @param {Window} switchDialog - 追加先のダイアログ
      * @param {Document} originalDoc - 起動時にアクティブだったドキュメント
-     * @param {Document[]} targetDocs - 切り替え先候補のドキュメント
      * @returns {void}
      */
-    function showSwitchDialog(originalDoc, targetDocs) {
-        var switchDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        switchDialog.orientation = "column";
-        switchDialog.alignChildren = "fill";
+    function addOriginalDocPanel(switchDialog, originalDoc) {
+        var originalDocPanel = switchDialog.add("panel", undefined, getLabel("panel.originalDoc"));
+        originalDocPanel.orientation = "column";
+        originalDocPanel.alignChildren = "left";
+        originalDocPanel.margins = ORIGINAL_PANEL_MARGINS;
+        var originalDocText = originalDocPanel.add("statictext", undefined, originalDoc.name);
+        originalDocText.helpTip = getLabel("tooltip.originalDoc");
+    }
 
-        /* 切り替え先パネル（現在のドキュメントは除外）/ Target panel (current document excluded) */
-        var targetDocPanel = switchDialog.add("panel", undefined, getLabel("panel.targetDoc"));
-        targetDocPanel.orientation = "column";
-        targetDocPanel.alignChildren = "fill";
-        targetDocPanel.margins = TARGET_PANEL_MARGINS;
-
-        /* ドキュメント一覧（multiselect: false は既定なので省略）/ Document list (multiselect: false is the default) */
-        var targetDocList = targetDocPanel.add("listbox", undefined, getDocNames(targetDocs));
-        targetDocList.preferredSize = DOC_LIST_SIZE;
-        targetDocList.selection = 0;
-
-        /**
-         * リストで選択中のドキュメントを返す
-         * @returns {Document} 選択中のドキュメント（未選択のときは null）
-         */
-        function getSelectedDoc() {
-            var selectedItem = targetDocList.selection;
-            return selectedItem ? targetDocs[selectedItem.index] : null;
-        }
-
-        /* 現在のドキュメントを表示するパネル / Panel showing the current document */
-        var currentDocPanel = switchDialog.add("panel", undefined, getLabel("panel.currentDoc"));
-        currentDocPanel.orientation = "column";
-        currentDocPanel.alignChildren = "left";
-        currentDocPanel.margins = CURRENT_PANEL_MARGINS;
-        currentDocPanel.add("statictext", undefined, originalDoc.name);
-
-        /* ボタンエリア（左：プレビュー／右：キャンセル・OK）/ Button area (left: preview, right: cancel and OK) */
+    /**
+     * ボタンエリア（左：プレビュー／右：キャンセル・OK）を追加する
+     * @param {Window} switchDialog - 追加先のダイアログ
+     * @returns {Checkbox} プレビューのチェックボックス
+     */
+    function addButtonRow(switchDialog) {
         var btnRowGroup = switchDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = ["fill", "top"];
@@ -199,8 +190,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         btnRightGroup.alignment = ["right", "center"];
         btnRightGroup.alignChildren = ["right", "center"];
 
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok", isDefault: true });
+        /* name の既定動作で閉じる（OK は 1、キャンセルは 2 を返す）/ Default name behavior closes the dialog (OK returns 1, Cancel returns 2) */
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok", isDefault: true });
+
+        return previewCheckbox;
+    }
+
+    /**
+     * 切り替え先を選ぶダイアログを表示し、選択に応じてドキュメントを切り替える
+     * @param {Document} originalDoc - 起動時にアクティブだったドキュメント
+     * @param {Document[]} targetDocs - 切り替え先候補のドキュメント
+     * @returns {void}
+     */
+    function showSwitchDialog(originalDoc, targetDocs) {
+        var switchDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        switchDialog.orientation = "column";
+        switchDialog.alignChildren = "fill";
+
+        /* 切り替え先パネル（元のドキュメントは除外）/ Target panel (original document excluded) */
+        var targetDocPanel = switchDialog.add("panel", undefined, getLabel("panel.targetDoc"));
+        targetDocPanel.orientation = "column";
+        targetDocPanel.alignChildren = "fill";
+        targetDocPanel.margins = TARGET_PANEL_MARGINS;
+
+        /* ドキュメント一覧（multiselect: false は既定なので省略）/ Document list (multiselect: false is the default) */
+        var targetDocList = targetDocPanel.add("listbox", undefined, getDocNames(targetDocs));
+        targetDocList.preferredSize = DOC_LIST_SIZE;
+        targetDocList.selection = 0;
+        targetDocList.helpTip = getLabel("tooltip.targetDoc");
+
+        /**
+         * リストで選択中のドキュメントを返す
+         * @returns {Document} 選択中のドキュメント（未選択のときは null）
+         */
+        function getSelectedDoc() {
+            var selectedItem = targetDocList.selection;
+            return selectedItem ? targetDocs[selectedItem.index] : null;
+        }
+
+        addOriginalDocPanel(switchDialog, originalDoc);
+        var previewCheckbox = addButtonRow(switchDialog);
 
         /* プレビューONなら選択と同時に切り替え、OFFなら［OK］まで切り替えない / Switch on selection when preview is on; wait for OK when off */
         targetDocList.onChange = function() {
@@ -216,14 +246,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
             switchDialog.active = true;
         };
 
-        btnCancel.onClick = function() {
-            activateDoc(originalDoc); /* 元のドキュメントへ戻す / Restore the original document */
-            switchDialog.close();
-        };
-
-        btnOK.onClick = function() {
-            activateDoc(getSelectedDoc());
-            switchDialog.close();
+        /* ダブルクリックは［OK］と同じく確定して閉じる / Double-click confirms and closes, same as OK */
+        targetDocList.onDoubleClick = function() {
+            if (getSelectedDoc()) {
+                switchDialog.close(1);
+            }
         };
 
         /* 表示時にリストへフォーカスを移す / Move focus to the list when the dialog opens */
@@ -234,7 +261,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
         if (previewCheckbox.value) {
             activateDoc(getSelectedDoc()); /* 初期選択をプレビュー / Preview the initial selection */
         }
-        switchDialog.show();
+
+        /* OK なら選択中へ、それ以外（キャンセル・Esc・閉じるボタン）は元へ / OK: selected document; otherwise (Cancel, Esc, close box): original */
+        activateDoc(switchDialog.show() === 1 ? getSelectedDoc() : originalDoc);
     }
 
     // =========================================
