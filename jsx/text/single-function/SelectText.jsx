@@ -8,28 +8,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 現在のアートボードにかかっているテキスト、またはドキュメント全体のテキストを一覧表示し、まとめてクリップボードにコピーします。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/selecttext.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectText.md
 
 ### Overview
 
 Lists the text on the current artboard, or in the whole document, and copies it all to the clipboard.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/selecttext.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectText.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "selecttext";                   /* スクリプト名 / script name */
+var SCRIPT_NAME     = "SelectText";                   /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-31";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/selecttext.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/selecttext.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectText.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectText.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

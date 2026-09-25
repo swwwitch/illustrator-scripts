@@ -92,7 +92,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Unifies mixed font sizes within selected text to the s…](readme-en/FontSizeToScaleConverter.md)
 - [Adds thousands separators to numbers of four or more d…](readme-en/FormatNumberWithCommas.md)
 - [Convert point text, path text, or text + shape into ar…](readme-en/ImportAndApplyGraphicStyle.md)
-- [Collects the kinsoku set used by each paragraph in the…](readme-en/InspectKinsokuSimple.md)
+- [Lists the kinsoku (line-breaking) settings used by the…](readme-en/InspectKinsoku.md)
 - [An Illustrator script that converts area text to point…](readme-en/MimicDynamicText.md)
 - [A toolkit that creates, detaches and adjusts point typ…](readme-en/PathTextToolkit.md)
 - [Split text by paragraph and place each on its own artboard](readme-en/SplitTextToArtboards.md)

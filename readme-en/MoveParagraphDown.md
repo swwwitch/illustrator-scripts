@@ -1,8 +1,8 @@
 # Move the paragraph at the cursor down
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-moveParagraphDown.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/moveParagraphDown.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-MoveParagraphDown.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/MoveParagraphDown.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphDown.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphDown.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -34,7 +34,7 @@ Assigning the script to an action with a function key makes reordering paragraph
 - The script runs only while text is being edited with the Type tool (the caret is inside the text). Selecting a text frame as an object does nothing.
 - The swap goes through the clipboard, so running the script replaces the clipboard contents.
 - When the destination is an empty paragraph (a lone return), the cursor position is not restored.
-- `moveParagraphUp.jsx` moves a paragraph in the opposite direction.
+- `MoveParagraphUp.jsx` moves a paragraph in the opposite direction.
 
 ### Update History
 

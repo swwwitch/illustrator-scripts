@@ -1,6 +1,6 @@
 # 段落で使われている禁則処理の値を一覧表示
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsoku.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/InspectKinsoku.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsoku.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/InspectKinsoku.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKinsoku.md)
 
@@ -16,10 +16,6 @@
 
 1. 調べたいテキストを選択します（文字ツールでの文字選択、選択ツールでのオブジェクト選択のどちらでも可）。
 2. スクリプトを実行します。
-
-### 注意点
-
-- テキストフレームだけを対象にする簡易版として InspectKinsokuSimple.jsx があります。
 
 ### 更新履歴
 

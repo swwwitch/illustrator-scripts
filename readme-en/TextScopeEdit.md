@@ -23,6 +23,7 @@ You can also review layer, artboard and font names, and export the text and font
 - Layer Names and Artboard Names tabs: show the name lists
 - Font Names tab: lists the fonts in use, including those in symbols; click a row to select the text that uses it
 - Export Text...: writes the text and font names, grouped by artboard, to a text file on the desktop
+- Copy Text: copies the full text of every row in the text list to the clipboard
 
 ### Usage
 
@@ -47,7 +48,6 @@ Type a forced line break with Shift+Enter (shown as `@#` in the edit field).
 
 - Editing text in a symbol rewrites the symbol definition. Instances outside the scope change too, and symbol options such as the registration point are reset.
 - Edits applied with Update are not reverted by Cancel (use Illustrator's Undo).
-- Use TextExport.jsx when you only need to export.
 
 ### Article (Japanese)
 
@@ -55,6 +55,8 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Update History
 
+- v1.5.0 (2026-09-26)
+  - Added Copy Text (merged in from TextExport.jsx)
 - v1.4.0 (2026-09-26)
   - Text in symbols can now be edited (added "Text in Symbols" to Text to Include)
   - Text inside locked groups or locked parent layers can now be rewritten

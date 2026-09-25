@@ -1,6 +1,6 @@
 # List the kinsoku settings used in the selection
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsoku.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/InspectKinsoku.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsoku.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/InspectKinsoku.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectKinsoku.md)
 
@@ -16,10 +16,6 @@ Lists the kinsoku (line-breaking) settings used by the selected paragraphs.
 
 1. Select the text — either characters with the Type tool or objects with the Selection tool.
 2. Run the script.
-
-### Notes
-
-- InspectKinsokuSimple.jsx is a simpler variant that only looks at text frames.
 
 ### Update History
 

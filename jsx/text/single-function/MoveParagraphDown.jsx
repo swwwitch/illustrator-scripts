@@ -5,36 +5,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カーソルのある段落を、ひとつ上の段落と入れ替えます。
-sky-chaser-high 氏の moveLineUp.jsx（Visual Studio Code の「行を上へ移動」相当）を、
+カーソルのある段落を、ひとつ下の段落と入れ替えます。
+sky-chaser-high 氏の moveLineDown.jsx（Visual Studio Code の「行を下へ移動」相当）を、
 表示行ではなく段落単位で動かすように改変したものです。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphUp.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphDown.md
 
 ### Overview
 
-Swaps the paragraph containing the cursor with the paragraph above it.
-A paragraph-based variant of moveLineUp.jsx by sky-chaser-high,
-which reproduces Visual Studio Code's "Move Line Up".
+Swaps the paragraph containing the cursor with the paragraph below it.
+A paragraph-based variant of moveLineDown.jsx by sky-chaser-high,
+which reproduces Visual Studio Code's "Move Line Down".
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/moveParagraphUp.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MoveParagraphDown.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "moveParagraphUp";              /* スクリプト名 / script name */
+var SCRIPT_NAME     = "MoveParagraphDown";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "sky-chaser-high";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphUp.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/moveParagraphUp.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphDown.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MoveParagraphDown.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -54,35 +54,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var selectedTextRange = app.activeDocument.selection;
     if (!selectedTextRange || selectedTextRange.typename != 'TextRange') return;
 
-    moveCurrentParagraphUp(selectedTextRange);
+    moveCurrentParagraphDown(selectedTextRange);
 })();
 
 /**
- * カーソルのある段落をひとつ上の段落と入れ替え、カーソル位置を追従させる。
+ * カーソルのある段落をひとつ下の段落と入れ替え、カーソル位置を追従させる。
  * @param {TextRange} selectedTextRange - 選択中のテキスト範囲（キャレットのみの場合を含む）
  * @returns {void}
  */
-function moveCurrentParagraphUp(selectedTextRange) {
+function moveCurrentParagraphDown(selectedTextRange) {
     var story = selectedTextRange.story;
     var paragraphs = story.paragraphs;
     var cursorOffset = selectedTextRange.start;
 
     var paragraphIndex = getParagraphIndexAtOffset(paragraphs, cursorOffset);
 
-    /* 先頭段落は上へ動かせない / The first paragraph cannot move up */
-    if (paragraphIndex <= 0) return;
+    /* 最終段落は下へ動かせない / The last paragraph cannot move down */
+    if (paragraphIndex >= paragraphs.length - 1) return;
 
     /* 段落内でのカーソル位置を控え、入れ替え後の段落先頭を基準に復元する    */
     /* （改行を数えるかどうかに依存しない） / Independent of how CR is counted */
     var cursorOffsetInParagraph = cursorOffset - paragraphs[paragraphIndex].start;
 
-    /* 「自分を上へ」ではなく「ひとつ上の段落を下へ」動かす。               */
-    /* 最終段落をカットすると空段落が段落コレクションから消えて落ちるため   */
-    /* Move the paragraph above down instead: cutting the last paragraph    */
-    /* removes it from the collection and breaks the following lookup       */
-    swapWithNextParagraph(paragraphs, paragraphIndex - 1);
+    swapWithNextParagraph(paragraphs, paragraphIndex);
 
-    restoreCursorPosition(paragraphs[paragraphIndex - 1], cursorOffsetInParagraph);
+    restoreCursorPosition(paragraphs[paragraphIndex + 1], cursorOffsetInParagraph);
 }
 
 /**

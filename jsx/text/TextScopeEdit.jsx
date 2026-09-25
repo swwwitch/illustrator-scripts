@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -179,6 +179,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 ja: "♣ の行（シンボル内のテキスト）を編集すると、OK でシンボルの定義を書き換えます。\n範囲外にある同じシンボルのインスタンスも変わり、\n基準点などのシンボルオプションは初期値になります",
                 en: "Editing a ♣ row (text in a symbol) rewrites the symbol definition on OK,\nso instances outside the scope change too, and symbol options\nsuch as the registration point are reset"
             },
+            copyText: {
+                ja: "テキスト一覧に並んでいるテキストを\n省略せずにクリップボードへコピーします",
+                en: "Copies the full text of every row\nin the text list to the clipboard"
+            },
             exportText: {
                 ja: "アートボードごとにテキストとフォント名をまとめ、\nデスクトップにテキストファイルで書き出します",
                 en: "Writes the text and font names, grouped by artboard,\nto a text file on the desktop"
@@ -210,6 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         },
         button: {
             exportText: { ja: "テキスト書き出し...", en: "Export Text..." },
+            copyText: { ja: "テキストをコピー", en: "Copy Text" },
             updateText: { ja: "更新", en: "Update" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
@@ -1618,7 +1623,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * ボタン行（左に書き出し、右にキャンセル・OK）を組む
+     * ボタン行（左に書き出し・コピー、右にキャンセル・OK）を組む
      * @param {Window} textScopeDialog - 追加先のダイアログ
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
      * @returns {void}
@@ -1633,6 +1638,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         btnLeftGroup.alignChildren = ["left", "center"];
         dialogControls.btnExportText = btnLeftGroup.add("button", undefined, getLabel("button.exportText"));
         dialogControls.btnExportText.helpTip = getLabel("tooltip.exportText");
+        dialogControls.btnCopyText = btnLeftGroup.add("button", undefined, getLabel("button.copyText"));
+        dialogControls.btnCopyText.helpTip = getLabel("tooltip.copyText");
 
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -1939,6 +1946,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         }
     }
 
+    /**
+     * テキスト一覧に並んでいるテキストを、1行に1つずつクリップボードへコピーする
+     * 編集欄に一時的に入れて選択し、メニューの［コピー］を実行する（編集中の内容はあとで戻す）
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function copyListToClipboard(editSession) {
+        var doc = editSession.doc;
+        var textEditBox = editSession.dialogControls.textEditBox;
+        var copyLines = [];
+        for (var i = 0; i < editSession.listRows.length; i++) {
+            /* 段落の区切りと強制改行はどちらも改行にする / Paragraph and forced line breaks both become newlines */
+            copyLines.push(editSession.listRows[i].contents.replace(/[\r\u0003]/g, '\n'));
+        }
+        var copyText = copyLines.join('\n');
+
+        var savedEditText = textEditBox.text;
+        /* オブジェクトがコピーされないよう選択を外しておく / Deselect so objects are not copied instead */
+        var savedSelection = toItemArray(doc.selection);
+        try {
+            doc.selection = null;
+            textEditBox.text = copyText;
+            textEditBox.active = true;
+            textEditBox.textselection = copyText;
+            app.executeMenuCommand('copy');
+        } catch (e) {
+            alert(e);
+        } finally {
+            textEditBox.text = savedEditText;
+            for (var j = 0; j < savedSelection.length; j++) {
+                /* 消えたアイテムやロックされたアイテムは選び直せない / Removed or locked items cannot be reselected */
+                try {
+                    savedSelection[j].selected = true;
+                } catch (reselectError) { }
+            }
+        }
+    }
+
     // =========================================
     // イベントハンドラ / Event handlers
     // =========================================
@@ -2051,6 +2096,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var dialogControls = editSession.dialogControls;
 
         dialogControls.btnExportText.onClick = function () { exportTextToDesktop(editSession); };
+        dialogControls.btnCopyText.onClick = function () { copyListToClipboard(editSession); };
         dialogControls.btnUpdateText.onClick = function () { applyEditAndRefresh(editSession); };
 
         dialogControls.btnCancel.onClick = function () {
