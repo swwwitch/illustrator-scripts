@@ -1,6 +1,6 @@
 # Toggle artboard name and border display
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-PresetManagerArtboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PresetManagerArtboard.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-PresetManagerArtboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/single-function/PresetManagerArtboard.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerArtboard.md)
 
