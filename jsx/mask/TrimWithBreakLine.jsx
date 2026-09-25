@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除いて残りを指定の間隔に詰めます（パスが対象の端を覆っているときは、その側だけを残します）。切り口はワープで曲げたり、省略線を引いたりできます。
+オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除いて残りを指定の間隔に詰めます（パスが対象の端を覆っているときは、その側だけを残します）。切り口はワープで曲げたりギザギザにしたりでき、省略線も引けます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md
@@ -15,7 +15,7 @@ https://note.com/dtp_tranist/n/n2483bd96e284
 
 ### Overview
 
-With an object (image, group, …) and a path selected, drops the area the path covers and closes the remaining parts up to a set gap (when the path covers an edge of the artwork, only that side is kept). The cut edge can be bent with a warp and traced with break lines.
+With an object (image, group, …) and a path selected, drops the area the path covers and closes the remaining parts up to a set gap (when the path covers an edge of the artwork, only that side is kept). The cut edge can be bent with a warp or made jagged, and traced with break lines.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md
@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md"; /* README (English) */
@@ -49,6 +49,9 @@ var MIN_BAND_MARGIN      = 1;      /* 帯を画像の内側に保つ余白（pt�
 var DEFAULT_WARP_STYLE   = "flag"; /* ワープの初期スタイル（WARP_STYLES のキー） */
 var DEFAULT_WARP_PERCENT = 3;      /* カーブの初期値（%） */
 var MAX_WARP_PERCENT     = 100;    /* カーブの上限（%、マイナス側も同じ幅） */
+var DEFAULT_JAGGED_SIZE  = 3;      /* ギザギザの大きさの初期値（pt） */
+var DEFAULT_JAGGED_RIDGES = 10;    /* ギザギザの折り返しの初期値（回） */
+var MAX_JAGGED_RIDGES    = 100;    /* 折り返しの上限（ジグザグ効果と同じ） */
 var DEFAULT_ADD_RULE     = true;   /* 罫線を追加するかの初期値 */
 var DEFAULT_RULE_DASHED  = false;  /* 罫線を破線にするかの初期値 */
 var DEFAULT_GROUP_RULES  = true;   /* 罫線をパーツとグループ化するかの初期値 */
@@ -72,15 +75,24 @@ var AXIS_Y = 1;  /* 横長の図形で上下に切り分ける / a wide shape sp
 var WARP_STYLES = {
     flag:         { warpName: "Flag", deformStyle: 8 },                  /* 旗 / Flag */
     rise:         { warpName: "Rise", deformStyle: 11 },                 /* 上昇 / Rise */
-    riseStraight: { warpName: "Rise", deformStyle: 11, straight: true }  /* 直線（上昇を直線化）/ Straight (Rise, straightened) */
+    riseStraight: { warpName: "Rise", deformStyle: 11, straight: true }, /* 直線（上昇を直線化）/ Straight (Rise, straightened) */
+    jagged:       { jagged: true }                                       /* ギザギザ（ジグザグ効果）/ Jagged (Zig Zag effect) */
 };
 
 /* ラジオボタンに並べる順 / the order they appear as radio buttons */
-var WARP_STYLE_KEYS = ["flag", "rise", "riseStraight"];
+var WARP_STYLE_KEYS = ["flag", "rise", "riseStraight", "jagged"];
 
-/* 大きさ0・折り返し0のジグザグ。ワープのカーブを直線に置き換える
-   ZigZag with no size and no ridges replaces the warped curve with straight segments */
-var ZIGZAG_XML = '<LiveEffect name="Adobe Zigzag"><Dict data="R amount 0 R relAmount 0 R absoluteness 1 R ridges 0 R roundness 0 "/></LiveEffect>';
+/**
+ * ジグザグ効果のXMLを返す（大きさは絶対値、折り返しは直線）
+ * 大きさ0・折り返し0にすると、ワープのカーブを直線に置き換えられる
+ * @param {number} amountPt - 大きさ（pt）
+ * @param {number} ridges - 線分あたりの折り返し
+ * @returns {string} LiveEffect のXML
+ */
+function createZigzagXml(amountPt, ridges) {
+    return '<LiveEffect name="Adobe Zigzag"><Dict data="R amount ' + amountPt +
+        ' R relAmount 0 R absoluteness 1 R ridges ' + ridges + ' R roundness 0 "/></LiveEffect>';
+}
 
 // =========================================
 // 単位 / Units
@@ -164,6 +176,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             maskOffsetY:  { ja: "上下位置", en: "Offset" },
             maskOffsetX:  { ja: "左右位置", en: "Offset" },
             warpAmount:   { ja: "カーブ", en: "Bend" },
+            jaggedSize:   { ja: "大きさ", en: "Size" },
+            jaggedRidges: { ja: "折り返し", en: "Ridges" },
             gap:          { ja: "間隔", en: "Gap" },
             ruleStyle:    { ja: "線種", en: "Line style" },
             dashSegments: { ja: "分割数", en: "Segments" },
@@ -174,6 +188,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             flag:         { ja: "旗", en: "Flag" },
             rise:         { ja: "上昇", en: "Rise" },
             riseStraight: { ja: "直線", en: "Straight" },
+            jagged:       { ja: "ギザギザ", en: "Jagged" },
             solid:        { ja: "実線", en: "Solid" },
             dashed:       { ja: "破線", en: "Dashed" },
             buttCap:      { ja: "なし", en: "Butt" },
@@ -207,9 +222,18 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             flag:         { ja: "切り口を波形にします。", en: "Makes the cut edge wavy." },
             rise:         { ja: "切り口を、片側へせり上がるカーブにします。", en: "Curves the cut edge up toward one side." },
             riseStraight: { ja: "切り口を斜めの直線にします。", en: "Slants the cut edge in a straight line." },
+            jagged:       { ja: "切り口をギザギザにします。", en: "Makes the cut edge jagged." },
             warpAmount: {
                 ja: "切り口を曲げる量です（-" + MAX_WARP_PERCENT + "〜" + MAX_WARP_PERCENT + "%）。直線では傾きの量になります。0でまっすぐに切り、マイナスで逆向きになります。",
                 en: "How much the cut edge bends (-" + MAX_WARP_PERCENT + " to " + MAX_WARP_PERCENT + "%); for Straight, how much it slants. 0 cuts straight across; negative values reverse the direction."
+            },
+            jaggedSize: {
+                ja: "ギザギザの山の高さです。0でまっすぐに切ります。",
+                en: "Height of the jagged ridges. 0 cuts straight across."
+            },
+            jaggedRidges: {
+                ja: "切り口の端から端までの折り返しの数です（0〜" + MAX_JAGGED_RIDGES + "）。0でまっすぐに切ります。",
+                en: "Number of ridges across the cut edge (0 to " + MAX_JAGGED_RIDGES + "). 0 cuts straight across."
             },
             gap: {
                 ja: "切り詰めたあとの、2つのパーツのあいだの距離です。片側だけ残すときは使いません。",
@@ -519,6 +543,24 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
+     * ギザギザの大きさを0以上に収める
+     * @param {number} inputValue - 入力された値（現在の単位）
+     * @returns {number} 0以上の値
+     */
+    function clampJaggedSize(inputValue) {
+        return clampRange(inputValue, 0, null, initialValues.jaggedSize);
+    }
+
+    /**
+     * 折り返しを0〜MAX_JAGGED_RIDGES の整数に収める
+     * @param {number} inputValue - 入力された値
+     * @returns {number} 0〜MAX_JAGGED_RIDGES の整数
+     */
+    function clampJaggedRidges(inputValue) {
+        return clampRange(Math.round(inputValue), 0, MAX_JAGGED_RIDGES, initialValues.jaggedRidges);
+    }
+
+    /**
      * 間隔を0以上に収める
      * @param {number} inputValue - 入力された値（現在の単位）
      * @returns {number} 0以上の値
@@ -675,6 +717,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
                 "maskOffsetPt=" + buildSettings.maskOffsetPt,
                 "warpStyle=" + buildSettings.warpStyleKey,
                 "warpPercent=" + buildSettings.warpPercent,
+                "jaggedSizePt=" + buildSettings.jaggedSizePt,
+                "jaggedRidges=" + buildSettings.jaggedRidges,
                 "gapPt=" + buildSettings.gapPt,
                 "addRule=" + (buildSettings.addRule ? "1" : "0"),
                 "ruleDashed=" + (buildSettings.ruleDashed ? "1" : "0"),
@@ -853,6 +897,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         maskOffset:   settingNumber(savedValues, "maskOffsetPt", DEFAULT_MASK_OFFSET) / rulerUnit.pointsPerUnit,
         warpStyleKey: settingText(savedValues, "warpStyle", DEFAULT_WARP_STYLE),
         warpPercent:  settingNumber(savedValues, "warpPercent", DEFAULT_WARP_PERCENT),
+        jaggedSize:   settingNumber(savedValues, "jaggedSizePt", DEFAULT_JAGGED_SIZE) / rulerUnit.pointsPerUnit,
+        jaggedRidges: settingNumber(savedValues, "jaggedRidges", DEFAULT_JAGGED_RIDGES),
         gap:          settingNumber(savedValues, "gapPt", DEFAULT_GAP_MM * 72 / 25.4) / rulerUnit.pointsPerUnit,
         addRule:      settingBool(savedValues, "addRule", DEFAULT_ADD_RULE),
         ruleDashed:   settingBool(savedValues, "ruleDashed", DEFAULT_RULE_DASHED),
@@ -950,7 +996,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * パスにワープ効果を適用する
      * @param {PathItem} targetPath - 効果を適用するパス
-     * @param {string} warpStyleKey - WARP_STYLES のキー（"flag" / "rise" / "riseStraight"）
+     * @param {string} warpStyleKey - WARP_STYLES のキー（"flag" / "rise" / "riseStraight"。"jagged" は対象外）
      * @param {number} warpPercent - カーブの量（%）
      * @returns {void}
      */
@@ -996,15 +1042,82 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
+     * 切る方向と、切り口に沿った方向の座標から点を作る
+     * @param {number} axisValue - 切る方向の座標
+     * @param {number} crossValue - 切り口に沿った方向の座標
+     * @returns {number[]} [x, y]
+     */
+    function toAnchor(axisValue, crossValue) {
+        return (axisIndex === AXIS_Y) ? [crossValue, axisValue] : [axisValue, crossValue];
+    }
+
+    /**
+     * パスの末尾に、ハンドルのないコーナーの点を足す
+     * @param {PathItem} targetPath - 対象のパス
+     * @param {number[]} anchor - 点の座標
+     * @returns {void}
+     */
+    function addCornerPoint(targetPath, anchor) {
+        var cornerPoint = targetPath.pathPoints.add();
+        cornerPoint.anchor = anchor;
+        cornerPoint.leftDirection = anchor;
+        cornerPoint.rightDirection = anchor;
+        cornerPoint.pointType = PointType.CORNER;
+    }
+
+    /**
+     * 切り口だけがギザギザのマスクを作る
+     * 矩形に掛けると横の辺までギザギザになるので、切り口の線にだけジグザグを掛けてから反対側の角を足して閉じる
+     * @param {number} axisMax - 切る方向の、座標が大きいほうの端（反対側の辺）
+     * @param {number} axisSize - 切る方向の大きさ
+     * @param {{crossMin: number, crossMax: number}} crossRange - 切り口に沿った方向の範囲
+     * @param {number} jaggedSizePt - ギザギザの大きさ（pt）
+     * @param {number} jaggedRidges - 折り返し
+     * @returns {PageItem} マスクに使うパス
+     */
+    function createJaggedMaskPath(axisMax, axisSize, crossRange, jaggedSizePt, jaggedRidges) {
+        var cutAxis = axisMax - axisSize;
+        var edgeLine = parentContainer.pathItems.add();
+        edgeLine.setEntirePath([toAnchor(cutAxis, crossRange.crossMin), toAnchor(cutAxis, crossRange.crossMax)]);
+        edgeLine.closed = false;
+        edgeLine.filled = false;
+        /* 線がないと分割で何も残らない / an unpainted path leaves nothing to expand */
+        edgeLine.stroked = true;
+        edgeLine.strokeColor = createGrayColor(100);
+        edgeLine.applyEffect(createZigzagXml(jaggedSizePt, jaggedRidges));
+
+        var maskPath = expandAppearance(edgeLine);
+        maskPath.stroked = false;
+        maskPath.filled = true;
+        maskPath.fillColor = createGrayColor(100);
+
+        /* 分割で点の向きが逆になっても辺が交差しないよう、末尾の点に近い角から足す
+           add the nearer far corner first so the outline never crosses itself */
+        var pathPoints = maskPath.pathPoints;
+        var crossIndex = 1 - axisIndex;
+        var endsAtCrossMax = pathPoints[pathPoints.length - 1].anchor[crossIndex] > pathPoints[0].anchor[crossIndex];
+        addCornerPoint(maskPath, toAnchor(axisMax, endsAtCrossMax ? crossRange.crossMax : crossRange.crossMin));
+        addCornerPoint(maskPath, toAnchor(axisMax, endsAtCrossMax ? crossRange.crossMin : crossRange.crossMax));
+        maskPath.closed = true;
+        return maskPath;
+    }
+
+    /**
      * マスク用の矩形を作り、カーブの量に応じてワープを掛けて分割する
      * @param {number} axisMax - 切る方向の、座標が大きいほうの端
      * @param {number} axisSize - 切る方向の大きさ
      * @param {{crossMin: number, crossMax: number}} crossRange - 切り口に沿った方向の範囲
-     * @param {string} warpStyleKey - WARP_STYLES のキー
-     * @param {number} warpPercent - カーブの量（%）
+     * @param {object} buildSettings - { warpStyleKey, warpPercent, jaggedSizePt, jaggedRidges }
      * @returns {PageItem} マスクに使うパス
      */
-    function createMaskPath(axisMax, axisSize, crossRange, warpStyleKey, warpPercent) {
+    function createMaskPath(axisMax, axisSize, crossRange, buildSettings) {
+        var warpStyleKey = buildSettings.warpStyleKey;
+        var warpPercent = buildSettings.warpPercent;
+        var isJagged = getWarpStyle(warpStyleKey).jagged;
+        if (isJagged && buildSettings.jaggedSizePt > 0 && buildSettings.jaggedRidges > 0) {
+            return createJaggedMaskPath(axisMax, axisSize, crossRange, buildSettings.jaggedSizePt, buildSettings.jaggedRidges);
+        }
+
         var crossSize = crossRange.crossMax - crossRange.crossMin;
         /* rectangle(top, left, width, height) は常に上端・左端で指定する */
         var maskRect = (axisIndex === AXIS_Y) ?
@@ -1015,11 +1128,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         maskRect.fillColor = createGrayColor(100);
         maskRect.stroked = false;
 
-        if (warpPercent === 0) return maskRect;
+        /* ギザギザの大きさか折り返しが0のときもまっすぐに切る / a zero-size jagged edge is straight */
+        if (isJagged || warpPercent === 0) return maskRect;
 
         applyWarp(maskRect, warpStyleKey, warpPercent);
         /* 直線のスタイルは、ワープのカーブをジグザグで直線に置き換えてから分割する */
-        if (getWarpStyle(warpStyleKey).straight) maskRect.applyEffect(ZIGZAG_XML);
+        if (getWarpStyle(warpStyleKey).straight) maskRect.applyEffect(createZigzagXml(0, 0));
         return expandAppearance(maskRect);
     }
 
@@ -1331,8 +1445,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         /* 覆われていない側にある帯の辺で切る / cut at the band edge on the side it does not cover */
         var cutAxis = coversAxisMax ? cutRange.cutMin : cutRange.cutMax;
 
-        var maskPath = createMaskPath(cutAxis + maskAxisSize, maskAxisSize, crossRange,
-            buildSettings.warpStyleKey, buildSettings.warpPercent);
+        var maskPath = createMaskPath(cutAxis + maskAxisSize, maskAxisSize, crossRange, buildSettings);
         alignCutEdge(maskPath, cutAxis);
 
         /* 罫線は切りそろえる前の辺から取り出す / take the rule before the far edge is flattened */
@@ -1350,7 +1463,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * 帯を取り除いたパーツを作る
      * 両側に切り分けるときは、上側は下辺を帯の上端に、下側は同じ複製の下辺を帯の下端に合わせ、
      * それぞれ反対側の辺を画像の上端・下端に切りそろえる
-     * @param {object} buildSettings - { maskScale, maskCrossScale, maskOffsetPt, warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
+     * @param {object} buildSettings - { maskScale, maskCrossScale, maskOffsetPt, warpStyleKey, warpPercent, jaggedSizePt, jaggedRidges, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
      * @returns {PageItem[]} 作成したクリップグループと罫線
      */
     function buildParts(buildSettings) {
@@ -1361,8 +1474,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         var cutMax = cutRange.cutMax;
         var cutMin = cutRange.cutMin;
 
-        var upperMaskPath = createMaskPath(cutMax + maskAxisSize, maskAxisSize, crossRange,
-            buildSettings.warpStyleKey, buildSettings.warpPercent);
+        var upperMaskPath = createMaskPath(cutMax + maskAxisSize, maskAxisSize, crossRange, buildSettings);
 
         /* カーブの中心を切り口に合わせる（上昇は切り口が片寄るため） */
         alignCutEdge(upperMaskPath, cutMax);
@@ -1428,7 +1540,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * 現在の値でプレビューを作り直す
      * 複製は hidden 状態を引き継ぐので、元アイテムを表示したまま作ってから元を隠す
-     * @param {object} buildSettings - { maskScale, maskCrossScale, maskOffsetPt, warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
+     * @param {object} buildSettings - { maskScale, maskCrossScale, maskOffsetPt, warpStyleKey, warpPercent, jaggedSizePt, jaggedRidges, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
      * @returns {void}
      */
     function refreshPreview(buildSettings) {
@@ -1514,12 +1626,16 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             styleTooltipPaths.push("tooltip." + WARP_STYLE_KEYS[styleIndex]);
         }
 
-        /* スタイルは項目名なしで横に並べ、パネルの左右中央に置く / the styles sit in one centered row without a label */
+        /* スタイルは項目名なしで縦に並べ、パネルの左右中央に置く / the styles stack in one centered column without a label */
         var warpStyleRow = addRadioRow(cutEdgePanel, null, styleTooltipPaths,
-            styleLabelPaths, getWarpStyleIndex(initialValues.warpStyleKey));
+            styleLabelPaths, getWarpStyleIndex(initialValues.warpStyleKey), undefined, true);
         warpStyleRow.row.alignment = ["center", "center"];
         var warpAmountRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.warpAmount", "tooltip.warpAmount",
             formatFieldNumber(initialValues.warpPercent), "%");
+        var jaggedSizeRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.jaggedSize", "tooltip.jaggedSize",
+            formatFieldNumber(initialValues.jaggedSize), rulerUnit.label);
+        var jaggedRidgesRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.jaggedRidges", "tooltip.jaggedRidges",
+            formatFieldNumber(initialValues.jaggedRidges), "");
         var gapRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.gap", "tooltip.gap",
             formatFieldNumber(initialValues.gap), rulerUnit.label);
 
@@ -1528,7 +1644,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
 
         return {
             styleRadios: warpStyleRow.radios,
+            warpAmountRow: warpAmountRow.row,
             warpAmountField: warpAmountRow.field,
+            jaggedSizeRow: jaggedSizeRow.row,
+            jaggedSizeField: jaggedSizeRow.field,
+            jaggedRidgesRow: jaggedRidgesRow.row,
+            jaggedRidgesField: jaggedRidgesRow.field,
             gapField: gapRow.field
         };
     }
@@ -1609,6 +1730,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         }
 
         /**
+         * 選んだ切り口の形に合わせて、カーブとギザギザの行を切り替える
+         * @returns {void}
+         */
+        function updateCutEdgeRows() {
+            var isJagged = getWarpStyle(getSelectedWarpStyleKey(cutEdgeControls.styleRadios)).jagged === true;
+            cutEdgeControls.warpAmountRow.enabled = !isJagged;
+            cutEdgeControls.jaggedSizeRow.enabled = isJagged;
+            cutEdgeControls.jaggedRidgesRow.enabled = isJagged;
+        }
+
+        /**
          * ダイアログの入力内容を読み取る（値は欄にそろえ直す）
          * @returns {object} 設定
          */
@@ -1620,6 +1752,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
                 maskOffsetPt: readFieldValue(maskControls.offsetField, clampOffsetValue) * rulerUnit.pointsPerUnit,
                 warpStyleKey: getSelectedWarpStyleKey(cutEdgeControls.styleRadios),
                 warpPercent: readFieldValue(cutEdgeControls.warpAmountField, clampWarpPercent),
+                jaggedSizePt: readFieldValue(cutEdgeControls.jaggedSizeField, clampJaggedSize) * rulerUnit.pointsPerUnit,
+                jaggedRidges: readFieldValue(cutEdgeControls.jaggedRidgesField, clampJaggedRidges),
                 gapPt: gapValue * rulerUnit.pointsPerUnit,
                 addRule: ruleControls.addRuleCheckbox.value,
                 ruleDashed: ruleControls.dashedRadio.value,
@@ -1635,6 +1769,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
          * @returns {void}
          */
         function onSettingChanged() {
+            updateCutEdgeRows();
             updateRuleRows();
             refreshPreview(collectSettings());
         }
@@ -1643,6 +1778,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         wireNumberField(maskControls.crossScaleField, clampMaskCrossScale, onSettingChanged);
         wireNumberField(maskControls.offsetField, clampOffsetValue, onSettingChanged);
         wireNumberField(cutEdgeControls.warpAmountField, clampWarpPercent, onSettingChanged);
+        wireNumberField(cutEdgeControls.jaggedSizeField, clampJaggedSize, onSettingChanged);
+        wireNumberField(cutEdgeControls.jaggedRidgesField, clampJaggedRidges, onSettingChanged);
         wireNumberField(cutEdgeControls.gapField, clampGapValue, onSettingChanged);
         wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged);
         wireNumberField(ruleControls.widthField, clampRuleWidth, onSettingChanged);
@@ -1662,6 +1799,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         };
 
         /* 開いた時点のプレビューを先に出す / Show the preview before the dialog appears */
+        updateCutEdgeRows();
         updateRuleRows();
         refreshPreview(collectSettings());
 

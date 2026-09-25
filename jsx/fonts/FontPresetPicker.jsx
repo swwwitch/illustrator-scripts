@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-よく使うフォントを、サイズ・行送り・字間・日本語の文字組みとセットで「定番」として登録し、
+よく使うフォントを、サイズ・行送り・段落前後のアキ・字間・日本語の文字組みとセットで「定番」として登録し、
 一覧から選ぶだけで選択中のテキストへまとめて適用する常駐パレットです。
 適用する設定を絞り込んだり、比率やアキを標準の状態へ戻したりもできます。
 
@@ -18,8 +18,8 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Overview
 
-A persistent palette that keeps your go-to fonts together with their size, leading, letter spacing
-and Japanese typesetting, and applies the whole set to the selected text with a single click in the list.
+A persistent palette that keeps your go-to fonts together with their size, leading, paragraph spacing,
+letter spacing and Japanese typesetting, and applies the whole set to the selected text with a single click in the list.
 You can narrow down what gets applied, and reset scaling and aki back to their default state.
 
 See the README for details.
@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPreset
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontPresetPicker";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetPicker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetPicker.md"; /* README (English) */
@@ -59,7 +59,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     var DEFAULT_PRESETS = [
         {
             psName: "HiraginoSans-W3", size: 12, leadingPercent: 175, leadingType: "top",
-            kern: "metrics", tsume: 0, tracking: 0, align: "roman",
+            spaceBefore: 0, spaceAfter: 0, kern: "metrics", tsume: 0, tracking: 0, align: "roman",
             justify: "left", kinsoku: "Soft_v2", mojikumi: 5
         }
     ];
@@ -80,7 +80,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     var LIST_ROW_HEIGHT = 22;                       /* 一覧1行の高さの目安 / Estimated height of one list row */
     var LIST_FRAME_PADDING = 4;                     /* 一覧の枠ぶんの余白 / Padding for the list frame */
     var FONT_LIST_ROW_COUNT = 5;                    /* 上段に出す行数 / Rows shown in the top list */
-    var DETAIL_ROW_COUNT = 12;                      /* 下段の項目数（fillDetailList の行数）/ Detail rows (as many as fillDetailList adds) */
+    var DETAIL_ROW_COUNT = 14;                      /* 下段の項目数（fillDetailList の行数）/ Detail rows (as many as fillDetailList adds) */
     var DETAIL_VISIBLE_ROWS = DETAIL_ROW_COUNT - 1; /* 下段の高さは1行ぶん詰める / The lower list is one row shorter than its contents */
     var FONT_LIST_SIZE = [LIST_WIDTH, LIST_ROW_HEIGHT * FONT_LIST_ROW_COUNT + LIST_FRAME_PADDING];
     var DETAIL_LIST_SIZE = [LIST_WIDTH, LIST_ROW_HEIGHT * DETAIL_VISIBLE_ROWS + LIST_FRAME_PADDING];
@@ -139,7 +139,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             size: { ja: "フォントサイズ", en: "Font Size" },
             leading: { ja: "行送り", en: "Leading" },
             spacing: { ja: "カーニング・ツメ・トラッキング", en: "Kerning, Tsume & Tracking" },
-            japanese: { ja: "揃え・禁則・文字組み", en: "Alignment, Kinsoku & Mojikumi" }
+            japanese: { ja: "揃え・禁則・文字組み", en: "Alignment, Kinsoku & Mojikumi" },
+            paragraphSpace: { ja: "段落前後のアキ", en: "Paragraph Spacing" }
         },
         clearGroup: {
             scale: { ja: "水平比率・垂直比率", en: "Horizontal & Vertical Scale" },
@@ -151,6 +152,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             leading: { ja: "行送り", en: "Leading" },
             leadingPercent: { ja: "行送り（%）", en: "Leading (%)" },
             leadingType: { ja: "行送りの基準位置", en: "Leading Basis" },
+            spaceBefore: { ja: "段落前のアキ", en: "Space Before" },
+            spaceAfter: { ja: "段落後のアキ", en: "Space After" },
             kern: { ja: "自動カーニング", en: "Auto Kerning" },
             tsume: { ja: "文字ツメ", en: "Tsume" },
             propMetrics: { ja: "プロポーショナルメトリクス", en: "Proportional Metrics" },
@@ -219,6 +222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             applyLeading: { ja: "定番の行送り（自動行送り量）と行送りの基準位置を適用します。", en: "Apply the preset's leading (auto-leading amount) and leading basis." },
             applySpacing: { ja: "定番の自動カーニング・文字ツメ・トラッキングを適用します。", en: "Apply the preset's auto-kerning, Tsume and tracking." },
             applyJapanese: { ja: "定番の文字揃え・行揃え・禁則・文字組みアキ量設定を適用します。", en: "Apply the preset's character alignment, justification, kinsoku and mojikumi." },
+            applyParagraphSpace: { ja: "定番の段落前のアキ・段落後のアキを適用します。", en: "Apply the preset's space before and after paragraphs." },
             clearPanel: { ja: "チェックした項目を、定番の適用と同時に標準の状態へ戻します。option（alt）＋クリックで、その項目だけオンと、すべてオンを切り替えます。", en: "The ticked items are reset to their defaults as the preset is applied. Option (Alt)-click a box to switch between just that one and all of them." },
             clearScale: { ja: "水平比率・垂直比率を 100% に戻します。", en: "Reset the horizontal and vertical scale to 100%." },
             clearAki: { ja: "文字前のアキ・文字後のアキを「自動」に戻します。", en: "Reset the aki before and after each character to Auto." },
@@ -451,6 +455,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         forEachRange(ranges, function (range) { range.leadingType = leadingType; });
     }
 
+    /* 段落前後のアキ（段落属性、pt）/ Space before and after paragraphs (a paragraph attribute, in points) */
+    function applyParagraphSpaceToRanges(ranges, spaceBefore, spaceAfter) {
+        forEachParagraph(ranges, function (paragraph) {
+            if (spaceBefore !== undefined && spaceBefore !== null) paragraph.paragraphAttributes.spaceBefore = spaceBefore;
+            if (spaceAfter !== undefined && spaceAfter !== null) paragraph.paragraphAttributes.spaceAfter = spaceAfter;
+        });
+    }
+
     /* メトリクスのときだけプロポーショナルメトリクスを ON / Proportional metrics ON only for Metrics */
     function applyKerningToRanges(ranges, kerningMethod) {
         var useProportionalMetrics = (kerningMethod === AutoKernType.AUTO);
@@ -530,6 +542,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         if (preset.size !== undefined && preset.size !== null) applySizeToRanges(ranges, preset.size);
         if (preset.leadingType) applyLeadingTypeToRanges(ranges, resolveLeadingType(preset.leadingType));
         if (preset.leadingPercent !== undefined && preset.leadingPercent !== null) applyLeadingToRanges(ranges, preset.leadingPercent);
+        applyParagraphSpaceToRanges(ranges, preset.spaceBefore, preset.spaceAfter);
         if (preset.kern) applyKerningToRanges(ranges, resolveAutoKernType(preset.kern));
         if (preset.tsume !== undefined && preset.tsume !== null) applyTsumeToRanges(ranges, preset.tsume);
         if (preset.tracking !== undefined && preset.tracking !== null) applyTrackingToRanges(ranges, preset.tracking);
@@ -562,6 +575,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     /* 行送りの基準。読めなければ既定の「仮想ボディの上」/ Leading basis; falls back to top-to-top */
     function readLeadingTypeId(range) {
         try { return leadingTypeToId(range.leadingType); } catch (e) { return "top"; }
+    }
+
+    /* 先頭の段落の段落前後のアキ（pt）。読めなければ NaN / Space before and after of the first paragraph; NaN when unreadable */
+    function readParagraphSpace(range) {
+        try {
+            var paragraphs = range.paragraphs;
+            if (!paragraphs.length) return { before: NaN, after: NaN };
+            var paragraphAttrs = paragraphs[0].paragraphAttributes;
+            return { before: roundToHundredths(paragraphAttrs.spaceBefore), after: roundToHundredths(paragraphAttrs.spaceAfter) };
+        } catch (e) {
+            return { before: NaN, after: NaN };
+        }
     }
 
     /* 行揃えを id 文字列へ / Justification to an id string */
@@ -613,6 +638,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             var currentFont = charAttrs.textFont;
             if (!currentFont || !currentFont.name) return null;
             var fontSize = roundToHundredths(charAttrs.size);
+            var paragraphSpace = readParagraphSpace(ranges[0]);
             return {
                 psName: currentFont.name,
                 size: fontSize,
@@ -624,7 +650,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
                 align: alignmentToId(charAttrs.alignment),
                 justify: readJustifyId(ranges[0]),
                 kinsoku: readKinsokuId(ranges[0]),
-                mojikumiId: readMojikumiId(ranges[0])
+                mojikumiId: readMojikumiId(ranges[0]),
+                spaceBefore: paragraphSpace.before,
+                spaceAfter: paragraphSpace.after
             };
         } catch (e) {
             return null;
@@ -673,7 +701,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
                 currentPreset.align,
                 currentPreset.justify,
                 currentPreset.kinsoku,
-                currentPreset.mojikumiId
+                currentPreset.mojikumiId,
+                isNaN(currentPreset.spaceBefore) ? "" : String(currentPreset.spaceBefore),
+                isNaN(currentPreset.spaceAfter) ? "" : String(currentPreset.spaceAfter)
             ].join(TAB));
         }
 
@@ -695,10 +725,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         collectTextRangesFromItem, getSelectedTextRanges, resolveAutoKernType, kernMethodToId,
         resolveAlignment, alignmentToId, resolveLeadingType, leadingTypeToId, resolveJustification, justificationToId,
         forEachRange, forEachParagraph, roundToHundredths,
-        applyFontToRanges, applySizeToRanges, applyLeadingToRanges, applyLeadingTypeToRanges, applyKerningToRanges,
+        applyFontToRanges, applySizeToRanges, applyLeadingToRanges, applyLeadingTypeToRanges, applyParagraphSpaceToRanges,
+        applyKerningToRanges,
         applyTsumeToRanges, applyTrackingToRanges, applyAlignmentToRanges, applyJustificationToRanges,
         applyKinsokuToRanges, applyMojikumiToRanges, clearRangeAttributes, applyPresetToRanges,
-        readLeadingPercent, readLeadingTypeId, readJustifyId, readKinsokuId, readMojikumiId, readPresetFromRanges,
+        readLeadingPercent, readLeadingTypeId, readParagraphSpace, readJustifyId, readKinsokuId, readMojikumiId, readPresetFromRanges,
         dispatch
     ];
     var WORKER_LIB_SRC = "";
@@ -785,7 +816,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     function parsePresetPayload(payload) {
         if (!payload) return null;
         var fields = decodeURIComponent(payload).split(String.fromCharCode(9));
-        if (fields.length < 11 || fields[0] === "") return null;
+        if (fields.length < 13 || fields[0] === "") return null;
         var leadingPercent = parseFloat(fields[2]);
         var restored = {
             psName: fields[0],
@@ -803,6 +834,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         /* 文字組みは内部 ID で返るので、適用に使うインデックスへ直す / Mojikumi comes back as an internal id; map it to the index used to apply it */
         var mojikumiIndex = mojikumiIndexOfId(fields[10]);
         if (!isNaN(mojikumiIndex)) restored.mojikumi = mojikumiIndex;
+        /* 段落前後のアキは読めなかったほうだけ持たせない / Leave out whichever paragraph space could not be read */
+        var spaceBefore = parseFloat(fields[11]), spaceAfter = parseFloat(fields[12]);
+        if (!isNaN(spaceBefore)) restored.spaceBefore = spaceBefore;
+        if (!isNaN(spaceAfter)) restored.spaceAfter = spaceAfter;
         return restored;
     }
 
@@ -870,6 +905,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         pushNumberField(fields, "size", preset.size);
         pushNumberField(fields, "leadingPercent", preset.leadingPercent);
         pushStringField(fields, "leadingType", preset.leadingType);
+        pushNumberField(fields, "spaceBefore", preset.spaceBefore);
+        pushNumberField(fields, "spaceAfter", preset.spaceAfter);
         pushStringField(fields, "kern", preset.kern);
         pushNumberField(fields, "tsume", preset.tsume);
         pushNumberField(fields, "tracking", preset.tracking);
@@ -1144,6 +1181,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     }
 
     /**
+     * pt 単位の値の表示文字列を返す（未設定は空文字）
+     * @param {number} value - 表示したい値（pt）
+     * @returns {string} 表示用の文字列
+     */
+    function formatPoints(value) {
+        if (value === undefined || value === null) return "";
+        return String(value) + " pt";
+    }
+
+    /**
      * 実質の行送りの表示文字列を返す（フォントサイズ×自動行送り量）
      * @param {Object} preset - 表示するプリセット
      * @returns {string} 表示用の文字列
@@ -1199,7 +1246,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
      * 行数を変えたら DETAIL_ROW_COUNT も合わせる
      * @param {ListBox} detailList - 詳細一覧の listbox
      * @param {Object} preset - 表示するプリセット（未選択なら null）
-     * @param {Object} appliedGroups - 適用する設定のチェック状態（size / leading / spacing / japanese）
+     * @param {Object} appliedGroups - 適用する設定のチェック状態（size / leading / paragraphSpace / spacing / japanese）
      * @returns {void}
      */
     function fillDetailList(detailList, preset, appliedGroups) {
@@ -1209,6 +1256,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         addDetailRow(detailList, LABELS.field.leading, formatLeading(preset), appliedGroups.leading);
         addDetailRow(detailList, LABELS.field.leadingPercent, formatLeadingPercent(preset), appliedGroups.leading);
         addDetailRow(detailList, LABELS.field.leadingType, optionLabel(LABELS.leadingType, preset.leadingType), appliedGroups.leading);
+        addDetailRow(detailList, LABELS.field.spaceBefore, formatPoints(preset.spaceBefore), appliedGroups.paragraphSpace);
+        addDetailRow(detailList, LABELS.field.spaceAfter, formatPoints(preset.spaceAfter), appliedGroups.paragraphSpace);
         addDetailRow(detailList, LABELS.field.kern, optionLabel(LABELS.autoKern, preset.kern), appliedGroups.spacing);
         addDetailRow(detailList, LABELS.field.tsume, formatNumber(preset.tsume), appliedGroups.spacing);
         addDetailRow(detailList, LABELS.field.propMetrics, (preset.kern === "metrics") ? "ON" : "OFF", appliedGroups.spacing);
@@ -1230,7 +1279,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
         { key: "size", row: 0, label: LABELS.applyGroup.size, tip: LABELS.tip.applySize },
         { key: "leading", row: 0, label: LABELS.applyGroup.leading, tip: LABELS.tip.applyLeading },
         { key: "spacing", row: 1, label: LABELS.applyGroup.spacing, tip: LABELS.tip.applySpacing },
-        { key: "japanese", row: 2, label: LABELS.applyGroup.japanese, tip: LABELS.tip.applyJapanese }
+        { key: "japanese", row: 2, label: LABELS.applyGroup.japanese, tip: LABELS.tip.applyJapanese },
+        { key: "paragraphSpace", row: 2, label: LABELS.applyGroup.paragraphSpace, tip: LABELS.tip.applyParagraphSpace }
     ];
 
     /* ［クリア］のチェックボックス定義。定番には持たせず、適用のたびに標準値へ戻す項目
@@ -1521,6 +1571,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
             if (groups.leading) {
                 picked.leadingPercent = preset.leadingPercent;
                 picked.leadingType = preset.leadingType;
+            }
+            if (groups.paragraphSpace) {
+                picked.spaceBefore = preset.spaceBefore;
+                picked.spaceAfter = preset.spaceAfter;
             }
             if (groups.spacing) {
                 picked.kern = preset.kern;

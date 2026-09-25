@@ -10,7 +10,7 @@
 
 ### Overview
 
-A persistent palette that keeps the fonts you reach for most, together with their size, leading, auto kerning, Tsume, tracking, character alignment, justification, kinsoku and mojikumi, and applies the whole set to the selected text with a single click in the list.
+A persistent palette that keeps the fonts you reach for most, together with their size, leading, space before/after paragraphs, auto kerning, Tsume, tracking, character alignment, justification, kinsoku and mojikumi, and applies the whole set to the selected text with a single click in the list.
 
 You can narrow down which groups of settings get applied, and reset horizontal/vertical scale, aki before and after, and baseline shift to their default state at the same time.
 
@@ -19,8 +19,8 @@ It is the "Favorites" tab of UnifiedTypePanel.jsx, carved out into a standalone 
 ### Features
 
 - Lists your saved presets; clicking one applies the whole set to the selected text at once
-- A font list on top, and below it the selected preset's settings in two columns (label / value) — font size, leading, leading (%), leading basis, auto kerning, Tsume, proportional metrics, tracking, character alignment, justification, kinsoku and mojikumi
-- A **Settings to Apply** panel picks which groups get applied: font, font size, leading, kerning/Tsume/tracking, alignment/kinsoku/mojikumi
+- A font list on top, and below it the selected preset's settings in two columns (label / value) — font size, leading, leading (%), leading basis, space before, space after, auto kerning, Tsume, proportional metrics, tracking, character alignment, justification, kinsoku and mojikumi
+- A **Settings to Apply** panel picks which groups get applied: font, font size, leading, kerning/Tsume/tracking, alignment/kinsoku/mojikumi, paragraph spacing
 - A **Clear** panel resets horizontal/vertical scale, aki before and after, and baseline shift as the preset is applied
 - In either panel, Option (Alt)-click switches between "just this one" and "all of them"
 - Groups left out are dimmed in the lower detail list
@@ -50,6 +50,7 @@ The palette stays open, so you can keep changing the selection and applying pres
   - **Leading** — the auto-leading amount (%) and the leading basis
   - **Kerning, Tsume & Tracking** — auto kerning, Tsume and tracking
   - **Alignment, Kinsoku & Mojikumi** — character alignment, justification, kinsoku and mojikumi
+  - **Paragraph Spacing** — space before and after paragraphs (pt)
   - Option (Alt)-click a box to switch between just that one and all of them.
 - **Clear** — the ticked items are reset to their default state as the preset is applied. They are never stored in a preset.
   - **Horizontal & Vertical Scale** — back to 100%
@@ -70,7 +71,8 @@ The palette stays open, so you can keep changing the selection and applying pres
 - Presets are stored in `FontPresetPicker_presets.json`, directly under `Folder.userData`. This is a separate file from UnifiedTypePanel.jsx's `UnifiedTypePanel_presets.json`.
 - A corrupt preset file is moved aside to `.bak` before the defaults are restored.
 - If a preset's font is not installed, the list shows its PostScript name and clicking it applies no font (the other settings still apply).
-- Justification, kinsoku and mojikumi are paragraph settings. Applying a preset to part of a line still changes the whole paragraph.
+- Justification, kinsoku, mojikumi and paragraph spacing are paragraph settings. Applying a preset to part of a line still changes the whole paragraph.
+- Presets saved with v1.0.0 hold no paragraph spacing, so applying them leaves the target's space before/after as it is (the detail rows stay blank). **Overwrite** them to store it.
 - Kinsoku "None" cannot be set from a script (an Illustrator limitation), so a preset set to None leaves the text's kinsoku untouched.
 - Mojikumi is looked up in the document's `mojikumiSet`. In a document with custom sets, a preset may land on a different set than expected.
 - The "line-end punct half" mojikumi set reads back as the same value as "half-width punctuation", so the two cannot be told apart. **Add** on such text records it as "half-width punctuation".
@@ -87,8 +89,9 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Release Notes
 
+- v1.1.0 (20260925) : Presets now hold space before and after paragraphs; added "Paragraph Spacing" to Settings to Apply
 - v1.0.0 (20260917) : Initial release. The "Favorites" tab of UnifiedTypePanel.jsx, carved out as a persistent palette
 
 ### Script Info
 
-- Version: v1.0.0
+- Version: v1.1.0
