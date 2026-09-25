@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ドキュメント内のテキストを収集して一覧表示し、その場で編集してドキュメントへ書き戻します。
-対象はアートボード単位やレイヤー単位で絞り込めます。
+ドキュメント内のテキスト（シンボル内を含む）を一覧にし、書式を保ったまま編集して書き戻します。
+対象はアートボード単位やレイヤー単位で絞り込め、テキストとフォント名の書き出しもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md
@@ -16,8 +16,8 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Overview
 
-Collects the text in the document, lists it, and lets you edit it in place and write it back.
-The scope can be narrowed by artboard or by layer.
+Lists the text in the document, including text in symbols, and writes your edits back while keeping the formatting.
+The scope can be narrowed by artboard or layer, and the text and font names can be exported.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md
@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md"; /* README (English) */
@@ -49,15 +49,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     var SOFT_BREAK              = '@#';  /* 編集欄での強制改行の代替文字 / Placeholder for forced line breaks in the edit field */
     var POSITION_SORT_TOLERANCE = 10;    /* 位置順で同じ行とみなす高さの差（pt）/ Height difference treated as the same row (pt) */
     var LIST_LABEL_MAX_LENGTH   = 40;    /* 一覧に出す文字数 / Characters shown per list row */
+    var DEFAULT_INCLUDE_SYMBOLS = true;  /* ［シンボル内のテキスト］の初期値 / Initial value of Text in Symbols */
 
     // =========================================
-    // 一時レイヤー / Temporary layer
+    // 作業レイヤー / Work layer
     // =========================================
 
-    /* シンボル内テキストを読むための作業レイヤー（名前とメモで見分ける）
-       Work layer for reading text in symbols (identified by name and note) */
-    var TEMP_LAYER_NAME = '__TextScopeEdit_temp_read__';
-    var TEMP_LAYER_NOTE = '__TextScopeEdit_temp_read__';
+    /* シンボルを展開するための作業レイヤー名 / Name of the work layer used to expand symbols */
+    var WORK_LAYER_NAME = '__TextScopeEdit_work__';
 
     // =========================================
     // レイアウト / Layout
@@ -65,21 +64,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
     var TABS_SIZE                = [550, 350];         /* タブ全体の大きさ / Tabbed panel size */
     var TABS_MARGINS             = [15, 10, 1, 10];    /* タブ全体の余白 [左,上,右,下] / Tabbed panel margins */
-    var CANVAS_TAB_MARGINS       = [15, 20, 1, 10];    /* ［カンバス］タブの余白 / Canvas tab margins */
-    var CANVAS_TAB_SPACING       = 15;                 /* ［カンバス］タブの要素間隔 / Canvas tab spacing */
+    var EDIT_TAB_MARGINS         = [15, 20, 1, 10];    /* ［テキスト］タブの余白 / Text tab margins */
+    var EDIT_TAB_SPACING         = 15;                 /* ［テキスト］タブの要素間隔 / Text tab spacing */
     var INFO_TAB_MARGINS         = [15, 20, 0, 10];    /* 名前一覧タブの余白 / Name-list tab margins */
     var INFO_TAB_SPACING         = 10;                 /* 名前一覧タブの要素間隔 / Name-list tab spacing */
     var CHOICE_ROW_SPACING       = 15;                 /* ラジオ・チェックボックスの横並びの間隔 / Spacing of radio/checkbox rows */
     var SCOPE_PANEL_MARGINS      = [15, 20, 1, 10];    /* 右カラムのパネル余白 / Right-column panel margins */
-    var OPTIONS_GROUP_MARGINS    = [15, 5, 15, 10];    /* オプション群の余白 / Option group margins */
     var EXPORT_PANEL_MARGINS     = [15, 20, 15, 10];   /* 書き出しオプションのパネル余白 / Export options panel margins */
-    var TEXT_LIST_BOUNDS         = [0, 0, 250, 194];   /* テキスト一覧の大きさ / Text list bounds */
+    var TEXT_LIST_BOUNDS         = [0, 0, 250, 270];   /* テキスト一覧の大きさ（［更新］ボタンの分を引く）/ Text list bounds (minus the Update button) */
     var TEXT_EDIT_BOUNDS         = [0, 0, 250, 72];    /* テキスト編集欄の大きさ / Text edit field bounds */
-    var SYMBOL_LIST_WIDTH        = 250;                /* シンボル内テキスト一覧の幅 / Symbol text list width */
-    var SYMBOL_LIST_MIN_ROWS     = 4;                  /* シンボル内テキスト一覧の最小行数 / Minimum rows */
-    var SYMBOL_LIST_MAX_ROWS     = 8;                  /* シンボル内テキスト一覧の最大行数 / Maximum rows */
-    var SYMBOL_LIST_ROW_HEIGHT   = 18;                 /* 1行の高さ / Row height */
-    var SYMBOL_LIST_EXTRA_HEIGHT = 6;                  /* 行以外に足す高さ / Extra height */
     var FONT_COLUMN_WIDTHS       = [180, 180, 120];    /* フォント一覧の列幅 / Font list column widths */
 
     // =========================================
@@ -101,38 +94,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             exportOptions: { ja: "書き出しオプション", en: "Export Options" }
         },
         tab: {
-            canvas: { ja: "カンバス", en: "Canvas" },
+            editText: { ja: "テキスト", en: "Text" },
             layerNames: { ja: "レイヤー名", en: "Layer Names" },
             artboardNames: { ja: "アートボード名", en: "Artboard Names" },
-            fontNames: { ja: "フォント名", en: "Font Name" }
+            fontNames: { ja: "フォント名", en: "Font Names" }
         },
         panel: {
-            targetText: { ja: "対象テキスト（アートボード）", en: "Text Scope (Artboards)" },
-            layerText: { ja: "対象テキスト（レイヤーなど）", en: "Text Scope (Layers)" },
-            sort: { ja: "ソート", en: "Sort" }
+            artboardScope: { ja: "対象範囲", en: "Scope" },
+            targetText: { ja: "対象テキスト", en: "Text to Include" },
+            sort: { ja: "並び順", en: "Sort" },
+            editOptions: { ja: "オプション", en: "Options" },
+            exportContent: { ja: "書き出す内容", en: "Contents to Export" }
         },
         radio: {
-            currentArtboard: { ja: "現在のアートボード内", en: "Current Artboard Only" },
-            allArtboards: { ja: "すべてのアートボード内", en: "All Artboards Only" },
+            currentArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
+            allArtboards: { ja: "すべてのアートボード", en: "All Artboards" },
             sortNone: { ja: "なし", en: "None" },
-            sortPosition: { ja: "位置順", en: "Sort by Position" },
-            sortAlphabetical: { ja: "ABC順", en: "Sort Alphabetically" },
+            sortPosition: { ja: "位置順", en: "By Position" },
+            sortAlphabetical: { ja: "ABC順", en: "Alphabetical" },
             layerScopeAll: { ja: "すべてのレイヤー", en: "All Layers" },
             layerScopeTop: { ja: "上位レベルのレイヤーのみ", en: "Top-Level Layers Only" },
-            artboardScopeNumbered: { ja: "番号つき", en: "Numbered" },
-            artboardScopeRaw: { ja: "アートボード名のみ", en: "Names Only" }
+            artboardNameNumbered: { ja: "番号つき", en: "With Numbers" },
+            artboardNameOnly: { ja: "アートボード名のみ", en: "Names Only" }
         },
         checkbox: {
-            mergeDuplicates: { ja: "同じ内容を一括編集", en: "Treat Same Text as One" },
-            wholeDocument: { ja: "ドキュメント全体を対象に", en: "Include Entire Document" },
-            includeCommentLayers: { ja: "//ではじめるレイヤーも含む", en: "Include Layers That Start with //" },
+            mergeDuplicates: { ja: "同じ内容を一括編集", en: "Edit Identical Text Together" },
+            wholeDocument: { ja: "アートボード外も対象", en: "Include Outside Artboards" },
+            includeCommentLayers: { ja: "「//」ではじまるレイヤー", en: "Layers Starting with //" },
             includeLocked: { ja: "ロックされたテキスト", en: "Locked Text" },
             includeHidden: { ja: "非表示のテキスト", en: "Hidden Text" },
-            keepFormat: { ja: "段落書式を保持", en: "Keep Paragraph Formatting" },
-            preview: { ja: "プレビュー", en: "Preview" },
+            includeSymbols: { ja: "シンボル内のテキスト", en: "Text in Symbols" },
+            keepFormat: { ja: "書式を保持", en: "Keep Formatting" },
             exportIncludeText: { ja: "テキスト", en: "Text" },
             exportIncludeFonts: { ja: "フォント名", en: "Font Names" },
-            exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open file after export" },
+            exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open File After Export" },
             fontPS: { ja: "PostScript名", en: "PostScript Name" },
             fontFamily: { ja: "フォント名", en: "Font Name" },
             fontStyle: { ja: "スタイル", en: "Style" }
@@ -140,7 +135,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         fieldLabel: {
             textList: { ja: "テキスト一覧", en: "Text List" },
             textEdit: { ja: "テキスト編集", en: "Edit Text" },
-            symbolText: { ja: "シンボル内テキスト（編集不可）", en: "Text in Symbols (Read-Only)" },
             layerNameList: { ja: "レイヤー名一覧", en: "Layer Name List" },
             artboardNameList: { ja: "アートボード名一覧", en: "Artboard Name List" },
             fontList: { ja: "フォント一覧", en: "Font List" }
@@ -152,16 +146,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         },
         format: {
             itemPrefix: { ja: ": ", en: ": " },
-            symbolSeparator: { ja: "：", en: ": " },
-            symbolSuffix: { ja: "〈シンボル：{symbolName}〉", en: " «Symbol: {symbolName}»" }
+            symbolSuffix: { ja: "〈シンボル：{symbolName}〉", en: " «Symbol: {symbolName}»" },
+            symbolRowMark: { ja: "♣ ", en: "♣ " },
+            symbolRowSuffix: { ja: "〈{symbolName}〉", en: " «{symbolName}»" }
         },
         tooltip: {
-            keepFormat: { ja: "段落の書式を保持したまま\nテキストを置換します", en: "Replace text while preserving\nparagraph formatting" },
-            preview: { ja: "編集結果をリアルタイムで\nプレビューします", en: "Preview the edited result\nin real time" },
-            previewDisabled: { ja: "CC 2020ではプレビュー無効", en: "Preview is disabled in CC 2020" },
+            keepFormat: {
+                ja: "変更した文字だけを書き換え、文字と段落の書式を保持します\n（オフにすると全体を1文字目の書式で置き換えます）",
+                en: "Rewrites only the changed characters, keeping character\nand paragraph formatting (when off, the whole text\ntakes the formatting of its first character)"
+            },
             wholeDocument: {
-                ja: "アートボードの外にあるテキストも対象にします\n（「すべてのアートボード内」のときに選べます）",
-                en: "Also includes text outside the artboards\n(available with All Artboards Only)"
+                ja: "アートボードの外にあるテキストも対象にします\n（［すべてのアートボード］のときに選べます）",
+                en: "Also includes text outside the artboards\n(available with All Artboards)"
             },
             mergeDuplicates: {
                 ja: "同じ内容のテキストを一覧の1行にまとめ、\n編集をそのすべてに反映します",
@@ -171,18 +167,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 ja: "上から下へ並べ、ほぼ同じ高さのものは\n左から右へ並べます",
                 en: "Sorts top to bottom, and left to right\nfor text at about the same height"
             },
-            sortAlphabetical: { ja: "大文字と小文字を区別せずに\n内容の順に並べます", en: "Sorts by content, ignoring case" },
+            sortAlphabetical: {
+                ja: "大文字と小文字を区別せずに\n内容の順に並べます",
+                en: "Sorts by content, ignoring case"
+            },
             textEdit: {
                 ja: "Shift+Enter で強制改行を入れます\n（{softBreak} と表示されます）",
                 en: "Shift+Enter inserts a forced line break\n(shown as {softBreak})"
+            },
+            textList: {
+                ja: "♣ の行（シンボル内のテキスト）を編集すると、OK でシンボルの定義を書き換えます。\n範囲外にある同じシンボルのインスタンスも変わり、\n基準点などのシンボルオプションは初期値になります",
+                en: "Editing a ♣ row (text in a symbol) rewrites the symbol definition on OK,\nso instances outside the scope change too, and symbol options\nsuch as the registration point are reset"
             },
             exportText: {
                 ja: "アートボードごとにテキストとフォント名をまとめ、\nデスクトップにテキストファイルで書き出します",
                 en: "Writes the text and font names, grouped by artboard,\nto a text file on the desktop"
             },
             fontList: {
-                ja: "行をクリックすると、そのフォントを使っている\nテキストを選択します",
-                en: "Click a row to select the text\nthat uses that font"
+                ja: "行をクリックすると、そのフォントを使っている\nテキストを選択します（シンボルはインスタンスを選択）",
+                en: "Click a row to select the text that uses that font\n(for symbols, their instances are selected)"
+            },
+            includeCommentLayers: {
+                ja: "名前が「//」ではじまるレイヤー（メモ用など）の\nテキストも対象にします",
+                en: "Also includes text on layers whose names\nstart with // (such as note layers)"
             },
             includeLocked: {
                 ja: "ロックされたテキストと、ロックされた\nレイヤー・グループ内のテキストも対象にします",
@@ -191,10 +198,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             includeHidden: {
                 ja: "非表示のテキストと、非表示の\nレイヤー・グループ内のテキストも対象にします",
                 en: "Also includes hidden text and text\nin hidden layers or groups"
+            },
+            includeSymbols: {
+                ja: "対象範囲にあるシンボルのテキストを\nテキスト一覧の末尾に並べ、書き出しにも含めます",
+                en: "Lists the text in symbols within the scope at the end\nof the text list and includes it in the export"
+            },
+            updateText: {
+                ja: "編集をドキュメントに反映し、一覧を更新します\n（ダイアログは閉じません。キャンセルしても元に戻りません）",
+                en: "Applies the edit to the document and refreshes the list\n(the dialog stays open; Cancel does not revert it)"
             }
         },
         button: {
-            exportText: { ja: "テキスト書き出し", en: "Export Text" },
+            exportText: { ja: "テキスト書き出し...", en: "Export Text..." },
+            updateText: { ja: "更新", en: "Update" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
@@ -206,7 +222,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open" },
             exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
-            noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" }
+            noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" },
+            symbolUpdateFailed: { ja: "シンボルを書き換えられませんでした", en: "Failed to update the symbol" }
         }
     };
 
@@ -224,6 +241,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         return labelNode[uiLang];
     }
 
+    /**
+     * 項目名に言語別のコロン（日本語は全角、英語は半角）を付けて返す
+     * @param {string} labelPath - LABELS のパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
+
     // =========================================
     // 文字列の整形 / String helpers
     // =========================================
@@ -231,14 +257,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     /**
      * 一覧用のラベルを作る（改行を空白にし、長ければ先頭だけにする）
      * @param {string} text - テキストの内容
-     * @param {number} [maxLength] - 表示する最大文字数（省略時は LIST_LABEL_MAX_LENGTH）
      * @returns {string} 一覧用のラベル
      */
-    function buildListLabel(text, maxLength) {
-        if (!maxLength) maxLength = LIST_LABEL_MAX_LENGTH;
-        var labelText = text.replace(/[\r\n]+/g, " ");
-        if (labelText.length > maxLength) labelText = labelText.substring(0, maxLength) + "…";
-        return labelText;
+    function buildListLabel(text) {
+        var listLabel = text.replace(/[\r\n\x03]+/g, " ");
+        if (listLabel.length > LIST_LABEL_MAX_LENGTH) listLabel = listLabel.substring(0, LIST_LABEL_MAX_LENGTH) + "…";
+        return listLabel;
+    }
+
+    /**
+     * 編集欄の文字列を、書き戻す文字列にする
+     * 編集欄は改行を \n（Windows は \r\n）で返すので、段落の改行 \r にそろえる。強制改行の代替文字は \x03 に戻す
+     * @param {string} editText - 編集欄の文字列
+     * @returns {string} 書き戻す文字列
+     */
+    function toFrameText(editText) {
+        return editText.replace(/\r\n|\n/g, '\r').split(SOFT_BREAK).join('\x03');
+    }
+
+    /**
+     * 強制改行（\x03）を編集欄用の代替文字にする
+     * @param {string} frameText - テキストの内容
+     * @returns {string} 編集欄に出す文字列
+     */
+    function toEditText(frameText) {
+        return frameText.replace(/\x03/g, SOFT_BREAK);
     }
 
     /**
@@ -266,16 +309,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * ドキュメント名から拡張子を除いた名前を返す
-     * @param {Document} documentRef - 対象のドキュメント
-     * @returns {string} 拡張子なしの名前（無ければ "untitled"）
-     */
-    function getDocumentBaseName(documentRef) {
-        var documentName = documentRef && documentRef.name ? documentRef.name : 'untitled';
-        return documentName.replace(/\.[^\.]+$/, '');
-    }
-
-    /**
      * ファイル名に使えない文字を _ に置き換える
      * @param {string} fileName - ファイル名
      * @returns {string} 置き換えたファイル名
@@ -294,15 +327,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @returns {boolean} 空なら true
      */
     function isEmptyTextFrame(textFrame) {
-        try {
-            if (!textFrame || textFrame.typename !== "TextFrame") return true;
-            var frameText = textFrame.contents;
-            if (!frameText) return true;
-            frameText = frameText.replace(/[\r\n\x03]/g, "").replace(/\s+/g, "");
-            return frameText.length === 0;
-        } catch (e) {
-            return true;
-        }
+        return textFrame.contents.replace(/[\s\x03]+/g, "").length === 0;
     }
 
     /**
@@ -311,81 +336,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @returns {boolean} // ではじまるレイヤーにあれば true
      */
     function isCommentLayer(pageItem) {
-        try {
-            return pageItem.layer.name.indexOf("//") === 0;
-        } catch (err) {
-            return false;
-        }
+        return pageItem.layer.name.indexOf("//") === 0;
     }
 
     /**
-     * 親のグループ・レイヤーのどれかがロックまたは非表示か
+     * 非表示・ロックの設定に照らして収集してよいか（自身と親のグループ・レイヤーを見る）
      * @param {PageItem} pageItem - 調べるオブジェクト
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
-     * @returns {boolean} 除外すべき親があれば true
-     */
-    function isParentLockedOrHidden(pageItem, collectOptions) {
-        var parentItem;
-        try {
-            parentItem = pageItem ? pageItem.parent : null;
-        } catch (e) {
-            parentItem = null;
-        }
-
-        while (parentItem) {
-            try {
-                if (parentItem.typename === 'Document') break;
-                if (!collectOptions.includeLocked && parentItem.locked) return true;
-                if (!collectOptions.includeHidden) {
-                    if (parentItem.hidden) return true;
-                    if (parentItem.visible === false) return true;
-                }
-            } catch (e2) { }
-
-            try {
-                parentItem = parentItem.parent;
-            } catch (e3) {
-                parentItem = null;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 非表示・ロックの設定に照らして収集してよいか（親のグループ・レイヤーも見る）
-     * @param {PageItem} pageItem - 調べるオブジェクト
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @returns {boolean} 収集してよければ true
      */
     function isCollectable(pageItem, collectOptions) {
-        try {
-            if (!pageItem) return false;
-            if (!collectOptions.includeHidden && pageItem.hidden) return false;
-            if (!collectOptions.includeLocked && pageItem.locked) return false;
-            if (pageItem.layer) {
-                if (!collectOptions.includeLocked && pageItem.layer.locked) return false;
-                if (!collectOptions.includeHidden && pageItem.layer.visible === false) return false;
-                if (!collectOptions.includeHidden && pageItem.layer.hidden) return false;
-            }
-            if (isParentLockedOrHidden(pageItem, collectOptions)) return false;
-            return true;
-        } catch (e) {
-            return false;
+        for (var node = pageItem; node && node.typename !== "Document"; node = node.parent) {
+            if (!collectOptions.includeLocked && node.locked) return false;
+            /* レイヤーは visible、オブジェクトは hidden で持つ / Layers use visible, page items use hidden */
+            var isHidden = (node.typename === "Layer") ? !node.visible : node.hidden;
+            if (!collectOptions.includeHidden && isHidden) return false;
         }
-    }
-
-    /**
-     * 直下の子かどうか
-     * @param {PageItem} pageItem - 調べるオブジェクト
-     * @param {Object} parentContainer - 親のレイヤーまたはグループ
-     * @returns {boolean} 直下の子なら true
-     */
-    function isDirectChildOf(pageItem, parentContainer) {
-        try {
-            return pageItem && parentContainer && pageItem.parent === parentContainer;
-        } catch (e) {
-            return false;
-        }
+        return true;
     }
 
     /**
@@ -398,16 +365,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var bounds = pageItem.geometricBounds;
         return (bounds[2] > artboardRect[0] && bounds[0] < artboardRect[2] &&
             bounds[1] > artboardRect[3] && bounds[3] < artboardRect[1]);
-    }
-
-    /**
-     * いずれかのアートボードに重なっているか
-     * @param {Document} doc - 対象のドキュメント
-     * @param {PageItem} pageItem - 調べるオブジェクト
-     * @returns {boolean} 重なっていれば true
-     */
-    function isOnAnyArtboard(doc, pageItem) {
-        return getItemArtboardIndex(doc, pageItem) >= 0;
     }
 
     /**
@@ -425,6 +382,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         return -1;
     }
 
+    /**
+     * アートボードの番号が範囲に入るか
+     * @param {string} scopeMode - "all" / "allArtboards" / "current"
+     * @param {number} artboardIndex - 調べる番号（どこにも無ければ -1）
+     * @param {number} activeArtboardIndex - 現在のアートボードの番号
+     * @returns {boolean} 範囲に入れば true
+     */
+    function isArtboardIndexInScope(scopeMode, artboardIndex, activeArtboardIndex) {
+        if (scopeMode === 'current') return artboardIndex === activeArtboardIndex;
+        if (scopeMode === 'allArtboards') return artboardIndex >= 0;
+        return true;
+    }
+
     // =========================================
     // テキストの収集 / Collecting text frames
     // =========================================
@@ -433,22 +403,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * レイヤーまたはグループの直下からテキストを集め、グループは中へたどる
      * @param {Object} container - レイヤーまたはグループ
      * @param {TextFrame[]} collectedFrames - 集めたテキストフレームを入れる配列
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {Function} acceptFrame - テキストフレームを受け入れるか判定する関数
      * @returns {void}
      */
     function collectTextFromContainer(container, collectedFrames, collectOptions, acceptFrame) {
-        if (!container || !container.pageItems) return;
         var pageItems = container.pageItems;
         for (var i = 0; i < pageItems.length; i++) {
             var pageItem = pageItems[i];
-            if (!isDirectChildOf(pageItem, container)) continue;
+            if (pageItem.parent !== container) continue;
             if (!collectOptions.includeComment && isCommentLayer(pageItem)) continue;
             if (!isCollectable(pageItem, collectOptions)) continue;
 
             if (pageItem.typename === "TextFrame") {
-                if (isEmptyTextFrame(pageItem)) continue;
-                if (acceptFrame(pageItem)) {
+                if (!isEmptyTextFrame(pageItem) && acceptFrame(pageItem)) {
                     collectedFrames.push(pageItem);
                 }
             } else if (pageItem.typename === "GroupItem") {
@@ -461,12 +429,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * レイヤーとそのサブレイヤーからテキストを集める
      * @param {Layer} layer - 対象のレイヤー
      * @param {TextFrame[]} collectedFrames - 集めたテキストフレームを入れる配列
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {Function} acceptFrame - テキストフレームを受け入れるか判定する関数
      * @returns {void}
      */
     function collectTextFromLayer(layer, collectedFrames, collectOptions, acceptFrame) {
-        if (!layer) return;
         collectTextFromContainer(layer, collectedFrames, collectOptions, acceptFrame);
         for (var i = 0; i < layer.layers.length; i++) {
             collectTextFromLayer(layer.layers[i], collectedFrames, collectOptions, acceptFrame);
@@ -477,7 +444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * 範囲に応じてテキストフレームを集める
      * @param {Document} doc - 対象のドキュメント
      * @param {string} scopeMode - "all"（ドキュメント全体）/ "allArtboards"（いずれかのアートボード）/ "current"（現在のアートボード）
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @returns {TextFrame[]} テキストフレームの配列
      */
     function collectFramesByScope(doc, scopeMode, collectOptions) {
@@ -486,11 +453,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         if (scopeMode === "all") {
             acceptFrame = function () { return true; };
         } else if (scopeMode === "allArtboards") {
-            acceptFrame = function (textFrame) { return isOnAnyArtboard(doc, textFrame); };
+            acceptFrame = function (textFrame) { return getItemArtboardIndex(doc, textFrame) >= 0; };
         } else {
-            var abIndex = doc.artboards.getActiveArtboardIndex();
-            var artboardRect = doc.artboards[abIndex].artboardRect;
-            acceptFrame = function (textFrame) { return isOnArtboard(textFrame, artboardRect); };
+            var activeArtboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            acceptFrame = function (textFrame) { return isOnArtboard(textFrame, activeArtboardRect); };
         }
         for (var i = 0; i < doc.layers.length; i++) {
             collectTextFromLayer(doc.layers[i], collectedFrames, collectOptions, acceptFrame);
@@ -503,7 +469,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {Document} doc - 対象のドキュメント
      * @returns {TextFrame[]} テキストフレームの配列
      */
-    function getScopedFramesForInfoTabs(doc) {
+    function collectAllTextFrames(doc) {
         return collectFramesByScope(doc, 'all', {
             includeComment: true,
             includeLocked: true,
@@ -522,12 +488,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var contentIndexMap = {}; /* 内容 → uniqueFrames の番号 / contents -> index in uniqueFrames */
         for (var i = 0; i < textFrames.length; i++) {
             var frameContents = textFrames[i].contents;
-            if (contentIndexMap[frameContents] === undefined) {
+            if (contentIndexMap.hasOwnProperty(frameContents)) {
+                duplicateMap[contentIndexMap[frameContents]].push(textFrames[i]);
+            } else {
                 contentIndexMap[frameContents] = uniqueFrames.length;
                 uniqueFrames.push(textFrames[i]);
                 duplicateMap.push([textFrames[i]]);
-            } else {
-                duplicateMap[contentIndexMap[frameContents]].push(textFrames[i]);
             }
         }
         return { uniqueFrames: uniqueFrames, duplicateMap: duplicateMap };
@@ -538,63 +504,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     // =========================================
 
     /**
-     * レイヤーとそのサブレイヤーの名前を重複なく集める
-     * @param {Layer} layer - 対象のレイヤー
+     * レイヤーの名前を重複なく集める
+     * @param {Layers} layers - 対象のレイヤーのコレクション
+     * @param {boolean} includeSublayers - サブレイヤーもたどるなら true
      * @param {string[]} layerNames - 集めた名前を入れる配列
      * @param {Object} seenNames - 既出の名前の表
      * @returns {void}
      */
-    function collectAllLayerNamesFromLayer(layer, layerNames, seenNames) {
-        var layerName = '';
-        if (!layer) return;
-
-        try {
-            layerName = layer.name;
-        } catch (e) {
-            layerName = '';
-        }
-        if (layerName && !seenNames[layerName]) {
-            seenNames[layerName] = true;
-            layerNames.push(layerName);
-        }
-
-        for (var i = 0; i < layer.layers.length; i++) {
-            collectAllLayerNamesFromLayer(layer.layers[i], layerNames, seenNames);
-        }
-    }
-
-    /**
-     * ドキュメントのすべてのレイヤー名（サブレイヤーを含む）を重複なく集める
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {string[]} レイヤー名の配列
-     */
-    function collectAllDocumentLayerNames(doc) {
-        var layerNames = [];
-        var seenNames = {};
-        for (var i = 0; i < doc.layers.length; i++) {
-            collectAllLayerNamesFromLayer(doc.layers[i], layerNames, seenNames);
-        }
-        return layerNames;
-    }
-
-    /**
-     * 最上位のレイヤー名を集める
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {string[]} レイヤー名の配列
-     */
-    function collectTopLevelLayerNames(doc) {
-        var layerNames = [];
-        var layerName;
-        for (var i = 0; i < doc.layers.length; i++) {
-            try {
-                layerName = doc.layers[i].name;
-            } catch (e) {
-                layerName = '';
-            }
-            if (layerName) {
+    function collectLayerNames(layers, includeSublayers, layerNames, seenNames) {
+        for (var i = 0; i < layers.length; i++) {
+            var layerName = layers[i].name;
+            if (layerName && !seenNames.hasOwnProperty(layerName)) {
+                seenNames[layerName] = true;
                 layerNames.push(layerName);
             }
+            if (includeSublayers) {
+                collectLayerNames(layers[i].layers, true, layerNames, seenNames);
+            }
         }
+    }
+
+    /**
+     * ドキュメントのレイヤー名を重複なく集める
+     * @param {Document} doc - 対象のドキュメント
+     * @param {boolean} includeSublayers - サブレイヤーも含めるなら true
+     * @returns {string[]} レイヤー名の配列
+     */
+    function collectDocumentLayerNames(doc, includeSublayers) {
+        var layerNames = [];
+        collectLayerNames(doc.layers, includeSublayers, layerNames, {});
         return layerNames;
     }
 
@@ -613,15 +551,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {number} index - アートボードの番号（0 始まり）
      * @returns {string} アートボード名
      */
-    function getRawArtboardName(doc, index) {
-        var artboardName = '';
-        try {
-            artboardName = doc.artboards[index].name;
-        } catch (e) { }
-        if (!artboardName) {
-            artboardName = getArtboardNumberName(index);
-        }
-        return artboardName;
+    function getArtboardName(doc, index) {
+        return doc.artboards[index].name || getArtboardNumberName(index);
     }
 
     /**
@@ -630,8 +561,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {number} index - アートボードの番号（0 始まり）
      * @returns {string} 表示名
      */
-    function getArtboardTabDisplayName(doc, index) {
-        return (index + 1) + ': ' + getRawArtboardName(doc, index);
+    function getNumberedArtboardName(doc, index) {
+        return (index + 1) + ': ' + getArtboardName(doc, index);
     }
 
     /**
@@ -640,47 +571,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {number} index - アートボードの番号（0 始まり）
      * @returns {string} 見出し
      */
-    function getArtboardDisplayName(doc, index) {
-        return getArtboardNumberName(index) + ': ' + getRawArtboardName(doc, index);
+    function getArtboardExportHeading(doc, index) {
+        return getArtboardNumberName(index) + ': ' + getArtboardName(doc, index);
     }
 
     // =========================================
     // フォント / Fonts
     // =========================================
-
-    /**
-     * テキストで使われているフォントの PostScript 名を重複なく集める
-     * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {string[]} PostScript 名の配列（取れなければ「不明」の1件）
-     */
-    function getTextFrameFontNames(textFrame) {
-        var seenNames = {};
-        var fontNames = [];
-        var fontName;
-
-        if (!textFrame) return fontNames;
-
-        try {
-            var frameCharacters = textFrame.characters;
-            for (var i = 0; i < frameCharacters.length; i++) {
-                try {
-                    fontName = frameCharacters[i].characterAttributes.textFont.name;
-                } catch (e) {
-                    fontName = '';
-                }
-                if (!fontName) continue;
-                if (!seenNames[fontName]) {
-                    seenNames[fontName] = true;
-                    fontNames.push(fontName);
-                }
-            }
-        } catch (err) { }
-
-        if (fontNames.length === 0) {
-            fontNames.push(getLabel('fallbackName.unknownFont'));
-        }
-        return fontNames;
-    }
 
     /**
      * フォントの組（PostScript 名・ファミリー名・スタイル名）の比較用キーを返す
@@ -692,43 +589,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * テキストで使われているフォントの組（PostScript 名・ファミリー名・スタイル名）を重複なく集める
-     * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {Object[]} { psName, familyName, styleName } の配列（取れなければ「不明」の1件）
+     * 文字のフォントの組を返す（読めなければ「不明」）
+     * @param {TextRange} textCharacter - 対象の文字
+     * @returns {Object} { psName, familyName, styleName }
      */
-    function getTextFrameFontTriples(textFrame) {
-        var fontTriples = [];
-        var seenKeys = {};
+    function getCharacterFontTriple(textCharacter) {
         var unknownFont = getLabel('fallbackName.unknownFont');
-
-        if (!textFrame) return fontTriples;
-
+        /* 環境にないフォントは読み取りで例外になることがある / Missing fonts may throw when read */
         try {
-            var frameCharacters = textFrame.characters;
-            for (var i = 0; i < frameCharacters.length; i++) {
-                var fontTriple;
-                try {
-                    var textFont = frameCharacters[i].characterAttributes.textFont;
-                    fontTriple = {
-                        psName: textFont.name || unknownFont,
-                        familyName: textFont.family || unknownFont,
-                        styleName: textFont.style || ''
-                    };
-                } catch (e) {
-                    fontTriple = { psName: unknownFont, familyName: unknownFont, styleName: '' };
-                }
-                var tripleKey = getFontTripleKey(fontTriple);
-                if (!seenKeys[tripleKey]) {
-                    seenKeys[tripleKey] = true;
-                    fontTriples.push(fontTriple);
-                }
-            }
-        } catch (err) { }
-
-        if (fontTriples.length === 0) {
-            fontTriples.push({ psName: unknownFont, familyName: unknownFont, styleName: '' });
+            var textFont = textCharacter.characterAttributes.textFont;
+            return {
+                psName: textFont.name || unknownFont,
+                familyName: textFont.family || unknownFont,
+                styleName: textFont.style || ''
+            };
+        } catch (e) {
+            return { psName: unknownFont, familyName: unknownFont, styleName: '' };
         }
-        return fontTriples;
     }
 
     /**
@@ -740,12 +617,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var seenKeys = {};
         var uniqueTriples = [];
         for (var i = 0; i < textFrames.length; i++) {
-            var fontTriples = getTextFrameFontTriples(textFrames[i]);
-            for (var j = 0; j < fontTriples.length; j++) {
-                var tripleKey = getFontTripleKey(fontTriples[j]);
-                if (!seenKeys[tripleKey]) {
+            var frameCharacters = textFrames[i].characters;
+            for (var j = 0; j < frameCharacters.length; j++) {
+                var fontTriple = getCharacterFontTriple(frameCharacters[j]);
+                var tripleKey = getFontTripleKey(fontTriple);
+                if (!seenKeys.hasOwnProperty(tripleKey)) {
                     seenKeys[tripleKey] = true;
-                    uniqueTriples.push(fontTriples[j]);
+                    uniqueTriples.push(fontTriple);
                 }
             }
         }
@@ -753,12 +631,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
+     * フォントの組の配列を、出てきた順に重複なく1つにまとめる
+     * @param {Object[][]} tripleLists - { psName, familyName, styleName } の配列の配列
+     * @returns {Object[]} まとめた配列
+     */
+    function mergeFontTriples(tripleLists) {
+        var seenKeys = {};
+        var mergedTriples = [];
+        for (var i = 0; i < tripleLists.length; i++) {
+            for (var j = 0; j < tripleLists[i].length; j++) {
+                var tripleKey = getFontTripleKey(tripleLists[i][j]);
+                if (!seenKeys.hasOwnProperty(tripleKey)) {
+                    seenKeys[tripleKey] = true;
+                    mergedTriples.push(tripleLists[i][j]);
+                }
+            }
+        }
+        return mergedTriples;
+    }
+
+    /**
+     * フォントの組の配列に、指定の PostScript 名があるか
+     * @param {Object[]} fontTriples - { psName, familyName, styleName } の配列
+     * @param {string} targetPSName - フォントの PostScript 名
+     * @returns {boolean} あれば true
+     */
+    function containsFont(fontTriples, targetPSName) {
+        for (var i = 0; i < fontTriples.length; i++) {
+            if (fontTriples[i].psName === targetPSName) return true;
+        }
+        return false;
+    }
+
+    /**
+     * テキストが指定のフォントを使っているか
+     * @param {TextFrame} textFrame - 調べるテキストフレーム
+     * @param {string} targetPSName - フォントの PostScript 名
+     * @returns {boolean} 使っていれば true
+     */
+    function usesFont(textFrame, targetPSName) {
+        var frameCharacters = textFrame.characters;
+        for (var i = 0; i < frameCharacters.length; i++) {
+            if (getCharacterFontTriple(frameCharacters[i]).psName === targetPSName) return true;
+        }
+        return false;
+    }
+
+    /**
      * 書き出し用に、フォントの行（「PostScript名  ファミリー名  スタイル名」）を並べ替えて返す
-     * @param {TextFrame[]} textFrames - テキストフレームの配列
+     * @param {Object[]} fontTriples - { psName, familyName, styleName } の配列
      * @returns {string[]} フォントの行
      */
-    function collectFontDisplayNamesFromFrames(textFrames) {
-        var fontTriples = collectUniqueFontTriples(textFrames);
+    function buildFontExportLines(fontTriples) {
         var fontLines = [];
         for (var i = 0; i < fontTriples.length; i++) {
             fontLines.push(fontTriples[i].psName + '  ' + fontTriples[i].familyName + (fontTriples[i].styleName ? ('  ' + fontTriples[i].styleName) : ''));
@@ -768,187 +692,197 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * 指定のフォントを使っているテキストを選択する（ドキュメント全体から探す）
+     * 指定のフォントを使っているテキストと、そのフォントを含むシンボルのインスタンスを選択する（ドキュメント全体から探す）
      * @param {Document} doc - 対象のドキュメント
      * @param {string} targetPSName - フォントの PostScript 名
+     * @param {Object[]} symbolEntries - ドキュメント全体のシンボル内テキスト（readSymbolTextEntries() の結果）
      * @returns {void}
      */
-    function selectTextFramesByFontMatch(doc, targetPSName) {
-        var textFrames = getScopedFramesForInfoTabs(doc);
-        var matchedFrames = [];
+    function selectItemsByFont(doc, targetPSName, symbolEntries) {
+        var textFrames = collectAllTextFrames(doc);
+        var matchedItems = [];
+        var matchedSymbols = [];
         var i;
 
-        if (!targetPSName) return;
-
         for (i = 0; i < textFrames.length; i++) {
-            if (getTextFrameFontNames(textFrames[i]).join('\n').indexOf(targetPSName) >= 0) {
-                matchedFrames.push(textFrames[i]);
+            if (usesFont(textFrames[i], targetPSName)) matchedItems.push(textFrames[i]);
+        }
+        for (i = 0; i < symbolEntries.length; i++) {
+            if (containsFont(symbolEntries[i].fontTriples, targetPSName) && indexOfItem(matchedSymbols, symbolEntries[i].symbol) === -1) {
+                matchedSymbols.push(symbolEntries[i].symbol);
+            }
+        }
+        if (matchedSymbols.length > 0) {
+            for (i = 0; i < doc.symbolItems.length; i++) {
+                if (indexOfItem(matchedSymbols, doc.symbolItems[i].symbol) !== -1) matchedItems.push(doc.symbolItems[i]);
             }
         }
 
-        try {
-            doc.selection = null;
-        } catch (e1) { }
-
-        if (matchedFrames.length === 0) {
+        doc.selection = null;
+        if (matchedItems.length === 0) {
             alert(getLabel('alert.noMatchingFontText'));
             return;
         }
 
-        for (i = 0; i < matchedFrames.length; i++) {
+        for (i = 0; i < matchedItems.length; i++) {
+            /* ロック・非表示のものは選択できない / Locked or hidden items cannot be selected */
             try {
-                matchedFrames[i].selected = true;
-            } catch (e2) { }
+                matchedItems[i].selected = true;
+            } catch (e) { }
         }
-
         app.redraw();
     }
 
     // =========================================
-    // 段落書式を保持した書き換え / Rewriting while keeping paragraph formatting
+    // 書式を保持した書き換え / Rewriting while keeping formatting
     // =========================================
 
-    /* 保持する段落のプロパティ / Paragraph properties to keep */
-    var PARAGRAPH_FORMAT_KEYS = [
-        'justification', 'firstLineIndent', 'leftIndent', 'rightIndent',
-        'spaceBefore', 'spaceAfter', 'hyphenation', 'hyphenationZone',
-        'desiredWordSpacing', 'minimumWordSpacing', 'maximumWordSpacing',
-        'desiredLetterSpacing', 'minimumLetterSpacing', 'maximumLetterSpacing',
-        'desiredGlyphScaling', 'minimumGlyphScaling', 'maximumGlyphScaling',
-        'singleWordJustification', 'everyLineComposer', 'kinsokuOrder',
-        'bunriKinshi', 'kurikaeshiMojiShori', 'romanHanging', 'mojikumi',
-        'kinsoku', 'leadingType'
-    ];
-
     /**
-     * オブジェクトのプロパティを読める分だけ控える
-     * @param {Object} sourceObject - 読み取り元
-     * @param {string[]} propertyNames - プロパティ名
-     * @returns {Object} 控えたプロパティ
-     */
-    function readProperties(sourceObject, propertyNames) {
-        var propertyValues = {};
-        for (var i = 0; i < propertyNames.length; i++) {
-            var propertyName = propertyNames[i];
-            try {
-                propertyValues[propertyName] = sourceObject[propertyName];
-            } catch (err) { }
-        }
-        return propertyValues;
-    }
-
-    /**
-     * 控えたプロパティを書ける分だけ書き戻す（undefined は飛ばす）
-     * @param {Object} propertyValues - readProperties() の結果
-     * @param {Object} targetObject - 書き込み先
-     * @param {string[]} propertyNames - プロパティ名
+     * 自身と親の非表示・ロックを一時的に解除し、元に戻すための記録を追加する
+     * @param {PageItem} pageItem - 対象のアイテム
+     * @param {Object[]} stateRecords - { target, propertyName, originalValue } の追加先
      * @returns {void}
      */
-    function writeProperties(propertyValues, targetObject, propertyNames) {
-        for (var i = 0; i < propertyNames.length; i++) {
-            var propertyName = propertyNames[i];
-            if (propertyValues[propertyName] === undefined) continue;
-            try {
-                targetObject[propertyName] = propertyValues[propertyName];
-            } catch (err) { }
+    function unlockAndRevealAncestors(pageItem, stateRecords) {
+        for (var node = pageItem; node && node.typename !== "Document"; node = node.parent) {
+            /* ロック中は表示を切り替えられないことがあるので、先にロックを外す / Unlock first, as a locked item may refuse to change visibility */
+            if (node.locked) {
+                stateRecords.push({ target: node, propertyName: "locked", originalValue: true });
+                node.locked = false;
+            }
+            if (node.typename === "Layer") {
+                if (!node.visible) {
+                    stateRecords.push({ target: node, propertyName: "visible", originalValue: false });
+                    node.visible = true;
+                }
+            } else if (node.hidden) {
+                stateRecords.push({ target: node, propertyName: "hidden", originalValue: true });
+                node.hidden = false;
+            }
         }
     }
 
     /**
-     * テキストの段落を返す
-     * @param {TextFrame} textFrame - 対象のテキストフレーム
-     * @returns {Object} 段落のコレクション（ストーリーが無ければ空配列）
+     * 一時的に変えた非表示・ロックを元に戻す（変えたときと逆の順に）
+     * @param {Object[]} stateRecords - unlockAndRevealAncestors() の記録
+     * @returns {void}
      */
-    function getParagraphs(textFrame) {
-        if (!textFrame || !textFrame.story) return [];
-        return textFrame.paragraphs;
+    function restoreItemStates(stateRecords) {
+        for (var i = stateRecords.length - 1; i >= 0; i--) {
+            stateRecords[i].target[stateRecords[i].propertyName] = stateRecords[i].originalValue;
+        }
     }
 
     /**
-     * オブジェクトとレイヤーを一時的に編集できる状態にして処理し、終わったら元に戻す
+     * 自身と親のグループ・レイヤーを一時的に編集できる状態にして処理し、終わったら元に戻す
      * @param {PageItem} pageItem - 対象のオブジェクト
      * @param {Function} editAction - 編集できる状態で行う処理
      * @returns {void}
      */
     function withTemporarilyEditableItem(pageItem, editAction) {
-        var targetLayer = null;
-        var originalItemLocked = null;
-        var originalItemHidden = null;
-        var originalLayerLocked = null;
-        var originalLayerVisible = null;
-
+        var stateRecords = [];
         try {
-            if (!pageItem) return;
-            targetLayer = pageItem.layer ? pageItem.layer : null;
-
-            originalItemLocked = pageItem.locked;
-            originalItemHidden = pageItem.hidden;
-            if (targetLayer) {
-                originalLayerLocked = targetLayer.locked;
-                originalLayerVisible = targetLayer.visible;
-            }
-
-            if (targetLayer) {
-                if (targetLayer.visible === false) targetLayer.visible = true;
-                if (targetLayer.locked) targetLayer.locked = false;
-            }
-            if (pageItem.hidden) pageItem.hidden = false;
-            if (pageItem.locked) pageItem.locked = false;
-
+            unlockAndRevealAncestors(pageItem, stateRecords);
             editAction();
         } finally {
-            /* 1つ戻せなくても残りは戻す / Keep restoring the rest even if one fails */
-            try {
-                if (pageItem && originalItemLocked !== null) pageItem.locked = originalItemLocked;
-            } catch (e) { }
-            try {
-                if (pageItem && originalItemHidden !== null) pageItem.hidden = originalItemHidden;
-            } catch (e) { }
-            try {
-                if (targetLayer && originalLayerLocked !== null) targetLayer.locked = originalLayerLocked;
-            } catch (e) { }
-            try {
-                if (targetLayer && originalLayerVisible !== null) targetLayer.visible = originalLayerVisible;
-            } catch (e) { }
+            restoreItemStates(stateRecords);
         }
     }
 
     /**
-     * テキストの内容を置き換える。段落書式を保持するときは段落単位の書式だけを控えて戻す（文字単位の書式は保持しない）
+     * 文字コードが UTF-16 の下位サロゲートか（絵文字などを途中で切らないための判定）
+     * @param {number} charCode - 文字コード
+     * @returns {boolean} 下位サロゲートなら true
+     */
+    function isLowSurrogate(charCode) {
+        return charCode >= 0xDC00 && charCode <= 0xDFFF;
+    }
+
+    /**
+     * 新旧の文字列を先頭と末尾から突き合わせ、変わった範囲を返す
+     * @param {string} oldText - 元の内容
+     * @param {string} newText - 新しい内容
+     * @returns {{start: number, oldEnd: number, newMiddle: string}} 元の内容で書き換える範囲 [start, oldEnd) と、そこに入る文字列
+     */
+    function findChangedRange(oldText, newText) {
+        var commonLimit = Math.min(oldText.length, newText.length);
+        var prefixLength = 0;
+        while (prefixLength < commonLimit && oldText.charAt(prefixLength) === newText.charAt(prefixLength)) {
+            prefixLength++;
+        }
+        /* サロゲートペアの間で切らない / Do not split a surrogate pair */
+        if (prefixLength > 0 && isLowSurrogate(oldText.charCodeAt(prefixLength))) prefixLength--;
+
+        var suffixLength = 0;
+        while (suffixLength < commonLimit - prefixLength &&
+            oldText.charAt(oldText.length - 1 - suffixLength) === newText.charAt(newText.length - 1 - suffixLength)) {
+            suffixLength++;
+        }
+        if (suffixLength > 0 && isLowSurrogate(oldText.charCodeAt(oldText.length - suffixLength))) suffixLength--;
+
+        return {
+            start: prefixLength,
+            oldEnd: oldText.length - suffixLength,
+            newMiddle: newText.substring(prefixLength, newText.length - suffixLength)
+        };
+    }
+
+    /**
+     * 変わった文字だけを書き換える（contents 全体を書き戻さないので、文字・段落の書式が残る）
+     * 挿入した文字は、行頭なら後ろの文字、それ以外は前の文字の書式を引き継ぐ
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {string} newText - 新しい内容
-     * @param {boolean} keepParagraphFormat - 段落書式を保持するなら true
      * @returns {void}
      */
-    function replaceContent(textFrame, newText, keepParagraphFormat) {
-        if (!/text/i.test(textFrame.typename)) return;
-
-        withTemporarilyEditableItem(textFrame, function () {
-            if (!keepParagraphFormat) {
-                textFrame.contents = newText;
-                return;
-            }
-
-            var paragraphs = getParagraphs(textFrame);
-            var paragraphSnapshots = [];
-
-            try {
-                for (var i = 0; i < paragraphs.length; i++) {
-                    paragraphSnapshots.push(readProperties(paragraphs[i], PARAGRAPH_FORMAT_KEYS));
-                }
-            } catch (err) { }
-
+    function replaceChangedCharacters(textFrame, newText) {
+        var oldText = textFrame.contents;
+        if (oldText === newText) return;
+        if (oldText.length === 0) {
             textFrame.contents = newText;
-            paragraphs = getParagraphs(textFrame);
+            return;
+        }
 
-            if (paragraphSnapshots.length === 0) {
-                return;
+        var changedRange = findChangedRange(oldText, newText);
+        var frameCharacters = textFrame.characters;
+
+        if (changedRange.start < changedRange.oldEnd) {
+            /* 右から消し、残した1文字目を新しい文字列に差し替える / Remove from the right, then replace the first changed character */
+            for (var i = changedRange.oldEnd - 1; i > changedRange.start; i--) {
+                frameCharacters[i].remove();
             }
+            if (changedRange.newMiddle) {
+                frameCharacters[changedRange.start].contents = changedRange.newMiddle;
+            } else {
+                frameCharacters[changedRange.start].remove();
+            }
+            return;
+        }
 
-            /* 段落が増えたら最後の段落の書式を使う / Extra paragraphs take the last snapshot */
-            for (var j = 0; j < paragraphs.length; j++) {
-                var paragraphSnapshot = paragraphSnapshots[j] ? paragraphSnapshots[j] : paragraphSnapshots[paragraphSnapshots.length - 1];
-                writeProperties(paragraphSnapshot, paragraphs[j], PARAGRAPH_FORMAT_KEYS);
+        /* 挿入だけのとき / Insertion only */
+        var previousChar = (changedRange.start > 0) ? oldText.charAt(changedRange.start - 1) : '';
+        var isLineStart = (previousChar === '' || /[\r\n\x03]/.test(previousChar));
+        if (isLineStart && changedRange.start < oldText.length) {
+            var nextCharacter = frameCharacters[changedRange.start];
+            nextCharacter.contents = changedRange.newMiddle + nextCharacter.contents;
+        } else {
+            var previousCharacter = frameCharacters[changedRange.start - 1];
+            previousCharacter.contents = previousCharacter.contents + changedRange.newMiddle;
+        }
+    }
+
+    /**
+     * テキストの内容を置き換える。書式を保持するときは変わった文字だけを書き換える
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} newText - 新しい内容
+     * @param {boolean} keepFormat - 文字・段落の書式を保持するなら true
+     * @returns {void}
+     */
+    function replaceTextContents(textFrame, newText, keepFormat) {
+        withTemporarilyEditableItem(textFrame, function () {
+            if (keepFormat) {
+                replaceChangedCharacters(textFrame, newText);
+            } else {
+                textFrame.contents = newText;
             }
         });
     }
@@ -960,13 +894,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     /**
      * 上から下へ、ほぼ同じ高さなら左から右へ並べ替える
      * @param {TextFrame[]} textFrames - 並べ替える配列（その場で並べ替える）
-     * @param {number} [tolerance] - 同じ高さとみなす差（省略時は POSITION_SORT_TOLERANCE）
      * @returns {void}
      */
-    function sortByPosition(textFrames, tolerance) {
-        if (!tolerance) tolerance = POSITION_SORT_TOLERANCE;
+    function sortByPosition(textFrames) {
         textFrames.sort(function (firstFrame, secondFrame) {
-            if (Math.abs(secondFrame.top - firstFrame.top) <= tolerance) {
+            if (Math.abs(secondFrame.top - firstFrame.top) <= POSITION_SORT_TOLERANCE) {
                 return firstFrame.left - secondFrame.left;
             }
             return secondFrame.top - firstFrame.top;
@@ -989,317 +921,294 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     // =========================================
-    // シンボル内テキスト収集 / Collect text inside symbols
+    // シンボル内のテキスト / Text in symbols
     // =========================================
 
     /**
-     * 作業レイヤーを探し、無ければ作る
+     * 配列の中でのオブジェクトの位置を返す（DOM の参照は === で比べられる）
+     * @param {Object[]} items - 探す配列
+     * @param {Object} target - 探すオブジェクト
+     * @returns {number} 位置。無ければ -1
+     */
+    function indexOfItem(items, target) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === target) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * アイテム内から指定した型のアイテムを再帰的に集める（グループ内も含む）
+     * @param {PageItem} pageItem - 調べるアイテム
+     * @param {string} typename - 集める型名
+     * @param {PageItem[]} foundItems - 見つかったアイテムの追加先
+     * @returns {void}
+     */
+    function collectItemsOfType(pageItem, typename, foundItems) {
+        if (pageItem.typename === typename) {
+            foundItems.push(pageItem);
+        } else if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                collectItemsOfType(pageItem.pageItems[i], typename, foundItems);
+            }
+        }
+    }
+
+    /**
+     * 範囲に入るシンボルインスタンスを、シンボルとアートボードの組ごとに1つずつ集める
      * @param {Document} doc - 対象のドキュメント
-     * @returns {{layer: Layer, created: boolean}} 作業レイヤーと、新しく作ったかどうか
-     */
-    function getOrCreateTempLayer(doc) {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
-                return { layer: doc.layers[i], created: false };
-            }
-        }
-        var tempLayer = doc.layers.add();
-        tempLayer.name = TEMP_LAYER_NAME;
-        tempLayer.note = TEMP_LAYER_NOTE;
-        return { layer: tempLayer, created: true };
-    }
-
-    /**
-     * 作業レイヤーの中身を空にする
-     * @param {Layer} tempLayer - 作業レイヤー
-     * @returns {void}
-     */
-    function clearTempLayer(tempLayer) {
-        if (!tempLayer) return;
-        try {
-            while (tempLayer.pageItems.length > 0) {
-                tempLayer.pageItems[0].remove();
-            }
-        } catch (e) { }
-    }
-
-    /**
-     * 作業レイヤーを空にして削除する
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {void}
-     */
-    function removeTempLayer(doc) {
-        for (var i = doc.layers.length - 1; i >= 0; i--) {
-            if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
-                clearTempLayer(doc.layers[i]);
-                try {
-                    doc.layers[i].remove();
-                } catch (e2) { }
-                break;
-            }
-        }
-    }
-
-    /**
-     * シンボルインスタンスを作業レイヤーの先頭へ複製する（選択は外す）
-     * @param {SymbolItem} symbolItem - 元のシンボルインスタンス
-     * @param {Layer} targetLayer - 作業レイヤー
-     * @returns {SymbolItem} 複製
-     */
-    function duplicateSymbolItemToLayer(symbolItem, targetLayer) {
-        var duplicateItem = symbolItem.duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING);
-        duplicateItem.selected = false;
-        return duplicateItem;
-    }
-
-    /**
-     * オブジェクト（グループなどは中まで）から空でないテキストフレームを集める
-     * @param {PageItem} pageItem - 対象のオブジェクト
-     * @param {TextFrame[]} collectedFrames - 集めたテキストフレームを入れる配列
-     * @returns {void}
-     */
-    function collectTextFramesFromItem(pageItem, collectedFrames) {
-        if (!pageItem) return;
-        if (!collectedFrames) return;
-
-        if (pageItem.typename === 'TextFrame') {
-            if (!isEmptyTextFrame(pageItem)) {
-                collectedFrames.push(pageItem);
-            }
-            return;
-        }
-
-        if (!pageItem.pageItems) return;
-        for (var i = 0; i < pageItem.pageItems.length; i++) {
-            collectTextFramesFromItem(pageItem.pageItems[i], collectedFrames);
-        }
-    }
-
-    /**
-     * オブジェクト群に含まれるテキストの内容を集める
-     * @param {PageItem[]} pageItems - 対象のオブジェクト
-     * @returns {string[]} テキストの内容
-     */
-    function extractTextContentsFromItems(pageItems) {
-        var textFrames = [];
-        var textContents = [];
-
-        for (var i = 0; i < pageItems.length; i++) {
-            collectTextFramesFromItem(pageItems[i], textFrames);
-        }
-
-        for (var j = 0; j < textFrames.length; j++) {
-            textContents.push(textFrames[j].contents);
-        }
-
-        return textContents;
-    }
-
-    /**
-     * オブジェクト群を削除する（削除できないものは飛ばす）
-     * @param {PageItem[]} pageItems - 削除するオブジェクト
-     * @returns {void}
-     */
-    function removeItems(pageItems) {
-        for (var i = pageItems.length - 1; i >= 0; i--) {
-            try {
-                if (pageItems[i] && pageItems[i].isValid !== false) {
-                    pageItems[i].remove();
-                }
-            } catch (e) { }
-        }
-    }
-
-    /**
-     * 処理のあと、元の選択に戻す
-     * @param {Document} doc - 対象のドキュメント
-     * @param {Function} selectionAction - 選択を変える処理
-     * @returns {void}
-     */
-    function withSelectionRestored(doc, selectionAction) {
-        var previousSelection = [];
-        try {
-            for (var i = 0; i < doc.selection.length; i++) {
-                previousSelection.push(doc.selection[i]);
-            }
-        } catch (e) { }
-
-        try {
-            selectionAction();
-        } finally {
-            try {
-                doc.selection = null;
-            } catch (e2) { }
-            for (var j = 0; j < previousSelection.length; j++) {
-                try {
-                    previousSelection[j].selected = true;
-                } catch (e3) { }
-            }
-        }
-    }
-
-    /**
-     * シンボルインスタンスが範囲に入るか
-     * @param {Document} doc - 対象のドキュメント
-     * @param {SymbolItem} symbolItem - 調べるシンボルインスタンス
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @param {number} activeArtboardIndex - 現在のアートボードの番号
-     * @returns {boolean} 範囲に入れば true
+     * @returns {Object[]} { symbol, artboardIndex } の配列
      */
-    function isSymbolItemInScope(doc, symbolItem, scopeMode, activeArtboardIndex) {
-        var artboardIndex = getItemArtboardIndex(doc, symbolItem);
-        if (scopeMode === 'current') {
-            return artboardIndex === activeArtboardIndex;
-        }
-        if (scopeMode === 'allArtboards') {
-            return artboardIndex >= 0;
-        }
-        return true;
-    }
-
-    /**
-     * 範囲に入るシンボルインスタンスを、シンボル名とアートボードの組ごとに1つずつ集める
-     * @param {Document} doc - 対象のドキュメント
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
-     * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { item, symbolName, artboardIndex } の配列
-     */
-    function collectScopedSymbolItems(doc, collectOptions, scopeMode) {
+    function collectScopedSymbolPlacements(doc, collectOptions, scopeMode) {
         var symbolItems = doc.symbolItems;
         var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
-        var scopedSymbolItems = [];
-        var processedKeys = {};
+        var placements = [];
+        var seenSymbols = [];     /* 出てきたシンボル / Symbols seen so far */
+        var seenArtboards = [];   /* シンボルごとに見たアートボード番号 / Artboard indexes seen per symbol */
 
         for (var i = 0; i < symbolItems.length; i++) {
             var symbolItem = symbolItems[i];
-            var symbolName = '';
-
-            if (!symbolItem || symbolItem.isValid === false) continue;
             if (!collectOptions.includeComment && isCommentLayer(symbolItem)) continue;
             if (!isCollectable(symbolItem, collectOptions)) continue;
-            if (!isSymbolItemInScope(doc, symbolItem, scopeMode, activeArtboardIndex)) continue;
-
-            try {
-                symbolName = symbolItem.symbol.name;
-            } catch (e) { }
-            if (!symbolName) continue;
 
             var artboardIndex = getItemArtboardIndex(doc, symbolItem);
-            var processKey = symbolName + '||' + artboardIndex;
-            if (processedKeys[processKey]) continue;
+            if (!isArtboardIndexInScope(scopeMode, artboardIndex, activeArtboardIndex)) continue;
 
-            processedKeys[processKey] = true;
-            scopedSymbolItems.push({
-                item: symbolItem,
-                symbolName: symbolName,
-                artboardIndex: artboardIndex
-            });
+            var symbolIndex = indexOfItem(seenSymbols, symbolItem.symbol);
+            if (symbolIndex === -1) {
+                symbolIndex = seenSymbols.length;
+                seenSymbols.push(symbolItem.symbol);
+                seenArtboards.push({});
+            }
+            if (seenArtboards[symbolIndex].hasOwnProperty(artboardIndex)) continue;
+            seenArtboards[symbolIndex][artboardIndex] = true;
+            placements.push({ symbol: symbolItem.symbol, artboardIndex: artboardIndex });
         }
-
-        return scopedSymbolItems;
+        return placements;
     }
 
     /**
-     * シンボルインスタンスを作業レイヤーに複製してリンクを解除し、中のテキストを1件ずつ渡す
+     * 配置の一覧から、シンボルを出てきた順に重複なく取り出す
+     * @param {Object[]} placements - collectScopedSymbolPlacements() の結果
+     * @returns {Symbol[]} シンボルの配列
+     */
+    function getUniqueSymbols(placements) {
+        var uniqueSymbols = [];
+        for (var i = 0; i < placements.length; i++) {
+            if (indexOfItem(uniqueSymbols, placements[i].symbol) === -1) uniqueSymbols.push(placements[i].symbol);
+        }
+        return uniqueSymbols;
+    }
+
+    /**
+     * 選択（配列でない TextRange などを含む）をアイテムの配列にする
+     * @param {Object} selection - doc.selection
+     * @returns {PageItem[]} アイテムの配列。選択が無ければ空
+     */
+    function toItemArray(selection) {
+        var items = [];
+        if (!selection || !selection.length) return items;
+        for (var i = 0; i < selection.length; i++) {
+            items.push(selection[i]);
+        }
+        return items;
+    }
+
+    /**
+     * 作業レイヤーを作って処理を実行し、終わったら作業レイヤーを消して選択とアクティブレイヤーを戻す
      * @param {Document} doc - 対象のドキュメント
-     * @param {Object[]} scopedItems - collectScopedSymbolItems() の結果
-     * @param {Function} onText - (symbolName, artboardIndex, text) を受け取る関数
+     * @param {Function} work - (workLayer) を受け取る処理
      * @returns {void}
      */
-    function collectTextsFromScopedSymbolItems(doc, scopedItems, onText) {
-        if (!scopedItems || scopedItems.length === 0) {
-            return;
-        }
-
-        var tempInfo = getOrCreateTempLayer(doc);
-        var tempLayer = tempInfo.layer;
-        clearTempLayer(tempLayer);
-
-        withSelectionRestored(doc, function () {
-            for (var index = scopedItems.length - 1; index >= 0; index--) {
-                var scopedEntry = scopedItems[index];
-                var symbolItem = scopedEntry.item;
-                var brokenItems = [];
-
-                if (!symbolItem || symbolItem.isValid === false) continue;
-
-                try {
-                    var workingSymbolItem = duplicateSymbolItemToLayer(symbolItem, tempLayer);
-                    try {
-                        doc.selection = null;
-                    } catch (e2) { }
-                    workingSymbolItem.selected = true;
-                    workingSymbolItem.breakLink();
-
-                    /* リンク解除でできたものは選択に残る / breakLink leaves its result selected */
-                    try {
-                        for (var s = 0; s < doc.selection.length; s++) {
-                            brokenItems.push(doc.selection[s]);
-                        }
-                    } catch (e3) { }
-
-                    if (brokenItems.length > 0) {
-                        var textContents = extractTextContentsFromItems(brokenItems);
-                        for (var t = 0; t < textContents.length; t++) {
-                            onText(scopedEntry.symbolName, scopedEntry.artboardIndex, textContents[t]);
-                        }
-                        removeItems(brokenItems);
-                    }
-                } catch (e4) {
-                } finally {
-                    try {
-                        doc.selection = null;
-                    } catch (e5) { }
-                }
-            }
-        });
-
-        clearTempLayer(tempLayer);
-        if (tempInfo.created) {
-            removeTempLayer(doc);
-        }
+    function withSymbolWorkLayer(doc, work) {
+        var savedSelection = toItemArray(doc.selection);
+        var savedActiveLayer = doc.activeLayer;
+        var workLayer = doc.layers.add();
+        workLayer.name = WORK_LAYER_NAME;
         try {
+            work(workLayer);
+        } finally {
+            workLayer.remove();
+            doc.activeLayer = savedActiveLayer;
             doc.selection = null;
-        } catch (e6) { }
+            for (var i = 0; i < savedSelection.length; i++) {
+                /* ロック・非表示になったものや文字の選択は戻せない / Locked, hidden or text selections cannot be restored */
+                try {
+                    savedSelection[i].selected = true;
+                } catch (e) { }
+            }
+        }
     }
 
     /**
-     * シンボル内テキスト一覧用に「シンボル名：内容」を集める
+     * シンボルの中身を作業レイヤーに展開し、1つのグループにまとめて返す
      * @param {Document} doc - 対象のドキュメント
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
-     * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {string[]} 一覧の行
+     * @param {Symbol} symbol - 展開するシンボル
+     * @param {Layer} workLayer - 作業レイヤー（空であること）
+     * @returns {GroupItem} シンボルの中身をまとめたグループ
      */
-    function collectSymbolTexts(doc, collectOptions, scopeMode) {
-        var symbolLines = [];
-        var scopedItems = collectScopedSymbolItems(doc, collectOptions, scopeMode);
+    function expandSymbolToGroup(doc, symbol, workLayer) {
+        doc.activeLayer = workLayer;
+        var workInstance = doc.symbolItems.add(symbol);
+        doc.selection = null;
+        workInstance.selected = true;
+        workInstance.breakLink();
 
-        collectTextsFromScopedSymbolItems(doc, scopedItems, function (symbolName, artboardIndex, text) {
-            symbolLines.push(symbolName + getLabel('format.symbolSeparator') + text.replace(/[\r\n]+/g, ' '));
+        /* 解除の生成物はページアイテムかサブレイヤーのどちらかで出るので、作業レイヤーの中身を全部まとめる
+           breakLink yields page items or a sublayer, so gather everything on the work layer */
+        var contentGroup = workLayer.groupItems.add();
+        var i;
+        for (i = workLayer.pageItems.length - 1; i >= 0; i--) {
+            if (workLayer.pageItems[i] !== contentGroup) workLayer.pageItems[i].move(contentGroup, ElementPlacement.PLACEATEND);
+        }
+        for (i = workLayer.layers.length - 1; i >= 0; i--) {
+            var subLayer = workLayer.layers[i];
+            while (subLayer.pageItems.length > 0) {
+                subLayer.pageItems[0].move(contentGroup, ElementPlacement.PLACEATEND);
+            }
+            subLayer.remove();
+        }
+        return contentGroup;
+    }
+
+    /**
+     * 展開したシンボルのテキストフレームを返す（並びは書き換え時の番号と一致する）
+     * @param {GroupItem} contentGroup - expandSymbolToGroup() の結果
+     * @returns {TextFrame[]} テキストフレームの配列
+     */
+    function getSymbolTextFrames(contentGroup) {
+        var symbolFrames = [];
+        collectItemsOfType(contentGroup, "TextFrame", symbolFrames);
+        return symbolFrames;
+    }
+
+    /**
+     * シンボル内の空でないテキストを集める（ドキュメントは変えない）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Symbol[]} targetSymbols - 対象のシンボル
+     * @returns {Object[]} { symbol, symbolName, frameIndex, contents, fontTriples } の配列
+     */
+    function readSymbolTextEntries(doc, targetSymbols) {
+        var symbolEntries = [];
+        if (targetSymbols.length === 0) return symbolEntries;
+        withSymbolWorkLayer(doc, function (workLayer) {
+            for (var i = 0; i < targetSymbols.length; i++) {
+                var contentGroup = expandSymbolToGroup(doc, targetSymbols[i], workLayer);
+                var symbolFrames = getSymbolTextFrames(contentGroup);
+                for (var j = 0; j < symbolFrames.length; j++) {
+                    if (isEmptyTextFrame(symbolFrames[j])) continue;
+                    symbolEntries.push({
+                        symbol: targetSymbols[i],
+                        symbolName: targetSymbols[i].name,
+                        frameIndex: j,
+                        contents: symbolFrames[j].contents,
+                        fontTriples: collectUniqueFontTriples([symbolFrames[j]])
+                    });
+                }
+                contentGroup.remove();
+            }
         });
+        return symbolEntries;
+    }
 
-        return symbolLines;
+    /**
+     * シンボル内テキスト一覧用に、範囲に入るシンボルのテキストを集める
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
+     * @param {string} scopeMode - "all" / "allArtboards" / "current"
+     * @returns {Object[]} { symbol, symbolName, frameIndex, contents, fontTriples } の配列
+     */
+    function collectSymbolTextEntries(doc, collectOptions, scopeMode) {
+        var placements = collectScopedSymbolPlacements(doc, collectOptions, scopeMode);
+        return readSymbolTextEntries(doc, getUniqueSymbols(placements));
     }
 
     /**
      * 書き出し用に、シンボル内テキストを「内容〈シンボル：名前〉」の形でアートボード番号つきで集める
      * @param {Document} doc - 対象のドキュメント
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { artboardIndex, text } の配列
+     * @returns {Object[]} { artboardIndex, text, fontTriples } の配列
      */
     function collectSymbolTextsByArtboard(doc, collectOptions, scopeMode) {
-        var symbolEntries = [];
-        var scopedItems = collectScopedSymbolItems(doc, collectOptions, scopeMode);
+        var placements = collectScopedSymbolPlacements(doc, collectOptions, scopeMode);
+        var symbolEntries = readSymbolTextEntries(doc, getUniqueSymbols(placements));
+        var exportEntries = [];
 
-        collectTextsFromScopedSymbolItems(doc, scopedItems, function (symbolName, artboardIndex, text) {
-            symbolEntries.push({
-                artboardIndex: artboardIndex,
-                text: text + getLabel('format.symbolSuffix').split('{symbolName}').join(symbolName)
-            });
+        for (var i = 0; i < placements.length; i++) {
+            for (var j = 0; j < symbolEntries.length; j++) {
+                if (symbolEntries[j].symbol !== placements[i].symbol) continue;
+                exportEntries.push({
+                    artboardIndex: placements[i].artboardIndex,
+                    text: symbolEntries[j].contents + getLabel('format.symbolSuffix').split('{symbolName}').join(symbolEntries[j].symbolName),
+                    fontTriples: symbolEntries[j].fontTriples
+                });
+            }
+        }
+        return exportEntries;
+    }
+
+    /**
+     * 新しいシンボルを作り、元のシンボルのインスタンスをすべて差し替えて、元のシンボルと入れ替える
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Symbol} oldSymbol - 元のシンボル
+     * @param {GroupItem} contentGroup - 新しい定義にするアート
+     * @returns {boolean} 差し替えられたら true
+     */
+    function replaceSymbolDefinition(doc, oldSymbol, contentGroup) {
+        var newSymbol = doc.symbols.add(contentGroup);
+        var swappedItems = [];
+        /* 編集できないインスタンスがあれば、差し替えた分を戻して新しいシンボルを消す / If an instance cannot be edited, undo the swaps and drop the new symbol */
+        try {
+            for (var i = 0; i < doc.symbolItems.length; i++) {
+                var symbolItem = doc.symbolItems[i];
+                if (symbolItem.symbol !== oldSymbol) continue;
+                var stateRecords = [];
+                try {
+                    unlockAndRevealAncestors(symbolItem, stateRecords);
+                    symbolItem.symbol = newSymbol;
+                    swappedItems.push(symbolItem);
+                } finally {
+                    restoreItemStates(stateRecords);
+                }
+            }
+        } catch (e) {
+            for (var j = 0; j < swappedItems.length; j++) swappedItems[j].symbol = oldSymbol;
+            newSymbol.remove();
+            return false;
+        }
+
+        var symbolName = oldSymbol.name;
+        /* 別のシンボルの中から使われていると消せないので、そのときは元のシンボルを残す / An old symbol used inside another symbol cannot be removed, so keep it */
+        try {
+            oldSymbol.remove();
+            newSymbol.name = symbolName;
+        } catch (e) { }
+        return true;
+    }
+
+    /**
+     * シンボル内のテキストを書き換え、シンボルの定義を差し替える
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} symbolEntry - readSymbolTextEntries() の要素
+     * @param {string} newText - 新しい内容
+     * @param {boolean} keepFormat - 文字・段落の書式を保持するなら true
+     * @returns {boolean} 差し替えられたら true
+     */
+    function replaceSymbolText(doc, symbolEntry, newText, keepFormat) {
+        var isReplaced = false;
+        withSymbolWorkLayer(doc, function (workLayer) {
+            var contentGroup = expandSymbolToGroup(doc, symbolEntry.symbol, workLayer);
+            var targetFrame = getSymbolTextFrames(contentGroup)[symbolEntry.frameIndex];
+            if (targetFrame) {
+                replaceTextContents(targetFrame, newText, keepFormat);
+                isReplaced = replaceSymbolDefinition(doc, symbolEntry.symbol, contentGroup);
+            }
+            contentGroup.remove();
         });
-
-        return symbolEntries;
+        return isReplaced;
     }
 
     // =========================================
@@ -1320,20 +1229,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             outsideGroup: { name: getLabel('fallbackName.outsideArtboards'), items: [] }
         };
 
-        if (scopeMode === 'current') {
-            artboardGroups.groups.push({
-                name: getArtboardDisplayName(doc, artboardGroups.activeArtboardIndex),
-                items: []
-            });
-            artboardGroups.groupIndexMap[artboardGroups.activeArtboardIndex] = 0;
-        } else {
-            for (var i = 0; i < doc.artboards.length; i++) {
-                artboardGroups.groupIndexMap[i] = artboardGroups.groups.length;
-                artboardGroups.groups.push({
-                    name: getArtboardDisplayName(doc, i),
-                    items: []
-                });
-            }
+        for (var i = 0; i < doc.artboards.length; i++) {
+            if (scopeMode === 'current' && i !== artboardGroups.activeArtboardIndex) continue;
+            artboardGroups.groupIndexMap[i] = artboardGroups.groups.length;
+            artboardGroups.groups.push({ name: getArtboardExportHeading(doc, i), items: [] });
         }
         return artboardGroups;
     }
@@ -1343,109 +1242,118 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {Object} artboardGroups - createArtboardGroups() の結果
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
      * @param {number} artboardIndex - 値のあるアートボードの番号（どこにも無ければ -1）
-     * @param {*} itemValue - 振り分ける値
+     * @param {Object} exportItem - 振り分ける値（{ text, textFrame }）
      * @returns {void}
      */
-    function addToArtboardGroup(artboardGroups, scopeMode, artboardIndex, itemValue) {
-        if (scopeMode === 'current') {
-            if (artboardIndex === artboardGroups.activeArtboardIndex) {
-                artboardGroups.groups[artboardGroups.groupIndexMap[artboardIndex]].items.push(itemValue);
-            }
-        } else if (artboardIndex >= 0) {
-            artboardGroups.groups[artboardGroups.groupIndexMap[artboardIndex]].items.push(itemValue);
-        } else if (scopeMode !== 'allArtboards') {
-            artboardGroups.outsideGroup.items.push(itemValue);
+    function addToArtboardGroup(artboardGroups, scopeMode, artboardIndex, exportItem) {
+        if (artboardGroups.groupIndexMap.hasOwnProperty(artboardIndex)) {
+            artboardGroups.groups[artboardGroups.groupIndexMap[artboardIndex]].items.push(exportItem);
+        } else if (scopeMode === 'all' && artboardIndex < 0) {
+            artboardGroups.outsideGroup.items.push(exportItem);
         }
     }
 
     /**
-     * アートボードのグループを確定する（ドキュメント全体でアートボード外があれば末尾に加える）
-     * @param {Object} artboardGroups - createArtboardGroups() の結果
+     * 書き出すテキスト（テキストフレームとシンボル内テキスト）をアートボードごとにまとめる
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object} exportSettings - { includeText, includeFonts, openAfter }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { name, items } の配列
+     * @returns {Object[]} { name, items（{ text, textFrame, fontTriples }） } の配列
      */
-    function finishArtboardGroups(artboardGroups, scopeMode) {
-        if (scopeMode === 'all' && artboardGroups.outsideGroup.items.length > 0) {
+    function collectExportGroups(doc, exportSettings, collectOptions, scopeMode) {
+        var artboardGroups = createArtboardGroups(doc, scopeMode);
+        var textFrames = collectFramesByScope(doc, scopeMode, collectOptions);
+        var i;
+
+        for (i = 0; i < textFrames.length; i++) {
+            addToArtboardGroup(artboardGroups, scopeMode, getItemArtboardIndex(doc, textFrames[i]),
+                { text: textFrames[i].contents, textFrame: textFrames[i], fontTriples: null });
+        }
+        /* シンボルの展開は重いので、書き出すものがあるときだけ / Expanding symbols is slow, so only when something is exported */
+        if ((exportSettings.includeText || exportSettings.includeFonts) && collectOptions.includeSymbols) {
+            var symbolEntries = collectSymbolTextsByArtboard(doc, collectOptions, scopeMode);
+            for (i = 0; i < symbolEntries.length; i++) {
+                addToArtboardGroup(artboardGroups, scopeMode, symbolEntries[i].artboardIndex,
+                    { text: symbolEntries[i].text, textFrame: null, fontTriples: symbolEntries[i].fontTriples });
+            }
+        }
+
+        if (artboardGroups.outsideGroup.items.length > 0) {
             artboardGroups.groups.push(artboardGroups.outsideGroup);
         }
         return artboardGroups.groups;
     }
 
     /**
-     * 書き出すテキスト（テキストフレームとシンボル内テキスト）をアートボードごとにまとめる
-     * @param {Document} doc - 対象のドキュメント
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
-     * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { name, items（テキストの内容） } の配列
-     */
-    function collectArtboardGroupedExportData(doc, collectOptions, scopeMode) {
-        var textFrames = collectFramesByScope(doc, scopeMode, collectOptions);
-        var symbolEntries = collectSymbolTextsByArtboard(doc, collectOptions, scopeMode);
-        var artboardGroups = createArtboardGroups(doc, scopeMode);
-        var i;
-
-        for (i = 0; i < textFrames.length; i++) {
-            addToArtboardGroup(artboardGroups, scopeMode, getItemArtboardIndex(doc, textFrames[i]), textFrames[i].contents);
-        }
-        for (i = 0; i < symbolEntries.length; i++) {
-            addToArtboardGroup(artboardGroups, scopeMode, symbolEntries[i].artboardIndex, symbolEntries[i].text);
-        }
-        return finishArtboardGroups(artboardGroups, scopeMode);
-    }
-
-    /**
-     * フォント名を書き出すためのテキストフレームをアートボードごとにまとめる
-     * @param {Document} doc - 対象のドキュメント
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
-     * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { name, items（テキストフレーム） } の配列
-     */
-    function collectArtboardGroupedFontFrames(doc, collectOptions, scopeMode) {
-        var textFrames = collectFramesByScope(doc, scopeMode, collectOptions);
-        var artboardGroups = createArtboardGroups(doc, scopeMode);
-
-        for (var i = 0; i < textFrames.length; i++) {
-            addToArtboardGroup(artboardGroups, scopeMode, getItemArtboardIndex(doc, textFrames[i]), textFrames[i]);
-        }
-        return finishArtboardGroups(artboardGroups, scopeMode);
-    }
-
-    /**
      * 書き出すテキストをアートボードごとに組み立てる
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} exportSettings - { includeText, includeFonts, openAfter }
-     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden }
+     * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
      * @returns {string} 書き出す内容
      */
     function buildExportText(doc, exportSettings, collectOptions, scopeMode) {
-        var artboardGroups = collectArtboardGroupedExportData(doc, collectOptions, scopeMode);
-        var artboardFontGroups = collectArtboardGroupedFontFrames(doc, collectOptions, scopeMode);
+        var exportGroups = collectExportGroups(doc, exportSettings, collectOptions, scopeMode);
         var exportLines = [];
 
-        for (var i = 0; i < artboardGroups.length; i++) {
+        for (var i = 0; i < exportGroups.length; i++) {
+            var groupItems = exportGroups[i].items;
             if (i > 0) exportLines.push('');
-            exportLines.push('---' + artboardGroups[i].name + '---');
+            exportLines.push('---' + exportGroups[i].name + '---');
 
             if (exportSettings.includeText) {
                 exportLines.push('[Text]');
-                for (var j = 0; j < artboardGroups[i].items.length; j++) {
-                    exportLines.push(artboardGroups[i].items[j]);
+                for (var j = 0; j < groupItems.length; j++) {
+                    exportLines.push(groupItems[j].text);
                 }
                 exportLines.push('');
             }
 
             if (exportSettings.includeFonts) {
-                exportLines.push('[Font Names]');
-                var fontLines = collectFontDisplayNamesFromFrames(artboardFontGroups[i].items);
-                for (var k = 0; k < fontLines.length; k++) {
-                    exportLines.push(fontLines[k]);
+                /* テキストフレームは文字から、シンボル内テキストは集めた組から / Frames are read per character, symbols use collected triples */
+                var groupFrames = [];
+                var tripleLists = [];
+                for (var k = 0; k < groupItems.length; k++) {
+                    if (groupItems[k].textFrame) groupFrames.push(groupItems[k].textFrame);
+                    if (groupItems[k].fontTriples) tripleLists.push(groupItems[k].fontTriples);
                 }
+                tripleLists.unshift(collectUniqueFontTriples(groupFrames));
+                exportLines.push('[Font Names]');
+                exportLines = exportLines.concat(buildFontExportLines(mergeFontTriples(tripleLists)));
                 exportLines.push('');
             }
         }
 
         return exportLines.join('\n');
+    }
+
+    /**
+     * 書き出すファイルのパス（デスクトップの text-<ドキュメント名>-<日時>.txt）を返す
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {string} ファイルのパス
+     */
+    function buildExportFilePath(doc) {
+        var documentBaseName = doc.name.replace(/\.[^\.]+$/, '');
+        return Folder.desktop.fsName + '/text-' + sanitizeFileName(documentBaseName) + '-' + getDateTimeStamp() + '.txt';
+    }
+
+    /**
+     * UTF-8・LF でテキストファイルを書き出す
+     * @param {string} filePath - 書き出すパス
+     * @param {string} fileContent - 書き出す内容
+     * @returns {File} 書き出したファイル
+     */
+    function writeTextFile(filePath, fileContent) {
+        var exportFile = new File(filePath);
+        exportFile.encoding = 'UTF-8';
+        exportFile.lineFeed = 'Unix';
+        if (!exportFile.open('w')) {
+            throw new Error('open failed: ' + filePath);
+        }
+        exportFile.write(fileContent);
+        exportFile.close();
+        return exportFile;
     }
 
     /**
@@ -1457,15 +1365,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         exportDialog.orientation = 'column';
         exportDialog.alignChildren = ['fill', 'top'];
 
-        var optionsPanel = exportDialog.add('panel', undefined, getLabel('dialog.exportOptions'));
-        optionsPanel.orientation = 'column';
-        optionsPanel.alignChildren = ['left', 'top'];
-        optionsPanel.margins = EXPORT_PANEL_MARGINS;
+        var exportContentPanel = exportDialog.add('panel', undefined, getLabel('panel.exportContent'));
+        exportContentPanel.orientation = 'column';
+        exportContentPanel.alignChildren = ['left', 'top'];
+        exportContentPanel.margins = EXPORT_PANEL_MARGINS;
 
-        var cbExportText = optionsPanel.add('checkbox', undefined, getLabel('checkbox.exportIncludeText'));
+        var cbExportText = exportContentPanel.add('checkbox', undefined, getLabel('checkbox.exportIncludeText'));
         cbExportText.value = true;
 
-        var cbExportFonts = optionsPanel.add('checkbox', undefined, getLabel('checkbox.exportIncludeFonts'));
+        var cbExportFonts = exportContentPanel.add('checkbox', undefined, getLabel('checkbox.exportIncludeFonts'));
         cbExportFonts.value = true;
 
         /* 「書き出し後にファイルを開く」はパネルの外に置く / "Open file after export" sits below the panel */
@@ -1492,15 +1400,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         };
     }
 
-    /**
-     * 書き出すファイルのパス（デスクトップの text-<ドキュメント名>-<日時>.txt）を返す
-     * @param {Document} doc - 対象のドキュメント
-     * @returns {string} ファイルのパス
-     */
-    function buildExportFilePath(doc) {
-        return Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateTimeStamp() + '.txt';
-    }
-
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -1520,20 +1419,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
+     * チェックボックスを追加し、初期値と tooltip を設定する
+     * @param {Object} parentContainer - 追加先
+     * @param {string} name - LABELS.checkbox のキー（tooltip も同じキーがあれば付ける）
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addCheckbox(parentContainer, name, initialValue) {
+        var checkbox = parentContainer.add("checkbox", undefined, getLabel("checkbox." + name));
+        checkbox.value = initialValue;
+        if (LABELS.tooltip.hasOwnProperty(name)) checkbox.helpTip = getLabel("tooltip." + name);
+        return checkbox;
+    }
+
+    /**
      * 名前一覧用のタブ（見出し＋横並びの切り替え）を追加する
-     * @param {TabbedPanel} infoTabs - 追加先
+     * @param {TabbedPanel} dialogTabs - 追加先
      * @param {string} tabLabelPath - タブ名の LABELS パス
      * @param {string} headingLabelPath - 見出しの LABELS パス
      * @returns {{tab: Tab, choiceRow: Group}} 追加したタブと、切り替えを並べる行
      */
-    function addInfoTab(infoTabs, tabLabelPath, headingLabelPath) {
-        var infoTab = infoTabs.add("tab", undefined, getLabel(tabLabelPath));
+    function addInfoTab(dialogTabs, tabLabelPath, headingLabelPath) {
+        var infoTab = dialogTabs.add("tab", undefined, getLabel(tabLabelPath));
         infoTab.orientation = "column";
         infoTab.alignChildren = ["fill", "top"];
         infoTab.margins = INFO_TAB_MARGINS;
         infoTab.spacing = INFO_TAB_SPACING;
 
-        infoTab.add("statictext", undefined, getLabel(headingLabelPath));
+        infoTab.add("statictext", undefined, labelText(headingLabelPath));
 
         var choiceRow = infoTab.add("group");
         choiceRow.orientation = "row";
@@ -1554,66 +1467,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * ［カンバス］タブの左カラム（テキスト一覧・編集欄・シンボル内テキスト）を組む
-     * @param {Group} mainGroup - 追加先
+     * ［テキスト］タブの左カラム（テキスト一覧・編集欄）を組む
+     * @param {Group} editColumnsGroup - 追加先
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
      * @returns {void}
      */
-    function buildTextColumn(mainGroup, dialogControls) {
-        var textColumn = mainGroup.add("group");
+    function buildTextColumn(editColumnsGroup, dialogControls) {
+        var textColumn = editColumnsGroup.add("group");
         textColumn.orientation = "column";
         textColumn.alignChildren = ["fill", "fill"];
 
-        textColumn.add("statictext", undefined, getLabel("fieldLabel.textList"));
+        textColumn.add("statictext", undefined, labelText("fieldLabel.textList"));
         dialogControls.textListBox = textColumn.add("listbox", TEXT_LIST_BOUNDS, []);
-        textColumn.add("statictext", undefined, getLabel("fieldLabel.textEdit"));
+        dialogControls.textListBox.helpTip = getLabel("tooltip.textList");
+
+        textColumn.add("statictext", undefined, labelText("fieldLabel.textEdit"));
         dialogControls.textEditBox = textColumn.add("edittext", TEXT_EDIT_BOUNDS, "", { multiline: true, scrolling: true });
         dialogControls.textEditBox.helpTip = getLabel("tooltip.textEdit").replace("{softBreak}", SOFT_BREAK);
 
-        textColumn.add("statictext", undefined, getLabel("fieldLabel.symbolText"));
-        dialogControls.symbolListBox = textColumn.add("listbox", [0, 0, SYMBOL_LIST_WIDTH, SYMBOL_LIST_MIN_ROWS * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT], []);
-        dialogControls.symbolListBox.alignment = ["fill", "fill"];
+        var updateButtonRow = textColumn.add("group");
+        updateButtonRow.orientation = "row";
+        updateButtonRow.alignment = ["right", "top"];
+        updateButtonRow.alignChildren = ["right", "center"];
+        dialogControls.btnUpdateText = updateButtonRow.add("button", undefined, getLabel("button.updateText"));
+        dialogControls.btnUpdateText.helpTip = getLabel("tooltip.updateText");
     }
 
     /**
-     * ［カンバス］タブの右カラム（対象・レイヤー・ソート・オプション）を組む
-     * @param {Group} mainGroup - 追加先
+     * ［対象範囲］パネル（現在／すべてのアートボード・アートボード外）を組む
+     * @param {Group} scopeColumn - 追加先
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
      * @returns {void}
      */
-    function buildScopeColumn(mainGroup, dialogControls) {
-        var scopeColumn = mainGroup.add("group");
-        scopeColumn.orientation = "column";
-        scopeColumn.alignChildren = ["fill", "top"];
-
-        /* 対象テキストパネル / Target text panel */
-        var targetPanel = addScopePanel(scopeColumn, "panel.targetText");
-        var artboardRadioGroup = targetPanel.add("group");
-        artboardRadioGroup.orientation = "column";
-        artboardRadioGroup.alignChildren = ["left", "top"];
-        dialogControls.rbCurrentArtboard = artboardRadioGroup.add("radiobutton", undefined, getLabel("radio.currentArtboard"));
-        dialogControls.rbAllArtboards = artboardRadioGroup.add("radiobutton", undefined, getLabel("radio.allArtboards"));
+    function addArtboardScopePanel(scopeColumn, dialogControls) {
+        var artboardScopePanel = addScopePanel(scopeColumn, "panel.artboardScope");
+        dialogControls.rbCurrentArtboard = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.currentArtboard"));
+        dialogControls.rbAllArtboards = artboardScopePanel.add("radiobutton", undefined, getLabel("radio.allArtboards"));
         dialogControls.rbCurrentArtboard.value = true;
 
-        var wholeDocumentRow = targetPanel.add("group");
-        wholeDocumentRow.orientation = "row";
-        dialogControls.cbWholeDocument = wholeDocumentRow.add("checkbox", undefined, getLabel("checkbox.wholeDocument"));
-        dialogControls.cbWholeDocument.value = false;
+        dialogControls.cbWholeDocument = addCheckbox(artboardScopePanel, "wholeDocument", false);
         dialogControls.cbWholeDocument.enabled = false;
-        dialogControls.cbWholeDocument.helpTip = getLabel("tooltip.wholeDocument");
+    }
 
-        /* レイヤーなどの条件 / Layer conditions */
-        var layerPanel = addScopePanel(scopeColumn, "panel.layerText");
-        dialogControls.cbIncludeCommentLayers = layerPanel.add("checkbox", undefined, getLabel("checkbox.includeCommentLayers"));
-        dialogControls.cbIncludeCommentLayers.value = false;
-        dialogControls.cbIncludeLocked = layerPanel.add("checkbox", undefined, getLabel("checkbox.includeLocked"));
-        dialogControls.cbIncludeLocked.value = false;
-        dialogControls.cbIncludeLocked.helpTip = getLabel("tooltip.includeLocked");
-        dialogControls.cbIncludeHidden = layerPanel.add("checkbox", undefined, getLabel("checkbox.includeHidden"));
-        dialogControls.cbIncludeHidden.value = false;
-        dialogControls.cbIncludeHidden.helpTip = getLabel("tooltip.includeHidden");
+    /**
+     * ［対象テキスト］パネル（//レイヤー・ロック・非表示・シンボル）を組む
+     * @param {Group} scopeColumn - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @returns {void}
+     */
+    function addTargetTextPanel(scopeColumn, dialogControls) {
+        var targetTextPanel = addScopePanel(scopeColumn, "panel.targetText");
+        dialogControls.cbIncludeCommentLayers = addCheckbox(targetTextPanel, "includeCommentLayers", false);
+        dialogControls.cbIncludeLocked = addCheckbox(targetTextPanel, "includeLocked", false);
+        dialogControls.cbIncludeHidden = addCheckbox(targetTextPanel, "includeHidden", false);
+        dialogControls.cbIncludeSymbols = addCheckbox(targetTextPanel, "includeSymbols", DEFAULT_INCLUDE_SYMBOLS);
+    }
 
-        /* ソート / Sort */
+    /**
+     * ［並び順］パネルを組む
+     * @param {Group} scopeColumn - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @returns {void}
+     */
+    function addSortPanel(scopeColumn, dialogControls) {
         var sortPanel = addScopePanel(scopeColumn, "panel.sort");
         var sortRadioGroup = sortPanel.add("group");
         sortRadioGroup.orientation = "row";
@@ -1624,73 +1540,72 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         dialogControls.rbSortAlphabetical = sortRadioGroup.add("radiobutton", undefined, getLabel("radio.sortAlphabetical"));
         dialogControls.rbSortAlphabetical.helpTip = getLabel("tooltip.sortAlphabetical");
         dialogControls.rbSortNone.value = true;
-
-        /* オプション / Options */
-        var optionsGroup = scopeColumn.add("group");
-        optionsGroup.orientation = "column";
-        optionsGroup.alignChildren = ["left", "top"];
-        optionsGroup.margins = OPTIONS_GROUP_MARGINS;
-
-        dialogControls.cbMergeDuplicates = optionsGroup.add("checkbox", undefined, getLabel("checkbox.mergeDuplicates"));
-        dialogControls.cbMergeDuplicates.value = true;
-        dialogControls.cbMergeDuplicates.helpTip = getLabel("tooltip.mergeDuplicates");
-
-        dialogControls.cbKeepFormat = optionsGroup.add("checkbox", undefined, getLabel("checkbox.keepFormat"));
-        dialogControls.cbKeepFormat.value = true;
-        dialogControls.cbKeepFormat.helpTip = getLabel("tooltip.keepFormat");
-
-        dialogControls.cbPreview = optionsGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-        dialogControls.cbPreview.helpTip = getLabel("tooltip.preview");
     }
 
     /**
-     * ［カンバス］タブを組む
-     * @param {TabbedPanel} infoTabs - 追加先
+     * ［オプション］パネル（一括編集・書式を保持）を組む
+     * @param {Group} scopeColumn - 追加先
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
-     * @returns {Tab} ［カンバス］タブ
+     * @returns {void}
      */
-    function buildCanvasTab(infoTabs, dialogControls) {
-        var canvasTab = infoTabs.add("tab", undefined, getLabel("tab.canvas"));
-        canvasTab.orientation = "row";
-        canvasTab.alignChildren = ["fill", "fill"];
-        canvasTab.margins = CANVAS_TAB_MARGINS;
-        canvasTab.spacing = CANVAS_TAB_SPACING;
+    function addEditOptionsPanel(scopeColumn, dialogControls) {
+        var editOptionsPanel = addScopePanel(scopeColumn, "panel.editOptions");
+        dialogControls.cbMergeDuplicates = addCheckbox(editOptionsPanel, "mergeDuplicates", true);
+        dialogControls.cbKeepFormat = addCheckbox(editOptionsPanel, "keepFormat", true);
+    }
 
-        var mainGroup = canvasTab.add("group");
-        mainGroup.orientation = "row";
-        mainGroup.alignChildren = ["fill", "fill"];
+    /**
+     * ［テキスト］タブを組む
+     * @param {TabbedPanel} dialogTabs - 追加先
+     * @param {Object} dialogControls - コントロールを入れるオブジェクト
+     * @returns {Tab} ［テキスト］タブ
+     */
+    function buildTextEditTab(dialogTabs, dialogControls) {
+        var textEditTab = dialogTabs.add("tab", undefined, getLabel("tab.editText"));
+        textEditTab.orientation = "row";
+        textEditTab.alignChildren = ["fill", "fill"];
+        textEditTab.margins = EDIT_TAB_MARGINS;
+        textEditTab.spacing = EDIT_TAB_SPACING;
 
-        buildTextColumn(mainGroup, dialogControls);
-        buildScopeColumn(mainGroup, dialogControls);
-        return canvasTab;
+        var editColumnsGroup = textEditTab.add("group");
+        editColumnsGroup.orientation = "row";
+        editColumnsGroup.alignChildren = ["fill", "fill"];
+
+        buildTextColumn(editColumnsGroup, dialogControls);
+
+        var scopeColumn = editColumnsGroup.add("group");
+        scopeColumn.orientation = "column";
+        scopeColumn.alignChildren = ["fill", "top"];
+        addArtboardScopePanel(scopeColumn, dialogControls);
+        addTargetTextPanel(scopeColumn, dialogControls);
+        addSortPanel(scopeColumn, dialogControls);
+        addEditOptionsPanel(scopeColumn, dialogControls);
+        return textEditTab;
     }
 
     /**
      * ［レイヤー名］［アートボード名］［フォント名］タブを組む
-     * @param {TabbedPanel} infoTabs - 追加先
+     * @param {TabbedPanel} dialogTabs - 追加先
      * @param {Object} dialogControls - コントロールを入れるオブジェクト
      * @returns {void}
      */
-    function buildInfoTabs(infoTabs, dialogControls) {
-        var layerNamesTab = addInfoTab(infoTabs, "tab.layerNames", "fieldLabel.layerNameList");
+    function buildInfoTabs(dialogTabs, dialogControls) {
+        var layerNamesTab = addInfoTab(dialogTabs, "tab.layerNames", "fieldLabel.layerNameList");
         dialogControls.rbLayerScopeTop = layerNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.layerScopeTop"));
         dialogControls.rbLayerScopeAll = layerNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.layerScopeAll"));
         dialogControls.rbLayerScopeTop.value = true;
-        dialogControls.layerNameEdit = addReadOnlyTextArea(layerNamesTab.tab);
+        dialogControls.layerNameTextArea = addReadOnlyTextArea(layerNamesTab.tab);
 
-        var artboardNamesTab = addInfoTab(infoTabs, "tab.artboardNames", "fieldLabel.artboardNameList");
-        dialogControls.rbArtboardScopeNumbered = artboardNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.artboardScopeNumbered"));
-        dialogControls.rbArtboardScopeRaw = artboardNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.artboardScopeRaw"));
-        dialogControls.rbArtboardScopeNumbered.value = true;
-        dialogControls.artboardNameEdit = addReadOnlyTextArea(artboardNamesTab.tab);
+        var artboardNamesTab = addInfoTab(dialogTabs, "tab.artboardNames", "fieldLabel.artboardNameList");
+        dialogControls.rbArtboardNameNumbered = artboardNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.artboardNameNumbered"));
+        dialogControls.rbArtboardNameOnly = artboardNamesTab.choiceRow.add("radiobutton", undefined, getLabel("radio.artboardNameOnly"));
+        dialogControls.rbArtboardNameNumbered.value = true;
+        dialogControls.artboardNameTextArea = addReadOnlyTextArea(artboardNamesTab.tab);
 
-        var fontNamesTab = addInfoTab(infoTabs, "tab.fontNames", "fieldLabel.fontList");
-        dialogControls.cbFontPS = fontNamesTab.choiceRow.add("checkbox", undefined, getLabel("checkbox.fontPS"));
-        dialogControls.cbFontPS.value = true;
-        dialogControls.cbFontFamily = fontNamesTab.choiceRow.add("checkbox", undefined, getLabel("checkbox.fontFamily"));
-        dialogControls.cbFontFamily.value = true;
-        dialogControls.cbFontStyle = fontNamesTab.choiceRow.add("checkbox", undefined, getLabel("checkbox.fontStyle"));
-        dialogControls.cbFontStyle.value = true;
+        var fontNamesTab = addInfoTab(dialogTabs, "tab.fontNames", "fieldLabel.fontList");
+        dialogControls.cbFontPS = addCheckbox(fontNamesTab.choiceRow, "fontPS", true);
+        dialogControls.cbFontFamily = addCheckbox(fontNamesTab.choiceRow, "fontFamily", true);
+        dialogControls.cbFontStyle = addCheckbox(fontNamesTab.choiceRow, "fontStyle", true);
 
         dialogControls.fontNameListBox = fontNamesTab.tab.add("listbox", undefined, [], {
             numberOfColumns: 3,
@@ -1732,14 +1647,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * CC 2020（v24）かどうか。プレビューでクラッシュするため無効にする
-     * @returns {boolean} v24 なら true
-     */
-    function isPreviewUnsupported() {
-        return parseInt(app.version) == 24;
-    }
-
-    /**
      * メインダイアログを組み立てる（イベントは未接続）
      * @returns {Object} コントロールをまとめたオブジェクト
      */
@@ -1751,23 +1658,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         dialogControls.textScopeDialog = textScopeDialog;
 
         /* ダイアログ全体をタブで構成 / Use tabs for the whole dialog */
-        var infoTabs = textScopeDialog.add("tabbedpanel");
-        infoTabs.alignChildren = ["fill", "fill"];
-        infoTabs.preferredSize = TABS_SIZE;
-        infoTabs.margins = TABS_MARGINS;
+        var dialogTabs = textScopeDialog.add("tabbedpanel");
+        dialogTabs.alignChildren = ["fill", "fill"];
+        dialogTabs.preferredSize = TABS_SIZE;
+        dialogTabs.margins = TABS_MARGINS;
 
-        var canvasTab = buildCanvasTab(infoTabs, dialogControls);
-        buildInfoTabs(infoTabs, dialogControls);
-        infoTabs.selection = canvasTab;
+        var textEditTab = buildTextEditTab(dialogTabs, dialogControls);
+        buildInfoTabs(dialogTabs, dialogControls);
+        dialogTabs.selection = textEditTab;
 
         buildButtonRow(textScopeDialog, dialogControls);
-
-        /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
-        if (isPreviewUnsupported()) {
-            dialogControls.cbPreview.enabled = false;
-            dialogControls.cbPreview.helpTip = getLabel("tooltip.previewDisabled");
-        }
-
         return dialogControls;
     }
 
@@ -1781,302 +1681,260 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @returns {string} "all" / "allArtboards" / "current"
      */
     function getCurrentScopeMode(dialogControls) {
-        if (dialogControls.cbWholeDocument.value) {
-            return 'all';
-        }
-        if (dialogControls.rbAllArtboards.value) {
-            return 'allArtboards';
-        }
+        if (dialogControls.cbWholeDocument.value) return 'all';
+        if (dialogControls.rbAllArtboards.value) return 'allArtboards';
         return 'current';
     }
 
     /**
-     * レイヤーなどの条件をダイアログから読む
+     * 対象テキストの条件をダイアログから読む
      * @param {Object} dialogControls - buildDialog() の結果
-     * @returns {Object} { includeComment, includeLocked, includeHidden }
+     * @returns {Object} { includeComment, includeLocked, includeHidden, includeSymbols }
      */
     function readCollectOptions(dialogControls) {
         return {
             includeComment: dialogControls.cbIncludeCommentLayers.value,
             includeLocked: dialogControls.cbIncludeLocked.value,
-            includeHidden: dialogControls.cbIncludeHidden.value
+            includeHidden: dialogControls.cbIncludeHidden.value,
+            includeSymbols: dialogControls.cbIncludeSymbols.value
         };
     }
 
     /**
-     * シンボル内テキストのキャッシュのキー（範囲と条件の組み合わせ）を返す
-     * @param {Object} editSession - 編集の状態
-     * @returns {string} キャッシュのキー
-     */
-    function getCurrentSymbolCacheKey(editSession) {
-        var dialogControls = editSession.dialogControls;
-        var scopeMode = getCurrentScopeMode(dialogControls);
-
-        var abIndexPart = '';
-        if (scopeMode === 'current') {
-            try {
-                abIndexPart = 'ab' + editSession.doc.artboards.getActiveArtboardIndex();
-            } catch (e) {
-                abIndexPart = 'ab0';
-            }
-        }
-
-        return [
-            scopeMode,
-            abIndexPart,
-            dialogControls.cbIncludeCommentLayers.value ? 'comment1' : 'comment0',
-            dialogControls.cbIncludeLocked.value ? 'locked1' : 'locked0',
-            dialogControls.cbIncludeHidden.value ? 'hidden1' : 'hidden0'
-        ].join('|');
-    }
-
-    /**
-     * ［レイヤー名］［アートボード名］［フォント名］タブの表示を更新する
+     * シンボル内のテキストを集め直す（［シンボル内のテキスト］がオフなら空）
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
-    function refreshInfoTabs(editSession) {
-        var doc = editSession.doc;
+    function refreshSymbolEntries(editSession) {
         var dialogControls = editSession.dialogControls;
-        var textFrames = getScopedFramesForInfoTabs(doc);
-        var layerNames = dialogControls.rbLayerScopeTop.value ? collectTopLevelLayerNames(doc) : collectAllDocumentLayerNames(doc);
-        var artboardNames = [];
-        var useRawName = dialogControls.rbArtboardScopeRaw.value;
-        var i;
+        var collectOptions = readCollectOptions(dialogControls);
+        editSession.symbolEntries = collectOptions.includeSymbols
+            ? collectSymbolTextEntries(editSession.doc, collectOptions, getCurrentScopeMode(dialogControls))
+            : [];
+    }
 
-        for (i = 0; i < doc.artboards.length; i++) {
-            artboardNames.push(useRawName ? getRawArtboardName(doc, i) : getArtboardTabDisplayName(doc, i));
+    /**
+     * 一覧に並べるシンボル内テキストを返す（ABC順のときは内容の順に並べ替える）
+     * @param {Object} editSession - 編集の状態
+     * @returns {Object[]} readSymbolTextEntries() の要素の配列
+     */
+    function getListedSymbolEntries(editSession) {
+        var symbolEntries = editSession.symbolEntries.slice(0);
+        if (editSession.dialogControls.rbSortAlphabetical.value) {
+            symbolEntries.sort(function (firstEntry, secondEntry) {
+                var firstText = firstEntry.contents.toLowerCase();
+                var secondText = secondEntry.contents.toLowerCase();
+                if (firstText < secondText) return -1;
+                if (firstText > secondText) return 1;
+                return 0;
+            });
+        }
+        return symbolEntries;
+    }
+
+    /**
+     * テキスト一覧を並べ直す（テキストフレームは集め直し、シンボル内テキストは集めた結果を末尾に並べる）
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function refreshTextList(editSession) {
+        var dialogControls = editSession.dialogControls;
+        var textFrames = collectFramesByScope(editSession.doc, getCurrentScopeMode(dialogControls), readCollectOptions(dialogControls));
+        if (dialogControls.rbSortPosition.value) {
+            sortByPosition(textFrames);
+        } else if (dialogControls.rbSortAlphabetical.value) {
+            sortByContent(textFrames);
         }
 
-        var fontRows = collectUniqueFontTriples(textFrames);
+        editSession.duplicateMap = [];
+        if (dialogControls.cbMergeDuplicates.value) {
+            var duplicateGroups = groupDuplicateFrames(textFrames);
+            editSession.duplicateMap = duplicateGroups.duplicateMap;
+            textFrames = duplicateGroups.uniqueFrames;
+        }
+        editSession.textFrameList = textFrames;
 
+        /* テキストフレームの行は番号、シンボル内テキストの行は ♣ で始める / Frame rows are numbered, symbol rows start with ♣ */
+        var listRows = [];
+        var rowLabels = [];
+        var i;
+        for (i = 0; i < textFrames.length; i++) {
+            listRows.push({ kind: 'frame', index: i, contents: textFrames[i].contents });
+            rowLabels.push((i + 1) + getLabel("format.itemPrefix") + buildListLabel(textFrames[i].contents));
+        }
+        var symbolEntries = getListedSymbolEntries(editSession);
+        for (i = 0; i < symbolEntries.length; i++) {
+            listRows.push({ kind: 'symbol', entry: symbolEntries[i], contents: symbolEntries[i].contents });
+            rowLabels.push(getLabel("format.symbolRowMark") + buildListLabel(symbolEntries[i].contents)
+                + getLabel("format.symbolRowSuffix").split('{symbolName}').join(symbolEntries[i].symbolName));
+        }
+        editSession.listRows = listRows;
+
+        var textListBox = dialogControls.textListBox;
+        textListBox.removeAll();
+        for (i = 0; i < rowLabels.length; i++) {
+            textListBox.add("item", rowLabels[i]);
+        }
+        if (listRows.length > 0) {
+            textListBox.selection = 0;
+            setEditTarget(editSession, listRows[0]);
+        } else {
+            setEditTarget(editSession, null);
+        }
+    }
+
+    /**
+     * ［レイヤー名］タブを更新する
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function refreshLayerNameList(editSession) {
+        var dialogControls = editSession.dialogControls;
+        var layerNames = collectDocumentLayerNames(editSession.doc, dialogControls.rbLayerScopeAll.value);
         layerNames.sort();
-        artboardNames.sort();
-        fontRows.sort(function (firstRow, secondRow) {
-            var firstKey = getFontTripleKey(firstRow);
-            var secondKey = getFontTripleKey(secondRow);
-            if (firstKey < secondKey) return -1;
-            if (firstKey > secondKey) return 1;
-            return 0;
-        });
+        dialogControls.layerNameTextArea.text = layerNames.join("\n");
+    }
 
-        dialogControls.layerNameEdit.text = layerNames.join("\n");
-        dialogControls.artboardNameEdit.text = artboardNames.join("\n");
-        dialogControls.fontNameListBox.removeAll();
-        for (i = 0; i < fontRows.length; i++) {
-            var fontListRow = dialogControls.fontNameListBox.add('item', dialogControls.cbFontPS.value ? fontRows[i].psName : '');
+    /**
+     * ［アートボード名］タブを更新する
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function refreshArtboardNameList(editSession) {
+        var doc = editSession.doc;
+        var dialogControls = editSession.dialogControls;
+        var artboardNames = [];
+        for (var i = 0; i < doc.artboards.length; i++) {
+            artboardNames.push(dialogControls.rbArtboardNameOnly.value ? getArtboardName(doc, i) : getNumberedArtboardName(doc, i));
+        }
+        artboardNames.sort();
+        dialogControls.artboardNameTextArea.text = artboardNames.join("\n");
+    }
+
+    /**
+     * ［フォント名］タブを更新する（フォントの集計は初回と、シンボルを書き換えたあとだけ行う）
+     * ドキュメント全体のテキストと、配置されているシンボル内のテキストを対象にする
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function refreshFontNameList(editSession) {
+        var dialogControls = editSession.dialogControls;
+        if (!editSession.fontRows) {
+            var doc = editSession.doc;
+            editSession.allSymbolEntries = collectSymbolTextEntries(doc, {
+                includeComment: true,
+                includeLocked: true,
+                includeHidden: true
+            }, 'all');
+            var tripleLists = [collectUniqueFontTriples(collectAllTextFrames(doc))];
+            for (var j = 0; j < editSession.allSymbolEntries.length; j++) {
+                tripleLists.push(editSession.allSymbolEntries[j].fontTriples);
+            }
+            editSession.fontRows = mergeFontTriples(tripleLists);
+            editSession.fontRows.sort(function (firstRow, secondRow) {
+                var firstKey = getFontTripleKey(firstRow);
+                var secondKey = getFontTripleKey(secondRow);
+                if (firstKey < secondKey) return -1;
+                if (firstKey > secondKey) return 1;
+                return 0;
+            });
+        }
+
+        var fontRows = editSession.fontRows;
+        var fontNameListBox = dialogControls.fontNameListBox;
+        fontNameListBox.removeAll();
+        for (var i = 0; i < fontRows.length; i++) {
+            var fontListRow = fontNameListBox.add('item', dialogControls.cbFontPS.value ? fontRows[i].psName : '');
             fontListRow.subItems[0].text = dialogControls.cbFontFamily.value ? fontRows[i].familyName : '';
             fontListRow.subItems[1].text = dialogControls.cbFontStyle.value ? fontRows[i].styleName : '';
             fontListRow.psNameKey = fontRows[i].psName;
         }
     }
 
-    /**
-     * テキスト一覧を集め直して表示する（プレビューは先に戻す）
-     * @param {Object} editSession - 編集の状態
-     * @returns {void}
-     */
-    function updateList(editSession) {
-        var dialogControls = editSession.dialogControls;
-        clearPreviewIfNeeded(editSession);
-
-        var scopeMode = getCurrentScopeMode(dialogControls);
-        var collectOptions = readCollectOptions(dialogControls);
-        editSession.duplicateMap = [];
-        editSession.textFrameList = collectFramesByScope(editSession.doc, scopeMode, collectOptions);
-
-        /* ソート / Sorting */
-        if (dialogControls.rbSortPosition.value) {
-            sortByPosition(editSession.textFrameList);
-        } else if (dialogControls.rbSortAlphabetical.value) {
-            sortByContent(editSession.textFrameList);
-        }
-
-        if (dialogControls.cbMergeDuplicates.value) {
-            var duplicateGroups = groupDuplicateFrames(editSession.textFrameList);
-            editSession.duplicateMap = duplicateGroups.duplicateMap;
-            editSession.textFrameList = duplicateGroups.uniqueFrames;
-        }
-
-        var textListBox = dialogControls.textListBox;
-        textListBox.removeAll();
-        for (var i = 0; i < editSession.textFrameList.length; i++) {
-            textListBox.add("item", (i + 1) + getLabel("format.itemPrefix") + buildListLabel(editSession.textFrameList[i].contents));
-        }
-        dialogControls.textEditBox.text = "";
-        if (editSession.textFrameList.length > 0) {
-            textListBox.selection = 0;
-        }
-        refreshInfoTabs(editSession);
-    }
-
-    /**
-     * シンボル内テキストを返す（範囲と条件ごとにキャッシュ）
-     * @param {Object} editSession - 編集の状態
-     * @param {boolean} forceRefresh - キャッシュを使わずに集め直すなら true
-     * @returns {string[]} 一覧の行
-     */
-    function getSymbolTexts(editSession, forceRefresh) {
-        var symbolTextCache = editSession.symbolTextCache;
-        var cacheKey = getCurrentSymbolCacheKey(editSession);
-        if (forceRefresh) {
-            delete symbolTextCache[cacheKey];
-        }
-        if (symbolTextCache.hasOwnProperty(cacheKey)) {
-            return symbolTextCache[cacheKey];
-        }
-        var dialogControls = editSession.dialogControls;
-        symbolTextCache[cacheKey] = collectSymbolTexts(editSession.doc, readCollectOptions(dialogControls), getCurrentScopeMode(dialogControls));
-        return symbolTextCache[cacheKey];
-    }
-
-    /**
-     * 行数に合わせてシンボル内テキスト一覧の高さを変える
-     * @param {Object} dialogControls - buildDialog() の結果
-     * @param {number} itemCount - 行数
-     * @returns {void}
-     */
-    function updateSymbolListHeight(dialogControls, itemCount) {
-        var visibleRows = itemCount;
-        if (visibleRows < SYMBOL_LIST_MIN_ROWS) visibleRows = SYMBOL_LIST_MIN_ROWS;
-        if (visibleRows > SYMBOL_LIST_MAX_ROWS) visibleRows = SYMBOL_LIST_MAX_ROWS;
-        dialogControls.symbolListBox.preferredSize.height = visibleRows * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT;
-        try {
-            dialogControls.textScopeDialog.layout.layout(true);
-            dialogControls.textScopeDialog.layout.resize();
-        } catch (e) { }
-    }
-
-    /**
-     * シンボル内テキスト一覧を更新する
-     * @param {Object} editSession - 編集の状態
-     * @param {boolean} forceRefresh - キャッシュを使わずに集め直すなら true
-     * @returns {void}
-     */
-    function refreshSymbolList(editSession, forceRefresh) {
-        var symbolListBox = editSession.dialogControls.symbolListBox;
-        symbolListBox.removeAll();
-        var symbolLines = getSymbolTexts(editSession, forceRefresh);
-        for (var i = 0; i < symbolLines.length; i++) {
-            symbolListBox.add("item", symbolLines[i]);
-        }
-        updateSymbolListHeight(editSession.dialogControls, symbolLines.length);
-    }
-
     // =========================================
-    // 編集とプレビュー / Editing and preview
+    // 編集 / Editing
     // =========================================
 
     /**
-     * 選択中の行のテキストに編集を反映する（まとめているときは同じ内容の全フレームへ）
+     * 編集の対象を切り替え、編集欄にその内容を出す
+     * @param {Object} editSession - 編集の状態
+     * @param {Object|null} listRow - editSession.listRows の要素（{ kind: "frame" | "symbol", index | entry, contents }）または null
+     * @returns {void}
+     */
+    function setEditTarget(editSession, listRow) {
+        editSession.editTarget = listRow;
+        editSession.dialogControls.textEditBox.text = listRow ? toEditText(listRow.contents) : "";
+    }
+
+    /**
+     * 選択中の行のテキストに編集を反映する（まとめているときは同じ内容の全フレームへ。変えていなければ何もしない）
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
     function applyCurrentEdit(editSession) {
+        var editTarget = editSession.editTarget;
+        if (!editTarget) return;
         var dialogControls = editSession.dialogControls;
-        if (dialogControls.textListBox.selection === null) return;
-        var selectedIndex = dialogControls.textListBox.selection.index;
-        var newText = dialogControls.textEditBox.text.replace(new RegExp(SOFT_BREAK, 'gmi'), '\x03');
-        var keepParagraphFormat = dialogControls.cbKeepFormat.value;
-        if (dialogControls.cbMergeDuplicates.value && editSession.duplicateMap[selectedIndex]) {
-            var sameFrames = editSession.duplicateMap[selectedIndex];
-            for (var i = 0; i < sameFrames.length; i++) {
-                replaceContent(sameFrames[i], newText, keepParagraphFormat);
+        var newText = toFrameText(dialogControls.textEditBox.text);
+        if (newText === editTarget.contents) return;
+        var keepFormat = dialogControls.cbKeepFormat.value;
+
+        if (editTarget.kind === 'symbol') {
+            if (!replaceSymbolText(editSession.doc, editTarget.entry, newText, keepFormat)) {
+                alert(getLabel('alert.symbolUpdateFailed'));
             }
-        } else {
-            replaceContent(editSession.textFrameList[selectedIndex], newText, keepParagraphFormat);
+            return;
+        }
+
+        var targetFrames = editSession.duplicateMap[editTarget.index] || [editSession.textFrameList[editTarget.index]];
+        for (var i = 0; i < targetFrames.length; i++) {
+            replaceTextContents(targetFrames[i], newText, keepFormat);
         }
     }
 
     /**
-     * プレビューを掛け直す、またはプレビューをやめて戻す（app.undo() で1段戻してから適用）
+     * 編集をドキュメントに反映し、一覧を並べ直して同じ位置の行を選び直す
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
-    function updatePreview(editSession) {
-        if (isPreviewUnsupported()) return;
-        var dialogControls = editSession.dialogControls;
-        try {
-            if (dialogControls.cbPreview.enabled && dialogControls.cbPreview.value && dialogControls.textListBox.selection !== null) {
-                if (editSession.isPreviewApplied) app.undo();
-                else editSession.isPreviewApplied = true;
-                applyCurrentEdit(editSession);
-                app.redraw();
-            } else if (editSession.isPreviewApplied) {
-                app.undo();
-                app.redraw();
-                editSession.isPreviewApplied = false;
-            }
-        } catch (err) { }
+    function applyEditAndRefresh(editSession) {
+        var textListBox = editSession.dialogControls.textListBox;
+        var selectedIndex = textListBox.selection ? textListBox.selection.index : 0;
+        var isSymbolEdit = editSession.editTarget && editSession.editTarget.kind === 'symbol';
+
+        applyCurrentEdit(editSession);
+        /* シンボルは定義ごと差し替わるので集め直す / The symbol was swapped, so collect symbols again */
+        if (isSymbolEdit) {
+            refreshSymbolEntries(editSession);
+            editSession.fontRows = null;
+            refreshFontNameList(editSession);
+        }
+        refreshTextList(editSession);
+        app.redraw();
+
+        var rowCount = editSession.listRows.length;
+        if (rowCount > 0) {
+            var rowIndex = Math.min(selectedIndex, rowCount - 1);
+            textListBox.selection = rowIndex;
+            setEditTarget(editSession, editSession.listRows[rowIndex]);
+        }
     }
 
     /**
-     * プレビュー中なら戻す
-     * @param {Object} editSession - 編集の状態
-     * @returns {boolean} 戻した場合は true
-     */
-    function clearPreviewIfNeeded(editSession) {
-        if (!editSession.isPreviewApplied) return false;
-        try {
-            app.undo();
-            app.redraw();
-        } catch (err) { }
-        editSession.isPreviewApplied = false;
-        return true;
-    }
-
-    /**
-     * 戻したプレビューを掛け直す
-     * @param {Object} editSession - 編集の状態
-     * @param {boolean} wasPreviewActive - 戻す前にプレビュー中だったか
-     * @returns {void}
-     */
-    function restorePreviewIfNeeded(editSession, wasPreviewActive) {
-        if (!wasPreviewActive) return;
-        if (isPreviewUnsupported()) return;
-        var cbPreview = editSession.dialogControls.cbPreview;
-        if (!cbPreview.enabled || !cbPreview.value) return;
-        updatePreview(editSession);
-    }
-
-    /**
-     * 書き出しオプションを尋ね、デスクトップにテキストを書き出す（プレビューはいったん戻して掛け直す）
+     * 書き出しオプションを尋ね、デスクトップにテキストを書き出す
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
     function exportTextToDesktop(editSession) {
         var doc = editSession.doc;
         var dialogControls = editSession.dialogControls;
-        var exportFile = null;
-        var wasPreviewActive = editSession.isPreviewApplied;
         try {
-            clearPreviewIfNeeded(editSession);
             var exportSettings = showExportOptionsDialog();
-            if (!exportSettings) {
-                restorePreviewIfNeeded(editSession, wasPreviewActive);
-                return;
-            }
+            if (!exportSettings) return;
             var exportContent = buildExportText(doc, exportSettings, readCollectOptions(dialogControls), getCurrentScopeMode(dialogControls));
-            var filePath = buildExportFilePath(doc);
-            exportFile = new File(filePath);
-            exportFile.encoding = 'UTF-8';
-            exportFile.lineFeed = 'Unix';
-            if (!exportFile.open('w')) {
-                throw new Error('open failed: ' + filePath);
-            }
-            exportFile.write(exportContent);
-            exportFile.close();
-            restorePreviewIfNeeded(editSession, wasPreviewActive);
-            if (exportSettings.openAfter) {
-                try {
-                    exportFile.execute();
-                } catch (openErr) { }
-            }
+            var exportFile = writeTextFile(buildExportFilePath(doc), exportContent);
+            if (exportSettings.openAfter) exportFile.execute();
         } catch (e) {
-            try {
-                if (exportFile && exportFile.opened) exportFile.close();
-            } catch (closeErr) { }
-            restorePreviewIfNeeded(editSession, wasPreviewActive);
             alert(getLabel('alert.exportFailed') + '\n' + e);
         }
     }
@@ -2086,120 +1944,123 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     // =========================================
 
     /**
-     * ダイアログのイベントを接続する
+     * 一覧・編集欄・編集オプションのイベントを接続する
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
-    function bindDialogEvents(editSession) {
+    function bindEditEvents(editSession) {
         var dialogControls = editSession.dialogControls;
 
         /* 一覧の選択で編集欄を更新 / Update the edit box when the list selection changes */
         dialogControls.textListBox.onChange = function () {
-            if (dialogControls.textListBox.selection !== null) {
-                var selectedIndex = dialogControls.textListBox.selection.index;
-                dialogControls.textEditBox.text = editSession.textFrameList[selectedIndex].contents.replace(/\x03/g, SOFT_BREAK);
-            }
-        };
-
-        dialogControls.fontNameListBox.onChange = function () {
-            if (dialogControls.fontNameListBox.selection !== null) {
-                selectTextFramesByFontMatch(editSession.doc, dialogControls.fontNameListBox.selection.psNameKey);
-            }
-        };
-
-        /**
-         * 名前一覧タブを更新する
-         * @returns {void}
-         */
-        function refreshInfoTabsHandler() { refreshInfoTabs(editSession); }
-        dialogControls.cbFontPS.onClick = refreshInfoTabsHandler;
-        dialogControls.cbFontFamily.onClick = refreshInfoTabsHandler;
-        dialogControls.cbFontStyle.onClick = refreshInfoTabsHandler;
-
-        /* 段落書式保持とプレビューの排他制御 / Make paragraph formatting and preview mutually exclusive */
-        dialogControls.cbKeepFormat.onClick = function () {
-            if (dialogControls.cbKeepFormat.value && dialogControls.cbPreview.value) {
-                dialogControls.cbPreview.value = false;
-                updatePreview(editSession);
-            }
-            if (!isPreviewUnsupported()) {
-                dialogControls.cbPreview.enabled = !dialogControls.cbKeepFormat.value;
-            }
+            if (dialogControls.textListBox.selection === null) return;
+            setEditTarget(editSession, editSession.listRows[dialogControls.textListBox.selection.index]);
         };
 
         /* Shift+Enter でソフト改行文字を挿入 / Insert the soft-break placeholder with Shift+Enter */
         dialogControls.textEditBox.addEventListener('keydown', function (keyEvent) {
-            var isShift = ScriptUI.environment.keyboardState.shiftKey;
-            if (isShift && keyEvent.keyName === 'Enter') {
+            if (ScriptUI.environment.keyboardState.shiftKey && keyEvent.keyName === 'Enter') {
                 this.textselection = SOFT_BREAK;
                 keyEvent.preventDefault();
             }
         });
+        dialogControls.cbMergeDuplicates.onClick = function () { refreshTextList(editSession); };
+    }
 
-        dialogControls.textEditBox.onChanging = function () { updatePreview(editSession); };
-        dialogControls.cbPreview.onClick = function () { updatePreview(editSession); };
-        dialogControls.btnExportText.onClick = function () { exportTextToDesktop(editSession); };
+    /**
+     * 対象範囲・対象テキスト・並び順のイベントを接続する
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function bindScopeEvents(editSession) {
+        var dialogControls = editSession.dialogControls;
 
         /**
-         * テキスト一覧を更新する
+         * シンボル内のテキストも集め直してテキスト一覧を並べ直す
          * @returns {void}
          */
-        function updateListHandler() { updateList(editSession); }
-
-        /**
-         * テキスト一覧とシンボル内テキスト一覧を集め直す
-         * @returns {void}
-         */
-        function updateAllListsHandler() {
-            updateList(editSession);
-            refreshSymbolList(editSession, true);
+        function refreshAllLists() {
+            refreshSymbolEntries(editSession);
+            refreshTextList(editSession);
         }
 
-        /* ラジオボタン・チェックボックス切り替え時に更新 / Refresh when radio buttons or checkboxes change */
+        /**
+         * テキスト一覧だけを並べ直す
+         * @returns {void}
+         */
+        function refreshTextListOnly() {
+            refreshTextList(editSession);
+        }
+
         dialogControls.rbCurrentArtboard.onClick = function () {
             dialogControls.cbWholeDocument.enabled = false;
             dialogControls.cbWholeDocument.value = false;
-            updateAllListsHandler();
+            refreshAllLists();
         };
         dialogControls.rbAllArtboards.onClick = function () {
             dialogControls.cbWholeDocument.enabled = true;
-            updateAllListsHandler();
+            refreshAllLists();
         };
-        dialogControls.cbMergeDuplicates.onClick = updateListHandler;
+        dialogControls.cbWholeDocument.onClick = refreshAllLists;
+        dialogControls.cbIncludeCommentLayers.onClick = refreshAllLists;
+        dialogControls.cbIncludeLocked.onClick = refreshAllLists;
+        dialogControls.cbIncludeHidden.onClick = refreshAllLists;
+        dialogControls.cbIncludeSymbols.onClick = refreshAllLists;
+        dialogControls.rbSortNone.onClick = refreshTextListOnly;
+        dialogControls.rbSortPosition.onClick = refreshTextListOnly;
+        dialogControls.rbSortAlphabetical.onClick = refreshTextListOnly;
+    }
 
-        dialogControls.cbWholeDocument.onClick = updateAllListsHandler;
-        dialogControls.cbIncludeCommentLayers.onClick = updateAllListsHandler;
-        dialogControls.cbIncludeLocked.onClick = updateAllListsHandler;
-        dialogControls.cbIncludeHidden.onClick = updateAllListsHandler;
-        dialogControls.rbSortNone.onClick = updateListHandler;
-        dialogControls.rbSortPosition.onClick = updateListHandler;
-        dialogControls.rbSortAlphabetical.onClick = updateListHandler;
-        dialogControls.rbLayerScopeAll.onClick = refreshInfoTabsHandler;
-        dialogControls.rbLayerScopeTop.onClick = refreshInfoTabsHandler;
-        dialogControls.rbArtboardScopeNumbered.onClick = refreshInfoTabsHandler;
-        dialogControls.rbArtboardScopeRaw.onClick = refreshInfoTabsHandler;
+    /**
+     * 名前一覧タブのイベントを接続する
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function bindInfoTabEvents(editSession) {
+        var dialogControls = editSession.dialogControls;
 
-        /* キャンセルボタンで閉じる / Close the dialog when Cancel is pressed */
+        /**
+         * ［フォント名］タブを更新する
+         * @returns {void}
+         */
+        function refreshFontNames() {
+            refreshFontNameList(editSession);
+        }
+
+        dialogControls.rbLayerScopeAll.onClick = function () { refreshLayerNameList(editSession); };
+        dialogControls.rbLayerScopeTop.onClick = function () { refreshLayerNameList(editSession); };
+        dialogControls.rbArtboardNameNumbered.onClick = function () { refreshArtboardNameList(editSession); };
+        dialogControls.rbArtboardNameOnly.onClick = function () { refreshArtboardNameList(editSession); };
+        dialogControls.cbFontPS.onClick = refreshFontNames;
+        dialogControls.cbFontFamily.onClick = refreshFontNames;
+        dialogControls.cbFontStyle.onClick = refreshFontNames;
+
+        dialogControls.fontNameListBox.onChange = function () {
+            if (dialogControls.fontNameListBox.selection !== null) {
+                selectItemsByFont(editSession.doc, dialogControls.fontNameListBox.selection.psNameKey, editSession.allSymbolEntries);
+            }
+        };
+    }
+
+    /**
+     * ボタンとダイアログを閉じるときのイベントを接続する
+     * @param {Object} editSession - 編集の状態
+     * @returns {void}
+     */
+    function bindButtonEvents(editSession) {
+        var dialogControls = editSession.dialogControls;
+
+        dialogControls.btnExportText.onClick = function () { exportTextToDesktop(editSession); };
+        dialogControls.btnUpdateText.onClick = function () { applyEditAndRefresh(editSession); };
+
         dialogControls.btnCancel.onClick = function () {
             dialogControls.textScopeDialog.close();
         };
 
         /* OKボタンで現在の編集を反映して閉じる / Apply the current edit and close when OK is pressed */
         dialogControls.btnOK.onClick = function () {
-            if (editSession.isPreviewApplied && dialogControls.cbPreview.value) {
-                app.undo();
-                editSession.isPreviewApplied = false;
-            }
             applyCurrentEdit(editSession);
             dialogControls.textScopeDialog.close();
-        };
-
-        /* ダイアログを閉じるとき、プレビュー中ならundoで元に戻す / Undo the preview when the dialog closes */
-        dialogControls.textScopeDialog.onClose = function () {
-            try {
-                if (editSession.isPreviewApplied) app.undo();
-                editSession.isPreviewApplied = false;
-            } catch (err) { }
         };
     }
 
@@ -2223,26 +2084,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             dialogControls: null,
             textFrameList: [],        /* 一覧に並ぶテキストフレーム / Text frames listed */
             duplicateMap: [],         /* 行ごとの同じ内容の全フレーム / All frames with the same contents per row */
-            symbolTextCache: {},      /* 範囲と条件ごとのシンボル内テキスト / Symbol texts per scope and options */
-            isPreviewApplied: false   /* プレビューを1段適用中か / Whether one preview step is applied */
+            symbolEntries: [],        /* シンボル内のテキスト / Text in symbols */
+            listRows: [],             /* テキスト一覧の行ごとの編集対象 / Edit target per list row */
+            fontRows: null,           /* フォント名タブの行（初回に集計）/ Font tab rows (collected once) */
+            allSymbolEntries: [],     /* フォント名タブ用の、ドキュメント全体のシンボル内テキスト / Symbol text across the document for the font tab */
+            editTarget: null          /* 編集の対象（listRows の要素）/ Current edit target (an element of listRows) */
         };
-        try {
-            editSession.dialogControls = buildDialog();
-            bindDialogEvents(editSession);
+        editSession.dialogControls = buildDialog();
+        bindEditEvents(editSession);
+        bindScopeEvents(editSession);
+        bindInfoTabEvents(editSession);
+        bindButtonEvents(editSession);
 
-            /* 初回収集（updateList が名前一覧タブも更新する）/ Initial collection (updateList also refreshes the name tabs) */
-            updateList(editSession);
-            refreshSymbolList(editSession, false);
+        refreshSymbolEntries(editSession);
+        refreshTextList(editSession);
+        refreshLayerNameList(editSession);
+        refreshArtboardNameList(editSession);
+        refreshFontNameList(editSession);
 
-            editSession.dialogControls.textScopeDialog.show();
-        } finally {
-            if (editSession.isPreviewApplied) {
-                try {
-                    app.undo();
-                } catch (err) { }
-                editSession.isPreviewApplied = false;
-            }
-        }
+        editSession.dialogControls.textScopeDialog.show();
     }
 
     main();

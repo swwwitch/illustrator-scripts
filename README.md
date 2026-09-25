@@ -73,6 +73,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
 - [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
 - [クリップボードの複数行テキストを1行ずつ順に流し込む](readme-ja/ReplaceTextWithPasteSequential.md)
+- [テキストから指定した文字列を削除](readme-ja/RemoveMatchingText.md)
 - [フォントサイズと水平比率／垂直比率を調整](readme-ja/AdjustFontSize.md)
 - [選択したテキストフレームの各行の先頭に、箇条書き記号または連番を付与します](readme-ja/AddBulletsAndNumbers.md)
 - [Illustrator 用のメモ入力フローティングパレット](readme-ja/AiMemoPallete.md)
