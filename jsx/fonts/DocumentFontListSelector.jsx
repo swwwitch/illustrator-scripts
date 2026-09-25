@@ -747,10 +747,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // メイン処理 / Main
     // =========================================
+    /* 常駐エンジンにパレット参照を保持するキー（CloseAllPalettes.jsx から閉じるため）
+       Key holding the palette reference in the persistent engine (so CloseAllPalettes.jsx can close it) */
+    var PALETTE_GLOBAL_KEY = "__documentFontListSelectorPalette";
+
     function main() {
         var paletteUI = createPaletteUI();
         bindPaletteEvents(paletteUI);
+        /* 閉じたら常駐エンジンの参照をクリア / Clear the persistent-engine reference on close */
+        paletteUI.palette.onClose = function () { $.global[PALETTE_GLOBAL_KEY] = null; };
         paletteUI.palette.show();
+        $.global[PALETTE_GLOBAL_KEY] = paletteUI.palette;
     }
 
     main();

@@ -28,8 +28,15 @@ A utility that closes every floating palette running in a persistent engine.
 
 AiMemoPallete / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManager /
 UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
-TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete
+TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
+AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
+LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
+ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1
+
+### Update History
+
+- v1.0.1 (2026-09-25) Fixed ArtboardDisplayPresetManager not closing: its engine and reference names did not match the script. Added 13 more persistent palettes (AiAlignToArtboard and others).

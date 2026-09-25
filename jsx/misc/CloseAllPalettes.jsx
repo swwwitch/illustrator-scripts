@@ -32,7 +32,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 AiMemoPallete / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManager /
 UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
-TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete
+TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
+AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
+LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
+ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
 
 */
 
@@ -40,10 +43,10 @@ TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitM
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -77,11 +80,24 @@ var PALETTES = [
     { name: "LinkedImageManager", engine: "LinkedImageManager", global: "__LIM_paletteWindow" },
     { name: "UnifiedTypePanel", engine: "UnifiedTypePanelEngine", global: "__UnifiedTypePanel" },
     { name: "ImportAndApplyGraphicStyle", engine: "ImportAndApplyGraphicStyle", global: "__importAndApplyGraphicStylePalette" },
-    { name: "ArtboardDisplayPresetManager", engine: "PresetManagerArtboardsPalette", global: "__artboardPresetPalette" },
+    { name: "ArtboardDisplayPresetManager", engine: "ArtboardDisplayPresetManagerPalette", global: "__artboardDisplayPresetPalette" },
     { name: "TextCountStats", engine: "TextCountStatsSession", global: "__TextCountStatsPalette" },
     { name: "SelectionInspector", engine: "SelectionInspectorSession", global: "__SelectionInspectorPalette" },
     { name: "ApplyLeadingPerTextFrame", engine: "ApplyLeadingPerTextFrame", global: "__ALPTF_PALETTE__" },
-    { name: "TextBreakSplitMergePallete", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" }
+    { name: "TextBreakSplitMergePallete", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" },
+    { name: "AiAlignToArtboard", engine: "AiAlignToArtboard", global: "__aiAlignToArtboardWindow" },
+    { name: "AiSmartRotateView", engine: "AiSmartRotateView", global: "__aiSmartRotateViewPalette" },
+    { name: "AutoKerningPanel", engine: "AutoKerningPanelEngine", global: "__AutoKerningPanel" },
+    { name: "FontPresetPicker", engine: "FontPresetPickerEngine", global: "__FontPresetPicker" },
+    { name: "KPTSketchy", engine: "KPTSketchy", global: "__KPTSketchyPaletteWindow" },
+    { name: "LockHistoryPalette", engine: "LockHistoryPalette", global: "__LockHistoryPaletteWindow" },
+    { name: "PathInspector", engine: "PathInspectorSession", global: "__PathInspectorPalette" },
+    { name: "QuickTransformPalette", engine: "QuickTransformPalette", global: "__quickTransformPalette" },
+    { name: "TypeBasicsPanel", engine: "TypeBasicsPanelEngine", global: "__typeBasicsPanelInstance" },
+    { name: "ArtboardNavigator", engine: "artboardNavigatorPalette", global: "artboardNavigatorWindow" },
+    { name: "LEConvertToShape", engine: "fxConvertToShape", global: "__fxConvertToShapePalette" },
+    { name: "AiSmartPathfinder", engine: "pathfinder-palette", global: "__pfPaletteWindow" },
+    { name: "SmartDistributor", engine: "smartDistributorPalette", global: "smartDistributorWindow" }
 ];
 
 // =========================================

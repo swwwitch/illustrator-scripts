@@ -78,3 +78,7 @@ Illustrator application preferences, plus the active document's artboard (pixel-
 - Preference changes do not repaint the canvas by themselves, so a zoom-out / zoom-in pair is issued after each write to force a refresh.
 - An Illustrator persistent palette loses its DOM connection while shown, so artboard reads and resizes are delegated to the main engine via BridgeTalk.
 - With no document open, the artboard info shows "—". An alert appears only when you actually try to optimize or resize.
+
+### Update History
+
+- v1.2.3 (2026-09-25) Fixed the width/height fields showing the wrong tooltip (a preset-name hint). Added tooltips to the buttons. The unit label now reads "H" when the ruler unit is Ha.

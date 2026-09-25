@@ -1361,6 +1361,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         /* 閉じる時：未確定のプレビューは取り消す（×・Esc 共通）/ On close: revert an uncommitted preview (X and Esc) */
         gapPalette.onClose = function () {
             revertActivePreview();
+            $.global[PALETTE_GLOBAL_KEY] = null; /* 常駐エンジンの参照をクリア / Clear the persistent-engine reference */
             return true;
         };
 
@@ -1389,6 +1390,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         return gapPalette;
     }
 
+    /* 常駐エンジンにパレット参照を保持するキー（CloseAllPalettes.jsx から閉じるため）
+       Key holding the palette reference in the persistent engine (so CloseAllPalettes.jsx can close it) */
+    var PALETTE_GLOBAL_KEY = "__aiAdjustVerticalGapPalette";
+
     paletteWindow = showPalette();
+    $.global[PALETTE_GLOBAL_KEY] = paletteWindow;
 
 })();

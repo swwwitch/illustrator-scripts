@@ -2469,6 +2469,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
     // =========================================
     // メイン処理 / Main
     // =========================================
+    /* 常駐エンジンにパレット参照を保持するキー（CloseAllPalettes.jsx から閉じるため）
+       Key holding the palette reference in the persistent engine (so CloseAllPalettes.jsx can close it) */
+    var PALETTE_GLOBAL_KEY = "__textFontPanelReinventedPalette";
+
     function main() {
         var autoKernOptions = createAutoKernOptions();
         var alignOptions = createAlignOptions();
@@ -2476,7 +2480,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         var ui = createPaletteUI(autoKernOptions, alignOptions, justifyOptions);
         var controller = bindPaletteEvents(ui, autoKernOptions, alignOptions, justifyOptions);
 
+        /* 閉じたら常駐エンジンの参照をクリア / Clear the persistent-engine reference on close */
+        ui.palette.onClose = function () { $.global[PALETTE_GLOBAL_KEY] = null; };
         ui.palette.show();
+        $.global[PALETTE_GLOBAL_KEY] = ui.palette;
     }
 
     main();

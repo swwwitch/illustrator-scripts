@@ -37,8 +37,15 @@
 
 AiMemoPallete / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManager /
 UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
-TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete
+TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
+AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
+LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
+ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
 
 ### スクリプト情報
 
-- バージョン: v1.0.0
+- バージョン: v1.0.1
+
+### 更新履歴
+
+- v1.0.1（2026-09-25）ArtboardDisplayPresetManager のエンジン名・参照名が本体と食い違っていて閉じられなかったのを修正。常駐パレット13本（AiAlignToArtboard ほか）を対象に追加。
