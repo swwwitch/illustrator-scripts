@@ -16,7 +16,7 @@
 - Handy for shortening long screenshots or menus while keeping both ends visible.
 - The cut edge can be bent with a Flag, Rise or Straight warp or made jagged with a zig zag, and break lines can be drawn along it.
 
-<img alt="The Trim with Break Lines dialog" src="../png/ss-862-704-144-20260923-002405.png" width="50%" />
+<img alt="The Trim with Break Lines dialog" src="../png/ss-840-936-144-20260925-192454.png" width="50%" />
 
 ### Features
 
