@@ -5,22 +5,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-入力した文字列（5つまで、正規表現も可）を、選択中のオブジェクト・現在のアートボード・ドキュメント全体のテキストから削除します。
+入力した文字列（5つまで、正規表現も可）を、選択中のオブジェクト・現在のアートボード・ドキュメント全体のテキストから削除、または別の文字列に置換します。
 残った文字の書式は変わりません。シンボル内のテキストや、非表示・ロックされたテキストも対象にできます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md
 
 note記事も参照してください。
 https://note.com/dtp_tranist/n/nec5dfffce709
 
 ### Overview
 
-Removes up to five strings (regular expressions allowed) from text in the selection, the current artboard, or the entire document.
+Removes up to five strings (regular expressions allowed) from text in the selection, the current artboard, or the entire document, or replaces them with other strings.
 The formatting of the remaining text is kept. Text in symbols and hidden or locked text can be included.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatchingText.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md
 
 */
 
@@ -29,14 +29,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     // =========================================
     // 基本情報 / Basic info
     // =========================================
-    var SCRIPT_NAME     = "RemoveMatchingText";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+    var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
     var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
-    var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md"; /* README（日本語） */
-    var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatchingText.md"; /* README (English) */
+    var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
+    var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
     var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
 
     // Released under the MIT license
@@ -45,7 +45,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
-    var SEARCH_FIELD_COUNT = 5;             /* 削除する文字列の入力欄の数 / number of search fields */
+    var SEARCH_FIELD_COUNT = 5;             /* 削除・置換する文字列の入力欄の数 / number of search fields */
     var DEFAULT_USE_REGEX = false;          /* 正規表現（初期値）/ regular expression (initial value) */
     var DEFAULT_IGNORE_CASE = false;        /* 大文字と小文字を区別しない（初期値）/ ignore case (initial value) */
     var DEFAULT_DELETE_EMPTY_FRAMES = true; /* 空になったフレームを削除（初期値）/ delete emptied frames (initial value) */
@@ -56,7 +56,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     // =========================================
     // 前回の設定 / Saved settings
     // =========================================
-    var SETTINGS_PREF_KEY = "RemoveMatchingText/settings"; /* 環境設定に保存するキー / preference key */
+    var SETTINGS_PREF_KEY = "SmartTextFindReplace/settings"; /* 環境設定に保存するキー / preference key */
 
     /**
      * 前回 OK したときの設定を読み込む
@@ -88,6 +88,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     var PANEL_MARGINS = [15, 20, 15, 10];   /* パネルの内側余白 / panel margins */
     var PANEL_SPACING = 6;                  /* パネル内の間隔 / panel spacing */
     var INPUT_CHARACTERS = 20;              /* 入力欄の幅（文字数）/ input width in characters */
+    var REPLACE_INPUT_CHARACTERS = 12;      /* 置換欄の幅（文字数）/ replace field width in characters */
     var MATCH_COUNT_WIDTH = 40;             /* 一致数の表示幅 / width of the match count */
     var SEARCH_OPTIONS_TOP_MARGIN = 5;      /* 正規表現などの上余白 / top margin above the search options */
     var BUTTON_ROW_TOP_MARGIN = 6;          /* ボタン行の上余白 / top margin of the button row */
@@ -108,10 +109,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
 
     var LABELS = {
         dialog: {
-            title: { ja: "指定した文字列を削除", en: "Remove Specified Text" }
+            title: { ja: "指定した文字列を削除・置換", en: "Remove or Replace Text" }
         },
         panel: {
-            searchText: { ja: "削除する文字列", en: "Text to Remove" },
+            searchText: { ja: "削除・置換する文字列", en: "Text to Remove / Replace" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" }
         },
@@ -130,12 +131,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         },
         tooltip: {
             searchText: {
-                ja: "一致する部分をすべて削除します。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
-                en: "Removes every match. Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
+                ja: "一致する部分をすべて削除します（右の欄に入力すると置換）。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
+                en: "Removes every match (or replaces it when the field on the right is filled). Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
+            },
+            replaceText: {
+                ja: "一致した部分をこの文字列に置き換えます。空欄なら削除します。正規表現のときは $1 や $& で一致した部分を参照できます",
+                en: "Replaces each match with this text. Leave empty to remove. With regular expressions, $1 and $& refer to the match"
             },
             matchCount: {
-                ja: "対象の範囲で見つかった数（ほかの欄による削除は考慮しない）。「!」は正規表現の誤り",
-                en: "Matches found in the scope (ignoring removals by other fields). \"!\" means an invalid regular expression"
+                ja: "対象の範囲で見つかった数（ほかの欄による削除・置換は考慮しない）。「!」は正規表現の誤り",
+                en: "Matches found in the scope (ignoring removals and replacements by other fields). \"!\" means an invalid regular expression"
             },
             useRegex: {
                 ja: "入力を JavaScript の正規表現として扱います。^ と $ は段落の先頭・末尾に一致します",
@@ -176,11 +181,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-            removedCounts: { ja: "削除した数", en: "Removed matches" },
+            processedCounts: { ja: "削除・置換した数", en: "Removed / replaced matches" },
             removedCountLine: { ja: "「{text}」：{count}", en: "\"{text}\": {count}" },
+            replacedCountLine: { ja: "「{text}」→「{replaceText}」：{count}", en: "\"{text}\" → \"{replaceText}\": {count}" },
             result: {
-                ja: "{count}個のテキストオブジェクトから削除しました。",
-                en: "Removed the text from {count} text object(s)."
+                ja: "{count}個のテキストオブジェクトを変更しました。",
+                en: "Changed {count} text object(s)."
             },
             deletedFrames: {
                 ja: "空になった{count}個のテキストフレームを削除しました。",
@@ -229,11 +235,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         if (!removeOptions) return;
 
         var targetFrames = collectTargetFrames(doc, removeOptions.scope, removeOptions.layerOptions, selectedItems);
-        var removeResult = removeTextFromFrames(targetFrames, removeOptions.searchEntries, removeOptions.deleteEmptyFrames);
+        var removeResult = replaceTextInFrames(targetFrames, removeOptions.searchEntries, removeOptions.deleteEmptyFrames);
         removeResult.updatedSymbolCount = 0;
         if (removeOptions.includeSymbols) {
             var targetSymbols = collectTargetSymbols(doc, removeOptions.scope, removeOptions.layerOptions, selectedItems);
-            removeResult.updatedSymbolCount = removeTextFromSymbols(doc, targetSymbols, removeOptions.searchEntries, removeResult.removedCounts);
+            removeResult.updatedSymbolCount = replaceTextInSymbols(doc, targetSymbols, removeOptions.searchEntries, removeResult.processedCounts);
         }
         alert(buildResultMessage(removeOptions.searchEntries, removeResult));
     }
@@ -253,17 +259,19 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     }
 
     /**
-     * 結果メッセージを組み立てる（欄ごとの削除数・変更したオブジェクト数・削除したフレーム数）
+     * 結果メッセージを組み立てる（欄ごとの削除・置換数・変更したオブジェクト数・削除したフレーム数）
      * @param {Object[]} searchEntries - getSearchEntries() の結果
-     * @param {Object} removeResult - removeTextFromFrames() の結果
+     * @param {Object} removeResult - replaceTextInFrames() の結果
      * @returns {string} メッセージ
      */
     function buildResultMessage(searchEntries, removeResult) {
-        var messageLines = [labelText(LABELS.alert.removedCounts)];
+        var messageLines = [labelText(LABELS.alert.processedCounts)];
         for (var i = 0; i < searchEntries.length; i++) {
-            messageLines.push(getLabel(LABELS.alert.removedCountLine)
+            var countLine = (searchEntries[i].replaceText === "") ? LABELS.alert.removedCountLine : LABELS.alert.replacedCountLine;
+            messageLines.push(getLabel(countLine)
                 .replace("{text}", searchEntries[i].text)
-                .replace("{count}", removeResult.removedCounts[i]));
+                .replace("{replaceText}", searchEntries[i].replaceText)
+                .replace("{count}", removeResult.processedCounts[i]));
         }
         messageLines.push("");
         messageLines.push(getLabel(LABELS.alert.result).replace("{count}", removeResult.changedCount));
@@ -277,7 +285,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     }
 
     /**
-     * ダイアログを表示し、削除するパターンと対象範囲を返す
+     * ダイアログを表示し、削除・置換するパターンと対象範囲を返す
      * @param {Document} doc - 一致数を数えるドキュメント
      * @param {PageItem[]} selectedItems - 実行時に選択していたアイテム
      * @returns {Object|null} { searchEntries: Object[], scope: string, deleteEmptyFrames: boolean, includeSymbols: boolean, layerOptions: Object }。キャンセル時は null
@@ -286,6 +294,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         /* 前回の設定があれば初期値にする / Start from the saved settings when present */
         var savedSettings = loadSettings() || {};
         var savedTexts = savedSettings.searchTexts || [];
+        var savedReplaceTexts = savedSettings.replaceTexts || [];
         function savedValue(key, defaultValue) {
             return (typeof savedSettings[key] === "boolean") ? savedSettings[key] : defaultValue;
         }
@@ -294,10 +303,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
 
-        /* 削除する文字列 / Text to remove */
+        /* 削除・置換する文字列 / Text to remove or replace */
         var searchPanel = dlg.add("panel", undefined, getLabel(LABELS.panel.searchText));
         setupPanel(searchPanel);
         var searchInputs = [];
+        var replaceInputs = [];
         var matchCountLabels = [];
         for (var i = 0; i < SEARCH_FIELD_COUNT; i++) {
             var searchRowGroup = searchPanel.add("group");
@@ -307,11 +317,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
             searchInput.characters = INPUT_CHARACTERS;
             searchInput.helpTip = getLabel(LABELS.tooltip.searchText);
             searchInput.onChanging = refreshDialogState;
+            searchRowGroup.add("statictext", undefined, "→");
+            var replaceInput = searchRowGroup.add("edittext", undefined, savedReplaceTexts[i] || "");
+            replaceInput.characters = REPLACE_INPUT_CHARACTERS;
+            replaceInput.helpTip = getLabel(LABELS.tooltip.replaceText);
             var matchCountLabel = searchRowGroup.add("statictext", undefined, "");
             matchCountLabel.preferredSize.width = MATCH_COUNT_WIDTH;
             matchCountLabel.justify = "right";
             matchCountLabel.helpTip = getLabel(LABELS.tooltip.matchCount);
             searchInputs.push(searchInput);
+            replaceInputs.push(replaceInput);
             matchCountLabels.push(matchCountLabel);
         }
         searchInputs[0].active = true;
@@ -331,6 +346,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         /* 対象 / Scope */
         var scopePanel = dlg.add("panel", undefined, getLabel(LABELS.panel.scope));
         setupPanel(scopePanel);
+        /* ラジオボタンは横に並べる / Lay out the radio buttons in a row */
+        scopePanel.orientation = "row";
+        scopePanel.alignChildren = ["left", "center"];
         var selectionRadio = scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.selection));
         selectionRadio.helpTip = getLabel(LABELS.tooltip.selection);
         var artboardRadio = scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.artboard));
@@ -433,11 +451,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
 
         var layerOptions = getLayerOptions();
         var searchTexts = [];
+        var replaceTexts = [];
         for (var j = 0; j < searchInputs.length; j++) {
             searchTexts.push(searchInputs[j].text);
+            replaceTexts.push(replaceInputs[j].text);
         }
         saveSettings({
             searchTexts: searchTexts,
+            replaceTexts: replaceTexts,
             useRegex: useRegexCheckbox.value,
             ignoreCase: ignoreCaseCheckbox.value,
             scope: getSelectedScope(),
@@ -448,7 +469,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
         });
 
         return {
-            searchEntries: getSearchEntries(searchTexts, useRegexCheckbox.value, ignoreCaseCheckbox.value),
+            searchEntries: getSearchEntries(searchTexts, replaceTexts, useRegexCheckbox.value, ignoreCaseCheckbox.value),
             scope: getSelectedScope(),
             deleteEmptyFrames: deleteEmptyFramesCheckbox.value,
             includeSymbols: includeSymbolsCheckbox.value,
@@ -477,15 +498,18 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     /**
      * 入力から有効な検索パターンを上から順に集める
      * @param {string[]} searchTexts - 入力欄の文字列
+     * @param {string[]} replaceTexts - 置換欄の文字列（空欄は削除）
      * @param {boolean} useRegex - 正規表現として扱うか
      * @param {boolean} ignoreCase - 大文字と小文字を区別しないか
-     * @returns {Object[]} { text: string, pattern: RegExp } の配列
+     * @returns {Object[]} { text: string, pattern: RegExp, replaceText: string, useRegex: boolean } の配列
      */
-    function getSearchEntries(searchTexts, useRegex, ignoreCase) {
+    function getSearchEntries(searchTexts, replaceTexts, useRegex, ignoreCase) {
         var searchEntries = [];
         for (var i = 0; i < searchTexts.length; i++) {
             var searchPattern = createSearchPattern(searchTexts[i], useRegex, ignoreCase);
-            if (searchPattern) searchEntries.push({ text: searchTexts[i], pattern: searchPattern });
+            if (searchPattern) {
+                searchEntries.push({ text: searchTexts[i], pattern: searchPattern, replaceText: replaceTexts[i] || "", useRegex: useRegex });
+            }
         }
         return searchEntries;
     }
@@ -649,16 +673,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     }
 
     /**
-     * テキストフレームから一致箇所をすべて削除する（パターンは配列の順に処理）
+     * テキストフレームの一致箇所をすべて削除・置換する（パターンは配列の順に処理）
      * @param {TextFrame[]} targetFrames - 対象のテキストフレーム
      * @param {Object[]} searchEntries - getSearchEntries() の結果
      * @param {boolean} deleteEmptyFrames - 削除で空になった独立フレームを削除するか
-     * @returns {Object} { removedCounts: number[]（欄ごとの削除数）, changedCount: number, deletedFrameCount: number }
+     * @returns {Object} { processedCounts: number[]（欄ごとの削除・置換数）, changedCount: number, deletedFrameCount: number }
      */
-    function removeTextFromFrames(targetFrames, searchEntries, deleteEmptyFrames) {
-        var removeResult = { removedCounts: [], changedCount: 0, deletedFrameCount: 0 };
+    function replaceTextInFrames(targetFrames, searchEntries, deleteEmptyFrames) {
+        var removeResult = { processedCounts: [], changedCount: 0, deletedFrameCount: 0 };
         for (var k = 0; k < searchEntries.length; k++) {
-            removeResult.removedCounts.push(0);
+            removeResult.processedCounts.push(0);
         }
         for (var i = 0; i < targetFrames.length; i++) {
             var textFrame = targetFrames[i];
@@ -666,7 +690,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
             /* 編集できないテキスト（テンプレートレイヤーなど）は例外になるのでスキップ / Skip text that throws because it cannot be edited (template layers, etc.) */
             try {
                 unlockAndRevealAncestors(textFrame, stateRecords);
-                var isChanged = removePatternsFromFrame(textFrame, searchEntries, removeResult.removedCounts);
+                var isChanged = replacePatternsInFrame(textFrame, searchEntries, removeResult.processedCounts);
                 if (isChanged) removeResult.changedCount++;
                 if (isChanged && deleteEmptyFrames && textFrame.contents === "" && isStandaloneFrame(textFrame)) {
                     /* 消したフレーム自身は状態を戻さない / Do not restore the deleted frame itself */
@@ -683,20 +707,20 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     }
 
     /**
-     * 1つのテキストフレームから、パターンを配列の順にすべて削除する
+     * 1つのテキストフレームで、パターンを配列の順にすべて削除・置換する
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Object[]} searchEntries - getSearchEntries() の結果
-     * @param {number[]} removedCounts - 欄ごとの削除数（加算していく）
-     * @returns {boolean} 1か所でも削除したら true
+     * @param {number[]} processedCounts - 欄ごとの削除・置換数（加算していく）
+     * @returns {boolean} 1か所でも削除・置換したら true
      */
-    function removePatternsFromFrame(textFrame, searchEntries, removedCounts) {
+    function replacePatternsInFrame(textFrame, searchEntries, processedCounts) {
         var isChanged = false;
         for (var i = 0; i < searchEntries.length; i++) {
-            /* 前の削除で内容が変わるので、毎回 contents から探し直す / Search again each time, as earlier removals change the contents */
+            /* 前の削除・置換で内容が変わるので、毎回 contents から探し直す / Search again each time, as earlier edits change the contents */
             var matches = findMatches(textFrame.contents, searchEntries[i].pattern);
             if (matches.length === 0) continue;
-            removeMatchesKeepingFormat(textFrame, matches);
-            removedCounts[i] += matches.length;
+            replaceMatchesKeepingFormat(textFrame, matches, searchEntries[i]);
+            processedCounts[i] += matches.length;
             isChanged = true;
         }
         return isChanged;
@@ -730,7 +754,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
      * 文字列中の一致箇所を左から集める（長さ0の一致は除く）
      * @param {string} text - 検索する文字列
      * @param {RegExp} searchPattern - g フラグ付きの検索パターン
-     * @returns {Object[]} { start: number, length: number } の配列（昇順）
+     * @returns {Object[]} { start: number, length: number, captures: Array } の配列（昇順）
      */
     function findMatches(text, searchPattern) {
         var matches = [];
@@ -742,24 +766,52 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
                 searchPattern.lastIndex++;
                 continue;
             }
-            matches.push({ start: match.index, length: match[0].length });
+            matches.push({ start: match.index, length: match[0].length, captures: match });
         }
         return matches;
     }
 
     /**
-     * 一致箇所を1文字ずつ右から削除する（contents を書き戻さないので文字ごとの書式が残る）
+     * 一致箇所を右から削除・置換する（contents を書き戻さないので文字ごとの書式が残る）
+     * 置換は先頭の1文字だけ残して contents を差し替えるので、置換後の文字はその文字の書式になる
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Object[]} matches - findMatches() の結果（昇順）
+     * @param {Object} searchEntry - getSearchEntries() の要素
      * @returns {void}
      */
-    function removeMatchesKeepingFormat(textFrame, matches) {
+    function replaceMatchesKeepingFormat(textFrame, matches, searchEntry) {
         var frameCharacters = textFrame.characters;
         for (var i = matches.length - 1; i >= 0; i--) {
-            for (var j = matches[i].start + matches[i].length - 1; j >= matches[i].start; j--) {
+            var newText = getReplacementText(searchEntry, matches[i].captures);
+            var keptCount = (newText === "") ? 0 : 1;
+            for (var j = matches[i].start + matches[i].length - 1; j >= matches[i].start + keptCount; j--) {
                 frameCharacters[j].remove();
             }
+            if (keptCount > 0) frameCharacters[matches[i].start].contents = newText;
         }
+    }
+
+    /**
+     * 一致箇所の置換後の文字列を返す（正規表現のときは $$ / $& / $1〜$99 を展開する）
+     * @param {Object} searchEntry - getSearchEntries() の要素
+     * @param {Array} captures - exec() の結果
+     * @returns {string} 置換後の文字列。空なら削除
+     */
+    function getReplacementText(searchEntry, captures) {
+        if (!searchEntry.useRegex) return searchEntry.replaceText;
+        return searchEntry.replaceText.replace(/\$(\$|&|\d\d?)/g, function (token, name) {
+            if (name === "$") return "$";
+            if (name === "&") return captures[0];
+            var groupIndex = parseInt(name, 10);
+            /* $12 でグループが足りなければ $1 と「2」として扱う / Read $12 as $1 followed by "2" when there are fewer groups */
+            if (name.length === 2 && groupIndex >= captures.length) {
+                groupIndex = parseInt(name.charAt(0), 10);
+                if (groupIndex === 0 || groupIndex >= captures.length) return token;
+                return (captures[groupIndex] || "") + name.charAt(1);
+            }
+            if (groupIndex === 0 || groupIndex >= captures.length) return token;
+            return captures[groupIndex] || "";
+        });
     }
 
     // =========================================
@@ -869,14 +921,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     }
 
     /**
-     * シンボル内のテキストから一致箇所を削除し、書き換えたシンボルで定義を差し替える
+     * シンボル内のテキストの一致箇所を削除・置換し、書き換えたシンボルで定義を差し替える
      * @param {Document} doc - 対象ドキュメント
      * @param {Symbol[]} targetSymbols - 対象のシンボル
      * @param {Object[]} searchEntries - getSearchEntries() の結果
-     * @param {number[]} removedCounts - 欄ごとの削除数（加算していく）
+     * @param {number[]} processedCounts - 欄ごとの削除・置換数（加算していく）
      * @returns {number} 書き換えたシンボルの数
      */
-    function removeTextFromSymbols(doc, targetSymbols, searchEntries, removedCounts) {
+    function replaceTextInSymbols(doc, targetSymbols, searchEntries, processedCounts) {
         var updatedSymbolCount = 0;
         if (targetSymbols.length === 0) return updatedSymbolCount;
         withSymbolWorkLayer(doc, function (workLayer) {
@@ -885,15 +937,15 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
                 var symbolFrames = [];
                 collectItemsOfType(contentGroup, "TextFrame", symbolFrames);
                 /* 差し替えに失敗したら数えないよう、シンボルごとに数えてから足す / Count per symbol, and add only when the swap succeeds */
-                var symbolRemovedCounts = [];
-                for (var k = 0; k < searchEntries.length; k++) symbolRemovedCounts.push(0);
+                var symbolProcessedCounts = [];
+                for (var k = 0; k < searchEntries.length; k++) symbolProcessedCounts.push(0);
                 var isChanged = false;
                 for (var j = 0; j < symbolFrames.length; j++) {
-                    if (removePatternsFromFrame(symbolFrames[j], searchEntries, symbolRemovedCounts)) isChanged = true;
+                    if (replacePatternsInFrame(symbolFrames[j], searchEntries, symbolProcessedCounts)) isChanged = true;
                 }
                 if (isChanged && replaceSymbolDefinition(doc, targetSymbols[i], contentGroup)) {
                     updatedSymbolCount++;
-                    for (k = 0; k < searchEntries.length; k++) removedCounts[k] += symbolRemovedCounts[k];
+                    for (k = 0; k < searchEntries.length; k++) processedCounts[k] += symbolProcessedCounts[k];
                 }
                 contentGroup.remove();
             }

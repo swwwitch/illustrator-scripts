@@ -1,8 +1,8 @@
-# Remove specified strings from text
+# Remove or replace specified strings in text
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-RemoveMatchingText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/RemoveMatchingText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartTextFindReplace.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartTextFindReplace.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,14 +10,15 @@
 
 ### Overview
 
-- Removes the entered strings from text in one go.
+- Removes the entered strings from text in one go. Fill in the replace field to replace them instead.
 - There are five fields, processed from top to bottom. Regular expressions are supported.
 - Choose the scope: selected objects, the current artboard, or the entire document. Text inside symbols can be included.
-- Characters are removed one by one, so the formatting of the remaining text (color, font, size, etc.) is kept.
+- Characters are removed one by one, so the formatting of the remaining text (color, font, size, etc.) is kept. Replaced text takes the formatting of the first character of the match.
 
 ### Features
 
 - Up to five strings to remove (empty fields are ignored)
+- A replacement for each field (empty to remove; with regular expressions, `$1`, `$&` etc. refer to the match)
 - Shows the number of matches in the scope for each field (updated as you type or change the scope)
 - Regular expressions and case-insensitive search
 - Scope: selected objects (including inside groups) / current artboard (text that overlaps it) / entire document
@@ -25,21 +26,21 @@
 - Deletes text left empty by the removal
 - Processes text in hidden or locked layers and objects (released only while processing, then restored)
 - Processes text in symbols (by rewriting the symbol definition)
-- Reports the removed count per field, and the numbers of changed text, deleted text and rewritten symbols
+- Reports the removed / replaced count per field, and the numbers of changed text, deleted text and rewritten symbols
 - Remembers the entries and settings for the next run
 
 ### How to use
 
 1. Select the target, or run the script with nothing selected
-2. Enter strings under "Text to Remove" (the match count appears to the right)
+2. Enter strings in the left fields under "Text to Remove / Replace" (to replace, also fill in the field right of "→"; the match count appears at the right end)
 3. Choose the scope and options, then click OK
 
 ### Dialog
 
 | Item | Description |
 | --- | --- |
-| Text to Remove | Strings to remove (five fields). Empty fields are ignored; fields are processed from top to bottom. The number on the right is the match count in the scope; "!" means an invalid regular expression |
-| Regular expression | Treats the input as JavaScript regular expressions. `^` and `$` match the start and end of each paragraph |
+| Text to Remove / Replace | Left: strings to search for (five fields). Empty fields are ignored; fields are processed from top to bottom. Right of "→": replacement text; leave empty to remove. The number at the right end is the match count in the scope; "!" means an invalid regular expression |
+| Regular expression | Treats the input as JavaScript regular expressions. `^` and `$` match the start and end of each paragraph. Replacements can use `$1`–`$99`, `$&` and `$$` |
 | Ignore case | Treats upper- and lowercase letters as the same |
 | Selected objects | Selected text (including inside groups). Unavailable when nothing is selected |
 | Current artboard | Text that overlaps the active artboard, even partly |
@@ -51,7 +52,9 @@
 
 ### Notes
 
-- The match count of each field ignores removals by the other fields. When the strings overlap, the actual number removed may differ.
+- The match count of each field ignores removals and replacements by the other fields. When the strings overlap, the actual number processed may differ.
+- Replaced text is searched by the fields below.
+- Replaced text takes the formatting of the first character of the match. Mixed formatting within a match becomes a single format.
 - "Search symbols too" rewrites the symbol definition itself, so instances of the same symbol outside the scope change as well.
 - Symbols are recreated and swapped, so symbol options such as the registration point and 9-slice scaling are reset.
 - With "Search symbols too" on, symbols are expanded temporarily in the dialog to count matches. The dialog may open slowly in documents with many symbols.
@@ -64,3 +67,4 @@
 ### Changelog
 
 - v1.0.0 (20260926) : Initial release
+- v1.1.0 (20260926) : Added replace fields
