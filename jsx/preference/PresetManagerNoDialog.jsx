@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManagerNoDialog";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerNoDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerNoDialog.md"; /* README (English) */
@@ -192,6 +192,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             printBleedWidget: false,          /* 「裁ち落としを印刷」生成AIボタン / Print Bleed AI buttons */
             /* 選択範囲・アンカー表示 / Selection & Anchor Display */
             zoomToSelection: false,           /* 選択範囲へズーム / Zoom to Selection */
+            unlockOnCanvas: false,            /* カンバス上でロック解除 / Unlock on Canvas */
             anchorSize: 7,                    /* アンカーポイントのサイズ 5/7/9/11 / Anchor Point Size */
             objectPathOnly: false,            /* オブジェクトの選択範囲をパスに制限 / Object Selection by Path Only */
             textPathOnly: false,              /* テキストオブジェクトの選択範囲をパスに制限 / Type Object Selection by Path Only */
@@ -213,14 +214,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             guideStyleIsDots: false,          /* ガイドのスタイル / Guide Style */
             /* スマートガイド：表示オプション / Smart Guides: display options */
             objectHighlighting: false,        /* オブジェクトのハイライト表示 / Object Highlighting */
-            /* スマートガイド：スナップを制限 / Smart Guides: restrict snapping */
-            snapRange: SNAP_RANGE_CANVAS,     /* スナップ範囲 / Snap range */
-            snapToIsolatedObjects: true,      /* 編集モードのオブジェクトにスナップ / Snap to isolated objects */
-            snapTolerance: 6,                 /* 許容値 / Snapping tolerance */
-            /* 詳細設定・グリッドにスナップ / Advanced & snap to grid */
-            snapToGrid: true,                 /* グリッドに強制スナップ / Snap to grid */
-            showSnapToGridGuides: true,       /* グリッドにスナップするときにガイドを表示 / Show visual guides */
-            snapToPointTolerance: 1,          /* ポイントにスナップ許容値 / Snap to point tolerance */
             /* パフォーマンス / Performance */
             animatedZoom: false,              /* アニメーションズーム / Animated Zoom */
             historyStates: 50,                /* ヒストリー数 1〜1000 / History States */
@@ -254,6 +247,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { key: "plugin/DontShowWarningAgain/ShowPathfinderGroupWarning", presetField: "pathfinderWarning", valueType: "bool" },
         /* 選択範囲・アンカー表示 / Selection & Anchor Display */
         { key: "zoomToSelection", presetField: "zoomToSelection", valueType: "bool" },
+        { key: "showLockIcon", presetField: "unlockOnCanvas", valueType: "bool" },
         { key: "anchorSizePref", presetField: "anchorSize", valueType: "int" },
         { key: "hitShapeOnPreview", presetField: "objectPathOnly", valueType: "invertedInt" },
         { key: "hitTypeShapeOnPreview", presetField: "textPathOnly", valueType: "invertedInt" },
