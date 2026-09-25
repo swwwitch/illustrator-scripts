@@ -140,6 +140,7 @@ var WINDOW_MARGINS        = 16;  /* ウィンドウ外周の余白 */
 var WINDOW_SPACING        = 12;  /* ウィンドウ内の要素間隔 */
 var ROW_SPACING           = 6;   /* 行内の要素間隔 */
 var RADIO_COLUMN_SPACING  = 2;   /* 縦に並べたラジオボタンの間隔 */
+var RADIO_GRID_BOTTOM_MARGIN = 5; /* 切り口のラジオボタンの下の余白 */
 var PANEL_MARGINS         = [16, 20, 16, 12];  /* パネル余白 [左,上,右,下] */
 var PANEL_SPACING         = 6;   /* パネル内の要素間隔 */
 var COLUMN_SPACING        = 12;  /* 2カラムの間隔 */
@@ -665,6 +666,23 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     function wireClickControls(clickControls, onValueChanged) {
         for (var controlIndex = 0; controlIndex < clickControls.length; controlIndex++) {
             clickControls[controlIndex].onClick = onValueChanged;
+        }
+    }
+
+    /**
+     * 親が分かれたラジオボタンを、1つだけ選べるようにつなぐ
+     * @param {RadioButton[]} radioButtons - 対象のラジオボタン
+     * @param {function} onValueChanged - 選択が変わったあとに呼ぶ処理
+     * @returns {void}
+     */
+    function wireRadioGrid(radioButtons, onValueChanged) {
+        for (var radioIndex = 0; radioIndex < radioButtons.length; radioIndex++) {
+            radioButtons[radioIndex].onClick = function () {
+                for (var otherIndex = 0; otherIndex < radioButtons.length; otherIndex++) {
+                    if (radioButtons[otherIndex] !== this) radioButtons[otherIndex].value = false;
+                }
+                onValueChanged();
+            };
         }
     }
 
@@ -1611,6 +1629,40 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
+     * ラジオボタンを格子状に並べる（上の行から左→右の順）
+     * 列ごとのグループに入れて縦をそろえるので、排他は wireRadioGrid でつなぐ
+     * @param {Window|Group} parentGroup - 追加先
+     * @param {string[]} tooltipPaths - 選択肢ごとのtooltipのラベルキー
+     * @param {string[]} optionLabelPaths - 選択肢のラベルキー
+     * @param {number} selectedIndex - 初期選択の位置
+     * @param {number} columnCount - 列数
+     * @returns {{row: Group, radios: RadioButton[]}} 追加した行とラジオボタン
+     */
+    function addRadioGrid(parentGroup, tooltipPaths, optionLabelPaths, selectedIndex, columnCount) {
+        var gridRow = addFieldRow(parentGroup);
+        gridRow.alignChildren = ["left", "top"];
+        gridRow.margins = [0, 0, 0, RADIO_GRID_BOTTOM_MARGIN];
+
+        var columnGroups = [];
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+            var columnGroup = gridRow.add("group");
+            columnGroup.orientation = "column";
+            columnGroup.alignChildren = ["left", "center"];
+            columnGroup.spacing = RADIO_COLUMN_SPACING;
+            columnGroups.push(columnGroup);
+        }
+
+        var radioButtons = [];
+        for (var optionIndex = 0; optionIndex < optionLabelPaths.length; optionIndex++) {
+            var radioButton = columnGroups[optionIndex % columnCount].add("radiobutton", undefined, getLabel(optionLabelPaths[optionIndex]));
+            radioButton.helpTip = getLabel(tooltipPaths[optionIndex]);
+            radioButton.value = (optionIndex === selectedIndex);
+            radioButtons.push(radioButton);
+        }
+        return { row: gridRow, radios: radioButtons };
+    }
+
+    /**
      * 「切り口」パネルを組み立てる
      * @param {Group} parentGroup - 追加先の列グループ
      * @returns {object} パネルの入力コントロール
@@ -1626,9 +1678,9 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             styleTooltipPaths.push("tooltip." + WARP_STYLE_KEYS[styleIndex]);
         }
 
-        /* スタイルは項目名なしで縦に並べ、パネルの左右中央に置く / the styles stack in one centered column without a label */
-        var warpStyleRow = addRadioRow(cutEdgePanel, null, styleTooltipPaths,
-            styleLabelPaths, getWarpStyleIndex(initialValues.warpStyleKey), undefined, true);
+        /* スタイルは項目名なしで2行2列に並べ、パネルの左右中央に置く / the styles sit in a centered 2x2 grid without a label */
+        var warpStyleRow = addRadioGrid(cutEdgePanel, styleTooltipPaths,
+            styleLabelPaths, getWarpStyleIndex(initialValues.warpStyleKey), 2);
         warpStyleRow.row.alignment = ["center", "center"];
         var warpAmountRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.warpAmount", "tooltip.warpAmount",
             formatFieldNumber(initialValues.warpPercent), "%");
@@ -1783,8 +1835,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         wireNumberField(cutEdgeControls.gapField, clampGapValue, onSettingChanged);
         wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged);
         wireNumberField(ruleControls.widthField, clampRuleWidth, onSettingChanged);
-        wireClickControls(cutEdgeControls.styleRadios
-            .concat([ruleControls.addRuleCheckbox])
+        wireRadioGrid(cutEdgeControls.styleRadios, onSettingChanged);
+        wireClickControls([ruleControls.addRuleCheckbox]
             .concat(ruleControls.styleRadios)
             .concat(ruleControls.capRadios)
             .concat([ruleControls.groupRulesCheckbox]), onSettingChanged);

@@ -84,7 +84,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
-- v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now stacked vertically
+- v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now laid out in two rows of two
 - v1.0.7 (20260923) : Added the size along the cut edge (width when cutting top and bottom, height when cutting left and right) to the Mask shape panel. Renamed the Rise (straight) style to Straight, dropped the Warp style label and put Flag, Rise and Straight in one row. Reviewed the UI wording: the title is now Trim with Break Lines, the Trim panel is now Cut edge and the cap option None is now Butt; tooltips were rewritten to match the actual behavior and added to the panels, the styles and the row labels
 - v1.0.6 (20260921) : When cutting left and right, the left part now stays in place and the right part closes up to it
 - v1.0.5 (20260921) : Bend now accepts negative values (-100 to 100%) to bend the cut edge the other way
