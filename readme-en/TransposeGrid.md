@@ -14,6 +14,11 @@ Infers rows and columns from the selected objects, tolerating gaps, estimates th
 Transposing a single row into a single column, and vice versa, is supported.
 Even a selection that is not neatly aligned is resolved into rows and columns within a tolerance, then re-laid out from the top-left.
 
+### Article
+
+[Swap rows and columns of objects arranged in a matrix with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/nb5600abd495a)
+
 ### Update History
 
 - v1.1 (2026-01-26): Added support for single-row and single-column selections
+- v1.1.2 (2026-09-25): Added English messages and reworded the alerts

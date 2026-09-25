@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObje
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md"; /* README (English) */
@@ -56,16 +56,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     var HONEYCOMB_ROW_STEP_FACTOR = 0.75;
 
     // =========================================
-    // セッション記憶 / Session memory
-    // =========================================
-
-    /* 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog) */
-    $.global.__regridForceGrid = $.global.__regridForceGrid || false;
-
-    /* 中央揃え：各セルの天地左右中央に整列（強制グリッドのサブオプション）/ Center each object in its cell (sub-option of Force Grid) */
-    $.global.__regridCenterInCell = $.global.__regridCenterInCell || false;
-
-    // =========================================
     // レイアウト / Layout
     // =========================================
 
@@ -74,6 +64,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     var WINDOW_SPACING     = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS      = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING      = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var OPTION_SPACING     = 6;                  /* オプションパネル内の要素間隔 / spacing in the Options panel */
     var COLUMN_SPACING     = 12;                 /* 2カラムの間隔 / gap between columns */
     var SUB_OPTION_MARGINS = [15, 0, 0, 0];      /* サブオプションの字下げ / indent of sub-options */
     var GAP_INPUT_CHARS    = 4;                  /* 間隔の入力欄の文字数 / width of the gap fields, in characters */
@@ -81,14 +72,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     /**
      * ウィンドウに共通のレイアウト設定（縦並び・外周余白・要素間隔）を適用する
      * @param {Window} targetWindow - 対象のダイアログウィンドウ
-     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(targetWindow, spacing) {
+    function setupWindow(targetWindow) {
         targetWindow.orientation = "column";
         targetWindow.alignChildren = "fill";
         targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+        targetWindow.spacing = WINDOW_SPACING;
     }
 
     /**
@@ -109,84 +99,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * 行グループ（ボタン列など）に共通の横並び設定を適用する
      * @param {Group} rowGroup - 対象のグループ
      * @param {string} [alignment] - グループの配置（"left" / "center" / "right" など。省略時は "left"）
-     * @param {number} [spacing] - グループ内の要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(rowGroup, alignment, spacing) {
+    function setupRow(rowGroup, alignment) {
         rowGroup.orientation = "row";
         rowGroup.alignment = alignment || "left";
-        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        rowGroup.spacing = PANEL_SPACING;
     }
 
-    /**
-     * 入力欄で↑↓キーによる増減を行えるようにする
-     * （↑↓：±1、Shift＋↑↓：±10（10の倍数にスナップ）、Option(Alt)＋↑↓：±0.1）。
-     * 修飾キーは event を優先して読む（keyboardState は macOS で altKey を誤報するため）
-     * @param {EditText} editText - 対象の入力欄
-     * @param {Function} [onUpdate] - 値を変えたあとに呼ぶ関数（プレビュー更新用）
-     * @returns {void}
-     */
-    function changeValueByArrowKey(editText, onUpdate) {
-        editText.addEventListener("keydown", function (event) {
-            // 矢印キー（↑↓）以外は何もしない（手入力中のカーソル位置や通常入力を壊さない）
-            // Only handle Up/Down; leave manual typing and caret behavior untouched
-            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+    // =========================================
+    // セッション記憶 / Session memory
+    // =========================================
 
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+    /* 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog) */
+    $.global.__regridForceGrid = $.global.__regridForceGrid || false;
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            // 修飾キーは event を優先して読む（keyboardState は macOS で altKey を誤報するため）
-            // Read modifiers from event first (keyboardState misreports altKey on macOS)
-            var isShiftDown = event.shiftKey || (keyboard && keyboard.shiftKey);
-            var isAltDown = event.altKey || (keyboard && keyboard.altKey);
-            var delta = 1;
-
-            if (isShiftDown) {
-                // 10単位で増減 / change by 10
-                delta = 10;
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    event.preventDefault();
-                }
-            } else if (isAltDown) {
-                // 0.1単位で増減 / change by 0.1
-                delta = 0.1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                // 1単位 / change by 1
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            }
-
-            // 丸め / rounding
-            if (isAltDown) {
-                value = Math.round(value * 10) / 10;
-            } else {
-                value = Math.round(value);
-            }
-
-            editText.text = value;
-
-            // 値変更後にプレビュー / update preview after change
-            if (typeof onUpdate === "function") onUpdate();
-        });
-    }
+    /* 中央揃え：各セルの天地左右中央に整列（強制グリッドのサブオプション）/ Center each object in its cell (sub-option of Force Grid) */
+    $.global.__regridCenterInCell = $.global.__regridCenterInCell || false;
 
     // =========================================
     // プレビュー履歴ユーティリティ / Preview history util
@@ -276,7 +205,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     /* ラベル定義（カテゴリ分け）/ Label definitions (categorized) */
     var LABELS = {
         dialog: {
-            title: { ja: "グリッドの間隔を再定義", en: "Redefine Grid Spacing" }
+            title: { ja: "グリッドの再配置", en: "Regrid Objects" }
         },
         panel: {
             spacing: { ja: "間隔", en: "Spacing" },
@@ -291,7 +220,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             brick: { ja: "レンガ状", en: "Brick" },
             honeycomb: { ja: "ハニカム", en: "Honeycomb" },
             forceGrid: { ja: "強制グリッド", en: "Force Grid" },
-            centerInCell: { ja: "中央揃え", en: "Center in cell" },
+            centerInCell: { ja: "中央揃え", en: "Center in Cell" },
             transpose: { ja: "行列入れ替え", en: "Swap Rows{slash}Columns" }
         },
         button: {
@@ -334,11 +263,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Open a document first." },
-            noSelection: { ja: "グリッド状に並んだオブジェクトを選択してください。", en: "Please select grid-like objects first." },
-            needTwo: { ja: "2つ以上のオブジェクトを選択してください。", en: "Please select at least two objects." },
+            noSelection: { ja: "グリッド状に並んだオブジェクトを選択してください。", en: "Select objects arranged in a grid." },
+            needTwo: { ja: "2つ以上のオブジェクトを選択してください。", en: "Select at least two objects." },
             cellConflict: {
-                ja: "同一セルに複数オブジェクトが割り当てられました。\n許容値を下げるか、整列状態を確認してください。\n衝突セル: ",
-                en: "Multiple objects were assigned to the same cell.\nReduce tolerances or check alignment.\nConflict cell: "
+                ja: "行列を入れ替えられません。同じセルに複数のオブジェクトが入ります。\n重なっているオブジェクトがないか確認してください。\n衝突したセル：行 {row}・列 {col}",
+                en: "Cannot swap rows and columns: more than one object falls into the same cell.\nCheck for overlapping objects.\nConflicting cell: row {row}, column {col}"
             }
         }
     };
@@ -371,6 +300,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     // =========================================
     // ダイアログ / Dialog
     // =========================================
+
+    /**
+     * 入力欄で↑↓キーによる増減を行えるようにする
+     * （↑↓：±1、Shift＋↑↓：±10（10の倍数にスナップ）、Option(Alt)＋↑↓：±0.1）。
+     * 修飾キーは event を優先して読む（keyboardState は macOS で altKey を誤報するため）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {Function} [onUpdate] - 値を変えたあとに呼ぶ関数（プレビュー更新用）
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, onUpdate) {
+        editText.addEventListener("keydown", function (event) {
+            // 矢印キー（↑↓）以外は何もしない（手入力中のカーソル位置や通常入力を壊さない）
+            // Only handle Up/Down; leave manual typing and caret behavior untouched
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboardState = ScriptUI.environment.keyboardState;
+            // 修飾キーは event を優先して読む（keyboardState は macOS で altKey を誤報するため）
+            // Read modifiers from event first (keyboardState misreports altKey on macOS)
+            var isShiftDown = event.shiftKey || (keyboardState && keyboardState.shiftKey);
+            var isAltDown = event.altKey || (keyboardState && keyboardState.altKey);
+            var isUp = (event.keyName === "Up");
+
+            if (isShiftDown) {
+                // 10単位で増減し、10の倍数にそろえる / step by 10, snapping to multiples of 10
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else {
+                // Option(Alt) は 0.1、なしは 1 / 0.1 with Option (Alt), otherwise 1
+                var step = isAltDown ? 0.1 : 1;
+                value += isUp ? step : -step;
+            }
+            event.preventDefault();
+
+            // 丸め / rounding
+            editText.text = isAltDown ? Math.round(value * 10) / 10 : Math.round(value);
+
+            // 値変更後にプレビュー / update preview after change
+            if (typeof onUpdate === "function") onUpdate();
+        });
+    }
 
     /**
      * 項目名と間隔の入力欄を1行追加する
@@ -417,8 +388,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var spacingDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         setupWindow(spacingDialog);
 
-        // パネル名に単位を出す / show unit in panel title
-        var spacingPanel = spacingDialog.add('panel', undefined, getLabel('panel.spacing') + ' (' + rulerUnit.label + ')');
+        // パネル名に単位を出す（日本語は全角かっこ）/ show unit in panel title (full-width parentheses in Japanese)
+        var unitSuffix = (uiLang === "ja") ? "（" + rulerUnit.label + "）" : " (" + rulerUnit.label + ")";
+        var spacingPanel = spacingDialog.add('panel', undefined, getLabel('panel.spacing') + unitSuffix);
         // 2カラム構成なので row のまま余白のみ共通化 / two-column panel: keep row, share margins
         spacingPanel.orientation = 'row';
         spacingPanel.alignChildren = 'top';
@@ -434,8 +406,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         // 初期値は pt を表示単位に換算して表示 / show initial value converted from pt to the display unit
         var horizontalGapInput = addGapField(gapInputColumn, 'fieldLabel.horizontal',
             (initialGapX / rulerUnit.pointsPerUnit).toFixed(1), 'tooltip.horizontal');
-        // 初期表示では負の値を使わない / no negative value at first
-        var verticalGapInput = addGapField(gapInputColumn, 'fieldLabel.vertical', '0', 'tooltip.vertical');
+        // 連動ONで始めるので上下は左右と同じ値 / Link starts on, so vertical mirrors horizontal
+        var verticalGapInput = addGapField(gapInputColumn, 'fieldLabel.vertical', horizontalGapInput.text, 'tooltip.vertical');
 
         // 右カラム（連動）/ right column (link)
         var linkColumn = spacingPanel.add('group');
@@ -449,13 +421,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // オプション（チェックボックスをまとめる）/ Options panel
         var optionsPanel = spacingDialog.add('panel', undefined, getLabel('panel.options'));
-        setupPanel(optionsPanel, 6);
+        setupPanel(optionsPanel, OPTION_SPACING);
 
         // レンガ状／ハニカム（レンガ状のサブオプション）/ Brick and Honeycomb (sub-option of Brick)
         var brickCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.brick', 'tooltip.brick', false);
-        brickCheckbox.value = false;
         var honeycombCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.honeycomb', 'tooltip.honeycomb', true);
-        honeycombCheckbox.value = false;
         honeycombCheckbox.enabled = false;
 
         // 強制グリッド／中央揃え（強制グリッドのサブオプション）/ Force Grid and Center in cell (sub-option of Force Grid)
@@ -467,15 +437,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // 行列入れ替え / Swap rows/columns
         var transposeCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.transpose', 'tooltip.transpose', false);
-        transposeCheckbox.value = false;
 
         // 初期状態 / initial state
         linkCheckbox.value = true;
         horizontalGapInput.active = true;
         verticalGapInput.enabled = false;
-        verticalGapInput.text = horizontalGapInput.text;
-
-        honeycombCheckbox.enabled = brickCheckbox.value;
 
         // ボタン行（パネル外・中央寄せ、いっぱいに広げない）/ buttons (outside panels, centered, not stretched)
         var btnRowGroup = spacingDialog.add('group');
@@ -497,34 +463,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
-     * 左右・上下の入力値を数値で読む（数値でなければ 0）。単位は表示単位のまま
+     * 左右・上下の入力値を pt で読む（数値でなければ 0）。［連動］がONなら上下は左右と同じ値
      * @param {object} dialogControls - buildGridSpacingDialog() の戻り値
-     * @returns {{gapX: number, gapY: number}} 左右・上下の間隔
+     * @param {number} pointsPerUnit - 表示単位1あたりのポイント数
+     * @returns {{gapX: number, gapY: number}} 左右・上下の間隔（pt）
      */
-    function readGapInputs(dialogControls) {
+    function readGapsInPoints(dialogControls, pointsPerUnit) {
         var gapX = parseFloat(dialogControls.horizontalGapInput.text);
-        var gapY = parseFloat(dialogControls.verticalGapInput.text);
+        var gapY = dialogControls.linkCheckbox.value ? gapX : parseFloat(dialogControls.verticalGapInput.text);
         if (isNaN(gapX)) gapX = 0;
         if (isNaN(gapY)) gapY = 0;
-        return { gapX: gapX, gapY: gapY };
+        return { gapX: gapX * pointsPerUnit, gapY: gapY * pointsPerUnit };
     }
 
     /**
-     * 間隔設定ダイアログを表示し、プレビューと確定適用を行う
+     * ［レンガ状］［ハニカム］［行列入れ替え］の状態に合わせて間隔を適用する。
+     * 行列入れ替えONのときは、間隔0で並べ直す→転置→基準を取り直す→間隔を適用、の順に進める
      * @param {object} layoutActions - main が用意する配置処理一式
-     *   applySpacing / applySpacingBrick / applySpacingHexagon（(gapX, gapY) => void）、
-     *   transpose（行列入れ替え）、restoreInitialPositions（ダイアログ開始時点へ戻す）、
-     *   resetBaselineToCurrent（現在位置を新しい基準にする）
-     * @param {number} initialGapX - 左右間隔の初期値（pt）
+     * @param {object} dialogControls - buildGridSpacingDialog() の戻り値
+     * @param {{gapX: number, gapY: number}} gaps - 左右・上下の間隔（pt）
+     * @param {boolean} bumpHistory - プレビュー時は各ステップで PreviewHistory.bump() する（確定時は false）
      * @returns {void}
      */
-    function showGridSpacingDialog(layoutActions, initialGapX) {
-        // 表示単位↔pt の換算係数（入力値は表示単位、内部処理は pt）
-        // Points per display unit (inputs are in display units; internal geometry is in pt)
-        var rulerUnit = getUnitInfo();
-        var unitFactor = rulerUnit.pointsPerUnit;
+    function applyLayoutFromDialog(layoutActions, dialogControls, gaps, bumpHistory) {
+        var isBrick = dialogControls.brickCheckbox.value;
+        var isHoneycomb = isBrick && dialogControls.honeycombCheckbox.value;
+        var rowStepFactor = isHoneycomb ? HONEYCOMB_ROW_STEP_FACTOR : 1.0;
 
-        var dialogControls = buildGridSpacingDialog(initialGapX, rulerUnit);
+        if (dialogControls.transposeCheckbox.value) {
+            // 転置は間隔0で実行し、その後に間隔を適用 / Transpose with zero gaps, then apply the gaps
+            layoutActions.applySpacing(0, 0, false, 1.0);
+            if (bumpHistory) PreviewHistory.bump();
+
+            layoutActions.transpose();
+            if (bumpHistory) PreviewHistory.bump();
+
+            // 転置後の配置を新しい基準に / adopt the transposed layout as the baseline
+            layoutActions.resetBaselineToCurrent();
+        }
+        layoutActions.applySpacing(gaps.gapX, gaps.gapY, isBrick, rowStepFactor);
+        if (bumpHistory) PreviewHistory.bump();
+    }
+
+    /**
+     * ダイアログのイベントを結線する
+     * @param {object} dialogControls - buildGridSpacingDialog() の戻り値
+     * @param {Function} updatePreview - プレビューを描き直す関数
+     * @returns {void}
+     */
+    function bindDialogEvents(dialogControls, updatePreview) {
         var horizontalGapInput = dialogControls.horizontalGapInput;
         var verticalGapInput = dialogControls.verticalGapInput;
         var linkCheckbox = dialogControls.linkCheckbox;
@@ -532,152 +519,93 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var honeycombCheckbox = dialogControls.honeycombCheckbox;
         var forceGridCheckbox = dialogControls.forceGridCheckbox;
         var centerInCellCheckbox = dialogControls.centerInCellCheckbox;
-        var transposeCheckbox = dialogControls.transposeCheckbox;
 
-        // プレビュー用ヒストリー管理を開始 / Start preview history counter
-        PreviewHistory.start();
-
-        // 行列入れ替えが実行済みか（プレビュー状態）/ whether transpose has been triggered (preview state)
-        var didTranspose = false;
-
-        /**
-         * 現在のオプション（レンガ／ハニカム／通常）に応じて間隔適用関数を選んで実行する
-         * @param {number} gapX - 左右間隔
-         * @param {number} gapY - 上下間隔
-         * @returns {void}
-         */
-        function applySelectedSpacing(gapX, gapY) {
-            if (brickCheckbox.value) {
-                if (honeycombCheckbox.value) layoutActions.applySpacingHexagon(gapX, gapY);
-                else layoutActions.applySpacingBrick(gapX, gapY);
-            } else {
-                layoutActions.applySpacing(gapX, gapY);
-            }
-        }
-
-        /**
-         * 転置の有無を考慮して間隔を適用する。
-         * 転置ONのときはマージン0で並べ替え→転置→基準を取り直してから間隔を適用する
-         * @param {number} gapX - 左右間隔
-         * @param {number} gapY - 上下間隔
-         * @param {boolean} bumpHistory - プレビュー時は各ステップで PreviewHistory.bump() する（確定時は false）
-         * @returns {void}
-         */
-        function applyLayoutWithTranspose(gapX, gapY, bumpHistory) {
-            if (didTranspose) {
-                // 転置はマージン0で実行し、その後マージンを適用 / Transpose with 0 margins then apply margins
-                layoutActions.applySpacing(0, 0);
-                if (bumpHistory) PreviewHistory.bump();
-
-                layoutActions.transpose();
-                if (bumpHistory) PreviewHistory.bump();
-
-                // 転置後の配置を新しい基準に / adopt transposed layout as baseline for spacing
-                layoutActions.resetBaselineToCurrent();
-                applySelectedSpacing(gapX, gapY);
-                if (bumpHistory) PreviewHistory.bump();
-            } else {
-                applySelectedSpacing(gapX, gapY);
-                if (bumpHistory) PreviewHistory.bump();
-            }
-        }
-
-        /**
-         * 現在のUI状態（間隔・各オプション）に基づいてプレビューを再描画する。
-         * 直前のプレビューを一括Undoしてから再適用するため、ヒストリーを汚さない
-         * @returns {void}
-         */
-        function updatePreview() {
-            // 直前のプレビューを一括Undo（ヒストリーを汚さない）/ Undo previous preview
-            PreviewHistory.undo();
-            // 強制グリッド／中央揃えチェックボックスの状態をグローバルに反映
-            $.global.__regridForceGrid = !!forceGridCheckbox.value;
-            $.global.__regridCenterInCell = !!centerInCellCheckbox.value;
-            // Undo後の現在位置を基準として originalPositions/layoutInfo を作り直す
-            layoutActions.resetBaselineToCurrent();
-
-            if (linkCheckbox.value) {
-                verticalGapInput.enabled = false;
-                verticalGapInput.text = horizontalGapInput.text;
-            } else {
-                verticalGapInput.enabled = true;
-            }
-
-            // 値は連動OFF時に UI 側（transposeCheckboxのonClick）で入れ替え済みのため、ここでは追加の入れ替えをしない
-            // H/V are already swapped in the UI (transpose onClick) when Link is OFF, so do NOT swap again here
-            var gapValues = readGapInputs(dialogControls);
-
-            // 表示単位 → pt に換算して適用 / convert display units to pt before applying
-            applyLayoutWithTranspose(gapValues.gapX * unitFactor, gapValues.gapY * unitFactor, true);
-        }
-
-        // イベント / events
         changeValueByArrowKey(horizontalGapInput, updatePreview);
         changeValueByArrowKey(verticalGapInput, updatePreview);
-        horizontalGapInput.onChanging = function () { updatePreview(); };
-        verticalGapInput.onChanging = function () {
-            if (!linkCheckbox.value) {
-                updatePreview();
-            }
-        };
-        linkCheckbox.onClick = function () { updatePreview(); };
-        forceGridCheckbox.onClick = function () {
-            // 強制グリッドOFF時は中央揃えも無効化 / disable center when Force Grid is off
-            centerInCellCheckbox.enabled = forceGridCheckbox.value;
-            if (!forceGridCheckbox.value) centerInCellCheckbox.value = false;
-            updatePreview();
-        };
-        centerInCellCheckbox.onClick = function () { updatePreview(); };
-        // 行列入れ替え / swap rows & columns
-        transposeCheckbox.onClick = function () {
-            // トグル：ONで転置、OFFで直前（転置前）の状態に戻す
-            // Toggle: ON = transpose, OFF = revert to the pre-transpose state
-            didTranspose = transposeCheckbox.value;
+        horizontalGapInput.onChanging = updatePreview;
+        // 連動ON中の上下欄は無効なので、ここに来るのは連動OFFのときだけ / only reachable with Link off (the field is disabled otherwise)
+        verticalGapInput.onChanging = updatePreview;
 
-            // 連動OFFなら左右/上下の値をUI上でも入れ替える（OFFでは再度入れ替えて元へ戻す）
-            // Swap H/V UI values when Link is OFF (swapping again on OFF restores them)
-            if (!linkCheckbox.value) {
-                var swapHorizontalText = horizontalGapInput.text;
-                horizontalGapInput.text = verticalGapInput.text;
-                verticalGapInput.text = swapHorizontalText;
-            }
-
+        linkCheckbox.onClick = function () {
+            verticalGapInput.enabled = !linkCheckbox.value;
             updatePreview();
         };
 
-        // レンガ状 / Brick
+        // レンガ状OFFでハニカムも解除 / Brick off also clears Honeycomb
         brickCheckbox.onClick = function () {
             honeycombCheckbox.enabled = brickCheckbox.value;
             if (!brickCheckbox.value) honeycombCheckbox.value = false;
             updatePreview();
         };
+        honeycombCheckbox.onClick = updatePreview;
 
-        // 六角形 / Hexagon
-        honeycombCheckbox.onClick = function () {
+        // 強制グリッドOFFで中央揃えも解除 / Force Grid off also clears Center in Cell
+        forceGridCheckbox.onClick = function () {
+            centerInCellCheckbox.enabled = forceGridCheckbox.value;
+            if (!forceGridCheckbox.value) centerInCellCheckbox.value = false;
             updatePreview();
         };
+        centerInCellCheckbox.onClick = updatePreview;
 
-        // 開いたときに一度プレビュー / first preview when opened
+        // 行列入れ替えはトグル：ONで転置、OFFで転置前に戻す。連動OFFなら左右・上下の値も入れ替える
+        // Toggle: ON transposes, OFF reverts. With Link off, the H/V values are swapped too
+        dialogControls.transposeCheckbox.onClick = function () {
+            if (!linkCheckbox.value) {
+                var horizontalText = horizontalGapInput.text;
+                horizontalGapInput.text = verticalGapInput.text;
+                verticalGapInput.text = horizontalText;
+            }
+            updatePreview();
+        };
+    }
+
+    /**
+     * 間隔設定ダイアログを表示し、プレビューと確定適用を行う
+     * @param {object} layoutActions - main が用意する配置処理一式
+     *   applySpacing（(gapX, gapY, isBrick, rowStepFactor) => void）、transpose（行列入れ替え）、
+     *   restoreInitialPositions（ダイアログ開始時点へ戻す）、resetBaselineToCurrent（現在位置を新しい基準にする）
+     * @param {number} initialGapX - 左右間隔の初期値（pt）
+     * @returns {void}
+     */
+    function showGridSpacingDialog(layoutActions, initialGapX) {
+        // 入力値は表示単位、内部処理は pt / inputs are in display units; internal geometry is in pt
+        var rulerUnit = getUnitInfo();
+        var dialogControls = buildGridSpacingDialog(initialGapX, rulerUnit);
+
+        /**
+         * 直前のプレビューを一括Undoし、現在のUI状態で描き直す（ヒストリーを汚さない）
+         * @returns {void}
+         */
+        function updatePreview() {
+            PreviewHistory.undo();
+            // 強制グリッド／中央揃えの状態をグローバルに反映 / store Force Grid / Center in Cell globally
+            $.global.__regridForceGrid = !!dialogControls.forceGridCheckbox.value;
+            $.global.__regridCenterInCell = !!dialogControls.centerInCellCheckbox.value;
+            // Undo後の現在位置を基準に作り直す / rebuild the baseline from the post-undo positions
+            layoutActions.resetBaselineToCurrent();
+
+            if (dialogControls.linkCheckbox.value) {
+                dialogControls.verticalGapInput.text = dialogControls.horizontalGapInput.text;
+            }
+            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit.pointsPerUnit), true);
+        }
+
+        bindDialogEvents(dialogControls, updatePreview);
+
+        // プレビュー用ヒストリー管理を開始し、開いたときに一度プレビュー / start the preview history and draw once
+        PreviewHistory.start();
         updatePreview();
 
         var dialogResult = dialogControls.spacingDialog.show();
 
+        // プレビュー分を一括Undo / undo the preview
+        PreviewHistory.undo();
         if (dialogResult == 1) {
-            // OK時は最終値で適用 / apply with final values
-            var finalGaps = readGapInputs(dialogControls);
-            if (linkCheckbox.value) finalGaps.gapY = finalGaps.gapX;
-
-            // 値は連動OFF時に UI 側で入れ替え済みのため、確定時も追加の入れ替えはしない
-            // H/V are already swapped in the UI when Link is OFF, so no extra swap on final apply
-
-            // プレビュー分を一括Undoしてから確定適用 / Clear preview history before final apply
-            PreviewHistory.undo();
+            // OK：最終値で確定適用 / OK: apply with the final values
             layoutActions.resetBaselineToCurrent();
-            // 表示単位 → pt に換算して適用 / convert display units to pt before applying
-            applyLayoutWithTranspose(finalGaps.gapX * unitFactor, finalGaps.gapY * unitFactor, false);
+            applyLayoutFromDialog(layoutActions, dialogControls, readGapsInPoints(dialogControls, rulerUnit.pointsPerUnit), false);
         } else {
-            // キャンセル時：プレビュー分を一括Undoしてから初期状態へ / Undo preview then restore
-            PreviewHistory.undo();
+            // キャンセル：ダイアログ開始時点へ戻す / Cancel: restore the initial positions
             layoutActions.restoreInitialPositions();
         }
 
@@ -698,27 +626,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * @returns {number[]} [left, top, right, bottom]
      */
     function getLayoutBounds(pageItem) {
-        /* クリップグループの中を読めないときは、グループ自体の外接矩形に戻す / Fall back to the group's own bounds */
-        try {
-            if (pageItem.typename === 'GroupItem' && pageItem.clipped) {
-                // GroupItem の中から clipping パスを探す / look for the clipping path
-                if (pageItem.pathItems) {
-                    for (var i = 0; i < pageItem.pathItems.length; i++) {
-                        if (pageItem.pathItems[i].clipping) return pageItem.pathItems[i].geometricBounds;
-                    }
-                }
-                // CompoundPath が clipping のケース / compound path used as the mask
-                if (pageItem.compoundPathItems) {
-                    for (var j = 0; j < pageItem.compoundPathItems.length; j++) {
-                        var compoundPath = pageItem.compoundPathItems[j];
-                        if (compoundPath.pathItems && compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) {
-                            return compoundPath.pathItems[0].geometricBounds;
-                        }
-                    }
+        if (pageItem.typename === 'GroupItem' && pageItem.clipped) {
+            // GroupItem の中から clipping パスを探す / look for the clipping path
+            for (var i = 0; i < pageItem.pathItems.length; i++) {
+                if (pageItem.pathItems[i].clipping) return pageItem.pathItems[i].geometricBounds;
+            }
+            // CompoundPath が clipping のケース / compound path used as the mask
+            for (var j = 0; j < pageItem.compoundPathItems.length; j++) {
+                var compoundPath = pageItem.compoundPathItems[j];
+                if (compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) {
+                    return compoundPath.pathItems[0].geometricBounds;
                 }
             }
-        } catch (e) { }
-
+            // テキストのマスクなどクリップパスが見つからないときはグループの外接矩形 / e.g. a text mask: fall back to the group's bounds
+        }
         return pageItem.geometricBounds;
     }
 
@@ -760,22 +681,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             var currentBounds = getLayoutBounds(snapshotEntry.item);
             snapshotEntry.item.translate(snapshotEntry.left - currentBounds[0], snapshotEntry.top - currentBounds[1]);
         }
-    }
-
-    /**
-     * 位置情報の配列から、boundsList の要素の元座標（左上）を引く。
-     * 見つからなければ現在の bbox（currentEntry.bounds）を使う
-     * @param {Array<Object>} originalPositions - item / left / top を持つ位置情報の配列
-     * @param {object} currentEntry - layoutInfo.boundsList の要素（{item, bounds}）
-     * @returns {{left: number, top: number}} 元の左端X・上端Y
-     */
-    function findOriginalLeftTop(originalPositions, currentEntry) {
-        for (var i = 0; i < originalPositions.length; i++) {
-            if (originalPositions[i].item === currentEntry.item) {
-                return { left: originalPositions[i].left, top: originalPositions[i].top };
-            }
-        }
-        return { left: currentEntry.bounds[0], top: currentEntry.bounds[1] };
     }
 
     /**
@@ -902,16 +807,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
      */
     function buildLayoutInfo(selectedItems) {
-        var collected = collectBoundsList(selectedItems);
-        var boundsList = collected.boundsList;
+        var collectedBounds = collectBoundsList(selectedItems);
+        var boundsList = collectedBounds.boundsList;
 
         // 列まとめ（左→右）/ group columns (left -> right)
         boundsList.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
-        var colCenters = clusterBoundsRecords(boundsList, 0, "x", getClusterTolerance(collected.minWidth));
+        var colCenters = clusterBoundsRecords(boundsList, 0, "x", getClusterTolerance(collectedBounds.minWidth));
 
         // 行まとめ（上→下）/ group rows (top -> bottom)
         var boundsSortedByTop = boundsList.slice().sort(function (recordA, recordB) { return recordB.bounds[1] - recordA.bounds[1]; });
-        var rowCenters = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collected.minHeight));
+        var rowCenters = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collectedBounds.minHeight));
 
         // 並び順の確定 / sort
         colCenters.sort(function (a, b) { return a.x - b.x; });
@@ -919,9 +824,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // 各列の最大幅・各行の最大高さ / max width per column, max height per row
         var colWidths = [];
-        for (var ci = 0; ci < colCenters.length; ci++) colWidths.push(getMaxExtent(colCenters[ci].members, true));
+        for (var i = 0; i < colCenters.length; i++) colWidths.push(getMaxExtent(colCenters[i].members, true));
         var rowHeights = [];
-        for (var ri = 0; ri < rowCenters.length; ri++) rowHeights.push(getMaxExtent(rowCenters[ri].members, false));
+        for (var j = 0; j < rowCenters.length; j++) rowHeights.push(getMaxExtent(rowCenters[j].members, false));
 
         return {
             boundsList: boundsList,
@@ -942,61 +847,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
      */
     function buildLayoutInfoForceGrid(selectedItems) {
-        var collected = collectBoundsList(selectedItems);
-        var boundsList = collected.boundsList;
+        var collectedBounds = collectBoundsList(selectedItems);
+        var boundsList = collectedBounds.boundsList;
 
         // 行まとめ（上→下）/ group rows (top -> bottom)
         var boundsSortedByTop = boundsList.slice().sort(function (recordA, recordB) { return recordB.bounds[1] - recordA.bounds[1]; });
-        var rows = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collected.minHeight));
-        rows.sort(function (a, b) { return b.y - a.y; });
+        var rowClusters = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collectedBounds.minHeight));
+        rowClusters.sort(function (a, b) { return b.y - a.y; });
 
         // 各行の中を左→右で確定し、rowIndex/colIndexを付与 / sort within row and assign indices
         var maxCols = 0;
-        for (var r = 0; r < rows.length; r++) {
-            rows[r].members.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
-            if (rows[r].members.length > maxCols) maxCols = rows[r].members.length;
-            for (var c = 0; c < rows[r].members.length; c++) {
-                rows[r].members[c].rowIndex = r;
-                rows[r].members[c].colIndex = c;
+        for (var r = 0; r < rowClusters.length; r++) {
+            var rowMembers = rowClusters[r].members;
+            rowMembers.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
+            if (rowMembers.length > maxCols) maxCols = rowMembers.length;
+            for (var c = 0; c < rowMembers.length; c++) {
+                rowMembers[c].rowIndex = r;
+                rowMembers[c].colIndex = c;
             }
         }
 
-        // colWidths（列番号ごとの最大幅）/ max width per column index
+        // 列番号ごとの最大幅・行ごとの最大高さ / max width per column index, max height per row
         var colWidths = [];
         for (var colIndex = 0; colIndex < maxCols; colIndex++) {
             var maxWidth = 0;
-            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-                if (rows[rowIndex].members.length > colIndex) {
-                    var memberBounds = rows[rowIndex].members[colIndex].bounds;
-                    var memberWidth = memberBounds[2] - memberBounds[0];
+            for (var rowIndex = 0; rowIndex < rowClusters.length; rowIndex++) {
+                var memberInColumn = rowClusters[rowIndex].members[colIndex];
+                if (memberInColumn) {
+                    var memberWidth = memberInColumn.bounds[2] - memberInColumn.bounds[0];
                     if (memberWidth > maxWidth) maxWidth = memberWidth;
                 }
             }
             colWidths.push(maxWidth);
         }
-
-        // rowHeights（行ごとの最大高さ）/ max height per row
         var rowHeights = [];
-        for (var ri = 0; ri < rows.length; ri++) rowHeights.push(getMaxExtent(rows[ri].members, false));
+        for (var i = 0; i < rowClusters.length; i++) rowHeights.push(getMaxExtent(rowClusters[i].members, false));
 
-        // baseX/baseY は最左/最上 / baseX/baseY = top-left
+        // 基準は最も左の左端と最も上の上端 / origin = leftmost left and topmost top
+        // （Illustratorの座標はアートボードより下で負になるので、上端の初期値は -MAX_VALUE）
+        // (y is negative below the artboard origin, so start the top at -MAX_VALUE)
         var baseX = Number.MAX_VALUE;
-        var baseY = Number.MIN_VALUE;
-        for (var q = 0; q < boundsList.length; q++) {
-            if (boundsList[q].bounds[0] < baseX) baseX = boundsList[q].bounds[0];
-            if (boundsList[q].bounds[1] > baseY) baseY = boundsList[q].bounds[1];
+        var baseY = -Number.MAX_VALUE;
+        for (var j = 0; j < boundsList.length; j++) {
+            if (boundsList[j].bounds[0] < baseX) baseX = boundsList[j].bounds[0];
+            if (boundsList[j].bounds[1] > baseY) baseY = boundsList[j].bounds[1];
         }
 
-        // ダミーのcolCenters/rowCenters（互換のため）/ dummy centers (compat)
+        // 列・行センター（列は割り当て済みの colIndex を使うのでダミー）/ centers (columns are dummies; colIndex is pre-assigned)
         var colCenters = [];
-        for (var cc = 0; cc < maxCols; cc++) colCenters.push({ x: baseX, members: [] });
-        var rowCenters = [];
-        for (var rr = 0; rr < rows.length; rr++) rowCenters.push({ y: rows[rr].y, members: rows[rr].members });
+        for (var k = 0; k < maxCols; k++) colCenters.push({ x: baseX, members: [] });
 
         return {
             boundsList: boundsList,
             colCenters: colCenters,
-            rowCenters: rowCenters,
+            rowCenters: rowClusters,
             colWidths: colWidths,
             rowHeights: rowHeights,
             baseX: baseX,
@@ -1076,18 +980,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
     /**
      * グリッド配置を適用する共通処理。通常／レンガ／ハニカムを引数で切り替える。
-     * 直前にプレビュー基準位置へ戻してから、列幅・行高さの累積で再配置する
+     * 直前にプレビュー基準位置へ戻してから、列幅・行高さの累積で再配置する。
+     * layoutInfo は baselinePositions と同時に作るので、boundsList の左上がそのまま基準位置になる
      * @param {Object} layoutInfo - レイアウト情報
-     * @param {Array<Object>} originalPositions - プレビュー基準の位置情報
+     * @param {Array<Object>} baselinePositions - プレビュー基準の位置情報
      * @param {number} gapX - 左右間隔
      * @param {number} gapY - 上下間隔
      * @param {boolean} isBrick - 奇数行を半ピッチ横にずらすか（レンガ／ハニカム）
      * @param {number} rowStepFactor - 行送りに掛ける係数（通常・レンガ=1.0、ハニカム=HONEYCOMB_ROW_STEP_FACTOR）
      * @returns {void}
      */
-    function applyGridLayout(layoutInfo, originalPositions, gapX, gapY, isBrick, rowStepFactor) {
-        // いったん元に戻す / restore first
-        restorePositions(originalPositions);
+    function applyGridLayout(layoutInfo, baselinePositions, gapX, gapY, isBrick, rowStepFactor) {
+        // いったん基準位置に戻す / restore the baseline first
+        restorePositions(baselinePositions);
 
         var boundsList = layoutInfo.boundsList;
         var colWidths = layoutInfo.colWidths;
@@ -1102,7 +1007,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         for (var i = 0; i < boundsList.length; i++) {
             var currentEntry = boundsList[i];
 
-            var originalPos = findOriginalLeftTop(originalPositions, currentEntry);
             var cellIndex = resolveColRow(currentEntry, layoutInfo.colCenters, layoutInfo.rowCenters);
             var colIndex = cellIndex.col;
             var rowIndex = cellIndex.row;
@@ -1133,7 +1037,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
                 newX += halfPitch;
             }
 
-            currentEntry.item.translate(newX - originalPos.left, newY - originalPos.top);
+            currentEntry.item.translate(newX - currentEntry.bounds[0], newY - currentEntry.bounds[1]);
         }
 
         // 再描画 / redraw
@@ -1203,7 +1107,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             var colIndex = findNearestIndex(colClusters, itemBounds[0]);
             var cellKey = rowIndex + "," + colIndex;
             if (occupiedCells[cellKey]) {
-                alert(getLabel('alert.cellConflict') + "(" + rowIndex + "," + colIndex + ")");
+                // 行・列は1から数えて表示 / show row and column counting from 1
+                alert(getLabel('alert.cellConflict').replace("{row}", rowIndex + 1).replace("{col}", colIndex + 1));
                 return null;
             }
             occupiedCells[cellKey] = targetItem;
@@ -1274,10 +1179,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var originTop = rowClusters[0];
 
         // 転置: 新しい列 = 元の行、新しい行 = 元の列 / newCol = oldRow, newRow = oldCol
-        for (var t = 0; t < cellMapping.length; t++) {
-            var mappedItem = cellMapping[t].item;
-            var targetLeft = originLeft + cellMapping[t].row * pitch.x;
-            var targetTop = originTop - cellMapping[t].col * pitch.y;
+        for (var j = 0; j < cellMapping.length; j++) {
+            var mappedItem = cellMapping[j].item;
+            var targetLeft = originLeft + cellMapping[j].row * pitch.x;
+            var targetTop = originTop - cellMapping[j].col * pitch.y;
 
             var currentBounds = getLayoutBounds(mappedItem);
             mappedItem.translate(targetLeft - currentBounds[0], targetTop - currentBounds[1]);
@@ -1320,8 +1225,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // プレビューの基準位置と、ダイアログ開始時点の位置（キャンセルで必ずここへ戻す）
         // Preview baseline, and the snapshot Cancel always returns to
-        var originalPositions = snapshotPositions(selectedItems);
-        var initialPositions = clonePositions(originalPositions);
+        var baselinePositions = snapshotPositions(selectedItems);
+        var initialPositions = clonePositions(baselinePositions);
 
         var layoutInfo = buildCurrentLayoutInfo(selectedItems);
 
@@ -1330,24 +1235,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
          * @returns {void}
          */
         function resetBaselineToCurrent() {
-            originalPositions = snapshotPositions(selectedItems);
+            baselinePositions = snapshotPositions(selectedItems);
             layoutInfo = buildCurrentLayoutInfo(selectedItems);
         }
 
         // ダイアログ表示 / show dialog
         showGridSpacingDialog({
-            /* 間隔を適用（通常グリッド）/ apply spacing (normal grid) */
-            applySpacing: function (gapX, gapY) {
-                applyGridLayout(layoutInfo, originalPositions, gapX, gapY, false, 1.0);
+            /* 間隔を適用（通常／レンガ状／ハニカム）/ apply spacing (normal / brick / honeycomb) */
+            applySpacing: function (gapX, gapY, isBrick, rowStepFactor) {
+                applyGridLayout(layoutInfo, baselinePositions, gapX, gapY, isBrick, rowStepFactor);
             },
-            /* 間隔を適用（レンガ状）/ apply spacing (brick layout) */
-            applySpacingBrick: function (gapX, gapY) {
-                applyGridLayout(layoutInfo, originalPositions, gapX, gapY, true, 1.0);
-            },
-            /* 間隔を適用（六角形/ハニカム）/ apply spacing (hexagon/honeycomb layout) */
-            applySpacingHexagon: function (gapX, gapY) {
-                applyGridLayout(layoutInfo, originalPositions, gapX, gapY, true, HONEYCOMB_ROW_STEP_FACTOR);
-            },
+            /* 行列入れ替え / swap rows and columns */
             transpose: function () {
                 transposeGridWithHoles(selectedItems);
             },

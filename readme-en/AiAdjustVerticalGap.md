@@ -34,4 +34,8 @@ with a live preview that updates as you change the settings.
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.3.2
+
+### Update History
+
+- v1.3.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

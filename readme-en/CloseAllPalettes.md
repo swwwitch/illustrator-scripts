@@ -31,12 +31,14 @@ UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
 TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
 AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
 LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
-ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
+ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor /
+AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2
 
 ### Update History
 
+- v1.0.2 (2026-09-25) Added AiAdjustVerticalGap, DirectPrefs, DocumentFontListSelector and TextFontPanelReinvented.
 - v1.0.1 (2026-09-25) Fixed ArtboardDisplayPresetManager not closing: its engine and reference names did not match the script. Added 13 more persistent palettes (AiAlignToArtboard and others).

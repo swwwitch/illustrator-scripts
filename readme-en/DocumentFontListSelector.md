@@ -45,4 +45,8 @@ the number of text frames that use the combination (a frame counts once).
 
 ### Script info
 
-- Version: v1.1.3
+- Version: v1.1.5
+
+### Update History
+
+- v1.1.5 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

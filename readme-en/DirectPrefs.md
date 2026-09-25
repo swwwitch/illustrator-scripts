@@ -16,4 +16,8 @@ See the README for details.
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.2
+
+### Update History
+
+- v1.0.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

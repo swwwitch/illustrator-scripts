@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardDi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardDisplayPresetManager"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
@@ -83,6 +83,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     var WINDOW_SPACING = 12;               /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;               /* パネル内の要素間隔 / panel spacing */
+    var SIZE_LABEL_WIDTH = 48;             /* 幅・高さラベルの幅（px）/ width of the width/height labels */
+
+    /* 9軸ウィジェット / 9-axis anchor widget */
+    var ANCHOR_WIDGET_SIZE   = 66;         /* ウィジェットの一辺（px）/ widget size */
+    var ANCHOR_CELL_SIZE     = 9;          /* □1個のサイズ / size of one anchor square */
+    var ANCHOR_CELL_GAP      = 7.5;        /* □どうしの間隔 / gap between anchor squares */
+    var DEFAULT_ANCHOR_INDEX = 0;          /* 既定の基準点（0=左上〜8=右下の行優先）/ default anchor (row-major, 0=top-left..8=bottom-right) */
 
     /**
      * ウィンドウの共通設定を適用する
@@ -134,6 +141,169 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      */
     function trimButtonHeight(button, px) {
         button.size = [button.size.width, button.size.height - px];
+    }
+
+    /**
+     * 数値入力欄を↑↓キーで増減する（shift で±10、option で±0.1）
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            var currentValue = Number(editText.text);
+            if (isNaN(currentValue)) return;
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = (event.keyName == "Up") ? 1 : -1;
+
+            if (keyboard.shiftKey) {
+                /* Shift：10の倍数にスナップ / Snap to multiples of 10 */
+                currentValue = Math.round(currentValue / 10) * 10 + delta * 10;
+                if (currentValue < 0) currentValue = 0;
+            } else if (keyboard.altKey) {
+                /* Option：±0.1（小数第1位に丸め）/ ±0.1, rounded to one decimal */
+                currentValue = Math.round((currentValue + delta * 0.1) * 10) / 10;
+            } else {
+                currentValue += delta;
+                if (currentValue < 0) currentValue = 0;
+            }
+
+            event.preventDefault();
+            editText.text = currentValue;
+            /* プログラム変更は onChanging を発火しないため明示的に呼ぶ / Fire onChanging manually */
+            if (typeof editText.onChanging === "function") editText.onChanging();
+        });
+    }
+
+    /**
+     * ↑↓キーを離したときに onChange を呼ぶ（押している間のキーリピートでは確定しない）
+     * Illustrator にはタイマーが無いため、キーを離すまでを待ち時間の代わりにする
+     * @param {EditText} editText - 対象の入力欄
+     * @returns {void}
+     */
+    function commitOnArrowKeyUp(editText) {
+        editText.addEventListener("keyup", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            if (typeof editText.onChange === "function") editText.onChange();
+        });
+    }
+
+    // =========================================
+    // 9軸ウィジェット / 9-axis anchor widget
+    // =========================================
+
+    /* 枠線は常時薄いグレー、選択セルの塗りは initAnchorColors() で UI 明暗に合わせる / Border is always light gray; selected fill follows the UI brightness */
+    var ANCHOR_LINE_COLOR = [0.6, 0.6, 0.6, 1];
+    var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];
+    var ANCHOR_DISABLED_COLOR = [0.5, 0.5, 0.5, 0.4];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線の組み合わせ / Pairs of outer squares (center 4 excluded) joined by rules */
+    var ANCHOR_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    /**
+     * UI の明暗から選択セルの塗りを決める（ライトは濃いグレー、ダークは明るいグレー）
+     * @returns {void}
+     */
+    function initAnchorColors() {
+        var isLightUI = readPref("Real", "uiBrightness", 0) > 0.5;
+        ANCHOR_SELECTED_FILL = isLightUI ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
+    }
+
+    /**
+     * 正方形のパスを作る（塗り／線は呼び出し側で行う）
+     * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
+     * @param {number} x - 左端
+     * @param {number} y - 上端
+     * @param {number} size - 一辺の長さ
+     * @returns {void}
+     */
+    function squarePath(graphics, x, y, size) {
+        graphics.newPath();
+        graphics.moveTo(x, y);
+        graphics.lineTo(x + size, y);
+        graphics.lineTo(x + size, y + size);
+        graphics.lineTo(x, y + size);
+        graphics.closePath();
+    }
+
+    /**
+     * 9軸ウィジェットを描画する（外周の□をケイ線でつなぐ・中央は独立、選択セルだけ塗る）
+     * @param {Button} widget - 対象のウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(widget) {
+        var graphics = widget.graphics;
+        var width = widget.size[0];
+        var height = widget.size[1];
+
+        /* コントロール地色で塗って透過に見せる / Paint the control's own background so it looks transparent */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, width, height);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var lineColor = widget.enabled ? ANCHOR_LINE_COLOR : ANCHOR_DISABLED_COLOR;
+        var fillColor = widget.enabled ? ANCHOR_SELECTED_FILL : ANCHOR_DISABLED_COLOR;
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1);
+        var cellStep = ANCHOR_CELL_SIZE + ANCHOR_CELL_GAP;
+        var gridSize = ANCHOR_CELL_SIZE * 3 + ANCHOR_CELL_GAP * 2;
+        var originX = Math.round((width - gridSize) / 2);
+        var originY = Math.round((height - gridSize) / 2);
+
+        var cellPositions = [];
+        for (var index = 0; index < 9; index++) {
+            cellPositions.push([originX + (index % 3) * cellStep, originY + Math.floor(index / 3) * cellStep]);
+        }
+
+        for (var i = 0; i < ANCHOR_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_CONNECTIONS[i][1] - ANCHOR_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / Horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + ANCHOR_CELL_SIZE, cellA[1] + ANCHOR_CELL_SIZE / 2);
+                graphics.lineTo(cellB[0], cellB[1] + ANCHOR_CELL_SIZE / 2);
+            } else {
+                /* 縦方向：下の□へ / Vertical: to the square below */
+                graphics.moveTo(cellA[0] + ANCHOR_CELL_SIZE / 2, cellA[1] + ANCHOR_CELL_SIZE);
+                graphics.lineTo(cellB[0] + ANCHOR_CELL_SIZE / 2, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (var cellIndex = 0; cellIndex < cellPositions.length; cellIndex++) {
+            /* 枠を上に描くので塗りを先に行う / Fill first so the border draws on top */
+            if (cellIndex === widget.selectedAnchorIndex) {
+                squarePath(graphics, cellPositions[cellIndex][0], cellPositions[cellIndex][1], ANCHOR_CELL_SIZE);
+                graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, fillColor));
+            }
+            squarePath(graphics, cellPositions[cellIndex][0], cellPositions[cellIndex][1], ANCHOR_CELL_SIZE);
+            graphics.strokePath(linePen);
+        }
+    }
+
+    /**
+     * 9軸（3×3）の基準点ウィジェットを生成する（クリックしたセルを基準点にする）
+     * @param {Group} parentGroup - 追加先のグループ
+     * @returns {Button} 生成したウィジェット（選択は selectedAnchorIndex に保持）
+     */
+    function addAnchorWidget(parentGroup) {
+        var widget = parentGroup.add("button", undefined, "");
+        widget.helpTip = getLabel("tooltip.anchor");
+        widget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        widget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        widget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        widget.selectedAnchorIndex = DEFAULT_ANCHOR_INDEX;
+        widget.onDraw = function () { drawAnchorWidget(this); };
+        /* クリック座標（コントロール基準）を3分割してセルを判定 / Hit-test by splitting the control-relative click into thirds */
+        widget.addEventListener("mousedown", function (event) {
+            var col = Math.min(2, Math.max(0, Math.floor(event.clientX / (widget.size[0] / 3))));
+            var row = Math.min(2, Math.max(0, Math.floor(event.clientY / (widget.size[1] / 3))));
+            widget.selectedAnchorIndex = row * 3 + col;
+            try { widget.notify("onDraw"); } catch (e) {}
+        });
+        return widget;
     }
 
     // =========================================
@@ -331,15 +501,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @param {string} operation - "read" | "round" | "resize"
      * @param {number} [widthPoint] - resize 時の幅（pt）
      * @param {number} [heightPoint] - resize 時の高さ（pt）
+     * @param {number} [anchorIndex] - resize 時の基準点（0=左上〜8=右下の行優先）
      * @returns {string} メインエンジンへ送るコード
      */
-    function buildArtboardBridgeCode(operation, widthPoint, heightPoint) {
+    function buildArtboardBridgeCode(operation, widthPoint, heightPoint, anchorIndex) {
         var mutationCode = "";
         if (operation === "round") {
             mutationCode = "artboard.artboardRect=[Math.round(rect[0]),Math.round(rect[1]),Math.round(rect[2]),Math.round(rect[3])];rect=artboard.artboardRect;";
         } else if (operation === "resize") {
             /* 負数連結による '--' 構文エラーを避けるため括弧で囲む / Wrap in parens to avoid '--' from negative numbers */
-            mutationCode = "artboard.artboardRect=[rect[0],rect[1],rect[0]+(" + Number(widthPoint) + "),rect[1]-(" + Number(heightPoint) + ")];rect=artboard.artboardRect;";
+            /* 基準点の側に寄せる：増減分に 0／0.5／1 を掛けて左上をずらす / Shift the top-left by 0, 0.5 or 1 of the size change toward the anchor */
+            var anchorColumnRatio = (anchorIndex % 3) / 2;
+            var anchorRowRatio = Math.floor(anchorIndex / 3) / 2;
+            mutationCode = "var w=" + Number(widthPoint) + ",h=" + Number(heightPoint) + ";" +
+                "var left=rect[0]+(rect[2]-rect[0]-w)*" + anchorColumnRatio + ";" +
+                "var top=rect[1]-(rect[1]-rect[3]-h)*" + anchorRowRatio + ";" +
+                "artboard.artboardRect=[left,top,left+w,top-h];rect=artboard.artboardRect;";
         }
         var separatorCode = "+\"" + ARTBOARD_FIELD_SEPARATOR + "\"+";
         return "" +
@@ -366,10 +543,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     function addSizeField(parentRow, labelPath, unitLabel) {
         var sizeFieldGroup = parentRow.add("group");
         setupRow(sizeFieldGroup, "left", 4);
-        sizeFieldGroup.add("statictext", undefined, labelText(labelPath));
+        var sizeLabel = sizeFieldGroup.add("statictext", undefined, labelText(labelPath));
+        sizeLabel.preferredSize.width = SIZE_LABEL_WIDTH;
+        sizeLabel.justify = "right";
         var sizeInput = sizeFieldGroup.add("edittext", undefined, "");
         sizeInput.helpTip = getLabel("tooltip.sizeField");
         sizeInput.characters = 5;
+        changeValueByArrowKey(sizeInput);
+        commitOnArrowKeyUp(sizeInput);
         var unitText = sizeFieldGroup.add("statictext", undefined, unitLabel);
         return { input: sizeInput, unitText: unitText };
     }
@@ -405,12 +586,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         artboardInfoText.characters = 28;
         artboardInfoText.justify = "center";
 
-        /* 幅・高さ（横並び）/ Width and height (side by side) */
+        /* 幅・高さ（縦並び）＋基準点の9軸 / Width and height (stacked) + 9-axis anchor */
         var sizeRow = currentArtboardPanel.add("group");
         setupRow(sizeRow, "left", 16);
+        var sizeColumn = sizeRow.add("group");
+        sizeColumn.orientation = "column";
+        sizeColumn.alignChildren = ["left", "center"];
+        sizeColumn.alignment = "left";
+        sizeColumn.spacing = 6;
         var rulerUnitLabel = getUnitInfo().label;
-        var widthField = addSizeField(sizeRow, "fieldLabel.width", rulerUnitLabel);
-        var heightField = addSizeField(sizeRow, "fieldLabel.height", rulerUnitLabel);
+        var widthField = addSizeField(sizeColumn, "fieldLabel.width", rulerUnitLabel);
+        var heightField = addSizeField(sizeColumn, "fieldLabel.height", rulerUnitLabel);
+        var anchorWidget = addAnchorWidget(sizeRow);
 
         /* ボタン行（パネル幅いっぱいには広げない）/ Button row (do not stretch to the panel width) */
         var artboardButtonRow = currentArtboardPanel.add("group");
@@ -422,8 +609,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
             heightInput: heightField.input,
             widthUnitText: widthField.unitText,
             heightUnitText: heightField.unitText,
-            optimizePixelGridButton: addButtonWithTip(artboardButtonRow, "optimizePixelGrid", "left"),
-            reloadButton: addButtonWithTip(artboardButtonRow, "reload", "left")
+            anchorWidget: anchorWidget,
+            optimizePixelGridButton: addButtonWithTip(artboardButtonRow, "optimizePixelGrid", "left")
         };
     }
 
@@ -535,6 +722,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     function buildPalette() {
         var paletteWindow = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(paletteWindow);
+        initAnchorColors();
 
         var paletteUI = { paletteWindow: paletteWindow };
         var sectionControls = [
@@ -733,7 +921,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {void}
      */
     function runArtboardOperation(paletteUI, operation, widthPoint, heightPoint, alertOnEmpty) {
-        delegateToMainEngine(buildArtboardBridgeCode(operation, widthPoint, heightPoint), function (result) {
+        var anchorIndex = paletteUI.anchorWidget.selectedAnchorIndex;
+        delegateToMainEngine(buildArtboardBridgeCode(operation, widthPoint, heightPoint, anchorIndex), function (result) {
             applyArtboardResult(paletteUI, result, alertOnEmpty);
         });
     }
@@ -804,7 +993,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     function wireArtboardAndWindowEvents(paletteUI) {
         /* ピクセルグリッドに最適化：XYWH を整数値へ丸める / Optimize: round XYWH to integers */
         paletteUI.optimizePixelGridButton.onClick = function () { runArtboardOperation(paletteUI, "round", 0, 0, true); };
-        paletteUI.reloadButton.onClick = function () { refreshArtboardInfo(paletteUI); };
 
         /* 幅・高さの確定でアートボードをリサイズ / Resize the artboard when width/height are committed */
         paletteUI.widthInput.onChange = function () { resizeArtboardFromFields(paletteUI); };
@@ -899,15 +1087,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         },
         button: {
             optimizePixelGrid: { ja: "ピクセルグリッドに最適化", en: "Optimize to Pixel Grid" },
-            reload: { ja: "再読み込み", en: "Reload" },
             canvasColor: { ja: "カンバスカラーの変更", en: "Change Canvas Color" },
             videoRuler: { ja: "ビデオ定規", en: "Video Ruler" }
         },
         tooltip: {
             sizeField: {
-                ja: "値を確定すると、アクティブなアートボードを左上を基準にリサイズします。",
-                en: "Commit a value to resize the active artboard from its top-left corner."
+                ja: "値を確定すると、アクティブなアートボードを右の基準点を基準にリサイズします。↑↓で±1、shift併用で±10、option併用で±0.1。",
+                en: "Commit a value to resize the active artboard around the reference point on the right. Arrow keys: ±1, Shift ±10, Option ±0.1."
             },
+            anchor: { ja: "リサイズの基準点です。", en: "Reference point for resizing." },
             showArtboardName: { ja: "カンバス上にアートボード名を表示します。", en: "Shows the artboard names on the canvas." },
             borderColor: { ja: "アートボードの境界線の色です。", en: "Color of the artboard borders." },
             borderWidth: { ja: "アートボードの境界線の太さです。", en: "Width of the artboard borders." },
@@ -920,7 +1108,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
                 ja: "アクティブなアートボードの位置とサイズを整数値に丸めます。",
                 en: "Rounds the active artboard's position and size to whole numbers."
             },
-            reload: { ja: "アクティブなアートボードの情報を取得し直します。", en: "Reads the active artboard's info again." },
             canvasColor: {
                 ja: "アートボード外のカンバスを、白とグレーで切り替えます。",
                 en: "Toggles the canvas outside the artboards between white and gray."
@@ -1004,7 +1191,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
 
         /* レイアウト確定後にボタン高さを 2px 詰める / Trim the button heights by 2px after layout */
         trimButtonHeight(paletteUI.optimizePixelGridButton, 2);
-        trimButtonHeight(paletteUI.reloadButton, 2);
     }
 
     main();

@@ -37,4 +37,8 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.3
+
+### Update History
+
+- v1.0.3 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

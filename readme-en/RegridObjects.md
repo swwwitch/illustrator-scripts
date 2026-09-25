@@ -8,6 +8,8 @@
 
 ---
 
+<img alt="Regrid Objects dialog" src="../png/ss-458-720-144-20260925-172312.png" width="40%" />
+
 ### Overview
 
 - Assumes the selected objects are roughly arranged in a grid, and re-lays them out using horizontal and vertical spacing values.
@@ -19,13 +21,14 @@
 - Link mirrors the horizontal value into the vertical one.
 - Brick: offsets every other row horizontally by half a pitch.
 - Honeycomb: used together with Brick, it shifts odd rows by half of (width + horizontal spacing) and scales the row height to 0.75, producing a honeycomb layout (the vertical value still applies).
-- Force grid: instead of inferring columns and rows from proximity, it assigns (row, column) top to bottom and left to right.
-- Center (a sub-option of Force grid): centers each object within its cell (column width × row height).
+- Force Grid: instead of inferring columns and rows from proximity, it assigns (row, column) top to bottom and left to right.
+- Center in Cell (a sub-option of Force Grid): centers each object within its cell (column width × row height).
 - Transpose is a toggle: on, it swaps rows and columns while tolerating gaps; off, it returns to the pre-transpose state.
 - Transposing a single row into a single column, and vice versa, is supported.
 
 ### Update History
 
+- v1.6.2 (2026-09-25): Fixed Force Grid moving objects to the top of the artboard, renamed the dialog to "Regrid Objects", clarified the message shown when transposing puts two objects in one cell, and tidied the code
 - v1.6.0 (2026-07-08): Added Center (a sub-option of Force grid), made Transpose a toggle that reverts when off, added ruler-unit input (mm / pt / px, converted to points internally), and tidied the apply functions and their naming
 - v1.0 (2025-10-31): Always-on preview, linked values (vertical dimmed), and arrow-key stepping
 
@@ -35,4 +38,4 @@ https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Script info
 
-- Version: v1.6.0
+- Version: v1.6.2

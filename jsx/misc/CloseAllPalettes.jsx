@@ -35,7 +35,8 @@ UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
 TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
 AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
 LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
-ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
+ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor /
+AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented
 
 */
 
@@ -43,7 +44,7 @@ ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
@@ -97,7 +98,11 @@ var PALETTES = [
     { name: "ArtboardNavigator", engine: "artboardNavigatorPalette", global: "artboardNavigatorWindow" },
     { name: "LEConvertToShape", engine: "fxConvertToShape", global: "__fxConvertToShapePalette" },
     { name: "AiSmartPathfinder", engine: "pathfinder-palette", global: "__pfPaletteWindow" },
-    { name: "SmartDistributor", engine: "smartDistributorPalette", global: "smartDistributorWindow" }
+    { name: "SmartDistributor", engine: "smartDistributorPalette", global: "smartDistributorWindow" },
+    { name: "AiAdjustVerticalGap", engine: "AdjustVerticalGap", global: "__aiAdjustVerticalGapPalette" },
+    { name: "DirectPrefs", engine: "DirectPrefs", global: "__directPrefsPalette" },
+    { name: "DocumentFontListSelector", engine: "DocumentFontListEngine", global: "__documentFontListSelectorPalette" },
+    { name: "TextFontPanelReinvented", engine: "TextFontPanelEngine", global: "__textFontPanelReinventedPalette" }
 ];
 
 // =========================================

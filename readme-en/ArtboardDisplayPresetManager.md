@@ -24,9 +24,8 @@
 
 | Item | Behavior |
 | --- | --- |
-| Width / Height | Shown in the current ruler unit. Edit a value and commit to resize the artboard (anchored at its top-left corner). |
+| Width / Height | Shown in the current ruler unit. Edit a value and commit to resize the artboard (around the reference point chosen in the 9-axis widget on the right; top-left by default). Arrow keys step by 1 (Shift ±10, Option ±0.1). |
 | Optimize to Pixel Grid | Rounds the artboard's XYWH to integers. |
-| Reload | Re-reads the current artboard info. |
 
 Zero, negative or non-numeric input is rejected and the fields revert to the current values.
 
@@ -81,4 +80,5 @@ Illustrator application preferences, plus the active document's artboard (pixel-
 
 ### Update History
 
+- v1.2.4 (2026-09-25) The width/height fields can now be stepped with the arrow keys (Shift ±10, Option ±0.1); the artboard is resized when the key is released. Width and height are now stacked vertically, with a 9-axis widget beside them to set the resize reference point. Removed the Reload button (info is re-read when the palette is activated).
 - v1.2.3 (2026-09-25) Fixed the width/height fields showing the wrong tooltip (a preset-name hint). Added tooltips to the buttons. The unit label now reads "H" when the ruler unit is Ha.
