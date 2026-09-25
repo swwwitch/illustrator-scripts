@@ -57,6 +57,10 @@
 - With "Search symbols too" on, symbols are expanded temporarily in the dialog to count matches. The dialog may open slowly in documents with many symbols.
 - Clicking OK saves the entries and settings for the next run.
 
+### Article
+
+- [DTP Transit (Japanese)](https://note.com/dtp_tranist/n/nec5dfffce709)
+
 ### Changelog
 
 - v1.0.0 (20260926) : Initial release

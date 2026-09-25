@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nec5dfffce709
+
 ### Overview
 
 Removes up to five strings (regular expressions allowed) from text in the selection, the current artboard, or the entire document.
@@ -32,8 +35,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatc
     var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
     var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
-    var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md"; /* README（日本語） */
-    var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatchingText.md"; /* README (English) */
+    var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveMatchingText.md"; /* README（日本語） */
+    var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveMatchingText.md"; /* README (English) */
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
 
     // Released under the MIT license
     // http://opensource.org/licenses/mit-license.php
