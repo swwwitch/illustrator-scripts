@@ -10,32 +10,20 @@
 
 ### Overview
 
-Applies a fixed set of Illustrator preferences at once, without showing a dialog.
-`ACTIVE_PRESET` at the top of the script selects which preset gets written.
-
-### Presets
-
-| Value | Contents |
-| --- | --- |
-| `minimal` | The short list: just the staples. 19 items |
-| `full` | A full sweep of the preference panels. 31 items, including black appearance and ruler units, which need a restart |
-| `preset1` | Same contents as [Preset 1] in PresetManager. 33 items, including guides and the artboard highlight |
+Applies the same preferences as [Preset 1] in PresetManager at once, without showing a dialog.
 
 ### Usage
 
-1. Set `ACTIVE_PRESET` in the script to `"minimal"`, `"full"` or `"preset1"`.
-2. Run the script.
+Run the script.
 
 ### Notes
 
-- The values live in `PRESET_STATES` inside the script; edit the script to change them.
-- A field left out of a preset is not written, so Illustrator keeps its current value for that preference.
-- Preference keys are collected in the `PREFERENCE_BINDINGS` table; adding an item means adding one row there.
+- The values live in `PREFERENCES` inside the script, one preference key and value per row; edit the script to change them.
 - Some keys may be ignored depending on the Illustrator version; missing keys are skipped safely.
-- Ruler units, UI brightness and the Shape Builder "pick color from" setting only take effect after restarting Illustrator.
 
 ### Update History
 
+- v1.1.0 (2026-09-25) Narrowed to [Preset 1] only: dropped `minimal` / `full` and the `ACTIVE_PRESET` switch, and folded the keys and values into a single table
 - v1.0.1 (2026-09-25) `preset1` now matches [Preset 1] in PresetManager exactly: added Unlock on Canvas and dropped the Smart Guides / snap-to-grid settings
 - v1.0 (2026-09-19) Merged PresetManagerNoDialogFull and PresetManagerPreset1; presets are now selected with `ACTIVE_PRESET`
 - v1.0
