@@ -36,4 +36,4 @@
 - v1.1 (20250724): Added kerning, baseline shift, and tracking; refactored UI and event logic
 - v1.2 (20250725): Enhanced preview handling, dim apparent size at 100% scale, fixed shift key increments
 - v1.3 (20250726): Added tracking feature, UI adjustments
-
+- v1.5.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

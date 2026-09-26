@@ -70,9 +70,11 @@ The Show Transparency Grid button toggles the transparency grid, handy for check
 | Key | Action |
 | --- | --- |
 | E / S / R | Switch to circle / superellipse / rectangle |
-| Up / Down | ±1 |
-| Shift + Up / Down | ±10 (snaps to multiples of 10) |
-| Option + Up / Down | ±0.1 |
+| Up / Down | To the next whole number (1.5 → 2) |
+| Shift + Up / Down | To the next multiple of 10 (232 → 240) |
+| Option + Up / Down | ±0.1 (whole numbers only in the CMYK fields) |
+
+The stepper buttons (∧∨) to the left of each number field work the same way with a click, Shift-click, or Option-click.
 
 ### Notes
 
@@ -85,6 +87,7 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.4 (2026-09-23): Revised UI wording (title, panel names, label colons, tooltips); split the button row and added a Show Transparency Grid button
 - v1.6.3 (2026-09-23): Fixed typed stroke weight and CMYK values not being clamped, the previous corner radius not being restored when rounding was on, and the message shown with no document open. Internal cleanup
 - v1.6.1 (2026-03-26)

@@ -47,7 +47,7 @@ All three are on by default.
 
 ### The two tolerances
 
-"Collinear anchor points" and "Handles on straight segments" each have their own tolerance (0.01–3.00). The number field and the slider are linked, and moving either updates the estimates in the info panel.
+"Collinear anchor points" and "Handles on straight segments" each have their own tolerance (0.01–3.00). The number field and the slider are linked, and moving either updates the estimates in the info panel. The ∧∨ stepper buttons and the arrow keys step the value by 0.01, or to the next multiple of 0.1 with Shift.
 
 The larger the value, the looser the "treat as straight" test, and the more is removed. They share the label "Tolerance", but they measure different things.
 
@@ -134,6 +134,7 @@ The dialog position is remembered only while Illustrator is running (position on
 
 ## Change log
 
+- v1.7.0 (2026-09-27) Added stepper buttons to the tolerance fields. The arrow keys now share the steppers' logic (to the next 0.01; Shift to the next multiple of 0.1)
 - v1.6.0 (2026-07-31) Unified the preview and the actual processing onto a single algorithm (current version). "Split at anchor points" now places the results inside the original group
 - v1.5.2 (2026-07-14) Added the "Add Extreme Points" mode
 - v1.5.1 (2026-03-20)

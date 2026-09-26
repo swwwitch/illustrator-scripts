@@ -50,13 +50,13 @@ Align to Glyph Bounds is a single checkbox that always toggles point type and ar
 
 #### Typing into Key Input
 
-The value field steps with the `↑` and `↓` keys.
+The value field steps with the up/down buttons to its left or with the `↑` and `↓` keys (both work the same way).
 
 | Key | Step |
 | --- | --- |
-| `↑` `↓` | ±1 |
-| `Shift` + `↑` `↓` | ±10 (snaps to the next multiple of 10) |
-| `Option` + `↑` `↓` | ±0.1 |
+| `↑` `↓` (click) | To the next whole number (1.5 → 2, 2 → 3) |
+| `Shift` + `↑` `↓` (Shift-click) | To the next multiple of 10 (232 → 240) |
+| `Option` + `↑` `↓` (Option-click) | ±0.1 |
 
 Values never go negative; they clamp at 0.
 
@@ -82,6 +82,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Update History
 
+- v2.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.2.1 (2026-09-19) Merged AiQuickPrefsPalette-simple.jsx and AiQuickPrefsPalette-SuperSimple.jsx into this script. Flip/rotate moved to QuickTransformPalette.jsx; artboard name and border moved to PresetManagerArtboard.jsx.
 - v2.0.4 (2026-07-23) Added the "Open File Handling" button.
 - v2.0.3 Narrowed to preference toggling (Key Input / Align Options / Transform Options / Copy & Paste / Drawing). Writes delegated over BridgeTalk, reads fetched synchronously. Added Option-click group toggling and click-to-sync with external changes.

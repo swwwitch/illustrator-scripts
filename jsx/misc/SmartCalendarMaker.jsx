@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalen
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md"; /* README (English) */
@@ -2120,7 +2120,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         stFSYear = gFSLabels.add("statictext", undefined, "年");
 
         // ラベル幅を揃えて中央寄せ
-        var __fsLabelW = 42;
+        /* 入力欄の左に∧∨が付くので、その幅を足して入力欄の列とそろえる / include the stepper width so labels line up with the fields */
+        var __fsLabelW = 42 + STEPPER_BUTTON_WIDTH + STEPPER_SIDE_MARGIN;
         stFSBasic.preferredSize.width = __fsLabelW; stFSBasic.justification = "center";
         stFSWeek.preferredSize.width = __fsLabelW; stFSWeek.justification = "center";
         stFSMonth.preferredSize.width = __fsLabelW; stFSMonth.justification = "center";

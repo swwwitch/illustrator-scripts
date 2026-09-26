@@ -1537,9 +1537,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     ransomTrackingGroup.alignChildren = ["left", "center"];
 
     var chkRansomTracking = addLabeledControl(ransomTrackingGroup, "checkbox", "ransomTracking");
-    var edtRansomTracking = ransomTrackingGroup.add("edittext", undefined, String(RANSOM_TRACKING_DEFAULT));
+    /* ∧∨と入力欄は隙間0で突き合わせる。トラッキングはマイナスも受け付ける
+       Butt the stepper against the field; tracking accepts negative values */
+    var ransomStepperInputGroup = ransomTrackingGroup.add("group");
+    ransomStepperInputGroup.orientation = "row";
+    ransomStepperInputGroup.alignChildren = ["left", "center"];
+    ransomStepperInputGroup.spacing = 0;
+    ransomStepperInputGroup.margins = 0;
+    var edtRansomTracking;
+    var ransomTrackingStepper = addStepper(ransomStepperInputGroup, function () { return edtRansomTracking; }, {
+        onStep: function () { requestPreview(); }
+    });
+    edtRansomTracking = ransomStepperInputGroup.add("edittext", undefined, String(RANSOM_TRACKING_DEFAULT));
     edtRansomTracking.helpTip = getLabel("tooltip.ransomTrackingValue");
     edtRansomTracking.characters = RANSOM_FIELD_CHARS;
+    bindSteppedArrowKeys(edtRansomTracking, ransomTrackingStepper);
+
+    /**
+     * トラッキング値の入力欄と∧∨の有効／無効をまとめて切り替え、∧∨を描き直す
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setRansomTrackingFieldEnabled(isEnabled) {
+        edtRansomTracking.enabled = isEnabled;
+        ransomTrackingStepper.enabled = isEnabled;
+        redrawSteppersIn(ransomTrackingStepper);
+    }
 
     chkRandomFont.value = false;
     chkJapaneseOnly.value = false;
@@ -1548,7 +1571,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
        Tracking is on by default but stays dimmed until the style is enabled */
     chkRansomTracking.value = true;
     chkRansomTracking.enabled = false;
-    edtRansomTracking.enabled = false;
+    setRansomTrackingFieldEnabled(false);
 
     /**
      * 「ランダム」がOFFのときは「和文フォントに限定」を無効にする
@@ -1589,9 +1612,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
      * @param {number} defaultValue - 数値欄の初期値
      * @param {number} minValue - スライダーの下限
      * @param {number} maxValue - スライダーの上限
+     * @param {boolean} [allowNegative] - ∧∨・↑↓キーでマイナス値まで下げてよいか
      * @returns {{toggle: Checkbox, label: StaticText, field: EditText, unit: StaticText, slider: Slider}} 作成したコントロール
      */
-    function addTouchRow(parentPanel, labelKey, unitLabel, defaultValue, minValue, maxValue) {
+    function addTouchRow(parentPanel, labelKey, unitLabel, defaultValue, minValue, maxValue, allowNegative) {
         var rowGroup = parentPanel.add("group");
 
         var enableCheckbox = rowGroup.add("checkbox", undefined, "");
@@ -1601,13 +1625,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
         var rowLabel = rowGroup.add("statictext", undefined, labelText("fieldLabel." + labelKey));
 
-        var valueField = rowGroup.add("edittext", undefined, String(defaultValue));
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = rowGroup.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var valueField;
+        var valueSlider;
+        /* 値を変えたらスライダーを追従させ、プレビューを予約する / keep the slider in step and schedule the preview */
+        var valueStepper = addStepper(stepperInputGroup, function () { return valueField; }, {
+            min: allowNegative ? undefined : 0,
+            onStep: function (numberInput) {
+                syncSliderFromField(numberInput, valueSlider);
+                requestPreview();
+            }
+        });
+        valueField = stepperInputGroup.add("edittext", undefined, String(defaultValue));
         valueField.characters = VALUE_FIELD_CHARS;
         valueField.helpTip = getLabel("tooltip." + labelKey);
+        bindSteppedArrowKeys(valueField, valueStepper);
 
         var unitText = rowGroup.add("statictext", undefined, unitLabel);
 
-        var valueSlider = rowGroup.add("slider", undefined, defaultValue, minValue, maxValue);
+        valueSlider = rowGroup.add("slider", undefined, defaultValue, minValue, maxValue);
         valueSlider.preferredSize.width = SLIDER_WIDTH;
         valueSlider.helpTip = getLabel("tooltip." + labelKey);
 
@@ -1616,7 +1658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     var baselineRow = addTouchRow(touchPanel, "baseline", baselineUnitLabel, defaultBaselineValue, 0, baselineSliderMax);
     var scaleRow = addTouchRow(touchPanel, "scale", "%", DEFAULT_SCALE_PERCENT, 0, SCALE_SLIDER_MAX);
-    var kerningRow = addTouchRow(touchPanel, "kerning", "em", DEFAULT_KERNING_EM, KERNING_SLIDER_MIN, KERNING_SLIDER_MAX);
+    var kerningRow = addTouchRow(touchPanel, "kerning", "em", DEFAULT_KERNING_EM, KERNING_SLIDER_MIN, KERNING_SLIDER_MAX, true);
     var rotationRow = addTouchRow(touchPanel, "rotation", "°", DEFAULT_ROTATION_DEG, 0, ROTATION_SLIDER_MAX);
 
     /**
@@ -1742,42 +1784,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
         valueField.text = String(Math.round(valueSlider.value));
     }
 
-    /**
-     * 数値欄を↑↓キーで増減できるようにする
-     * @param {EditText} valueField - 対象の数値欄
-     * @param {Slider} linkedSlider - 連動するスライダー（無いときは null）
-     * @param {boolean} allowNegative - マイナス値を許すかどうか
-     * @returns {void}
-     */
-    function changeValueByArrowKey(valueField, linkedSlider, allowNegative) {
-        valueField.addEventListener("keydown", function (event) {
-            if (!(event && (event.keyName === "Up" || event.keyName === "Down"))) return;
-
-            var currentValue = Number(valueField.text);
-            if (isNaN(currentValue)) return;
-
-            var keyboardState = ScriptUI.environment.keyboardState;
-            var delta = 1;
-            if (keyboardState.shiftKey) {
-                /* Shiftキー押下時は10の倍数にスナップ / Shift snaps to multiples of ten */
-                delta = 10;
-                currentValue = (event.keyName === "Up")
-                    ? Math.ceil((currentValue + 1) / delta) * delta
-                    : Math.floor((currentValue - 1) / delta) * delta;
-            } else {
-                /* Optionキー押下時は0.1単位 / Option steps by 0.1 */
-                delta = keyboardState.altKey ? 0.1 : 1;
-                currentValue += (event.keyName === "Up") ? delta : -delta;
-            }
-            if (!allowNegative && currentValue < 0) currentValue = 0;
-
-            event.preventDefault();
-            valueField.text = String(currentValue);
-            if (linkedSlider) syncSliderFromField(valueField, linkedSlider);
-            requestPreview();
-        });
-    }
-
     // -----------------------------------------
     // プレビューの実行 / Running the preview
     // -----------------------------------------
@@ -1894,7 +1900,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
     // -----------------------------------------
 
     var touchRows = [baselineRow, scaleRow, kerningRow, rotationRow];
-    var allowNegativeRows = { kerning: true };
 
     /**
      * 文字タッチ4項目がすべてOFFか判定する
@@ -1930,9 +1935,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     /* 数値欄・スライダー・チェックボックスの操作をプレビューにつなぐ
        Wire the fields, sliders and toggles to the preview */
-    var rowKeys = ["baseline", "scale", "kerning", "rotation"];
     for (var rowIndex = 0; rowIndex < touchRows.length; rowIndex++) {
-        (function (touchRow, allowNegative) {
+        (function (touchRow) {
             touchRow.field.onChanging = function () {
                 syncSliderFromField(touchRow.field, touchRow.slider);
                 requestPreview();
@@ -1945,13 +1949,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
                 requestPreview();
                 updateRandomizeEnabled();
             };
-            changeValueByArrowKey(touchRow.field, touchRow.slider, allowNegative);
             syncSliderFromField(touchRow.field, touchRow.slider);
-        })(touchRows[rowIndex], !!allowNegativeRows[rowKeys[rowIndex]]);
+        })(touchRows[rowIndex]);
     }
 
     edtRansomTracking.onChanging = function () { requestPreview(); };
-    changeValueByArrowKey(edtRansomTracking, null, true);
 
     chkRotationTracking.onClick = function () { requestPreview(); };
 
@@ -1969,13 +1971,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne6545c4717af"; /* 紹�
 
     chkRansomEnabled.onClick = function () {
         chkRansomTracking.enabled = chkRansomEnabled.value;
-        edtRansomTracking.enabled = chkRansomEnabled.value && chkRansomTracking.value;
+        setRansomTrackingFieldEnabled(chkRansomEnabled.value && chkRansomTracking.value);
         updateRandomizeEnabled();
         requestPreview();
     };
 
     chkRansomTracking.onClick = function () {
-        edtRansomTracking.enabled = chkRansomEnabled.value && chkRansomTracking.value;
+        setRansomTrackingFieldEnabled(chkRansomEnabled.value && chkRansomTracking.value);
         requestPreview();
     };
 

@@ -36,6 +36,7 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
 - v1.2.2 (2026-09-19): 機能が重複していた `PreferenceManager.jsx` を統合。全項目にツールチップを追加 / Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
 - v1.2.3 (2026-09-27): 単位のドロップダウンにツールチップを追加し、「プリント（Q）」のツールチップを東アジア言語=H に訂正。英語UIの項目名のコロンを半角に統一（「Keyboard Increment::」の重複も修正）。コードを整理 / Added tooltips to the unit dropdowns and corrected the "Print (Q)" tooltip to East Asian=H; English field labels now use a single half-width colon (fixed the doubled "Keyboard Increment::"); code cleanup
+- v1.3.0 (2026-09-27): 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ） / Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### スクリプト情報
 

@@ -16,6 +16,10 @@
 
 ### Script info
 
-- Version: v1.3.1
+- Version: v1.4.0
 - First release: 2026-02-15
-- Last updated: 2026-07-15
+- Last updated: 2026-09-27
+
+### Update history
+
+- v1.4.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
