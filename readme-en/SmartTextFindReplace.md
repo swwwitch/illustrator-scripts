@@ -61,7 +61,7 @@
 
 1. Select the target, or run the script with nothing selected
 2. Enter strings in the left fields under "Text to Remove / Replace" (to replace, also fill in the field right of "→"; the match count appears at the right end)
-3. Choose the scope and options, check the result with Preview if needed, then click OK
+3. Choose the scope and options, check the result with Preview if needed, then click Apply (or press Enter). The dialog stays open so you can continue; click Close when done
 
 ### Dialog
 
@@ -85,6 +85,7 @@
 | English tab buttons | Convert the text in the scope right away, following options such as "Check hidden layers". The sample on the right is the first text in the scope converted |
 | Reset | Clears the fields and restores the scope and options to their defaults. The preview setting is kept |
 | Preview | While on, shows the result without closing the dialog and updates it as the input, scope or options change |
+| Apply | Removes or replaces in the scope. No result message is shown; the match counts update instead. The dialog stays open |
 
 ### Notes
 
@@ -92,12 +93,13 @@
 - Replaced text is searched by the fields below.
 - Replaced text takes the formatting of the first character of the match. Mixed formatting within a match becomes a single format.
 - In the search and replace fields, `\n` means a paragraph break and `@#` a forced line break, with or without regular expressions. To find a backslash followed by `n` with regular expressions, write `\\n`.
-- The preview covers only visible, unlocked, standalone text. Text in symbols, hidden or locked text, and threaded text stay unchanged in the preview but are processed on OK.
+- The preview covers only visible, unlocked, standalone text. Text in symbols, hidden or locked text, and threaded text stay unchanged in the preview but are processed on Apply.
 - "Check symbols" rewrites the symbol definition itself, so instances of the same symbol outside the scope change as well.
 - Symbols are recreated and swapped, so symbol options such as the registration point and 9-slice scaling are reset.
 - With "Check symbols" on, symbols are expanded temporarily in the dialog to count matches. The dialog may open slowly in documents with many symbols.
-- Clicking OK saves the entries and settings for the next run.
-- The buttons on the English and Cleanup tabs convert as soon as they are clicked. Clicking Cancel afterwards does not revert them; close the dialog and use Undo instead.
+- Clicking Apply or closing with Close saves the entries and settings for the next run.
+- Apply and the buttons on the English and Cleanup tabs take effect as soon as they are clicked. To revert, close the dialog and use Undo.
+- Pressing Enter on the English or Cleanup tab does not run Remove / Replace.
 - When a conversion changes the number of characters (halfwidth kana voicing marks, kanji numerals, etc.), the changed part takes the formatting of its first character. Added spaces take the formatting of the preceding character.
 - Bullets and Numbers first run *Convert to Text* (the menu command) on Illustrator bullet and numbered lists, then remove the leading markers. Markers typed as text are removed as well. Text is selected temporarily for the conversion; the original selection is restored when the dialog closes.
 
@@ -112,3 +114,4 @@
 - v1.2.0 (20260926) : Added Preview. Added buttons and shortcuts for paragraph and forced line breaks, buttons for match references, and a Reset button. Replacements accept `\0`–`\9` and `\\`. Fixed an error when selected text was emptied and deleted
 - v1.2.1 (20260926) : Renamed options to match Illustrator's Find and Replace ("Ignore case" → "Match case" with saved settings converted; "Search …" → "Check …"). Fixed saved settings not being applied to the match counts when the dialog opens
 - v1.3.0 (20260926) : Split the dialog into Remove / Replace, English and Cleanup tabs, and added English (letter case) and cleanup (tabs, spaces, symbols, kana, digits, list removal, etc.). Moved "Delete emptied text" into the Text to Remove / Replace panel. Increased the fields from five to seven. Renamed the dialog to "Remove, Replace & Clean Up Text" and added tooltips to the buttons
+- v1.4.0 (20260926) : Replaced OK and Cancel with an Apply button in the Remove / Replace panel and a Close button. Remove / Replace now runs without closing the dialog. Moved Preview into the Remove / Replace panel. Remove / Replace no longer runs while the English or Cleanup tab is open. Removed the result message after Remove / Replace

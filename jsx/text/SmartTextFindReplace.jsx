@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
     var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -67,7 +67,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     var SETTINGS_PREF_KEY = "SmartTextFindReplace/settings"; /* 環境設定に保存するキー / preference key */
 
     /**
-     * 前回 OK したときの設定を読み込む
+     * 前回［実行］したとき・閉じたときの設定を読み込む
      * @returns {Object|null} 保存した設定。無いか壊れていれば null
      */
     function loadSettings() {
@@ -236,6 +236,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 ja: "入力欄を空にし、対象とオプションを初期値に戻します（プレビューの ON／OFF はそのまま）",
                 en: "Clears the fields and restores the scope and options to their defaults (the preview setting is kept)"
             },
+            apply: {
+                ja: "対象の範囲で削除・置換します（Enter）。ダイアログは閉じないので、続けて別の文字列を処理できます",
+                en: "Removes or replaces in the scope (Enter). The dialog stays open so you can continue with other text"
+            },
             caseWord: { ja: "単語ごとに先頭を大文字、残りを小文字にします", en: "Capitalizes the first letter of each word and lowercases the rest" },
             caseSentence: { ja: "文の先頭だけを大文字にし、残りを小文字にします", en: "Capitalizes only the first letter of each sentence" },
             caseTitle: {
@@ -304,17 +308,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             bulletList: { ja: "箇条書き", en: "Bullets" },
             numberList: { ja: "番号リスト", en: "Numbers" },
             reset: { ja: "リセット", en: "Reset" },
-            cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            apply: { ja: "実行", en: "Apply" },
+            close: { ja: "閉じる", en: "Close" }
         },
         alert: {
-            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-            processedCounts: { ja: "削除・置換した数", en: "Removed / replaced matches" },
-            removedCountLine: { ja: "「{text}」：{count}", en: "\"{text}\": {count}" },
-            replacedCountLine: { ja: "「{text}」→「{replaceText}」：{count}", en: "\"{text}\" → \"{replaceText}\": {count}" },
-            changedFrames: { ja: "{count}個のテキストオブジェクトを変更しました。", en: "Changed {count} text object(s)." },
-            deletedFrames: { ja: "空になった{count}個のテキストオブジェクトを削除しました。", en: "Deleted {count} emptied text object(s)." },
-            updatedSymbols: { ja: "{count}個のシンボルを書き換えました。", en: "Rewrote {count} symbol(s)." }
+            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." }
         }
     };
 
@@ -325,15 +323,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      */
     function getLabel(labelSet) {
         return labelSet[uiLang] || labelSet.en;
-    }
-
-    /**
-     * コロン付きのラベルを返す（日本語は全角、英語は半角）
-     * @param {Object} labelSet - { ja, en } を持つラベル
-     * @returns {string} コロン付きラベル
-     */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -353,16 +342,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         /* シンボルのリンク解除で選択が変わるので、最初に控えておく / Keep the selection now, as breaking symbol links changes it */
         var selectedItems = toItemArray(doc.selection);
 
-        var findReplaceOptions = showFindReplaceDialog(doc, selectedItems);
-        if (!findReplaceOptions) return;
-
-        var targetFrames = collectTargetFrames(doc, findReplaceOptions.scope, findReplaceOptions.layerOptions, selectedItems);
-        /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルは先に集める
-           Collect symbols first, as deleting emptied frames leaves invalid references in selectedItems */
-        var targetSymbols = findReplaceOptions.includeSymbols ? collectTargetSymbols(doc, findReplaceOptions.scope, findReplaceOptions.layerOptions, selectedItems) : [];
-        var replaceResult = replaceTextInFrames(targetFrames, findReplaceOptions.searchEntries, findReplaceOptions.deleteEmptyFrames);
-        replaceResult.updatedSymbolCount = replaceTextInSymbols(doc, targetSymbols, findReplaceOptions.searchEntries, replaceResult.processedCounts);
-        alert(buildResultMessage(findReplaceOptions.searchEntries, replaceResult));
+        showFindReplaceDialog(doc, selectedItems);
     }
 
     /**
@@ -380,36 +360,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
-     * 結果メッセージを組み立てる（欄ごとの削除・置換数・変更したオブジェクト数・削除したフレーム数）
-     * @param {Object[]} searchEntries - getSearchEntries() の結果
-     * @param {Object} replaceResult - replaceTextInFrames() の結果
-     * @returns {string} メッセージ
-     */
-    function buildResultMessage(searchEntries, replaceResult) {
-        var messageLines = [labelText(LABELS.alert.processedCounts)];
-        for (var i = 0; i < searchEntries.length; i++) {
-            var countLine = (searchEntries[i].replaceText === "") ? LABELS.alert.removedCountLine : LABELS.alert.replacedCountLine;
-            messageLines.push(getLabel(countLine)
-                .replace("{text}", searchEntries[i].text)
-                .replace("{replaceText}", searchEntries[i].replaceText)
-                .replace("{count}", replaceResult.processedCounts[i]));
-        }
-        messageLines.push("");
-        messageLines.push(getLabel(LABELS.alert.changedFrames).replace("{count}", replaceResult.changedCount));
-        if (replaceResult.deletedFrameCount > 0) {
-            messageLines.push(getLabel(LABELS.alert.deletedFrames).replace("{count}", replaceResult.deletedFrameCount));
-        }
-        if (replaceResult.updatedSymbolCount > 0) {
-            messageLines.push(getLabel(LABELS.alert.updatedSymbols).replace("{count}", replaceResult.updatedSymbolCount));
-        }
-        return messageLines.join("\n");
-    }
-
-    /**
-     * ダイアログを表示し、削除・置換するパターンと対象範囲を返す
-     * @param {Document} doc - 一致数を数えるドキュメント
-     * @param {PageItem[]} selectedItems - 実行時に選択していたアイテム
-     * @returns {Object|null} { searchEntries: Object[], scope: string, deleteEmptyFrames: boolean, includeSymbols: boolean, layerOptions: Object }。キャンセル時は null
+     * ダイアログを表示する。削除・置換も英文・整形の変換も、ボタンを押した時点でダイアログを閉じずに実行する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} selectedItems - 実行時に選択していたアイテム（空になって削除したフレームは取り除く）
+     * @returns {void}
      */
     function showFindReplaceDialog(doc, selectedItems) {
         /* 前回の設定があれば初期値にする / Start from the saved settings when present */
@@ -430,7 +384,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         var dialogControls = buildMainDialog(savedSettings, dialogState, hasSelection, runConversion);
         var findReplaceControls = dialogControls.findReplaceControls;
         var conversionPanelBuilder = dialogControls.conversionPanelBuilder;
-        var buttonControls = dialogControls.buttonControls;
 
         var searchInputs = findReplaceControls.searchInputs;
         var replaceInputs = findReplaceControls.replaceInputs;
@@ -487,8 +440,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             return contentsCache[cacheKey];
         }
 
-        /* 一致数と OK の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は OK を押せない）
-           Update match counts, OK and the preview; disable OK when no pattern is given or a regular expression is invalid */
+        /* 一致数と［実行］の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は押せない）
+           Update match counts, Apply and the preview; disable Apply when no pattern is given or a regular expression is invalid */
         function refreshDialogState() {
             /* プレビューの複製が数に入らないよう、先に消す / Clear the preview first so its duplicates are not counted */
             clearPreview();
@@ -510,7 +463,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 findReplaceControls.matchCountLabels[i].text = matchCountText;
             }
             isInputValid = hasPattern && !hasInvalidPattern;
-            buttonControls.btnOK.enabled = isInputValid;
+            findReplaceControls.btnApply.enabled = isInputValid;
             findReplaceControls.referenceButtonGroup.enabled = dialogState.values.useRegex;
             updatePreview();
         }
@@ -534,6 +487,35 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             } else {
                 convertTextInFrames(targetFrames, convertText, null);
                 convertTextInSymbols(doc, targetSymbols, convertText, null);
+            }
+            /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
+            contentsCache = {};
+            app.redraw();
+            refreshDialogState();
+        }
+
+        /* 対象範囲のテキストを削除・置換する（ダイアログは閉じない）/ Remove or replace in the scope, keeping the dialog open */
+        function runReplace() {
+            /* Enter は表示中のタブにかかわらず既定のボタンを押すので、削除・置換タブのときだけ実行する
+               Enter presses the default button on any tab, so run only on the Remove / Replace tab */
+            if (dialogControls.modeTabbedPanel.selection !== dialogControls.findReplaceTab || !isInputValid) return;
+            /* プレビューの複製ではなく元を処理する / Process the originals, not the preview duplicates */
+            clearPreview();
+            var searchTexts = readInputTexts(searchInputs);
+            var replaceTexts = readInputTexts(replaceInputs);
+            saveDialogSettings(searchTexts, replaceTexts, dialogState);
+            var searchEntries = getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase);
+            var layerOptions = getLayerOptions();
+            var targetFrames = collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems);
+            /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルは先に集める
+               Collect symbols first, as deleting emptied frames leaves invalid references in selectedItems */
+            var targetSymbols = dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : [];
+            var replaceResult = replaceTextInFrames(targetFrames, searchEntries, dialogState.values.deleteEmptyFrames);
+            replaceTextInSymbols(doc, targetSymbols, searchEntries, replaceResult.processedCounts);
+            /* 次の実行や閉じたあとの選択の復元で使わないよう、削除したフレームを取り除く
+               Drop the deleted frames so later runs and the selection restore do not touch them */
+            for (var i = selectedItems.length - 1; i >= 0; i--) {
+                if (indexOfItem(replaceResult.deletedFrames, selectedItems[i]) !== -1) selectedItems.splice(i, 1);
             }
             /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
             contentsCache = {};
@@ -565,35 +547,24 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         }
         dialogState.onSettingChange = refreshDialogState;
         findReplaceControls.btnReset.onClick = resetDialog;
-        buttonControls.previewCheckbox.onClick = function () {
+        findReplaceControls.btnApply.onClick = runReplace;
+        findReplaceControls.previewCheckbox.onClick = function () {
             isPreviewOn = this.value;
             updatePreview();
         };
 
         refreshDialogState();
 
-        var dialogResult = dialogControls.mainDialog.show();
-        /* OK でもキャンセルでも、本処理の前にプレビューを消す / Remove the preview before running, whether OK or cancel */
+        dialogControls.mainDialog.show();
         clearPreview();
         if (hasShownPreview || hasChangedSelection) {
             /* 戻せない選択（ロック・非表示になったものなど）は例外になるので無視する / Ignore a selection that can no longer be restored */
             try {
-                doc.selection = hasSelection ? selectedItems : null;
+                doc.selection = (selectedItems.length > 0) ? selectedItems : null;
             } catch (e) {}
         }
-        if (dialogResult !== 1) return null;
-
-        var searchTexts = readInputTexts(searchInputs);
-        var replaceTexts = readInputTexts(replaceInputs);
-        saveDialogSettings(searchTexts, replaceTexts, dialogState);
-
-        return {
-            searchEntries: getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase),
-            scope: dialogState.scope,
-            deleteEmptyFrames: dialogState.values.deleteEmptyFrames,
-            includeSymbols: dialogState.values.includeSymbols,
-            layerOptions: getLayerOptions()
-        };
+        /* 閉じたときの入力内容と設定も次回に引き継ぐ / Keep the entries and settings at closing for the next run */
+        saveDialogSettings(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState);
     }
 
     /**
@@ -602,7 +573,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      * @param {Object} dialogState - showFindReplaceDialog() の状態
      * @param {boolean} hasSelection - 選択があるか
      * @param {Function} onConvert - 英文・整形タブのボタンを押したときに (convertText, conversionKey) を受け取る処理
-     * @returns {Object} { mainDialog: Window, findReplaceControls: Object, conversionPanelBuilder: Object, scopeRadios: Object, buttonControls: Object }
+     * @returns {Object} { mainDialog: Window, modeTabbedPanel: TabbedPanel, findReplaceTab: Tab, findReplaceControls: Object, conversionPanelBuilder: Object, scopeRadios: Object }
      */
     function buildMainDialog(savedSettings, dialogState, hasSelection, onConvert) {
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
@@ -629,12 +600,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         var scopeRadios = buildScopePanel(scopeOptionsGroup, dialogState, hasSelection);
         buildOptionsPanel(scopeOptionsGroup, savedSettings, dialogState);
 
+        buildButtonRow(mainDialog);
+        /* Enter で［実行］を押す（削除・置換タブ以外では runReplace() が何もしない）/ Enter presses Apply; runReplace() ignores it on other tabs */
+        mainDialog.defaultElement = findReplaceControls.btnApply;
+
         return {
             mainDialog: mainDialog,
+            modeTabbedPanel: modeTabbedPanel,
+            findReplaceTab: findReplaceTab,
             findReplaceControls: findReplaceControls,
             conversionPanelBuilder: conversionPanelBuilder,
-            scopeRadios: scopeRadios,
-            buttonControls: buildButtonRow(mainDialog)
+            scopeRadios: scopeRadios
         };
     }
 
@@ -727,11 +703,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
-     * 「削除・置換する文字列」パネルを作る（入力欄・挿入ボタン・正規表現や空になったテキストの削除などのチェックボックス・リセット）
+     * 「削除・置換する文字列」パネルを作る（入力欄・挿入ボタン・正規表現や空になったテキストの削除などのチェックボックス・プレビュー・リセット・実行）
      * @param {Tab} parentTab - 追加先のタブ
      * @param {Object} savedSettings - loadSettings() の結果
      * @param {Object} dialogState - showFindReplaceDialog() の状態
-     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, btnReset: Button, focusFirstInput: Function }
+     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, previewCheckbox: Checkbox, btnReset: Button, btnApply: Button, focusFirstInput: Function }
      */
     function buildFindReplacePanel(parentTab, savedSettings, dialogState) {
         var savedSearchTexts = savedSettings.searchTexts || [];
@@ -755,8 +731,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             targetInput.addEventListener("keydown", function (keyEvent) {
                 var insertedToken = getShortcutToken(keyEvent.keyName, ScriptUI.environment.keyboardState, dialogState.values.useRegex);
                 if (!insertedToken) return;
-                /* Enter で OK が押されたり、option＋数字で記号が入ったりしないよう止める
-                   Keep Enter from pressing OK and option+digit from typing a symbol */
+                /* Enter で［実行］が押されたり、option＋数字で記号が入ったりしないよう止める
+                   Keep Enter from pressing Apply and option+digit from typing a symbol */
                 keyEvent.preventDefault();
                 this.textselection = insertedToken;
                 if (this.onChanging) this.onChanging();
@@ -835,7 +811,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         addInsertButton(groupReferenceButtonGroup, "group1", "\\1");
         addInsertButton(groupReferenceButtonGroup, "group2", "\\2");
 
-        /* 左に正規表現などのチェックボックス、右下にリセット / Checkboxes on the left, Reset at the bottom right */
+        /* 左に正規表現などのチェックボックスとプレビュー、右下にリセットと実行 / Checkboxes and Preview on the left, Reset and Apply at the bottom right */
         var searchOptionsRowGroup = findReplacePanel.add("group");
         searchOptionsRowGroup.orientation = "row";
         searchOptionsRowGroup.alignment = ["fill", "top"];
@@ -848,19 +824,28 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         addSettingCheckbox(searchOptionsGroup, "useRegex", DEFAULT_USE_REGEX, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "matchCase", DEFAULT_MATCH_CASE, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "deleteEmptyFrames", DEFAULT_DELETE_EMPTY_FRAMES, savedSettings, dialogState);
+        var previewCheckbox = searchOptionsGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
         var searchOptionsSpacer = searchOptionsRowGroup.add("group");
         searchOptionsSpacer.alignment = ["fill", "fill"];
         searchOptionsSpacer.minimumSize.width = 0;
-        var btnReset = searchOptionsRowGroup.add("button", undefined, getLabel(LABELS.button.reset));
-        btnReset.alignment = ["right", "bottom"];
+        var actionButtonGroup = searchOptionsRowGroup.add("group");
+        actionButtonGroup.orientation = "column";
+        actionButtonGroup.alignment = ["right", "bottom"];
+        actionButtonGroup.alignChildren = ["fill", "top"];
+        var btnReset = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.reset));
         btnReset.helpTip = getLabel(LABELS.tooltip.reset);
+        var btnApply = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.apply));
+        btnApply.helpTip = getLabel(LABELS.tooltip.apply);
 
         return {
             searchInputs: searchInputs,
             replaceInputs: replaceInputs,
             matchCountLabels: matchCountLabels,
             referenceButtonGroup: referenceButtonGroup,
+            previewCheckbox: previewCheckbox,
             btnReset: btnReset,
+            btnApply: btnApply,
             focusFirstInput: focusFirstInput
         };
     }
@@ -1173,9 +1158,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
-     * ボタンエリアを作る（左にプレビュー、右にキャンセルと OK）
+     * ボタンエリアを作る（右に閉じる。どのタブのボタンも押した時点で実行するので OK・キャンセルは置かない）
      * @param {Window} parentDialog - ダイアログ
-     * @returns {Object} { previewCheckbox: Checkbox, btnOK: Button }
+     * @returns {void}
      */
     function buildButtonRow(parentDialog) {
         var btnRowGroup = parentDialog.add("group");
@@ -1183,21 +1168,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         btnRowGroup.alignment = ["fill", "bottom"];
 
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
-        previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
-
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
 
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-
-        return { previewCheckbox: previewCheckbox, btnOK: btnOK };
+        /* name を cancel にして Esc でも閉じる / Named cancel so Esc also closes */
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
     }
 
     /**
@@ -1553,10 +1531,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      * @param {TextFrame[]} targetFrames - 対象のテキストフレーム
      * @param {Object[]} searchEntries - getSearchEntries() の結果
      * @param {boolean} deleteEmptyFrames - 削除で空になった独立フレームを削除するか
-     * @returns {Object} { processedCounts: number[]（欄ごとの削除・置換数）, changedCount: number, deletedFrameCount: number }
+     * @returns {Object} { processedCounts: number[]（欄ごとの削除・置換数）, changedCount: number, deletedFrameCount: number, deletedFrames: TextFrame[]（削除したフレームの参照） }
      */
     function replaceTextInFrames(targetFrames, searchEntries, deleteEmptyFrames) {
-        var replaceResult = { processedCounts: createZeroCounts(searchEntries.length), changedCount: 0, deletedFrameCount: 0 };
+        var replaceResult = { processedCounts: createZeroCounts(searchEntries.length), changedCount: 0, deletedFrameCount: 0, deletedFrames: [] };
         for (var i = 0; i < targetFrames.length; i++) {
             editWithAncestorsReleased(targetFrames[i], function (stateRecords) {
                 var textFrame = targetFrames[i];
@@ -1565,6 +1543,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 if (deleteEmptyFrames && textFrame.contents === "" && isStandaloneFrame(textFrame)) {
                     /* 消したフレーム自身は状態を戻さない / Do not restore the deleted frame itself */
                     removeRecordsFor(stateRecords, textFrame);
+                    replaceResult.deletedFrames.push(textFrame);
                     textFrame.remove();
                     replaceResult.deletedFrameCount++;
                 }
