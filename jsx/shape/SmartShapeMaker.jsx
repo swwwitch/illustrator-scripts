@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShape
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -63,6 +63,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         smoothing: 60,           /* スムージング（%） / smoothing in percent */
         reuleauxAmount: 100,     /* ルーローの度合い（%） / Reuleaux amount in percent */
         roughenDetail: "1",      /* ラフ効果の詳細 / roughen detail */
+        fitViewPercent: 65,      /* ［画面にフィット］で図形が占める割合（%） / share of the window the fitted shape fills */
         segmentStrokeWidth: 0.3  /* 分割時に線がないときの既定線幅（pt）
                                     fallback stroke width of split segments, in pt */
     };
@@ -75,11 +76,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         smoothing: [0, 150],      /* スムージング（%） / smoothing */
         reuleauxAmount: [0, 200], /* ルーローの度合い（%） / Reuleaux amount */
         opacity: [0, 100],        /* 不透明度（%） / opacity */
-        zoom: [0.1, 16]           /* 画面ズーム倍率 / view zoom factor */
+        fitViewPercent: [10, 100] /* ［画面にフィット］の割合（%） / fit-to-window share */
     };
 
-    /* ［画面にフィット］したときの余裕（1.0で図形が画面いっぱい） / Breathing room when fitting the view, 1.0 fills the window */
-    var FIT_VIEW_MARGIN = 1.05;
+    /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+    var VIEW_ZOOM_RANGE = [0.03125, 64];
 
     /* 図形生成の内部パラメーター / Internal parameters of the shape generation */
     var SHAPE_GEOMETRY = {
@@ -127,8 +128,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
     var SWATCH_SIZE        = 16;   /* カラースウォッチの一辺（px） / color swatch size in px */
     var SLIDER_WIDTH       = 200;  /* 標準スライダー幅 / default slider width */
     var SHORT_SLIDER_WIDTH = 150;  /* 短いスライダー幅 / short slider width */
-    var SIDES_SLIDER_WIDTH = 100;  /* ［辺の数］スライダー幅（入力欄と同じ行に収める） / slider width of the side count, kept on the field's row */
-    var ZOOM_SLIDER_WIDTH  = 300;  /* ［画面ズーム］スライダー幅 / slider width of the view zoom */
+    var INLINE_SLIDER_WIDTH = 100; /* 項目と同じ行に置くスライダー幅（［辺の数］［スーパー楕円］） / slider width when it shares a row with its control */
 
     /* ダイアログの表示位置と不透明度 / Dialog position and opacity */
     var DIALOG_OFFSET_X = 300;    /* 初回表示位置のオフセットX / dialog offset X */
@@ -137,42 +137,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
     /**
      * ウィンドウの共通レイアウトを適用する。
-     * @param {Window} win - 対象のウィンドウ
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時はWINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルの共通レイアウトを適用する。
-     * @param {Panel} panel - 対象のパネル
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時はPANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 行グループの共通レイアウトを適用する（ボタン列など）。
-     * @param {Group} group - 対象のグループ
+     * @param {Group} rowGroup - 対象のグループ
      * @param {string|Array} [alignment] - 整列指定（省略時は"left"）
      * @param {number} [spacing] - 要素間隔（省略時はPANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = alignment || "left";
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
@@ -242,8 +242,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             if (event.keyName != "Up" && event.keyName != "Down") return;
             var value = Number(editText.text);
             if (isNaN(value)) return;
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = keyboard.shiftKey ? 10 : 1;
+            var delta = ScriptUI.environment.keyboardState.shiftKey ? 10 : 1;
             value += (event.keyName == "Up") ? delta : -delta;
             event.preventDefault();
             editText.text = value;
@@ -251,9 +250,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* 矢印キーは確定した編集として扱う。onChangeがあれば丸めまで、なければプレビューだけ反映する
                An arrow key is a committed edit: onChange also rounds the value, onChanging only redraws */
             var editHandler = (typeof editText.onChange === "function") ? editText.onChange : editText.onChanging;
-            if (typeof editHandler === "function") {
-                try { editHandler(); } catch (e) { }
-            }
+            if (typeof editHandler === "function") editHandler();
         });
     }
 
@@ -278,9 +275,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             width: { ja: "幅", en: "Width" },
             star: { ja: "スター", en: "Star" },
             circle: { ja: "円", en: "Circle" },
-            anchor: { ja: "アンカーポイント", en: "Anchor Points" },
+            anchorCount: { ja: "アンカーポイント数", en: "Anchor Count" },
             anchorOps: { ja: "アンカーポイントの操作", en: "Anchor Point Operations" },
-            cornerSmoothing: { ja: "角丸", en: "Corner Smoothing" },
+            cornerSmoothing: { ja: "角丸", en: "Rounded Corners" },
             option: { ja: "オプション", en: "Options" }
         },
         checkbox: {
@@ -290,14 +287,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             fill: { ja: "塗り", en: "Fill" },
             stroke: { ja: "線", en: "Stroke" },
             cornerRadius: { ja: "半径", en: "Radius" },
-            liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
+            liveShape: { ja: "ライブシェイプに変換", en: "Convert to Live Shape" },
             reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant-Width)" },
             splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
             roughenAnchors: { ja: "ラフ効果で追加", en: "Add Anchors (Roughen)" },
-            fitView: { ja: "画面にフィット", en: "Fit View" }
+            fitView: { ja: "画面にフィット", en: "Fit to Window" }
         },
         radio: {
             circleWithZero: { ja: "0（円）", en: "0 (Circle)" },
+            squareWithFour: { ja: "4（正方形）", en: "4 (Square)" },
             triangleRight: { ja: "右", en: "Right" },
             triangleLeft: { ja: "左", en: "Left" },
             triangleDown: { ja: "下", en: "Down" },
@@ -309,8 +307,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             innerRadius: { ja: "第2半径", en: "Inner Radius" },
             opacity: { ja: "不透明度", en: "Opacity" },
             smoothing: { ja: "スムージング", en: "Smoothing" },
-            strokeCap: { ja: "線端", en: "Line Cap" },
-            viewZoom: { ja: "画面ズーム", en: "View Zoom" }
+            strokeCap: { ja: "線端", en: "Cap" }
         },
         tooltip: {
             circle: { ja: "円を作成します（E）", en: "Creates a circle (E)" },
@@ -319,6 +316,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             triangleRight: { ja: "右向きの三角形にします（R）", en: "Points the triangle to the right (R)" },
             triangleLeft: { ja: "左向きの三角形にします（L）", en: "Points the triangle to the left (L)" },
             triangleDown: { ja: "下向きの三角形にします（B）", en: "Points the triangle down (B)" },
+            sideChoice: { ja: "option（Alt）＋数字キーでも選べます", en: "Also selectable with Option (Alt) + the number key" },
             width: {
                 ja: "円は直径、正方形は1辺の長さ、そのほかの多角形とスターは外接円の直径です。",
                 en: "The diameter of a circle, the edge length of a square, and the circumscribed diameter of other polygons and stars."
@@ -326,6 +324,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             fitView: {
                 ja: "［幅］を変えたときに、作成する図形が収まるよう表示倍率を合わせます。",
                 en: "Refits the view to the shape being created whenever the width changes."
+            },
+            fitViewPercent: {
+                ja: "ウィンドウに対する図形の大きさ（100%でいっぱい）",
+                en: "Size of the shape relative to the window; 100% fills it"
             },
             star: { ja: "スターにします（S）", en: "Makes a star (S)" },
             pentagram: {
@@ -351,8 +353,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 en: "Turns each edge of an odd-sided polygon into an arc to make a constant-width shape."
             },
             reuleauxAmount: { ja: "円弧のふくらみ（100%で定幅図形）", en: "Arc bulge; 100% gives a constant-width shape" },
-            viewZoom: { ja: "ドキュメントウィンドウの表示倍率。キャンセルすると元に戻ります", en: "Zoom level of the document window; restored on Cancel" },
-            preview: { ja: "プレビュー表示とアウトライン表示を切り替えます", en: "Switches the document between Preview and Outline view" }
+            preview: { ja: "プレビュー表示とアウトライン表示を切り替えます", en: "Switches the document between Preview and Outline view" },
+            colorSwatch: { ja: "クリックしてカラーを選びます", en: "Click to choose a color" },
+            strokeWidth: { ja: "線幅", en: "Stroke weight" },
+            opacity: { ja: "Shiftキーを押しながらドラッグすると10%刻み", en: "Shift-drag to snap to 10% steps" }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -475,6 +479,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         if (value < range[0]) value = range[0];
         if (value > range[1]) value = range[1];
         return value;
+    }
+
+    /**
+     * SHAPE_RANGES と SHAPE_DEFAULTS の同じキーを使い、整数に丸めて有効範囲に収める関数を作る。
+     * @param {string} settingKey - SHAPE_RANGES と SHAPE_DEFAULTS のキー
+     * @returns {function} 入力値を受け取り、範囲内の整数を返す関数
+     */
+    function makeRangeClamp(settingKey) {
+        return function (value) {
+            return clampNumber(value, SHAPE_RANGES[settingKey], SHAPE_DEFAULTS[settingKey], true);
+        };
     }
 
     /**
@@ -987,11 +1002,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      * 閉じたパスをアンカーポイントごとに分割し、開いたパスのグループにする。
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} pathItem - 分割元のパス
-     * @param {object} strokeOpts - 線の設定 {enabled, color, widthPt}
+     * @param {object} strokeOptions - 線の設定 {enabled, color, widthPt}
      * @param {StrokeCap} strokeCap - 線端の種類
      * @returns {GroupItem|PathItem} 分割後のグループ（分割できない場合は元のパス）
      */
-    function splitPathAtAnchors(doc, pathItem, strokeOpts, strokeCap) {
+    function splitPathAtAnchors(doc, pathItem, strokeOptions, strokeCap) {
         if (!pathItem || !pathItem.pathPoints || pathItem.pathPoints.length < 2) return pathItem;
 
         var layer = doc.activeLayer;
@@ -1032,10 +1047,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                Open paths get a stroke, not a fill; without a stroke option they fall back to a thin black line */
             segmentPath.filled = false;
             segmentPath.stroked = true;
-            var hasStroke = !!(strokeOpts && strokeOpts.enabled);
+            var hasStroke = !!(strokeOptions && strokeOptions.enabled);
+            /* 線幅欄が数値でないとstrokeWidthへの代入が例外になる。その線だけ既定の見た目で残す
+               A non-numeric stroke width throws on assignment; that segment then keeps the default look */
             try {
-                segmentPath.strokeColor = hasStroke ? strokeOpts.color : createBlackColor(doc);
-                segmentPath.strokeWidth = hasStroke ? strokeOpts.widthPt : SHAPE_DEFAULTS.segmentStrokeWidth;
+                segmentPath.strokeColor = hasStroke ? strokeOptions.color : createBlackColor(doc);
+                segmentPath.strokeWidth = hasStroke ? strokeOptions.widthPt : SHAPE_DEFAULTS.segmentStrokeWidth;
                 if (strokeCap) segmentPath.strokeCap = strokeCap;
             } catch (e) { }
         }
@@ -1047,7 +1064,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
     }
 
     /**
-     * 図形生成のパラメーター一式。ダイアログのgetCurrentParams()が組み立てる。
+     * 図形生成のパラメーター一式。ダイアログのgetCurrentShapeParams()が組み立てる。
      * @typedef {object} ShapeParams
      * @property {number} size - 幅（pt）
      * @property {number} sides - 辺の数（0は円）
@@ -1062,8 +1079,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      * @property {number} circleAnchorCount - 円のアンカーポイント数
      * @property {boolean} useReuleaux - ルーロー図形にするか
      * @property {number} reuleauxAmount - ルーローの度合い（1.0が標準）
-     * @property {object} fillOpts - 塗りの設定 {enabled, color}
-     * @property {object} strokeOpts - 線の設定 {enabled, color, widthPt}
+     * @property {object} fillOptions - 塗りの設定 {enabled, color}
+     * @property {object} strokeOptions - 線の設定 {enabled, color, widthPt}
      * @property {object} cornerSmoothing - 角丸の設定 {radius, smoothing}（不要ならnull）
      * @property {number} opacity - 不透明度（%）
      * @property {number} roughenDetail - ラフ効果の詳細（0で無効）
@@ -1071,60 +1088,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
     /**
      * 図形を作れるパラメーターかどうかを判定する（幅と第2半径が数値であること）。
-     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {ShapeParams} shapeParams - 図形生成のパラメーター
      * @returns {boolean} 作成できるならtrue
      */
-    function isDrawableParams(params) {
-        return !!params && !isNaN(params.size) && !isNaN(params.innerRatio);
+    function isDrawableShapeParams(shapeParams) {
+        return !!shapeParams && !isNaN(shapeParams.size) && !isNaN(shapeParams.innerRatio);
     }
 
     /**
      * 円のもとになるパスを作成する。
      * @param {Document} doc - 対象ドキュメント
-     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {ShapeParams} shapeParams - 図形生成のパラメーター
      * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
      * @returns {PathItem} 作成したパス
      */
-    function createCircleBasePath(doc, params, viewCenter) {
-        if (params.useSuperEllipse) {
-            return createSuperellipsePath(doc, params.size, params.superExponent);
+    function createCircleBasePath(doc, shapeParams, viewCenter) {
+        if (shapeParams.useSuperEllipse) {
+            return createSuperellipsePath(doc, shapeParams.size, shapeParams.superExponent);
         }
         /* 既定の4アンカーはIllustratorの楕円、それ以外は独自のスムーズパス
            Four anchors use Illustrator's ellipse; other counts build a custom smooth path */
-        var anchorCount = normalizeCircleAnchorCount(params.circleAnchorCount);
-        if (anchorCount !== 4) return createCirclePathWithNAnchors(doc, params.size, anchorCount);
+        var anchorCount = normalizeCircleAnchorCount(shapeParams.circleAnchorCount);
+        if (anchorCount !== 4) return createCirclePathWithNAnchors(doc, shapeParams.size, anchorCount);
 
-        var radius = params.size / 2;
-        return doc.activeLayer.pathItems.ellipse(viewCenter[1] + radius, viewCenter[0] - radius, params.size, params.size);
+        var radius = shapeParams.size / 2;
+        return doc.activeLayer.pathItems.ellipse(viewCenter[1] + radius, viewCenter[0] - radius, shapeParams.size, shapeParams.size);
     }
 
     /**
      * 正方形のもとになるパスを作成する（角丸の指定に応じて作り方を変える）。
      * @param {Document} doc - 対象ドキュメント
-     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {ShapeParams} shapeParams - 図形生成のパラメーター
      * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
      * @returns {PathItem} 作成したパス
      */
-    function createSquareBasePath(doc, params, viewCenter) {
-        var cornerSmoothing = params.cornerSmoothing;
+    function createSquareBasePath(doc, shapeParams, viewCenter) {
+        var cornerSmoothing = shapeParams.cornerSmoothing;
         var hasCornerRadius = !!(cornerSmoothing && cornerSmoothing.radius > 0);
 
         if (hasCornerRadius && cornerSmoothing.smoothing > 0) {
             /* スムージングありの角丸は独自のベジェパス / Corner smoothing above zero builds a custom bezier path */
-            return buildSmoothedRect(doc, viewCenter[0] - params.size / 2, viewCenter[1] + params.size / 2,
-                params.size, params.size, cornerSmoothing.radius, cornerSmoothing.smoothing / 100);
+            return buildSmoothedRect(doc, viewCenter[0] - shapeParams.size / 2, viewCenter[1] + shapeParams.size / 2,
+                shapeParams.size, shapeParams.size, cornerSmoothing.radius, cornerSmoothing.smoothing / 100);
         }
 
         /* 正方形は1辺の長さを幅として扱うので外接円の半径に換算する（既定の45°回転が前提）
            A square is sized by its edge, so convert to the circumscribed radius; assumes the default 45 degree rotation */
-        var squarePath = doc.pathItems.polygon(viewCenter[0], viewCenter[1], params.size / Math.sqrt(2), 4);
+        var squarePath = doc.pathItems.polygon(viewCenter[0], viewCenter[1], shapeParams.size / Math.sqrt(2), 4);
 
         if (hasCornerRadius) {
             /* スムージング0の角丸は通常の正方形＋［角を丸くする］効果
                A zero smoothing value uses a plain square plus the Round Corners live effect */
-            try {
-                squarePath.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSmoothing.radius + ' "/></LiveEffect>');
-            } catch (e) { }
+            applyLiveEffect(squarePath, '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSmoothing.radius + ' "/></LiveEffect>');
         }
         return squarePath;
     }
@@ -1132,88 +1147,97 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
     /**
      * 辺の数と各オプションから、変形前のもとになるパスを作成する。
      * @param {Document} doc - 対象ドキュメント
-     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {ShapeParams} shapeParams - 図形生成のパラメーター
      * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
      * @returns {PathItem} 作成したパス
      */
-    function createBasePath(doc, params, viewCenter) {
-        var radius = params.size / 2;
-        if (params.sides === 0) return createCircleBasePath(doc, params, viewCenter);
-        if (params.isStar) {
-            return doc.pathItems.star(viewCenter[0], viewCenter[1], radius, radius * (params.innerRatio / 100), params.sides);
+    function createBasePath(doc, shapeParams, viewCenter) {
+        var radius = shapeParams.size / 2;
+        if (shapeParams.sides === 0) return createCircleBasePath(doc, shapeParams, viewCenter);
+        if (shapeParams.isStar) {
+            return doc.pathItems.star(viewCenter[0], viewCenter[1], radius, radius * (shapeParams.innerRatio / 100), shapeParams.sides);
         }
-        if (params.sides === 4) return createSquareBasePath(doc, params, viewCenter);
+        if (shapeParams.sides === 4) return createSquareBasePath(doc, shapeParams, viewCenter);
 
         /* 正方形以外はsizeを外接円の直径として扱う（バウンディングボックスの幅とは一致しない）
            Other polygons treat the size as the circumscribed diameter, which is not the bounding box width */
-        return doc.pathItems.polygon(viewCenter[0], viewCenter[1], radius, params.sides);
+        return doc.pathItems.polygon(viewCenter[0], viewCenter[1], radius, shapeParams.sides);
     }
 
     /**
      * 塗りと線の設定をオブジェクトに適用する。
      * @param {PathItem} shape - 対象の図形
-     * @param {object} fillOpts - 塗りの設定 {enabled, color}
-     * @param {object} strokeOpts - 線の設定 {enabled, color, widthPt}
+     * @param {object} fillOptions - 塗りの設定 {enabled, color}
+     * @param {object} strokeOptions - 線の設定 {enabled, color, widthPt}
      * @returns {void}
      */
-    function applyFillAndStroke(shape, fillOpts, strokeOpts) {
-        shape.filled = !!(fillOpts && fillOpts.enabled);
-        if (shape.filled) shape.fillColor = fillOpts.color;
+    function applyFillAndStroke(shape, fillOptions, strokeOptions) {
+        shape.filled = !!(fillOptions && fillOptions.enabled);
+        if (shape.filled) shape.fillColor = fillOptions.color;
 
-        shape.stroked = !!(strokeOpts && strokeOpts.enabled);
+        shape.stroked = !!(strokeOptions && strokeOptions.enabled);
         if (shape.stroked) {
-            shape.strokeColor = strokeOpts.color;
-            shape.strokeWidth = strokeOpts.widthPt;
+            shape.strokeColor = strokeOptions.color;
+            shape.strokeWidth = strokeOptions.widthPt;
         }
     }
 
     /**
      * 指定したパラメーターから図形を作成し、選択状態にする。
      * @param {Document} doc - 対象ドキュメント
-     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {ShapeParams} shapeParams - 図形生成のパラメーター
      * @returns {PathItem|GroupItem} 作成した図形
      */
-    function createShape(doc, params) {
+    function createShape(doc, shapeParams) {
         var placement = prepareActiveLayer(doc);
         var viewCenter = [placement.centerX, placement.centerY];
 
-        var shape = createBasePath(doc, params, viewCenter);
-        applyFillAndStroke(shape, params.fillOpts, params.strokeOpts);
+        var shape = createBasePath(doc, shapeParams, viewCenter);
+        applyFillAndStroke(shape, shapeParams.fillOptions, shapeParams.strokeOptions);
 
         /* ドキュメントウィンドウの中央にそろえる / Center the shape in the document window */
         var bounds = shape.geometricBounds;
         shape.translate(viewCenter[0] - (bounds[0] + bounds[2]) / 2, viewCenter[1] - (bounds[1] + bounds[3]) / 2);
 
         /* 奇数辺の多角形をルーロー（定幅図形）に変換 / Convert odd-sided polygons into constant-width shapes */
-        if (params.useReuleaux && !params.isStar && params.sides > 0 && (params.sides % 2 === 1)) {
-            shape = applyReuleauxToPolygon(shape, params.reuleauxAmount);
+        if (shapeParams.useReuleaux && !shapeParams.isStar && shapeParams.sides > 0 && (shapeParams.sides % 2 === 1)) {
+            shape = applyReuleauxToPolygon(shape, shapeParams.reuleauxAmount);
         }
 
-        if (params.rotateEnabled && !isNaN(params.angle)) {
-            shape.rotate(params.angle, true, true, true, true, Transformation.CENTER);
+        if (shapeParams.rotateEnabled && !isNaN(shapeParams.angle)) {
+            shape.rotate(shapeParams.angle, true, true, true, true, Transformation.CENTER);
         }
-        if (params.splitAtAnchors) {
-            shape = splitPathAtAnchors(doc, shape, params.strokeOpts, params.strokeCap);
+        if (shapeParams.splitAtAnchors) {
+            shape = splitPathAtAnchors(doc, shape, shapeParams.strokeOptions, shapeParams.strokeCap);
         }
-        if (typeof params.opacity === "number" && params.opacity < 100) {
-            shape.opacity = params.opacity;
+        if (typeof shapeParams.opacity === "number" && shapeParams.opacity < 100) {
+            shape.opacity = shapeParams.opacity;
         }
         doc.selection = [shape];
         return shape;
     }
 
     /**
+     * ライブ効果をXMLで適用する。
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @param {string} effectXml - LiveEffectのXML
+     * @returns {void}
+     */
+    function applyLiveEffect(targetItem, effectXml) {
+        /* 効果を受け付けないオブジェクトでも図形の作成は続ける
+           A rejected effect must not abort creating the shape itself */
+        try { targetItem.applyEffect(effectXml); } catch (e) { }
+    }
+
+    /**
      * ラフ効果でアンカーポイントを追加する（変形量0なので位置は動かない）。
-     * @param {PathItem|GroupItem} target - 対象のオブジェクト
+     * @param {PathItem|GroupItem} targetItem - 対象のオブジェクト
      * @param {number} detail - ラフ効果の詳細（0以下なら何もしない）
      * @returns {void}
      */
-    function applyRoughenEffect(target, detail) {
-        if (!target || !(detail > 0)) return;
-        try {
-            var roughenXml = '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size 0 R absoluteness 0 R dtal ' + detail + ' R roundness 0 "/></LiveEffect>';
-            target.applyEffect(roughenXml);
-        } catch (e) { }
+    function applyRoughenEffect(targetItem, detail) {
+        if (!targetItem || !(detail > 0)) return;
+        applyLiveEffect(targetItem, '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size 0 R absoluteness 0 R dtal ' + detail + ' R roundness 0 "/></LiveEffect>');
     }
 
     /**
@@ -1231,13 +1255,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      * 指定したオブジェクトが収まるようにドキュメントウィンドウの表示倍率を合わせる。
      * ColorPaletteFromImage.jsx の fitViewToItems() をもとにしている。
      * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} item - 対象のオブジェクト
+     * @param {PageItem} targetItem - 対象のオブジェクト
+     * @param {number} fillRatio - ウィンドウに対して図形が占める割合（1.0でいっぱい）
      * @returns {void}
      */
-    function fitViewToItem(doc, item) {
-        if (!item) return;
+    function fitViewToItem(doc, targetItem, fillRatio) {
+        if (!targetItem) return;
 
-        var bounds = item.geometricBounds;
+        var bounds = targetItem.geometricBounds;
         var itemWidth = bounds[2] - bounds[0];
         var itemHeight = bounds[1] - bounds[3];
 
@@ -1250,8 +1275,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         var scale = Math.min(
             (viewBounds[2] - viewBounds[0]) / itemWidth,
             (viewBounds[1] - viewBounds[3]) / itemHeight
-        ) / FIT_VIEW_MARGIN;
-        activeView.zoom = activeView.zoom * scale;
+        ) * fillRatio;
+        activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
     }
 
     // =========================================
@@ -1264,15 +1289,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      * @returns {string} ColorPickerが受け取る色文字列
      */
     function aiColorToPickerString(aiColor) {
-        try {
-            if (aiColor.typename === "RGBColor") {
-                return ColorPicker.rgbToHex(aiColor.red, aiColor.green, aiColor.blue);
-            } else if (aiColor.typename === "CMYKColor") {
-                return "cmyk:" + Math.round(aiColor.cyan) + "," + Math.round(aiColor.magenta) + "," + Math.round(aiColor.yellow) + "," + Math.round(aiColor.black);
-            } else if (aiColor.typename === "GrayColor") {
-                return "cmyk:0,0,0," + Math.round(aiColor.gray);
-            }
-        } catch (e) { }
+        if (aiColor.typename === "RGBColor") {
+            return ColorPicker.rgbToHex(aiColor.red, aiColor.green, aiColor.blue);
+        } else if (aiColor.typename === "CMYKColor") {
+            return "cmyk:" + Math.round(aiColor.cyan) + "," + Math.round(aiColor.magenta) + "," + Math.round(aiColor.yellow) + "," + Math.round(aiColor.black);
+        } else if (aiColor.typename === "GrayColor") {
+            return "cmyk:0,0,0," + Math.round(aiColor.gray);
+        }
         return "000000";
     }
 
@@ -1298,24 +1321,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      */
     function aiColorToScriptUIBrush(graphics, aiColor) {
         var rgba = [1, 1, 1, 1]; /* 表示できない色は白 / Colors that cannot be shown are drawn white */
-        try {
-            if (aiColor.typename === "RGBColor") {
-                rgba = [aiColor.red / 255, aiColor.green / 255, aiColor.blue / 255, 1];
-            } else if (aiColor.typename === "CMYKColor") {
-                /* 表示用にCMYKをRGBへ近似 / Approximate CMYK as RGB for display */
-                rgba = [
-                    1 - Math.min(1, aiColor.cyan / 100 + aiColor.black / 100),
-                    1 - Math.min(1, aiColor.magenta / 100 + aiColor.black / 100),
-                    1 - Math.min(1, aiColor.yellow / 100 + aiColor.black / 100),
-                    1
-                ];
-            } else if (aiColor.typename === "GrayColor") {
-                var grayValue = 1 - (aiColor.gray / 100);
-                rgba = [grayValue, grayValue, grayValue, 1];
-            } else if (aiColor.typename === "NoColor") {
-                return null;
-            }
-        } catch (e) { }
+        if (aiColor.typename === "RGBColor") {
+            rgba = [aiColor.red / 255, aiColor.green / 255, aiColor.blue / 255, 1];
+        } else if (aiColor.typename === "CMYKColor") {
+            /* 表示用にCMYKをRGBへ近似 / Approximate CMYK as RGB for display */
+            rgba = [
+                1 - Math.min(1, aiColor.cyan / 100 + aiColor.black / 100),
+                1 - Math.min(1, aiColor.magenta / 100 + aiColor.black / 100),
+                1 - Math.min(1, aiColor.yellow / 100 + aiColor.black / 100),
+                1
+            ];
+        } else if (aiColor.typename === "GrayColor") {
+            var grayValue = 1 - (aiColor.gray / 100);
+            rgba = [grayValue, grayValue, grayValue, 1];
+        } else if (aiColor.typename === "NoColor") {
+            return null;
+        }
         return graphics.newBrush(graphics.BrushType.SOLID_COLOR, rgba);
     }
 
@@ -1397,18 +1418,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      * 設定ダイアログを表示し、OKが押されたら確定用の状態を整える。
      * @param {object} rulerUnitInfo - 定規単位の情報 {label, pointsPerUnit}
      * @param {object} strokeUnitInfo - 線の単位情報 {label, pointsPerUnit}
-     * @returns {boolean} OKで確定できたときtrue、キャンセルや失敗時はnull
+     * @returns {boolean} OKで確定できたときtrue、キャンセルや失敗時はfalse
      */
     function showInputDialog(rulerUnitInfo, strokeUnitInfo) {
-        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var shapeDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         var previewManager = new PreviewManager();
         var doc = app.activeDocument;
 
         /* 確定に関わるダイアログの状態 / Dialog state referenced when finalizing */
         var isConfirmed = false;
         var finalParams = null;
-        var documentView = null;
-        var initialZoom = null;
+        /* キャンセル時に戻す表示位置と倍率 / View center and zoom restored on cancel */
+        var initialViewCenter = doc.activeView.centerPoint;
+        var initialZoom = doc.activeView.zoom;
 
         /* 辺の数 / Side count */
         var sideRadios = [], customSidesInput, customSidesSlider;
@@ -1419,12 +1441,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         var fillCheck, fillSwatch, strokeCheck, strokeSwatch, strokeWidthInput, strokeWidthUnitLabel;
         var opacityInput, opacitySlider;
         /* 幅と表示 / Width and view */
-        var sizeInput, fitViewCheck;
+        var sizeInput, fitViewCheck, fitViewPercentInput, fitViewPercentUnitLabel;
         /* スター / Star */
         var starPanel, starCheck, pentagramCheck;
         var innerRadiusLabel, innerRatioInput, innerPercentLabel, innerRatioSlider;
         /* 円 / Circle */
-        var circlePanel, superEllipseCheck, superExponentInput, superExponentSlider;
+        var circlePanel, superEllipseCheck, superExponentSlider;
         var circleAnchorPanel, circleAnchorRadios = [];
         /* 角丸 / Corner smoothing */
         var cornerSmoothingPanel, cornerRadiusCheck, cornerRadiusInput, smoothingValueLabel, smoothingSlider;
@@ -1433,8 +1455,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         var strokeCapLabel, capButtRadio, capRoundRadio, capProjectingRadio;
         /* オプション / Options */
         var liveShapeCheck, reuleauxCheck, reuleauxAmountInput, reuleauxAmountSlider;
-        /* 画面ズームとボタン / View zoom and buttons */
-        var zoomSlider, btnPreview, btnCancel, btnOK;
+        /* ボタン / Buttons */
+        var btnPreview, btnCancel, btnOK;
 
         // -----------------------------------------
         // 現在の入力の読み取り / Reading the current input
@@ -1487,41 +1509,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             return Math.round(clampNumber(value, SHAPE_RANGES.superExponent, SHAPE_DEFAULTS.superExponent) * 10) / 10;
         }
 
-        /**
-         * ルーローの度合いを有効範囲に収める。
-         * @param {string|number} value - 入力値
-         * @returns {number} 整数に丸めた度合い（%）
-         */
-        function clampReuleauxAmount(value) {
-            return clampNumber(value, SHAPE_RANGES.reuleauxAmount, SHAPE_DEFAULTS.reuleauxAmount, true);
-        }
-
-        /**
-         * ［それ以外］の辺の数を有効範囲に収める。
-         * @param {string|number} value - 入力値
-         * @returns {number} 整数に丸めた辺の数
-         */
-        function clampCustomSides(value) {
-            return clampNumber(value, SHAPE_RANGES.customSides, SHAPE_DEFAULTS.customSides, true);
-        }
-
-        /**
-         * スターの第2半径を有効範囲に収める。
-         * @param {string|number} value - 入力値
-         * @returns {number} 整数に丸めた第2半径（%）
-         */
-        function clampInnerRatio(value) {
-            return clampNumber(value, SHAPE_RANGES.innerRatio, SHAPE_DEFAULTS.innerRatio, true);
-        }
-
-        /**
-         * 不透明度を有効範囲に収める（0は有効な値なので既定値に丸めない）。
-         * @param {string|number} value - 入力値
-         * @returns {number} 整数に丸めた不透明度（%）
-         */
-        function clampOpacity(value) {
-            return clampNumber(value, SHAPE_RANGES.opacity, SHAPE_DEFAULTS.opacity, true);
-        }
+        /* 整数に丸めて有効範囲に収める関数 / Clamp functions that round to integers */
+        var clampReuleauxAmount = makeRangeClamp("reuleauxAmount");
+        var clampCustomSides = makeRangeClamp("customSides");
+        var clampInnerRatio = makeRangeClamp("innerRatio");
+        var clampOpacity = makeRangeClamp("opacity");
+        var clampSmoothing = makeRangeClamp("smoothing");
+        var clampFitViewPercent = makeRangeClamp("fitViewPercent");
 
         // -----------------------------------------
         // パネルの組み立て / Panel construction
@@ -1538,15 +1532,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             sideRadios[0] = sidesPanel.add("radiobutton", undefined, getLabel(LABELS.radio.circleWithZero));
             sideRadios[0].helpTip = getLabel(LABELS.tooltip.circle);
             for (var i = 1; i < SIDE_CHOICES.length; i++) {
-                sideRadios[i] = sidesPanel.add("radiobutton", undefined, String(SIDE_CHOICES[i]));
+                var sideLabel = (SIDE_CHOICES[i] === 4) ? getLabel(LABELS.radio.squareWithFour) : String(SIDE_CHOICES[i]);
+                sideRadios[i] = sidesPanel.add("radiobutton", undefined, sideLabel);
+                sideRadios[i].helpTip = getLabel(LABELS.tooltip.sideChoice);
             }
 
             /* ［それ以外］はラベルを持たず、ラジオ・入力欄・スライダーを1行に並べる
                The custom side count has no label; its radio, field and slider share one row */
             var customSidesRow = addControlRow(sidesPanel);
             sideRadios[CUSTOM_SIDES_INDEX] = customSidesRow.add("radiobutton", undefined, "");
+            sideRadios[CUSTOM_SIDES_INDEX].helpTip = getLabel(LABELS.tooltip.customSides);
             customSidesInput = addNumberField(customSidesRow, SHAPE_DEFAULTS.customSides, 3);
-            customSidesSlider = addSlider(customSidesRow, SHAPE_DEFAULTS.customSides, SHAPE_RANGES.customSides, SIDES_SLIDER_WIDTH);
+            customSidesSlider = addSlider(customSidesRow, SHAPE_DEFAULTS.customSides, SHAPE_RANGES.customSides, INLINE_SLIDER_WIDTH);
             customSidesInput.helpTip = getLabel(LABELS.tooltip.customSides);
             customSidesSlider.helpTip = getLabel(LABELS.tooltip.customSides);
 
@@ -1589,22 +1586,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          */
         function buildFillStrokePanel(parent) {
             var fillStrokePanel = addPanel(parent, getLabel(LABELS.panel.fillAndStroke));
-            var checkboxWidth = (uiLang === 'ja') ? 46 : 66;
+            /* スウォッチの位置をそろえるため、［塗り］［線］の幅を固定する / Fixed width so the swatches line up */
+            var checkboxWidth = (uiLang === 'ja') ? 66 : 70;
 
             var fillRow = addControlRow(fillStrokePanel);
-            fillCheck = fillRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fill));
+            fillCheck = fillRow.add("checkbox", undefined, labelText(LABELS.checkbox.fill));
             fillCheck.preferredSize.width = checkboxWidth;
             fillCheck.value = true;
             fillSwatch = addColorSwatch(fillRow, doc.defaultFillColor);
+            fillSwatch.helpTip = getLabel(LABELS.tooltip.colorSwatch);
 
             var strokeRow = addControlRow(fillStrokePanel);
-            strokeCheck = strokeRow.add("checkbox", undefined, getLabel(LABELS.checkbox.stroke));
+            strokeCheck = strokeRow.add("checkbox", undefined, labelText(LABELS.checkbox.stroke));
             strokeCheck.preferredSize.width = checkboxWidth;
             strokeCheck.value = false;
             strokeSwatch = addColorSwatch(strokeRow, doc.defaultStrokeColor);
+            strokeSwatch.helpTip = getLabel(LABELS.tooltip.colorSwatch);
 
             /* 線幅は［線］と同じ行に置く（ラベルなし） / The stroke width sits on the stroke row, without a label */
             strokeWidthInput = addNumberField(strokeRow, SHAPE_DEFAULTS.strokeWidth, 4);
+            strokeWidthInput.helpTip = getLabel(LABELS.tooltip.strokeWidth);
             strokeWidthUnitLabel = strokeRow.add("statictext", undefined, strokeUnitInfo.label);
 
             var opacityRow = addControlRow(fillStrokePanel);
@@ -1612,6 +1613,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             opacityInput = addNumberField(opacityRow, SHAPE_DEFAULTS.opacity, 4);
             opacityRow.add("statictext", undefined, "%");
             opacitySlider = addSlider(fillStrokePanel, SHAPE_DEFAULTS.opacity, SHAPE_RANGES.opacity, SHORT_SLIDER_WIDTH);
+            opacitySlider.helpTip = getLabel(LABELS.tooltip.opacity);
         }
 
         /**
@@ -1638,6 +1640,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView));
             fitViewCheck.value = false;
             fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView);
+            fitViewPercentInput = addNumberField(fitViewRow, SHAPE_DEFAULTS.fitViewPercent, 3);
+            fitViewPercentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent);
+            fitViewPercentUnitLabel = fitViewRow.add("statictext", undefined, "%");
         }
 
         /**
@@ -1673,17 +1678,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         function buildCirclePanel(parent) {
             circlePanel = addPanel(parent, getLabel(LABELS.panel.circle));
 
-            superEllipseCheck = circlePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.superEllipse));
+            /* チェックボックスと指数のスライダーを1行に並べる / The checkbox and the exponent slider share one row */
+            var superEllipseRow = addControlRow(circlePanel);
+            superEllipseCheck = superEllipseRow.add("checkbox", undefined, getLabel(LABELS.checkbox.superEllipse));
             superEllipseCheck.value = false;
             superEllipseCheck.helpTip = getLabel(LABELS.tooltip.superEllipse);
 
-            var superExponentRow = addControlRow(circlePanel);
-            superExponentInput = addNumberField(superExponentRow, SHAPE_DEFAULTS.superExponent, 4);
-            superExponentSlider = addSlider(superExponentRow, SHAPE_DEFAULTS.superExponent, SHAPE_RANGES.superExponent, SHORT_SLIDER_WIDTH);
-            superExponentInput.helpTip = getLabel(LABELS.tooltip.superExponent);
+            superExponentSlider = addSlider(superEllipseRow, SHAPE_DEFAULTS.superExponent, SHAPE_RANGES.superExponent, INLINE_SLIDER_WIDTH);
             superExponentSlider.helpTip = getLabel(LABELS.tooltip.superExponent);
 
-            circleAnchorPanel = addPanel(circlePanel, getLabel(LABELS.panel.anchor));
+            circleAnchorPanel = addPanel(circlePanel, getLabel(LABELS.panel.anchorCount));
             var circleAnchorRow = addControlRow(circleAnchorPanel, WIDE_ROW_SPACING);
             for (var i = 0; i < CIRCLE_ANCHOR_CHOICES.length; i++) {
                 circleAnchorRadios[i] = circleAnchorRow.add("radiobutton", undefined, String(CIRCLE_ANCHOR_CHOICES[i]));
@@ -1708,7 +1712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
             var smoothingLabelRow = addControlRow(cornerSmoothingPanel);
             smoothingLabelRow.add("statictext", undefined, labelText(LABELS.fieldLabel.smoothing));
-            smoothingValueLabel = smoothingLabelRow.add("statictext", undefined, String(SHAPE_DEFAULTS.smoothing));
+            smoothingValueLabel = smoothingLabelRow.add("statictext", undefined, SHAPE_DEFAULTS.smoothing + "%");
             smoothingValueLabel.characters = 4;
 
             smoothingSlider = addSlider(cornerSmoothingPanel, SHAPE_DEFAULTS.smoothing, SHAPE_RANGES.smoothing, SLIDER_WIDTH);
@@ -1763,24 +1767,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             reuleauxAmountSlider = addSlider(reuleauxAmountRow, SHAPE_DEFAULTS.reuleauxAmount, SHAPE_RANGES.reuleauxAmount, SHORT_SLIDER_WIDTH);
             reuleauxAmountInput.helpTip = getLabel(LABELS.tooltip.reuleauxAmount);
             reuleauxAmountSlider.helpTip = getLabel(LABELS.tooltip.reuleauxAmount);
-        }
-
-        /**
-         * ［画面ズーム］の行を組み立てる。開いたときの倍率はキャンセル時に戻すため控えておく。
-         * @param {Window} parent - 追加先のコンテナ
-         * @returns {void}
-         */
-        function buildViewZoomRow(parent) {
-            var viewZoomRow = parent.add("group");
-            viewZoomRow.orientation = "row";
-            viewZoomRow.alignChildren = ["center", "center"];
-            viewZoomRow.alignment = "center";
-            viewZoomRow.margins = [0, 7, 0, 5];
-            viewZoomRow.add("statictext", undefined, labelText(LABELS.fieldLabel.viewZoom));
-
-            initialZoom = Number(doc.activeView.zoom);
-            zoomSlider = addSlider(viewZoomRow, initialZoom, SHAPE_RANGES.zoom, ZOOM_SLIDER_WIDTH);
-            zoomSlider.helpTip = getLabel(LABELS.tooltip.viewZoom);
         }
 
         /**
@@ -1842,12 +1828,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         }
 
         /**
-         * 円のアンカーポイント数のラジオをまとめて有効・無効にする。
-         * @param {boolean} isEnabled - 有効にするかどうか
+         * ［画面にフィット］の割合の入力欄を、チェックの状態に合わせて有効・無効にする。
          * @returns {void}
          */
-        function setCircleAnchorRadiosEnabled(isEnabled) {
-            setControlsEnabled(circleAnchorRadios, isEnabled);
+        function updateFitViewPercentEnabled() {
+            setControlsEnabled([fitViewPercentInput, fitViewPercentUnitLabel], fitViewCheck.value);
         }
 
         /**
@@ -1872,7 +1857,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* 円以外に切り替えたら円用の設定を既定へ戻す / Reset the circle options when leaving the circle */
             superEllipseCheck.value = false;
             selectDefaultCircleAnchors();
-            setCircleAnchorRadiosEnabled(true);
+            setControlsEnabled(circleAnchorRadios, true);
         }
 
         /**
@@ -1884,11 +1869,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* 円（0）にはスターの設定を適用しない / Star options do not apply to a circle */
             var isEnabled = (sidesValue !== 0);
             starPanel.enabled = isEnabled;
-            if (!isEnabled) {
-                starCheck.value = false;
-                pentagramCheck.value = false;
-                pentagramCheck.enabled = false;
-            }
+            if (!isEnabled) clearStarOptions();
+        }
+
+        /**
+         * スターと五芒星をOFFにし、五芒星を選べなくする。
+         * @returns {void}
+         */
+        function clearStarOptions() {
+            starCheck.value = false;
+            pentagramCheck.value = false;
+            pentagramCheck.enabled = false;
         }
 
         /**
@@ -1906,11 +1897,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          */
         function updateSuperEllipseControlsEnabled(sidesValue) {
             var isActive = isSuperEllipseActive(sidesValue);
-            setControlsEnabled([superExponentInput, superExponentSlider], isActive);
+            superExponentSlider.enabled = isActive;
             /* スーパー楕円がONのときはアンカーポイント数を選べない
                The anchor count cannot be chosen while the superellipse is on */
             circleAnchorPanel.enabled = !isActive;
-            setCircleAnchorRadiosEnabled(!isActive);
+            setControlsEnabled(circleAnchorRadios, !isActive);
         }
 
         /**
@@ -2018,12 +2009,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         // -----------------------------------------
 
         /**
-         * 回転を強制的にOFFにする。
+         * 回転のチェックを切り替え、角度の入力欄の有効状態もそろえる。
+         * @param {boolean} isChecked - 回転をONにするかどうか
          * @returns {void}
          */
-        function forceRotateOff() {
-            rotateCheck.value = false;
-            setRotateInputEnabled(false);
+        function setRotateChecked(isChecked) {
+            rotateCheck.value = isChecked;
+            setRotateInputEnabled(isChecked);
         }
 
         /**
@@ -2065,9 +2057,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* スターパネルが無効（円）ならスター関連を強制的にOFF / Force the star options off while the panel is disabled */
             if (!starPanel.enabled) {
                 starCheck.enabled = false;
-                starCheck.value = false;
-                pentagramCheck.value = false;
-                pentagramCheck.enabled = false;
+                clearStarOptions();
                 return;
             }
 
@@ -2086,37 +2076,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 selectRadio(sideRadios, findChoiceIndex(SIDE_CHOICES, 5)); /* 五芒星は5辺 / A pentagram has five sides */
                 setCustomSidesEnabled(false);
                 applyAutoRotationForSides(5);
-                forceRotateOff();
+                setRotateChecked(false);
             }
-
-            /* スターがOFFに戻ったら奇数辺の条件でルーローを復帰させる
-               Once the star is off again, restore Reuleaux under the odd-side rule */
-            if (!starCheck.value) updateReuleauxAvailability(getCurrentSides());
-            updateInnerRadiusEnabled();
+            /* ルーローと第2半径の復帰は、続くrefreshPanelStates()が行う
+               refreshPanelStates(), which runs next, restores Reuleaux and the inner radius */
         }
 
         /**
-         * スーパー楕円の指数を入力欄とスライダーの両方に反映する。
-         * @param {string|number} value - 入力値
-         * @returns {number} 反映した指数
+         * 丸めた値を入力欄とスライダーの両方に反映する。
+         * @param {EditText} inputField - 入力欄
+         * @param {Slider} slider - スライダー
+         * @param {number} value - 反映する値（範囲内に収めたもの）
+         * @returns {void}
          */
-        function syncSuperExponentUI(value) {
-            value = clampSuperExponent(value);
-            superExponentInput.text = String(value);
-            superExponentSlider.value = value;
-            return value;
-        }
-
-        /**
-         * ルーローの度合いを入力欄とスライダーの両方に反映する。
-         * @param {string|number} value - 入力値
-         * @returns {number} 反映した度合い（%）
-         */
-        function syncReuleauxAmountUI(value) {
-            value = clampReuleauxAmount(value);
-            reuleauxAmountInput.text = String(value);
-            reuleauxAmountSlider.value = value;
-            return value;
+        function syncFieldAndSlider(inputField, slider, value) {
+            inputField.text = String(value);
+            slider.value = value;
         }
 
         // -----------------------------------------
@@ -2179,13 +2154,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          * 現在のUIから図形生成のパラメーターを組み立てる（プレビューと確定の両方で使う）。
          * @returns {ShapeParams} createShapeに渡すパラメーター一式
          */
-        function getCurrentParams() {
+        function getCurrentShapeParams() {
             validateStarAndPentagram();
             var sides = refreshPanelStates();
 
             var useSuperEllipse = isSuperEllipseActive(sides);
             /* スーパー楕円は回転を強制的にOFFにする / The superellipse forces the rotation off */
-            if (useSuperEllipse) forceRotateOff();
+            if (useSuperEllipse) setRotateChecked(false);
 
             var angle = resolveRotationAngle(sides);
             var innerRatio = resolveInnerRatio(sides);
@@ -2205,15 +2180,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 splitAtAnchors: splitAtAnchorsCheck.value,
                 strokeCap: splitAtAnchorsCheck.value ? getSelectedStrokeCap() : null,
                 useSuperEllipse: useSuperEllipse,
-                superExponent: clampSuperExponent(superExponentInput.text),
+                superExponent: clampSuperExponent(superExponentSlider.value),
                 circleAnchorCount: circleAnchorCount,
                 useReuleaux: reuleauxCheck.value,
                 reuleauxAmount: clampReuleauxAmount(reuleauxAmountInput.text) / 100,
-                fillOpts: {
+                fillOptions: {
                     enabled: fillCheck.value,
                     color: fillSwatch._aiColor
                 },
-                strokeOpts: {
+                strokeOptions: {
                     enabled: strokeCheck.value,
                     color: strokeSwatch._aiColor,
                     widthPt: parseFloat(strokeWidthInput.text) * strokeUnitInfo.pointsPerUnit
@@ -2236,14 +2211,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          */
         function applyFitView() {
             if (!fitViewCheck.value || !previewShape) return;
-            try {
-                var activeDoc = app.activeDocument;
-                documentView = activeDoc.activeView;
-                fitViewToItem(activeDoc, previewShape);
-                /* ズームスライダーの表示も合わせる / Keep the zoom slider in step */
-                zoomSlider.value = clampNumber(documentView.zoom, SHAPE_RANGES.zoom, 1);
-                app.redraw();
-            } catch (e) { }
+            fitViewToItem(doc, previewShape, clampFitViewPercent(fitViewPercentInput.text) / 100);
+            app.redraw();
         }
 
         /**
@@ -2263,14 +2232,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             /* 新しいプレビューの前に必ず前回分を巻き戻す / Always roll back the previous preview first */
             resetPreview();
 
-            var params = getCurrentParams();
-            if (!isDrawableParams(params)) return;
+            var shapeParams = getCurrentShapeParams();
+            if (!isDrawableShapeParams(shapeParams)) return;
 
             previewManager.addStep(function () {
-                previewShape = createShape(app.activeDocument, params);
+                previewShape = createShape(app.activeDocument, shapeParams);
                 /* ラフ効果も同じステップ内で適用してプレビューに反映する
                    The roughen effect runs inside the same step so the preview shows it */
-                applyRoughenEffect(previewShape, params.roughenDetail);
+                applyRoughenEffect(previewShape, shapeParams.roughenDetail);
             });
         }
 
@@ -2306,6 +2275,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             }
             if (typeof sessionState.sizeText === "string") sizeInput.text = sessionState.sizeText;
             if (typeof sessionState.fitViewCheck === "boolean") fitViewCheck.value = sessionState.fitViewCheck;
+            if (typeof sessionState.fitViewPercentText === "string") fitViewPercentInput.text = sessionState.fitViewPercentText;
+            updateFitViewPercentEnabled();
         }
 
         /**
@@ -2336,9 +2307,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             if (typeof sessionState.cornerRadiusCheck === "boolean") cornerRadiusCheck.value = sessionState.cornerRadiusCheck;
             if (typeof sessionState.cornerRadiusText === "string") cornerRadiusInput.text = sessionState.cornerRadiusText;
             if (typeof sessionState.smoothingValue === "number") {
-                var restoredSmoothing = clampNumber(sessionState.smoothingValue, SHAPE_RANGES.smoothing, SHAPE_DEFAULTS.smoothing, true);
+                var restoredSmoothing = clampSmoothing(sessionState.smoothingValue);
                 smoothingSlider.value = restoredSmoothing;
-                smoothingValueLabel.text = String(restoredSmoothing);
+                smoothingValueLabel.text = restoredSmoothing + "%";
             }
             updateCornerRadiusInputEnabled();
         }
@@ -2349,9 +2320,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          * @returns {void}
          */
         function restoreRotation(sessionState) {
-            if (typeof sessionState.rotateCheck === "boolean") rotateCheck.value = sessionState.rotateCheck;
             if (typeof sessionState.rotateText === "string") rotateInput.text = sessionState.rotateText;
-            setRotateInputEnabled(rotateCheck.value);
+            setRotateChecked((typeof sessionState.rotateCheck === "boolean") ? sessionState.rotateCheck : rotateCheck.value);
             if (sessionState.triangleDir === "left") triangleLeftRadio.value = true;
             else if (sessionState.triangleDir === "down") triangleDownRadio.value = true;
             else if (sessionState.triangleDir === "right") triangleRightRadio.value = true;
@@ -2370,7 +2340,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             innerRatioSlider.value = clampInnerRatio(innerRatioInput.text);
 
             if (typeof sessionState.superEllipseCheck === "boolean") superEllipseCheck.value = sessionState.superEllipseCheck;
-            if (typeof sessionState.superExponentText === "string") syncSuperExponentUI(sessionState.superExponentText);
+            if (typeof sessionState.superExponentValue === "number") superExponentSlider.value = clampSuperExponent(sessionState.superExponentValue);
             if (typeof sessionState.circleAnchorsValue === "number") {
                 var anchorIndex = findChoiceIndex(CIRCLE_ANCHOR_CHOICES, sessionState.circleAnchorsValue);
                 if (anchorIndex < 0) selectDefaultCircleAnchors();
@@ -2415,7 +2385,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             restoreAnchorOpsAndOptions(sessionState);
 
             /* 五芒星やスーパー楕円が有効なら回転を強制的にOFF / Force the rotation off for a pentagram or a superellipse */
-            if (pentagramCheck.value || isSuperEllipseActive(getCurrentSides())) forceRotateOff();
+            if (pentagramCheck.value || isSuperEllipseActive(getCurrentSides())) setRotateChecked(false);
             refreshPanelStates();
         }
 
@@ -2432,6 +2402,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             sessionState.customSidesText = customSidesInput.text;
             sessionState.sizeText = sizeInput.text;
             sessionState.fitViewCheck = fitViewCheck.value;
+            sessionState.fitViewPercentText = fitViewPercentInput.text;
 
             /* 塗りと線・不透明度 / Fill and stroke, opacity */
             sessionState.fillCheck = fillCheck.value;
@@ -2458,7 +2429,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             sessionState.pentagramCheck = pentagramCheck.value;
             sessionState.innerRatioText = innerRatioInput.text;
             sessionState.superEllipseCheck = superEllipseCheck.value;
-            sessionState.superExponentText = superExponentInput.text;
+            sessionState.superExponentValue = clampSuperExponent(superExponentSlider.value);
             sessionState.circleAnchorsValue = getCircleAnchorCount();
 
             /* アンカーポイントの操作とオプション / Anchor point operations and options */
@@ -2483,7 +2454,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             if (isRoughenOn) splitAtAnchorsCheck.value = false;
             splitAtAnchorsCheck.enabled = !isRoughenOn;
             updateStrokeCapEnabled();
-            refreshLiveShapeAvailability();
         }
 
         /**
@@ -2491,8 +2461,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          * @returns {void}
          */
         function onTriangleDirectionChange() {
-            rotateCheck.value = true;
-            setRotateInputEnabled(true);
+            setRotateChecked(true);
             updatePreview();
         }
 
@@ -2507,7 +2476,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             setCustomSidesEnabled(selectedIndex === CUSTOM_SIDES_INDEX);
             /* 辺の数が変わったら回転がONでも角度を更新する / Update the angle on a side change, even while rotation is on */
             applyAutoRotationForSides(getCurrentSides());
-            refreshPanelStates();
         }
 
         /**
@@ -2573,12 +2541,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                     };
                 })(i);
             }
-            bindValueAndSlider(customSidesInput, customSidesSlider, clampCustomSides, function () {
-                updateReuleauxAvailability(getCurrentSides());
-            });
+            bindValueAndSlider(customSidesInput, customSidesSlider, clampCustomSides);
 
             sizeInput.onChanging = onSizeChange;
-            fitViewCheck.onClick = applyFitView;
+            fitViewCheck.onClick = function () {
+                updateFitViewPercentEnabled();
+                applyFitView();
+            };
+            fitViewPercentInput.onChanging = function () {
+                if (!isPartialNumberInput(fitViewPercentInput.text)) applyFitView();
+            };
+            fitViewPercentInput.onChange = function () {
+                fitViewPercentInput.text = String(clampFitViewPercent(fitViewPercentInput.text));
+                applyFitView();
+            };
             rotateInput.onChanging = updatePreview;
             rotateCheck.onClick = function () {
                 setRotateInputEnabled(rotateCheck.value);
@@ -2613,52 +2589,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             });
         }
 
+        /* ここから下のハンドラーは有効状態の更新をupdatePreview()に任せる。
+           updatePreview() → getCurrentShapeParams() → refreshPanelStates() が毎回まとめて整える
+           The handlers below leave the enabled states to updatePreview(), whose
+           getCurrentShapeParams() runs refreshPanelStates() every time */
+
         /**
-         * スター・円・角丸・アンカーポイントの操作・オプションのハンドラーを割り当てる。
+         * スター・円のハンドラーを割り当てる。
          * @returns {void}
          */
-        function bindShapeOptionHandlers() {
-            starCheck.onClick = function () {
-                validateStarAndPentagram();
-                updatePreview();
-            };
-            pentagramCheck.onClick = function () {
-                if (pentagramCheck.value) forceRotateOff();
-                updatePreview();
-            };
+        function bindStarAndCircleHandlers() {
+            starCheck.onClick = updatePreview;
+            pentagramCheck.onClick = updatePreview;
             bindValueAndSlider(innerRatioInput, innerRatioSlider, clampInnerRatio, function () {
                 /* 第2半径を手で決めたら五芒星の固定値から外れる / A hand-picked inner radius leaves the pentagram preset */
-                if (pentagramCheck.value) pentagramCheck.value = false;
+                pentagramCheck.value = false;
             });
 
-            superEllipseCheck.onClick = function () {
-                /* スーパー楕円は円（辺の数0）でだけ効く / The superellipse only applies to a circle */
-                if (isSuperEllipseActive(getCurrentSides())) forceRotateOff();
-                refreshPanelStates();
-                updatePreview();
-            };
-            bindValueAndSlider(superExponentInput, superExponentSlider, clampSuperExponent);
+            /* スーパー楕円は円（辺の数0）でだけ効き、回転はgetCurrentShapeParams()がOFFにする
+               The superellipse only applies to a circle; getCurrentShapeParams() turns the rotation off */
+            superEllipseCheck.onClick = updatePreview;
+            superExponentSlider.onChanging = updatePreview;
             for (var i = 0; i < circleAnchorRadios.length; i++) {
-                circleAnchorRadios[i].onClick = function () {
-                    refreshLiveShapeAvailability();
-                    updatePreview();
-                };
+                circleAnchorRadios[i].onClick = updatePreview;
             }
+        }
 
+        /**
+         * 角丸のハンドラーを割り当てる。
+         * @returns {void}
+         */
+        function bindCornerSmoothingHandlers() {
             cornerRadiusCheck.onClick = function () {
                 updateCornerRadiusInputEnabled();
-                refreshLiveShapeAvailability();
                 updatePreview();
             };
-            cornerRadiusInput.onChanging = function () {
-                refreshLiveShapeAvailability();
-                updatePreview();
-            };
+            cornerRadiusInput.onChanging = updatePreview;
             smoothingSlider.onChanging = function () {
-                smoothingValueLabel.text = String(Math.round(smoothingSlider.value));
+                smoothingValueLabel.text = Math.round(smoothingSlider.value) + "%";
                 updatePreview();
             };
+        }
 
+        /**
+         * アンカーポイントの操作とオプションのハンドラーを割り当てる。
+         * @returns {void}
+         */
+        function bindAnchorOpsAndOptionHandlers() {
             roughenAnchorsCheck.onClick = function () {
                 applyRoughenExclusions();
                 updatePreview();
@@ -2672,7 +2649,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                     updateStrokeWidthEnabled();
                 }
                 updateStrokeCapEnabled();
-                refreshPanelStates();
                 updatePreview();
             };
             capButtRadio.onClick = updatePreview;
@@ -2681,9 +2657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
             reuleauxCheck.onClick = function () {
                 /* 有効にするたび既定値（100%）に戻す / Reset to the default amount whenever it is enabled */
-                if (reuleauxCheck.value) syncReuleauxAmountUI(SHAPE_DEFAULTS.reuleauxAmount);
-                updateReuleauxAmountEnabled();
-                refreshLiveShapeAvailability();
+                if (reuleauxCheck.value) syncFieldAndSlider(reuleauxAmountInput, reuleauxAmountSlider, SHAPE_DEFAULTS.reuleauxAmount);
                 updatePreview();
             };
             bindValueAndSlider(reuleauxAmountInput, reuleauxAmountSlider, clampReuleauxAmount);
@@ -2691,7 +2665,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
         /**
          * キーボードショートカットを割り当てる。
-         * E：円（0）／A：回転／S：スター／P：五芒星／D：アンカーポイントで分割／L・R・B：三角形の向き。
+         * E：円（0）／A：回転／S：スター／P：五芒星／D：アンカーポイントで分割／L・R・B：三角形の向き／
+         * option（Alt）＋3・4・5・6・8：辺の数。
          * @returns {void}
          */
         function bindKeyboardShortcuts() {
@@ -2706,8 +2681,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 onTriangleDirectionChange();
             }
 
-            dialog.addEventListener("keydown", function (event) {
+            shapeDialog.addEventListener("keydown", function (event) {
                 if (!event || !event.keyName) return;
+
+                /* option（Alt）＋数字で辺の数を選ぶ。入力欄の編集中でも効かせる（文字は入力させない）
+                   Option (Alt) + digit picks a side count, even inside a text field, without typing the character */
+                if (ScriptUI.environment.keyboardState.altKey) {
+                    var sideIndex = findChoiceIndex(SIDE_CHOICES, Number(event.keyName));
+                    if (sideIndex > 0) {
+                        selectSides(sideIndex);
+                        updatePreview();
+                        event.preventDefault();
+                    }
+                    return;
+                }
+
                 /* 入力欄の編集中はショートカットを発火させない
                    Shortcuts must not fire while a text field is being edited */
                 if (isTextInputTarget(event.target)) return;
@@ -2774,9 +2762,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          * @returns {void}
          */
         function buildDialogLayout() {
-            setupWindow(dialog);
+            setupWindow(shapeDialog);
 
-            var columnsGroup = dialog.add("group");
+            var columnsGroup = shapeDialog.add("group");
             columnsGroup.orientation = "row";
             columnsGroup.alignChildren = ["fill", "top"];
             columnsGroup.spacing = COLUMN_SPACING;
@@ -2797,23 +2785,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             buildAnchorOpsPanel(rightColumn);
             buildOptionsPanel(rightColumn);
 
-            buildViewZoomRow(dialog);
-            buildButtonRow(dialog);
+            buildButtonRow(shapeDialog);
         }
 
         /**
-         * ［画面ズーム］スライダーと［プレビュー］ボタンのハンドラーを割り当てる。
+         * ［プレビュー］ボタン（プレビュー表示とアウトライン表示の切り替え）のハンドラーを割り当てる。
          * @returns {void}
          */
-        function bindViewHandlers() {
-            zoomSlider.onChanging = function () {
-                try {
-                    if (!documentView) documentView = doc.activeView;
-                    documentView.zoom = Number(zoomSlider.value);
-                    app.redraw();
-                } catch (e) { }
-            };
-
+        function bindPreviewButtonHandler() {
             /* ドキュメントは通常プレビュー表示で開くので、ONから始めて表示と実態を合わせる
                A document normally opens in preview mode, so start on to keep the label truthful */
             var isViewPreviewOn = true;
@@ -2821,19 +2800,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             btnPreview.onClick = function () {
                 isViewPreviewOn = !isViewPreviewOn;
                 btnPreview.text = (isViewPreviewOn ? "● " : "") + getLabel(LABELS.button.preview);
-                try { app.executeMenuCommand('preview'); } catch (e) { }
+                app.executeMenuCommand('preview');
             };
         }
 
         /**
-         * プレビューを巻き戻し、画面ズームを開いたときの倍率へ戻す。
+         * プレビューを巻き戻し、表示位置と倍率を開いたときの状態へ戻す。
          * @returns {void}
          */
         function discardPreview() {
             resetPreview();
-            try {
-                if (documentView && initialZoom != null) documentView.zoom = initialZoom;
-            } catch (e) { }
+            doc.activeView.centerPoint = initialViewCenter;
+            doc.activeView.zoom = initialZoom;
         }
 
         /**
@@ -2841,46 +2819,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
          * @returns {void}
          */
         function bindDialogHandlers() {
-            btnCancel.onClick = function () {
-                discardPreview();
-                dialog.close();
-            };
+            /* 巻き戻しはonCloseでまとめて行う / onClose does the rollback */
+            btnCancel.onClick = function () { shapeDialog.close(); };
             btnOK.onClick = function () {
                 /* ウィジェットが生きているうちにパラメーターを確定させる
                    Capture the parameters while the dialog widgets are still alive */
-                try { finalParams = getCurrentParams(); } catch (e) { finalParams = null; }
+                finalParams = getCurrentShapeParams();
                 applyLiveShape = liveShapeCheck.value;
                 roughenAnchorsDetail = roughenAnchorsCheck.value ? parseFloat(roughenAnchorsInput.text) : 0;
                 isConfirmed = true;
-                dialog.close();
+                shapeDialog.close();
             };
 
-            dialog.onShow = function () {
-                /* 環境によっては無視されるため不透明度を先に適用 / Apply the opacity first, some hosts ignore it */
-                try { dialog.opacity = DIALOG_OPACITY; } catch (e) { }
+            shapeDialog.onShow = function () {
+                shapeDialog.opacity = DIALOG_OPACITY;
 
-                /* ［アンカーポイントで分割］は毎回OFFで開く / The split option always opens off */
-                splitAtAnchorsCheck.value = false;
-                updateStrokeCapEnabled();
-                refreshPanelStates();
                 /* 開いた時点でも一度フィットさせる / Fit once when the dialog opens, too */
                 onSizeChange();
 
                 /* Illustratorの起動中は前回のダイアログ位置を再利用 / Reuse the last dialog position while Illustrator is running */
                 var savedLocation = getSavedDialogLocation();
                 if (savedLocation) {
-                    dialog.location = savedLocation;
+                    shapeDialog.location = savedLocation;
                 } else {
-                    dialog.center();
-                    dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1] + DIALOG_OFFSET_Y];
+                    shapeDialog.center();
+                    shapeDialog.location = [shapeDialog.location[0] + DIALOG_OFFSET_X, shapeDialog.location[1] + DIALOG_OFFSET_Y];
                 }
             };
 
-            dialog.onClose = function () {
+            shapeDialog.onClose = function () {
                 /* 保存に失敗しても閉じる処理は続ける（OK時の確定を巻き添えにしない）
                    A failed save must not abort the close, which would also abort the confirmed shape */
                 try {
-                    saveDialogLocation(dialog);
+                    saveDialogLocation(shapeDialog);
                     saveStateFromUI(getSessionState());
                 } catch (e) { }
 
@@ -2893,9 +2864,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
         bindShapeHandlers();
         bindAppearanceHandlers();
-        bindShapeOptionHandlers();
+        bindStarAndCircleHandlers();
+        bindCornerSmoothingHandlers();
+        bindAnchorOpsAndOptionHandlers();
         bindKeyboardShortcuts();
-        bindViewHandlers();
+        bindPreviewButtonHandler();
         bindDialogHandlers();
 
         /* レイアウトが決まる前に復元しておく。壊れた保存値でも既定値で開けるようにする
@@ -2904,18 +2877,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         updateStrokeWidthEnabled();
         updateCornerRadiusInputEnabled();
         updateStrokeCapEnabled();
+        updateFitViewPercentEnabled();
 
-        dialog.show();
+        shapeDialog.show();
 
         /* キャンセル時のプレビューは onClose で巻き戻し済み / A cancelled preview was already rolled back in onClose */
-        if (!isConfirmed) return null;
+        if (!isConfirmed) return false;
 
         /* OKなら1回のUndoで取り消せる形で確定する / Finalize as a single undoable action when OK was pressed */
         previewManager.confirm(function () {
-            if (!isDrawableParams(finalParams)) return;
+            if (!isDrawableShapeParams(finalParams)) return;
             previewShape = createShape(app.activeDocument, finalParams);
         });
-        return previewShape ? true : null;
+        return !!previewShape;
     }
 
     // =========================================
@@ -2929,17 +2903,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
      */
     function addAnchorsAfterConfirm(doc) {
         if (!(roughenAnchorsDetail > 0)) return;
-        try {
-            if (roughenAnchorsUseMenuFallback && Math.round(roughenAnchorsDetail) === 1) {
-                /* この経路だけはメニューコマンドなのでプレビューには出ない
-                   Only this path uses a menu command, so it cannot appear in the preview */
-                app.executeMenuCommand('Add Anchor Points2');
-                return;
-            }
-            for (var i = 0; i < doc.selection.length; i++) {
-                applyRoughenEffect(doc.selection[i], roughenAnchorsDetail);
-            }
-        } catch (e) { }
+        if (roughenAnchorsUseMenuFallback && Math.round(roughenAnchorsDetail) === 1) {
+            /* この経路だけはメニューコマンドなのでプレビューには出ない
+               Only this path uses a menu command, so it cannot appear in the preview */
+            app.executeMenuCommand('Add Anchor Points2');
+            return;
+        }
+        for (var i = 0; i < doc.selection.length; i++) {
+            applyRoughenEffect(doc.selection[i], roughenAnchorsDetail);
+        }
     }
 
     /**

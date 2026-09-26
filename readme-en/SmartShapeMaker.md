@@ -18,7 +18,7 @@ Instead of switching between the Rectangle, Ellipse, Polygon and Star tools, you
 
 https://youtu.be/EoUUIdbC0IU
 
-<img alt="" src="https://www.dtp-transit.jp/images/ss-736-878-72-20250713-075733.png" width="50%" />
+<img alt="Create Basic Shapes dialog" src="../png/ss-1018-1388-144-20260927-045503.png" width="50%" />
 
 ## Key features
 
@@ -29,7 +29,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ### Circle options (side count 0)
 
-- Superellipse, with an exponent between 1.5 and 6.0 that controls its shape
+- Superellipse, with a slider on the same row setting the exponent (1.5 to 6.0) that controls its shape
 - Anchor count of 2, 3, 4, 5 or 6 (4 uses Illustrator's ellipse, any other count builds a custom smooth path)
 - While the superellipse is on, the anchor count cannot be chosen and the rotation stays off
 
@@ -52,7 +52,7 @@ https://youtu.be/EoUUIdbC0IU
 - Stroke width follows Illustrator's stroke unit
 - Opacity from 0 to 100 percent, set in a field or with a slider
 
-### Corner smoothing (side count 4)
+### Rounded corners (side count 4)
 
 - A corner radius, defaulting to 15 percent of the width
 - Smoothing from 0 to 150 percent. At zero the shape uses the Round Corners effect; above zero it becomes a custom bezier path with smoothed corners
@@ -64,13 +64,13 @@ https://youtu.be/EoUUIdbC0IU
 
 ### Options
 
-- "Live Shape" converts the result into a live shape after it is confirmed
+- "Convert to Live Shape" converts the result into a live shape after it is confirmed
 - "Reuleaux (Constant-Width)" turns each edge of an odd-sided polygon into a circular arc. The amount runs from 0 to 200 percent and resets to 100 whenever the option is enabled
 
 ### Other
 
 - Live preview that leaves the undo history clean; the confirmed result is undone in a single step
-- A View Zoom slider changes the document window magnification, and cancelling restores the original zoom
+- "Fit to Window" refits the view to the shape whenever the width changes. A percentage sets how much of the window the shape fills (65 by default); cancelling restores the original view
 - The dialog position and settings persist while Illustrator is running
 - Localized UI (Japanese / English)
 
@@ -93,6 +93,7 @@ https://youtu.be/EoUUIdbC0IU
 | L | Triangle left; also sets the side count to 3 |
 | R | Triangle right; also sets the side count to 3 |
 | B | Triangle down; also sets the side count to 3 |
+| Option (Alt) + 3, 4, 5, 6, 8 | Select that side count (works inside text fields too) |
 
 ## Why use this over the standard tools
 
@@ -108,7 +109,7 @@ https://youtu.be/EoUUIdbC0IU
 
 - Values are entered in Illustrator's ruler unit; the stroke width follows the stroke unit.
 - Shapes are created at the center of the document window, not the artboard.
-- "Live Shape" is unavailable while any of these is active: Split at Anchor Points, Superellipse, a circle anchor count other than 4, Reuleaux, Add Anchors (Roughen), or corner smoothing.
+- "Convert to Live Shape" is unavailable while any of these is active: Split at Anchor Points, Superellipse, a circle anchor count other than 4, Reuleaux, Add Anchors (Roughen), or corner smoothing.
 - Reuleaux applies only to odd-sided polygons (3, 5, 7 and so on) and cannot be combined with a star.
 - The rotation is forced off while Pentagram or Superellipse is active.
 - "Split at Anchor Points" always opens in the off state.
@@ -125,6 +126,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ## Changelog
 
+- v2.3.0 (2026-09-27): Removed the View Zoom slider. "Fit to Window" gained a percentage field, 65 by default, and Cancel now restores the view position as well. Added Option (Alt) + 3/4/5/6/8 shortcuts for the side count. The "4 (Square)" label, colons after "Fill:" and "Stroke:", a percent sign on the smoothing value, the superellipse exponent reduced to a slider on the checkbox row, and reworded labels such as "Anchor Count", "Rounded Corners", "Convert to Live Shape", "Fit to Window" and "Cap". Added tooltips and consolidated duplicated internal code
 - v2.2.4 (2026-09-27): Fixed number fields that would not accept a decimal point (the value was rewritten on every key, not just the arrow keys). Units now come from the shared unit table (adds H, ft, yd and m; inches read "in"). Renamed the English dialog title to "Create Basic Shapes". Added tooltips to the controls and unified how field labels get their colon
 - v2.2.3 (2026-09-21): Fixed the dialog title showing ColorPicker.jsx's version instead of this script's. Fixed the color picker not opening when a color swatch is clicked (ColorPicker.jsx v1.0.2)
 - v2.2.0 (2026-07-31): Added the basic info block and JSDoc, wrapped the script in an IIFE, renamed variables and panels, and fixed when the parameters are captured on OK
