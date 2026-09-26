@@ -5,9 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-入力した文字列（7つまで、正規表現も可）を、選択中のオブジェクト・現在のアートボード・ドキュメント全体のテキストから削除、または別の文字列に置換します。
-残った文字の書式は変わりません。シンボル内のテキストや、非表示・ロックされたテキストも対象にできます。
-「英文」タブでは英字の大文字・小文字を変換し、「整形」タブではタブ・スペース・記号・かな・数字・行頭の箇条書きや番号を整えます。
+テキストから文字列をまとめて削除・置換し（7つまで、正規表現も可）、英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行います。
+残った文字の書式は変わりません。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md
@@ -17,9 +16,8 @@ https://note.com/dtp_tranist/n/nec5dfffce709
 
 ### Overview
 
-Removes up to seven strings (regular expressions allowed) from text in the selection, the current artboard, or the entire document, or replaces them with other strings.
-The formatting of the remaining text is kept. Text in symbols and hidden or locked text can be included.
-The English tab changes letter case; the Cleanup tab tidies tabs, spaces, symbols, kana, digits, and leading bullets or numbers.
+Removes or replaces up to seven strings in text (regular expressions allowed), and also changes letter case and tidies spaces, symbols, kana and digits.
+The formatting of the remaining text is kept.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md

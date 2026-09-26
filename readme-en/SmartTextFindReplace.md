@@ -1,4 +1,4 @@
-# Remove or replace specified strings in text
+# Remove, replace and clean up text
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartTextFindReplace.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartTextFindReplace.jsx)
 
@@ -10,33 +10,52 @@
 
 ### Overview
 
-- Removes the entered strings from text in one go. Fill in the replace field to replace them instead.
-- There are seven fields, processed from top to bottom. Regular expressions are supported.
-- Choose the scope: selected objects, the current artboard, or the entire document. Text inside symbols can be included.
-- Characters are removed one by one, so the formatting of the remaining text (color, font, size, etc.) is kept. Replaced text takes the formatting of the first character of the match.
-- The English tab changes letter case with a single button.
-- The Cleanup tab removes or converts tabs and spaces, swaps symbols, converts hiragana / katakana / halfwidth kana and fullwidth / halfwidth digits, and strips leading bullets and numbers with a single button.
-
-<img alt="The Remove, Replace & Clean Up Text dialog" src="../png/ss-998-1054-144-20260926-084803.png" width="50%" />
+- Removes or replaces strings in text in one go, and also changes letter case and tidies spaces, symbols, kana and digits.
+- The dialog has three tabs: Remove / Replace, English and Cleanup. The scope (selected objects, current artboard or entire document) and options are shared by all three.
+- Only the changed characters are rewritten, so the formatting of the remaining text (color, font, size, etc.) is kept.
+- Text in symbols and hidden or locked text can be included.
 
 ### Features
 
-- Up to seven strings to remove (empty fields are ignored)
+#### Remove / Replace tab
+
+<img alt="Remove / Replace tab" src="../png/ss-992-1284-144-20260926-234329.png" width="50%" />
+
+- Up to seven strings to remove (empty fields are ignored; fields are processed from top to bottom)
 - A replacement for each field (empty to remove; with regular expressions, `$1` / `\1`, `$&` / `\0` etc. refer to the match)
 - Shows the number of matches in the scope for each field (updated as you type or change the scope)
 - Regular expressions and case-sensitive or case-insensitive search
 - `\n` for a paragraph break and `@#` for a forced line break (inserted at the cursor with buttons or shortcuts)
 - Buttons and shortcuts that insert the match references `\0`, `\1` and `\2`
+- Deletes text left empty by the removal
+- Reports the removed / replaced count per field, and the numbers of changed text, deleted text and rewritten symbols
+- Remembers the entries and settings for the next run
+
+#### English tab
+
+<img alt="English tab" src="../png/ss-992-1284-144-20260926-234613.png" width="50%" />
+
+- UPPERCASE / lowercase / Capitalize Words / Sentence case / Title Case
+- A sample of the result is shown next to each button
+
+#### Cleanup tab
+
+<img alt="Cleanup tab" src="../png/ss-992-1284-144-20260926-234325.png" width="50%" />
+
+- Tabs: Remove / To Spaces
+- Remove Spaces: leading/trailing, between CJK and Latin, consecutive, all at once
+- Add Space: after . and ,
+- Spaces & Symbols: convert between space, underscore and hyphen
+- Kana & Digits: Hiragana / Katakana / Halfwidth Kana, Halfwidth Digits / Fullwidth Digits (kanji numerals become Arabic too)
+- Remove List: strip leading bullets and numbers
+
+#### Common
+
 - Preview the result without closing the dialog
 - Scope: selected objects (including inside groups) / current artboard (text that overlaps it) / entire document
 - Falls back to the entire document when nothing is selected
-- Deletes text left empty by the removal
 - Processes text in hidden or locked layers and objects (released only while processing, then restored)
 - Processes text in symbols (by rewriting the symbol definition)
-- Reports the removed / replaced count per field, and the numbers of changed text, deleted text and rewritten symbols
-- Remembers the entries and settings for the next run
-- English: UPPERCASE / lowercase / Capitalize Words / Sentence case / Title Case. A sample of the result is shown next to each button
-- Cleanup: Remove Tabs / Tabs to Spaces, remove spaces (leading/trailing, between CJK and Latin, consecutive, all at once), add a space after . and ,, convert between space, underscore and hyphen, Hiragana / Katakana / Halfwidth Kana, Halfwidth Digits / Fullwidth Digits (kanji numerals become Arabic too), and remove leading bullets or numbers
 
 ### How to use
 
@@ -91,5 +110,5 @@
 - v1.0.0 (20260926) : Initial release
 - v1.1.0 (20260926) : Added replace fields
 - v1.2.0 (20260926) : Added Preview. Added buttons and shortcuts for paragraph and forced line breaks, buttons for match references, and a Reset button. Replacements accept `\0`–`\9` and `\\`. Fixed an error when selected text was emptied and deleted
-- v1.3.0 (20260926) : Split the dialog into Remove / Replace, English and Cleanup tabs, and added English (letter case) and cleanup (tabs, spaces, symbols, kana, digits, list removal, etc.). Moved "Delete emptied text" into the Text to Remove / Replace panel. Increased the fields from five to seven. Renamed the dialog to "Remove, Replace & Clean Up Text" and added tooltips to the buttons
 - v1.2.1 (20260926) : Renamed options to match Illustrator's Find and Replace ("Ignore case" → "Match case" with saved settings converted; "Search …" → "Check …"). Fixed saved settings not being applied to the match counts when the dialog opens
+- v1.3.0 (20260926) : Split the dialog into Remove / Replace, English and Cleanup tabs, and added English (letter case) and cleanup (tabs, spaces, symbols, kana, digits, list removal, etc.). Moved "Delete emptied text" into the Text to Remove / Replace panel. Increased the fields from five to seven. Renamed the dialog to "Remove, Replace & Clean Up Text" and added tooltips to the buttons
