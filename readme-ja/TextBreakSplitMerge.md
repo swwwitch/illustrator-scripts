@@ -20,7 +20,7 @@
 
 ### 注意点
 
-- 常駐パレット版として TextBreakSplitMergePallete.jsx があります。
+- 常駐パレット版として TextBreakSplitMergePalette.jsx があります。
 
 ### 更新履歴
 

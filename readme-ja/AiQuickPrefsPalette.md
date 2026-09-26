@@ -74,7 +74,7 @@ Illustrator の常駐パレットは、表示している間に DOM への接続
 
 「プレビュー更新」ボタンは、メニューコマンド `View using GPU` を2回トグルして再描画を起こしています。「カンバスカラー」ボタンも `uiCanvasIsWhite` を書き換えたあとに `zoomout` → `zoomin` でキャンバスを描き直しています。
 
-選択オブジェクトの反転・回転は [QuickTransformPalette](QuickTransformPalette.md)、アートボード名と枠線の設定は [ArtboardDisplayPresetManager](ArtboardDisplayPresetManager.md) が担当します。
+選択オブジェクトの反転・回転は [QuickTransformPalette](QuickTransformPalette.md)、アートボード名と枠線の設定は [ArtboardDisplayPresetManagerPalette](ArtboardDisplayPresetManagerPalette.md) が担当します。
 
 ### 紹介記事（note）
 

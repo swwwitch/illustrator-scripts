@@ -20,7 +20,7 @@
 ### 注意点
 
 - 分割は常に「単一文字」単位です。単語や行単位の分割はできません。
-- 行や段落で分割したい場合は TextBreakSplitMergePallete.jsx を使用してください。
+- 行や段落で分割したい場合は TextBreakSplitMergePalette.jsx を使用してください。
 
 ### 更新履歴
 

@@ -74,7 +74,7 @@ Corners is the one item that is an integer preference rather than a boolean (`po
 
 The Refresh Preview button toggles the `View using GPU` menu command twice to force a redraw. The Canvas Color button likewise rewrites `uiCanvasIsWhite` and then repaints the canvas with `zoomout` → `zoomin`.
 
-Flipping and rotating the selection lives in [QuickTransformPalette](QuickTransformPalette.md); artboard names and borders live in [ArtboardDisplayPresetManager](ArtboardDisplayPresetManager.md).
+Flipping and rotating the selection lives in [QuickTransformPalette](QuickTransformPalette.md); artboard names and borders live in [ArtboardDisplayPresetManagerPalette](ArtboardDisplayPresetManagerPalette.md).
 
 ### Article (note)
 

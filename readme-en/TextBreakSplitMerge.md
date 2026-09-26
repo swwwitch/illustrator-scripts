@@ -20,7 +20,7 @@ Collects the text chores that are otherwise scattered around Illustrator — bre
 
 ### Notes
 
-- TextBreakSplitMergePallete.jsx is the persistent-palette version.
+- TextBreakSplitMergePalette.jsx is the persistent-palette version.
 
 ### Update History
 

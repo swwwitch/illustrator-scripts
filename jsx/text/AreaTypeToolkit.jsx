@@ -403,8 +403,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     // =========================================
     // アイコンボタン（行揃え／テキストの配置）/ Icon buttons (justification and text alignment)
-    //   UnifiedTypePanel.jsx（原典は Keep_TextPosition.jsx）から移植
-    //   Ported from UnifiedTypePanel.jsx (originally Keep_TextPosition.jsx)
+    //   UnifiedTypePalette.jsx（原典は Keep_TextPosition.jsx）から移植
+    //   Ported from UnifiedTypePalette.jsx (originally Keep_TextPosition.jsx)
     // =========================================
 
     /* 行揃えの選択肢（id・ラベル・Justification 値・アイコン種別・ショートカット）
@@ -639,7 +639,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     // =========================================
     // 日本語の組版（禁則・文字組みアキ量設定）/ Japanese composition (kinsoku and mojikumi)
-    //   UnifiedTypePanel.jsx から移植 / Ported from UnifiedTypePanel.jsx
+    //   UnifiedTypePalette.jsx から移植 / Ported from UnifiedTypePalette.jsx
     // =========================================
 
     /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）

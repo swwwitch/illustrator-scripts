@@ -31,7 +31,7 @@
 
 ### 注意点
 
-- 一覧表示を伴う本格的な管理には LinkedImageManager.jsx を使用してください。
+- 一覧表示を伴う本格的な管理には LinkedImageManagerPalette.jsx を使用してください。
 
 ### 更新履歴
 

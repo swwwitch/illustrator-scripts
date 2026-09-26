@@ -48,7 +48,7 @@ Keyboard:
 
 **Keyword buttons**
 
-Script names are split into words, and the most frequent ones are laid out as buttons. `SmartDistributor.jsx` yields `Smart` and `Distributor`. Camel case, hyphens, underscores and digits are all treated as separators.
+Script names are split into words, and the most frequent ones are laid out as buttons. `SmartDistributorPalette.jsx` yields `Smart` and `Distributor`. Camel case, hyphens, underscores and digits are all treated as separators.
 
 The buttons are **recomputed on every filter change**. Words the query already covers are dropped, since pressing them would narrow nothing, so what remains is the set of useful next steps.
 

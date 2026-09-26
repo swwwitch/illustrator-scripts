@@ -1,0 +1,24 @@
+# Change the constrain angle and keyboard increment
+
+[![Direct](https://img.shields.io/badge/Direct%20Link-DirectPrefsPalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/DirectPrefsPalette.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefsPalette.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+
+---
+
+### Overview
+
+A palette for changing the "constrain angle" preference (the angle used when the Shift key is held)
+and the keyboard increment (the arrow-key step), and for toggling guide/grid visibility and locking.
+See the README for details.
+
+### Script info
+
+- Version: v1.0.3
+
+### Update History
+
+- v1.0.3 (2026-09-26) Renamed the file from `DirectPrefs.jsx` to `DirectPrefsPalette.jsx`.
+- v1.0.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

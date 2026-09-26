@@ -21,7 +21,7 @@ Turns on auto leading for each line of the selected text frames.
 
 - A partial selection (a TextRange) is normalized to its parent text frame.
 - It only enables auto leading; the font sizes are not inspected.
-- Use ApplyLeadingPerTextFrame.jsx to specify a percentage.
+- Use ApplyLeadingPerTextFramePalette.jsx to specify a percentage.
 
 ### Update History
 

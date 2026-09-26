@@ -177,7 +177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
     // =========================================
     // パス表示 / Path display
-    // 移植元 / Ported from: LinkedImageManager.jsx
+    // 移植元 / Ported from: LinkedImageManagerPalette.jsx
     // findDropboxFolder / findSingleSubFolder / resolveDropboxPrefix は移植元と同じ実装を保つ
     // findDropboxFolder / findSingleSubFolder / resolveDropboxPrefix stay in step with the source
     // =========================================

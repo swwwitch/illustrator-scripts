@@ -21,7 +21,7 @@
 
 - テキストの一部（TextRange）を選択している場合は、その親のテキストフレームに正規化して処理します。
 - 自動行送りを有効にするだけで、フォントサイズの調査は行いません。
-- 割合を指定したい場合は ApplyLeadingPerTextFrame.jsx を使用してください。
+- 割合を指定したい場合は ApplyLeadingPerTextFramePalette.jsx を使用してください。
 
 ### 更新履歴
 

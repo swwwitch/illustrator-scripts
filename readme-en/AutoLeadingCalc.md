@@ -12,7 +12,7 @@
 
 Back-calculates the leading percentage from the selection's current (absolute) leading and
 font size, then applies it as the paragraph's auto-leading amount. Standalone extract of the
-"Auto-calc" button in TypeBasicsPanel.jsx — no dialog is shown; it applies to the selection
+"Auto-calc" button in TypeBasicsPalette.jsx — no dialog is shown; it applies to the selection
 in place, including text inside groups and range selections in text-edit mode.
 
 ### Script info

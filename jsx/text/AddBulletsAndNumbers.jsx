@@ -1337,7 +1337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     // =========================================
     // 行揃えボタンの描画 / Justification button icons
     // =========================================
-    // UnifiedTypePanel.jsx の実装を流用 / Ported from UnifiedTypePanel.jsx
+    // UnifiedTypePalette.jsx の実装を流用 / Ported from UnifiedTypePalette.jsx
 
     /**
      * IllustratorのUIが明るいテーマかどうかを判定する

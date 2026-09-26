@@ -766,9 +766,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     // =========================================
     // 行揃えボタン / Justification buttons
     // ScriptUI の button では選択状態を表示できないので、背景とアイコンを onDraw で自前描画する。
-    // 描画方式は UnifiedTypePanel.jsx にそろえる。
+    // 描画方式は UnifiedTypePalette.jsx にそろえる。
     // ScriptUI buttons cannot show a selected state, so the background and icon are drawn in onDraw;
-    // the drawing follows UnifiedTypePanel.jsx.
+    // the drawing follows UnifiedTypePalette.jsx.
     // =========================================
 
     /**

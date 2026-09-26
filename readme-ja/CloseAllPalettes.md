@@ -35,20 +35,21 @@
 
 ### 対象
 
-AiMemoPallete / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManager /
-UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
-TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
-AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
-LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
-ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor /
-AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented
+AiMemoPalette / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManagerPalette /
+UnifiedTypePalette / ImportAndApplyGraphicStylePalette / ArtboardDisplayPresetManagerPalette /
+TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePalette / TextBreakSplitMergePalette /
+AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
+LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
+ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
 
 ### スクリプト情報
 
-- バージョン: v1.0.3
+- バージョン: v1.0.4
 
 ### 更新履歴
 
+- v1.0.4（2026-09-26）TextFontPanelReinvented（削除）を対象から外した。常駐パレットのファイル名を末尾 Palette に改名したのに合わせて対象名を更新。
 - v1.0.3（2026-09-26）開いているパレットが無いときのアラートを表示しないように変更。
 - v1.0.2（2026-09-25）AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented を対象に追加。
 - v1.0.1（2026-09-25）ArtboardDisplayPresetManager のエンジン名・参照名が本体と食い違っていて閉じられなかったのを修正。常駐パレット13本（AiAlignToArtboard ほか）を対象に追加。

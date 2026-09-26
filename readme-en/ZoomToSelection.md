@@ -27,4 +27,4 @@ John Wundes - Zoom and Center to Selection v2.
 
 http://www.wundes.com/js4ai/copyright.txt
 
-The animation interpolation is based on ArtboardNavigator.jsx by Yuki Furushima.
+The animation interpolation is based on ArtboardNavigatorPalette.jsx by Yuki Furushima.

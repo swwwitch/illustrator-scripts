@@ -67,8 +67,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
     var MAX_SHADOW_BLUR         = 1000; /* ぼかしの上限（pt） / blur limit in points */
 
     /* パスファインダー（効果）の「分割」。グループ全体に適用する
-       XMLの書式は AiSmartPathfinder.jsx の buildPathfinderXML() と同じ（Command 5 ＝ 分割）
-       The Divide option of the Pathfinder effect, in the same XML form as AiSmartPathfinder.jsx */
+       XMLの書式は AiSmartPathfinderPalette.jsx の buildPathfinderXML() と同じ（Command 5 ＝ 分割）
+       The Divide option of the Pathfinder effect, in the same XML form as AiSmartPathfinderPalette.jsx */
     var PATHFINDER_DIVIDE_EFFECT =
         '<LiveEffect name="Adobe Pathfinder" isPre="1"><Dict data="I Command 5' +
         ' B ConvertCustom 1 B ExtractUnpainted 0 R Mix 0.5 R Precision 10 B RemovePoints 0' +

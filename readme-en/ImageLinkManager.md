@@ -31,7 +31,7 @@ The mode selector at the top switches the operation, and only the matching panel
 
 ### Notes
 
-- Use LinkedImageManager.jsx when you need full list-based management.
+- Use LinkedImageManagerPalette.jsx when you need full list-based management.
 
 ### Update History
 

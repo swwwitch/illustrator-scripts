@@ -30,13 +30,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 対象パレット / Target palettes
 
-AiMemoPallete / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManager /
-UnifiedTypePanel / ImportAndApplyGraphicStyle / ArtboardDisplayPresetManager /
-TextCountStats / SelectionInspector / ApplyLeadingPerTextFrame / TextBreakSplitMergePallete /
-AiAlignToArtboard / AiSmartRotateView / AutoKerningPanel / FontPresetPicker / KPTSketchy /
-LockHistoryPalette / PathInspector / QuickTransformPalette / TypeBasicsPanel /
-ArtboardNavigator / LEConvertToShape / AiSmartPathfinder / SmartDistributor /
-AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented
+AiMemoPalette / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManagerPalette /
+UnifiedTypePalette / ImportAndApplyGraphicStylePalette / ArtboardDisplayPresetManagerPalette /
+TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePalette / TextBreakSplitMergePalette /
+AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
+LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
+ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
 
 */
 
@@ -44,7 +44,7 @@ AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelRein
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -75,34 +75,33 @@ var POLL_INTERVAL_MS = 10;
    engine : #targetengine で宣言された常駐エンジン名 / Persistent engine name declared via #targetengine
    global : そのエンジンの $.global に載るパレット参照名 / Palette reference name kept on that engine's $.global */
 var PALETTES = [
-    { name: "AiMemoPallete", engine: "TextMemoEngine", global: "__TextMemoWindow" },
+    { name: "AiMemoPalette", engine: "TextMemoEngine", global: "__TextMemoWindow" },
     { name: "AiQuickPrefsPalette", engine: "AiQuickPrefsPalette", global: "__aiQuickPrefsPalette" },
     { name: "AiTextOutlineRestorePalette", engine: "TextOutlineWithMemo", global: "__textOutlineMemoPalette" },
-    { name: "LinkedImageManager", engine: "LinkedImageManager", global: "__LIM_paletteWindow" },
-    { name: "UnifiedTypePanel", engine: "UnifiedTypePanelEngine", global: "__UnifiedTypePanel" },
-    { name: "ImportAndApplyGraphicStyle", engine: "ImportAndApplyGraphicStyle", global: "__importAndApplyGraphicStylePalette" },
-    { name: "ArtboardDisplayPresetManager", engine: "ArtboardDisplayPresetManagerPalette", global: "__artboardDisplayPresetPalette" },
-    { name: "TextCountStats", engine: "TextCountStatsSession", global: "__TextCountStatsPalette" },
-    { name: "SelectionInspector", engine: "SelectionInspectorSession", global: "__SelectionInspectorPalette" },
-    { name: "ApplyLeadingPerTextFrame", engine: "ApplyLeadingPerTextFrame", global: "__ALPTF_PALETTE__" },
-    { name: "TextBreakSplitMergePallete", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" },
-    { name: "AiAlignToArtboard", engine: "AiAlignToArtboard", global: "__aiAlignToArtboardWindow" },
-    { name: "AiSmartRotateView", engine: "AiSmartRotateView", global: "__aiSmartRotateViewPalette" },
-    { name: "AutoKerningPanel", engine: "AutoKerningPanelEngine", global: "__AutoKerningPanel" },
-    { name: "FontPresetPicker", engine: "FontPresetPickerEngine", global: "__FontPresetPicker" },
-    { name: "KPTSketchy", engine: "KPTSketchy", global: "__KPTSketchyPaletteWindow" },
+    { name: "LinkedImageManagerPalette", engine: "LinkedImageManager", global: "__LIM_paletteWindow" },
+    { name: "UnifiedTypePalette", engine: "UnifiedTypePanelEngine", global: "__UnifiedTypePanel" },
+    { name: "ImportAndApplyGraphicStylePalette", engine: "ImportAndApplyGraphicStyle", global: "__importAndApplyGraphicStylePalette" },
+    { name: "ArtboardDisplayPresetManagerPalette", engine: "ArtboardDisplayPresetManagerPalette", global: "__artboardDisplayPresetPalette" },
+    { name: "TextCountStatsPalette", engine: "TextCountStatsSession", global: "__TextCountStatsPalette" },
+    { name: "SelectionInspectorPalette", engine: "SelectionInspectorSession", global: "__SelectionInspectorPalette" },
+    { name: "ApplyLeadingPerTextFramePalette", engine: "ApplyLeadingPerTextFrame", global: "__ALPTF_PALETTE__" },
+    { name: "TextBreakSplitMergePalette", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" },
+    { name: "AiAlignToArtboardPalette", engine: "AiAlignToArtboard", global: "__aiAlignToArtboardWindow" },
+    { name: "AiSmartRotateViewPalette", engine: "AiSmartRotateView", global: "__aiSmartRotateViewPalette" },
+    { name: "AutoKerningPalette", engine: "AutoKerningPanelEngine", global: "__AutoKerningPanel" },
+    { name: "FontPresetPickerPalette", engine: "FontPresetPickerEngine", global: "__FontPresetPicker" },
+    { name: "KPTSketchyPalette", engine: "KPTSketchy", global: "__KPTSketchyPaletteWindow" },
     { name: "LockHistoryPalette", engine: "LockHistoryPalette", global: "__LockHistoryPaletteWindow" },
-    { name: "PathInspector", engine: "PathInspectorSession", global: "__PathInspectorPalette" },
+    { name: "PathInspectorPalette", engine: "PathInspectorSession", global: "__PathInspectorPalette" },
     { name: "QuickTransformPalette", engine: "QuickTransformPalette", global: "__quickTransformPalette" },
-    { name: "TypeBasicsPanel", engine: "TypeBasicsPanelEngine", global: "__typeBasicsPanelInstance" },
-    { name: "ArtboardNavigator", engine: "artboardNavigatorPalette", global: "artboardNavigatorWindow" },
-    { name: "LEConvertToShape", engine: "fxConvertToShape", global: "__fxConvertToShapePalette" },
-    { name: "AiSmartPathfinder", engine: "pathfinder-palette", global: "__pfPaletteWindow" },
-    { name: "SmartDistributor", engine: "smartDistributorPalette", global: "smartDistributorWindow" },
-    { name: "AiAdjustVerticalGap", engine: "AdjustVerticalGap", global: "__aiAdjustVerticalGapPalette" },
-    { name: "DirectPrefs", engine: "DirectPrefs", global: "__directPrefsPalette" },
-    { name: "DocumentFontListSelector", engine: "DocumentFontListEngine", global: "__documentFontListSelectorPalette" },
-    { name: "TextFontPanelReinvented", engine: "TextFontPanelEngine", global: "__textFontPanelReinventedPalette" }
+    { name: "TypeBasicsPalette", engine: "TypeBasicsPanelEngine", global: "__typeBasicsPanelInstance" },
+    { name: "ArtboardNavigatorPalette", engine: "artboardNavigatorPalette", global: "artboardNavigatorWindow" },
+    { name: "LEConvertToShapePalette", engine: "fxConvertToShape", global: "__fxConvertToShapePalette" },
+    { name: "AiSmartPathfinderPalette", engine: "pathfinder-palette", global: "__pfPaletteWindow" },
+    { name: "SmartDistributorPalette", engine: "smartDistributorPalette", global: "smartDistributorWindow" },
+    { name: "AiAdjustVerticalGapPalette", engine: "AdjustVerticalGap", global: "__aiAdjustVerticalGapPalette" },
+    { name: "DirectPrefsPalette", engine: "DirectPrefs", global: "__directPrefsPalette" },
+    { name: "DocumentFontListSelectorPalette", engine: "DocumentFontListEngine", global: "__documentFontListSelectorPalette" }
 ];
 
 // =========================================
