@@ -20,7 +20,7 @@ much like redefining a paragraph style without using styles.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontPresetCollector";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -467,6 +467,9 @@ var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last update
             if (keyName === "autoLeading" || keyName === "leading") leadingKeys.push(keyName);
             else differingKeys.push(keyName);
         }
+        /* 自動行送り量はキーの一部なので、自動どうしで量だけ違うときも行送りの違いとして数える
+           The auto leading amount is part of the grouping key, so an amount-only difference counts as a leading change */
+        if (toFormat.autoLeading && fromFormat.autoLeadingAmount !== toFormat.autoLeadingAmount) leadingKeys.push("autoLeadingAmount");
         if (differingKeys.length || includeLeading) differingKeys = differingKeys.concat(leadingKeys);
         return differingKeys;
     }
@@ -487,10 +490,11 @@ var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last update
         var paragraphAttrs = paragraph.paragraphAttributes;
         if (changedFlags.psName && targetFont) charAttrs.textFont = targetFont;
         if (changedFlags.size) charAttrs.size = toFormat.size;
-        if (changedFlags.autoLeading || changedFlags.leading) {
+        if (changedFlags.autoLeading || changedFlags.leading || changedFlags.autoLeadingAmount) {
             charAttrs.autoLeading = toFormat.autoLeading;
             if (!toFormat.autoLeading) charAttrs.leading = toFormat.leading;
         }
+        if (changedFlags.autoLeadingAmount) paragraphAttrs.autoLeadingAmount = toFormat.autoLeadingAmount;
         if (changedFlags.tracking) charAttrs.tracking = toFormat.tracking;
         if (changedFlags.tsume) charAttrs.Tsume = toFormat.tsume;
         if (changedFlags.kern) {
