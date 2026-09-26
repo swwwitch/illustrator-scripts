@@ -1,4 +1,4 @@
-# Split an image or shape into puzzle pieces
+# Slice an image or artwork into grid or puzzle pieces and mask them
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartSliceWithPuzzlify.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/SmartSliceWithPuzzlify.jsx)
 
@@ -10,26 +10,53 @@
 
 ### Overview
 
-- An Illustrator script to split a selected image or shape into a grid or jigsaw puzzle pieces, each with individual masks.
-- Supports custom rows/columns, offsets, and scatter (explode) effects.
+Slices the selected image or artwork into grid cells or jigsaw pieces and masks each piece.
 
 ![ss-2092-1082-72-20250608-151834](https://github.com/user-attachments/assets/b57117df-bfbc-49d7-b648-c6a89984999c)
 
 ### Main Features
 
-- Generate grid, traditional, or random jigsaw-shaped pieces
-- Apply offset and scatter (explode) effects to each piece
-- Supports images, symbols, vector artwork, and more
-- Auto calculate rows/columns, auto symbolization for multiple selections
-- Japanese and English UI support
+- Two methods: Grid and Puzzle. Puzzle offers Traditional (regularly placed tabs) and Random (random tab directions)
+- Enter a piece count and the columns and rows are calculated from the selection's aspect ratio so that each piece is roughly square
+- Placed images and symbols are duplicated for each piece and masked with a clipping group
+- Embedded images and vector artwork (paths, groups, compound paths) are converted to a symbol before slicing. Multiple selected objects are grouped into one symbol, keeping their stacking order
+- Fine-tune the result with offset, overlap, scatter, stroke and rounded corners
+- Japanese and English UI
 
-### Process Flow
+### How to Use
 
-1. Select a target object (image, symbol, vector, etc.)
-2. Configure split settings (shape type, number of pieces, rows, columns, offset, etc.) via dialog
-3. Generate each piece based on chosen shape
-4. Optionally apply offset and scatter effects
-5. Remove original object and place new pieces
+1. Select the image or artwork to slice
+2. Run the script and choose the method and options in the dialog
+3. Click OK. A progress bar is shown while slicing, and the dialog closes when it finishes
+
+### Options
+
+| Option | Method | Description |
+|---|---|---|
+| Method | — | Grid / Puzzle |
+| Pieces | Puzzle | Approximate number of pieces. With one object selected, the columns and rows follow from its aspect ratio |
+| Columns / Rows | Both | Pieces across and down. Enter 0 in one of them to derive it from the other and the aspect ratio |
+| Shape | Puzzle | Traditional / Random |
+| Offset | Puzzle | Offsets the outline of each piece. A negative value shrinks it inward |
+| Overlap | Grid | How far neighbouring pieces overlap, to hide the seams (never beyond the original bounds) |
+| Scatter | Puzzle | Moves each piece by a random, center-biased amount. The value is the maximum distance |
+| Add stroke | Both | Adds a stroke to each piece |
+| Round corners | Grid | Applies the Round Corners effect to each piece. The value is the radius |
+
+- Distances are entered in the ruler units
+- In number fields, Up/Down changes the value by 1, with Shift by 10, and with Option by 0.1
+- Switching the method resets the options to their defaults
+
+### Notes
+
+- The original object is deleted after slicing
+- Embedded images, vector artwork and multiple selections are converted to symbols, so new symbols appear in the Symbols panel
+- For any other object (such as text), only the mask paths are created and the original is kept
+- Offset applies the Offset Path effect and then expands the appearance
+
+### Article
+
+[【Illustrator】画像だけを選択して、パズルのピース作成からマスクまでを一括で行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n89f63325c0bc?magazine_key=mebd7eab21ea5) (Japanese)
 
 ### Original / Acknowledgements
 
