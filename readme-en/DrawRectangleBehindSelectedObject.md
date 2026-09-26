@@ -30,7 +30,7 @@ Last updated: 2025-11-09
 1. Compute bounding box of target objects
 2. Apply offset, corner radius, and fill/stroke settings to rectangle
 3. Render preview to dedicated layer; finalize on OK
-4. Optionally group rectangle with original text
+4. Optionally group the rectangle with the original objects
 
 ### Update History
 
@@ -41,7 +41,8 @@ Last updated: 2025-11-09
 - v1.4 (2025-09-02):
 - v1.5 (2025-11-09): Reviewed fill logic (HEX→CMYK when needed, disable overprint, enforce Normal)
 - v1.6 (2025-11-09): Preview stabilization (debounce & cancel, before/afterRender, bump compat, immediate refresh fix)
+- v1.6.2 (2026-09-27): Code cleanup. Renamed the “Fill” panel to “Color” and “Group with Text” to “Group with Objects”; added colons to field labels and tooltips. Fixed the stroke width stepping twice per arrow key, values being re-rounded on keys other than the arrows, the temporary measuring layer being left behind, and the preview remaining after closing with Esc
 
 ### Script info
 
-- Version: v1.6
+- Version: v1.6.2

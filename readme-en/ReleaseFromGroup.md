@@ -21,3 +21,7 @@
 ### Article
 
 - [DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/n36fbd4162721)
+
+### Change Log
+
+- v1.0.2 (20260927): Does nothing while text is selected with the Type tool

@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindRe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DateFindReplace";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-05-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DateFindReplace.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindReplace.md"; /* README (English) */
@@ -104,14 +104,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /*
-       出力フォーマット選択。
+       出力フォーマット選択。先頭（preserve）の表示名は LABELS.dropdown.preserveFormat。
        「元の形式を保持」を選ぶと、各マッチの元形式（区切り文字・元号）を維持して置換する。
        曜日表記は「元の形式を保持」でも隣の「曜日」ドロップダウンの選択を反映する。
        それ以外は、選択した形式で全マッチを統一して書き換える。
     */
     var FORMAT_VALUES = ["preserve", "jp", "jp-md", "dot", "dot-md", "slash", "slash-md", "reiwa-jp", "r-dot", "r-slash", "heisei-jp", "h-dot", "h-slash"];
-    var FORMAT_LABELS = [
-        "元の形式を保持",
+    var FORMAT_PATTERN_LABELS = [
         "YYYY年M月D日",
         "M月D日",
         "YYYY.M.D",
@@ -126,17 +125,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         "HY/M/D"
     ];
 
-    /* 曜日サフィックスのスタイル（「元の形式を保持」以外の出力に付与） */
+    /* 曜日サフィックスのスタイル。先頭（none）の表示名は LABELS.dropdown.weekdayNone
+       Weekday suffix styles; the label for "none" comes from LABELS */
     var WEEKDAY_VALUES = ["none", "kanji", "medium", "long", "full-paren", "half-paren", "en-short", "en-full"];
-    var WEEKDAY_LABELS = ["なし", "火", "火曜", "火曜日", "（火）", "(火)", "Tue", "Tuesday"];
+    var WEEKDAY_SAMPLE_LABELS = ["火", "火曜", "火曜日", "（火）", "(火)", "Tue", "Tuesday"];
 
     /* 曜日生成用の文字テーブル */
     var WEEKDAY_KANJI = ["日", "月", "火", "水", "木", "金", "土"];
     var WEEKDAY_EN_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     var WEEKDAY_EN_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-    /* ↑↓キーの tooltip / Tooltip for the arrow keys */
-    var ARROW_KEY_HELP = "↑↓キーで増減（Shift：±10）";
 
     // =========================================
     // 共通ヘルパー / Shared helpers
@@ -148,7 +145,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} メッセージ
      */
     function formatErrorMessage(errorCount) {
-        return errorCount + "件はロック等の理由で処理できませんでした。";
+        return fillLabel(LABELS.alert.lockedErrors, [errorCount]);
     }
 
     /**
@@ -199,6 +196,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function changeValueByArrowKey(editText, onValueChanged) {
         editText.addEventListener("keydown", function (event) {
+            /* ↑↓以外のキーは素通し（入力中の値を丸め直さない）/ Ignore keys other than Up/Down so typing isn't rounded */
+            if (event.keyName != "Up" && event.keyName != "Down") return;
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
@@ -447,11 +446,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function formatDaysDifference(days) {
         var sign = days > 0 ? "+" : "";
-        return sign + days + "日";
+        return sign + days + getLabel(LABELS.valueText.daysSuffix);
     }
 
     /**
-     * 曜日表示（例：金曜日）
+     * 曜日表示（例：金曜日 / Friday）
      * @param {number} year - 年
      * @param {number} month - 月
      * @param {number} day - 日
@@ -461,6 +460,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (isNaN(year) || isNaN(month) || isNaN(day)) return "";
         var checkDate = new Date(year, month - 1, day);
         if (isNaN(checkDate.getTime())) return "";
+        if (uiLang !== "ja") return WEEKDAY_EN_FULL[checkDate.getDay()];
         return WEEKDAY_KANJI[checkDate.getDay()] + "曜日";
     }
 
@@ -1034,7 +1034,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dateCheckboxes = [];
         var artboardGroups = groupMatchesByArtboard(foundMatches);
 
-        var foundDatesPanel = dateDialog.add("panel", undefined, "見つかった日付（" + foundMatches.length + "）");
+        var foundDatesPanel = dateDialog.add("panel", undefined, fillLabel(LABELS.panel.foundDates, [foundMatches.length]));
         setupPanel(foundDatesPanel, PANEL_SPACING);
         foundDatesPanel.minimumSize.width = FOUND_PANEL_MIN_WIDTH;
 
@@ -1042,10 +1042,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var currentArtboardIdx = artboardGroups.artboardIndexes[keyIdx];
             var artboardHeaderText;
             if (currentArtboardIdx === -1) {
-                artboardHeaderText = "[アートボード外]";
+                artboardHeaderText = getLabel(LABELS.heading.outsideArtboards);
             } else {
-                artboardHeaderText = "[アートボード " + (currentArtboardIdx + 1) + "：" +
-                    doc.artboards[currentArtboardIdx].name + "]";
+                artboardHeaderText = fillLabel(LABELS.heading.artboard, [currentArtboardIdx + 1, doc.artboards[currentArtboardIdx].name]);
             }
             /* アートボード見出しは下に少し余白を取る */
             var artboardHeaderGroup = foundDatesPanel.add("group");
@@ -1064,15 +1063,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var checkboxText = artboardMatches[itemIdx].text;
                 var pairCount = (artboardMatches[itemIdx].weekdayPairs ? artboardMatches[itemIdx].weekdayPairs.length : 0);
                 if (pairCount > 0) {
-                    checkboxText += "  ＋曜日連動";
+                    checkboxText += getLabel(LABELS.checkbox.linkedWeekdaySuffix);
                 }
                 var dateCheckbox = checkboxRow.add("checkbox", undefined, checkboxText);
                 dateCheckbox.value = true;
                 /* チェックボックスのラベル切れ対策 */
                 dateCheckbox.preferredSize.width = DATE_CHECKBOX_WIDTH;
                 dateCheckbox.helpTip = (pairCount > 0)
-                    ? ("Option＋クリックで全項目を一括切替\n同一グループ内の曜日フレーム " + pairCount + " 件も連動して更新されます\n曜日が「なし」の場合は連動フレームを更新しません")
-                    : "Option＋クリックで全項目を一括切替";
+                    ? fillLabel(LABELS.tooltip.dateCheckboxLinked, [pairCount])
+                    : getLabel(LABELS.tooltip.dateCheckbox);
                 artboardMatches[itemIdx].checkbox = dateCheckbox;
                 dateCheckboxes.push(dateCheckbox);
             }
@@ -1085,28 +1084,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Group} dateInputGroup - 追加先
      * @param {number} initialValue - 初期値
      * @param {number} fieldChars - 入力欄の幅（文字数）
-     * @param {string} unitText - 右に添える「年」「月」「日」
+     * @param {Object} unitLabelSet - 右に添える「年」「月」「日」の LABELS リーフ
      * @returns {EditText} 追加した入力欄
      */
-    function addDateField(dateInputGroup, initialValue, fieldChars, unitText) {
+    function addDateField(dateInputGroup, initialValue, fieldChars, unitLabelSet) {
         var dateField = dateInputGroup.add("edittext", undefined, String(initialValue));
         dateField.characters = fieldChars;
-        dateField.helpTip = ARROW_KEY_HELP;
-        dateInputGroup.add("statictext", undefined, unitText);
+        dateField.helpTip = getLabel(LABELS.tooltip.dateField);
+        dateInputGroup.add("statictext", undefined, getLabel(unitLabelSet));
         return dateField;
     }
 
     /**
      * 確認パネルに「項目名＋値」の行を追加する
      * @param {Panel} checkPanel - 追加先
-     * @param {string} rowLabelText - 項目名
+     * @param {Object} rowLabelSet - 項目名の LABELS リーフ
      * @param {number} valueWidth - 値の欄の幅
      * @returns {StaticText} 値の欄
      */
-    function addCheckRow(checkPanel, rowLabelText, valueWidth) {
+    function addCheckRow(checkPanel, rowLabelSet, valueWidth) {
         var checkRow = checkPanel.add("group");
         checkRow.orientation = "row";
-        var rowLabel = checkRow.add("statictext", undefined, rowLabelText);
+        var rowLabel = checkRow.add("statictext", undefined, labelText(rowLabelSet));
         rowLabel.preferredSize.width = CHECK_LABEL_WIDTH;
         var valueText = checkRow.add("statictext", undefined, "");
         valueText.preferredSize.width = valueWidth;
@@ -1120,37 +1119,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object} ダイアログと各コントロール
      */
     function buildDialog(doc, foundMatches) {
-        var dateDialog = new Window("dialog", "日付を検索・置換 " + SCRIPT_VERSION);
+        var dateDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         dateDialog.orientation = "column";
         dateDialog.alignChildren = "fill";
 
         var dateCheckboxes = [];
         if (foundMatches.length === 0) {
-            dateDialog.add("statictext", undefined, "日付は見つかりませんでした。");
+            dateDialog.add("statictext", undefined, getLabel(LABELS.message.noDatesFound));
         } else {
             dateCheckboxes = addFoundDatesPanel(dateDialog, doc, foundMatches);
         }
 
         /* 置換後の日付入力パネル：［2026］年［5］月［8］日 形式。初期値は今日 */
         var today = new Date();
-        var replacementPanel = dateDialog.add("panel", undefined, "置換後の日付");
+        var replacementPanel = dateDialog.add("panel", undefined, getLabel(LABELS.panel.replacement));
         setupPanel(replacementPanel, PANEL_SPACING);
 
         var dateInputGroup = replacementPanel.add("group");
         dateInputGroup.orientation = "row";
-        var yearInput = addDateField(dateInputGroup, today.getFullYear(), 5, "年");
-        var monthInput = addDateField(dateInputGroup, today.getMonth() + 1, 3, "月");
-        var dayInput = addDateField(dateInputGroup, today.getDate(), 3, "日");
+        var yearInput = addDateField(dateInputGroup, today.getFullYear(), 5, LABELS.unitLabel.year);
+        var monthInput = addDateField(dateInputGroup, today.getMonth() + 1, 3, LABELS.unitLabel.month);
+        var dayInput = addDateField(dateInputGroup, today.getDate(), 3, LABELS.unitLabel.day);
 
         var formatRow = replacementPanel.add("group");
         formatRow.orientation = "row";
-        formatRow.add("statictext", undefined, "フォーマット：");
-        var formatDropdown = formatRow.add("dropdownlist", undefined, FORMAT_LABELS);
+        formatRow.add("statictext", undefined, labelText(LABELS.fieldLabel.format));
+        var formatDropdown = formatRow.add("dropdownlist", undefined, [getLabel(LABELS.dropdown.preserveFormat)].concat(FORMAT_PATTERN_LABELS));
         formatDropdown.selection = 0;
-        formatDropdown.helpTip = "「元の形式を保持」：各マッチの区切り文字・元号を維持\n曜日表記は右の曜日ドロップダウンの選択を反映\nそれ以外：すべてのマッチを選択した形式に統一";
+        formatDropdown.helpTip = getLabel(LABELS.tooltip.formatDropdown);
 
-        var weekdayDropdown = formatRow.add("dropdownlist", undefined, WEEKDAY_LABELS);
-        weekdayDropdown.helpTip = "出力に付与する曜日表記。「元の形式を保持」選択時もこの選択を反映し、「なし」で日付内の曜日表記を削除。連動曜日フレームは更新しません";
+        var weekdayDropdown = formatRow.add("dropdownlist", undefined, [getLabel(LABELS.dropdown.weekdayNone)].concat(WEEKDAY_SAMPLE_LABELS));
+        weekdayDropdown.helpTip = getLabel(LABELS.tooltip.weekdayDropdown);
 
         /* 最初に見つかった置換対象を基準に、曜日サフィックスまたは曜日のみフレームの形式を初期選択にする */
         var initialWeekdayChoice = detectInitialWeekdayChoice(foundMatches);
@@ -1162,28 +1161,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 数字（年・月・日）の文字書式を保持するか。OFF にするとマッチ範囲を一括置換し、
            新しい文字はマッチ先頭の書式に統一される */
-        var preserveNumberFormatCheckbox = replacementPanel.add("checkbox", undefined, "数字の書式を保持する");
+        var preserveNumberFormatCheckbox = replacementPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.preserveNumberFormat));
         preserveNumberFormatCheckbox.value = true;
-        preserveNumberFormatCheckbox.helpTip = "ON：年・月・日それぞれの元の文字書式（フォント・サイズ・色など）を維持\nOFF：マッチ範囲全体を一括置換し、書式は先頭文字に揃える\n※「元の形式を保持」選択時のみ有効";
+        preserveNumberFormatCheckbox.helpTip = getLabel(LABELS.tooltip.preserveNumberFormat);
 
         /* プレビュー：ON で現在の入力をドキュメントに反映し、ダイアログを開いたまま結果を確認できる。
            入力変更時には自動で更新（巻き戻し→再適用）。OFF にすると元に戻す */
-        var previewCheckbox = replacementPanel.add("checkbox", undefined, "プレビュー");
+        var previewCheckbox = replacementPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
         previewCheckbox.value = false;
-        previewCheckbox.helpTip = "ON でドキュメントに即時反映。入力やチェックを変更すると自動更新。\nOFF・キャンセルで元に戻す";
+        previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
 
         /* 確認パネル：和暦・曜日・日数差のプレビュー（置換対象外） */
-        var checkPanel = dateDialog.add("panel", undefined, "置換内容の確認");
+        var checkPanel = dateDialog.add("panel", undefined, getLabel(LABELS.panel.check));
         setupPanel(checkPanel, PANEL_SPACING);
-        var eraLabel = addCheckRow(checkPanel, "和暦：", 120);
-        var weekdayLabel = addCheckRow(checkPanel, "置換後の曜日：", 80);
-        var daysDiffLabel = addCheckRow(checkPanel, "最初の日付との差：", 120);
+        var eraLabel = addCheckRow(checkPanel, LABELS.fieldLabel.era, 120);
+        var weekdayLabel = addCheckRow(checkPanel, LABELS.fieldLabel.weekday, 80);
+        var daysDiffLabel = addCheckRow(checkPanel, LABELS.fieldLabel.daysDiff, 120);
 
         /* OK / キャンセル ボタン */
         var btnRowGroup = dateDialog.add("group");
         btnRowGroup.alignment = "right";
-        var btnCancel = btnRowGroup.add("button", undefined, "キャンセル");
-        var btnOK = btnRowGroup.add("button", undefined, "OK");
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         return {
             dialog: dateDialog,
@@ -1246,11 +1245,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var year = inputDate.year;
         var month = inputDate.month;
         var day = inputDate.day;
-        if (isNaN(year) || isNaN(month) || isNaN(day)) return "年・月・日は半角数字で入力してください。";
-        if (year < 1) return "年は1以上で入力してください。";
-        if (month < 1 || month > 12) return "月は1〜12で入力してください。";
-        if (day < 1 || day > 31) return "日は1〜31で入力してください。";
-        if (!isRealDate(year, month, day)) return "存在しない日付です。";
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return getLabel(LABELS.alert.notNumber);
+        if (year < 1) return getLabel(LABELS.alert.yearRange);
+        if (month < 1 || month > 12) return getLabel(LABELS.alert.monthRange);
+        if (day < 1 || day > 31) return getLabel(LABELS.alert.dayRange);
+        if (!isRealDate(year, month, day)) return getLabel(LABELS.alert.notRealDate);
         var checkDate = new Date(year, month - 1, day);
 
         /* 元号フォーマット選択時は、各元号の有効範囲に収まることを要求 */
@@ -1258,10 +1257,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var isReiwaFormat = (formatChoice === 'reiwa-jp' || formatChoice === 'r-dot' || formatChoice === 'r-slash');
         var isHeiseiFormat = (formatChoice === 'heisei-jp' || formatChoice === 'h-dot' || formatChoice === 'h-slash');
         if (isReiwaFormat && checkDate < REIWA_START_DATE) {
-            return "令和形式は 2019/5/1 以降の日付で指定してください。";
+            return getLabel(LABELS.alert.reiwaFormatRange);
         }
         if (isHeiseiFormat && (checkDate < HEISEI_START_DATE || checkDate >= HEISEI_END_DATE_EXCLUSIVE)) {
-            return "平成形式は 1989/1/8〜2019/4/30 の範囲で指定してください。";
+            return getLabel(LABELS.alert.heiseiFormatRange);
         }
 
         /* 「元の形式を保持」では、チェック済みマッチの元号がそれぞれ有効になる範囲を要求 */
@@ -1275,10 +1274,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (foundMatch.parsed.era === 'heisei') hasHeiseiMatch = true;
             }
             if (hasReiwaMatch && checkDate < REIWA_START_DATE) {
-                return "令和形式のマッチが含まれているため、2019/5/1 以降の日付を指定してください。";
+                return getLabel(LABELS.alert.reiwaMatchRange);
             }
             if (hasHeiseiMatch && (checkDate < HEISEI_START_DATE || checkDate >= HEISEI_END_DATE_EXCLUSIVE)) {
-                return "平成形式のマッチが含まれているため、1989/1/8〜2019/4/30 の日付を指定してください。";
+                return getLabel(LABELS.alert.heiseiMatchRange);
             }
         }
 
@@ -1376,17 +1375,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             referenceDate = new Date(referenceParsed.year, referenceParsed.month - 1, referenceParsed.day);
         }
 
-        /* チェックボックスに Option＋クリックで全切替を割り当てる。クリック後はプレビューも更新 */
+        /* チェックボックスに Option＋クリックで全切替を割り当てる。クリック後はプレビューも更新。
+           click イベントは発火しない環境があるため、onClick と keyboardState で判定する
+           Option-click toggles all; use onClick + keyboardState because the click event may not fire */
         function bindOptionClickToggleAll(checkboxControl) {
-            checkboxControl.addEventListener("click", function (event) {
-                if (event.altKey) {
+            checkboxControl.onClick = function () {
+                if (ScriptUI.environment.keyboardState.altKey) {
                     var newValue = checkboxControl.value;
                     for (var idx = 0; idx < dateCheckboxes.length; idx++) {
                         dateCheckboxes[idx].value = newValue;
                     }
                 }
                 previewController.refresh();
-            });
+            };
         }
         for (var i = 0; i < dateCheckboxes.length; i++) {
             bindOptionClickToggleAll(dateCheckboxes[i]);
@@ -1454,6 +1455,144 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "日付を検索・置換", en: "Find and Replace Dates" }
+        },
+        panel: {
+            foundDates: { ja: "見つかった日付（%1）", en: "Dates Found (%1)" },
+            replacement: { ja: "置換後の日付", en: "New Date" },
+            check: { ja: "置換内容の確認", en: "Review" }
+        },
+        heading: {
+            outsideArtboards: { ja: "[アートボード外]", en: "[Outside Artboards]" },
+            artboard: { ja: "[アートボード %1：%2]", en: "[Artboard %1: %2]" }
+        },
+        message: {
+            noDatesFound: { ja: "日付は見つかりませんでした。", en: "No dates were found." }
+        },
+        dropdown: {
+            preserveFormat: { ja: "元の形式を保持", en: "Keep Original Format" },
+            weekdayNone: { ja: "なし", en: "None" }
+        },
+        checkbox: {
+            preserveNumberFormat: { ja: "数字の書式を保持する", en: "Keep Number Formatting" },
+            preview: { ja: "プレビュー", en: "Preview" },
+            linkedWeekdaySuffix: { ja: "  ＋曜日連動", en: "  + linked weekday" }
+        },
+        fieldLabel: {
+            format: { ja: "フォーマット", en: "Format" },
+            era: { ja: "和暦", en: "Japanese era" },
+            weekday: { ja: "置換後の曜日", en: "New weekday" },
+            daysDiff: { ja: "最初の日付との差", en: "Diff. from first date" }
+        },
+        unitLabel: {
+            year: { ja: "年", en: "Y" },
+            month: { ja: "月", en: "M" },
+            day: { ja: "日", en: "D" }
+        },
+        valueText: {
+            daysSuffix: { ja: "日", en: " days" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        tooltip: {
+            dateField: { ja: "↑↓キーで増減（Shift：±10）", en: "Up/Down arrow keys to change (Shift: ±10)" },
+            dateCheckbox: { ja: "Option＋クリックで全項目を一括切替", en: "Option-click to toggle all items" },
+            dateCheckboxLinked: {
+                ja: "Option＋クリックで全項目を一括切替\n同一グループ内の曜日フレーム %1 件も連動して更新されます\n曜日が「なし」の場合は連動フレームを更新しません",
+                en: "Option-click to toggle all items\n%1 weekday frame(s) in the same group are updated too\nThey are not updated when the weekday is set to None"
+            },
+            formatDropdown: {
+                ja: "「元の形式を保持」：各マッチの区切り文字・元号を維持\n曜日表記は右の曜日ドロップダウンの選択を反映\nそれ以外：すべてのマッチを選択した形式に統一",
+                en: "Keep Original Format: keeps each match's separators and era\nThe weekday follows the weekday menu on the right\nOther formats: rewrite every match in the chosen format"
+            },
+            weekdayDropdown: {
+                ja: "出力に付与する曜日表記。「元の形式を保持」選択時もこの選択を反映します。\n「なし」を選ぶと日付内の曜日表記を削除し、連動する曜日フレームは更新しません",
+                en: "Weekday style added to the output, also with Keep Original Format.\nNone removes the weekday from the date and leaves linked weekday frames unchanged"
+            },
+            preserveNumberFormat: {
+                ja: "ON：年・月・日それぞれの元の文字書式（フォント・サイズ・色など）を維持\nOFF：マッチ範囲全体を一括置換し、書式は先頭文字に揃える\n※「元の形式を保持」選択時のみ有効",
+                en: "On: keeps the original character formatting (font, size, color, etc.) of the year, month and day\nOff: replaces the whole match at once, using the formatting of its first character\nAvailable only with Keep Original Format"
+            },
+            preview: {
+                ja: "ON でドキュメントに即時反映。入力やチェックを変更すると自動更新。\nOFF・キャンセルで元に戻す",
+                en: "When on, changes are applied to the document right away and follow your edits.\nTurning it off or canceling reverts them"
+            }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noDates: { ja: "置換対象の日付がありません。", en: "There are no dates to replace." },
+            noneChecked: { ja: "置換する項目が選択されていません。", en: "No items are selected for replacement." },
+            lockedErrors: {
+                ja: "%1件はロック等の理由で処理できませんでした。",
+                en: "%1 item(s) could not be processed because they are locked or otherwise unavailable."
+            },
+            notNumber: { ja: "年・月・日は半角数字で入力してください。", en: "Enter the year, month and day as numbers." },
+            yearRange: { ja: "年は1以上で入力してください。", en: "Enter a year of 1 or later." },
+            monthRange: { ja: "月は1〜12で入力してください。", en: "Enter a month from 1 to 12." },
+            dayRange: { ja: "日は1〜31で入力してください。", en: "Enter a day from 1 to 31." },
+            notRealDate: { ja: "存在しない日付です。", en: "This date does not exist." },
+            reiwaFormatRange: {
+                ja: "令和形式は 2019/5/1 以降の日付で指定してください。",
+                en: "Reiwa formats need a date on or after 2019/5/1."
+            },
+            heiseiFormatRange: {
+                ja: "平成形式は 1989/1/8〜2019/4/30 の範囲で指定してください。",
+                en: "Heisei formats need a date from 1989/1/8 to 2019/4/30."
+            },
+            reiwaMatchRange: {
+                ja: "令和形式のマッチが含まれているため、2019/5/1 以降の日付を指定してください。",
+                en: "Some matches use a Reiwa format, so enter a date on or after 2019/5/1."
+            },
+            heiseiMatchRange: {
+                ja: "平成形式のマッチが含まれているため、1989/1/8〜2019/4/30 の日付を指定してください。",
+                en: "Some matches use a Heisei format, so enter a date from 1989/1/8 to 2019/4/30."
+            }
+        }
+    };
+
+    /**
+     * ラベル（ja/en のリーフ）を現在の言語に解決する
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @returns {string} 現在の言語の文字列（無ければ空文字）
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * ラベルの %1, %2 … を値で埋める
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @param {Array} values - 差し込む値（%1 が values[0]）
+     * @returns {string} 値を埋めた文字列
+     */
+    function fillLabel(labelSet, values) {
+        var filledText = getLabel(labelSet);
+        for (var i = 0; i < values.length; i++) {
+            filledText = filledText.split("%" + (i + 1)).join(String(values[i]));
+        }
+        return filledText;
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -1463,7 +1602,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
@@ -1481,7 +1620,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (foundMatches.length === 0) {
-            alert("置換対象の日付がありません。");
+            alert(getLabel(LABELS.alert.noDates));
             return;
         }
 
@@ -1491,7 +1630,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var replaceResult = performReplacement(foundMatches, textFrames, readReplaceOptions(dialogControls));
 
         if (replaceResult.selectedCount === 0) {
-            alert("置換する項目が選択されていません。");
+            alert(getLabel(LABELS.alert.noneChecked));
             return;
         }
 

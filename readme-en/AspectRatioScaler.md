@@ -1,4 +1,4 @@
-# Adjust by Aspect Ratio
+# Resize to Aspect Ratio
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AspectRatioScaler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx)
 
@@ -8,35 +8,47 @@
 
 ---
 
-### Readme (GitHub)：
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
+Resizes the selected objects to a chosen aspect ratio (16:9, 1:1, A4 or custom). You can also set the length of the fixed side and the reference point. With nothing selected, it draws a rectangle of that ratio at the center of the artboard.
 
+<img alt="Resize to Aspect Ratio dialog" src="../png/ss-478-1152-144-20260923-150908.png" width="40%" />
 
-<img alt="Adjust by Aspect Ratio dialog" src="../png/ss-478-1152-144-20260923-150908.png" width="40%" />
+### Key Features
 
-### Description：
+- Aspect ratio: 16:9, 1:1 (Square), A4 (1:1.414), or Custom (enter width:height)
+- Orientation: choose Portrait or Landscape with icons
+- Reference point: pick the point that stays put with the 9-axis widget (center by default)
+- Size: choose the fixed side (width or height) and enter its length; the other side shows the length from the ratio
+- Live preview on the artboard as you change settings
+- Numeric fields step by ±1 with the arrow keys, ±10 with Shift, ±0.1 with Option
 
-- Transforms selected objects based on aspect ratio
-- Supports a preview-enabled dialog box UI
+### Usage
 
-### Main Features：
+1. Select objects and run the script (it also runs with nothing selected)
+2. Choose the aspect ratio and orientation
+3. Optionally set the reference point, the fixed side and its length
+4. Click OK to apply, or Cancel to restore
 
-- Choose from 16:9, 1:1, A4, or custom ratio
-- Choose which side to keep (width or height)
-- "Make Pixel Perfect" option
-- "Add Artboard" option
-- Real-time preview and value adjustment via arrow keys
+### Options
 
-### Workflow：
+- **Make Pixel Perfect**: runs Make Pixel Perfect after applying (on by default)
+- **Add Artboard**: adds an artboard matching the result; the objects stay in place
 
-- Display dialog to select ratio, side to keep, orientation, and options
-- Simulate resizing in real time as preview
-- Apply final settings by pressing OK
+### Notes
 
-### Update History：
+- When the fixed-side field is blank, each object's current length is used
+- With several objects selected, the other side's length is not shown (it differs per object)
+- With nothing selected and a blank fixed-side field, the rectangle’s fixed side is 200 pt
+
+### Article (Japanese)
+
+https://note.com/dtp_tranist/n/n4a212e6eacf1
+
+### Update History
 
 - v1.0 (20250720): Initial release
 - v1.1 (20250721): Added artboard conversion & custom ratio
 - v1.2 (20250722): Improved dialog structure, localization, and key input
 - v1.5.2 (20260923): Fixed decimals being dropped while typing in numeric fields; added shift/option stepping; revised UI wording
+- v1.6.0 (20260927): Two-column dialog layout; "Make Pixel Perfect" now on by default; width and height fields shown together (only the fixed side is editable); added a reference point (9-axis) picker; orientation is now chosen with icons; shows an alert when no document is open; revised the dialog title, panel names and tooltips

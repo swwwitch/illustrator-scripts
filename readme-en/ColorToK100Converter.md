@@ -21,6 +21,10 @@
 - Converts swatch colours automatically
 - Japanese and English UI
 
+### Update History
+
+- v1.0.2 (2026-09-27): Added an alert when no document is open; alerts are now shown in English as well
+
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2

@@ -29,7 +29,8 @@
 ### Update History
 
 - v1.0.0 (20260513): Initial release
+- v1.0.1 (20260927): Alerts are now localized in English
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1

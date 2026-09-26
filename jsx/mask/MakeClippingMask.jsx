@@ -38,87 +38,73 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    (function main() {
-        var activeDoc = app.activeDocument;
-        var createdClippingMasks = [];
+    // =========================================
+    // 判定 / Checks
+    // =========================================
 
-        // クリッピングマスクを解除
-        for (var i = 0; i < app.selection.length; i++) {
-            var selectedObject = app.selection[i];
-            if (selectedObject.typename === "GroupItem" && selectedObject.clipped) {
-                releaseClippingMask(selectedObject);
-            }
-        }
-
-        // 配置画像 + パス
-        if (app.selection.length === 2) {
-            var imageItem = null;
-            var pathItem = null;
-
-            for (var i = 0; i < 2; i++) {
-                if (app.selection[i].typename === "PlacedItem" || app.selection[i].typename === "RasterItem") {
-                    imageItem = app.selection[i];
-                } else if (app.selection[i].typename === "PathItem") {
-                    pathItem = app.selection[i];
-                }
-            }
-
-            if (imageItem !== null && pathItem !== null) {
-                var customMask = createMaskWithPath(imageItem, pathItem);
-                if (customMask !== null) createdClippingMasks.push(customMask);
-            }
-
-        // パスのみ選択されているとき
-        } else if (isAllPathItems(app.selection) && app.selection.length >= 2) {
-            var topPath = getFrontmostPath(app.selection); // 修正ポイント
-            if (topPath !== null) {
-                var group = activeDoc.groupItems.add();
-                topPath.moveToBeginning(group);
-                topPath.clipping = true;
-
-                for (var j = 0; j < app.selection.length; j++) {
-                    var obj = app.selection[j];
-                    if (obj !== topPath) {
-                        obj.moveToEnd(group);
-                    }
-                }
-
-                group.clipped = true;
-                createdClippingMasks.push(topPath);
-            }
-
-        // 単体の画像など
-        } else {
-            for (var i = 0; i < app.selection.length; i++) {
-                var selectedObject = app.selection[i];
-                if (selectedObject.typename === "PlacedItem" || selectedObject.typename === "RasterItem") {
-                    var newMask = createClippingMask(selectedObject);
-                    createdClippingMasks.push(newMask);
-                }
-            }
-        }
-
-        updateSelection(createdClippingMasks);
-
-    })();
-
-    // クリッピングマスクを解除してパスを削除
-    function releaseClippingMask(groupItem) {
-        var clippingPath = null;
-        for (var i = 0; i < groupItem.pageItems.length; i++) {
-            if (groupItem.pageItems[i].clipping) {
-                clippingPath = groupItem.pageItems[i];
-                break;
-            }
-        }
-        if (clippingPath !== null) {
-            groupItem.clipped = false;
-            clippingPath.remove();
-        }
-        ungroupGroupItem(groupItem);
+    /**
+     * 画像（配置画像／埋め込み画像）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 画像なら true
+     */
+    function isImageItem(item) {
+        return item.typename === "PlacedItem" || item.typename === "RasterItem";
     }
 
-    // 画像に矩形マスクを作成
+    /**
+     * 配列の要素がすべてパスか
+     * @param {PageItem[]} items - 判定する配列
+     * @returns {boolean} すべて PathItem なら true
+     */
+    function isAllPathItems(items) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].typename !== "PathItem") return false;
+        }
+        return true;
+    }
+
+    /**
+     * 最前面のパス（zOrderPosition が最大）を返す
+     * @param {PageItem[]} items - 候補
+     * @returns {PathItem|null} 最前面のパス。無ければ null
+     */
+    function getFrontmostPath(items) {
+        var frontmostPath = null;
+        var highestZ = -1;
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (item.typename === "PathItem" && item.zOrderPosition > highestZ) {
+                highestZ = item.zOrderPosition;
+                frontmostPath = item;
+            }
+        }
+        return frontmostPath;
+    }
+
+    // =========================================
+    // マスクの作成・解除 / Make and release masks
+    // =========================================
+
+    /**
+     * レイヤーにグループを作り、中身とマスクのパスを入れてクリップする（パスが最前面）
+     * @param {Layer} targetLayer - グループを作るレイヤー
+     * @param {PathItem} maskPath - マスクになるパス
+     * @param {PageItem} contentItem - マスクされるアイテム
+     * @returns {GroupItem} クリップグループ
+     */
+    function buildClipGroup(targetLayer, maskPath, contentItem) {
+        var clipGroup = targetLayer.groupItems.add();
+        contentItem.moveToBeginning(clipGroup);
+        maskPath.moveToBeginning(clipGroup);
+        clipGroup.clipped = true;
+        return clipGroup;
+    }
+
+    /**
+     * 画像と同じ大きさの長方形でマスクする（ロック・非表示・テンプレートのレイヤーは一時的に解除）
+     * @param {PlacedItem|RasterItem} imageItem - 対象の画像
+     * @returns {PathItem} マスクの長方形
+     */
     function createClippingMask(imageItem) {
         var targetLayer = imageItem.layer;
         var wasLocked = targetLayer.locked;
@@ -137,11 +123,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         );
         clippingRect.stroked = false;
         clippingRect.filled = false;
-
-        var clippingGroup = targetLayer.groupItems.add();
-        imageItem.moveToBeginning(clippingGroup);
-        clippingRect.moveToBeginning(clippingGroup);
-        clippingGroup.clipped = true;
+        buildClipGroup(targetLayer, clippingRect, imageItem);
 
         if (wasLocked) targetLayer.locked = true;
         if (!wasVisible) targetLayer.visible = false;
@@ -150,63 +132,145 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return clippingRect;
     }
 
-    // パスでマスクを作成
+    /**
+     * 選択したパスで画像をマスクする（パスは画像のレイヤーへ移す）
+     * @param {PlacedItem|RasterItem} imageItem - 対象の画像
+     * @param {PathItem} pathItem - マスクになるパス
+     * @returns {PathItem} マスクのパス
+     */
     function createMaskWithPath(imageItem, pathItem) {
         var targetLayer = imageItem.layer;
         if (pathItem.layer != targetLayer) {
             pathItem.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
         }
-
-        var clippingGroup = targetLayer.groupItems.add();
-        imageItem.moveToBeginning(clippingGroup);
-        pathItem.moveToBeginning(clippingGroup);
-        clippingGroup.clipped = true;
-
+        buildClipGroup(targetLayer, pathItem, imageItem);
         return pathItem;
     }
 
-    // グループ解除
+    /**
+     * 選択中のパスのうち最前面のものをマスクにして、ほかのパスをクリップする
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {PathItem|null} マスクのパス。無ければ null
+     */
+    function clipPathsWithFrontmost(doc) {
+        var frontmostPath = getFrontmostPath(doc.selection);
+        if (frontmostPath === null) return null;
+
+        var clipGroup = doc.groupItems.add();
+        frontmostPath.moveToBeginning(clipGroup);
+        frontmostPath.clipping = true;
+
+        for (var i = 0; i < doc.selection.length; i++) {
+            var pathItem = doc.selection[i];
+            if (pathItem !== frontmostPath) {
+                pathItem.moveToEnd(clipGroup);
+            }
+        }
+
+        clipGroup.clipped = true;
+        return frontmostPath;
+    }
+
+    /**
+     * グループを解除する（中身を親へ出してグループを削除）
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {void}
+     */
     function ungroupGroupItem(groupItem) {
-        var parent = groupItem.parent;
+        var parentContainer = groupItem.parent;
         while (groupItem.pageItems.length > 0) {
-            groupItem.pageItems[0].moveToBeginning(parent);
+            groupItem.pageItems[0].moveToBeginning(parentContainer);
         }
         groupItem.remove();
     }
 
-    // 選択更新
-    function updateSelection(clippingMasks) {
-        var activeDoc = app.activeDocument;
-        activeDoc.selection = null;
+    /**
+     * クリッピングマスクを解除し、マスクのパスを削除してグループを解く
+     * @param {GroupItem} groupItem - クリップグループ
+     * @returns {void}
+     */
+    function releaseClippingMask(groupItem) {
+        var clippingPath = null;
+        for (var i = 0; i < groupItem.pageItems.length; i++) {
+            if (groupItem.pageItems[i].clipping) {
+                clippingPath = groupItem.pageItems[i];
+                break;
+            }
+        }
+        if (clippingPath !== null) {
+            groupItem.clipped = false;
+            clippingPath.remove();
+        }
+        ungroupGroupItem(groupItem);
+    }
+
+    /**
+     * 作成したマスクのクリップグループだけを選択する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem[]} clippingMasks - マスクのパス
+     * @returns {void}
+     */
+    function selectClipGroups(doc, clippingMasks) {
+        doc.selection = null;
         for (var i = 0; i < clippingMasks.length; i++) {
             clippingMasks[i].parent.selected = true;
         }
     }
 
-    // すべてパスか確認
-    function isAllPathItems(selectionArray) {
-        for (var i = 0; i < selectionArray.length; i++) {
-            if (selectionArray[i].typename !== "PathItem") {
-                return false;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択に応じてクリッピングマスクを解除・作成する
+     * （処理中に選択が変わるため、選択は毎回 doc.selection から読み直す）
+     * @returns {void}
+     */
+    function main() {
+        var doc = app.activeDocument;
+        var createdMasks = [];
+        var i;
+
+        /* 選択中のクリップグループを解除 / Release selected clipping groups */
+        for (i = 0; i < doc.selection.length; i++) {
+            var selectedObject = doc.selection[i];
+            if (selectedObject.typename === "GroupItem" && selectedObject.clipped) {
+                releaseClippingMask(selectedObject);
             }
         }
-        return true;
-    }
 
-    // 最前面のパス（zOrderPosition が最大）を取得
-    function getFrontmostPath(pathArray) {
-        var topPath = null;
-        var highestZ = -1;
+        if (doc.selection.length === 2) {
+            /* 画像＋パス：パスでマスク / Image + path: mask with the path */
+            var imageItem = null;
+            var pathItem = null;
+            for (i = 0; i < 2; i++) {
+                if (isImageItem(doc.selection[i])) {
+                    imageItem = doc.selection[i];
+                } else if (doc.selection[i].typename === "PathItem") {
+                    pathItem = doc.selection[i];
+                }
+            }
+            if (imageItem !== null && pathItem !== null) {
+                createdMasks.push(createMaskWithPath(imageItem, pathItem));
+            }
 
-        for (var i = 0; i < pathArray.length; i++) {
-            var item = pathArray[i];
-            if (item.typename === "PathItem" && item.zOrderPosition > highestZ) {
-                highestZ = item.zOrderPosition;
-                topPath = item;
+        } else if (isAllPathItems(doc.selection) && doc.selection.length >= 2) {
+            /* パスのみ：最前面のパスでマスク / Paths only: mask with the frontmost path */
+            var frontmostPath = clipPathsWithFrontmost(doc);
+            if (frontmostPath !== null) createdMasks.push(frontmostPath);
+
+        } else {
+            /* 画像単体：画像と同じ大きさの長方形でマスク / Single images: mask with a same-size rectangle */
+            for (i = 0; i < doc.selection.length; i++) {
+                if (isImageItem(doc.selection[i])) {
+                    createdMasks.push(createClippingMask(doc.selection[i]));
+                }
             }
         }
 
-        return topPath;
+        selectClipGroups(doc, createdMasks);
     }
+
+    main();
 
 })();

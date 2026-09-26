@@ -20,7 +20,7 @@ Splits the selected text frame into one text frame per character, preserving the
 ### Notes
 
 - The split is always per character; there is no word or line mode.
-- Use TextBreakSplitMergePalette.jsx to split by line or paragraph.
+- Use TextProcessingPalette.jsx to split by line or paragraph.
 
 ### Update History
 

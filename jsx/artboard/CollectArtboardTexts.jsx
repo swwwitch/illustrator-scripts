@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置します。
+全アートボード上にあるテキストの内容を集め、最後のアートボードの右側に新しいテキストフレームとして配置します（既定では1つにまとめ、設定で1つずつ縦に並べることもできます）。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectArtboardTexts.md
 
 ### Overview
 
-Collects the text frames from every artboard and places them as new text frames, stacked vertically to the right of the last artboard.
+Collects the contents of the text frames on every artboard and places them as new text to the right of the last artboard (merged into one frame by default, or stacked one frame per text via a setting).
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectArtboardTexts.md
@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CollectArtboardTexts";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectArtboardTexts.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectArtboardTexts.md"; /* README (English) */
@@ -36,10 +36,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
     /*
      * 配置スタイル / Placement style
-     * true  : テキスト 1 つに対して新規フレームを 1 つ作り、縦に並べる（既定）/ One frame per source text, stacked vertically (default)
-     * false : 全テキストを 1 つのテキストフレームに改行で結合 / Merge all texts into a single frame with newlines
+     * true  : テキスト 1 つに対して新規フレームを 1 つ作り、縦に並べる / One frame per source text, stacked vertically
+     * false : 全テキストを 1 つのテキストフレームに改行で結合（既定）/ Merge all texts into a single frame with newlines (default)
      */
     var SEPARATE_FRAMES = false;
 
@@ -56,22 +60,64 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ZOOM_MAX = 64;
 
     // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            layerUnavailable: {
+                ja: "出力先（アクティブレイヤー）がロックまたは非表示のため作成できません。",
+                en: "Cannot create the text: the active layer is locked or hidden."
+            },
+            noTexts: { ja: "対象となるテキストが見つかりませんでした。", en: "No text was found on the artboards." }
+        }
+    };
+
+    /**
+     * ラベルを取得する
+     * @param {string} labelPath - "alert.noDocument" のようなドット区切りのキー
+     * @returns {string} 現在のUI言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    // =========================================
     // ユーティリティ関数 / Utility Functions
     // =========================================
 
-    /*
-     * 2つの矩形（bounds）が重なっているかを判定する
-     * Return true if two rectangles (bounds) overlap.
-     * bounds: [left, top, right, bottom] — Illustrator の Y 座標は上が大きい / Y increases upward in Illustrator
+    /**
+     * 2つの矩形が重なっているか判定する（Illustrator の Y 座標は上が大きい）
+     * @param {number[]} boundsA - 矩形 [left, top, right, bottom]
+     * @param {number[]} boundsB - 矩形 [left, top, right, bottom]
+     * @returns {boolean} 重なっていれば true
      */
     function boundsIntersect(boundsA, boundsB) {
         return !(boundsA[2] < boundsB[0] || boundsA[0] > boundsB[2] ||
             boundsA[1] < boundsB[3] || boundsA[3] > boundsB[1]);
     }
 
-    /*
-     * テキストフレームと、その全ての親コンテナ（グループ／レイヤー）が可視かつ未ロックかを判定
-     * Return true if the text frame and all its ancestor containers (groups/layers) are visible and unlocked.
+    /**
+     * テキストフレームと、その全ての親コンテナ（グループ／レイヤー）が可視かつ未ロックか判定する
+     * @param {TextFrame} textFrame - 判定するテキストフレーム
+     * @returns {boolean} 可視かつ未ロックなら true
      */
     function isFrameAccessible(textFrame) {
         if (textFrame.hidden || textFrame.locked) return false;
@@ -88,41 +134,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return true;
     }
 
-    /*
+    /**
      * 指定アートボード範囲と重なる可視テキストフレームの文字列を集める
-     * Collect contents of visible/unlocked text frames overlapping the given artboard bounds.
+     * @param {TextFrames} allTextFrames - ドキュメントの全テキストフレーム
+     * @param {number[]} artboardBounds - アートボードの矩形 [left, top, right, bottom]
+     * @param {string[]} result - 文字列を追加する配列
+     * @returns {void}
      */
-    function collectTextsInArtboard(allTextFrames, artboardBounds) {
-        var collected = [];
+    function collectTextsInArtboard(allTextFrames, artboardBounds, result) {
         for (var j = 0; j < allTextFrames.length; j++) {
             var textFrame = allTextFrames[j];
             if (!isFrameAccessible(textFrame)) continue;
             if (textFrame.contents === "") continue;
             if (!boundsIntersect(textFrame.geometricBounds, artboardBounds)) continue;
-            collected.push(textFrame.contents);
+            result.push(textFrame.contents);
         }
-        return collected;
     }
 
-    /*
-     * 複数の bounds を内包する最小の包含 bounds を返す
-     * Compute the union (enclosing) bounds from a list of bounds.
+    /**
+     * 複数の矩形を内包する最小の矩形を返す
+     * @param {Array<number[]>} boundsList - 矩形の配列
+     * @returns {number[]} 包含矩形 [left, top, right, bottom]
      */
     function unionOfBounds(boundsList) {
-        var u = [boundsList[0][0], boundsList[0][1], boundsList[0][2], boundsList[0][3]];
+        var unionBounds = [boundsList[0][0], boundsList[0][1], boundsList[0][2], boundsList[0][3]];
         for (var k = 1; k < boundsList.length; k++) {
-            var b = boundsList[k];
-            if (b[0] < u[0]) u[0] = b[0]; /* left:   min */
-            if (b[1] > u[1]) u[1] = b[1]; /* top:    max (Y up) */
-            if (b[2] > u[2]) u[2] = b[2]; /* right:  max */
-            if (b[3] < u[3]) u[3] = b[3]; /* bottom: min */
+            var bounds = boundsList[k];
+            if (bounds[0] < unionBounds[0]) unionBounds[0] = bounds[0]; /* left:   min */
+            if (bounds[1] > unionBounds[1]) unionBounds[1] = bounds[1]; /* top:    max (Y up) */
+            if (bounds[2] > unionBounds[2]) unionBounds[2] = bounds[2]; /* right:  max */
+            if (bounds[3] < unionBounds[3]) unionBounds[3] = bounds[3]; /* bottom: min */
         }
-        return u;
+        return unionBounds;
     }
 
-    /*
-     * 指定 bounds が画面に収まるようビューをズーム＆センタリングする
-     * Zoom and center the active view so the given bounds fit on screen.
+    /**
+     * 指定の矩形が画面に収まるようビューをズーム＆センタリングする
+     * @param {number[]} bounds - 矩形 [left, top, right, bottom]
+     * @returns {void}
      */
     function zoomToBounds(bounds) {
         var view = app.activeDocument.activeView;
@@ -143,44 +192,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // メイン処理 / Main
     // =========================================
 
-    /*
-     * エントリポイント / Entry point
-     * 各アートボード上のテキストを収集し、最後のアートボードの右側に縦並びで配置してズーム表示する
-     * Collect texts from each artboard, place them stacked vertically to the right of the last artboard, and zoom to fit.
+    /**
+     * テキストを新しいフレームとして配置する
+     * @param {Document} activeDoc - 対象ドキュメント
+     * @param {string[]} flatTexts - 配置する文字列
+     * @param {number[]} lastArtboardBounds - 最後のアートボードの矩形
+     * @returns {TextFrame[]} 作成したテキストフレーム
      */
-    function main() {
-        if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
-            return;
-        }
-
-        var activeDoc = app.activeDocument;
-
-        /* 出力先レイヤーがロック・非表示なら処理不可 / Abort if the active layer is locked or hidden */
-        var targetLayer = activeDoc.activeLayer;
-        if (targetLayer.locked || !targetLayer.visible) {
-            alert("出力先（アクティブレイヤー）がロックまたは非表示のため作成できません。");
-            return;
-        }
-
-        var artboardList = activeDoc.artboards;
-        var allTextFrames = activeDoc.textFrames;
-
-        /* アートボード順を保ったままテキストを平坦化 / Flatten texts while keeping artboard order */
-        var flatTexts = [];
-        for (var i = 0; i < artboardList.length; i++) {
-            var collected = collectTextsInArtboard(allTextFrames, artboardList[i].artboardRect);
-            for (var k = 0; k < collected.length; k++) {
-                flatTexts.push(collected[k]);
-            }
-        }
-
-        if (flatTexts.length === 0) {
-            alert("対象となるテキストが見つかりませんでした。");
-            return;
-        }
-
-        var lastArtboardBounds = artboardList[artboardList.length - 1].artboardRect;
+    function placeTexts(activeDoc, flatTexts, lastArtboardBounds) {
         var outputLeft = lastArtboardBounds[2] + OUTPUT_GAP_PT;
         var createdFrames = [];
 
@@ -202,6 +221,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             combinedFrame.position = [outputLeft, lastArtboardBounds[1]];
             createdFrames.push(combinedFrame);
         }
+        return createdFrames;
+    }
+
+    /**
+     * 各アートボード上のテキストを収集し、最後のアートボードの右側に配置してズーム表示する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var activeDoc = app.activeDocument;
+
+        /* 出力先レイヤーがロック・非表示なら処理不可 / Abort if the active layer is locked or hidden */
+        var targetLayer = activeDoc.activeLayer;
+        if (targetLayer.locked || !targetLayer.visible) {
+            alert(getLabel("alert.layerUnavailable"));
+            return;
+        }
+
+        var artboardList = activeDoc.artboards;
+        var allTextFrames = activeDoc.textFrames;
+
+        /* アートボード順を保ったままテキストを平坦化 / Flatten texts while keeping artboard order */
+        var flatTexts = [];
+        for (var i = 0; i < artboardList.length; i++) {
+            collectTextsInArtboard(allTextFrames, artboardList[i].artboardRect, flatTexts);
+        }
+
+        if (flatTexts.length === 0) {
+            alert(getLabel("alert.noTexts"));
+            return;
+        }
+
+        var lastArtboardBounds = artboardList[artboardList.length - 1].artboardRect;
+        var createdFrames = placeTexts(activeDoc, flatTexts, lastArtboardBounds);
 
         /* 書き出した全フレームを選択してズーム / Select created frames and zoom to fit */
         app.redraw();

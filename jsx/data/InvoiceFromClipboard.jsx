@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "InvoiceFromClipboard";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md"; /* README (English) */
@@ -41,6 +41,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
     /*
        クリップボードの見出しと、テンプレート内のタグの対応。
@@ -189,90 +193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     var MAX_FILE_NAME_SERIAL = 1000;             /* ファイル名に付ける連番の上限 / file name serial limit */
 
     // =========================================
-    // テンプレートの記憶 / Remembered template
-    // =========================================
-
-    /* Illustratorの環境設定に書くため、次回起動時も残る / Stored in Illustrator's preferences, so it survives a restart */
-    var PREF_KEY_TEMPLATE_PATH = "InvoiceFromClipboard.templatePath";
-
-    /* ファイル選択に渡す絞り込み。Windowsは文字列、macOSは判定関数を受け取る / Windows takes a string, macOS a filter function */
-    var TEMPLATE_FILE_FILTER = ($.os.indexOf("Windows") !== -1) ? "Illustrator:*.ai;*.ait" : function (fileToTest) {
-        return (fileToTest instanceof Folder) || /\.(ai|ait)$/i.test(fileToTest.name);
-    };
-
-    /**
-     * 記憶しているテンプレートのパスを読み出す
-     * @returns {string} 記憶しているパス（未設定なら空文字）
-     */
-    function loadSavedTemplatePath() {
-        var savedPath = app.preferences.getStringPreference(PREF_KEY_TEMPLATE_PATH);
-        return (savedPath != null) ? String(savedPath) : "";
-    }
-
-    /**
-     * テンプレートのパスを記憶する
-     * @param {string} templatePath - 記憶するパス
-     * @returns {void}
-     */
-    function saveTemplatePath(templatePath) {
-        app.preferences.setStringPreference(PREF_KEY_TEMPLATE_PATH, String(templatePath));
-    }
-
-    /**
-     * テンプレートのファイル名から書類名を決める
-     * 名前に含まれていた語をそのまま使い、どれも含まれていなければ先頭の語を返す
-     * @param {File} templateFile - 判定するテンプレート（未指定ならnull）
-     * @returns {string} 「領収書」「請求書」など
-     */
-    function resolveDocumentTypeName(templateFile) {
-        if (templateFile !== null) {
-            var templateName = decodeURI(templateFile.name);
-            for (var i = 0; i < DOCUMENT_TYPE_NAMES.length; i++) {
-                if (templateName.indexOf(DOCUMENT_TYPE_NAMES[i]) !== -1) return DOCUMENT_TYPE_NAMES[i];
-            }
-        }
-        return DOCUMENT_TYPE_NAMES[0];
-    }
-
-    /**
-     * 入力欄に出すラベルを決める（設定が無ければ見出しをそのまま使う）
-     * @param {string} headingText - クリップボードの見出し
-     * @returns {string} 表示するラベル
-     */
-    function fieldLabelFor(headingText) {
-        var overrideLabel = FIELD_LABEL_OVERRIDES[headingText];
-        /* Objectが元から持つプロパティを拾わないよう、文字列のときだけ差し替える / Only accept a string */
-        return (typeof overrideLabel === "string") ? overrideLabel : headingText;
-    }
-
-    /**
-     * `#書類名#` を、テンプレートから決めた書類名に置き換える
-     * @param {string} templateText - 置換前の文字列
-     * @param {string} documentTypeName - 差し込む書類名
-     * @returns {string} 置換後の文字列
-     */
-    function fillDocumentTypeToken(templateText, documentTypeName) {
-        /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
-        return String(templateText).split("#" + DOCUMENT_TYPE_TOKEN + "#").join(documentTypeName);
-    }
-
-    /**
-     * 使用するテンプレートを決める（記憶しているパスを優先し、無ければ初期パス）
-     * どちらも見つからなければnullを返し、ダイアログの［指定］で選ばせる
-     * @returns {File} テンプレートファイル（見つからなければnull）
-     */
-    function resolveTemplateFile() {
-        var candidatePaths = [loadSavedTemplatePath(), DEFAULT_TEMPLATE_PATH];
-        for (var i = 0; i < candidatePaths.length; i++) {
-            if (candidatePaths[i] === "") continue;
-            var candidateFile = new File(candidatePaths[i]);
-            if (candidateFile.exists) return candidateFile;
-        }
-        return null;
-    }
-
-    // =========================================
-    // UIレイアウトの共通設定 / Shared UI layout
+    // レイアウト / Layout
     // =========================================
 
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
@@ -281,7 +202,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var FIELD_ROW_SPACING = 6;               /* 入力行が続くパネルの間隔 / spacing for stacked field rows */
-    var BUTTON_BAR_TOP_MARGIN = 10;          /* ボタン領域の上マージン / space above the button row */
+    var BUTTON_ROW_TOP_MARGIN = 10;          /* ボタンエリアの上余白 / top margin of the button row */
     var PANEL_BUTTON_TOP_MARGIN = 5;         /* パネル内ボタン行の上マージン / space above a button row inside a panel */
 
     /* コントロールの寸法 / Control sizes */
@@ -375,94 +296,269 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     }
 
     // =========================================
-    // 表示文字列 / UI text
+    // テンプレートと書類名 / Template and document type
     // =========================================
 
-    /* ダイアログとメッセージの文言。`#…#` は実行時に値へ置き換える / Dialog and message text */
+    /* Illustratorの環境設定に書くため、次回起動時も残る / Stored in Illustrator's preferences, so it survives a restart */
+    var PREF_KEY_TEMPLATE_PATH = "InvoiceFromClipboard.templatePath";
+
+    /* ファイル選択に渡す絞り込み。Windowsは文字列、macOSは判定関数を受け取る / Windows takes a string, macOS a filter function */
+    var TEMPLATE_FILE_FILTER = ($.os.indexOf("Windows") !== -1) ? "Illustrator:*.ai;*.ait" : function (fileToTest) {
+        return (fileToTest instanceof Folder) || /\.(ai|ait)$/i.test(fileToTest.name);
+    };
+
+    /**
+     * 記憶しているテンプレートのパスを読み出す
+     * @returns {string} 記憶しているパス（未設定なら空文字）
+     */
+    function loadSavedTemplatePath() {
+        var savedPath = app.preferences.getStringPreference(PREF_KEY_TEMPLATE_PATH);
+        return (savedPath != null) ? String(savedPath) : "";
+    }
+
+    /**
+     * テンプレートのパスを記憶する
+     * @param {string} templatePath - 記憶するパス
+     * @returns {void}
+     */
+    function saveTemplatePath(templatePath) {
+        app.preferences.setStringPreference(PREF_KEY_TEMPLATE_PATH, String(templatePath));
+    }
+
+    /**
+     * テンプレートのファイル名から書類名を決める
+     * 名前に含まれていた語をそのまま使い、どれも含まれていなければ先頭の語を返す
+     * @param {File} templateFile - 判定するテンプレート（未指定ならnull）
+     * @returns {string} 「領収書」「請求書」など
+     */
+    function resolveDocumentTypeName(templateFile) {
+        if (templateFile !== null) {
+            var templateName = decodeURI(templateFile.name);
+            for (var i = 0; i < DOCUMENT_TYPE_NAMES.length; i++) {
+                if (templateName.indexOf(DOCUMENT_TYPE_NAMES[i]) !== -1) return DOCUMENT_TYPE_NAMES[i];
+            }
+        }
+        return DOCUMENT_TYPE_NAMES[0];
+    }
+
+    /**
+     * 入力欄に出すラベルを決める（設定が無ければ見出しをそのまま使う）
+     * @param {string} headingText - クリップボードの見出し
+     * @returns {string} 表示するラベル
+     */
+    function fieldLabelFor(headingText) {
+        var overrideLabel = FIELD_LABEL_OVERRIDES[headingText];
+        /* Objectが元から持つプロパティを拾わないよう、文字列のときだけ差し替える / Only accept a string */
+        return (typeof overrideLabel === "string") ? overrideLabel : headingText;
+    }
+
+    /**
+     * `#書類名#` を、テンプレートから決めた書類名に置き換える
+     * @param {string} templateText - 置換前の文字列
+     * @param {string} documentTypeName - 差し込む書類名
+     * @returns {string} 置換後の文字列
+     */
+    function fillDocumentTypeToken(templateText, documentTypeName) {
+        return replaceAllText(templateText, "#" + DOCUMENT_TYPE_TOKEN + "#", documentTypeName);
+    }
+
+    /**
+     * 使用するテンプレートを決める（記憶しているパスを優先し、無ければ初期パス）
+     * どちらも見つからなければnullを返し、ダイアログの［指定］で選ばせる
+     * @returns {File} テンプレートファイル（見つからなければnull）
+     */
+    function resolveTemplateFile() {
+        var candidatePaths = [loadSavedTemplatePath(), DEFAULT_TEMPLATE_PATH];
+        for (var i = 0; i < candidatePaths.length; i++) {
+            if (candidatePaths[i] === "") continue;
+            var candidateFile = new File(candidatePaths[i]);
+            if (candidateFile.exists) return candidateFile;
+        }
+        return null;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* ダイアログとメッセージの文言。`#…#` は実行時に値へ置き換える / Dialog and message text; `#…#` is filled in at run time */
     var LABELS = {
-        /* ダイアログ / Dialog */
         dialog: {
-            title: "#書類名#作成"
+            title: { ja: "#書類名#作成", en: "Create #書類名#" }
         },
-        /* パネル見出し / Panel titles */
         panel: {
-            template: "テンプレート",
-            parsedFields: "読み取り内容",
-            pdfOutput: "書き出し"
+            template: { ja: "テンプレート", en: "Template" },
+            parsedFields: { ja: "読み取り内容", en: "Clipboard Data" },
+            pdfOutput: { ja: "書き出し", en: "Export" }
         },
-        /* フィールド見出し（コロンまで含める）/ Field labels, colon included */
+        /* 項目名（コロンは labelText() で付ける）/ Field labels; labelText() adds the colon */
         fieldLabel: {
-            documentType: "タイトル：",
-            templateFolder: "パス：",
-            templateFileName: "ファイル：",
-            pdfFileName: "ファイル名：",
-            saveFolder: "保存先：",
-            nameConflict: "同名ファイル："
+            documentType: { ja: "タイトル", en: "Title" },
+            templateFolder: { ja: "パス", en: "Path" },
+            templateFileName: { ja: "ファイル", en: "File" },
+            pdfFileName: { ja: "ファイル名", en: "File name" },
+            saveFolder: { ja: "保存先", en: "Save to" },
+            nameConflict: { ja: "同名ファイル", en: "Existing file" }
         },
-        /* ラジオボタン / Radio buttons */
         radio: {
-            overwrite: "上書き",
-            addSerialNumber: "連番を付ける"
+            overwrite: { ja: "上書き", en: "Overwrite" },
+            addSerialNumber: { ja: "連番を付ける", en: "Add a number" }
         },
-        /* チェックボックス / Checkboxes */
         checkbox: {
-            fullPath: "フルパス",
-            shortenDropbox: "Dropboxパスを短縮"
+            fullPath: { ja: "フルパス", en: "Full path" },
+            shortenDropbox: { ja: "Dropboxパスを短縮", en: "Shorten Dropbox paths" }
         },
         /* 単位・計算結果の表示 / Units and derived values */
         unit: {
-            yen: "円"
+            yen: { ja: "円", en: "yen" }
         },
         breakdown: {
-            tax: "税抜 #excluding# 円 ／ 消費税（#rate#％） #tax# 円"
+            tax: {
+                ja: "税抜 #excluding# 円 ／ 消費税（#rate#％） #tax# 円",
+                en: "Excl. tax #excluding# yen / Tax (#rate#%) #tax# yen"
+            }
         },
-        /* ボタン / Buttons */
         button: {
-            pickTemplate: "指定",
-            changeTemplate: "変更",
-            reloadClipboard: "更新",
-            today: "今日の日付",
-            cancel: "キャンセル",
-            run: "PDFを作成"
+            pickTemplate: { ja: "指定", en: "Choose" },
+            changeTemplate: { ja: "変更", en: "Change" },
+            reloadClipboard: { ja: "更新", en: "Reload" },
+            today: { ja: "今日の日付", en: "Today" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            run: { ja: "PDFを作成", en: "Create PDF" }
         },
         /* ファイル選択の見出し / File picker prompt */
         prompt: {
-            pickTemplate: "#書類名#テンプレートを選択"
+            pickTemplate: { ja: "#書類名#テンプレートを選択", en: "Choose the #書類名# template" }
         },
-        /* ヘルプチップ / Tooltips */
         tooltip: {
-            templatePath: "流し込み先のテンプレートです。\n［指定］で選び直すと、次回以降もそのファイルが使われます。",
-            fullPath: "パスを省略せずに表示します。\nDropboxパスの短縮中は使えません。",
-            shortenDropbox: "Dropboxフォルダーまでのパスを省いて表示します。\nテンプレートと保存先の両方に効きます。",
-            amount: "税込金額を入力します。税抜と消費税はここから計算されます。",
-            today: "日付欄に実行日を入れます。",
-            application: "テンプレートの「但」に入れる文面の書き方を選びます。",
-            nameConflict: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 … と後ろに足していきます。",
-            documentType: "書類の種類です。テンプレートの<タイトル>、PDFのファイル名、メールの文面に入ります。\nテンプレートのファイル名から初期選択を決めています。",
-            reloadClipboard: "クリップボードを読み直して、各項目を入れ直します。\nダイアログを開いたまま別の内容をコピーして押してください。",
-            run: "テンプレートの複製にデータを流し込み、PDFを書き出します。\nテンプレート自体は変更されません。"
+            templatePath: {
+                ja: "流し込み先のテンプレートです。\n［指定］で選び直すと、次回以降もそのファイルが使われます。",
+                en: "The template the data is merged into.\nA file picked with Choose is used from then on."
+            },
+            fullPath: {
+                ja: "パスを省略せずに表示します。\nDropboxパスの短縮中は使えません。",
+                en: "Show paths without abbreviation.\nUnavailable while Dropbox paths are shortened."
+            },
+            shortenDropbox: {
+                ja: "Dropboxフォルダーまでのパスを省いて表示します。\nテンプレートと保存先の両方に効きます。",
+                en: "Hide the path up to the Dropbox folder.\nApplies to both the template and the save location."
+            },
+            amount: {
+                ja: "税込金額を入力します。税抜と消費税はここから計算されます。",
+                en: "Enter the amount including tax. The pre-tax amount and the tax are calculated from it."
+            },
+            today: { ja: "日付欄に実行日を入れます。", en: "Fill the date field with today's date." },
+            application: {
+                ja: "テンプレートの「但」に入れる文面の書き方を選びます。",
+                en: "Choose how the description line (但) in the template is worded."
+            },
+            nameConflict: {
+                ja: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 … と後ろに足していきます。",
+                en: "What to do when a PDF with the same name already exists.\nAdd a number appends -2, -3, and so on."
+            },
+            documentType: {
+                ja: "書類の種類です。テンプレートの<タイトル>、PDFのファイル名、メールの文面に入ります。\nテンプレートのファイル名から初期選択を決めています。",
+                en: "The document type. It goes into the template's <タイトル>, the PDF file name and the mail text.\nThe initial choice comes from the template's file name."
+            },
+            reloadClipboard: {
+                ja: "クリップボードを読み直して、各項目を入れ直します。\nダイアログを開いたまま別の内容をコピーして押してください。",
+                en: "Read the clipboard again and refill every field.\nCopy other data while the dialog is open, then click this."
+            },
+            pdfFileName: {
+                ja: "書類名・発行元・日付・宛先から作るファイル名です。\n宛先・日付・書類名を変えると付け直されます。",
+                en: "Built from the document type, issuer, date and recipient.\nIt updates as you change the recipient, date or document type."
+            },
+            run: {
+                ja: "テンプレートの複製にデータを流し込み、PDFを書き出します。\nテンプレート自体は変更されません。",
+                en: "Merge the data into a copy of the template and export a PDF.\nThe template itself is not changed."
+            }
         },
-        /* 警告・完了メッセージ / Alerts */
         alert: {
-            noTemplate: "テンプレートが指定されていません。\n［指定］でテンプレートファイルを選んでください。",
-            emptyApplication: "適用が空白です。\n適用の内容を入力してください。",
-            templateMissing: "記憶していたテンプレートが見つかりません。\n［指定］で選び直してください。\n\n#path#",
-            emptyClipboard: "クリップボードが空か、Illustratorに貼り付けられない内容です。",
-            noTextInClipboard: "クリップボードにテキストが見つかりませんでした。",
-            clipboardError: "クリップボードからの取得に失敗しました：\n",
-            noFields: "クリップボードから項目を読み取れませんでした。\n次の見出しのいずれかを含むテキストをコピーしてください。\n\n#headings#",
-            workCopyFailed: "作業用の複製ファイルを作成できませんでした。\n\n#detail#",
-            exportFailed: "PDFの書き出しに失敗しました。\n\n#detail#",
-            done: "PDFを作成しました。\n\n#filename#",
-            mailCopied: "返信メールの文面をクリップボードにコピーしました。",
-            missingTags: "テンプレートに次のタグが見つかりませんでした。\n#tags#"
+            noTemplate: {
+                ja: "テンプレートが指定されていません。\n［指定］でテンプレートファイルを選んでください。",
+                en: "No template is set.\nChoose a template file with Choose."
+            },
+            emptyApplication: {
+                ja: "適用が空白です。\n適用の内容を入力してください。",
+                en: "The description (適用) is empty.\nEnter the description."
+            },
+            templateMissing: {
+                ja: "記憶していたテンプレートが見つかりません。\n［指定］で選び直してください。\n\n#path#",
+                en: "The remembered template was not found.\nChoose it again with Choose.\n\n#path#"
+            },
+            emptyClipboard: {
+                ja: "クリップボードが空か、Illustratorに貼り付けられない内容です。",
+                en: "The clipboard is empty or holds something Illustrator cannot paste."
+            },
+            noTextInClipboard: {
+                ja: "クリップボードにテキストが見つかりませんでした。",
+                en: "No text was found on the clipboard."
+            },
+            clipboardError: {
+                ja: "クリップボードからの取得に失敗しました：\n",
+                en: "Could not read the clipboard:\n"
+            },
+            noFields: {
+                ja: "クリップボードから項目を読み取れませんでした。\n次の見出しのいずれかを含むテキストをコピーしてください。\n\n#headings#",
+                en: "No fields could be read from the clipboard.\nCopy text that contains one of these headings.\n\n#headings#"
+            },
+            workCopyFailed: {
+                ja: "作業用の複製ファイルを作成できませんでした。\n\n#detail#",
+                en: "Could not create the working copy.\n\n#detail#"
+            },
+            exportFailed: {
+                ja: "PDFの書き出しに失敗しました。\n\n#detail#",
+                en: "The PDF export failed.\n\n#detail#"
+            },
+            done: {
+                ja: "PDFを作成しました。\n\n#filename#",
+                en: "The PDF was created.\n\n#filename#"
+            },
+            mailCopied: {
+                ja: "返信メールの文面をクリップボードにコピーしました。",
+                en: "The reply mail text was copied to the clipboard."
+            },
+            missingTags: {
+                ja: "テンプレートに次のタグが見つかりませんでした。\n#tags#",
+                en: "These tags were not found in the template:\n#tags#"
+            }
         },
-        /* 既定の名前 / Fallback names */
         fallbackName: {
-            recipient: "宛先なし",
-            noTemplate: "（未指定）"
+            recipient: { ja: "宛先なし", en: "NoRecipient" },
+            noTemplate: { ja: "（未指定）", en: "(none)" }
         }
     };
+
+    /**
+     * ローカライズ文字列を取得する（キー漏れ時は英語へフォールバック）
+     * @param {Object} labelSet - { ja, en } のラベル
+     * @returns {string} 表示言語の文字列
+     */
+    function getLabel(labelSet) {
+        if (!labelSet) return "";
+        if (labelSet[uiLang] != null) return labelSet[uiLang];
+        return (labelSet.en != null) ? labelSet.en : "";
+    }
+
+    /**
+     * 文字列の後ろにコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} itemName - 項目名
+     * @returns {string} コロン付きの項目名
+     */
+    function appendColon(itemName) {
+        return itemName + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelSet - ラベル
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelSet) {
+        return appendColon(getLabel(labelSet));
+    }
 
     // =========================================
     // 文字列と数値の整形 / Text and number helpers
@@ -477,6 +573,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         sourceText = String(sourceText);
         if (sourceText.length && sourceText.charCodeAt(0) === 65279) sourceText = sourceText.substring(1);
         return sourceText.replace(/^[\s　]+|[\s　]+$/g, "");
+    }
+
+    /**
+     * 文字列中の検索文字列を、すべて置き換える（正規表現の特殊文字を気にせず使える）
+     * @param {string} sourceText - 対象の文字列
+     * @param {string} searchText - 探す文字列
+     * @param {string} replacementText - 置き換える文字列
+     * @returns {string} 置換後の文字列
+     */
+    function replaceAllText(sourceText, searchText, replacementText) {
+        return String(sourceText).split(searchText).join(replacementText);
     }
 
     /**
@@ -795,408 +902,844 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     }
 
     // =========================================
-    // メイン処理 / Main
+    // クリップボードの読み取り / Clipboard access
     // =========================================
 
-    (function () {
+    /**
+     * ドキュメント内のオブジェクトをすべて削除する
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {void}
+     */
+    function removeAllPageItems(targetDocument) {
+        for (var i = targetDocument.pageItems.length - 1; i >= 0; i--) {
+            targetDocument.pageItems[i].remove();
+        }
+    }
 
-        /* 記憶しているテンプレート。ダイアログの［指定］／［変更］で差し替わる / Swapped by the Choose / Change button */
-        var templateFile = resolveTemplateFile();
+    /**
+     * ドキュメント内のテキストフレームの内容を、改行でつないで取り出す
+     * textFrames はグループの中まで含むので、貼り付いた形にかかわらず拾える
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {string} つないだ文字列（テキストが無ければ空文字）
+     */
+    function joinTextFrameContents(targetDocument) {
+        var contentsList = [];
+        for (var i = 0; i < targetDocument.textFrames.length; i++) {
+            contentsList.push(String(targetDocument.textFrames[i].contents));
+        }
+        return contentsList.join("\n");
+    }
 
-        /* 記憶はあるのにファイルが無い場合は、選び直しが必要だと知らせる / Tell the user when the remembered file is gone */
-        var savedTemplatePath = loadSavedTemplatePath();
-        if (templateFile === null && savedTemplatePath !== "") {
-            alert(LABELS.alert.templateMissing.replace("#path#", savedTemplatePath));
+    /**
+     * 使い捨てのドキュメントへ貼り付けて、クリップボードのテキストを読み取る
+     * Illustratorには文字列を直接読み出すAPIが無いためペーストを使うが、開いているドキュメントを
+     * 汚さないよう、読み取り用の新規ドキュメントを立ててすぐ閉じる。
+     * また、Illustratorは自分がコピーした内容を内部に保持していて、他アプリがクリップボードを
+     * 書き換えたあとの1回目のペーストでは古い内容が貼り付く。その1回目が内部の更新を促すため、
+     * 1回目の結果は消してから2回目を貼り付ける。
+     * 読めなかった理由は呼び出し元に返し、知らせるかどうかは呼び出し元に任せる
+     * @returns {{text: string, error: string}} 読み取った文字列と、読めなかったときのメッセージ
+     */
+    function readClipboardText() {
+        var scratchDocument = null;
+        var pastedItemCount = 0;
+        var clipboardText = "";
+        var pasteError = null;
+
+        try {
+            scratchDocument = app.documents.add();
+
+            /* 1回目は内部クリップボードを最新にするためだけのペースト / The first paste only refreshes the cached clipboard */
+            app.paste();
+            app.redraw();
+            removeAllPageItems(scratchDocument);
+
+            app.paste();
+            /* 貼り付け直後は反映が遅れることがあるため、描画を確定させてから読む / Flush the paste before reading */
+            app.redraw();
+            pastedItemCount = scratchDocument.pageItems.length;
+            clipboardText = joinTextFrameContents(scratchDocument);
+        } catch (e) {
+            pasteError = String(e);
+        } finally {
+            /* 成否にかかわらず、読み取り用のドキュメントは残さない / Never leave the scratch document behind */
+            if (scratchDocument) scratchDocument.close(SaveOptions.DONOTSAVECHANGES);
         }
 
-        // =========================================
-        // クリップボードの読み取り / Clipboard access
-        // =========================================
+        if (pasteError !== null) return { text: null, error: getLabel(LABELS.alert.clipboardError) + pasteError };
+        /* ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する / Tell the two failures apart */
+        if (pastedItemCount === 0) return { text: null, error: getLabel(LABELS.alert.emptyClipboard) };
+        if (clipboardText === "") return { text: null, error: getLabel(LABELS.alert.noTextInClipboard) };
+        return { text: clipboardText, error: null };
+    }
 
-        /**
-         * ドキュメント内のオブジェクトをすべて削除する
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @returns {void}
-         */
-        function removeAllPageItems(targetDocument) {
-            for (var i = targetDocument.pageItems.length - 1; i >= 0; i--) {
-                targetDocument.pageItems[i].remove();
+    // =========================================
+    // クリップボードの解析 / Clipboard parsing
+    // =========================================
+
+    /**
+     * 配列に、まだ入っていない見出しだけを追加する
+     * @param {string[]} headingList - 追加先の配列
+     * @param {string[]} headingsToAdd - 追加する見出し
+     * @returns {void}
+     */
+    function appendNewHeadings(headingList, headingsToAdd) {
+        for (var i = 0; i < headingsToAdd.length; i++) {
+            var isAlreadyListed = false;
+            for (var j = 0; j < headingList.length; j++) {
+                if (headingList[j] === headingsToAdd[i]) { isAlreadyListed = true; break; }
             }
+            if (!isAlreadyListed) headingList.push(headingsToAdd[i]);
         }
+    }
 
-        /**
-         * ドキュメント内のテキストフレームの内容を、改行でつないで取り出す
-         * textFrames はグループの中まで含むので、貼り付いた形にかかわらず拾える
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @returns {string} つないだ文字列（テキストが無ければ空文字）
-         */
-        function joinTextFrameContents(targetDocument) {
-            var contentsList = [];
-            for (var i = 0; i < targetDocument.textFrames.length; i++) {
-                contentsList.push(String(targetDocument.textFrames[i].contents));
+    /**
+     * FIELD_MAPPINGS に現れる見出しを、重複を除いて定義順に取り出す
+     * @returns {string[]} 見出しの配列
+     */
+    function collectMappedHeadings() {
+        var mappedHeadings = [];
+        for (var i = 0; i < FIELD_MAPPINGS.length; i++) {
+            /* 見出しを持たない項目（書類名など）は入力欄を作らない / Entries without a heading get no input row */
+            if (FIELD_MAPPINGS[i].heading === "") continue;
+            appendNewHeadings(mappedHeadings, [FIELD_MAPPINGS[i].heading]);
+        }
+        return mappedHeadings;
+    }
+
+    /**
+     * 返信メールの件名と本文が使っている見出しを、`#…#` から拾う
+     * 見出しを別に列挙せずに済むので、文面を書き替えるだけで読み取り対象が増える
+     * @returns {string[]} 見出しの配列
+     */
+    function collectReplyMailHeadings() {
+        var mailHeadings = [];
+        var tokenPattern = /#([^#\r\n]+)#/g;
+        var searchText = REPLY_MAIL_SUBJECT + "\n" + REPLY_MAIL_TEMPLATE;
+        var tokenMatch = tokenPattern.exec(searchText);
+        while (tokenMatch !== null) {
+            var foundToken = tokenMatch[1];
+            /* 差し込み用のトークンは見出しではないので、読み取り対象から外す / These are not headings */
+            if (foundToken !== REPLY_MAIL_FILE_NAME_TOKEN && foundToken !== DOCUMENT_TYPE_TOKEN) {
+                appendNewHeadings(mailHeadings, [foundToken]);
             }
-            return contentsList.join("\n");
+            tokenMatch = tokenPattern.exec(searchText);
         }
+        return mailHeadings;
+    }
 
-        /**
-         * 使い捨てのドキュメントへ貼り付けて、クリップボードのテキストを読み取る
-         * Illustratorには文字列を直接読み出すAPIが無いためペーストを使うが、開いているドキュメントを
-         * 汚さないよう、読み取り用の新規ドキュメントを立ててすぐ閉じる。
-         * また、Illustratorは自分がコピーした内容を内部に保持していて、他アプリがクリップボードを
-         * 書き換えたあとの1回目のペーストでは古い内容が貼り付く。その1回目が内部の更新を促すため、
-         * 1回目の結果は消してから2回目を貼り付ける。
-         * 読めなかった理由は呼び出し元に返し、知らせるかどうかは呼び出し元に任せる
-         * @returns {{text: string, error: string}} 読み取った文字列と、読めなかったときのメッセージ
-         */
-        function readClipboardText() {
-            var scratchDocument = null;
-            var pastedItemCount = 0;
-            var clipboardText = "";
-            var pasteError = null;
+    /**
+     * ダイアログに入力欄を出す見出しを集める
+     * タグに使う見出し、メールの件名・本文で使う見出し、メールの宛先の順に並べる
+     * @returns {string[]} 見出しの配列
+     */
+    function collectInputHeadings() {
+        var collectedHeadings = collectMappedHeadings();
+        appendNewHeadings(collectedHeadings, collectReplyMailHeadings());
+        /* 宛先は送る前に確かめたいので、文面で使っていなくても入力欄を出す / Always show the To address */
+        if (MAIL_ADDRESS_HEADING !== "") appendNewHeadings(collectedHeadings, [MAIL_ADDRESS_HEADING]);
+        return collectedHeadings;
+    }
 
-            try {
-                scratchDocument = app.documents.add();
+    /**
+     * 値の区切りとして扱う見出しをすべて集める（入力欄の見出し＋読み飛ばす見出し）
+     * @returns {string[]} 見出しの配列
+     */
+    function collectKnownHeadings() {
+        var collectedHeadings = collectInputHeadings();
+        appendNewHeadings(collectedHeadings, IGNORED_HEADINGS);
+        return collectedHeadings;
+    }
 
-                /* 1回目は内部クリップボードを最新にするためだけのペースト / The first paste only refreshes the cached clipboard */
-                app.paste();
-                app.redraw();
-                removeAllPageItems(scratchDocument);
-
-                app.paste();
-                /* 貼り付け直後は反映が遅れることがあるため、描画を確定させてから読む / Flush the paste before reading */
-                app.redraw();
-                pastedItemCount = scratchDocument.pageItems.length;
-                clipboardText = joinTextFrameContents(scratchDocument);
-            } catch (e) {
-                pasteError = String(e);
-            } finally {
-                /* 成否にかかわらず、読み取り用のドキュメントは残さない / Never leave the scratch document behind */
-                if (scratchDocument) scratchDocument.close(SaveOptions.DONOTSAVECHANGES);
-            }
-
-            if (pasteError !== null) return { text: null, error: LABELS.alert.clipboardError + pasteError };
-            /* ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する / Tell the two failures apart */
-            if (pastedItemCount === 0) return { text: null, error: LABELS.alert.emptyClipboard };
-            if (clipboardText === "") return { text: null, error: LABELS.alert.noTextInClipboard };
-            return { text: clipboardText, error: null };
+    /**
+     * 行が見出しのいずれかと一致するか判定する
+     * @param {string} lineText - 判定する行
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {boolean} 一致すればtrue
+     */
+    function isKnownHeading(lineText, knownHeadings) {
+        for (var i = 0; i < knownHeadings.length; i++) {
+            if (knownHeadings[i] === lineText) return true;
         }
+        return false;
+    }
 
-        // =========================================
-        // クリップボードの解析 / Clipboard parsing
-        // =========================================
+    /**
+     * 行をタブで区切り、各セルの前後の空白を落とす
+     * @param {string} lineText - 対象の行
+     * @returns {string[]} 区切ったセルの配列
+     */
+    function splitTabCells(lineText) {
+        var cellList = String(lineText).split("\t");
+        for (var i = 0; i < cellList.length; i++) {
+            cellList[i] = trimAndStripBom(cellList[i]);
+        }
+        return cellList;
+    }
 
-        /**
-         * 配列に、まだ入っていない見出しだけを追加する
-         * @param {string[]} headingList - 追加先の配列
-         * @param {string[]} headingsToAdd - 追加する見出し
-         * @returns {void}
-         */
-        function appendNewHeadings(headingList, headingsToAdd) {
-            for (var i = 0; i < headingsToAdd.length; i++) {
-                var isAlreadyListed = false;
-                for (var j = 0; j < headingList.length; j++) {
-                    if (headingList[j] === headingsToAdd[i]) { isAlreadyListed = true; break; }
+    /**
+     * セルのうち、既知の見出しと一致するものを数える
+     * @param {string[]} cellList - 判定するセルの配列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {number} 一致した数
+     */
+    function countKnownHeadings(cellList, knownHeadings) {
+        var matchCount = 0;
+        for (var i = 0; i < cellList.length; i++) {
+            if (isKnownHeading(cellList[i], knownHeadings)) matchCount++;
+        }
+        return matchCount;
+    }
+
+    /**
+     * 見出しと値がタブ区切りで横に並んだ形式を解析する
+     * スプレッドシートやフォームの回答一覧から1行ぶんをコピーした場合の形式。
+     * 値の行にも見出しと同じ文字が入りうるため、複数の見出しが並ぶ行だけを見出し行とみなす
+     * @param {string} clipboardText - クリップボードから読み取った文字列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {Object} 見出しをキー、値を文字列とするオブジェクト（この形式でなければnull）
+     */
+    function parseTabSeparatedRows(clipboardText, knownHeadings) {
+        var textLines = String(clipboardText).split(/\r\n|\r|\n/);
+
+        for (var i = 0; i < textLines.length; i++) {
+            if (textLines[i].indexOf("\t") === -1) continue;
+
+            var headingCells = splitTabCells(textLines[i]);
+            if (countKnownHeadings(headingCells, knownHeadings) < MIN_HEADER_ROW_MATCHES) continue;
+
+            /* 見出し行の下にある最初の空でない行を、値の行として読む / The next non-empty line holds the values */
+            for (var j = i + 1; j < textLines.length; j++) {
+                if (trimAndStripBom(textLines[j]) === "") continue;
+
+                var valueCells = splitTabCells(textLines[j]);
+                var rowValues = {};
+                /* 末尾の空セルは省かれることがあるので、短いほうに合わせて読む / Trailing empty cells may be dropped */
+                for (var k = 0; k < headingCells.length && k < valueCells.length; k++) {
+                    if (headingCells[k] === "") continue;
+                    rowValues[headingCells[k]] = valueCells[k];
                 }
-                if (!isAlreadyListed) headingList.push(headingsToAdd[i]);
+                return rowValues;
             }
-        }
-
-        /**
-         * FIELD_MAPPINGS に現れる見出しを、重複を除いて定義順に取り出す
-         * @returns {string[]} 見出しの配列
-         */
-        function collectMappedHeadings() {
-            var mappedHeadings = [];
-            for (var i = 0; i < FIELD_MAPPINGS.length; i++) {
-                /* 見出しを持たない項目（書類名など）は入力欄を作らない / Entries without a heading get no input row */
-                if (FIELD_MAPPINGS[i].heading === "") continue;
-                appendNewHeadings(mappedHeadings, [FIELD_MAPPINGS[i].heading]);
-            }
-            return mappedHeadings;
-        }
-
-        /**
-         * 返信メールの件名と本文が使っている見出しを、`#…#` から拾う
-         * 見出しを別に列挙せずに済むので、文面を書き替えるだけで読み取り対象が増える
-         * @returns {string[]} 見出しの配列
-         */
-        function collectReplyMailHeadings() {
-            var mailHeadings = [];
-            var tokenPattern = /#([^#\r\n]+)#/g;
-            var searchText = REPLY_MAIL_SUBJECT + "\n" + REPLY_MAIL_TEMPLATE;
-            var tokenMatch = tokenPattern.exec(searchText);
-            while (tokenMatch !== null) {
-                var foundToken = tokenMatch[1];
-                /* 差し込み用のトークンは見出しではないので、読み取り対象から外す / These are not headings */
-                if (foundToken !== REPLY_MAIL_FILE_NAME_TOKEN && foundToken !== DOCUMENT_TYPE_TOKEN) {
-                    appendNewHeadings(mailHeadings, [foundToken]);
-                }
-                tokenMatch = tokenPattern.exec(searchText);
-            }
-            return mailHeadings;
-        }
-
-        /**
-         * ダイアログに入力欄を出す見出しを集める
-         * タグに使う見出し、メールの件名・本文で使う見出し、メールの宛先の順に並べる
-         * @returns {string[]} 見出しの配列
-         */
-        function collectInputHeadings() {
-            var collectedHeadings = collectMappedHeadings();
-            appendNewHeadings(collectedHeadings, collectReplyMailHeadings());
-            /* 宛先は送る前に確かめたいので、文面で使っていなくても入力欄を出す / Always show the To address */
-            if (MAIL_ADDRESS_HEADING !== "") appendNewHeadings(collectedHeadings, [MAIL_ADDRESS_HEADING]);
-            return collectedHeadings;
-        }
-
-        /**
-         * 値の区切りとして扱う見出しをすべて集める（入力欄の見出し＋読み飛ばす見出し）
-         * @returns {string[]} 見出しの配列
-         */
-        function collectKnownHeadings() {
-            var collectedHeadings = collectInputHeadings();
-            appendNewHeadings(collectedHeadings, IGNORED_HEADINGS);
-            return collectedHeadings;
-        }
-
-        /**
-         * 行が見出しのいずれかと一致するか判定する
-         * @param {string} lineText - 判定する行
-         * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
-         * @returns {boolean} 一致すればtrue
-         */
-        function isKnownHeading(lineText, knownHeadings) {
-            for (var i = 0; i < knownHeadings.length; i++) {
-                if (knownHeadings[i] === lineText) return true;
-            }
-            return false;
-        }
-
-        /**
-         * 行をタブで区切り、各セルの前後の空白を落とす
-         * @param {string} lineText - 対象の行
-         * @returns {string[]} 区切ったセルの配列
-         */
-        function splitTabCells(lineText) {
-            var cellList = String(lineText).split("\t");
-            for (var i = 0; i < cellList.length; i++) {
-                cellList[i] = trimAndStripBom(cellList[i]);
-            }
-            return cellList;
-        }
-
-        /**
-         * セルのうち、既知の見出しと一致するものを数える
-         * @param {string[]} cellList - 判定するセルの配列
-         * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
-         * @returns {number} 一致した数
-         */
-        function countKnownHeadings(cellList, knownHeadings) {
-            var matchCount = 0;
-            for (var i = 0; i < cellList.length; i++) {
-                if (isKnownHeading(cellList[i], knownHeadings)) matchCount++;
-            }
-            return matchCount;
-        }
-
-        /**
-         * 見出しと値がタブ区切りで横に並んだ形式を解析する
-         * スプレッドシートやフォームの回答一覧から1行ぶんをコピーした場合の形式。
-         * 値の行にも見出しと同じ文字が入りうるため、複数の見出しが並ぶ行だけを見出し行とみなす
-         * @param {string} clipboardText - クリップボードから読み取った文字列
-         * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
-         * @returns {Object} 見出しをキー、値を文字列とするオブジェクト（この形式でなければnull）
-         */
-        function parseTabSeparatedRows(clipboardText, knownHeadings) {
-            var textLines = String(clipboardText).split(/\r\n|\r|\n/);
-
-            for (var i = 0; i < textLines.length; i++) {
-                if (textLines[i].indexOf("\t") === -1) continue;
-
-                var headingCells = splitTabCells(textLines[i]);
-                if (countKnownHeadings(headingCells, knownHeadings) < MIN_HEADER_ROW_MATCHES) continue;
-
-                /* 見出し行の下にある最初の空でない行を、値の行として読む / The next non-empty line holds the values */
-                for (var j = i + 1; j < textLines.length; j++) {
-                    if (trimAndStripBom(textLines[j]) === "") continue;
-
-                    var valueCells = splitTabCells(textLines[j]);
-                    var rowValues = {};
-                    /* 末尾の空セルは省かれることがあるので、短いほうに合わせて読む / Trailing empty cells may be dropped */
-                    for (var k = 0; k < headingCells.length && k < valueCells.length; k++) {
-                        if (headingCells[k] === "") continue;
-                        rowValues[headingCells[k]] = valueCells[k];
-                    }
-                    return rowValues;
-                }
-                /* 見出し行だけで値の行が無いときは、この形式としては読めない / A header row with no values below it */
-                return null;
-            }
+            /* 見出し行だけで値の行が無いときは、この形式としては読めない / A header row with no values below it */
             return null;
         }
+        return null;
+    }
+
+    /**
+     * 「見出し行＋値行」を空行で区切った形式のテキストを解析する
+     * 空行と既知の見出しの両方を値の終わりとして扱うため、
+     * 対応表に無い項目が挟まっていても、その値を隣の項目に取り込んでしまわない
+     * @param {string} clipboardText - クリップボードから読み取った文字列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {Object} 見出しをキー、値を文字列とするオブジェクト
+     */
+    function parseHeadingValuePairs(clipboardText, knownHeadings) {
+        var parsedValues = {};
+        var textLines = String(clipboardText).split(/\r\n|\r|\n/);
+        var currentHeading = null;
+        var valueLines = [];
+        var isAwaitingHeading = true; // 空行の直後と文頭では見出しを待つ / a heading is expected here
 
         /**
-         * 「見出し行＋値行」を空行で区切った形式のテキストを解析する
-         * 空行と既知の見出しの両方を値の終わりとして扱うため、
-         * 対応表に無い項目が挟まっていても、その値を隣の項目に取り込んでしまわない
-         * @param {string} clipboardText - クリップボードから読み取った文字列
-         * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
-         * @returns {Object} 見出しをキー、値を文字列とするオブジェクト
+         * 読みかけの項目を確定する
+         * @returns {void}
          */
-        function parseHeadingValuePairs(clipboardText, knownHeadings) {
-            var parsedValues = {};
-            var textLines = String(clipboardText).split(/\r\n|\r|\n/);
-            var currentHeading = null;
-            var valueLines = [];
-            var isAwaitingHeading = true; // 空行の直後と文頭では見出しを待つ / a heading is expected here
+        function closeCurrentField() {
+            if (currentHeading !== null) parsedValues[currentHeading] = valueLines.join("\n");
+            currentHeading = null;
+            valueLines = [];
+        }
 
-            /**
-             * 読みかけの項目を確定する
-             * @returns {void}
-             */
-            function closeCurrentField() {
-                if (currentHeading !== null) parsedValues[currentHeading] = valueLines.join("\n");
-                currentHeading = null;
-                valueLines = [];
+        for (var i = 0; i < textLines.length; i++) {
+            var lineText = trimAndStripBom(textLines[i]);
+
+            if (lineText === "") {
+                closeCurrentField();
+                isAwaitingHeading = true;
+                continue;
             }
-
-            for (var i = 0; i < textLines.length; i++) {
-                var lineText = trimAndStripBom(textLines[i]);
-
-                if (lineText === "") {
-                    closeCurrentField();
-                    isAwaitingHeading = true;
-                    continue;
-                }
-                if (isKnownHeading(lineText, knownHeadings)) {
-                    closeCurrentField();
-                    currentHeading = lineText;
-                    isAwaitingHeading = false;
-                    continue;
-                }
-                /* 見出しを待っている位置に現れた未知の行は、見出しとみなして次の区切りまで読み飛ばす / Skip an unknown block */
-                if (isAwaitingHeading) {
-                    isAwaitingHeading = false;
-                    continue;
-                }
-                if (currentHeading !== null) valueLines.push(lineText);
+            if (isKnownHeading(lineText, knownHeadings)) {
+                closeCurrentField();
+                currentHeading = lineText;
+                isAwaitingHeading = false;
+                continue;
             }
-            /* 末尾に空行が無くても最後の項目を確定させる / Close the last field even without a trailing blank line */
-            closeCurrentField();
-            return parsedValues;
-        }
-
-        /**
-         * クリップボードの文字列を、形式を見分けて解析する
-         * タブ区切りの見出し行が見つかればそちらで読み、無ければ縦並びの形式として読む
-         * @param {string} clipboardText - クリップボードから読み取った文字列
-         * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
-         * @returns {Object} 見出しをキー、値を文字列とするオブジェクト
-         */
-        function parseClipboardValues(clipboardText, knownHeadings) {
-            var tabSeparatedValues = parseTabSeparatedRows(clipboardText, knownHeadings);
-            if (tabSeparatedValues !== null) return tabSeparatedValues;
-            return parseHeadingValuePairs(clipboardText, knownHeadings);
-        }
-
-        /**
-         * 見出しに対応する除去パターンを値に適用する
-         * @param {string} headingText - 値の見出し
-         * @param {string} valueText - 元の値
-         * @returns {string} 不要な文字を取り除いた値
-         */
-        function applyValueRemovals(headingText, valueText) {
-            var cleanedValue = String(valueText);
-            for (var i = 0; i < VALUE_REMOVAL_PATTERNS.length; i++) {
-                if (VALUE_REMOVAL_PATTERNS[i].heading !== headingText) continue;
-                cleanedValue = cleanedValue.replace(VALUE_REMOVAL_PATTERNS[i].pattern, "");
+            /* 見出しを待っている位置に現れた未知の行は、見出しとみなして次の区切りまで読み飛ばす / Skip an unknown block */
+            if (isAwaitingHeading) {
+                isAwaitingHeading = false;
+                continue;
             }
-            return trimAndStripBom(cleanedValue);
+            if (currentHeading !== null) valueLines.push(lineText);
         }
+        /* 末尾に空行が無くても最後の項目を確定させる / Close the last field even without a trailing blank line */
+        closeCurrentField();
+        return parsedValues;
+    }
 
-        /**
-         * 解析結果から見出しの値を1行で取り出す（不要な文字は取り除く）
-         * ダイアログに入る前に整えるため、表示された値がそのまま流し込まれる
-         * @param {Object} parsedValues - 解析結果
-         * @param {string} headingText - 取り出す見出し
-         * @returns {string} 見出しの値（無ければ空文字）
-         */
-        function readFieldValue(parsedValues, headingText) {
-            if (parsedValues[headingText] == null) return "";
-            return applyValueRemovals(headingText, toSingleLine(parsedValues[headingText]));
-        }
+    /**
+     * クリップボードの文字列を、形式を見分けて解析する
+     * タブ区切りの見出し行が見つかればそちらで読み、無ければ縦並びの形式として読む
+     * @param {string} clipboardText - クリップボードから読み取った文字列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {Object} 見出しをキー、値を文字列とするオブジェクト
+     */
+    function parseClipboardValues(clipboardText, knownHeadings) {
+        var tabSeparatedValues = parseTabSeparatedRows(clipboardText, knownHeadings);
+        if (tabSeparatedValues !== null) return tabSeparatedValues;
+        return parseHeadingValuePairs(clipboardText, knownHeadings);
+    }
 
-        /**
-         * 見出しがひとつでも読み取れたか判定する
-         * @param {Object} parsedValues - 解析結果
-         * @param {string[]} headingsToCheck - 確認する見出しの配列
-         * @returns {boolean} ひとつでも読み取れていればtrue
-         */
-        function hasAnyMappedField(parsedValues, headingsToCheck) {
-            for (var i = 0; i < headingsToCheck.length; i++) {
-                if (parsedValues[headingsToCheck[i]] != null) return true;
-            }
-            return false;
+    /**
+     * 見出しに対応する除去パターンを値に適用する
+     * @param {string} headingText - 値の見出し
+     * @param {string} valueText - 元の値
+     * @returns {string} 不要な文字を取り除いた値
+     */
+    function applyValueRemovals(headingText, valueText) {
+        var cleanedValue = String(valueText);
+        for (var i = 0; i < VALUE_REMOVAL_PATTERNS.length; i++) {
+            if (VALUE_REMOVAL_PATTERNS[i].heading !== headingText) continue;
+            cleanedValue = cleanedValue.replace(VALUE_REMOVAL_PATTERNS[i].pattern, "");
         }
+        return trimAndStripBom(cleanedValue);
+    }
+
+    /**
+     * 解析結果から見出しの値を1行で取り出す（不要な文字は取り除く）
+     * ダイアログに入る前に整えるため、表示された値がそのまま流し込まれる
+     * @param {Object} parsedValues - 解析結果
+     * @param {string} headingText - 取り出す見出し
+     * @returns {string} 見出しの値（無ければ空文字）
+     */
+    function readFieldValue(parsedValues, headingText) {
+        if (parsedValues[headingText] == null) return "";
+        return applyValueRemovals(headingText, toSingleLine(parsedValues[headingText]));
+    }
+
+    /**
+     * 見出しがひとつでも読み取れたか判定する
+     * @param {Object} parsedValues - 解析結果
+     * @param {string[]} headingsToCheck - 確認する見出しの配列
+     * @returns {boolean} ひとつでも読み取れていればtrue
+     */
+    function hasAnyMappedField(parsedValues, headingsToCheck) {
+        for (var i = 0; i < headingsToCheck.length; i++) {
+            if (parsedValues[headingsToCheck[i]] != null) return true;
+        }
+        return false;
+    }
+
+    /**
+     * クリップボードを読み取って解析する
+     * 対応表の見出しがひとつも無い場合も「読み取れなかった」として扱う
+     * @returns {{values: Object, error: string}} 解析結果と、読み取れなかったときのメッセージ
+     */
+    function readParsedClipboardValues() {
+        var clipboardResult = readClipboardText();
+        if (clipboardResult.text === null) return { values: {}, error: clipboardResult.error };
 
         var mappedHeadings = collectMappedHeadings();
-        var inputHeadings = collectInputHeadings();
+        var readValues = parseClipboardValues(clipboardResult.text, collectKnownHeadings());
+        if (!hasAnyMappedField(readValues, mappedHeadings)) {
+            return { values: {}, error: getLabel(LABELS.alert.noFields).replace("#headings#", mappedHeadings.join("\n")) };
+        }
+        return { values: readValues, error: null };
+    }
 
-        /**
-         * クリップボードを読み取って解析する
-         * 対応表の見出しがひとつも無い場合も「読み取れなかった」として扱う
-         * @returns {{values: Object, error: string}} 解析結果と、読み取れなかったときのメッセージ
-         */
-        function readParsedClipboardValues() {
-            var clipboardResult = readClipboardText();
-            if (clipboardResult.text === null) return { values: {}, error: clipboardResult.error };
+    /**
+     * 指定した種類の値を入れる見出しを、対応表から探す
+     * @param {string} valueType - 探す valueType
+     * @returns {string} 見出しの文字列（対応表に無ければ空文字）
+     */
+    function findHeadingByValueType(valueType) {
+        for (var i = 0; i < FIELD_MAPPINGS.length; i++) {
+            if (FIELD_MAPPINGS[i].valueType === valueType) return FIELD_MAPPINGS[i].heading;
+        }
+        return "";
+    }
 
-            var readValues = parseClipboardValues(clipboardResult.text, collectKnownHeadings());
-            if (!hasAnyMappedField(readValues, mappedHeadings)) {
-                return { values: {}, error: LABELS.alert.noFields.replace("#headings#", mappedHeadings.join("\n")) };
+    // =========================================
+    // タグの置換 / Tag replacement
+    // =========================================
+
+    /**
+     * レイヤーのロックを再帰的に解除する（サブレイヤーも含む）
+     * @param {Layers} layerCollection - 対象のレイヤーコレクション
+     * @returns {void}
+     */
+    function unlockLayers(layerCollection) {
+        for (var i = 0; i < layerCollection.length; i++) {
+            layerCollection[i].locked = false;
+            unlockLayers(layerCollection[i].layers);
+        }
+    }
+
+    /**
+     * 置換できるよう、レイヤーとテキストフレームのロックを解除する
+     * 作業用の複製にだけ行う。ロックはPDFの見た目に影響しないので体裁は変わらず、
+     * ロックされたレイヤー上のタグも置換できるようになる。非表示はそのまま残す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {void}
+     */
+    function unlockForReplacement(targetDocument) {
+        unlockLayers(targetDocument.layers);
+        /* グループがロックされていると中のテキストも編集できないため、オブジェクトも一律で解除する / Locked groups block their children */
+        for (var i = 0; i < targetDocument.pageItems.length; i++) {
+            targetDocument.pageItems[i].locked = false;
+        }
+    }
+
+    /**
+     * テキストフレームの内容を読む（読めないものはnullを返す）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {string} フレームの内容。読めなければnull
+     */
+    function readFrameContents(textFrame) {
+        try {
+            var frameContents = textFrame.contents;
+            return (frameContents == null) ? null : String(frameContents);
+        } catch (e) {
+            return null; // 内容を取り出せないフレームは対象外 / skip frames we cannot read
+        }
+    }
+
+    /**
+     * ドキュメント内のテキストフレームを配列に写し取る
+     * 内容を書き換えるとコレクションの中身が変わるため、先に配列へ控える
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {Array<TextFrame>} テキストフレームの配列
+     */
+    function collectDocumentTextFrames(targetDocument) {
+        var textFrames = [];
+        for (var i = 0; i < targetDocument.textFrames.length; i++) {
+            textFrames.push(targetDocument.textFrames[i]);
+        }
+        return textFrames;
+    }
+
+    /**
+     * テキストフレーム内のタグを、文字書式を保ったまま置換する
+     * タグの1文字目にデータ値を流し込み、残りのタグ文字を削除することで書式を引き継ぐ
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} placeholderTag - 置換する `<タグ>` 形式の文字列
+     * @param {string} replacementValue - 流し込む値
+     * @returns {void}
+     */
+    function replaceTagKeepingStyle(textFrame, placeholderTag, replacementValue) {
+        var guardCount = 0;
+        var tagPosition = textFrame.contents.indexOf(placeholderTag);
+        while (tagPosition !== -1 && guardCount++ < MAX_TAG_REPLACEMENTS) {
+            if (replacementValue === "") {
+                for (var i = 0; i < placeholderTag.length; i++) {
+                    textFrame.characters[tagPosition].remove();
+                }
+            } else {
+                textFrame.characters[tagPosition].contents = replacementValue; // 1文字目の書式を引き継ぐ / inherit the style
+                for (var j = 1; j < placeholderTag.length; j++) {
+                    textFrame.characters[tagPosition + replacementValue.length].remove();
+                }
             }
-            return { values: readValues, error: null };
+            tagPosition = textFrame.contents.indexOf(placeholderTag);
+        }
+    }
+
+    /**
+     * 集めた置換をすべて文字列に適用する（書式を保てないときのフォールバック用）
+     * @param {string} textContents - 置換前のテキスト
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {string} 置換後のテキスト
+     */
+    function applyReplacementsToText(textContents, tagReplacements) {
+        var mergedContents = String(textContents);
+        for (var i = 0; i < tagReplacements.length; i++) {
+            mergedContents = replaceAllText(mergedContents, tagReplacements[i].tag, tagReplacements[i].value);
+        }
+        return mergedContents;
+    }
+
+    /**
+     * テキストフレーム1つぶんのタグを置換する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {void}
+     */
+    function replaceTagsInFrame(textFrame, tagReplacements) {
+        var originalContents = readFrameContents(textFrame);
+        if (originalContents === null) return;
+
+        var applicableReplacements = [];
+        for (var i = 0; i < tagReplacements.length; i++) {
+            if (originalContents.indexOf(tagReplacements[i].tag) !== -1) applicableReplacements.push(tagReplacements[i]);
+        }
+        if (applicableReplacements.length === 0) return; // タグが無いフレームには触らない / leave untagged frames alone
+
+        try {
+            for (var j = 0; j < applicableReplacements.length; j++) {
+                replaceTagKeepingStyle(textFrame, applicableReplacements[j].tag, applicableReplacements[j].value);
+            }
+        } catch (e) {
+            /* パス上文字など文字単位で扱えない場合は一括代入に切り替える（書式は失われる）/ Fallback: whole-contents assignment */
+            textFrame.contents = applyReplacementsToText(originalContents, applicableReplacements);
+        }
+    }
+
+    /**
+     * テキストフレームのどれにも含まれていないタグを集める
+     * 置換後はタグが消えていて有無を判定できないため、置換の前に呼ぶ
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {string[]} 見つからなかったタグ
+     */
+    function findMissingTags(textFrames, tagReplacements) {
+        var frameContentsList = [];
+        for (var i = 0; i < textFrames.length; i++) {
+            var frameContents = readFrameContents(textFrames[i]);
+            if (frameContents !== null) frameContentsList.push(frameContents);
         }
 
-        /*
-           読み取れなくてもダイアログは開き、起動時は知らせない。
-           空欄のダイアログがそのまま状態を表すうえ、手で入力するか、
-           コピーし直して［更新］を押せば続けられるため。
-           Open the dialog even when nothing was read, and stay quiet about it on startup.
-        */
-        var parsedValues = readParsedClipboardValues().values;
-
-        // =========================================
-        // ダイアログUIの構築 / Build the dialog UI
-        // =========================================
-
-        /**
-         * 指定した種類の値を入れる見出しを、対応表から探す
-         * @param {string} valueType - 探す valueType
-         * @returns {string} 見出しの文字列（対応表に無ければ空文字）
-         */
-        function findHeadingByValueType(valueType) {
-            for (var i = 0; i < FIELD_MAPPINGS.length; i++) {
-                if (FIELD_MAPPINGS[i].valueType === valueType) return FIELD_MAPPINGS[i].heading;
+        var missingTags = [];
+        for (var j = 0; j < tagReplacements.length; j++) {
+            var isFound = false;
+            for (var k = 0; k < frameContentsList.length; k++) {
+                if (frameContentsList[k].indexOf(tagReplacements[j].tag) !== -1) { isFound = true; break; }
             }
-            return "";
+            if (!isFound) missingTags.push(tagReplacements[j].tag);
         }
-        var amountHeading = findHeadingByValueType("amountIncludingTax");
-        var dateHeading = findHeadingByValueType("date");
-        var applicationHeading = findHeadingByValueType("application");
+        return missingTags;
+    }
 
-        var mainDialog = new Window("dialog", "");
-        setupWindow(mainDialog);
+    /**
+     * ドキュメント全体のタグを置換し、見つからなかったタグを返す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {string[]} テンプレートに存在しなかったタグ
+     */
+    function replaceTagsInDocument(targetDocument, tagReplacements) {
+        unlockForReplacement(targetDocument);
+        var textFrames = collectDocumentTextFrames(targetDocument);
+        var missingTags = findMissingTags(textFrames, tagReplacements);
 
-        /* テンプレートパネル：記憶しているファイルと、選び直すボタン / Template panel: the remembered file and its picker */
-        var templatePanel = mainDialog.add("panel", undefined, LABELS.panel.template);
+        for (var i = 0; i < textFrames.length; i++) {
+            try {
+                replaceTagsInFrame(textFrames[i], tagReplacements);
+            } catch (e) {
+                /* 1つのフレームで失敗しても、残りの置換とPDF書き出しは続ける / One bad frame must not lose the whole PDF */
+            }
+        }
+        return missingTags;
+    }
+
+    // =========================================
+    // 返信メール / Reply mail
+    // =========================================
+
+    /**
+     * メールソフトで下書きを開くための mailto URL を組み立てる
+     * 宛先はそのまま渡す（メールアドレスに変換が要る文字は入らない）。
+     * 件名と本文は改行や記号を含むため、URL用に変換する
+     * @param {string} mailAddress - 宛先（空文字なら宛先なし）
+     * @param {string} subjectText - 件名
+     * @param {string} bodyText - 本文
+     * @returns {string} mailto URL
+     */
+    function buildMailToUrl(mailAddress, subjectText, bodyText) {
+        return "mailto:" + mailAddress +
+            "?subject=" + encodeURIComponent(subjectText) +
+            "&body=" + encodeURIComponent(bodyText);
+    }
+
+    /**
+     * 既定のメールソフトで下書きを開く
+     * @param {string} mailToUrl - 開く mailto URL
+     * @returns {void}
+     */
+    function openMailDraft(mailToUrl) {
+        try {
+            new File(mailToUrl).execute();
+        } catch (e) {
+            // 開けなくても文面はクリップボードに入っている / the body is on the clipboard either way
+        }
+    }
+
+    /**
+     * 一時テキストフレーム経由でクリップボードを書き換える
+     * Illustratorには文字列を直接クリップボードへ送るAPIが無いため、内容を持つフレームを作ってコピーする。
+     * 追加直後のフレームは再描画しないとコピー対象にならず、app.copy() は黙って無視されることがある。
+     * 置くのは書き出し済みの作業用ドキュメントなので、フレームを消さずにそのまま閉じてよい。
+     * @param {Document} targetDocument - 一時フレームを置くドキュメント
+     * @param {string} textContent - クリップボードに残す文字列
+     * @returns {boolean} コピーできたらtrue
+     */
+    function writeTextToClipboard(targetDocument, textContent) {
+        try {
+            /* 元のレイヤーはロックされていることがあるため、新しいレイヤーに置く / The original layers may be locked */
+            var clipboardFrame = targetDocument.layers.add().textFrames.add();
+            clipboardFrame.contents = textContent;
+
+            /* 追加したフレームを画面に反映してから選択する / Flush the new frame before selecting it */
+            app.redraw();
+            app.executeMenuCommand("deselectall");
+            clipboardFrame.selected = true;
+            app.redraw();
+
+            app.executeMenuCommand("copy");
+            app.redraw();
+            return true;
+        } catch (e) {
+            return false; // コピーできなくてもPDFは作成済み / the PDF is already written
+        }
+    }
+
+    // =========================================
+    // 作業用複製とPDF書き出し / Working copy & PDF export
+    // =========================================
+
+    /**
+     * 作業用の複製ファイルのパスを作る
+     * リンク画像の相対パスを保つため、テンプレートと同じフォルダーに置く
+     * @param {File} templateFile - 複製元のテンプレート
+     * @returns {File} 作業用ファイル
+     */
+    function buildWorkFilePath(templateFile) {
+        var currentTime = new Date();
+        var timestamp = todayDateStamp() + "_" + padTwoDigits(currentTime.getHours()) +
+            padTwoDigits(currentTime.getMinutes()) + padTwoDigits(currentTime.getSeconds());
+
+        var templateFileName = templateFile.name;
+        var dotIndex = templateFileName.lastIndexOf(".");
+        var baseName = (dotIndex >= 0) ? templateFileName.substring(0, dotIndex) : templateFileName;
+        var fileExtension = (dotIndex >= 0) ? templateFileName.substring(dotIndex) : ".ai";
+
+        return new File(templateFile.parent.fsName + "/" + baseName + "_work_" + timestamp + fileExtension);
+    }
+
+    /**
+     * テンプレートを複製して開く
+     * 警告の抑止中に通知しないよう、失敗はその場で知らせず呼び出し元へ返す
+     * @param {File} templateFile - 複製元のテンプレート
+     * @param {File} workFile - 複製先のファイル
+     * @returns {{document: Document, error: string}} 開いたドキュメントと、失敗したときの内容
+     */
+    function openWorkCopy(templateFile, workFile) {
+        try {
+            if (!templateFile.copy(workFile)) throw new Error("File copy failed");
+            return { document: app.open(workFile), error: null };
+        } catch (e) {
+            return { document: null, error: String(e) };
+        }
+    }
+
+    /**
+     * 作業用ドキュメントを保存せずに閉じ、複製ファイルも削除する
+     * @param {Document} workDocument - 閉じるドキュメント（開けていなければnull）
+     * @param {File} workFile - 削除する複製ファイル
+     * @returns {void}
+     */
+    function discardWorkCopy(workDocument, workFile) {
+        try {
+            if (workDocument) workDocument.close(SaveOptions.DONOTSAVECHANGES);
+        } catch (e) {
+            // 閉じられなくても、ファイルの削除と結果の通知は続ける / carry on even if it will not close
+        }
+        try {
+            if (workFile.exists) workFile.remove();
+        } catch (e) {
+            // 消せない場合は複製が残るが、PDFは作成済み / the PDF is already written
+        }
+    }
+
+    /**
+     * 設定した名前からPDFの互換性を決める
+     * 名前が合わないときはPDF 1.6（Acrobat 7）にする
+     * @returns {PDFCompatibility} 互換性の指定
+     */
+    function resolvePdfCompatibility() {
+        var compatibilityByName = {
+            ACROBAT5: PDFCompatibility.ACROBAT5,
+            ACROBAT6: PDFCompatibility.ACROBAT6,
+            ACROBAT7: PDFCompatibility.ACROBAT7,
+            ACROBAT8: PDFCompatibility.ACROBAT8
+        };
+        var chosenCompatibility = compatibilityByName[PDF_COMPATIBILITY_NAME];
+        return chosenCompatibility ? chosenCompatibility : PDFCompatibility.ACROBAT7;
+    }
+
+    /**
+     * この環境に用意されているプリセット名を、候補の中から選ぶ
+     * 名前は言語ごとに違うため、実際のプリセット一覧と突き合わせる
+     * @returns {string} 見つかったプリセット名（無ければ空文字）
+     */
+    function resolvePdfPresetName() {
+        var availablePresets = app.PDFPresetsList;
+        if (!availablePresets) return "";
+
+        for (var i = 0; i < PDF_PRESET_CANDIDATES.length; i++) {
+            for (var j = 0; j < availablePresets.length; j++) {
+                if (String(availablePresets[j]) === PDF_PRESET_CANDIDATES[i]) return PDF_PRESET_CANDIDATES[i];
+            }
+        }
+        return "";
+    }
+
+    /**
+     * 書き出しに使うPDFオプションを組み立てる
+     * プリセットが見つかればそれを読み込み、無ければ同等の設定を個別に組む
+     * @returns {PDFSaveOptions} 書き出しオプション
+     */
+    function buildPdfSaveOptions() {
+        var pdfOptions = new PDFSaveOptions();
+        pdfOptions.viewAfterSaving = false;
+
+        var presetName = resolvePdfPresetName();
+        if (presetName !== "") {
+            /* 互換性はプリセットの値を上書きするので、読み込んだあとに指定する / Load first, then override */
+            pdfOptions.pDFPreset = presetName;
+            pdfOptions.compatibility = resolvePdfCompatibility();
+            return pdfOptions;
+        }
+
+        /* 編集用データとサムネールを外すのが、ファイルサイズでは一番効く / Dropping AI data shrinks it the most */
+        pdfOptions.compatibility = resolvePdfCompatibility();
+        pdfOptions.preserveEditability = PDF_PRESERVE_EDITABILITY;
+        pdfOptions.generateThumbnails = false;
+        pdfOptions.acrobatLayers = false;
+        pdfOptions.optimization = true;   /* Web表示用に最適化 / optimize for fast web view */
+        pdfOptions.compressArt = true;
+
+        pdfOptions.colorDownsampling = PDF_IMAGE_RESOLUTION;
+        pdfOptions.colorDownsamplingImageThreshold = PDF_IMAGE_THRESHOLD;
+        pdfOptions.colorDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
+        pdfOptions.colorCompression = CompressionQuality.JPEGLOW;
+
+        pdfOptions.grayscaleDownsampling = PDF_IMAGE_RESOLUTION;
+        pdfOptions.grayscaleDownsamplingImageThreshold = PDF_IMAGE_THRESHOLD;
+        pdfOptions.grayscaleDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
+        pdfOptions.grayscaleCompression = CompressionQuality.JPEGLOW;
+
+        /* 白黒画像は線がつぶれると読めなくなるため、カラーより高い解像度を保つ / Keep 1-bit art legible */
+        pdfOptions.monochromeDownsampling = 300;
+        pdfOptions.monochromeDownsamplingImageThreshold = 450;
+        pdfOptions.monochromeDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
+        pdfOptions.monochromeCompression = MonochromeCompression.CCIT4;
+
+        return pdfOptions;
+    }
+
+    /**
+     * ドキュメントをPDFとして書き出す
+     * プリセット名や設定は環境によって通らないことがあるため、失敗したら既定設定で書き出し直す
+     * @param {Document} targetDocument - 書き出すドキュメント
+     * @param {File} pdfFile - 書き出し先のファイル
+     * @returns {void}
+     */
+    function exportDocumentAsPdf(targetDocument, pdfFile) {
+        try {
+            targetDocument.saveAs(pdfFile, buildPdfSaveOptions());
+            return;
+        } catch (e) {
+            // 設定が通らない環境では、何も指定しない書き出しに切り替える / fall back to plain defaults
+        }
+        var defaultOptions = new PDFSaveOptions();
+        defaultOptions.viewAfterSaving = false;
+        targetDocument.saveAs(pdfFile, defaultOptions);
+    }
+
+    /**
+     * 完了メッセージを組み立てる
+     * @param {File} pdfFile - 作成したPDFファイル
+     * @param {string[]} missingTags - テンプレートに無かったタグ
+     * @param {boolean} isMailCopied - 返信メールをコピーできたか
+     * @returns {string} 表示するメッセージ
+     */
+    function buildDoneMessage(pdfFile, missingTags, isMailCopied) {
+        var doneMessage = getLabel(LABELS.alert.done).replace("#filename#", decodeURI(pdfFile.name));
+        if (isMailCopied) doneMessage += "\n\n" + getLabel(LABELS.alert.mailCopied);
+        if (missingTags.length > 0) {
+            doneMessage += "\n\n" + getLabel(LABELS.alert.missingTags).replace("#tags#", missingTags.join("\n"));
+        }
+        return doneMessage;
+    }
+
+    /**
+     * テンプレートの複製にデータを流し込み、PDFの書き出しと返信メールのコピーまで行う
+     * テンプレート自体には触れず、作業用の複製は最後に削除する
+     * @param {File} templateFile - 流し込み先のテンプレート
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @param {{text: string, mailToUrl: string}} replyMail - 返信メールの文面と、メールソフトを開くURL
+     * @param {File} pdfFile - 書き出し先のファイル
+     * @returns {void}
+     */
+    function createPdfAndReplyMail(templateFile, tagReplacements, replyMail, pdfFile) {
+        var workFile = buildWorkFilePath(templateFile);
+
+        /* 作業が終わったら、実行前に前面だったドキュメントへ戻す / Come back to whatever was in front before */
+        var previousDocument = (app.documents.length > 0) ? app.activeDocument : null;
+
+        /* 複製を開く際のプロファイル警告などで処理が止まらないようにする / Keep Illustrator's own dialogs out of the way */
+        var previousInteractionLevel = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+
+        var workCopy = openWorkCopy(templateFile, workFile);
+        if (workCopy.document === null) {
+            discardWorkCopy(null, workFile);
+            /* 警告を抑止したまま知らせない / Restore before reporting */
+            app.userInteractionLevel = previousInteractionLevel;
+            alert(getLabel(LABELS.alert.workCopyFailed).replace("#detail#", workCopy.error));
+            return;
+        }
+        var workDocument = workCopy.document;
+
+        var missingTags = [];
+        var isMailCopied = false;
+        var exportError = null;
+        try {
+            missingTags = replaceTagsInDocument(workDocument, tagReplacements);
+            workDocument.selection = null;
+            app.redraw();
+            exportDocumentAsPdf(workDocument, pdfFile);
+            /* 書き出したあとに一時フレームを置くので、PDFには入らない / The temp frame is added after the export */
+            isMailCopied = writeTextToClipboard(workDocument, replyMail.text);
+        } catch (e) {
+            exportError = String(e);
+        }
+
+        discardWorkCopy(workDocument, workFile);
+        if (previousDocument) previousDocument.activate();
+        /* 結果を知らせる前に戻す / Restore before reporting the result */
+        app.userInteractionLevel = previousInteractionLevel;
+
+        if (exportError !== null) {
+            alert(getLabel(LABELS.alert.exportFailed).replace("#detail#", exportError));
+            return;
+        }
+        alert(buildDoneMessage(pdfFile, missingTags, isMailCopied));
+
+        /* 開くのは知らせたあと。先に開くと、前面に出たFinderやメールソフトの裏にalertが隠れる / Reveal after the alert */
+        if (OPEN_FOLDER_AFTER_EXPORT) pdfFile.parent.execute();
+        /* 添付はmailtoで指定できないため、開いたフォルダーからPDFをドラッグして添付する / Attach the PDF by hand */
+        if (OPEN_MAIL_AFTER_EXPORT) openMailDraft(replyMail.mailToUrl);
+    }
+
+    // =========================================
+    // ダイアログの構築 / Dialog construction
+    // =========================================
+
+    /**
+     * テンプレートパネルを追加する（記憶しているファイルと、選び直すボタン）
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {{fileNameText: StaticText, folderText: StaticText, fullPathCheckbox: Checkbox, dropboxCheckbox: Object, pickButton: Button}} パネル内のコントロール
+     */
+    function addTemplatePanel(parentWindow) {
+        var templatePanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.template));
         setupPanel(templatePanel, FIELD_ROW_SPACING);
 
-        /* ファイル名とフォルダーは行を分ける。ファイル名が長いパスに押されて切れないようにする */
-        var templateFileNameText = addReadOnlyTextRow(templatePanel, LABELS.fieldLabel.templateFileName);
-        templateFileNameText.helpTip = LABELS.tooltip.templatePath;
-        var templateFolderText = addReadOnlyTextRow(templatePanel, LABELS.fieldLabel.templateFolder);
-        templateFolderText.helpTip = LABELS.tooltip.templatePath;
+        /* ファイル名とフォルダーは行を分ける。ファイル名が長いパスに押されて切れないようにする / Separate rows so a long path never cuts the file name */
+        var fileNameText = addReadOnlyTextRow(templatePanel, labelText(LABELS.fieldLabel.templateFileName));
+        fileNameText.helpTip = getLabel(LABELS.tooltip.templatePath);
+        var folderText = addReadOnlyTextRow(templatePanel, labelText(LABELS.fieldLabel.templateFolder));
+        folderText.helpTip = getLabel(LABELS.tooltip.templatePath);
 
         /*
            オプション行：パス表示の切り替え2つと、ファイル選択のボタンを右揃えで並べる。
@@ -1215,14 +1758,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         var templateToggleGroup = templateOptionGroup.add("group");
         setupRow(templateToggleGroup, "center");
 
-        var fullPathCheckbox = templateToggleGroup.add("checkbox", undefined, LABELS.checkbox.fullPath);
-        fullPathCheckbox.helpTip = LABELS.tooltip.fullPath;
+        var fullPathCheckbox = templateToggleGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.fullPath));
+        fullPathCheckbox.helpTip = getLabel(LABELS.tooltip.fullPath);
 
         var dropboxCheckbox;
         if (DROPBOX_PREFIX !== "") {
-            dropboxCheckbox = templateToggleGroup.add("checkbox", undefined, LABELS.checkbox.shortenDropbox);
+            dropboxCheckbox = templateToggleGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.shortenDropbox));
             dropboxCheckbox.value = true;
-            dropboxCheckbox.helpTip = LABELS.tooltip.shortenDropbox;
+            dropboxCheckbox.helpTip = getLabel(LABELS.tooltip.shortenDropbox);
         } else {
             /* Dropboxが見つからない環境ではチェックボックスを出さず、常にオフとして扱う / Stand-in when there is no Dropbox */
             dropboxCheckbox = { value: false, enabled: false };
@@ -1238,12 +1781,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         templateOptionSpacer.maximumSize.width = INLINE_SPACER_WIDTH;
 
         /* ラベルが［指定］と［変更］で入れ替わるので先に幅を押さえる / The label swaps at runtime */
-        var templatePickButton = templateOptionGroup.add("button", undefined, LABELS.button.pickTemplate);
-        templatePickButton.preferredSize.width = INLINE_BUTTON_WIDTH;
-        templatePickButton.helpTip = LABELS.tooltip.templatePath;
+        var pickButton = templateOptionGroup.add("button", undefined, getLabel(LABELS.button.pickTemplate));
+        pickButton.preferredSize.width = INLINE_BUTTON_WIDTH;
+        pickButton.helpTip = getLabel(LABELS.tooltip.templatePath);
 
-        /* 読み取り内容パネル：入力欄の見出しぶんだけ入力欄を作る / One input per heading shown in the dialog */
-        var parsedFieldsPanel = mainDialog.add("panel", undefined, LABELS.panel.parsedFields);
+        return {
+            fileNameText: fileNameText,
+            folderText: folderText,
+            fullPathCheckbox: fullPathCheckbox,
+            dropboxCheckbox: dropboxCheckbox,
+            pickButton: pickButton
+        };
+    }
+
+    /**
+     * ラジオボタンを並べた行を追加する（左端は入力欄の列に揃える）
+     * @param {Panel} parentPanel - 行を追加するパネル
+     * @param {string} labelString - 左に置く見出し（空文字なら字下げのみ）
+     * @param {string[]} radioTexts - ラジオボタンの文字
+     * @param {string} tooltipText - ラジオボタンに付けるヘルプチップ
+     * @returns {RadioButton[]} 追加したラジオボタン
+     */
+    function addRadioRow(parentPanel, labelString, radioTexts, tooltipText) {
+        var radioRowGroup = parentPanel.add("group");
+        setupRow(radioRowGroup, "fill");
+        addFieldLabel(radioRowGroup, labelString);
+        var radioButtons = [];
+        for (var i = 0; i < radioTexts.length; i++) {
+            var radioButton = radioRowGroup.add("radiobutton", undefined, radioTexts[i]);
+            radioButton.helpTip = tooltipText;
+            radioButtons.push(radioButton);
+        }
+        return radioButtons;
+    }
+
+    /**
+     * 読み取り内容パネルを追加する（書類名の選択と、見出しごとの入力欄）
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {string[]} inputHeadings - 入力欄を作る見出し
+     * @param {Object} parsedValues - クリップボードの解析結果（入力欄の初期値）
+     * @param {{amount: string, date: string, application: string}} specialHeadings - 専用の入力欄にする見出し
+     * @returns {{documentTypeRadios: RadioButton[], fieldInputs: Object, amountInput: EditText, taxBreakdownText: StaticText, todayDateButton: Button, applicationRadios: RadioButton[], reloadButton: Button}} パネル内のコントロール
+     */
+    function addParsedFieldsPanel(parentWindow, inputHeadings, parsedValues, specialHeadings) {
+        var parsedFieldsPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.parsedFields));
         setupPanel(parsedFieldsPanel, FIELD_ROW_SPACING);
 
         /*
@@ -1251,15 +1832,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
            初期選択はテンプレートのファイル名から決め、［変更］で選び直したときも付け直す。
            The document type is chosen here; the template's file name sets the initial pick.
         */
-        var documentTypeRadioGroup = parsedFieldsPanel.add("group");
-        setupRow(documentTypeRadioGroup, "fill");
-        addFieldLabel(documentTypeRadioGroup, LABELS.fieldLabel.documentType);
-        var documentTypeRadios = [];
-        for (var typeIndex = 0; typeIndex < DOCUMENT_TYPE_NAMES.length; typeIndex++) {
-            var documentTypeRadio = documentTypeRadioGroup.add("radiobutton", undefined, DOCUMENT_TYPE_NAMES[typeIndex]);
-            documentTypeRadio.helpTip = LABELS.tooltip.documentType;
-            documentTypeRadios.push(documentTypeRadio);
-        }
+        var documentTypeRadios = addRadioRow(parsedFieldsPanel, labelText(LABELS.fieldLabel.documentType),
+            DOCUMENT_TYPE_NAMES, getLabel(LABELS.tooltip.documentType));
 
         var fieldInputs = {};        // 見出し → 入力欄 / heading to input field
         var amountInput = null;
@@ -1267,42 +1841,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         var todayDateButton = null;
         var applicationRadios = [];  // 適用の書き方を選ぶラジオ / wording choices for the 適用 line
 
-        for (var headingIndex = 0; headingIndex < inputHeadings.length; headingIndex++) {
-            var headingText = inputHeadings[headingIndex];
+        for (var i = 0; i < inputHeadings.length; i++) {
+            var headingText = inputHeadings[i];
 
             var fieldRowGroup = parsedFieldsPanel.add("group");
             setupRow(fieldRowGroup, "fill");
-            addFieldLabel(fieldRowGroup, fieldLabelFor(headingText) + "：");
+            addFieldLabel(fieldRowGroup, appendColon(fieldLabelFor(headingText)));
 
             var fieldInput = fieldRowGroup.add("edittext", undefined, readFieldValue(parsedValues, headingText));
-            if (headingText === amountHeading) {
+            if (headingText === specialHeadings.amount) {
                 fieldInput.size = AMOUNT_INPUT_SIZE;
-                fieldInput.helpTip = LABELS.tooltip.amount;
-                fieldRowGroup.add("statictext", undefined, LABELS.unit.yen);
+                fieldInput.helpTip = getLabel(LABELS.tooltip.amount);
+                fieldRowGroup.add("statictext", undefined, getLabel(LABELS.unit.yen));
                 amountInput = fieldInput;
                 /* 税抜と消費税は入力ではなく計算結果なので、見出しを空にして金額欄のすぐ下に置く / Derived values */
                 taxBreakdownText = addReadOnlyTextRow(parsedFieldsPanel, "");
-            } else if (headingText === dateHeading) {
+            } else if (headingText === specialHeadings.date) {
                 /* 日付は桁数が決まっているので幅を詰め、空いた右側に［今日の日付］を置く / Fixed width, with the shortcut beside it */
                 fieldInput.size = DATE_INPUT_SIZE;
-                todayDateButton = fieldRowGroup.add("button", undefined, LABELS.button.today);
-                todayDateButton.helpTip = LABELS.tooltip.today;
+                todayDateButton = fieldRowGroup.add("button", undefined, getLabel(LABELS.button.today));
+                todayDateButton.helpTip = getLabel(LABELS.tooltip.today);
             } else {
                 /* ダイアログを広げず、余った幅いっぱいまで伸ばす / Fill the remaining width instead of widening the dialog */
                 fieldInput.alignment = ["fill", "center"];
             }
             fieldInputs[headingText] = fieldInput;
 
-            /* 適用の書き方はイベント名のすぐ下で選ばせる / The wording choice sits under the event name */
-            if (headingText === applicationHeading) {
-                var applicationRadioGroup = parsedFieldsPanel.add("group");
-                setupRow(applicationRadioGroup, "fill");
-                addFieldLabel(applicationRadioGroup, ""); // 入力欄と左端を揃える / line up with the input column
-                for (var presetIndex = 0; presetIndex < APPLICATION_PRESETS.length; presetIndex++) {
-                    var applicationRadio = applicationRadioGroup.add("radiobutton", undefined, APPLICATION_PRESETS[presetIndex].label);
-                    applicationRadio.helpTip = LABELS.tooltip.application;
-                    applicationRadios.push(applicationRadio);
-                }
+            /* 適用の書き方はイベント名のすぐ下で選ばせる。見出しは空にして入力欄と左端を揃える / The wording choice sits under the event name */
+            if (headingText === specialHeadings.application) {
+                var presetLabels = [];
+                for (var j = 0; j < APPLICATION_PRESETS.length; j++) presetLabels.push(APPLICATION_PRESETS[j].label);
+                applicationRadios = addRadioRow(parsedFieldsPanel, "", presetLabels, getLabel(LABELS.tooltip.application));
                 applicationRadios[0].value = true; // 先頭を既定にする / the first entry is the default
             }
         }
@@ -1311,46 +1880,125 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         var reloadButtonGroup = parsedFieldsPanel.add("group");
         setupRow(reloadButtonGroup, "right");
         reloadButtonGroup.margins = [0, PANEL_BUTTON_TOP_MARGIN, 0, 0];
-        var reloadClipboardButton = reloadButtonGroup.add("button", undefined, LABELS.button.reloadClipboard);
-        reloadClipboardButton.preferredSize.width = INLINE_BUTTON_WIDTH;
-        reloadClipboardButton.helpTip = LABELS.tooltip.reloadClipboard;
+        var reloadButton = reloadButtonGroup.add("button", undefined, getLabel(LABELS.button.reloadClipboard));
+        reloadButton.preferredSize.width = INLINE_BUTTON_WIDTH;
+        reloadButton.helpTip = getLabel(LABELS.tooltip.reloadClipboard);
 
-        /* 書き出しパネル：作成されるPDFの名前と保存先 / Export panel: the resulting PDF name and folder */
-        var pdfOutputPanel = mainDialog.add("panel", undefined, LABELS.panel.pdfOutput);
+        return {
+            documentTypeRadios: documentTypeRadios,
+            fieldInputs: fieldInputs,
+            amountInput: amountInput,
+            taxBreakdownText: taxBreakdownText,
+            todayDateButton: todayDateButton,
+            applicationRadios: applicationRadios,
+            reloadButton: reloadButton
+        };
+    }
+
+    /**
+     * 書き出しパネルを追加する（作成されるPDFの名前と保存先、同名ファイルの扱い）
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {{fileNameText: StaticText, saveFolderText: StaticText, overwriteRadio: RadioButton, addSerialNumberRadio: RadioButton}} パネル内のコントロール
+     */
+    function addPdfOutputPanel(parentWindow) {
+        var pdfOutputPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.pdfOutput));
         setupPanel(pdfOutputPanel, FIELD_ROW_SPACING);
-        var pdfFileNameText = addReadOnlyTextRow(pdfOutputPanel, LABELS.fieldLabel.pdfFileName);
-        var saveFolderText = addReadOnlyTextRow(pdfOutputPanel, LABELS.fieldLabel.saveFolder);
+        var fileNameText = addReadOnlyTextRow(pdfOutputPanel, labelText(LABELS.fieldLabel.pdfFileName));
+        fileNameText.helpTip = getLabel(LABELS.tooltip.pdfFileName);
+        var saveFolderText = addReadOnlyTextRow(pdfOutputPanel, labelText(LABELS.fieldLabel.saveFolder));
 
-        /* 同名ファイルの扱い。選ぶとファイル名の表示も変わるので、書き出し行と一緒に更新する */
-        var nameConflictRowGroup = pdfOutputPanel.add("group");
-        setupRow(nameConflictRowGroup, "fill");
-        addFieldLabel(nameConflictRowGroup, LABELS.fieldLabel.nameConflict);
-        var overwriteRadio = nameConflictRowGroup.add("radiobutton", undefined, LABELS.radio.overwrite);
-        var addSerialNumberRadio = nameConflictRowGroup.add("radiobutton", undefined, LABELS.radio.addSerialNumber);
-        overwriteRadio.helpTip = LABELS.tooltip.nameConflict;
-        addSerialNumberRadio.helpTip = LABELS.tooltip.nameConflict;
-        overwriteRadio.value = OVERWRITE_EXISTING_PDF;
-        addSerialNumberRadio.value = !OVERWRITE_EXISTING_PDF;
+        /* 同名ファイルの扱い。選ぶとファイル名の表示も変わるので、書き出し行と一緒に更新する / Changing it renames the file */
+        var nameConflictRadios = addRadioRow(pdfOutputPanel, labelText(LABELS.fieldLabel.nameConflict),
+            [getLabel(LABELS.radio.overwrite), getLabel(LABELS.radio.addSerialNumber)], getLabel(LABELS.tooltip.nameConflict));
+        nameConflictRadios[0].value = OVERWRITE_EXISTING_PDF;
+        nameConflictRadios[1].value = !OVERWRITE_EXISTING_PDF;
 
-        var buttonBarGroup = mainDialog.add("group");
-        setupRow(buttonBarGroup, "right");
+        return {
+            fileNameText: fileNameText,
+            saveFolderText: saveFolderText,
+            overwriteRadio: nameConflictRadios[0],
+            addSerialNumberRadio: nameConflictRadios[1]
+        };
+    }
+
+    /**
+     * ダイアログ下部のボタン行を追加する
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {Button} ［PDFを作成］ボタン
+     */
+    function addDialogButtons(parentWindow) {
+        var btnRowGroup = parentWindow.add("group");
+        setupRow(btnRowGroup, "right");
         /* パネルとの間隔を、ウィンドウ既定の行間よりも広げる / Widen the gap from the panel above */
-        buttonBarGroup.margins = [0, BUTTON_BAR_TOP_MARGIN, 0, 0];
-        buttonBarGroup.add("button", undefined, LABELS.button.cancel, { name: "cancel" });
-        var runButton = buttonBarGroup.add("button", undefined, LABELS.button.run, { name: "ok" });
-        runButton.helpTip = LABELS.tooltip.run;
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnRun = btnRowGroup.add("button", undefined, getLabel(LABELS.button.run), { name: "ok" });
+        btnRun.helpTip = getLabel(LABELS.tooltip.run);
+        return btnRun;
+    }
 
-        // =========================================
-        // 書き出し先の決定 / Resolving the output file
-        // =========================================
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * クリップボードを読み取ってダイアログを開き、［PDFを作成］でPDFを書き出す
+     * @returns {void}
+     */
+    function main() {
+        /* 記憶しているテンプレート。ダイアログの［指定］／［変更］で差し替わる / Swapped by the Choose / Change button */
+        var templateFile = resolveTemplateFile();
+
+        /* 記憶はあるのにファイルが無い場合は、選び直しが必要だと知らせる / Tell the user when the remembered file is gone */
+        var savedTemplatePath = loadSavedTemplatePath();
+        if (templateFile === null && savedTemplatePath !== "") {
+            alert(getLabel(LABELS.alert.templateMissing).replace("#path#", savedTemplatePath));
+        }
+
+        var inputHeadings = collectInputHeadings();
+        var specialHeadings = {
+            amount: findHeadingByValueType("amountIncludingTax"),
+            date: findHeadingByValueType("date"),
+            application: findHeadingByValueType("application")
+        };
+
+        /*
+           読み取れなくてもダイアログは開き、起動時は知らせない。
+           空欄のダイアログがそのまま状態を表すうえ、手で入力するか、
+           コピーし直して［更新］を押せば続けられるため。
+           Open the dialog even when nothing was read, and stay quiet about it on startup.
+        */
+        var parsedValues = readParsedClipboardValues().values;
+
+        var mainDialog = new Window("dialog", "");
+        setupWindow(mainDialog);
+        var templateUi = addTemplatePanel(mainDialog);
+        var fieldsUi = addParsedFieldsPanel(mainDialog, inputHeadings, parsedValues, specialHeadings);
+        var outputUi = addPdfOutputPanel(mainDialog);
+        var btnRun = addDialogButtons(mainDialog);
+        var fieldInputs = fieldsUi.fieldInputs;
+
+        // -----------------------------------------
+        // 入力の読み出し / Reading the inputs
+        // -----------------------------------------
+
+        /**
+         * 見出しの入力欄の文字列を返す
+         * @param {string} headingText - 見出し
+         * @returns {string} 入力欄の文字列（入力欄が無ければ空文字）
+         */
+        function inputTextOf(headingText) {
+            var inputField = fieldInputs[headingText];
+            return inputField ? String(inputField.text) : "";
+        }
 
         /**
          * 選ばれている書類名を返す
          * @returns {string} 「領収書」「請求書」など
          */
         function currentDocumentTypeName() {
-            for (var i = 0; i < documentTypeRadios.length; i++) {
-                if (documentTypeRadios[i].value) return DOCUMENT_TYPE_NAMES[i];
+            for (var i = 0; i < fieldsUi.documentTypeRadios.length; i++) {
+                if (fieldsUi.documentTypeRadios[i].value) return DOCUMENT_TYPE_NAMES[i];
             }
             return DOCUMENT_TYPE_NAMES[0];
         }
@@ -1361,9 +2009,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          * @returns {void}
          */
         function selectDocumentTypeRadio(documentTypeName) {
-            for (var i = 0; i < documentTypeRadios.length; i++) {
-                documentTypeRadios[i].value = (DOCUMENT_TYPE_NAMES[i] === documentTypeName);
+            for (var i = 0; i < fieldsUi.documentTypeRadios.length; i++) {
+                fieldsUi.documentTypeRadios[i].value = (DOCUMENT_TYPE_NAMES[i] === documentTypeName);
             }
+        }
+
+        /**
+         * 入力中の金額から、税込・税抜・消費税を求める
+         * @returns {{includingTax: number, excludingTax: number, tax: number}} 税込・税抜・消費税
+         */
+        function currentTaxAmounts() {
+            return splitTaxFromTotal(fieldsUi.amountInput ? parseAmount(fieldsUi.amountInput.text) : 0);
         }
 
         /**
@@ -1371,9 +2027,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          * @returns {string} ファイル名に使う宛先（空なら既定の名前）
          */
         function currentRecipientName() {
-            var recipientInput = fieldInputs[PDF_FILE_NAME_HEADING];
-            var recipientName = recipientInput ? sanitizeFileName(recipientInput.text) : "";
-            return (recipientName !== "") ? recipientName : LABELS.fallbackName.recipient;
+            var recipientName = sanitizeFileName(inputTextOf(PDF_FILE_NAME_HEADING));
+            return (recipientName !== "") ? recipientName : getLabel(LABELS.fallbackName.recipient);
         }
 
         /**
@@ -1382,15 +2037,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          * @returns {string} 8桁の日付（日付欄が読めないときは実行日）
          */
         function currentDateStamp() {
-            var dateInput = (dateHeading !== "") ? fieldInputs[dateHeading] : null;
-            var dateStamp = dateInput ? formatDateStamp(dateInput.text) : "";
+            var dateStamp = formatDateStamp(inputTextOf(specialHeadings.date));
             return (dateStamp !== "") ? dateStamp : todayDateStamp();
         }
 
         /**
          * PDFファイル名の拡張子より前を組み立てる
          * 発行元が空文字のときは、その要素ごと省いて区切りも重ならないようにする
-         * @returns {string} 「書類名-発行元-宛先-日付」の文字列
+         * @returns {string} 「書類名-発行元-日付-宛先」の文字列
          */
         function buildPdfBaseName() {
             var nameParts = [currentDocumentTypeName()];
@@ -1410,29 +2064,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
             if (templateFile === null) return null;
 
             var baseName = buildPdfBaseName();
-            var outputFolder = templateFile.parent;
-            var pdfFile = new File(outputFolder.fsName + "/" + baseName + ".pdf");
-            if (overwriteRadio.value) return pdfFile;
+            var outputFolderPath = templateFile.parent.fsName;
+            var pdfFile = new File(outputFolderPath + "/" + baseName + ".pdf");
+            if (outputUi.overwriteRadio.value) return pdfFile;
 
             var serialNumber = 2;
             while (pdfFile.exists && serialNumber < MAX_FILE_NAME_SERIAL) {
-                pdfFile = new File(outputFolder.fsName + "/" + baseName + "-" + serialNumber + ".pdf");
+                pdfFile = new File(outputFolderPath + "/" + baseName + "-" + serialNumber + ".pdf");
                 serialNumber++;
             }
             return pdfFile;
         }
 
-        // =========================================
+        // -----------------------------------------
         // 表示の更新 / Dialog refresh
-        // =========================================
+        // -----------------------------------------
 
         /**
          * 入力中の金額から税抜・消費税の表示を更新する
          * @returns {void}
          */
         function refreshTaxBreakdown() {
-            var taxAmounts = splitTaxFromTotal(amountInput ? parseAmount(amountInput.text) : 0);
-            taxBreakdownText.text = LABELS.breakdown.tax
+            if (!fieldsUi.taxBreakdownText) return;
+            var taxAmounts = currentTaxAmounts();
+            fieldsUi.taxBreakdownText.text = getLabel(LABELS.breakdown.tax)
                 .replace("#excluding#", formatAmount(taxAmounts.excludingTax))
                 .replace("#rate#", String(Math.round(TAX_RATE * 1000) / 10))
                 .replace("#tax#", formatAmount(taxAmounts.tax));
@@ -1444,7 +2099,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          * @returns {string} 表示用の文字列
          */
         function folderPathForDisplay(folderPath) {
-            var displayPath = formatDisplayPath(folderPath, !fullPathCheckbox.value, dropboxCheckbox.value);
+            var displayPath = formatDisplayPath(folderPath, !templateUi.fullPathCheckbox.value, templateUi.dropboxCheckbox.value);
             return shortenToWidth(displayPath, PATH_DISPLAY_MAX_WIDTH);
         }
 
@@ -1459,19 +2114,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
             var folderPath = isTemplateSet ? templateFile.parent.fsName : "";
 
             /* 書類名はテンプレート次第で変わるので、タイトルも選び直すたびに付け直す / Retitle on every pick */
-            mainDialog.text = fillDocumentTypeToken(LABELS.dialog.title, currentDocumentTypeName()) +
+            mainDialog.text = fillDocumentTypeToken(getLabel(LABELS.dialog.title), currentDocumentTypeName()) +
                 " " + SCRIPT_VERSION;
 
-            templateFolderText.text = isTemplateSet ? folderPathForDisplay(folderPath) : "";
-            templateFolderText.helpTip = isTemplateSet ? folderPath : LABELS.tooltip.templatePath;
-            templateFileNameText.text = isTemplateSet
+            templateUi.folderText.text = isTemplateSet ? folderPathForDisplay(folderPath) : "";
+            templateUi.folderText.helpTip = isTemplateSet ? folderPath : getLabel(LABELS.tooltip.templatePath);
+            templateUi.fileNameText.text = isTemplateSet
                 ? shortenToWidth(decodeURI(templateFile.name), PATH_DISPLAY_MAX_WIDTH)
-                : LABELS.fallbackName.noTemplate;
-            templateFileNameText.helpTip = isTemplateSet ? templateFile.fsName : LABELS.tooltip.templatePath;
+                : getLabel(LABELS.fallbackName.noTemplate);
+            templateUi.fileNameText.helpTip = isTemplateSet ? templateFile.fsName : getLabel(LABELS.tooltip.templatePath);
 
-            templatePickButton.text = isTemplateSet ? LABELS.button.changeTemplate : LABELS.button.pickTemplate;
+            templateUi.pickButton.text = getLabel(isTemplateSet ? LABELS.button.changeTemplate : LABELS.button.pickTemplate);
             /* テンプレートが無いと書き出せないので、実行できないことを見て分かるようにする / Nothing to export without a template */
-            runButton.enabled = isTemplateSet;
+            btnRun.enabled = isTemplateSet;
         }
 
         /**
@@ -1480,9 +2135,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          */
         function refreshExportRows() {
             var pdfFile = resolvePdfFile();
-            pdfFileNameText.text = (pdfFile !== null) ? decodeURI(pdfFile.name) : "";
-            saveFolderText.text = (templateFile !== null) ? folderPathForDisplay(templateFile.parent.fsName) : "";
-            saveFolderText.helpTip = (templateFile !== null) ? templateFile.parent.fsName : "";
+            outputUi.fileNameText.text = (pdfFile !== null) ? decodeURI(pdfFile.name) : "";
+            outputUi.saveFolderText.text = (templateFile !== null) ? folderPathForDisplay(templateFile.parent.fsName) : "";
+            outputUi.saveFolderText.helpTip = (templateFile !== null) ? templateFile.parent.fsName : "";
         }
 
         /**
@@ -1493,14 +2148,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
             refreshTemplateRow();
             refreshExportRows();
         }
-
-        fullPathCheckbox.onClick = refreshTemplateAndExportRows;
-        dropboxCheckbox.onClick = function () {
-            /* Dropbox短縮が効いている間はフルパス表示が反映されないので、操作できないようにする */
-            fullPathCheckbox.enabled = !dropboxCheckbox.value;
-            refreshTemplateAndExportRows();
-        };
-        fullPathCheckbox.enabled = !dropboxCheckbox.value;
 
         /**
          * クリップボードを読み直し、各入力欄を入れ直す
@@ -1513,63 +2160,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
                 alert(reloadResult.error);
                 return; // 入力済みの内容を消さない / keep whatever is already typed in
             }
-
-            parsedValues = reloadResult.values;
             for (var i = 0; i < inputHeadings.length; i++) {
-                fieldInputs[inputHeadings[i]].text = readFieldValue(parsedValues, inputHeadings[i]);
+                fieldInputs[inputHeadings[i]].text = readFieldValue(reloadResult.values, inputHeadings[i]);
             }
             refreshTaxBreakdown();
             refreshExportRows();
         }
 
-        /* ［更新］：ダイアログを開いたまま、コピーし直した内容を取り込む / Re-read the clipboard in place */
-        reloadClipboardButton.onClick = reloadFromClipboard;
-
-        /* ［指定］／［変更］：テンプレートを選び直し、次回以降のために記憶する / Pick a template and remember it */
-        templatePickButton.onClick = function () {
-            var promptText = fillDocumentTypeToken(LABELS.prompt.pickTemplate, currentDocumentTypeName());
-            var pickedFile = File.openDialog(promptText, TEMPLATE_FILE_FILTER);
-            if (!pickedFile) return;
-            templateFile = pickedFile;
-            saveTemplatePath(pickedFile.fsName);
-            /* 新しいテンプレートの名前から、書類名を選び直す / Re-pick the document type from the new name */
-            selectDocumentTypeRadio(resolveDocumentTypeName(templateFile));
-            refreshTemplateAndExportRows();
-        };
-
-        if (amountInput) {
-            amountInput.onChanging = refreshTaxBreakdown;
-        }
-        /* 宛先と日付はどちらもファイル名に出るため、打つそばから書き出し名を追従させる / Both feed the file name */
-        if (fieldInputs[PDF_FILE_NAME_HEADING]) {
-            fieldInputs[PDF_FILE_NAME_HEADING].onChanging = refreshExportRows;
-        }
-        if (dateHeading !== "" && fieldInputs[dateHeading]) {
-            fieldInputs[dateHeading].onChanging = refreshExportRows;
-        }
-        /* ［今日の日付］は日付欄を入れ替えるだけ。ファイル名の日付も追従させる / Fill the date field and rename */
-        if (todayDateButton) {
-            todayDateButton.onClick = function () {
-                fieldInputs[dateHeading].text = todayDateText();
-                refreshExportRows();
-            };
-        }
-        /* 同名ファイルの扱いで連番の有無が変わるため、選び直すたびにファイル名を付け直す / The name depends on this */
-        overwriteRadio.onClick = refreshExportRows;
-        addSerialNumberRadio.onClick = refreshExportRows;
-
-        /* 書類名はタイトルにもファイル名にも出るため、選び直すたびに両方を付け直す / Retitle and rename on every pick */
-        for (var radioIndex = 0; radioIndex < documentTypeRadios.length; radioIndex++) {
-            documentTypeRadios[radioIndex].onClick = refreshTemplateAndExportRows;
-        }
-
-        selectDocumentTypeRadio(resolveDocumentTypeName(templateFile));
-        refreshTaxBreakdown();
-        refreshTemplateAndExportRows();
-
-        // =========================================
-        // タグの置換 / Tag replacement
-        // =========================================
+        // -----------------------------------------
+        // 流し込む値 / Values to merge
+        // -----------------------------------------
 
         /**
          * `#見出し#` を、その見出しの入力値に置き換える
@@ -1579,10 +2179,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         function fillHeadingTokens(templateText) {
             var filledText = String(templateText);
             for (var i = 0; i < inputHeadings.length; i++) {
-                var inputField = fieldInputs[inputHeadings[i]];
-                var inputText = inputField ? String(inputField.text) : "";
-                /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
-                filledText = filledText.split("#" + inputHeadings[i] + "#").join(inputText);
+                filledText = replaceAllText(filledText, "#" + inputHeadings[i] + "#", inputTextOf(inputHeadings[i]));
             }
             return filledText;
         }
@@ -1593,8 +2190,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          */
         function buildApplicationText() {
             var selectedPreset = APPLICATION_PRESETS[0];
-            for (var i = 0; i < applicationRadios.length; i++) {
-                if (applicationRadios[i].value) { selectedPreset = APPLICATION_PRESETS[i]; break; }
+            for (var i = 0; i < fieldsUi.applicationRadios.length; i++) {
+                if (fieldsUi.applicationRadios[i].value) { selectedPreset = APPLICATION_PRESETS[i]; break; }
             }
             return fillHeadingTokens(selectedPreset.format);
         }
@@ -1604,17 +2201,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          * @returns {Array<{tag: string, value: string}>} 置換の組
          */
         function buildTagReplacements() {
-            var taxAmounts = splitTaxFromTotal(amountInput ? parseAmount(amountInput.text) : 0);
+            var taxAmounts = currentTaxAmounts();
             var tagReplacements = [];
 
             for (var i = 0; i < FIELD_MAPPINGS.length; i++) {
                 var fieldMapping = FIELD_MAPPINGS[i];
-                var inputField = fieldInputs[fieldMapping.heading];
-                var inputText = inputField ? String(inputField.text) : "";
                 var replacementValue;
 
                 if (fieldMapping.valueType === "date") {
-                    replacementValue = formatDateValue(inputText);
+                    replacementValue = formatDateValue(inputTextOf(fieldMapping.heading));
                 } else if (fieldMapping.valueType === "documentType") {
                     replacementValue = currentDocumentTypeName();
                 } else if (fieldMapping.valueType === "application") {
@@ -1626,7 +2221,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
                 } else if (fieldMapping.valueType === "tax") {
                     replacementValue = formatAmount(taxAmounts.tax);
                 } else {
-                    replacementValue = inputText;
+                    replacementValue = inputTextOf(fieldMapping.heading);
                 }
                 tagReplacements.push({ tag: fieldMapping.tag, value: replacementValue });
             }
@@ -1634,188 +2229,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         }
 
         /**
-         * レイヤーのロックを再帰的に解除する（サブレイヤーも含む）
-         * @param {Layers} layerCollection - 対象のレイヤーコレクション
-         * @returns {void}
-         */
-        function unlockLayers(layerCollection) {
-            for (var i = 0; i < layerCollection.length; i++) {
-                layerCollection[i].locked = false;
-                unlockLayers(layerCollection[i].layers);
-            }
-        }
-
-        /**
-         * 置換できるよう、レイヤーとテキストフレームのロックを解除する
-         * 作業用の複製にだけ行う。ロックはPDFの見た目に影響しないので体裁は変わらず、
-         * ロックされたレイヤー上のタグも置換できるようになる。非表示はそのまま残す
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @returns {void}
-         */
-        function unlockForReplacement(targetDocument) {
-            unlockLayers(targetDocument.layers);
-            /* グループがロックされていると中のテキストも編集できないため、オブジェクトも一律で解除する / Locked groups block their children */
-            for (var i = 0; i < targetDocument.pageItems.length; i++) {
-                targetDocument.pageItems[i].locked = false;
-            }
-        }
-
-        /**
-         * テキストフレームの内容を読む（読めないものはnullを返す）
-         * @param {TextFrame} textFrame - 対象のテキストフレーム
-         * @returns {string} フレームの内容。読めなければnull
-         */
-        function readFrameContents(textFrame) {
-            try {
-                var frameContents = textFrame.contents;
-                return (frameContents == null) ? null : String(frameContents);
-            } catch (e) {
-                return null; // 内容を取り出せないフレームは対象外 / skip frames we cannot read
-            }
-        }
-
-        /**
-         * ドキュメント内のテキストフレームを配列に写し取る
-         * 内容を書き換えるとコレクションの中身が変わるため、先に配列へ控える
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @returns {Array<TextFrame>} テキストフレームの配列
-         */
-        function collectDocumentTextFrames(targetDocument) {
-            var textFrames = [];
-            for (var i = 0; i < targetDocument.textFrames.length; i++) {
-                textFrames.push(targetDocument.textFrames[i]);
-            }
-            return textFrames;
-        }
-
-        /**
-         * テキストフレーム内のタグを、文字書式を保ったまま置換する
-         * タグの1文字目にデータ値を流し込み、残りのタグ文字を削除することで書式を引き継ぐ
-         * @param {TextFrame} textFrame - 対象のテキストフレーム
-         * @param {string} placeholderTag - 置換する `<タグ>` 形式の文字列
-         * @param {string} replacementValue - 流し込む値
-         * @returns {void}
-         */
-        function replaceTagKeepingStyle(textFrame, placeholderTag, replacementValue) {
-            var guardCount = 0;
-            var tagPosition = textFrame.contents.indexOf(placeholderTag);
-            while (tagPosition !== -1 && guardCount++ < MAX_TAG_REPLACEMENTS) {
-                if (replacementValue === "") {
-                    for (var i = 0; i < placeholderTag.length; i++) {
-                        textFrame.characters[tagPosition].remove();
-                    }
-                } else {
-                    textFrame.characters[tagPosition].contents = replacementValue; // 1文字目の書式を引き継ぐ / inherit the style
-                    for (var j = 1; j < placeholderTag.length; j++) {
-                        textFrame.characters[tagPosition + replacementValue.length].remove();
-                    }
-                }
-                tagPosition = textFrame.contents.indexOf(placeholderTag);
-            }
-        }
-
-        /**
-         * 集めた置換をすべて文字列に適用する（書式を保てないときのフォールバック用）
-         * @param {string} textContents - 置換前のテキスト
-         * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
-         * @returns {string} 置換後のテキスト
-         */
-        function applyReplacementsToText(textContents, tagReplacements) {
-            var mergedContents = String(textContents);
-            for (var i = 0; i < tagReplacements.length; i++) {
-                /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
-                mergedContents = mergedContents.split(tagReplacements[i].tag).join(tagReplacements[i].value);
-            }
-            return mergedContents;
-        }
-
-        /**
-         * テキストフレーム1つぶんのタグを置換する
-         * @param {TextFrame} textFrame - 対象のテキストフレーム
-         * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
-         * @returns {void}
-         */
-        function replaceTagsInFrame(textFrame, tagReplacements) {
-            var originalContents = readFrameContents(textFrame);
-            if (originalContents === null) return;
-
-            var applicableReplacements = [];
-            for (var i = 0; i < tagReplacements.length; i++) {
-                if (originalContents.indexOf(tagReplacements[i].tag) !== -1) applicableReplacements.push(tagReplacements[i]);
-            }
-            if (applicableReplacements.length === 0) return; // タグが無いフレームには触らない / leave untagged frames alone
-
-            try {
-                for (var j = 0; j < applicableReplacements.length; j++) {
-                    replaceTagKeepingStyle(textFrame, applicableReplacements[j].tag, applicableReplacements[j].value);
-                }
-            } catch (e) {
-                /* パス上文字など文字単位で扱えない場合は一括代入に切り替える（書式は失われる）/ Fallback: whole-contents assignment */
-                textFrame.contents = applyReplacementsToText(originalContents, applicableReplacements);
-            }
-        }
-
-        /**
-         * ドキュメント全体のタグを置換し、見つからなかったタグを返す
-         * @param {Document} targetDocument - 対象のドキュメント
-         * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
-         * @returns {string[]} テンプレートに存在しなかったタグ
-         */
-        function replaceTagsInDocument(targetDocument, tagReplacements) {
-            unlockForReplacement(targetDocument);
-            var textFrames = collectDocumentTextFrames(targetDocument);
-
-            /* 置換前に走査しておく。置換後はタグが消えていて有無を判定できない / Check before replacing: the tags are gone afterwards */
-            var missingTags = [];
-            for (var i = 0; i < tagReplacements.length; i++) {
-                var isFound = false;
-                for (var j = 0; j < textFrames.length; j++) {
-                    var frameContents = readFrameContents(textFrames[j]);
-                    if (frameContents !== null && frameContents.indexOf(tagReplacements[i].tag) !== -1) { isFound = true; break; }
-                }
-                if (!isFound) missingTags.push(tagReplacements[i].tag);
-            }
-
-            for (var k = 0; k < textFrames.length; k++) {
-                try {
-                    replaceTagsInFrame(textFrames[k], tagReplacements);
-                } catch (e) {
-                    /* 1つのフレームで失敗しても、残りの置換とPDF書き出しは続ける / One bad frame must not lose the whole PDF */
-                }
-            }
-            return missingTags;
-        }
-
-        // =========================================
-        // 返信メールの文面 / Reply mail text
-        // =========================================
-
-        /**
-         * `#見出し#` をダイアログの入力値に、`#ファイル名#` を作成したPDFの名前に置き換える
+         * `#見出し#` をダイアログの入力値に、`#ファイル名#` を作成したPDFの名前に、`#書類名#` を書類名に置き換える
          * @param {string} templateText - 置換前の文字列（件名または本文）
          * @param {File} pdfFile - 作成したPDFファイル
          * @returns {string} 置換後の文字列
          */
         function fillMailTokens(templateText, pdfFile) {
             var filledText = fillHeadingTokens(templateText);
-            filledText = filledText.split("#" + REPLY_MAIL_FILE_NAME_TOKEN + "#").join(decodeURI(pdfFile.name));
+            filledText = replaceAllText(filledText, "#" + REPLY_MAIL_FILE_NAME_TOKEN + "#", decodeURI(pdfFile.name));
             return fillDocumentTypeToken(filledText, currentDocumentTypeName());
-        }
-
-        /**
-         * メールソフトで下書きを開くための mailto URL を組み立てる
-         * 宛先はそのまま渡す（メールアドレスに変換が要る文字は入らない）。
-         * 件名と本文は改行や記号を含むため、URL用に変換する
-         * @param {File} pdfFile - 作成したPDFファイル
-         * @param {string} mailText - 本文
-         * @returns {string} mailto URL
-         */
-        function buildMailToUrl(pdfFile, mailText) {
-            var addressInput = (MAIL_ADDRESS_HEADING !== "") ? fieldInputs[MAIL_ADDRESS_HEADING] : null;
-            var mailAddress = addressInput ? trimAndStripBom(addressInput.text) : "";
-            return "mailto:" + mailAddress +
-                "?subject=" + encodeURIComponent(fillMailTokens(REPLY_MAIL_SUBJECT, pdfFile)) +
-                "&body=" + encodeURIComponent(mailText);
         }
 
         /**
@@ -1826,299 +2248,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
          */
         function buildReplyMail(pdfFile) {
             var mailText = fillMailTokens(REPLY_MAIL_TEMPLATE, pdfFile);
-            return { text: mailText, mailToUrl: buildMailToUrl(pdfFile, mailText) };
-        }
-
-        /**
-         * 既定のメールソフトで下書きを開く
-         * @param {string} mailToUrl - 開く mailto URL
-         * @returns {void}
-         */
-        function openMailDraft(mailToUrl) {
-            try {
-                new File(mailToUrl).execute();
-            } catch (e) {
-                // 開けなくても文面はクリップボードに入っている / the body is on the clipboard either way
-            }
-        }
-
-        /**
-         * 一時テキストフレーム経由でクリップボードを書き換える
-         * Illustratorには文字列を直接クリップボードへ送るAPIが無いため、内容を持つフレームを作ってコピーする。
-         * 追加直後のフレームは再描画しないとコピー対象にならず、app.copy() は黙って無視されることがある。
-         * 置くのは書き出し済みの作業用ドキュメントなので、フレームを消さずにそのまま閉じてよい。
-         * @param {Document} targetDocument - 一時フレームを置くドキュメント
-         * @param {string} textContent - クリップボードに残す文字列
-         * @returns {boolean} コピーできたらtrue
-         */
-        function writeTextToClipboard(targetDocument, textContent) {
-            try {
-                /* 元のレイヤーはロックされていることがあるため、新しいレイヤーに置く / The original layers may be locked */
-                var clipboardFrame = targetDocument.layers.add().textFrames.add();
-                clipboardFrame.contents = textContent;
-
-                /* 追加したフレームを画面に反映してから選択する / Flush the new frame before selecting it */
-                app.redraw();
-                app.executeMenuCommand("deselectall");
-                clipboardFrame.selected = true;
-                app.redraw();
-
-                app.executeMenuCommand("copy");
-                app.redraw();
-                return true;
-            } catch (e) {
-                return false; // コピーできなくてもPDFは作成済み / the PDF is already written
-            }
-        }
-
-        // =========================================
-        // 作業用複製とPDF書き出し / Working copy & PDF export
-        // =========================================
-
-        /**
-         * 作業用の複製ファイルのパスを作る
-         * リンク画像の相対パスを保つため、テンプレートと同じフォルダーに置く
-         * @returns {File} 作業用ファイル
-         */
-        function buildWorkFilePath() {
-            var currentTime = new Date();
-            var timestamp = todayDateStamp() + "_" + padTwoDigits(currentTime.getHours()) +
-                padTwoDigits(currentTime.getMinutes()) + padTwoDigits(currentTime.getSeconds());
-
-            var templateFileName = templateFile.name;
-            var dotIndex = templateFileName.lastIndexOf(".");
-            var baseName = (dotIndex >= 0) ? templateFileName.substring(0, dotIndex) : templateFileName;
-            var fileExtension = (dotIndex >= 0) ? templateFileName.substring(dotIndex) : ".ai";
-
-            return new File(templateFile.parent.fsName + "/" + baseName + "_work_" + timestamp + fileExtension);
-        }
-
-        /**
-         * テンプレートを複製して開く
-         * 警告の抑止中に通知しないよう、失敗はその場で知らせず呼び出し元へ返す
-         * @param {File} workFile - 複製先のファイル
-         * @returns {{document: Document, error: string}} 開いたドキュメントと、失敗したときの内容
-         */
-        function openWorkCopy(workFile) {
-            try {
-                if (!templateFile.copy(workFile)) throw new Error("File copy failed");
-                return { document: app.open(workFile), error: null };
-            } catch (e) {
-                return { document: null, error: String(e) };
-            }
-        }
-
-        /**
-         * 作業用ドキュメントを保存せずに閉じ、複製ファイルも削除する
-         * @param {Document} workDocument - 閉じるドキュメント（開けていなければnull）
-         * @param {File} workFile - 削除する複製ファイル
-         * @returns {void}
-         */
-        function discardWorkCopy(workDocument, workFile) {
-            try {
-                if (workDocument) workDocument.close(SaveOptions.DONOTSAVECHANGES);
-            } catch (e) {
-                // 閉じられなくても、ファイルの削除と結果の通知は続ける / carry on even if it will not close
-            }
-            try {
-                if (workFile.exists) workFile.remove();
-            } catch (e) {
-                // 消せない場合は複製が残るが、PDFは作成済み / the PDF is already written
-            }
-        }
-
-        /**
-         * 設定した名前からPDFの互換性を決める
-         * 名前が合わないときはPDF 1.6（Acrobat 7）にする
-         * @returns {PDFCompatibility} 互換性の指定
-         */
-        function resolvePdfCompatibility() {
-            var compatibilityByName = {
-                ACROBAT5: PDFCompatibility.ACROBAT5,
-                ACROBAT6: PDFCompatibility.ACROBAT6,
-                ACROBAT7: PDFCompatibility.ACROBAT7,
-                ACROBAT8: PDFCompatibility.ACROBAT8
+            var mailAddress = trimAndStripBom(inputTextOf(MAIL_ADDRESS_HEADING));
+            return {
+                text: mailText,
+                mailToUrl: buildMailToUrl(mailAddress, fillMailTokens(REPLY_MAIL_SUBJECT, pdfFile), mailText)
             };
-            var chosenCompatibility = compatibilityByName[PDF_COMPATIBILITY_NAME];
-            return chosenCompatibility ? chosenCompatibility : PDFCompatibility.ACROBAT7;
         }
 
-        /**
-         * この環境に用意されているプリセット名を、候補の中から選ぶ
-         * 名前は言語ごとに違うため、実際のプリセット一覧と突き合わせる
-         * @returns {string} 見つかったプリセット名（無ければ空文字）
-         */
-        function resolvePdfPresetName() {
-            var availablePresets = app.PDFPresetsList;
-            if (!availablePresets) return "";
+        // -----------------------------------------
+        // イベント / Events
+        // -----------------------------------------
 
-            for (var i = 0; i < PDF_PRESET_CANDIDATES.length; i++) {
-                for (var j = 0; j < availablePresets.length; j++) {
-                    if (String(availablePresets[j]) === PDF_PRESET_CANDIDATES[i]) return PDF_PRESET_CANDIDATES[i];
-                }
-            }
-            return "";
+        templateUi.fullPathCheckbox.onClick = refreshTemplateAndExportRows;
+        templateUi.dropboxCheckbox.onClick = function () {
+            /* Dropbox短縮が効いている間はフルパス表示が反映されないので、操作できないようにする / Full path has no effect while shortened */
+            templateUi.fullPathCheckbox.enabled = !templateUi.dropboxCheckbox.value;
+            refreshTemplateAndExportRows();
+        };
+        templateUi.fullPathCheckbox.enabled = !templateUi.dropboxCheckbox.value;
+
+        /* ［更新］：ダイアログを開いたまま、コピーし直した内容を取り込む / Re-read the clipboard in place */
+        fieldsUi.reloadButton.onClick = reloadFromClipboard;
+
+        /* ［指定］／［変更］：テンプレートを選び直し、次回以降のために記憶する / Pick a template and remember it */
+        templateUi.pickButton.onClick = function () {
+            var promptText = fillDocumentTypeToken(getLabel(LABELS.prompt.pickTemplate), currentDocumentTypeName());
+            var pickedFile = File.openDialog(promptText, TEMPLATE_FILE_FILTER);
+            if (!pickedFile) return;
+            templateFile = pickedFile;
+            saveTemplatePath(pickedFile.fsName);
+            /* 新しいテンプレートの名前から、書類名を選び直す / Re-pick the document type from the new name */
+            selectDocumentTypeRadio(resolveDocumentTypeName(templateFile));
+            refreshTemplateAndExportRows();
+        };
+
+        if (fieldsUi.amountInput) fieldsUi.amountInput.onChanging = refreshTaxBreakdown;
+        /* 宛先と日付はどちらもファイル名に出るため、打つそばから書き出し名を追従させる / Both feed the file name */
+        if (fieldInputs[PDF_FILE_NAME_HEADING]) fieldInputs[PDF_FILE_NAME_HEADING].onChanging = refreshExportRows;
+        if (fieldInputs[specialHeadings.date]) fieldInputs[specialHeadings.date].onChanging = refreshExportRows;
+        /* ［今日の日付］は日付欄を入れ替えるだけ。ファイル名の日付も追従させる / Fill the date field and rename */
+        if (fieldsUi.todayDateButton) {
+            fieldsUi.todayDateButton.onClick = function () {
+                fieldInputs[specialHeadings.date].text = todayDateText();
+                refreshExportRows();
+            };
         }
+        /* 同名ファイルの扱いで連番の有無が変わるため、選び直すたびにファイル名を付け直す / The name depends on this */
+        outputUi.overwriteRadio.onClick = refreshExportRows;
+        outputUi.addSerialNumberRadio.onClick = refreshExportRows;
 
-        /**
-         * 書き出しに使うPDFオプションを組み立てる
-         * プリセットが見つかればそれを読み込み、無ければ同等の設定を個別に組む
-         * @returns {PDFSaveOptions} 書き出しオプション
-         */
-        function buildPdfSaveOptions() {
-            var pdfOptions = new PDFSaveOptions();
-            pdfOptions.viewAfterSaving = false;
-
-            var presetName = resolvePdfPresetName();
-            if (presetName !== "") {
-                /* 互換性はプリセットの値を上書きするので、読み込んだあとに指定する / Load first, then override */
-                pdfOptions.pDFPreset = presetName;
-                pdfOptions.compatibility = resolvePdfCompatibility();
-                return pdfOptions;
-            }
-
-            /* 編集用データとサムネールを外すのが、ファイルサイズでは一番効く / Dropping AI data shrinks it the most */
-            pdfOptions.compatibility = resolvePdfCompatibility();
-            pdfOptions.preserveEditability = PDF_PRESERVE_EDITABILITY;
-            pdfOptions.generateThumbnails = false;
-            pdfOptions.acrobatLayers = false;
-            pdfOptions.optimization = true;   /* Web表示用に最適化 / optimize for fast web view */
-            pdfOptions.compressArt = true;
-
-            pdfOptions.colorDownsampling = PDF_IMAGE_RESOLUTION;
-            pdfOptions.colorDownsamplingImageThreshold = PDF_IMAGE_THRESHOLD;
-            pdfOptions.colorDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
-            pdfOptions.colorCompression = CompressionQuality.JPEGLOW;
-
-            pdfOptions.grayscaleDownsampling = PDF_IMAGE_RESOLUTION;
-            pdfOptions.grayscaleDownsamplingImageThreshold = PDF_IMAGE_THRESHOLD;
-            pdfOptions.grayscaleDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
-            pdfOptions.grayscaleCompression = CompressionQuality.JPEGLOW;
-
-            /* 白黒画像は線がつぶれると読めなくなるため、カラーより高い解像度を保つ / Keep 1-bit art legible */
-            pdfOptions.monochromeDownsampling = 300;
-            pdfOptions.monochromeDownsamplingImageThreshold = 450;
-            pdfOptions.monochromeDownsamplingMethod = DownsampleMethod.BICUBICDOWNSAMPLE;
-            pdfOptions.monochromeCompression = MonochromeCompression.CCIT4;
-
-            return pdfOptions;
-        }
-
-        /**
-         * ドキュメントをPDFとして書き出す
-         * プリセット名や設定は環境によって通らないことがあるため、失敗したら既定設定で書き出し直す
-         * @param {Document} targetDocument - 書き出すドキュメント
-         * @param {File} pdfFile - 書き出し先のファイル
-         * @returns {void}
-         */
-        function exportDocumentAsPdf(targetDocument, pdfFile) {
-            try {
-                targetDocument.saveAs(pdfFile, buildPdfSaveOptions());
-                return;
-            } catch (e) {
-                // 設定が通らない環境では、何も指定しない書き出しに切り替える / fall back to plain defaults
-            }
-            var defaultOptions = new PDFSaveOptions();
-            defaultOptions.viewAfterSaving = false;
-            targetDocument.saveAs(pdfFile, defaultOptions);
-        }
-
-        /**
-         * 完了メッセージを組み立てる
-         * @param {File} pdfFile - 作成したPDFファイル
-         * @param {string[]} missingTags - テンプレートに無かったタグ
-         * @param {boolean} isMailCopied - 返信メールをコピーできたか
-         * @returns {string} 表示するメッセージ
-         */
-        function buildDoneMessage(pdfFile, missingTags, isMailCopied) {
-            var doneMessage = LABELS.alert.done.replace("#filename#", decodeURI(pdfFile.name));
-            if (isMailCopied) doneMessage += "\n\n" + LABELS.alert.mailCopied;
-            if (missingTags.length > 0) {
-                doneMessage += "\n\n" + LABELS.alert.missingTags.replace("#tags#", missingTags.join("\n"));
-            }
-            return doneMessage;
-        }
-
-        /**
-         * テンプレートの複製にデータを流し込み、PDFの書き出しと返信メールのコピーまで行う
-         * テンプレート自体には触れず、作業用の複製は最後に削除する
-         * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
-         * @param {{text: string, mailToUrl: string}} replyMail - 返信メールの文面と、メールソフトを開くURL
-         * @param {File} pdfFile - 書き出し先のファイル
-         * @returns {void}
-         */
-        function createPdfAndReplyMail(tagReplacements, replyMail, pdfFile) {
-            var workFile = buildWorkFilePath();
-
-            /* 作業が終わったら、実行前に前面だったドキュメントへ戻す / Come back to whatever was in front before */
-            var previousDocument = (app.documents.length > 0) ? app.activeDocument : null;
-
-            /* 複製を開く際のプロファイル警告などで処理が止まらないようにする / Keep Illustrator's own dialogs out of the way */
-            var previousInteractionLevel = app.userInteractionLevel;
-            app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
-
-            var workCopy = openWorkCopy(workFile);
-            if (workCopy.document === null) {
-                discardWorkCopy(null, workFile);
-                /* 警告を抑止したまま知らせない / Restore before reporting */
-                app.userInteractionLevel = previousInteractionLevel;
-                alert(LABELS.alert.workCopyFailed.replace("#detail#", workCopy.error));
-                return;
-            }
-            var workDocument = workCopy.document;
-
-            var missingTags = [];
-            var isMailCopied = false;
-            var exportError = null;
-            try {
-                missingTags = replaceTagsInDocument(workDocument, tagReplacements);
-                workDocument.selection = null;
-                app.redraw();
-                exportDocumentAsPdf(workDocument, pdfFile);
-                /* 書き出したあとに一時フレームを置くので、PDFには入らない / The temp frame is added after the export */
-                isMailCopied = writeTextToClipboard(workDocument, replyMail.text);
-            } catch (e) {
-                exportError = String(e);
-            }
-
-            discardWorkCopy(workDocument, workFile);
-            if (previousDocument) previousDocument.activate();
-            /* 結果を知らせる前に戻す / Restore before reporting the result */
-            app.userInteractionLevel = previousInteractionLevel;
-
-            if (exportError !== null) {
-                alert(LABELS.alert.exportFailed.replace("#detail#", exportError));
-                return;
-            }
-            alert(buildDoneMessage(pdfFile, missingTags, isMailCopied));
-
-            /* 開くのは知らせたあと。先に開くと、前面に出たFinderやメールソフトの裏にalertが隠れる / Reveal after the alert */
-            if (OPEN_FOLDER_AFTER_EXPORT) pdfFile.parent.execute();
-            /* 添付はmailtoで指定できないため、開いたフォルダーからPDFをドラッグして添付する / Attach the PDF by hand */
-            if (OPEN_MAIL_AFTER_EXPORT) openMailDraft(replyMail.mailToUrl);
+        /* 書類名はタイトルにもファイル名にも出るため、選び直すたびに両方を付け直す / Retitle and rename on every pick */
+        for (var radioIndex = 0; radioIndex < fieldsUi.documentTypeRadios.length; radioIndex++) {
+            fieldsUi.documentTypeRadios[radioIndex].onClick = refreshTemplateAndExportRows;
         }
 
         /* 「PDFを作成」：ダイアログを閉じてから書き出す / Run: close the dialog, then export */
-        runButton.onClick = function () {
+        btnRun.onClick = function () {
             var pdfFile = resolvePdfFile();
             if (pdfFile === null) {
-                alert(LABELS.alert.noTemplate);
+                alert(getLabel(LABELS.alert.noTemplate));
                 return;
             }
             /* 「その他」のように、入力が空だと適用まで空になる書き方がある / Some wordings leave 適用 empty when the field is blank */
             if (trimAndStripBom(buildApplicationText()) === "") {
-                alert(LABELS.alert.emptyApplication);
-                if (applicationHeading && fieldInputs[applicationHeading]) fieldInputs[applicationHeading].active = true;
+                alert(getLabel(LABELS.alert.emptyApplication));
+                if (fieldInputs[specialHeadings.application]) fieldInputs[specialHeadings.application].active = true;
                 return;
             }
             /* 閉じたあとの入力欄は参照できなくなりうるので、必要な値はすべて先に取り出す / Read every field before closing */
             var tagReplacements = buildTagReplacements();
             var replyMail = buildReplyMail(pdfFile);
             mainDialog.close();
-            createPdfAndReplyMail(tagReplacements, replyMail, pdfFile);
+            createPdfAndReplyMail(templateFile, tagReplacements, replyMail, pdfFile);
         };
 
+        selectDocumentTypeRadio(resolveDocumentTypeName(templateFile));
+        refreshTaxBreakdown();
+        refreshTemplateAndExportRows();
         mainDialog.show();
-    })();
+    }
+
+    main();
 
 })();

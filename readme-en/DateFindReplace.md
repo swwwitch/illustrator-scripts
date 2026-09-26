@@ -24,4 +24,5 @@ Finds dates in the text frames of the document and replaces only the ones you ti
 
 ### Update History
 
+- v1.0.4 (20260927): Added an English UI. Fixed Option-click toggling all items, reverting the preview when the dialog is closed with Esc, and values being re-rounded while typing
 - v1.0.2

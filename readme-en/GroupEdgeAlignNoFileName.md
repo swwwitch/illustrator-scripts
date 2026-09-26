@@ -29,3 +29,4 @@ Aligns the edges or the center of the selected objects in the direction given by
 ### Update History
 
 - v1.0 (2025-04-06)
+- v1.0.2 (2026-09-27) : Alert messages are now localized for English. An invalid GUIDE_SEARCH_MODE is reported even when the document has no guides

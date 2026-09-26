@@ -125,6 +125,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ## Changelog
 
+- v2.2.4 (2026-09-27): Fixed number fields that would not accept a decimal point (the value was rewritten on every key, not just the arrow keys). Units now come from the shared unit table (adds H, ft, yd and m; inches read "in"). Renamed the English dialog title to "Create Basic Shapes". Added tooltips to the controls and unified how field labels get their colon
 - v2.2.3 (2026-09-21): Fixed the dialog title showing ColorPicker.jsx's version instead of this script's. Fixed the color picker not opening when a color swatch is clicked (ColorPicker.jsx v1.0.2)
 - v2.2.0 (2026-07-31): Added the basic info block and JSDoc, wrapped the script in an IIFE, renamed variables and panels, and fixed when the parameters are captured on OK
 - v1.0.0 (2025-05-02): Initial version

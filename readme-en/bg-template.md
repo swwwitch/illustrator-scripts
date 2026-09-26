@@ -14,7 +14,7 @@ Creates a rectangle the size of the current artboard, places it on a "bg-templat
 
 ### Features
 
-- Fills with K20 in CMYK documents
+- Fills with K45 in CMYK documents (editable in the dialog)
 - Fills with #999999 in RGB documents
 - Creates the "bg-template" layer, marks it as a template and sends it to the back
 
@@ -25,8 +25,9 @@ Creates a rectangle the size of the current artboard, places it on a "bg-templat
 
 ### Notes
 
-- Marking the layer as a template uses a dynamic action. The action definition has to be built from an array joined with `join("\n")`; the current implementation uses `'''`, which is a syntax error in ExtendScript.
+- Marking the layer as a template uses a dynamic action.
 
 ### Update History
 
 - v1.0 (2025-07-29)
+- v1.0.2 (2026-09-27): Changing RGB with the arrow keys now updates the hex field. Fixed other keys re-rounding the value. Field-label colons now follow the UI language

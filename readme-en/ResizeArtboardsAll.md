@@ -30,8 +30,9 @@
 
 ### Update History
 
+- v1.0.2 (2026-09-27): Fixed the artboard-number field staying enabled after switching back from Specify, and the width/height fields being overwritten with the active artboard's size while typing. Each preview now starts from the original sizes, so artboards dropped from the target go back. Units now come from the ruler-unit preference, including H. Tidied wording and tooltips
 - v1.0 (2025-08-29): Initial release
 
 ### Script info
 
-- Version: v1.0
+- Version: v1.0.2

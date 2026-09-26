@@ -23,7 +23,7 @@
 
 ### 注意点
 
-- タブや段落を手がかりに分割・連結したい場合は TextBreakSplitMergePalette.jsx を使用してください。
+- タブや段落を手がかりに分割・連結したい場合は TextProcessingPalette.jsx を使用してください。
 
 ### 更新履歴
 

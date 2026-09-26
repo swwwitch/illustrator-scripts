@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenOpa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FlattenOpacityPro";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenOpacityPro.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenOpacityPro.md"; /* README (English) */
@@ -57,6 +57,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        If true: when flattening a single item (opacity over white), composite in RGB (linear light)
        to avoid the common "too dark" result from naive CMYK ink scaling. */
     var USE_RGB_WHITE_COMPOSITE = false;
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = detectUILang();
+
+    var LABELS = {
+        alert: {
+            noSelection: { ja: "オブジェクトを選択してください。", en: "Please select one or more objects." },
+            done: { ja: "処理が完了しました。", en: "Done." }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語の文字列を引く
+     * @param {string} labelPath - "alert.noSelection" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode["en"] || labelPath;
+    }
 
     // =========================================
     // 形の判定 / Shape keys
@@ -517,7 +552,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function bakeOpacityIntoFillRecursive(item, parentAlpha, doc) {
         if (!item) return;
-        if (parentAlpha === undefined || parentAlpha === null) parentAlpha = 1.0;
 
         var typeName = item.typename;
 
@@ -571,12 +605,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 最前面に最終色を適用して不透明度 100 に / Apply the final color to the frontmost */
+        /* 塗りなし（baseColor が null）のときは代入が例外になる / Assigning a null color throws when there is no fill */
         try {
             survivorEntry.pathItem.fillColor = baseColor;
-        } catch (e) {}
-        try {
-            survivorEntry.pathItem.opacity = 100;
-        } catch (e) {}
+        } catch (e) { }
+        survivorEntry.pathItem.opacity = 100;
 
         /* 残りは削除（最前面は残して重なり順を保つ） / Remove the others */
         for (var j = 0; j < sameShapeEntries.length; j++) {
@@ -636,7 +669,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
 
         if (doc.selection.length < 1) {
-            alert("オブジェクトを選択してください。");
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
@@ -644,18 +677,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (selectionHasStroke(doc.selection)) {
             app.executeMenuCommand('OffsetPath v22');
             /* 再選択（念のため） / Reselect just in case */
-            try {
-                var outlinedSelection = doc.selection;
-                doc.selection = null;
-                doc.selection = outlinedSelection;
-            } catch (e) {}
+            var outlinedSelection = doc.selection;
+            doc.selection = null;
+            doc.selection = outlinedSelection;
         }
 
         /* 1つだけなら重なりが無いので、分割せずに直接焼き込む（分割で透明が潰れ、K100 の 50% が K100 になるのを避ける）
            Single object: bake directly to avoid Divide/Expand collapsing transparency */
         if (doc.selection && doc.selection.length === 1) {
             bakeOpacityIntoFillRecursive(doc.selection[0], 1.0, doc);
-            alert('処理が完了しました。');
+            alert(getLabel("alert.done"));
             return;
         }
 
@@ -677,7 +708,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             flattenGeometryGroup(geometryGroups[geometryKey], doc);
         }
 
-        alert("処理が完了しました。");
+        alert(getLabel("alert.done"));
     }
 
     main();

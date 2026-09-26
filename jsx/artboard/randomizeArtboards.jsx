@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "randomizeArtboards";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/randomizeArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeArtboards.md"; /* README (English) */
@@ -39,8 +39,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ユーザー設定 / User settings
     // =========================================
 
-    var COLUMNS = 4;   /* グリッドの列数 / number of grid columns */
-    var GAP = 100;     /* アートボード間の余白（pt）/ gap between artboards (pt) */
+    var GRID_COLUMNS = 4;    /* グリッドの列数 / number of grid columns */
+    var ARTBOARD_GAP = 100;  /* アートボード間の余白（pt）/ gap between artboards (pt) */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
+        }
+    };
+
+    /**
+     * ラベルを取得する
+     * @param {string} labelPath - "alert.noDocument" のようなドット区切りのキー
+     * @returns {string} 現在のUI言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
     // =========================================
     // メイン処理 / Main
@@ -53,7 +88,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
         /* ドキュメントが開かれているかチェック / Make sure a document is open */
         if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
@@ -81,7 +116,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         shuffleArtboardOrder(artboardEntries);
 
         /* 4. グリッドに再配置（中身のアイテムも一緒に移動）/ Lay out on the grid, moving member items along */
-        layoutArtboardsInGrid(artboardEntries, COLUMNS, GAP, anchorLeft, anchorTop);
+        layoutArtboardsInGrid(artboardEntries, GRID_COLUMNS, ARTBOARD_GAP, anchorLeft, anchorTop);
 
         /* 5. シャッフル＋再配置した情報を元のアートボードに上書き / Write the shuffled rects and names back */
         for (var j = 0; j < artboards.length; j++) {

@@ -39,7 +39,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-(function() {
+(function () {
 
     // =========================================
     // ユーザー設定 / User Settings

@@ -1681,7 +1681,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     // =========================================
     // 変換と整形 / Conversions and cleanup
     // =========================================
-    /* 変換関数は TextBreakSplitMergePalette.jsx から移植 / Converters ported from TextBreakSplitMergePalette.jsx */
+    /* 変換関数は TextProcessingPalette.jsx から移植 / Converters ported from TextProcessingPalette.jsx */
 
     /**
      * 変換の名前に対応する変換関数を返す

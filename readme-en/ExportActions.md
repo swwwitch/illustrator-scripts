@@ -22,3 +22,7 @@
 
 - Cannot run on Illustrator versions where `app.actionSets` is unavailable.
 - Characters that are illegal in filenames are replaced with `_`.
+
+### Update History
+
+- v1.0.2 (2026-09-27) Alerts and the result report now switch between Japanese and English

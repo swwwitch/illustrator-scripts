@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEachS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GroupEachSelection";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEachSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEachSelection.md"; /* README (English) */
@@ -34,53 +34,94 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/*
-  選択したオブジェクトをそれぞれ個別にグループ化するスクリプト
-*/
+(function () {
 
-(function() {
-    // ドキュメントが開かれているか確認
-    if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 表示言語を判定する
+     * @returns {string} 日本語環境なら "ja"、それ以外は "en"
+     */
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var doc = app.activeDocument;
-    var currentSelection = doc.selection;
+    var uiLang = getCurrentLang();
 
-    // オブジェクトが選択されているか確認
-    if (currentSelection.length === 0) {
-        alert("オブジェクトが選択されていません。");
-        return;
+    /* 日英ラベル定義（UIパーツ別） / Bilingual labels grouped by UI part */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects are selected." }
+        }
+    };
+
+    /**
+     * 現在の言語のラベルを返す
+     * @param {Object} labelSet - { ja: string, en: string }
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
     }
 
-    // エラー回避のため、選択順序を逆にして処理（インデックスずれ防止）
-    // ただし、move()を使う場合は元の配列参照が生きていると安全ではないため、
-    // いったん配列にコピーしてから処理するのが一般的ですが、
-    // 今回は単純な移動なのでループで回します。
+    // =========================================
+    // 1つずつグループにする / Group each object
+    // =========================================
 
-    for (var i = 0; i < currentSelection.length; i++) {
-        var item = currentSelection[i];
-
-        // すでにグループ化されているものをさらにグループ化するのか、
-        // 単体のパスなどをグループに入れるのかに関わらず、
-        // 新しいグループを作成してそこに移動させます。
-
-        // 新しいグループコンテナを作成（元のオブジェクトの親階層に作るのが安全）
-        // item.layer だとレイヤー直下になるため、item.parent を参照
-        var parentContainer = item.parent;
-        var newGroup = parentContainer.groupItems.add();
-        
-        // オブジェクトの重なり順（Zオーダー）を維持するための工夫
-        // move(relativeObject, elementPlacement) を使用
-        // 以前の場所の「直前」にグループを移動させてから、中身を入れる
-        newGroup.move(item, ElementPlacement.PLACEBEFORE);
-        
-        // オブジェクトを新グループ内に移動
-        item.move(newGroup, ElementPlacement.PLACEATEND);
+    /**
+     * 選択したオブジェクトを、1つずつ別々のグループにする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
+     * @param {boolean} skipGroups - グループはグループ化せずに残す
+     * @returns {void}
+     */
+    function groupEachItem(doc, selectedItems, skipGroups) {
+        var itemsToSelect = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var targetItem = selectedItems[i];
+            if (skipGroups && targetItem.typename === "GroupItem") {
+                itemsToSelect.push(targetItem);
+                continue;
+            }
+            var wrapperGroup = targetItem.parent.groupItems.add();
+            /* 元の位置のすぐ前面にグループを置いてから中へ入れ、重ね順を保つ / Put the group right in front of the item, then move the item in */
+            wrapperGroup.move(targetItem, ElementPlacement.PLACEBEFORE);
+            targetItem.move(wrapperGroup, ElementPlacement.PLACEATEND);
+            itemsToSelect.push(wrapperGroup);
+        }
+        doc.selection = itemsToSelect;
     }
-    
-    // 処理完了後に選択状態を解除したければ以下を有効化
-    // doc.selection = null;
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択したオブジェクトを、1つずつ個別のグループにする
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel(LABELS.alert.noDocument));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var selectedItems = doc.selection;
+        /* 文字ツールで文字を選択中は、添字で要素を取れない TextRange が返る / A text selection returns a TextRange that cannot be indexed */
+        if (!selectedItems || selectedItems.typename === "TextRange" || selectedItems.length === 0) {
+            alert(getLabel(LABELS.alert.noSelection));
+            return;
+        }
+
+        /* グループも含めてすべて包む（統合版 GroupMembership の［グループ化済みのものは飛ばす］OFF と同じ）
+           Wrap everything, groups included (same as GroupMembership with "skip groups" off) */
+        groupEachItem(doc, selectedItems, false);
+    }
+
+    main();
 
 })();

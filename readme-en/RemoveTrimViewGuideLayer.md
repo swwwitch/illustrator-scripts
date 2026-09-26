@@ -26,3 +26,4 @@ Finds the "Guides Preview for Trim View" layer, unlocks and unhides it, removes 
 ### Update History
 
 - v1.0
+- v1.0.1 (2026-09-27): Messages now appear in English on English systems; the no-document message was reworded

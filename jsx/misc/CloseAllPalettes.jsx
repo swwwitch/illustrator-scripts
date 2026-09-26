@@ -32,7 +32,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 AiMemoPalette / AiQuickPrefsPalette / AiTextOutlineRestorePalette / LinkedImageManagerPalette /
 UnifiedTypePalette / ImportAndApplyGraphicStylePalette / ArtboardDisplayPresetManagerPalette /
-TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePalette / TextBreakSplitMergePalette /
+TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePalette / TextProcessingPalette /
 AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
 LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
@@ -85,7 +85,7 @@ var PALETTES = [
     { name: "TextCountStatsPalette", engine: "TextCountStatsSession", global: "__TextCountStatsPalette" },
     { name: "SelectionInspectorPalette", engine: "SelectionInspectorSession", global: "__SelectionInspectorPalette" },
     { name: "ApplyLeadingPerTextFramePalette", engine: "ApplyLeadingPerTextFrame", global: "__ALPTF_PALETTE__" },
-    { name: "TextBreakSplitMergePalette", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" },
+    { name: "TextProcessingPalette", engine: "TextBreakSplitMergeEngine", global: "__TextBreakSplitMergePalette" },
     { name: "AiAlignToArtboardPalette", engine: "AiAlignToArtboard", global: "__aiAlignToArtboardWindow" },
     { name: "AiSmartRotateViewPalette", engine: "AiSmartRotateView", global: "__aiSmartRotateViewPalette" },
     { name: "AutoKerningPalette", engine: "AutoKerningPanelEngine", global: "__AutoKerningPanel" },

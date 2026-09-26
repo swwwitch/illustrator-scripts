@@ -25,3 +25,4 @@ With one shape and one image selected, scales the image to the shape and then cr
 ### Update History
 
 - v1.0
+- v1.0.2 (2026-09-27): Messages now appear in English on English systems

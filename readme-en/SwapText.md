@@ -24,3 +24,4 @@ Swaps the contents of two selected text objects.
 ### Update History
 
 - v1.0.0
+- v1.0.1: Alerts are now shown in English on non-Japanese systems

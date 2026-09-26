@@ -20,3 +20,4 @@ Lists the kinsoku (line-breaking) settings used by the selected paragraphs.
 ### Update History
 
 - v1.0
+- v1.0.1 (2026-09-27): Reworded the list heading and added English alerts

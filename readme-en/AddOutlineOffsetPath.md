@@ -22,6 +22,10 @@
 - Dialog position and opacity can be adjusted
 - Shift and Option modify the arrow-key step in numeric fields
 
+### Update History
+
+- v1.1.2 (2026-09-27): Fixed the value being re-rounded when keys other than Up/Down were pressed; added an alert when no document is open
+
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.2

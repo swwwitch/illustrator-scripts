@@ -16,7 +16,7 @@
 
 ### Main Features
 
-- Mode selection (Selected / Text Only / All / All (Force))
+- Mode selection (Selected / All Text / All / All (Force))
 - Option to delete empty layers (excluding layers starting with bg or //)
 - Automatically change target layer color to RGB(79,128,255)
 - Unlocking, showing, and recursive item collection
@@ -36,3 +36,4 @@
 - v1.0.1 (20250703): Added layer color change function
 - v1.0.2 (20250703): Improved auto selection detection and empty layer deletion logic
 - v1.0.3 (20250704): Added "All (Force)" mode (merge all layers)
+- v1.0.6 (20260927): Dialog title changed to "Move Objects to Layer"; the All / All (Force) tooltips now describe what they actually do; "Text Only" renamed to "All Text"; all messages localized

@@ -18,4 +18,8 @@
 
 ### Script info
 
-- Version: v1.0
+- Version: v1.0.1
+
+### Update History
+
+- v1.0.1 (2026-09-27): Messages now appear in the UI language only

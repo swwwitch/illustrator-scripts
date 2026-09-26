@@ -1,8 +1,8 @@
 # テキスト処理
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextBreakSplitMergePalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextBreakSplitMergePalette.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextProcessingPalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextProcessingPalette.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePalette.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -111,6 +111,27 @@ Illustrator のテキストまわりの困りごとは、だいたい細かく�
 
 連結結果もグループ化されません。なお、これらは見た目ベースの近似的な連結です。行ごとの細かい書式差や回転までは保持されません。同じ行かどうかの判定は Y 座標の差が 5 以内かどうかで行っています。
 
+## 行の編集タブ
+
+左側のリストボックスに、選択中のテキストの各行が並びます。**このリストが機能するのはテキストフレームを1つだけ選択しているときです。**
+
+- ［上へ］［下へ］：選択行を入れ替え
+- ［追加］：ダイアログで入力した行を末尾に追加
+- ［編集］：選択行を編集（リストのダブルクリックでも可）
+- ［削除］：選択行を削除（確認あり）
+
+リストを操作するたびに、その内容がテキストフレームへ書き戻されます。
+
+右側のボタンは行全体への一括処理です。
+
+| ボタン | 動作 |
+| --- | --- |
+| ソート | 行を文字コード順に並べ替え |
+| 文字数順 | 行を文字数の少ない順に並べ替え |
+| 反転 | 行の順序を逆に |
+| 重複行 | 重複した行を削除（最初に現れたものを残す） |
+| 空行 | 空行を削除 |
+
 ## 整形タブ
 
 ### タブ・スペース
@@ -160,27 +181,6 @@ Illustrator のテキストまわりの困りごとは、だいたい細かく�
 - 区切り文字が無い行（`Apple is red` など）は対象外です。逆に `Mr. Smith` は `Smith` になってしまうので、英文に使うときは注意してください
 
 **対象になるのは「文字として入力された」マーカーだけです。** 段落属性として描画されているマーカー（テキストの中身に含まれないもの）は、このボタンでは削除できません。判別したいときは［行の編集］タブのリストを見てください。**リストにマーカーが表示されていれば文字なので削除できます。**
-
-## 行の編集タブ
-
-左側のリストボックスに、選択中のテキストの各行が並びます。**このリストが機能するのはテキストフレームを1つだけ選択しているときです。**
-
-- ［上へ］［下へ］：選択行を入れ替え
-- ［追加］：ダイアログで入力した行を末尾に追加
-- ［編集］：選択行を編集（リストのダブルクリックでも可）
-- ［削除］：選択行を削除（確認あり）
-
-リストを操作するたびに、その内容がテキストフレームへ書き戻されます。
-
-右側のボタンは行全体への一括処理です。
-
-| ボタン | 動作 |
-| --- | --- |
-| ソート | 行を文字コード順に並べ替え |
-| 文字数順 | 行を文字数の少ない順に並べ替え |
-| 反転 | 行の順序を逆に |
-| 重複行 | 重複した行を削除（最初に現れたものを残す） |
-| 空行 | 空行を削除 |
 
 ## 変換タブ
 
@@ -260,6 +260,8 @@ Illustrator の常駐パレットは、表示している間に DOM への接続
 
 ## 更新履歴
 
+- v1.8.3（2026-09-27）ファイル名を `TextBreakSplitMergePalette.jsx` から `TextProcessingPalette.jsx` に変更。
+- v1.8.2（2026-09-27）タブの並びを「基本・行の編集・整形・変換」に変更。
 - v1.8.1（2026-09-26）スペース削除の［まとめて］で、英単語の間に連続したスペースがあると1つも残らなかった不具合を修正（連続をまとめてから和欧間を処理する順に変更）。変換タブの各ボタンと、タブ→スペース・スペース削除・［.と,の後］・記号の変換・全角英数字→半角・半角カナ→全角・リストの除去で、変わった文字だけを書き換えて文字ごとの書式を残すように（SmartTextFindReplace から反映）。
 - v1.8.0（2026-09-26）［文字で分割］に「エリア内文字を連結」を追加（SmartTextSplitter から移植）。
 - v1.7.9（2026-09-26）ファイル名を `TextBreakSplitMergePallete.jsx` から `TextBreakSplitMergePalette.jsx` に変更。

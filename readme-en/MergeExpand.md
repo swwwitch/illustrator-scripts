@@ -24,3 +24,4 @@ Groups the selection, converts strokes to fills, applies Pathfinder Merge as a l
 ### Update History
 
 - v1.0.0
+- v1.0.1 (2026-09-27) Alerts now show only the UI language instead of both languages

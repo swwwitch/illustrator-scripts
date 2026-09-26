@@ -22,6 +22,10 @@
 - The conversion still runs when the original has no stroke
 - Multiple selections are supported
 
+### Update History
+
+- v1.0.2 (2026-09-27): Alerts are now shown in English as well
+
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2

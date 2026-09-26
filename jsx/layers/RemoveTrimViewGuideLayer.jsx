@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveTrim
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RemoveTrimViewGuideLayer";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveTrimViewGuideLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveTrimViewGuideLayer.md"; /* README (English) */
@@ -35,25 +35,90 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-    if (app.documents.length === 0) { alert("ドキュメントがありません"); return; }
-    var doc = app.activeDocument;
-    var TARGET = "Guides Preview for Trim View";
-    function normalize(n) { return n.replace(/^\s*\*?\s*/, "").replace(/\s+$/, ""); }
 
-    var log = [];
-    for (var i = doc.layers.length - 1; i >= 0; i--) {
-        var L = doc.layers[i];
-        if (normalize(L.name) !== TARGET) { continue; }
-        log.push("対象発見: [" + L.name + "] locked=" + L.locked + " visible=" + L.visible);
-        try {
-            L.locked = false;
-            L.visible = true;
-            L.remove();
-            log.push("  → remove() 成功");
-        } catch (e) {
-            log.push("  → remove() 失敗: " + e.message + " (line " + e.line + ")");
-        }
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var TARGET_LAYER_NAME = "Guides Preview for Trim View";  /* 削除するレイヤー名 / name of the layer to remove */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    if (log.length === 0) { log.push("対象が見つかりませんでした"); }
-    alert(log.join("\n"));
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            found: { ja: "対象発見: ", en: "Found: " },
+            removed: { ja: "  → remove() 成功", en: "  → remove() succeeded" },
+            removeFailed: { ja: "  → remove() 失敗: ", en: "  → remove() failed: " },
+            notFound: { ja: "対象が見つかりませんでした", en: "The layer was not found." }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.noDocument" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * レイヤー名から先頭の「*」と前後の空白を除く（テンプレートレイヤーなどの表記ゆれ対策）
+     * @param {string} layerName - レイヤー名
+     * @returns {string} 正規化した名前
+     */
+    function normalizeLayerName(layerName) {
+        return layerName.replace(/^\s*\*?\s*/, "").replace(/\s+$/, "");
+    }
+
+    /**
+     * 対象のトップレベルレイヤーを削除し、結果を報告する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        var doc = app.activeDocument;
+
+        var reportLines = [];
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+            var layer = doc.layers[i];
+            if (normalizeLayerName(layer.name) !== TARGET_LAYER_NAME) continue;
+
+            reportLines.push(getLabel("alert.found") + "[" + layer.name + "] locked=" + layer.locked + " visible=" + layer.visible);
+            try {
+                /* ロック・非表示のままでは削除できない / A locked or hidden layer cannot be removed */
+                layer.locked = false;
+                layer.visible = true;
+                layer.remove();
+                reportLines.push(getLabel("alert.removed"));
+            } catch (e) {
+                reportLines.push(getLabel("alert.removeFailed") + e.message + " (line " + e.line + ")");
+            }
+        }
+        if (reportLines.length === 0) reportLines.push(getLabel("alert.notFound"));
+        alert(reportLines.join("\n"));
+    }
+
+    main();
+
 })();

@@ -40,7 +40,8 @@
 
 - v1.0 (20250205): Initial version
 - v1.1 (20260401): Unlock the トンボ layer for the run and restore its original lock state afterwards
+- v1.1.1 (20260927): Does nothing when no document is open
 
 ### Script info
 
-- Version: v1.1
+- Version: v1.1.1

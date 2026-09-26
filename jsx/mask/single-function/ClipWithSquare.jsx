@@ -36,37 +36,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /*
-    作業用レイヤーを取得/作成 / Get or create a reusable work layer
-    - 名称 / Name: _clip_work
-    - 既存がロック/テンプレでもこのレイヤーは常に編集可能に設定
-    */
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var WORK_LAYER_NAME = "_clip_work";  /* 画像のレイヤーが編集できないときに使う作業レイヤー / work layer used when the image's layer is not editable */
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 画像（配置画像／埋め込み画像）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 画像なら true
+     */
+    function isImageItem(item) {
+        return item.typename === "PlacedItem" || item.typename === "RasterItem";
+    }
+
+    /**
+     * 作業レイヤーを取得、無ければ作成する（既存がロック・テンプレートでも常に編集可能にする）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} 作業レイヤー
+     */
     function getOrCreateWorkLayer(doc) {
-        var name = "_clip_work";
-        var lyr = null;
+        var workLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                lyr = doc.layers[i];
+            if (doc.layers[i].name === WORK_LAYER_NAME) {
+                workLayer = doc.layers[i];
                 break;
             }
         }
-        if (!lyr) {
-            lyr = doc.layers.add();
-            lyr.name = name;
+        if (!workLayer) {
+            workLayer = doc.layers.add();
+            workLayer.name = WORK_LAYER_NAME;
         }
-        // ensure editable
-        lyr.locked = false;
-        lyr.visible = true;
-        lyr.isTemplate = false;
-        return lyr;
+        workLayer.locked = false;
+        workLayer.visible = true;
+        workLayer.isTemplate = false;
+        return workLayer;
     }
 
-    /*
-    画像に最小正方形を追加し、クリッピンググループを作成 / Build a clipping group with the minimal square
-    - 入力 / Input: doc (Document), image (PlacedItem|RasterItem), groups (Array)
-    - 動作 / Behavior: visibleBounds から正方形を作成→画像と同グループに配置→グループをクリップ化
-    */
-    function processImage(doc, image) {
+    /**
+     * 画像の短辺に合わせた中央の正方形でクリッピングマスクを作り、選択する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PlacedItem|RasterItem} image - 対象の画像
+     * @returns {void}
+     */
+    function clipImageWithSquare(doc, image) {
         var bounds = image.visibleBounds;
         var width = bounds[2] - bounds[0];
         var height = bounds[1] - bounds[3];
@@ -74,58 +91,60 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var centerX = bounds[0] + width / 2;
         var centerY = bounds[1] - height / 2;
 
-        // 現在のレイヤーが編集可能か確認 / Check if current layer is editable
+        /* 画像のレイヤーが編集できなければ作業レイヤーを使う / Use the work layer when the image's layer is not editable */
         var parentLayer = image.layer;
-        var isLockedOrTemplate = parentLayer.locked || parentLayer.isTemplate;
+        var targetLayer = (parentLayer.locked || parentLayer.isTemplate) ? getOrCreateWorkLayer(doc) : parentLayer;
 
-        // 編集可能なレイヤーを使用 / Choose a writable layer
-        var targetLayer = isLockedOrTemplate ? getOrCreateWorkLayer(doc) : parentLayer;
-
-        // 四角形とグループをレイヤーに追加 / Create square and group
         var square = targetLayer.pathItems.rectangle(centerY + sideLength / 2, centerX - sideLength / 2, sideLength, sideLength);
-        var group = targetLayer.groupItems.add();
+        var clipGroup = targetLayer.groupItems.add();
 
-        image.moveToBeginning(group);
-        square.moveToBeginning(group);
-        group.clipped = true;
-        group.selected = true; // 生成直後に即選択 / Select immediately after creation
+        image.moveToBeginning(clipGroup);
+        square.moveToBeginning(clipGroup);
+        clipGroup.clipped = true;
+        clipGroup.selected = true;
     }
 
-    function main() {
-        // 安全ガード / Safety guard
-        if (!app.documents.length || !app.selection.length) {
-            return;
+    /**
+     * クリップグループなら中の画像だけを取り出す（マスクのパスなど画像以外は削除）
+     * @param {GroupItem} clipGroup - クリップグループ
+     * @returns {PageItem[]} 取り出した画像
+     */
+    function extractImagesFromClipGroup(clipGroup) {
+        clipGroup.clipped = false;
+        var images = [];
+        for (var i = clipGroup.pageItems.length - 1; i >= 0; i--) {
+            var pageItem = clipGroup.pageItems[i];
+            if (isImageItem(pageItem)) {
+                images.push(pageItem);
+            } else {
+                pageItem.remove();
+            }
         }
+        return images;
+    }
+
+    /**
+     * 選択した画像（クリップグループ内の画像を含む）を正方形で切り抜く
+     * @returns {void}
+     */
+    function main() {
+        if (!app.documents.length) return;
         var doc = app.activeDocument;
-        var selectedItems = app.selection;
-        doc.selection = null; // 先に選択をクリア / Clear selection first
+        var selectedItems = doc.selection;
+        if (!selectedItems.length) return;
+
+        /* 作ったグループだけが選択に残るよう、先に選択を解除 / Clear the selection first so only new groups end up selected */
+        doc.selection = null;
 
         for (var i = 0; i < selectedItems.length; i++) {
             var item = selectedItems[i];
-
-            // クリッピングマスクの処理 / Handle clipping mask groups
-            if (item.typename === 'GroupItem' && item.clipped) {
-                item.clipped = false;
-
-                var itemsToProcess = [];
-                for (var j = item.pageItems.length - 1; j >= 0; j--) {
-                    var pageItem = item.pageItems[j];
-                    if (pageItem.typename === 'PlacedItem' || pageItem.typename === 'RasterItem') {
-                        itemsToProcess.push(pageItem);
-                    } else {
-                        pageItem.remove();
-                    }
+            if (item.typename === "GroupItem" && item.clipped) {
+                var images = extractImagesFromClipGroup(item);
+                for (var j = 0; j < images.length; j++) {
+                    clipImageWithSquare(doc, images[j]);
                 }
-
-                // 解除後のグループ内にある画像を処理 / Process images extracted from the released group
-                for (var k = 0; k < itemsToProcess.length; k++) {
-                    var imageItem = itemsToProcess[k];
-                    processImage(doc, imageItem);
-                }
-            }
-            // 単体の配置/埋め込み画像を処理 / Handle standalone placed/embedded images
-            else if (item.typename === 'PlacedItem' || item.typename === 'RasterItem') {
-                processImage(doc, item);
+            } else if (isImageItem(item)) {
+                clipImageWithSquare(doc, item);
             }
         }
     }

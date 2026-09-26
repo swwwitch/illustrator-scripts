@@ -26,3 +26,4 @@
 
 - v1.0 (20250802): Initial version
 - v1.1 (20250802): Use the mask path of clip groups as the reference
+- v1.1.2 (20260927): Alerts are shown in English on English systems. Shows an alert instead of running while text is selected with the Type tool

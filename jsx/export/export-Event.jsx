@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export-Eve
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "export-Event";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export-Event.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export-Event.md"; /* README (English) */
@@ -39,12 +39,92 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
+    /**
+     * アートボード名から書き出しジョブの配列を作る（空配列は書き出し対象外）
+     * @param {string} artboardName - アートボード名
+     * @returns {Array<{scale: number, transparent: boolean, suffix: string}>} 書き出しジョブ
+     */
+    function buildExportJobs(artboardName) {
+        /* シンボル一覧は除外 / Skip "シンボル一覧" */
+        if (artboardName === "シンボル一覧") {
+            return [];
+        }
+        /* Doorkeeper は 200% + 100% を白背景で / Doorkeeper: 200% and 100% with white background */
+        if (artboardName === "Doorkeeper") {
+            return [
+                { scale: 200, transparent: false, suffix: "-200" },
+                { scale: 100, transparent: false, suffix: "" }
+            ];
+        }
+        /* title / title2 系は透明背景で 100% / title / title2 family: 100% with transparent background */
+        if (/^(title|title2)(-|$)/.test(artboardName)) {
+            return [{ scale: 100, transparent: true, suffix: "" }];
+        }
+        /* その他は白背景で 100% / Otherwise: 100% with white background */
+        return [{ scale: 100, transparent: false, suffix: "" }];
+    }
+
+    // =========================================
     // レイアウト / Layout
     // =========================================
     var PROGRESS_MARGINS    = [16, 16, 16, 16]; /* 進捗ウィンドウの余白 [左,上,右,下] / Progress window margins */
     var PROGRESS_SPACING    = 10;               /* 進捗ウィンドウ内の間隔 / Progress window spacing */
     var PROGRESS_WIDTH      = 360;              /* 状況表示とバーの幅 / Width of the status text and bar */
     var PROGRESS_BAR_HEIGHT = 14;               /* バーの高さ / Bar height */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            progressTitle: { ja: "PNG 書き出し中…", en: "Exporting PNG…" }
+        },
+        status: {
+            preparing:  { ja: "準備中…", en: "Preparing…" },
+            cancelling: { ja: "キャンセル中…", en: "Cancelling…" },
+            cancelled:  { ja: "キャンセルしました", en: "Cancelled" },
+            done:       { ja: "完了", en: "Done" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            saveFirst: { ja: "先にドキュメントを保存してください。", en: "Save the document first." },
+            exportError: {
+                ja: "アートボード「%1」の書き出し中にエラーが発生しました：\n",
+                en: "An error occurred while exporting the artboard \"%1\":\n"
+            }
+        }
+    };
+
+    /**
+     * ラベルを取得する
+     * @param {string} labelPath - "alert.saveFirst" のようなドット区切りのキー
+     * @returns {string} 現在のUI言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
     // =========================================
     // メイン処理 / Main
@@ -66,7 +146,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             outputFolder = activeDoc.fullName.parent;
         } catch (e) {}
         if (!outputFolder || !outputFolder.exists) {
-            alert("先にドキュメントを保存してください。");
+            alert(getLabel("alert.saveFirst"));
             return;
         }
 
@@ -98,7 +178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     completedCount++;
                 }
             }
-            progress.update(completedCount, cancelled ? "キャンセルしました / Cancelled" : "完了 / Done");
+            progress.update(completedCount, getLabel(cancelled ? "status.cancelled" : "status.done"));
         } finally {
             app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
             progress.close();
@@ -130,31 +210,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { artboardPlans: artboardPlans, totalJobs: totalJobs };
     }
 
-    /**
-     * アートボード名から書き出しジョブの配列を作る（空配列は書き出し対象外）
-     * @param {string} artboardName - アートボード名
-     * @returns {Array<{scale: number, transparent: boolean, suffix: string}>} 書き出しジョブ
-     */
-    function buildExportJobs(artboardName) {
-        /* シンボル一覧は除外 / Skip "シンボル一覧" */
-        if (artboardName === "シンボル一覧") {
-            return [];
-        }
-        /* Doorkeeper は 200% + 100% を白背景で / Doorkeeper: 200% and 100% with white background */
-        if (artboardName === "Doorkeeper") {
-            return [
-                { scale: 200, transparent: false, suffix: "-200" },
-                { scale: 100, transparent: false, suffix: "" }
-            ];
-        }
-        /* title / title2 系は透明背景で 100% / title / title2 family: 100% with transparent background */
-        if (/^(title|title2)(-|$)/.test(artboardName)) {
-            return [{ scale: 100, transparent: true, suffix: "" }];
-        }
-        /* その他は白背景で 100% / Otherwise: 100% with white background */
-        return [{ scale: 100, transparent: false, suffix: "" }];
-    }
-
     // =========================================
     // 書き出しヘルパー / Export helper
     // =========================================
@@ -183,7 +238,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             sourceDoc.exportFile(outputFile, ExportType.PNG24, exportOptions);
         } catch (e) {
-            alert("アートボード「" + artboardName + "」の書き出し中にエラーが発生しました：\n" + e.message);
+            alert(getLabel("alert.exportError").split("%1").join(artboardName) + e.message);
         }
     }
 
@@ -197,13 +252,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {{isCancelled: Function, update: Function, close: Function}} 進捗パレットの操作
      */
     function createProgressWindow(totalJobs) {
-        var progressWin = new Window("palette", "PNG 書き出し中… " + SCRIPT_VERSION, undefined, { closeButton: false });
+        var progressWin = new Window("palette", getLabel("dialog.progressTitle") + " " + SCRIPT_VERSION, undefined, { closeButton: false });
         progressWin.orientation = "column";
         progressWin.alignChildren = "fill";
         progressWin.margins = PROGRESS_MARGINS;
         progressWin.spacing = PROGRESS_SPACING;
 
-        var statusText = progressWin.add("statictext", undefined, "準備中… / Preparing…");
+        var statusText = progressWin.add("statictext", undefined, getLabel("status.preparing"));
         statusText.preferredSize.width = PROGRESS_WIDTH;
 
         var progressBar = progressWin.add("progressbar", undefined, 0, totalJobs);
@@ -213,11 +268,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var cancelled = false;
         var btnRowGroup = progressWin.add("group");
         btnRowGroup.alignment = ["right", "top"];
-        var btnCancel = btnRowGroup.add("button", undefined, "キャンセル", { name: "cancel" });
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnCancel.onClick = function () {
             cancelled = true;
             btnCancel.enabled = false;
-            statusText.text = "キャンセル中…";
+            statusText.text = getLabel("status.cancelling");
             progressWin.update();
         };
 

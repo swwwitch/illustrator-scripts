@@ -31,3 +31,4 @@ Bakes the opacity of the selected objects into their fill colors so that everyth
 ### Update History
 
 - v1.0
+- v1.0.2 (2026-09-27) Alerts are now shown in English as well

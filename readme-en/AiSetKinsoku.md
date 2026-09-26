@@ -25,3 +25,4 @@ Applies a kinsoku (line-breaking) preset to the selected text.
 ### Update History
 
 - v1.0
+- v1.0.1 (2026-09-27): Renamed the dialog and panel titles, added English UI and tooltips

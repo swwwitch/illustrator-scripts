@@ -33,7 +33,8 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.1 (20250804): Reworked the dialog into two columns; added units and font settings
 - v1.2 (20250804): Fixed the corner-scaling logic
 - v1.2.2 (2026-09-19): Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
+- v1.2.3 (2026-09-27): Added tooltips to the unit dropdowns and corrected the "Print (Q)" tooltip to East Asian=H; English field labels now use a single half-width colon (fixed the doubled "Keyboard Increment::"); code cleanup
 
 ### Script info
 
-- Version: v1.2.2
+- Version: v1.2.3

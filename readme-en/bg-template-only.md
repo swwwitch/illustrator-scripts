@@ -22,3 +22,7 @@
 
 - There is no dialog.
 - Use ToggleTemplateLayer.jsx when you need to switch the attribute on and off.
+
+### Update History
+
+- v1.0.1 (2026-09-27): Error messages now appear in English on English systems

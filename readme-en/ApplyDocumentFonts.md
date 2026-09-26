@@ -34,3 +34,4 @@
 - v1.1.0 (20250228): Added export feature
 - v1.1.1 (20250301): Supported applying to text inside groups
 - v1.1.2 (20250302): Adjusted font count method for groups
+- v1.1.4 (20260927): Cancel now also restores the fonts of text inside groups. The list heading now matches the actual order (by name), and field labels gained colons and tooltips

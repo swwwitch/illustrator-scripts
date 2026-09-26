@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTempla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MakeTemplateLayer";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeTemplateLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTemplateLayer.md"; /* README (English) */
@@ -36,201 +36,239 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-  // 一時アクション設定 / Temporary action settings
-  // =========================================
+    // =========================================
+    // 一時アクション設定 / Temporary action settings
+    // =========================================
+    var ACTION_SET_NAME = "DynamicActionMakeTemplate";
+    var ACTION_NAME = "TemplateON";
+    var ACTION_FILE_NAME = "~/MakeTemplateLayerAction.aia";
 
-  var ACTION_SET_NAME = "DynamicActionMakeTemplate";
-  var ACTION_NAME = "TemplateON";
-  var ACTION_FILE_NAME = "~/MakeTemplateLayerAction.aia";
+    /* レイヤーオプションのプリセット（テンプレート ON 固定）/ Layer-option preset (template ON) */
+    var TEMPLATE_ON_OPTIONS = {
+        template: true,   /* tmpl テンプレート */
+        show: true,       /* show 表示 */
+        lock: true,       /* lock ロック */
+        preview: true,    /* prvw プレビュー */
+        print: false,     /* prnt プリント */
+        dim: true,        /* dim. 画像を薄く表示 */
+        dimPercent: 50    /* 薄く表示の％（dim が true のときだけ書き出す） */
+    };
 
-  /*
-    レイヤーオプションのプリセット（テンプレート ON 固定）
-    Layer-option preset (template ON)
-  */
-  var TEMPLATE_ON_OPTIONS = {
-    template: true,   /* tmpl テンプレート */
-    show: true,       /* show 表示 */
-    lock: true,       /* lock ロック */
-    preview: true,    /* prvw プレビュー */
-    print: false,     /* prnt プリント */
-    dim: true,        /* dim. 画像を薄く表示 */
-    dimPercent: 50    /* 薄く表示の％（dim が true のときだけ書き出す） */
-  };
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
-  // =========================================
-  // 一時アクション生成 / Temporary action generation
-  // =========================================
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
 
-  /*
-    記録済みの .aia から採取した internalName / key を使い、オプションから組み立てる
-    Build the action from recorded internalName / keys, driven by the options preset
-  */
-  function buildActionSource(setName, actionName, layerName, options) {
-    var parameterLines = buildLayerParameterLines(layerName, options);
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            layerLocked: { ja: "アクティブレイヤーがロックされているため、実行できません。", en: "The active layer is locked." },
+            layerHidden: { ja: "アクティブレイヤーが非表示のため、実行できません。", en: "The active layer is hidden." },
+            actionFailed: { ja: "テンプレート属性の適用に失敗しました。", en: "Failed to apply the template attribute." },
+            fileOpenFailed: { ja: "一時アクションファイルを作成できませんでした。", en: "Failed to open the temporary action file." }
+        }
+    };
 
-    var parameterBlock = '';
-    for (var i = 0; i < parameterLines.length; i++) {
-      parameterBlock += ' /parameter-' + (i + 1) + ' { ' + parameterLines[i] + ' }\n';
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.noDocument" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
     }
 
-    return ''
-      + '/version 3\n'
-      + buildActionNameLine(setName)
-      + '/isOpen 1\n'
-      + '/actionCount 1\n'
-      + '/action-1 {\n'
-      + ' ' + buildActionNameLine(actionName)
-      + ' /keyIndex 0\n'
-      + ' /colorIndex 0\n'
-      + ' /isOpen 1\n'
-      + ' /eventCount 1\n'
-      + ' /event-1 {\n'
-      + ' /useRulersIn1stQuadrant 0\n'
-      + ' /internalName (ai_plugin_Layer)\n'
-      + ' /localizedName [ 9 e8a1a8e7a4ba203a20 ]\n'
-      + ' /isOpen 1\n'
-      + ' /isOn 1\n'
-      + ' /hasDialog 1\n'
-      + ' /showDialog 0\n'
-      + ' /parameterCount ' + parameterLines.length + '\n'
-      + parameterBlock
-      + ' }\n'
-      + '}\n';
-  }
+    // =========================================
+    // 一時アクション生成 / Temporary action generation
+    // =========================================
 
-  /*
-    parameter-* を1行ずつ生成。key は記録済み .aia の FourCC（tmpl/show/lock/prvw/prnt/dim.）
-    Build each parameter line; keys are FourCC from the recorded .aia
-    dim が true のときだけ末尾に「薄く表示の％」行を追加する
-  */
-  function buildLayerParameterLines(layerName, options) {
-    var lines = [];
-    lines.push('/key 1836411236 /showInPalette 4294967295 /type (integer) /value 4');                                   /* カラー（ラベル色） */
-    lines.push('/key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383a7e383b3 ]'); /* 名前ラベル */
-    lines.push('/key 1953068140 /showInPalette 4294967295 /type (ustring) /value ' + buildUstringValue(layerName));     /* レイヤー名（動的注入） */
-    lines.push('/key 1953329260 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.template));        /* tmpl テンプレート */
-    lines.push('/key 1936224119 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.show));            /* show 表示 */
-    lines.push('/key 1819239275 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.lock));            /* lock ロック */
-    lines.push('/key 1886549623 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.preview));         /* prvw プレビュー */
-    lines.push('/key 1886547572 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.print));           /* prnt プリント */
-    lines.push('/key 1684630830 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(options.dim));             /* dim. 画像を薄く表示 */
-    if (options.dim) {
-      lines.push('/key 1885564532 /showInPalette 4294967295 /type (unit real) /value ' + formatDimPercent(options.dimPercent) + ' /unit 592474723'); /* 薄く表示の％ */
+    /**
+     * 記録済みの .aia から採取した internalName / key を使い、オプションからアクション定義を組み立てる
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {string} layerName - 対象レイヤー名（リネームを防ぐため注入する）
+     * @param {Object} layerOptions - レイヤーオプションのプリセット
+     * @returns {string} .aia の内容
+     */
+    function buildActionSource(setName, actionName, layerName, layerOptions) {
+        var parameterLines = buildLayerParameterLines(layerName, layerOptions);
+
+        var parameterBlock = '';
+        for (var i = 0; i < parameterLines.length; i++) {
+            parameterBlock += ' /parameter-' + (i + 1) + ' { ' + parameterLines[i] + ' }\n';
+        }
+
+        return ''
+            + '/version 3\n'
+            + buildActionNameLine(setName)
+            + '/isOpen 1\n'
+            + '/actionCount 1\n'
+            + '/action-1 {\n'
+            + ' ' + buildActionNameLine(actionName)
+            + ' /keyIndex 0\n'
+            + ' /colorIndex 0\n'
+            + ' /isOpen 1\n'
+            + ' /eventCount 1\n'
+            + ' /event-1 {\n'
+            + ' /useRulersIn1stQuadrant 0\n'
+            + ' /internalName (ai_plugin_Layer)\n'
+            + ' /localizedName [ 9 e8a1a8e7a4ba203a20 ]\n'
+            + ' /isOpen 1\n'
+            + ' /isOn 1\n'
+            + ' /hasDialog 1\n'
+            + ' /showDialog 0\n'
+            + ' /parameterCount ' + parameterLines.length + '\n'
+            + parameterBlock
+            + ' }\n'
+            + '}\n';
     }
-    return lines;
-  }
 
-  function boolBit(flag) {
-    return flag ? 1 : 0;
-  }
-
-  function formatDimPercent(percent) {
-    return percent.toFixed(1);
-  }
-
-  function buildActionNameLine(actionName) {
-    return '/name [ ' + actionName.length + ' ' + stringToHex(actionName) + ' ]\n';
-  }
-
-  function stringToHex(sourceText) {
-    var hexText = "";
-    for (var i = 0; i < sourceText.length; i++) {
-      var hexValue = sourceText.charCodeAt(i).toString(16);
-      if (hexValue.length < 2) hexValue = "0" + hexValue;
-      hexText += hexValue;
+    /**
+     * parameter-* を1行ずつ生成する。key は記録済み .aia の FourCC（tmpl/show/lock/prvw/prnt/dim.）
+     * dim が true のときだけ末尾に「薄く表示の％」行を追加する
+     * @param {string} layerName - 対象レイヤー名
+     * @param {Object} layerOptions - レイヤーオプションのプリセット
+     * @returns {string[]} パラメーター行
+     */
+    function buildLayerParameterLines(layerName, layerOptions) {
+        var lines = [];
+        lines.push('/key 1836411236 /showInPalette 4294967295 /type (integer) /value 4');                                   /* カラー（ラベル色） */
+        lines.push('/key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383a7e383b3 ]'); /* 名前ラベル */
+        lines.push('/key 1953068140 /showInPalette 4294967295 /type (ustring) /value ' + buildUstringValue(layerName));     /* レイヤー名（動的注入） */
+        lines.push('/key 1953329260 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.template));   /* tmpl テンプレート */
+        lines.push('/key 1936224119 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.show));       /* show 表示 */
+        lines.push('/key 1819239275 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.lock));       /* lock ロック */
+        lines.push('/key 1886549623 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.preview));    /* prvw プレビュー */
+        lines.push('/key 1886547572 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.print));      /* prnt プリント */
+        lines.push('/key 1684630830 /showInPalette 4294967295 /type (boolean) /value ' + boolBit(layerOptions.dim));        /* dim. 画像を薄く表示 */
+        if (layerOptions.dim) {
+            lines.push('/key 1885564532 /showInPalette 4294967295 /type (unit real) /value ' + layerOptions.dimPercent.toFixed(1) + ' /unit 592474723'); /* 薄く表示の％ */
+        }
+        return lines;
     }
-    return hexText;
-  }
 
-  /*
-    ustring 値（[ バイト数 UTF-8のhex ]）を生成する
-    Build a ustring value ([ byteCount UTF-8 hex ]); handles multi-byte names
-  */
-  function buildUstringValue(sourceText) {
-    var byteString = unescape(encodeURIComponent(sourceText));
-    var hexText = "";
-    for (var i = 0; i < byteString.length; i++) {
-      var hexValue = byteString.charCodeAt(i).toString(16);
-      if (hexValue.length < 2) hexValue = "0" + hexValue;
-      hexText += hexValue;
+    /**
+     * 真偽値を .aia の boolean 値（1 / 0）にする
+     * @param {boolean} flag - 真偽値
+     * @returns {number} 1 または 0
+     */
+    function boolBit(flag) {
+        return flag ? 1 : 0;
     }
-    return '[ ' + byteString.length + ' ' + hexText + ' ]';
-  }
 
-  // =========================================
-  // 一時アクション実行 / Temporary action playback
-  // =========================================
+    /**
+     * バイト列（1文字1バイトの文字列）を16進数の文字列にする
+     * @param {string} byteString - 各文字が 0〜255 の文字列
+     * @returns {string} 16進数の文字列
+     */
+    function bytesToHex(byteString) {
+        var hexText = "";
+        for (var i = 0; i < byteString.length; i++) {
+            var hexValue = byteString.charCodeAt(i).toString(16);
+            if (hexValue.length < 2) hexValue = "0" + hexValue;
+            hexText += hexValue;
+        }
+        return hexText;
+    }
 
-  function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-    var actionFile = new File(actionFilePath);
-    var isActionLoaded = false;
-    var isActionFileOpen = false;
+    /**
+     * アクションセット名・アクション名の /name 行を作る（名前は英数字）
+     * @param {string} actionName - 名前
+     * @returns {string} /name 行
+     */
+    function buildActionNameLine(actionName) {
+        return '/name [ ' + actionName.length + ' ' + bytesToHex(actionName) + ' ]\n';
+    }
 
-    try { app.unloadAction(setName, ""); } catch (e) { }
+    /**
+     * ustring 値（[ バイト数 UTF-8のhex ]）を生成する。マルチバイトの名前にも対応
+     * @param {string} sourceText - 元の文字列
+     * @returns {string} ustring 値
+     */
+    function buildUstringValue(sourceText) {
+        var byteString = unescape(encodeURIComponent(sourceText));
+        return '[ ' + byteString.length + ' ' + bytesToHex(byteString) + ' ]';
+    }
 
-    try {
-      if (!actionFile.open("w")) {
-        throw new Error("Failed to open temporary action file.");
-      }
-      isActionFileOpen = true;
+    // =========================================
+    // 一時アクション実行 / Temporary action playback
+    // =========================================
 
-      actionFile.write(actionSource);
-      actionFile.close();
-      isActionFileOpen = false;
-
-      app.loadAction(actionFile);
-      isActionLoaded = true;
-
-      app.doScript(actionName, setName, false);
-
-    } catch (e) {
-      alert("テンプレート属性の適用に失敗しました。\nFailed to apply the template attribute.\n\n" + e);
-
-    } finally {
-      if (isActionFileOpen) {
-        try { actionFile.close(); } catch (e) { }
-      }
-
-      if (actionFile.exists) {
-        try { actionFile.remove(); } catch (e) { }
-      }
-
-      if (isActionLoaded) {
+    /**
+     * アクション定義を一時ファイルに書き出して読み込み、実行後にアンロードする
+     * @param {string} actionSource - .aia の内容
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {string} actionFilePath - 一時ファイルのパス
+     * @returns {void}
+     */
+    function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
+        /* 前回の残りを外す（読み込まれていなければ例外）/ Unload a leftover set; throws when none is loaded */
         try { app.unloadAction(setName, ""); } catch (e) { }
-      }
-    }
-  }
 
-  // =========================================
-  // メイン処理 / Main
-  // =========================================
+        var actionFile = new File(actionFilePath);
+        if (!actionFile.open("w")) {
+            alert(getLabel("alert.actionFailed") + "\n\n" + getLabel("alert.fileOpenFailed"));
+            return;
+        }
+        actionFile.write(actionSource);
+        actionFile.close();
 
-  function makeTemplateLayer() {
-    if (app.documents.length === 0) {
-      alert("ドキュメントが開かれていません。\nNo document is open.");
-      return;
-    }
-
-    var activeLayer = app.activeDocument.activeLayer;
-
-    /* ロック・非表示のレイヤーには適用しない / Skip locked or hidden layers */
-    if (activeLayer.locked) {
-      alert("アクティブレイヤーがロックされているため、実行できません。\nThe active layer is locked.");
-      return;
-    }
-    if (!activeLayer.visible) {
-      alert("アクティブレイヤーが非表示のため、実行できません。\nThe active layer is hidden.");
-      return;
+        var isActionLoaded = false;
+        try {
+            app.loadAction(actionFile);
+            isActionLoaded = true;
+            app.doScript(actionName, setName, false);
+        } catch (e) {
+            alert(getLabel("alert.actionFailed") + "\n\n" + e);
+        } finally {
+            /* 読み込み時点でパース済みなので一時ファイルは消してよい / The action is parsed on load, so the temp file can go */
+            actionFile.remove();
+            if (isActionLoaded) app.unloadAction(setName, "");
+        }
     }
 
-    /* 実行前にアクティブレイヤー名を取得して parameter-3 に注入（リネーム防止） */
-    /* Capture the active layer name and inject it into parameter-3 (avoid renaming) */
-    var layerName = activeLayer.name;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-    var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, layerName, TEMPLATE_ON_OPTIONS);
-    playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
-  }
+    /**
+     * アクティブレイヤーをテンプレートレイヤーにする
+     * @returns {void}
+     */
+    function makeTemplateLayer() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
 
-  makeTemplateLayer();
+        var activeLayer = app.activeDocument.activeLayer;
+
+        /* ロック・非表示のレイヤーには適用しない / Skip locked or hidden layers */
+        if (activeLayer.locked) {
+            alert(getLabel("alert.layerLocked"));
+            return;
+        }
+        if (!activeLayer.visible) {
+            alert(getLabel("alert.layerHidden"));
+            return;
+        }
+
+        /* 実行前にアクティブレイヤー名を取得して注入する（リネーム防止）/ Inject the active layer name so the action does not rename it */
+        var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, activeLayer.name, TEMPLATE_ON_OPTIONS);
+        playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
+    }
+
+    makeTemplateLayer();
 
 })();

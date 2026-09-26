@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSetKinso
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSetKinsoku";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSetKinsoku.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSetKinsoku.md"; /* README (English) */
@@ -37,68 +37,136 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     // =========================================
-    // ユーザー設定 / User settings
+    // ユーザー設定 / User Settings
     // =========================================
 
-    /* 禁則プリセット（表示順）。labelText=UI表示名、kinsokuName=paragraphAttributes.kinsoku に渡す値 */
-    var kinsokuPresets = [
-        { kinsokuName: "None",    labelText: "なし" },
-        { kinsokuName: "Hard",    labelText: "強い禁則" },
-        { kinsokuName: "Soft",    labelText: "弱い禁則" },
-        { kinsokuName: "Soft_v2", labelText: "弱い禁則 v2" }
+    /* 禁則プリセット（表示順）。kinsokuName は paragraphAttributes.kinsoku に渡す値、labelPath は表示名の LABELS キー
+       Kinsoku presets in display order: kinsokuName goes to paragraphAttributes.kinsoku, labelPath names the LABELS entry */
+    var KINSOKU_PRESETS = [
+        { kinsokuName: "None",    labelPath: "radio.none" },
+        { kinsokuName: "Hard",    labelPath: "radio.hard" },
+        { kinsokuName: "Soft",    labelPath: "radio.soft" },
+        { kinsokuName: "Soft_v2", labelPath: "radio.softV2" }
     ];
 
     // =========================================
-    // メイン処理 / Main
+    // レイアウト / Layout
+    // =========================================
+    var PANEL_MARGINS = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins [L,T,R,B] */
+    var PANEL_SPACING = 6;                /* パネル内の要素間隔 / spacing inside the panel */
+    var BUTTON_SPACING = 8;               /* ボタンの間隔 / spacing between buttons */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    var LABELS = {
+        dialog: {
+            title: { ja: "禁則処理の設定", en: "Kinsoku Settings" }
+        },
+        panel: {
+            preset: { ja: "禁則処理", en: "Kinsoku" }
+        },
+        radio: {
+            none: { ja: "なし", en: "None" },
+            hard: { ja: "強い禁則", en: "Hard" },
+            soft: { ja: "弱い禁則", en: "Soft" },
+            softV2: { ja: "弱い禁則 v2", en: "Soft v2" }
+        },
+        tooltip: {
+            preset: {
+                ja: "クリックすると、選択中のテキストにすぐ適用します",
+                en: "Applies to the selected text as soon as you click"
+            },
+            close: {
+                ja: "適用済みの禁則処理はそのままにして閉じます",
+                en: "Closes the dialog and keeps the kinsoku already applied"
+            }
+        },
+        button: {
+            close: { ja: "閉じる", en: "Close" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "テキストオブジェクトを選択してください。", en: "Select text objects." }
+        }
+    };
+
+    /**
+     * ドット区切りのキーから現在の UI 言語のラベルを返す
+     * @param {string} labelPath - "dialog.title" のようなキー
+     * @returns {string} 現在の UI 言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    // =========================================
+    // 禁則の適用 / Applying kinsoku
     // =========================================
 
-    if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
-    }
-
-    var doc = app.activeDocument;
-
-    if (doc.selection.length === 0) {
-        alert("テキストオブジェクトを選択してください。");
-        return;
-    }
-
-    /* テキストフレームに禁則を適用（「なし」= "None" は scripting では設定不可で例外になるため握りつぶす）*/
+    /**
+     * テキストフレームに禁則を適用する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} kinsokuName - paragraphAttributes.kinsoku に渡す値
+     * @returns {void}
+     */
     function applyKinsokuToTextFrame(textFrame, kinsokuName) {
+        /* 「なし」= "None" はスクリプトから設定できず例外になるので、そのまま続行する
+           "None" cannot be set from a script and throws; carry on */
         try {
             textFrame.textRange.paragraphAttributes.kinsoku = kinsokuName;
-        } catch (e) {
-            // 「なし」は scripting から設定できない（アクション再生が必要）
+        } catch (e) {}
+    }
+
+    /**
+     * テキストフレームには直接、グループには中身へ再帰して禁則を適用する
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @param {string} kinsokuName - paragraphAttributes.kinsoku に渡す値
+     * @returns {void}
+     */
+    function applyKinsokuToItem(pageItem, kinsokuName) {
+        if (pageItem.typename === "TextFrame") {
+            applyKinsokuToTextFrame(pageItem, kinsokuName);
+        } else if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                applyKinsokuToItem(pageItem.pageItems[i], kinsokuName);
+            }
         }
     }
 
-    /* 種類で振り分け（TextFrame は直接、GroupItem は再帰）*/
-    function applyKinsokuToItem(item, kinsokuName) {
-        if (item.typename === "TextFrame") {
-            applyKinsokuToTextFrame(item, kinsokuName);
-        } else if (item.typename === "GroupItem") {
-            applyKinsokuToGroup(item, kinsokuName);
-        }
-    }
-
-    /* グループ内の各アイテムを再帰処理 */
-    function applyKinsokuToGroup(groupItem, kinsokuName) {
-        for (var i = 0; i < groupItem.pageItems.length; i++) {
-            applyKinsokuToItem(groupItem.pageItems[i], kinsokuName);
-        }
-    }
-
-    /* 選択全体に適用して再描画 */
-    function applyKinsokuToSelection(kinsokuName) {
+    /**
+     * 選択中のオブジェクトすべてに禁則を適用して再描画する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {string} kinsokuName - paragraphAttributes.kinsoku に渡す値
+     * @returns {void}
+     */
+    function applyKinsokuToSelection(doc, kinsokuName) {
         for (var i = 0; i < doc.selection.length; i++) {
             applyKinsokuToItem(doc.selection[i], kinsokuName);
         }
         app.redraw();
     }
 
-    /* 現在の禁則を取得（禁則「なし」の段落は getter が Error 9563 を投げるため "" を返す）*/
+    // =========================================
+    // 現在値の読み取り / Reading the current value
+    // =========================================
+
+    /**
+     * テキストフレームの現在の禁則を返す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {string} 禁則の値。「なし」のときは ""
+     */
     function getKinsoku(textFrame) {
+        /* 禁則「なし」の段落は getter が Error 9563 を投げる / The getter throws Error 9563 on "None" paragraphs */
         try {
             return textFrame.textRange.paragraphAttributes.kinsoku;
         } catch (e) {
@@ -106,91 +174,151 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 選択内から最初のテキストフレームを探す（初期選択の判定用）*/
-    function findFirstTextFrame(item) {
-        if (item.typename === "TextFrame") {
-            return item;
-        } else if (item.typename === "GroupItem") {
-            for (var i = 0; i < item.pageItems.length; i++) {
-                var found = findFirstTextFrame(item.pageItems[i]);
-                if (found !== null) {
-                    return found;
-                }
+    /**
+     * オブジェクト（グループ内を含む）から最初のテキストフレームを探す
+     * @param {PageItem} pageItem - 探す対象
+     * @returns {TextFrame|null} 見つかったテキストフレーム。無ければ null
+     */
+    function findFirstTextFrame(pageItem) {
+        if (pageItem.typename === "TextFrame") return pageItem;
+        if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                var foundTextFrame = findFirstTextFrame(pageItem.pageItems[i]);
+                if (foundTextFrame !== null) return foundTextFrame;
             }
         }
         return null;
+    }
+
+    /**
+     * 選択の中で最初に見つかるテキストフレームの禁則を返す（初期選択の判定用）
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {string} 禁則の値。テキストフレームが無いか「なし」のときは ""
+     */
+    function getSelectionKinsoku(doc) {
+        for (var i = 0; i < doc.selection.length; i++) {
+            var firstTextFrame = findFirstTextFrame(doc.selection[i]);
+            if (firstTextFrame !== null) return getKinsoku(firstTextFrame);
+        }
+        return "";
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
 
-    var kinsokuDialog = new Window("dialog", "禁則設定");
-    kinsokuDialog.orientation = "column";
-    kinsokuDialog.alignChildren = "fill";
+    /**
+     * 禁則プリセットのラジオを並べ、クリックで即適用するようにする
+     * @param {Window} kinsokuDialog - 追加先のダイアログ
+     * @param {Document} doc - 対象のドキュメント
+     * @param {string} currentKinsoku - 初期選択にする禁則の値
+     * @returns {RadioButton[]} 作成したラジオボタン
+     */
+    function addPresetPanel(kinsokuDialog, doc, currentKinsoku) {
+        var presetPanel = kinsokuDialog.add("panel", undefined, getLabel("panel.preset"));
+        presetPanel.orientation = "column";
+        presetPanel.alignChildren = "left";
+        presetPanel.alignment = "fill";
+        presetPanel.margins = PANEL_MARGINS;
+        presetPanel.spacing = PANEL_SPACING;
 
-    /* 禁則を選択する panel（ラジオをまとめる）*/
-    var presetPanel = kinsokuDialog.add("panel", undefined, "禁則を選択");
-    presetPanel.orientation = "column";
-    presetPanel.alignChildren = "left";
-    presetPanel.alignment = "fill";
-    presetPanel.margins = [16, 20, 16, 12];
-    presetPanel.spacing = 6;
-
-    /* プリセットごとにラジオボタンを生成（選択で即適用）*/
-    var radioButtons = [];
-    for (var i = 0; i < kinsokuPresets.length; i++) {
-        var radio = presetPanel.add("radiobutton", undefined, kinsokuPresets[i].labelText);
-        radio.kinsokuName = kinsokuPresets[i].kinsokuName;
-        radio.onClick = function () {
-            applyKinsokuToSelection(this.kinsokuName);
-        };
-        radioButtons.push(radio);
-    }
-
-    /* 現在の禁則値を読んで初期選択に反映（一致しなければ先頭＝「なし」）*/
-    var firstTextFrame = null;
-    for (var i = 0; i < doc.selection.length; i++) {
-        firstTextFrame = findFirstTextFrame(doc.selection[i]);
-        if (firstTextFrame !== null) {
-            break;
+        var presetRadios = [];
+        for (var i = 0; i < KINSOKU_PRESETS.length; i++) {
+            var presetRadio = presetPanel.add("radiobutton", undefined, getLabel(KINSOKU_PRESETS[i].labelPath));
+            presetRadio.kinsokuName = KINSOKU_PRESETS[i].kinsokuName;
+            presetRadio.helpTip = getLabel("tooltip.preset");
+            presetRadio.onClick = function () {
+                applyKinsokuToSelection(doc, this.kinsokuName);
+            };
+            presetRadios.push(presetRadio);
         }
-    }
 
-    var currentKinsoku = (firstTextFrame !== null) ? getKinsoku(firstTextFrame) : "";
-    var selectedRadio = radioButtons[0];
-    for (var i = 0; i < radioButtons.length; i++) {
-        if (radioButtons[i].kinsokuName === currentKinsoku) {
-            selectedRadio = radioButtons[i];
-            break;
-        }
-    }
-    selectedRadio.value = true;
-
-    var dialogButtonGroup = kinsokuDialog.add("group");
-    dialogButtonGroup.orientation = "row";
-    dialogButtonGroup.alignChildren = ["left", "center"];
-    dialogButtonGroup.alignment = "right";
-    dialogButtonGroup.spacing = 8;
-
-    var closeButton = dialogButtonGroup.add("button", undefined, "閉じる");
-    var okButton = dialogButtonGroup.add("button", undefined, "OK");
-
-    closeButton.onClick = function () {
-        kinsokuDialog.close(0);
-    };
-
-    okButton.onClick = function () {
-        for (var i = 0; i < radioButtons.length; i++) {
-            if (radioButtons[i].value) {
-                applyKinsokuToSelection(radioButtons[i].kinsokuName);
+        /* 現在の禁則に一致するラジオを選ぶ（一致しなければ先頭＝「なし」）/ Check the matching radio, or the first ("None") */
+        var checkedRadio = presetRadios[0];
+        for (var j = 0; j < presetRadios.length; j++) {
+            if (presetRadios[j].kinsokuName === currentKinsoku) {
+                checkedRadio = presetRadios[j];
                 break;
             }
         }
-        kinsokuDialog.close(1);
-    };
+        checkedRadio.value = true;
 
-    kinsokuDialog.center();
-    kinsokuDialog.show();
+        return presetRadios;
+    }
+
+    /**
+     * ［閉じる］［OK］のボタン行を追加する
+     * @param {Window} kinsokuDialog - 追加先のダイアログ
+     * @param {Document} doc - 対象のドキュメント
+     * @param {RadioButton[]} presetRadios - プリセットのラジオボタン
+     * @returns {void}
+     */
+    function addButtonRow(kinsokuDialog, doc, presetRadios) {
+        var btnRowGroup = kinsokuDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["left", "center"];
+        btnRowGroup.alignment = "right";
+        btnRowGroup.spacing = BUTTON_SPACING;
+
+        var btnClose = btnRowGroup.add("button", undefined, getLabel("button.close"));
+        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"));
+        btnClose.helpTip = getLabel("tooltip.close");
+
+        btnClose.onClick = function () {
+            kinsokuDialog.close(0);
+        };
+
+        btnOK.onClick = function () {
+            for (var i = 0; i < presetRadios.length; i++) {
+                if (presetRadios[i].value) {
+                    applyKinsokuToSelection(doc, presetRadios[i].kinsokuName);
+                    break;
+                }
+            }
+            kinsokuDialog.close(1);
+        };
+    }
+
+    /**
+     * 禁則処理を選ぶダイアログを表示する
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {void}
+     */
+    function showKinsokuDialog(doc) {
+        var kinsokuDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        kinsokuDialog.orientation = "column";
+        kinsokuDialog.alignChildren = "fill";
+
+        var presetRadios = addPresetPanel(kinsokuDialog, doc, getSelectionKinsoku(doc));
+        addButtonRow(kinsokuDialog, doc, presetRadios);
+
+        kinsokuDialog.center();
+        kinsokuDialog.show();
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ドキュメントと選択を確かめてダイアログを表示する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        if (doc.selection.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+
+        showKinsokuDialog(doc);
+    }
+
+    main();
 
 })();

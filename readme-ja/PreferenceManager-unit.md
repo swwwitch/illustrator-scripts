@@ -35,7 +35,8 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
 - v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
 - v1.2.2 (2026-09-19): 機能が重複していた `PreferenceManager.jsx` を統合。全項目にツールチップを追加 / Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
+- v1.2.3 (2026-09-27): 単位のドロップダウンにツールチップを追加し、「プリント（Q）」のツールチップを東アジア言語=H に訂正。英語UIの項目名のコロンを半角に統一（「Keyboard Increment::」の重複も修正）。コードを整理 / Added tooltips to the unit dropdowns and corrected the "Print (Q)" tooltip to East Asian=H; English field labels now use a single half-width colon (fixed the doubled "Keyboard Increment::"); code cleanup
 
 ### スクリプト情報
 
-- バージョン: v1.2.2
+- バージョン: v1.2.3

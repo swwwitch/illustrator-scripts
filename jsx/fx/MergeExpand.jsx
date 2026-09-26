@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MergeExpan
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MergeExpand";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MergeExpand.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MergeExpand.md"; /* README (English) */
@@ -36,8 +36,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
     /* 処理の最後にグループ解除するか / Whether to ungroup at the end */
     var UNGROUP_AT_END = false;
+
+    // =========================================
+    // ライブエフェクト / Live effect
+    // =========================================
 
     /* Pathfinder Merge ライブエフェクトの XML（command 8 = Merge 固定）
        Live effect XML for Pathfinder Merge (command 8, all other params at defaults) */
@@ -46,33 +54,79 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         + '<Entry name="DisplayString" value="Merge" valueType="S"/>'
         + '</Dict></LiveEffect>';
 
-    /* ====== ライブエフェクト適用＋アピアランス分割 / Apply live effect and expand ======
-       選択をグループ化し、線を塗りに変換してから指定 XML のライブエフェクトを適用、アピアランスを分割、必要に応じてグループを解除
-       Group selection, convert strokes to fills, apply the given live effect XML, expand appearance, then optionally ungroup */
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = detectUILang();
+
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noSelection: { ja: "オブジェクトを選択してください。", en: "Please select one or more objects." }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語の文字列を引く
+     * @param {string} labelPath - "alert.noSelection" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode["en"] || labelPath;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択をグループ化し、線を塗りに変換してからライブエフェクトを適用し、アピアランスを分割する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} liveEffectXml - 適用するライブエフェクトの XML
+     * @param {boolean} ungroupAtEnd - 最後にグループを解除するか
+     * @returns {void}
+     */
     function applyLiveEffectAndExpand(doc, liveEffectXml, ungroupAtEnd) {
         app.executeMenuCommand('group');
         /* 線を塗りに変換 / Convert strokes to fills */
         app.executeMenuCommand('OffsetPath v22');
-        var group = doc.selection[0];
-        group.applyEffect(liveEffectXml);
+        var mergedGroup = doc.selection[0];
+        mergedGroup.applyEffect(liveEffectXml);
         app.redraw();
         doc.selection = null;
-        group.selected = true;
+        mergedGroup.selected = true;
         app.executeMenuCommand('expandStyle');
         if (ungroupAtEnd) {
             app.executeMenuCommand('ungroup');
         }
     }
 
-    /* ====== メイン処理 / Main ====== */
+    /**
+     * ドキュメントと選択を確認して処理を実行する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert('ドキュメントを開いてください。\nPlease open a document.');
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var doc = app.activeDocument;
         if (!doc.selection || doc.selection.length === 0) {
-            alert('オブジェクトを選択してください。\nPlease select one or more objects.');
+            alert(getLabel("alert.noSelection"));
             return;
         }
 

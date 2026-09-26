@@ -30,3 +30,4 @@
 ### Changelog
 
 - v1.0.0 (20250708): Initial version
+- v1.4.2 (20260927): Fixed Outside Artboard: Delete doing nothing when combined with Move to Backup Layer. Added a no-document alert and refined the tooltips

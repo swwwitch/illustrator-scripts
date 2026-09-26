@@ -1,8 +1,8 @@
 # Text Processing
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextBreakSplitMergePalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextBreakSplitMergePalette.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextProcessingPalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextProcessingPalette.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePalette.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -107,6 +107,27 @@ In short, lines that are merely wrapped get joined; lines where a sentence ends 
 
 Merge results are left ungrouped as well. These are visual approximations: per-line formatting differences and rotation are not preserved. Two frames count as the same row when their Y coordinates differ by 5 or less.
 
+## Line Edit tab
+
+The list box on the left shows each line of the selected text. **It only works while exactly one text frame is selected.**
+
+- *Up* / *Down*: swap the selected line with its neighbour
+- *Add*: append a line entered in a dialog
+- *Edit*: edit the selected line (double-clicking the list works too)
+- *Delete*: delete the selected line (with confirmation)
+
+Every list operation is written straight back to the text frame.
+
+The buttons on the right apply to all lines at once.
+
+| Button | Action |
+| --- | --- |
+| Sort | Sort lines by character code |
+| Sort (Length) | Sort lines from shortest to longest |
+| Reverse Order | Reverse the line order |
+| Remove Duplicates | Remove duplicate lines, keeping the first occurrence |
+| Remove Empty Lines | Remove empty lines |
+
 ## Cleanup tab
 
 ### Tabs and spaces
@@ -152,27 +173,6 @@ Both also handle the "tab + marker + tab" form produced by [AddBulletsAndNumbers
 A few exceptions keep body text safe: `-5℃` and `*important` are left alone because no space follows the symbol, and `12.5` is not treated as numbering because a digit follows the period. Lines without a delimiter (`Apple is red`) are left alone too — but note that `Mr. Smith` does become `Smith`, so take care with English text.
 
 **Only markers that exist as characters are affected.** Markers drawn from paragraph attributes are not part of the text and cannot be removed here. To tell them apart, look at the list in the *Line Edit* tab: **if the marker shows up there, it is a character and can be removed.**
-
-## Line Edit tab
-
-The list box on the left shows each line of the selected text. **It only works while exactly one text frame is selected.**
-
-- *Up* / *Down*: swap the selected line with its neighbour
-- *Add*: append a line entered in a dialog
-- *Edit*: edit the selected line (double-clicking the list works too)
-- *Delete*: delete the selected line (with confirmation)
-
-Every list operation is written straight back to the text frame.
-
-The buttons on the right apply to all lines at once.
-
-| Button | Action |
-| --- | --- |
-| Sort | Sort lines by character code |
-| Sort (Length) | Sort lines from shortest to longest |
-| Reverse Order | Reverse the line order |
-| Remove Duplicates | Remove duplicate lines, keeping the first occurrence |
-| Remove Empty Lines | Remove empty lines |
 
 ## Convert tab
 
@@ -254,6 +254,8 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.8.3 (2026-09-27) Renamed the file from `TextBreakSplitMergePalette.jsx` to `TextProcessingPalette.jsx`.
+- v1.8.2 (2026-09-27) Reordered the tabs to Basic, Line Edit, Cleanup, Convert.
 - v1.8.1 (2026-09-26) Fixed *All at Once* (Remove Spaces) removing every space between Latin words separated by more than one space (spaces are now collapsed before removing CJK/Latin spaces). The Convert tab buttons, Tabs to Spaces, the Remove Spaces buttons, Space After . and ,, symbol conversion, Fullwidth to Halfwidth, Halfwidth Kana to Fullwidth and Remove List now rewrite only the changed characters and keep per-character formatting (ported from SmartTextFindReplace).
 - v1.8.0 (2026-09-26) Added *Merge Area Text* to *Split by Character* (ported from SmartTextSplitter).
 - v1.7.9 (2026-09-26) Renamed the file from `TextBreakSplitMergePallete.jsx` to `TextBreakSplitMergePalette.jsx`.

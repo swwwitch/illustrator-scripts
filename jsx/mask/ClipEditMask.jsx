@@ -36,6 +36,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // 重なりの判定 / Overlap detection
+    // =========================================
+
     /**
      * 2つの矩形（geometricBounds）が重なっているかを判定する
      * @param {number[]} boundsA - [left, top, right, bottom]（top > bottom）
@@ -43,39 +47,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {boolean} 重なっていれば true
      */
     function isBoundsOverlapping(boundsA, boundsB) {
-        var leftA = boundsA[0], topA = boundsA[1], rightA = boundsA[2], bottomA = boundsA[3];
-        var leftB = boundsB[0], topB = boundsB[1], rightB = boundsB[2], bottomB = boundsB[3];
-
-        var horizontalOverlap = (leftA < rightB) && (leftB < rightA);
-        var verticalOverlap = (bottomA < topB) && (bottomB < topA);
-
+        var horizontalOverlap = (boundsA[0] < boundsB[2]) && (boundsB[0] < boundsA[2]);
+        var verticalOverlap = (boundsA[3] < boundsB[1]) && (boundsB[3] < boundsA[1]);
         return horizontalOverlap && verticalOverlap;
     }
 
     /**
-     * 選択オブジェクトを重なりで連結成分（クラスタ）に分割する
+     * オブジェクトを重なりで連結成分（クラスタ）に分割する
      * 直接重ならなくても、間のオブジェクトを介して繋がっていれば同じクラスタになる
-     * @param {Array} items - PageItem の配列
-     * @returns {Array} PageItem 配列の配列（クラスタごと）
+     * @param {PageItem[]} items - 対象のオブジェクト
+     * @returns {PageItem[][]} クラスタごとのオブジェクト
      */
     function clusterItemsByOverlap(items) {
         var bounds = [];
+        var visited = [];
         for (var i = 0; i < items.length; i++) {
             bounds.push(items[i].geometricBounds);
-        }
-
-        var visited = [];
-        for (var v = 0; v < items.length; v++) {
             visited.push(false);
         }
 
         var clusters = [];
         for (var start = 0; start < items.length; start++) {
-            if (visited[start]) {
-                continue;
-            }
+            if (visited[start]) continue;
 
-            // start を起点に、重なりで繋がるものを幅優先で集める
+            /* start を起点に、重なりで繋がるものを幅優先で集める / Breadth-first from start over overlaps */
             var cluster = [];
             var queue = [start];
             visited[start] = true;
@@ -98,10 +93,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return clusters;
     }
 
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
     /**
-     * 指定した PageItem 群だけを選択状態にする
+     * 指定したオブジェクトだけを選択状態にする
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} items - 選択したい PageItem の配列
+     * @param {PageItem[]} items - 選択するオブジェクト
+     * @returns {void}
      */
     function selectOnly(doc, items) {
         doc.selection = null;
@@ -110,63 +110,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    (function() {
-        // ドキュメントが開かれているか確認
-        if (app.documents.length === 0) {
-            return;
-        }
+    /**
+     * 1つ選択ならマスク編集／作成、複数なら重なりの塊ごとにクリッピングマスクを作る
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
 
         var doc = app.activeDocument;
-        var selection = doc.selection;
+        var currentSelection = doc.selection;
+        if (currentSelection.length === 0) return;
 
-        // 何も選択されていない場合は処理を終了
-        if (selection.length === 0) {
-            return;
-        }
-
-        // 選択されているオブジェクトが1つの場合
-        if (selection.length === 1) {
-            var selectedItem = selection[0];
-
-            // クリップグループ（GroupItemであり、かつclippedプロパティがtrue）の場合
+        if (currentSelection.length === 1) {
+            var selectedItem = currentSelection[0];
             if (selectedItem.typename === "GroupItem" && selectedItem.clipped) {
-                // マスクを編集 (Edit Mask)
-                app.executeMenuCommand('editMask');
-                app.executeMenuCommand('editMask');
+                /* ［マスクを編集］（2回で編集モードに入る）/ Edit Mask, run twice to enter the mode */
+                app.executeMenuCommand("editMask");
+                app.executeMenuCommand("editMask");
             } else {
-                // クリッピングマスクを作成 (Make Clipping Mask)
-                app.executeMenuCommand('makeMask');
+                app.executeMenuCommand("makeMask");
             }
             return;
         }
 
-        // 選択されているオブジェクトが2つ以上の場合
-        // 重なりで連結成分（クラスタ）に分けてから、クラスタ単位でマスクを作成する
+        /* 2つ以上：重なりで塊に分けてから、塊ごとにマスク / Two or more: cluster by overlap, then mask each cluster */
         var selectedItems = [];
-        for (var s = 0; s < selection.length; s++) {
-            selectedItems.push(selection[s]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            selectedItems.push(currentSelection[i]);
         }
 
         var clusters = clusterItemsByOverlap(selectedItems);
-
         if (clusters.length === 1) {
-            // すべてが1つの塊（重なっている）→ そのまま1回だけマスク
-            app.executeMenuCommand('makeMask');
-        } else {
-            // 離れた塊が複数（重なっていない）→ 塊ごとにマスク
-            for (var c = 0; c < clusters.length; c++) {
-                var cluster = clusters[c];
-
-                // 単独オブジェクトの塊で、それが画像（配置画像＝埋め込み / リンク画像）の場合
-                if (cluster.length === 1 &&
-                    (cluster[0].typename === "RasterItem" || cluster[0].typename === "PlacedItem")) {
-                    // TODO: 配置画像・リンク画像なら…（処理を記述）
-                }
-
-                selectOnly(doc, cluster);
-                app.executeMenuCommand('makeMask');
-            }
+            /* すべてが1つの塊 → そのまま1回だけマスク / One cluster: mask once as is */
+            app.executeMenuCommand("makeMask");
+            return;
         }
-    })();
+
+        for (var c = 0; c < clusters.length; c++) {
+            selectOnly(doc, clusters[c]);
+            app.executeMenuCommand("makeMask");
+        }
+    }
+
+    main();
 
 })();

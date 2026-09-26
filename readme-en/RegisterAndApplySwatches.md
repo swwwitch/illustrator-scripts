@@ -31,3 +31,4 @@
 ### Update History
 
 - v1.0.0 (20250626): Initial version
+- v1.0.2 (20260927): Alerts are now shown in English as well

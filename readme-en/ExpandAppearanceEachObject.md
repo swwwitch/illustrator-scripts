@@ -20,4 +20,8 @@
 
 ### Notes
 
-- Shows an alert and stops when nothing is selected.
+- Shows an alert and stops when no document is open or nothing is selected.
+
+### Update History
+
+- v1.0.2 (2026-09-27) Added an alert when no document is open; alerts are now shown in English as well

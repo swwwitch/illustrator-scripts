@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMask
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImgFitMask";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMask.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMask.md"; /* README (English) */
@@ -34,97 +34,152 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-(function() {
-    // ドキュメントが開かれていない場合は終了
-    if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
+(function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
+    var uiLang = getCurrentLang();
 
-    var doc = app.activeDocument;
-    var currentSelection = doc.selection;
-
-    // 選択アイテムが2つでない場合はエラー
-    if (currentSelection.length !== 2) {
-        alert("エラー: 1つの図形（マスク用）と1つの画像を選択してください。");
-        return;
-    }
-
-    var maskObj = null; // マスクになる図形
-    var targetImg = null; // マスクされる画像
-
-    // 選択アイテムを分類する
-    for (var i = 0; i < currentSelection.length; i++) {
-        var item = currentSelection[i];
-        if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
-            maskObj = item;
-        } else if (item.typename === "PlacedItem" || item.typename === "RasterItem") {
-            targetImg = item;
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectTwo: {
+                ja: "エラー: 1つの図形（マスク用）と1つの画像を選択してください。",
+                en: "Error: Select one shape (for the mask) and one image."
+            },
+            needShapeAndImage: {
+                ja: "エラー: 「パス（図形）」と「配置画像」をそれぞれ1つずつ選択してください。",
+                en: "Error: Select one path (shape) and one placed image."
+            }
         }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.noDocument" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
     }
 
-    // 適切なオブジェクトが見つからなかった場合
-    if (!maskObj || !targetImg) {
-        alert("エラー: 「パス（図形）」と「配置画像」をそれぞれ1つずつ選択してください。");
-        return;
+    // =========================================
+    // 画像とマスク / Image and mask
+    // =========================================
+
+    /**
+     * マスクに使える図形（パス／複合パス）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 図形なら true
+     */
+    function isMaskShape(item) {
+        return item.typename === "PathItem" || item.typename === "CompoundPathItem";
     }
 
-    // --- 1. スケール調整（隙間が出ないようにリサイズ） ---
+    /**
+     * 画像（配置画像／埋め込み画像）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 画像なら true
+     */
+    function isImageItem(item) {
+        return item.typename === "PlacedItem" || item.typename === "RasterItem";
+    }
 
-    var maskW = maskObj.width;
-    var maskH = maskObj.height;
-    var imgW = targetImg.width;
-    var imgH = targetImg.height;
+    /**
+     * アイテムの中心座標を返す
+     * @param {PageItem} item - 対象アイテム
+     * @returns {number[]} [x, y]
+     */
+    function getCenter(item) {
+        return [
+            item.left + item.width / 2,
+            item.top - item.height / 2
+        ];
+    }
 
-    // 幅と高さ、それぞれの倍率を計算
-    var scaleX = maskW / imgW;
-    var scaleY = maskH / imgH;
+    /**
+     * 画像を図形を隙間なく覆う大きさに拡大・縮小して中央に合わせ、図形でクリッピングマスクを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PlacedItem|RasterItem} image - マスクされる画像
+     * @param {PathItem|CompoundPathItem} maskShape - マスクになる図形
+     * @returns {GroupItem} 作成したクリップグループ
+     */
+    function fitImageToMask(doc, image, maskShape) {
+        /* 隙間が出ないよう、倍率の大きい方を使う（全体を収めるなら Math.min）/ Use the larger ratio so no gap remains */
+        var scaleFactor = Math.max(maskShape.width / image.width, maskShape.height / image.height);
+        /* resize はパーセント指定 / resize() takes percentages */
+        image.resize(scaleFactor * 100, scaleFactor * 100, true, true, true, true);
 
-    // 隙間が出ないようにするには、倍率が大きい方を採用する (Math.max)
-    // ※画像全体を収める（余白が出てもいい）場合は Math.min にします
-    var scaleFactor = Math.max(scaleX, scaleY);
+        /* リサイズ後の中心を図形の中心に合わせる / Center the resized image on the shape */
+        var maskCenter = getCenter(maskShape);
+        var imageCenter = getCenter(image);
+        image.translate(maskCenter[0] - imageCenter[0], maskCenter[1] - imageCenter[1]);
 
-    // リサイズ実行（Illustratorのresizeはパーセント指定なので100倍する）
-    // 引数: scaleX, scaleY, changePositions, changeFillPatterns, changeFillGradients, changeStrokePattern
-    targetImg.resize(scaleFactor * 100, scaleFactor * 100, true, true, true, true);
+        /* 図形の重ね順の位置にグループを作り、図形を最前面に入れる / Group at the shape's stacking position, shape on top */
+        var clipGroup = doc.groupItems.add();
+        clipGroup.move(maskShape, ElementPlacement.PLACEBEFORE);
+        maskShape.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
+        image.move(clipGroup, ElementPlacement.PLACEATEND);
+        clipGroup.clipped = true;
+        return clipGroup;
+    }
 
-    // --- 2. 中央揃えの処理 ---
-    
-    // 図形の中心座標
-    var maskCenter = [
-        maskObj.left + maskObj.width / 2,
-        maskObj.top - maskObj.height / 2
-    ];
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-    // 画像の中心座標（リサイズ後のサイズで計算）
-    var newImgCenter = [
-        targetImg.left + targetImg.width / 2,
-        targetImg.top - targetImg.height / 2
-    ];
+    /**
+     * 選択した図形と画像から、画像を図形に合わせたクリッピングマスクを作る
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
 
-    // 移動距離を計算
-    var deltaX = maskCenter[0] - newImgCenter[0];
-    var deltaY = maskCenter[1] - newImgCenter[1];
+        var doc = app.activeDocument;
+        var currentSelection = doc.selection;
 
-    // 画像を移動
-    targetImg.translate(deltaX, deltaY);
+        if (currentSelection.length !== 2) {
+            alert(getLabel("alert.selectTwo"));
+            return;
+        }
 
-    // --- 3. クリッピングマスクの作成処理 ---
+        var maskShape = null;   /* マスクになる図形 / shape used as the mask */
+        var targetImage = null; /* マスクされる画像 / image being masked */
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
+            if (isMaskShape(item)) {
+                maskShape = item;
+            } else if (isImageItem(item)) {
+                targetImage = item;
+            }
+        }
 
-    var clipGroup = doc.groupItems.add();
-    
-    // 元の画像があった位置（重ね順）の付近にグループを移動
-    clipGroup.move(maskObj, ElementPlacement.PLACEBEFORE);
+        if (!maskShape || !targetImage) {
+            alert(getLabel("alert.needShapeAndImage"));
+            return;
+        }
 
-    // オブジェクトをグループ内に移動（マスク用パスを最前面に）
-    maskObj.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
-    targetImg.move(clipGroup, ElementPlacement.PLACEATEND);
+        var clipGroup = fitImageToMask(doc, targetImage, maskShape);
 
-    // クリップ設定
-    clipGroup.clipped = true;
+        /* 作ったクリップグループを選択 / Select the new clipping group */
+        doc.selection = null;
+        clipGroup.selected = true;
+    }
 
-    // 選択状態の更新
-    doc.selection = null;
-    clipGroup.selected = true;
+    main();
 
 })();

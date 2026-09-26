@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseFro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReleaseFromGroup";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseFromGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseFromGroup.md"; /* README (English) */
@@ -42,57 +42,76 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n36fbd4162721"; /* 紹�
 
 (function () {
 
-/**
- * 現在のUIロケールが日本語かどうかを判定する
- * @returns {string} 日本語環境なら "ja"、それ以外は "en"
- */
-function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var uiLang = getCurrentLang();
+    // =========================================
+    // 選択 / Selection
+    // =========================================
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    alert: {
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        noSelection: { ja: "オブジェクトを選択して実行してください。", en: "Please select objects and run the script." }
-    }
-};
-
-// main
-var doc = app.documents.length && app.activeDocument;
-if (!doc) return;
-
-var currentSelection = doc.selection;
-if (!currentSelection.length) return;
-
-// 2. 選択されたすべてのオブジェクトを退避
-var targets = [].slice.call(currentSelection);
-
-// 3. 重ね順が逆転しないように「逆順（後ろから）」で処理を行う
-for (var j = targets.length - 1; j >= 0; j--) {
-    var obj = targets[j];
-
-    // 親を辿って最上位のレイヤーを探す（GroupItem 内にあるものだけ対象）
-    var targetLayer = obj.parent;
-    if (targetLayer.typename !== "GroupItem") continue;
-
-    while (targetLayer && targetLayer.typename === "GroupItem") {
-        targetLayer = targetLayer.parent;
+    /**
+     * 処理対象の選択オブジェクトを返す
+     * @returns {PageItem[]|null} 選択オブジェクト（前面→背面の順）。ドキュメントがない・未選択・文字の選択中は null
+     */
+    function getValidSelection() {
+        if (!app.documents.length) return null;
+        var selectedItems = app.activeDocument.selection;
+        /* 文字ツールで文字を選択中は、添字で要素を取れない TextRange が返る
+           A text selection returns a TextRange that cannot be indexed */
+        if (!selectedItems || !selectedItems.length || selectedItems.typename === "TextRange") return null;
+        return selectedItems;
     }
 
-    // 見つかったレイヤーにオブジェクトを移動
-    if (targetLayer && targetLayer.typename === "Layer") {
-        // レイヤーの最前面に移動
-        // 逆順で処理しているため、結果的に元の上下関係が維持される
-        obj.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
+    // =========================================
+    // グループから出す / Release from group
+    // =========================================
 
-        // 移動後も選択状態を維持
-        obj.selected = true;
+    /**
+     * いちばん外側の親グループ（レイヤー直下のグループ）を返す
+     * @param {PageItem} targetItem - 対象オブジェクト
+     * @returns {GroupItem|null} 親グループ（グループの中に無ければ null）
+     */
+    function findOutermostGroup(targetItem) {
+        var outermostGroup = null;
+        var currentContainer = targetItem.parent;
+        while (currentContainer.typename === "GroupItem") {
+            outermostGroup = currentContainer;
+            currentContainer = currentContainer.parent;
+        }
+        return outermostGroup;
     }
-}
 
-/* 選択ツールに戻す / Return to Selection Tool */
-app.selectTool('Adobe Select Tool');
+    /**
+     * グループの中で選んだオブジェクトを、所属レイヤーの最前面へ出す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} selectedItems - 選択オブジェクト（前面→背面の順）
+     * @returns {void}
+     */
+    function releaseToLayerTop(doc, selectedItems) {
+        /* レイヤーの最前面へは背面側から出す（最後に出した最前面のものが一番上になる）
+           Back to front: the frontmost one is moved last and ends up on top */
+        for (var i = selectedItems.length - 1; i >= 0; i--) {
+            var outermostGroup = findOutermostGroup(selectedItems[i]);
+            if (!outermostGroup) continue;
+            selectedItems[i].move(outermostGroup.parent, ElementPlacement.PLACEATBEGINNING);
+        }
+        /* 移動で外れた選択を元に戻す / Restore the selection the moves dropped */
+        doc.selection = selectedItems;
+        /* グループの中を選ぶのに使ったダイレクト選択ツールから戻す / Switch back from the Direct Selection tool */
+        app.selectTool("Adobe Select Tool");
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * グループの中で選んだオブジェクトを、グループの外（レイヤーの最前面）へ出す
+     * @returns {void}
+     */
+    function main() {
+        var selectedItems = getValidSelection();
+        if (!selectedItems) return;
+        releaseToLayerTop(app.activeDocument, selectedItems);
+    }
+
+    main();
 
 })();

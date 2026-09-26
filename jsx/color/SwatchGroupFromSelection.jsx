@@ -25,7 +25,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGrou
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwatchGroupFromSelection";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
@@ -38,370 +38,292 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function main() {
-        // ドキュメントが開かれているか確認
-        if (app.documents.length === 0) {
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    var SWATCH_GROUP_BASE_NAME = "AutoGradient"; /* スウォッチグループ名（重複時は連番） / Swatch group name; numbered when taken */
+    var SWATCH_BASE_NAME       = "AutoColor";    /* スウォッチ名（重複時は連番） / Swatch name; numbered when taken */
+
+    // =========================================
+    // カラー判定 / Color keys
+    // =========================================
+
+    /**
+     * カラーが「なし」かを判定する
+     * @param {Color} color - 判定するカラー
+     * @returns {boolean} null または NoColor なら true
+     */
+    function isNoColor(color) {
+        return (color == null) || (color.typename === "NoColor");
+    }
+
+    /**
+     * 重複除去と対応付けに使う、カラーの簡易キーを作る
+     * @param {Color} color - 対象のカラー
+     * @returns {string} "RGB:255,0,0" のようなキー
+     */
+    function colorKey(color) {
+        if (!color) return "null";
+        var colorType = color.typename;
+        /* スポット・パターン・グラデーションの参照先が読めないことがある / Referenced spot/pattern/gradient may be unreadable */
+        try {
+            if (colorType === "RGBColor") {
+                return "RGB:" + [color.red, color.green, color.blue].join(",");
+            }
+            if (colorType === "CMYKColor") {
+                return "CMYK:" + [color.cyan, color.magenta, color.yellow, color.black].join(",");
+            }
+            if (colorType === "GrayColor") {
+                return "Gray:" + color.gray;
+            }
+            if (colorType === "SpotColor") {
+                /* スポットはスポット名＋濃度 / Spot name plus tint */
+                var spotName = (color.spot && color.spot.name) ? color.spot.name : "(spot)";
+                return "Spot:" + spotName + ":" + color.tint;
+            }
+            if (colorType === "PatternColor") {
+                var patternName = (color.pattern && color.pattern.name) ? color.pattern.name : "(pattern)";
+                return "Pattern:" + patternName;
+            }
+            if (colorType === "GradientColor") {
+                var gradientName = (color.gradient && color.gradient.name) ? color.gradient.name : "(gradient)";
+                return "Gradient:" + gradientName;
+            }
+        } catch (e) { }
+        return "Other:" + colorType;
+    }
+
+    // =========================================
+    // 塗り・線の走査 / Paint traversal
+    // =========================================
+
+    /**
+     * 塗りまたは線を1つ読み、「なし」でなければ visitor に渡す
+     * @param {Function} visitor - function(item, owner, propName, color)
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {Object} owner - カラーを持つオブジェクト（パス本体、またはテキストの characterAttributes）
+     * @param {string} propName - "fillColor" または "strokeColor"
+     * @returns {void}
+     */
+    function visitPaint(visitor, item, owner, propName) {
+        /* 読み書きできない塗り・線は無視 / Ignore paints that cannot be read or written */
+        try {
+            var color = owner[propName];
+            if (isNoColor(color)) return;
+            visitor(item, owner, propName, color);
+        } catch (e) { }
+    }
+
+    /**
+     * オブジェクトの塗りと線をたどる（グループ・複合パスは再帰、テキストは全体の文字属性）
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {Function} visitor - function(item, owner, propName, color)
+     * @returns {void}
+     */
+    function visitPaintTargets(item, visitor) {
+        if (!item) return;
+        var i;
+        if (item.typename === "GroupItem") {
+            for (i = 0; i < item.pageItems.length; i++) {
+                visitPaintTargets(item.pageItems[i], visitor);
+            }
             return;
         }
-
-        var doc = app.activeDocument;
-        var originalSelection = doc.selection; // 元の選択を保持
-
-        // 選択があるか確認
-        if (!doc.selection || doc.selection.length === 0) {
+        if (item.typename === "CompoundPathItem") {
+            for (i = 0; i < item.pathItems.length; i++) {
+                visitPaintTargets(item.pathItems[i], visitor);
+            }
             return;
         }
+        if (item.typename === "TextFrame") {
+            var textAttributes = item.textRange.characterAttributes;
+            visitPaint(visitor, item, textAttributes, "fillColor");
+            visitPaint(visitor, item, textAttributes, "strokeColor");
+            return;
+        }
+        /* パスなど（filled / stroked を持つもの） / Paths and other painted items */
+        if (item.filled) visitPaint(visitor, item, item, "fillColor");
+        if (item.stroked) visitPaint(visitor, item, item, "strokeColor");
+    }
 
-        /* =========================================
-         * Color utilities / カラー取得ユーティリティ
-         * ========================================= */
-
-        function isNoColor(c) {
-            // NoColor は typename が "NoColor" になる
-            try {
-                return (c == null) || (c.typename === "NoColor");
-            } catch (e) {
-                return true;
-            }
+    /**
+     * 選択から色を「左→右、上→下」の順で集める（同じ色は最初の1つだけ）
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {Color[]} 重複を除いたカラー
+     */
+    function collectColorsFromSelection(selectedItems) {
+        var entries = [];
+        /* 位置はオブジェクトの左上（geometricBounds: [left, top, right, bottom]） / Position is the item's top-left */
+        var collectEntry = function (item, owner, propName, color) {
+            var bounds = item.geometricBounds;
+            entries.push({ left: bounds[0], top: bounds[1], color: color });
+        };
+        for (var i = 0; i < selectedItems.length; i++) {
+            visitPaintTargets(selectedItems[i], collectEntry);
         }
 
-        function colorKey(c) {
-            // 重複除去用の簡易キー
-            if (!c) return "null";
-            var t = c.typename;
-            try {
-                if (t === "RGBColor") {
-                    return "RGB:" + [c.red, c.green, c.blue].join(",");
-                }
-                if (t === "CMYKColor") {
-                    return "CMYK:" + [c.cyan, c.magenta, c.yellow, c.black].join(",");
-                }
-                if (t === "GrayColor") {
-                    return "Gray:" + c.gray;
-                }
-                if (t === "SpotColor") {
-                    // スポットはスポット名＋濃度
-                    var spotName = (c.spot && c.spot.name) ? c.spot.name : "(spot)";
-                    return "Spot:" + spotName + ":" + c.tint;
-                }
-                if (t === "PatternColor") {
-                    var patName = (c.pattern && c.pattern.name) ? c.pattern.name : "(pattern)";
-                    return "Pattern:" + patName;
-                }
-                if (t === "GradientColor") {
-                    var gName = (c.gradient && c.gradient.name) ? c.gradient.name : "(gradient)";
-                    return "Gradient:" + gName;
-                }
-            } catch (e) {}
-            return "Other:" + t;
+        /* 左→右（left 昇順）、上→下（top は上ほど大きいので降順） / Left to right, then top to bottom */
+        entries.sort(function (a, b) {
+            if (a.left < b.left) return -1;
+            if (a.left > b.left) return 1;
+            if (a.top > b.top) return -1;
+            if (a.top < b.top) return 1;
+            return 0;
+        });
+
+        var colors = [];
+        var seenKeys = {};
+        for (var j = 0; j < entries.length; j++) {
+            var key = colorKey(entries[j].color);
+            if (seenKeys[key]) continue;
+            seenKeys[key] = true;
+            colors.push(entries[j].color);
         }
+        return colors;
+    }
 
-        // 位置情報（左上）を取得 / Get top-left position
-        function getItemTopLeft(item) {
-            // geometricBounds: [left, top, right, bottom]
-            try {
-                var b = item.geometricBounds;
-                return { left: b[0], top: b[1] };
-            } catch (e) {
-                return { left: 0, top: 0 };
-            }
+    /**
+     * 選択中のオブジェクトの塗りと線を、対応するグローバルカラーに置き換える
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @param {Object} colorMap - カラーのキー → 置き換え先のカラー
+     * @returns {void}
+     */
+    function applyGlobalColorsToSelection(selectedItems, colorMap) {
+        var applyMappedColor = function (item, owner, propName, color) {
+            var mappedColor = colorMap[colorKey(color)];
+            if (mappedColor) owner[propName] = mappedColor;
+        };
+        for (var i = 0; i < selectedItems.length; i++) {
+            visitPaintTargets(selectedItems[i], applyMappedColor);
         }
+    }
 
-        // 色＋位置のエントリを収集 / Collect color entries with position
-        function collectFillColorEntries(item, outEntries) {
-            if (!item) return;
+    // =========================================
+    // スウォッチ登録 / Swatch registration
+    // =========================================
 
-            try {
-                // グループなどは再帰
-                if (item.typename === "GroupItem") {
-                    for (var i = 0; i < item.pageItems.length; i++) {
-                        collectFillColorEntries(item.pageItems[i], outEntries);
-                    }
-                    return;
-                }
-
-                // compoundPath は pathItems を辿る
-                if (item.typename === "CompoundPathItem") {
-                    for (var j = 0; j < item.pathItems.length; j++) {
-                        collectFillColorEntries(item.pathItems[j], outEntries);
-                    }
-                    return;
-                }
-
-                // テキスト
-                if (item.typename === "TextFrame") {
-                    var pT = getItemTopLeft(item);
-
-                    // Fill
-                    var tf = item.textRange.characterAttributes.fillColor;
-                    if (!isNoColor(tf)) {
-                        outEntries.push({ left: pT.left, top: pT.top, color: tf });
-                    }
-
-                    // Stroke
-                    try {
-                        var ts = item.textRange.characterAttributes.strokeColor;
-                        if (!isNoColor(ts)) {
-                            outEntries.push({ left: pT.left, top: pT.top, color: ts });
-                        }
-                    } catch (eTS) {}
-
-                    return;
-                }
-
-                // PathItem など
-                if (typeof item.filled !== "undefined" || typeof item.stroked !== "undefined") {
-                    var p = getItemTopLeft(item);
-
-                    // Fill
-                    if (typeof item.filled !== "undefined" && item.filled) {
-                        var fc = item.fillColor;
-                        if (!isNoColor(fc)) {
-                            outEntries.push({ left: p.left, top: p.top, color: fc });
-                        }
-                    }
-
-                    // Stroke
-                    if (typeof item.stroked !== "undefined" && item.stroked) {
-                        var sc = item.strokeColor;
-                        if (!isNoColor(sc)) {
-                            outEntries.push({ left: p.left, top: p.top, color: sc });
-                        }
-                    }
-
-                    return;
-                }
-            } catch (e) {
-                // 取得できないアイテムは無視
-            }
+    /**
+     * コレクションに同名の項目があるかを調べる
+     * @param {Object} collection - doc.swatches や doc.swatchGroups
+     * @param {string} name - 名前
+     * @returns {boolean} あれば true
+     */
+    function hasNamedItem(collection, name) {
+        /* getByName は見つからないと例外 / getByName throws when missing */
+        try {
+            collection.getByName(name);
+            return true;
+        } catch (e) {
+            return false;
         }
+    }
 
-        // 選択アイテムへグローバルカラーを適用 / Apply global colors to selection items
-        function applyGlobalColorsToItem(item, colorMap) {
-            if (!item) return;
-
-            try {
-                // グループなどは再帰
-                if (item.typename === "GroupItem") {
-                    for (var i = 0; i < item.pageItems.length; i++) {
-                        applyGlobalColorsToItem(item.pageItems[i], colorMap);
-                    }
-                    return;
-                }
-
-                // compoundPath は pathItems を辿る
-                if (item.typename === "CompoundPathItem") {
-                    for (var j = 0; j < item.pathItems.length; j++) {
-                        applyGlobalColorsToItem(item.pathItems[j], colorMap);
-                    }
-                    return;
-                }
-
-                // テキスト
-                if (item.typename === "TextFrame") {
-                    try {
-                        var ca = item.textRange.characterAttributes;
-
-                        // Fill
-                        try {
-                            var f = ca.fillColor;
-                            if (!isNoColor(f)) {
-                                var fk = colorKey(f);
-                                if (colorMap[fk]) ca.fillColor = colorMap[fk];
-                            }
-                        } catch (eTF) {}
-
-                        // Stroke
-                        try {
-                            var s = ca.strokeColor;
-                            if (!isNoColor(s)) {
-                                var sk = colorKey(s);
-                                if (colorMap[sk]) ca.strokeColor = colorMap[sk];
-                            }
-                        } catch (eTS) {}
-                    } catch (eText) {}
-
-                    return;
-                }
-
-                // PathItem など
-                if (typeof item.filled !== "undefined" || typeof item.stroked !== "undefined") {
-                    // Fill
-                    try {
-                        if (typeof item.filled !== "undefined" && item.filled) {
-                            var fc = item.fillColor;
-                            if (!isNoColor(fc)) {
-                                var fck = colorKey(fc);
-                                if (colorMap[fck]) item.fillColor = colorMap[fck];
-                            }
-                        }
-                    } catch (eFillApply) {}
-
-                    // Stroke
-                    try {
-                        if (typeof item.stroked !== "undefined" && item.stroked) {
-                            var sc = item.strokeColor;
-                            if (!isNoColor(sc)) {
-                                var sck = colorKey(sc);
-                                if (colorMap[sck]) item.strokeColor = colorMap[sck];
-                            }
-                        }
-                    } catch (eStrokeApply) {}
-
-                    return;
-                }
-            } catch (e) {
-                // 無視
-            }
+    /**
+     * 重複しない名前を作る（"名前", "名前 1", "名前 2", …）
+     * @param {string} baseName - 基本の名前
+     * @param {Object} collection - 重複を調べるコレクション
+     * @returns {string} 使われていない名前
+     */
+    function uniqueName(baseName, collection) {
+        var name = baseName;
+        for (var n = 1; hasNamedItem(collection, name); n++) {
+            name = baseName + " " + n;
         }
+        return name;
+    }
 
-        function applyGlobalColorsToSelection(selection, colorMap) {
-            if (!selection || selection.length === 0) return;
-            for (var i = 0; i < selection.length; i++) {
-                applyGlobalColorsToItem(selection[i], colorMap);
-            }
-        }
-
-        // 選択から色を「左→右、上→下」順で収集（重複は除外）
-        function collectColorsFromSelection(selection) {
-            var entries = [];
-            for (var i = 0; i < selection.length; i++) {
-                collectFillColorEntries(selection[i], entries);
-            }
-
-            // 左→右（left 昇順）、上→下（top 降順）でソート
-            entries.sort(function(a, b) {
-                if (a.left < b.left) return -1;
-                if (a.left > b.left) return 1;
-                // top は上ほど値が大きい（座標系の都合）ため降順
-                if (a.top > b.top) return -1;
-                if (a.top < b.top) return 1;
-                return 0;
-            });
-
-            // 重複除外（同一色は最初の1つだけ）
-            var colors = [];
-            var seen = {};
-            for (var k = 0; k < entries.length; k++) {
-                var c = entries[k].color;
-                if (isNoColor(c)) continue;
-                var key = colorKey(c);
-                if (seen[key]) continue;
-                seen[key] = true;
-                colors.push(c);
-            }
-
-            return colors;
-        }
-
-        function uniqueName(baseName, existsFunc) {
-            var name = baseName;
-            var n = 1;
-            while (true) {
-                try {
-                    if (existsFunc(name)) {
-                        name = baseName + " " + n;
-                        n++;
-                        continue;
-                    }
-                    break;
-                } catch (e) {
-                    break;
-                }
-            }
-            return name;
-        }
-
-        function swatchExists(name) {
-            try {
-                doc.swatches.getByName(name);
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        function swatchGroupExists(name) {
-            try {
-                doc.swatchGroups.getByName(name);
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-
-    // カラーを「グローバルカラー（プロセス）」に変換して返す
-    function toGlobalProcessColor(doc, baseColor, baseName) {
+    /**
+     * カラーをグローバルカラー（プロセス）のスポットにして返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color} baseColor - 元のカラー
+     * @param {string} spotName - スポット名
+     * @returns {Color} グローバルカラーの SpotColor（作れなければ元のカラー）
+     */
+    function toGlobalProcessColor(doc, baseColor, spotName) {
+        /* 名前の衝突などで作れないときは元のカラーを使う / Fall back to the original color when the spot cannot be made */
         try {
             var spot = doc.spots.add();
-            spot.name = baseName;
-            spot.colorType = ColorModel.PROCESS; // グローバル（プロセス）
+            spot.name = spotName;
+            spot.colorType = ColorModel.PROCESS;
             spot.color = baseColor;
 
-            var sc = new SpotColor();
-            sc.spot = spot;
-            sc.tint = 100;
-            return sc;
+            var spotColor = new SpotColor();
+            spotColor.spot = spot;
+            spotColor.tint = 100;
+            return spotColor;
         } catch (e) {
-            // 失敗時は元のカラーを返す（無言）
             return baseColor;
         }
     }
 
-        function addSwatchForColor(colorObj, baseName) {
-            var s = doc.swatches.add();
-            var nm = uniqueName(baseName, swatchExists);
-            s.name = nm;
+    /**
+     * カラーをグローバルカラーのスウォッチとして追加する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color} color - 登録するカラー
+     * @param {string} baseName - スウォッチ名の基本
+     * @returns {Swatch} 追加したスウォッチ
+     */
+    function addSwatchForColor(doc, color, baseName) {
+        var swatch = doc.swatches.add();
+        var swatchName = uniqueName(baseName, doc.swatches);
+        swatch.name = swatchName;
+        swatch.color = toGlobalProcessColor(doc, color, swatchName);
+        /* Swatch に selected が無い環境がある / Some versions have no Swatch.selected */
+        try { swatch.selected = false; } catch (e) { }
+        return swatch;
+    }
 
-            // グローバルカラー（プロセス）に変換して登録
-            var globalColor = toGlobalProcessColor(doc, colorObj, nm);
-            s.color = globalColor;
+    /**
+     * スウォッチグループを作り、カラーを順に登録する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Color[]} colors - 登録するカラー
+     * @returns {Object} 元のカラーのキー → 登録したグローバルカラー
+     */
+    function registerSwatchGroup(doc, colors) {
+        var swatchGroup = doc.swatchGroups.add();
+        swatchGroup.name = uniqueName(SWATCH_GROUP_BASE_NAME, doc.swatchGroups);
 
-            try { s.selected = false; } catch (e) {}
-            return s;
+        var colorMap = {};
+        for (var i = 0; i < colors.length; i++) {
+            var swatch = addSwatchForColor(doc, colors[i], SWATCH_BASE_NAME);
+            /* グループに入れられない種類は単独のまま / Leave swatches that cannot join the group */
+            try { swatchGroup.addSwatch(swatch); } catch (e) { }
+            if (swatch.color) {
+                colorMap[colorKey(colors[i])] = swatch.color;
+            }
+        }
+        return colorMap;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択の色をスウォッチグループに登録し、選択中のオブジェクトへグローバルカラーとして適用し直す
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            return;
+        }
+        var doc = app.activeDocument;
+        var originalSelection = doc.selection;
+        if (!originalSelection || originalSelection.length === 0) {
+            return;
         }
 
-        // 選択オブジェクトから色を抽出
-        var colors = collectColorsFromSelection(doc.selection);
-
+        var colors = collectColorsFromSelection(originalSelection);
         if (colors.length < 2) {
             return;
         }
 
+        /* 失敗しても通知せずに終える（元の仕様） / Fail silently, as before */
         try {
-            // 新規スウォッチグループを作成（重複回避）
-            var baseGroupName = "AutoGradient";
-            var groupName = uniqueName(baseGroupName, swatchGroupExists);
-            var swGroup = doc.swatchGroups.add();
-            swGroup.name = groupName;
-
-            // 抽出色 -> 作成したグローバルカラー の対応表
-            var colorMap = {};
-
-            // 抽出色をスウォッチに登録（順番は選択の走査順）
-            for (var i = 0; i < colors.length; i++) {
-                var originalColor = colors[i];
-                var key = colorKey(originalColor);
-
-                var cs = addSwatchForColor(originalColor, "AutoColor");
-                try { swGroup.addSwatch(cs); } catch (eAdd1) {}
-
-                // スウォッチに設定した色（SpotColor）をマップ
-                try {
-                    if (cs && cs.color) {
-                        colorMap[key] = cs.color;
-                    }
-                } catch (eMap) {}
-            }
-
-            // 元々選択していたオブジェクトへ、対応するグローバルカラーを適用
-            try {
-                applyGlobalColorsToSelection(originalSelection, colorMap);
-            } catch (eApply) {}
-
-        } catch (e) {
-            // 無言（エラー通知しない）
-        }
+            var colorMap = registerSwatchGroup(doc, colors);
+            applyGlobalColorsToSelection(originalSelection, colorMap);
+        } catch (e) { }
     }
 
     main();

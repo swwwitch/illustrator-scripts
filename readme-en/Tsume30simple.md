@@ -20,4 +20,4 @@
 
 ### Notes
 
-- There is no dialog. Edit the `Tsume` value in the script to change the amount.
+- There is no dialog. Edit `TSUME_PERCENT` at the top of the script to change the amount.

@@ -36,9 +36,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    var selection = app.activeDocument.selection;
-    for (var i = 0; i < selection.length; i++) {
-        selection[i].textRange.characterAttributes.kerningMethod = AutoKernType.OPTICAL;
+    /* 選択中のテキストオブジェクトを「オプティカル」に / Set the selected text objects to Optical */
+    var selectedItems = app.activeDocument.selection;
+    for (var i = 0; i < selectedItems.length; i++) {
+        selectedItems[i].textRange.characterAttributes.kerningMethod = AutoKernType.OPTICAL;
     }
 
 })();

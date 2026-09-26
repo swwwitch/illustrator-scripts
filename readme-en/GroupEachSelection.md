@@ -22,3 +22,7 @@
 
 - Each new group is created in the same parent container as its object, and the stacking order is preserved.
 - Shows an alert and stops when no document is open or nothing is selected.
+
+### Change Log
+
+- v1.0.2 (20260927): The new groups are selected afterwards. Alerts are shown in English on English systems. Shows an alert and stops while text is selected with the Type tool

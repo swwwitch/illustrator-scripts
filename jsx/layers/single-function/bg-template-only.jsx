@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-「bg-template」レイヤーをテンプレート化します。
+アクティブレイヤー（「bg-template」レイヤーなど）をテンプレートレイヤーにします。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template-only.md
 
 ### Overview
 
-Marks the "bg-template" layer as a template layer.
+Turns the active layer (such as the "bg-template" layer) into a template layer.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template-only.md
@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-templat
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "bg-template-only";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template-only.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template-only.md"; /* README (English) */
@@ -36,11 +36,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function act_setLayTmplAttr() {
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            error: { ja: "エラーが発生しました: ", en: "An error occurred: " }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.error" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
+    }
+
+    // =========================================
+    // 一時アクション / Temporary action
+    // =========================================
+
+    /**
+     * アクティブレイヤーを一時アクションでテンプレートレイヤーにする（アクションはレイヤー名も書き換える）
+     * @returns {void}
+     */
+    function applyTemplateByAction() {
         var actionSetName = "layer";
         var actionName = "template";
 
-        // アクション定義テキスト / Action definition text
+        /* アクション定義テキスト / Action definition text */
         var actionCode = [
             " /version 3",
             "/name [ 5",
@@ -140,12 +178,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             app.doScript(actionName, actionSetName);
         } catch (e) {
-            alert("エラーが発生しました: " + e);
+            alert(getLabel("alert.error") + e);
         } finally {
             app.unloadAction(actionSetName, "");
         }
     }
 
-    act_setLayTmplAttr();
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    applyTemplateByAction();
 
 })();

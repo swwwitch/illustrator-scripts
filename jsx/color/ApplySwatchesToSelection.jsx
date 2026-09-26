@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplySwatchesToSelection";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md"; /* README (English) */
@@ -38,220 +38,212 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    // CMYK fallback generation: maximum total (C+M or C+Y or M+Y)
-    var TMK_CMYK_FALLBACK_MAX_TOTAL = 200;
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    // CMYK fallback generation: minimum distance (Manhattan) between generated colors to avoid similar colors
-    var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;
+    /* RGB ドキュメントでスウォッチ未選択のときに使う色 / Colors used in RGB documents when no swatches are selected */
+    var RGB_FALLBACK_COLORS = [
+        [222, 84, 25],
+        [245, 233, 40],
+        [41, 163, 57],
+        [53, 157, 209],
+        [173, 127, 71],
+        [238, 176, 51]
+    ];
 
-    function getCurrentLang() {
-        var locale = $.locale.toLowerCase();
-        if (locale.indexOf('ja') === 0) {
-            return 'ja';
-        }
-        return 'en';
+    /* ちょうど4つ選択したときの固定プリセット (#B9D3E0, #E19DA1, #FDECAC, #CB4447) / Fixed preset for exactly four objects */
+    var FOUR_COLOR_PRESET_CMYK = [
+        [19, 7, 2, 12],   /* #B9D3E0 */
+        [0, 30, 28, 12],  /* #E19DA1 */
+        [0, 7, 32, 1],    /* #FDECAC */
+        [0, 67, 65, 20]   /* #CB4447 */
+    ];
+    var FOUR_COLOR_PRESET_RGB = [
+        [185, 211, 224],  /* #B9D3E0 */
+        [225, 157, 161],  /* #E19DA1 */
+        [253, 236, 172],  /* #FDECAC */
+        [203, 68, 71]     /* #CB4447 */
+    ];
+
+    /* CMYK で自動生成する2色混合の合計の上限（C+M / C+Y / M+Y） / Max total of the two inks in generated CMYK colors */
+    var CMYK_FALLBACK_MAX_TOTAL = 200;
+
+    /* 自動生成する色どうしの最小距離（マンハッタン距離、似た色を避ける） / Min Manhattan distance between generated colors */
+    var CMYK_FALLBACK_MIN_DISTANCE = 35;
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function detectUILang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
+    var uiLang = detectUILang();
 
-    // エラーメッセージなどのラベル（UI表示順に整理）
     var LABELS = {
-        errNoDoc: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
-        },
-        errNoSelection: {
-            ja: "オブジェクトを選択してください。",
-            en: "Please select objects."
-        },
-        errUnexpected: {
-            ja: "エラーが発生しました: ",
-            en: "An error occurred: "
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
+            unexpected: { ja: "エラーが発生しました：", en: "An error occurred: " }
         }
     };
 
-    function main() {
-        var uiLang = getCurrentLang();
-
-        try {
-            // ドキュメントが開かれているか確認
-            if (app.documents.length === 0) {
-                alert(LABELS.errNoDoc[uiLang]);
-                return;
-            }
-            var activeDoc = app.activeDocument;
-            // 選択をフラット化（グループ内のテキスト/パスも対象にする）
-            var selectedItems = flattenSelection(app.selection);
-            // テキスト編集中に文字範囲が選択されている場合（TextRange）
-            var selectedTextRange = getSingleSelectedTextRange(app.selection);
-
-            // 選択オブジェクトがあるか確認
-            if ((selectedItems.length === 0) && !selectedTextRange) {
-                alert(LABELS.errNoSelection[uiLang]);
-                return;
-            }
-
-            // 選択されたスウォッチを取得
-            var selectedSwatches = activeDoc.swatches.getSelected();
-
-            // 定義済みのカラーセット（CMYK / RGB）
-            var predefinedColors = [];
-            if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
-                // CMYK fallback palette will be generated on-demand (depends on target count)
-                predefinedColors = [];
-            } else {
-                var rgb1 = new RGBColor();
-                rgb1.red = 222; rgb1.green = 84; rgb1.blue = 25;
-                predefinedColors.push(rgb1);
-                var rgb2 = new RGBColor();
-                rgb2.red = 245; rgb2.green = 233; rgb2.blue = 40;
-                predefinedColors.push(rgb2);
-                var rgb3 = new RGBColor();
-                rgb3.red = 41; rgb3.green = 163; rgb3.blue = 57;
-                predefinedColors.push(rgb3);
-                var rgb4 = new RGBColor();
-                rgb4.red = 53; rgb4.green = 157; rgb4.blue = 209;
-                predefinedColors.push(rgb4);
-                var rgb5 = new RGBColor();
-                rgb5.red = 173; rgb5.green = 127; rgb5.blue = 71;
-                predefinedColors.push(rgb5);
-                var rgb6 = new RGBColor();
-                rgb6.red = 238; rgb6.green = 176; rgb6.blue = 51;
-                predefinedColors.push(rgb6);
-            }
-
-            // スウォッチが未選択、または1色以下、または白のみの場合は定義済みカラーを使用
-            if (!selectedSwatches || selectedSwatches.length <= 1 || allWhiteSwatches(selectedSwatches)) {
-                // 選択オブジェクトがちょうど4つの場合、固定の4色プリセットを適用
-                if (selectedItems.length === 4 && !selectedTextRange) {
-                    predefinedColors = getFourColorPreset(activeDoc.documentColorSpace);
-                } else if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
-                    // If CMYK document, generate as many colors as targets (avoid duplicates when possible)
-                    var needCount = getNeededColorCount(selectedItems, selectedTextRange);
-                    predefinedColors = generateRandomCMYPaletteUnique(needCount, TMK_CMYK_FALLBACK_MAX_TOTAL);
-                }
-                selectedSwatches = [];
-                for (var i = 0; i < predefinedColors.length; i++) {
-                    var dummySwatch = {};
-                    dummySwatch.color = predefinedColors[i];
-                    // 削除: dummySwatch.opacity = 100; // 不透明度100%を明示的に設定
-                    selectedSwatches.push(dummySwatch);
-                }
-            }
-
-            // スウォッチ数が3色より多い場合はランダムにシャッフル
-            if (selectedSwatches.length > 3) {
-                selectedSwatches = shuffleArray(selectedSwatches);
-            }
-
-            // 単一テキスト（テキストフレーム or TextRange）の場合は文字単位で色付け
-            if (selectedTextRange) {
-                var chars = selectedTextRange.characters;
-                for (var i = 0; i < chars.length; i++) {
-                    var swatchColor = getSwatchColor(i, selectedSwatches);
-                    chars[i].fillColor = swatchColor;
-                    chars[i].strokeColor = new NoColor();
-                    chars[i].opacity = 100;
-                }
-            } else if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
-                var selectedTextFrame = selectedItems[0];
-                var charCount = selectedTextFrame.contents.length;
-                for (var i = 0; i < charCount; i++) {
-                    var swatchColor = getSwatchColor(i, selectedSwatches);
-                    selectedTextFrame.characters[i].fillColor = swatchColor;
-                    selectedTextFrame.characters[i].strokeColor = new NoColor();
-                    selectedTextFrame.characters[i].opacity = 100;
-                }
-            } else {
-                // 複数オブジェクトは位置順に並べ替えて色付け
-                sortByPosition(selectedItems);
-                for (var i = 0; i < selectedItems.length; i++) {
-                    var swatchColor = getSwatchColor(i, selectedSwatches);
-                    var currentItem = selectedItems[i];
-
-                    if (currentItem.typename === "PathItem") {
-                        currentItem.fillColor = swatchColor;
-                        currentItem.stroked = false;
-                        currentItem.opacity = 100;
-
-                    } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
-                        var pathItems = currentItem.pathItems;
-                        for (var j = 0; j < pathItems.length; j++) {
-                            pathItems[j].fillColor = swatchColor;
-                            pathItems[j].stroked = false;
-                            pathItems[j].opacity = 100;
-                        }
-
-                    } else if (currentItem.typename === "TextFrame") {
-                        // 複数テキストはテキストオブジェクト単位で色付け
-                        currentItem.textRange.fillColor = swatchColor;
-                        currentItem.textRange.strokeColor = new NoColor();
-                        currentItem.textRange.opacity = 100;
-                    }
-                }
-            }
-        } catch (e) {
-            alert(LABELS.errUnexpected[uiLang] + e.message);
+    /**
+     * LABELS からドット区切りのパスで表示言語の文字列を引く
+     * @param {string} labelPath - "alert.noSelection" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
         }
+        return labelNode[uiLang] || labelNode["en"] || labelPath;
     }
 
-    // 選択をフラット化して、色付け対象（PathItem / CompoundPathItem / TextFrame）だけを収集
-    function flattenSelection(selection) {
-        var result = [];
-        if (!selection || selection.length === 0) return result;
+    // =========================================
+    // 選択の取得 / Selection
+    // =========================================
 
-        for (var i = 0; i < selection.length; i++) {
-            collectColorTargets(selection[i], result);
-        }
-
-        return result;
-    }
-
-    function collectColorTargets(item, outArr) {
+    /**
+     * 色付け対象（パス・複合パス・テキスト）を集める。グループ内は再帰的にたどる
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {PageItem[]} outItems - 集めたオブジェクトの格納先
+     * @returns {void}
+     */
+    function collectColorTargets(item, outItems) {
         if (!item) return;
-
-        // 直接対象
         if (item.typename === "PathItem" || item.typename === "CompoundPathItem" || item.typename === "TextFrame") {
-            outArr.push(item);
+            outItems.push(item);
             return;
         }
-
-        // グループ内を再帰的に探索
         if (item.typename === "GroupItem") {
-            var pageItems = item.pageItems;
-            for (var i = 0; i < pageItems.length; i++) {
-                collectColorTargets(pageItems[i], outArr);
+            for (var i = 0; i < item.pageItems.length; i++) {
+                collectColorTargets(item.pageItems[i], outItems);
             }
-            return;
         }
-
-        // それ以外（PlacedItem 等）は無視
+        /* それ以外（配置画像など）は無視 / Ignore other items such as placed images */
     }
 
-    // テキスト編集中に文字範囲が選択されているケース（TextRange）を取得
-    function getSingleSelectedTextRange(selection) {
-        try {
-            if (!selection || selection.length !== 1) return null;
-            if (selection[0] && selection[0].typename === "TextRange") return selection[0];
-        } catch (e) { }
+    /**
+     * 選択をフラットにして、色付け対象だけを集める
+     * @param {Array} selectedItems - 選択
+     * @returns {PageItem[]} 色付け対象
+     */
+    function flattenSelection(selectedItems) {
+        var colorTargets = [];
+        if (!selectedItems || selectedItems.length === 0) return colorTargets;
+        for (var i = 0; i < selectedItems.length; i++) {
+            collectColorTargets(selectedItems[i], colorTargets);
+        }
+        return colorTargets;
+    }
+
+    /**
+     * テキスト編集中に文字範囲が選択されていれば、その TextRange を返す
+     * @param {Array} selectedItems - 選択
+     * @returns {TextRange|null} 文字範囲（なければ null）
+     */
+    function getSingleSelectedTextRange(selectedItems) {
+        if (!selectedItems || selectedItems.length !== 1) return null;
+        if (selectedItems[0] && selectedItems[0].typename === "TextRange") return selectedItems[0];
         return null;
     }
 
-    // 処理対象数（必要な色数）を算出
-    function getNeededColorCount(selectedItems, selectedTextRange) {
-        try {
-            if (selectedTextRange) {
-                return Math.max(1, selectedTextRange.characters.length);
-            }
-            if (selectedItems && selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
-                return Math.max(1, selectedItems[0].contents.length);
-            }
-            if (selectedItems && selectedItems.length > 0) {
-                return Math.max(1, selectedItems.length);
-            }
-        } catch (e) { }
-        return 1;
+    /**
+     * テキストフレーム1つだけが選択されているか
+     * @param {PageItem[]} colorTargets - 色付け対象
+     * @returns {boolean} 1つだけで TextFrame なら true
+     */
+    function isSingleTextFrame(colorTargets) {
+        return colorTargets.length === 1 && colorTargets[0].typename === "TextFrame";
     }
 
-    // 色が白かどうか判定（CMYK=0,0,0,0 または RGB=255,255,255）
+    /**
+     * 必要な色の数（文字数またはオブジェクト数）を返す
+     * @param {PageItem[]} colorTargets - 色付け対象
+     * @param {TextRange|null} selectedTextRange - 選択中の文字範囲
+     * @returns {number} 色の数（1以上）
+     */
+    function getNeededColorCount(colorTargets, selectedTextRange) {
+        if (selectedTextRange) {
+            return Math.max(1, selectedTextRange.characters.length);
+        }
+        if (isSingleTextFrame(colorTargets)) {
+            return Math.max(1, colorTargets[0].contents.length);
+        }
+        return Math.max(1, colorTargets.length);
+    }
+
+    // =========================================
+    // カラー / Colors
+    // =========================================
+
+    /**
+     * RGB カラーを作る
+     * @param {number[]} rgbValues - [R, G, B]
+     * @returns {RGBColor} カラー
+     */
+    function createRGBColor(rgbValues) {
+        var color = new RGBColor();
+        color.red = rgbValues[0];
+        color.green = rgbValues[1];
+        color.blue = rgbValues[2];
+        return color;
+    }
+
+    /**
+     * CMYK カラーを作る
+     * @param {number[]} cmykValues - [C, M, Y, K]
+     * @returns {CMYKColor} カラー
+     */
+    function createCMYKColor(cmykValues) {
+        var color = new CMYKColor();
+        color.cyan = cmykValues[0];
+        color.magenta = cmykValues[1];
+        color.yellow = cmykValues[2];
+        color.black = cmykValues[3];
+        return color;
+    }
+
+    /**
+     * 値の表からカラーの配列を作る
+     * @param {number[][]} valueTable - カラー値の配列
+     * @param {Function} createColor - createRGBColor または createCMYKColor
+     * @returns {Color[]} カラーの配列
+     */
+    function createColors(valueTable, createColor) {
+        var colors = [];
+        for (var i = 0; i < valueTable.length; i++) {
+            colors.push(createColor(valueTable[i]));
+        }
+        return colors;
+    }
+
+    /**
+     * 4つ選択したときの固定プリセットを返す
+     * @param {DocumentColorSpace} colorSpace - ドキュメントのカラーモード
+     * @returns {Color[]} 4色
+     */
+    function getFourColorPreset(colorSpace) {
+        if (colorSpace === DocumentColorSpace.CMYK) {
+            return createColors(FOUR_COLOR_PRESET_CMYK, createCMYKColor);
+        }
+        return createColors(FOUR_COLOR_PRESET_RGB, createRGBColor);
+    }
+
+    /**
+     * 白（CMYK=0,0,0,0 または RGB=255,255,255）か判定する
+     * @param {Color} color - 判定するカラー
+     * @returns {boolean} 白なら true
+     */
     function isWhiteColor(color) {
         if (color.typename === "CMYKColor") {
             return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
@@ -261,34 +253,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return false;
     }
 
-    // オブジェクト配列を位置順にソート（横幅が広ければ左→右、縦幅が広ければ上→下）
-    function sortByPosition(items) {
-        var hMin = Infinity, hMax = -Infinity, vMin = Infinity, vMax = -Infinity;
-        for (var i = 0, len = items.length; i < len; i++) {
-            var left = items[i].left;
-            var top = items[i].top;
-            if (left < hMin) hMin = left;
-            if (left > hMax) hMax = left;
-            if (top < vMin) vMin = top;
-            if (top > vMax) vMax = top;
+    /**
+     * すべてのスウォッチが白か判定する
+     * @param {Swatch[]} swatches - スウォッチ
+     * @returns {boolean} すべて白なら true
+     */
+    function allWhiteSwatches(swatches) {
+        for (var i = 0; i < swatches.length; i++) {
+            if (!isWhiteColor(swatches[i].color)) {
+                return false;
+            }
         }
-        if (hMax - hMin > vMax - vMin) {
-            // 横幅が広い場合は左から右へ
-            items.sort(function (a, b) { return compPosition(a.left, b.left, b.top, a.top); });
-        } else {
-            // 縦幅が広い場合は上から下へ
-            items.sort(function (a, b) { return compPosition(b.top, a.top, a.left, b.left); });
-        }
+        return true;
     }
 
-    // ソート用比較関数（主キー比較、同値なら副キー比較）
-    function compPosition(a1, b1, a2, b2) {
-        return a1 == b1 ? a2 - b2 : a1 - b1;
+    /**
+     * インデックスに応じてスウォッチの色を取り出す（数が足りなければ繰り返す）
+     * @param {number} index - 何番目か
+     * @param {Array<{color: Color}>} swatches - スウォッチ（または color を持つオブジェクト）
+     * @returns {Color} カラー
+     */
+    function getSwatchColor(index, swatches) {
+        var swatch = swatches[index % swatches.length];
+        var color = swatch.color;
+        /* 定義済みカラーは常に100% / Predefined colors are always 100% */
+        color.opacity = (typeof swatch.opacity !== "undefined") ? swatch.opacity : 100;
+        return color;
     }
 
-    // 配列をランダムシャッフルして返す
-    function shuffleArray(arr) {
-        var result = arr.slice();
+    // =========================================
+    // CMYK の自動生成 / CMYK color generation
+    // =========================================
+
+    /**
+     * 範囲内の整数の乱数を返す
+     * @param {number} min - 最小値
+     * @param {number} max - 最大値
+     * @returns {number} min 以上 max 以下の整数
+     */
+    function randInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /**
+     * 配列をシャッフルした複製を返す
+     * @param {Array} sourceArray - 元の配列
+     * @returns {Array} シャッフルした配列
+     */
+    function shuffleArray(sourceArray) {
+        var result = sourceArray.slice();
         for (var i = result.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
             var temp = result[i];
@@ -298,182 +311,263 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return result;
     }
 
-    // 乱数（整数）
-    function randInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    // CMYの距離（マンハッタン距離）
-    function cmyDistance(c1, m1, y1, c2, m2, y2) {
-        return Math.abs(c1 - c2) + Math.abs(m1 - m2) + Math.abs(y1 - y2);
-    }
-
-    // 既存候補と十分離れているか
-    function isFarEnoughCMY(c, m, y, existing, minDist) {
-        for (var i = 0; i < existing.length; i++) {
-            var e = existing[i];
-            if (cmyDistance(c, m, y, e.cyan, e.magenta, e.yellow) < minDist) {
+    /**
+     * 既存の色すべてから、CMY のマンハッタン距離で十分に離れているか
+     * @param {number[]} cmy - [C, M, Y]
+     * @param {CMYKColor[]} existingColors - 採用済みの色
+     * @param {number} minDistance - 最小距離
+     * @returns {boolean} 離れていれば true
+     */
+    function isFarEnoughCMY(cmy, existingColors, minDistance) {
+        for (var i = 0; i < existingColors.length; i++) {
+            var existing = existingColors[i];
+            var distance = Math.abs(cmy[0] - existing.cyan) + Math.abs(cmy[1] - existing.magenta) + Math.abs(cmy[2] - existing.yellow);
+            if (distance < minDistance) {
                 return false;
             }
         }
         return true;
     }
 
-    // CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、可能な限り重複しない色を生成
-    // ※対象数が非常に多い場合、理論上の組み合わせ上限に達すると重複を許容する
+    /**
+     * 2チャンネルだけ（K=0）の CMY 値をランダムに作る
+     * @param {string} inkPair - "CM" / "CY" / "MY"
+     * @param {number} maxTotal - 2チャンネルの合計の上限
+     * @returns {number[]|null} [C, M, Y]（作れなければ null）
+     */
+    function randomTwoInkCMY(inkPair, maxTotal) {
+        var first = randInt(1, Math.min(100, maxTotal - 1));
+        var secondMax = Math.min(100, maxTotal - first);
+        if (secondMax < 1) return null;
+        var second = randInt(1, secondMax);
+
+        if (inkPair === "CM") return [first, second, 0];
+        if (inkPair === "CY") return [first, 0, second];
+        return [0, first, second];
+    }
+
+    /**
+     * CMYK ドキュメント用に、CM／CY／MY の2色混合（K=0）をできるだけ重複・近似なしで生成する
+     * 数が非常に多く組み合わせが尽きたときは重複を許す
+     * @param {number} count - 必要な色の数
+     * @param {number} maxTotal - 2チャンネルの合計の上限
+     * @returns {CMYKColor[]} 生成した色
+     */
     function generateRandomCMYPaletteUnique(count, maxTotal) {
         var result = [];
-        var accepted = []; // 既に採用した色（近い色回避用）
-        var seen = {};     // 完全一致回避
-        var pairs = ["CM", "CY", "MY"];
+        var seenKeys = {};
+        var inkPairs = ["CM", "CY", "MY"];
+        var minDistance = CMYK_FALLBACK_MIN_DISTANCE;
 
-        var minDist = TMK_CMYK_FALLBACK_MIN_DISTANCE;
-        var maxTries = Math.max(1500, count * 80);
-        var tries = 0;
-
-        while (result.length < count && tries++ < maxTries) {
-            // 生成が詰まるときは距離制約を徐々に緩める
-            if (minDist > 0 && (tries % 500) === 0) {
-                minDist = Math.max(0, minDist - 5);
+        /**
+         * 並びが固定されないよう、ときどきペアの順をシャッフルして次のペアを選ぶ
+         * @param {number} counter - 試行回数
+         * @returns {string} 次に使うペア
+         */
+        function pickInkPair(counter) {
+            if ((counter % 37) === 0) {
+                inkPairs = shuffleArray(inkPairs);
             }
-
-            // ペア選択：パターン固定を避けるため、たまに並びをシャッフル
-            var pair = pairs[result.length % pairs.length];
-            if ((tries % 37) === 0) {
-                pairs = shuffleArray(pairs);
-                pair = pairs[result.length % pairs.length];
-            }
-
-            var c = 0, m = 0, y = 0;
-
-            // 2チャンネル非ゼロ、合計 <= maxTotal
-            var a = randInt(1, Math.min(100, maxTotal - 1));
-            var bMax = Math.min(100, maxTotal - a);
-            if (bMax < 1) continue;
-            var b = randInt(1, bMax);
-
-            if (pair === "CM") { c = a; m = b; y = 0; }
-            else if (pair === "CY") { c = a; y = b; m = 0; }
-            else { m = a; y = b; c = 0; }
-
-            var key = c + "," + m + "," + y;
-            if (seen[key]) continue;
-
-            // 近い色を回避
-            if (minDist > 0 && !isFarEnoughCMY(c, m, y, accepted, minDist)) {
-                continue;
-            }
-
-            seen[key] = true;
-
-            var col = new CMYKColor();
-            col.cyan = c;
-            col.magenta = m;
-            col.yellow = y;
-            col.black = 0;
-
-            result.push(col);
-            accepted.push(col);
+            return inkPairs[result.length % inkPairs.length];
         }
 
-        // どうしても埋まらない場合：重複許容。ただし距離制約はベストエフォート
+        /* 重複も近似も避けて生成（詰まったら距離制約を少しずつ緩める） / Avoid duplicates and near colors; relax the distance when stuck */
+        var maxTries = Math.max(1500, count * 80);
+        var tries = 0;
+        var cmy, key;
+        while (result.length < count && tries++ < maxTries) {
+            if (minDistance > 0 && (tries % 500) === 0) {
+                minDistance = Math.max(0, minDistance - 5);
+            }
+            cmy = randomTwoInkCMY(pickInkPair(tries), maxTotal);
+            if (!cmy) continue;
+            key = cmy.join(",");
+            if (seenKeys[key]) continue;
+            if (minDistance > 0 && !isFarEnoughCMY(cmy, result, minDistance)) continue;
+            seenKeys[key] = true;
+            result.push(createCMYKColor([cmy[0], cmy[1], cmy[2], 0]));
+        }
+
+        /* 埋まらないときは重複を許す（距離はベストエフォート、3000回で打ち切り） / Allow duplicates; distance is best effort */
         var guard = 0;
         while (result.length < count) {
             if (guard++ > 3000) {
-                minDist = 0; // 完走優先
+                minDistance = 0;
             }
-
-            var pair2 = pairs[result.length % pairs.length];
-            if ((guard % 37) === 0) {
-                pairs = shuffleArray(pairs);
-                pair2 = pairs[result.length % pairs.length];
-            }
-
-            var c2 = 0, m2 = 0, y2 = 0;
-
-            var a2 = randInt(1, Math.min(100, maxTotal - 1));
-            var bMax2 = Math.min(100, maxTotal - a2);
-            if (bMax2 < 1) continue;
-            var b2 = randInt(1, bMax2);
-
-            if (pair2 === "CM") { c2 = a2; m2 = b2; y2 = 0; }
-            else if (pair2 === "CY") { c2 = a2; y2 = b2; m2 = 0; }
-            else { m2 = a2; y2 = b2; c2 = 0; }
-
-            if (minDist > 0 && !isFarEnoughCMY(c2, m2, y2, accepted, minDist)) {
-                continue;
-            }
-
-            var col2 = new CMYKColor();
-            col2.cyan = c2;
-            col2.magenta = m2;
-            col2.yellow = y2;
-            col2.black = 0;
-
-            result.push(col2);
-            accepted.push(col2);
+            cmy = randomTwoInkCMY(pickInkPair(guard), maxTotal);
+            if (!cmy) continue;
+            if (minDistance > 0 && !isFarEnoughCMY(cmy, result, minDistance)) continue;
+            result.push(createCMYKColor([cmy[0], cmy[1], cmy[2], 0]));
         }
 
         return result;
     }
 
-    // 4オブジェクト選択時の固定プリセット (#B9D3E0, #E19DA1, #FDECAC, #CB4447)
-    function getFourColorPreset(colorSpace) {
-        var colors = [];
-        if (colorSpace === DocumentColorSpace.CMYK) {
-            var defs = [
-                { c: 19, m: 7, y: 2, k: 12 },   // #B9D3E0
-                { c: 0, m: 30, y: 28, k: 12 },   // #E19DA1
-                { c: 0, m: 7, y: 32, k: 1 },     // #FDECAC
-                { c: 0, m: 67, y: 65, k: 20 }    // #CB4447
-            ];
-            for (var i = 0; i < defs.length; i++) {
-                var col = new CMYKColor();
-                col.cyan = defs[i].c;
-                col.magenta = defs[i].m;
-                col.yellow = defs[i].y;
-                col.black = defs[i].k;
-                colors.push(col);
-            }
-        } else {
-            var defs = [
-                { r: 185, g: 211, b: 224 },  // #B9D3E0
-                { r: 225, g: 157, b: 161 },  // #E19DA1
-                { r: 253, g: 236, b: 172 },  // #FDECAC
-                { r: 203, g: 68, b: 71 }     // #CB4447
-            ];
-            for (var i = 0; i < defs.length; i++) {
-                var col = new RGBColor();
-                col.red = defs[i].r;
-                col.green = defs[i].g;
-                col.blue = defs[i].b;
-                colors.push(col);
-            }
+    // =========================================
+    // 色付け / Coloring
+    // =========================================
+
+    /**
+     * 使う色の一覧を決める（スウォッチの選択が1色以下・白のみなら定義済みカラーや自動生成）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} colorTargets - 色付け対象
+     * @param {TextRange|null} selectedTextRange - 選択中の文字範囲
+     * @returns {Array<{color: Color}>} スウォッチ（または color を持つオブジェクト）
+     */
+    function resolveSwatches(doc, colorTargets, selectedTextRange) {
+        var selectedSwatches = doc.swatches.getSelected();
+        if (selectedSwatches && selectedSwatches.length > 1 && !allWhiteSwatches(selectedSwatches)) {
+            return selectedSwatches;
         }
-        return colors;
+
+        var isCMYK = (doc.documentColorSpace === DocumentColorSpace.CMYK);
+        var fallbackColors;
+        if (colorTargets.length === 4 && !selectedTextRange) {
+            fallbackColors = getFourColorPreset(doc.documentColorSpace);
+        } else if (isCMYK) {
+            /* 対象の数だけ生成 / Generate one color per target */
+            fallbackColors = generateRandomCMYPaletteUnique(getNeededColorCount(colorTargets, selectedTextRange), CMYK_FALLBACK_MAX_TOTAL);
+        } else {
+            fallbackColors = createColors(RGB_FALLBACK_COLORS, createRGBColor);
+        }
+
+        var fallbackSwatches = [];
+        for (var i = 0; i < fallbackColors.length; i++) {
+            fallbackSwatches.push({ color: fallbackColors[i] });
+        }
+        return fallbackSwatches;
     }
 
-    // インデックスに応じてスウォッチの色を取得（ループ）
-    function getSwatchColor(index, swatches) {
-        var swatch = swatches[index % swatches.length];
-        var color = swatch.color;
-        // 定義済みカラーの場合、常に100%不透明度を返す
-        if (typeof swatch.opacity !== "undefined") {
-            color.opacity = swatch.opacity;
-        } else {
-            color.opacity = 100;
+    /**
+     * 文字ごとに色を付け、線をなし・不透明度を100%にする
+     * @param {Characters} characters - 文字のコレクション
+     * @param {number} charCount - 色を付ける文字数
+     * @param {Array<{color: Color}>} swatches - 使う色
+     * @returns {void}
+     */
+    function colorCharacters(characters, charCount, swatches) {
+        for (var i = 0; i < charCount; i++) {
+            characters[i].fillColor = getSwatchColor(i, swatches);
+            characters[i].strokeColor = new NoColor();
+            characters[i].opacity = 100;
         }
-        return color;
     }
 
-    // 全スウォッチが白色のみか判定
-    function allWhiteSwatches(swatches) {
-        for (var i = 0; i < swatches.length; i++) {
-            if (!isWhiteColor(swatches[i].color)) {
-                return false;
+    /**
+     * パスに色を付け、線をなし・不透明度を100%にする
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Color} color - 塗りの色
+     * @returns {void}
+     */
+    function colorPath(pathItem, color) {
+        pathItem.fillColor = color;
+        pathItem.stroked = false;
+        pathItem.opacity = 100;
+    }
+
+    /**
+     * オブジェクトを位置順に並べ替える（横に広ければ左→右、縦に広ければ上→下）
+     * @param {PageItem[]} items - 並べ替えるオブジェクト（その場で並べ替える）
+     * @returns {void}
+     */
+    function sortByPosition(items) {
+        var hMin = Infinity, hMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+        for (var i = 0; i < items.length; i++) {
+            var left = items[i].left;
+            var top = items[i].top;
+            if (left < hMin) hMin = left;
+            if (left > hMax) hMax = left;
+            if (top < vMin) vMin = top;
+            if (top > vMax) vMax = top;
+        }
+        if (hMax - hMin > vMax - vMin) {
+            items.sort(function (a, b) { return comparePosition(a.left, b.left, b.top, a.top); });
+        } else {
+            items.sort(function (a, b) { return comparePosition(b.top, a.top, a.left, b.left); });
+        }
+    }
+
+    /**
+     * 主キーで比べ、同じなら副キーで比べる
+     * @param {number} primaryA - 主キー（a）
+     * @param {number} primaryB - 主キー（b）
+     * @param {number} secondaryA - 副キー（a）
+     * @param {number} secondaryB - 副キー（b）
+     * @returns {number} 比較結果
+     */
+    function comparePosition(primaryA, primaryB, secondaryA, secondaryB) {
+        return primaryA == primaryB ? secondaryA - secondaryB : primaryA - primaryB;
+    }
+
+    /**
+     * 複数のオブジェクトを位置順に並べ、1つずつ色を付ける
+     * @param {PageItem[]} colorTargets - 色付け対象
+     * @param {Array<{color: Color}>} swatches - 使う色
+     * @returns {void}
+     */
+    function colorItemsByPosition(colorTargets, swatches) {
+        sortByPosition(colorTargets);
+        for (var i = 0; i < colorTargets.length; i++) {
+            var swatchColor = getSwatchColor(i, swatches);
+            var currentItem = colorTargets[i];
+
+            if (currentItem.typename === "PathItem") {
+                colorPath(currentItem, swatchColor);
+            } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
+                for (var j = 0; j < currentItem.pathItems.length; j++) {
+                    colorPath(currentItem.pathItems[j], swatchColor);
+                }
+            } else if (currentItem.typename === "TextFrame") {
+                /* 複数テキストはテキスト単位で色付け / Color each text frame as a whole */
+                currentItem.textRange.fillColor = swatchColor;
+                currentItem.textRange.strokeColor = new NoColor();
+                currentItem.textRange.opacity = 100;
             }
         }
-        return true;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択中のオブジェクトやテキストに色を付ける
+     * @returns {void}
+     */
+    function main() {
+        /* 予期しない DOM エラーはまとめて通知 / Report unexpected DOM errors */
+        try {
+            if (app.documents.length === 0) {
+                alert(getLabel("alert.noDocument"));
+                return;
+            }
+            var doc = app.activeDocument;
+            /* グループ内のテキスト・パスも対象にする / Include text and paths inside groups */
+            var colorTargets = flattenSelection(doc.selection);
+            /* テキスト編集中の文字範囲 / Character range while editing text */
+            var selectedTextRange = getSingleSelectedTextRange(doc.selection);
+
+            if (colorTargets.length === 0 && !selectedTextRange) {
+                alert(getLabel("alert.noSelection"));
+                return;
+            }
+
+            var swatches = resolveSwatches(doc, colorTargets, selectedTextRange);
+            /* 3色より多ければシャッフル / Shuffle when there are more than three colors */
+            if (swatches.length > 3) {
+                swatches = shuffleArray(swatches);
+            }
+
+            if (selectedTextRange) {
+                colorCharacters(selectedTextRange.characters, selectedTextRange.characters.length, swatches);
+            } else if (isSingleTextFrame(colorTargets)) {
+                colorCharacters(colorTargets[0].characters, colorTargets[0].contents.length, swatches);
+            } else {
+                colorItemsByPosition(colorTargets, swatches);
+            }
+        } catch (e) {
+            alert(getLabel("alert.unexpected") + e.message);
+        }
     }
 
     main();

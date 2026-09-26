@@ -23,7 +23,7 @@ Merges several text objects into a single area text, or splits one back out.
 
 ### Notes
 
-- Use TextBreakSplitMergePalette.jsx to split and join on tabs or paragraphs.
+- Use TextProcessingPalette.jsx to split and join on tabs or paragraphs.
 
 ### Update History
 

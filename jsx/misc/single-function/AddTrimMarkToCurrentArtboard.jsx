@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMar
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddTrimMarkToCurrentArtboard"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-02-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMarkToCurrentArtboard.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMarkToCurrentArtboard.md"; /* README (English) */
@@ -40,54 +40,78 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n40e3e39cf9f2"; /* 紹�
 
 (function () {
 
-    function main() {
-        var doc = app.activeDocument;
-        var targetObj = null;
-        var trimLayer = null;
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-        /* 「トンボ」レイヤーを取得（なければ作成） / Get "Trim" layer (create if not exists) */
+    /* トンボを作るレイヤー名（無ければ作る） / Layer that receives the trim marks; created when missing */
+    var TRIM_LAYER_NAME = "トンボ";
+
+    // =========================================
+    // トンボ / Trim marks
+    // =========================================
+
+    /**
+     * トンボ用のレイヤーを返す（無ければ作る）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} トンボ用のレイヤー
+     */
+    function getOrCreateTrimLayer(doc) {
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === "トンボ") {
-                trimLayer = doc.layers[i];
-                break;
-            }
+            if (doc.layers[i].name === TRIM_LAYER_NAME) return doc.layers[i];
         }
-        if (!trimLayer) {
-            trimLayer = doc.layers.add();
-            trimLayer.name = "トンボ";
-        }
-        var wasLocked = trimLayer.locked;
-        if (wasLocked) {
-            trimLayer.locked = false;
-        }
+        var trimLayer = doc.layers.add();
+        trimLayer.name = TRIM_LAYER_NAME;
+        return trimLayer;
+    }
 
+    /**
+     * アートボードと同じ大きさの矩形を作り、そこからトンボを作成して矩形をガイドにする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} trimLayer - トンボ用のレイヤー（ロック解除済み）
+     * @param {Artboard} artboard - 対象のアートボード
+     * @returns {void}
+     */
+    function createTrimMarks(doc, trimLayer, artboard) {
+        /* 日本式トンボをONに設定 / Enable Japanese-style trim marks */
+        app.preferences.setBooleanPreference("cropMarkStyle", 1);
+
+        /* 「トンボ」レイヤー上にアートボード矩形を作成 / Create the artboard rectangle on the trim layer */
+        var artboardRect = artboard.artboardRect; /* [左, 上, 右, 下] / [left, top, right, bottom] */
+        var artboardFrame = trimLayer.pathItems.rectangle(artboardRect[1], artboardRect[0], artboardRect[2] - artboardRect[0], artboardRect[1] - artboardRect[3]);
+        artboardFrame.filled = false;
+        artboardFrame.stroked = false;
+
+        /* 矩形を選択してトリムマークを作成 / Select the rectangle and create trim marks */
+        doc.selection = [artboardFrame];
+        app.executeMenuCommand("TrimMark v25");
+
+        /* 矩形はガイドにする / Turn the rectangle into a guide */
+        artboardFrame.guides = true;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * アクティブなアートボードにトンボを作成する（「トンボ」レイヤーのロックは一時的に外して戻す）
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
+        var doc = app.activeDocument;
+
+        var trimLayer = getOrCreateTrimLayer(doc);
+        var layerWasLocked = trimLayer.locked;
+        if (layerWasLocked) trimLayer.locked = false;
+
+        /* 途中で失敗しても選択解除とロックの復元は行う / Always clear the selection and restore the lock */
         try {
-            /* 日本式トンボをONに設定 / Enable Japanese-style trim marks */
-            app.preferences.setBooleanPreference('cropMarkStyle', 1);
-
-            /* 常にアクティブなアートボードを基に処理 / Always use the active artboard */
-            var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var rect = artboard.artboardRect; // [左, 上, 右, 下]
-
-            /* 「トンボ」レイヤー上にアートボード矩形を作成 / Create artboard rectangle on "Trim" layer */
-            targetObj = trimLayer.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
-            targetObj.filled = false;
-            targetObj.stroked = false;
-
-            /* 作成オブジェクトを選択状態にする / Select the created object */
-            doc.selection = [targetObj];
-
-            /* トリムマークを作成 / Create trim marks */
-            app.executeMenuCommand('TrimMark v25');
-
-            /* 作成オブジェクトをガイド化する / Convert the created object to a guide */
-            targetObj.guides = true;
+            createTrimMarks(doc, trimLayer, doc.artboards[doc.artboards.getActiveArtboardIndex()]);
         } finally {
             doc.selection = null;
-
-            if (trimLayer) {
-                trimLayer.locked = wasLocked ? true : false;
-            }
+            trimLayer.locked = layerWasLocked;
         }
     }
 

@@ -19,9 +19,10 @@ Shuffles all artboards into a grid with a fixed number of columns.
 
 ### Notes
 
-- The column count is set by `COLUMNS` (default 4) and the spacing by `GAP` (default 100 pt).
+- The column count is set by `GRID_COLUMNS` (default 4) and the spacing by `ARTBOARD_GAP` (default 100 pt).
 - Shows a warning and exits when no document is open.
 
 ### Update History
 
+- v1.0.1 (2026-09-27) The alert is now localized in English. Renamed the settings to `GRID_COLUMNS` / `ARTBOARD_GAP`
 - v1.0

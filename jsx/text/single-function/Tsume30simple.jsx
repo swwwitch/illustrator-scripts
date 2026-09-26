@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Tsume30sim
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Tsume30simple";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Tsume30simple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Tsume30simple.md"; /* README (English) */
@@ -34,20 +34,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* 選択したテキストの文字ツメを30%に設定する */
-
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var TSUME_PERCENT = 30; /* 文字ツメ（%）/ tsume (%) */
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
     if (app.documents.length === 0) return;
     var currentSelection = app.activeDocument.selection;
     if (!currentSelection) return;
 
-    /* テキスト編集モードでは selection が TextRange 単体になる */
-    var items = (currentSelection.typename === "TextRange") ? [currentSelection] : currentSelection;
+    /* テキスト編集モードでは selection が TextRange 単体になる / In text-edit mode the selection is a single TextRange */
+    var targetItems = (currentSelection.typename === "TextRange") ? [currentSelection] : currentSelection;
 
-    for (var i = 0; i < items.length; i++) {
-        var range = items[i].textRange || items[i];
+    for (var i = 0; i < targetItems.length; i++) {
+        var targetRange = targetItems[i].textRange || targetItems[i];
+        /* テキスト以外のオブジェクトは characterAttributes が無いので飛ばす / Non-text items have no characterAttributes */
         try {
-            range.characterAttributes.Tsume = 30;
+            targetRange.characterAttributes.Tsume = TSUME_PERCENT;
         } catch (e) {}
     }
 })();

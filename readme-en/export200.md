@@ -21,3 +21,7 @@
 
 1. Make the artboard you want to export active
 2. Run the script
+
+### Update History
+
+- v1.0.1 (2026-09-27) Unsaved documents now stop with an alert. Fixed an already hidden "Guides Preview for Trim View" layer being shown after the export. Alerts now switch between Japanese and English

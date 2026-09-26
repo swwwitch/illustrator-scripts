@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GroupEdgeAlignCENTERX";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignCENTERX.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignCENTERX.md"; /* README (English) */
@@ -54,6 +54,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var GUIDE_ORIENTATION_TOLERANCE = 0.01;
 
     // =========================================
+    // ローカライズ / Localization
+    // =========================================
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects are selected." },
+            invalidBoundsMode: { ja: "BOUNDS_MODE の指定が不正です", en: "Invalid BOUNDS_MODE" },
+            invalidGuideSearchMode: { ja: "GUIDE_SEARCH_MODE の指定が不正です", en: "Invalid GUIDE_SEARCH_MODE" },
+            invalidAlignmentSide: { ja: "揃える方向を判定できませんでした", en: "Could not determine the alignment direction" }
+        }
+    };
+
+    /**
+     * 現在の言語のラベルを返す
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @returns {string} 現在の言語の文字列（無ければ空文字）
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
+    }
+
+    /**
+     * ラベルに言語別のコロンと値を続けた文字列を返す（日本語は全角、英語は半角＋スペース）
+     * @param {Object} labelSet - LABELS のリーフ（{ ja, en }）
+     * @param {string} value - コロンの後ろに続ける値
+     * @returns {string} 「ラベル：値」の文字列
+     */
+    function labelWithValue(labelSet, value) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ") + value;
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -63,14 +98,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
         var documentRef = app.activeDocument;
         var selectedItems = documentRef.selection;
         if (selectedItems.length === 0) {
-            alert("オブジェクトが選択されていません。");
+            alert(getLabel(LABELS.alert.noSelection));
             return;
         }
 
@@ -78,7 +113,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var includeStrokeInBounds = resolveIncludeStrokeInBounds(BOUNDS_MODE);
         if (includeStrokeInBounds === null) {
-            alert("BOUNDS_MODE の指定が不正です：" + BOUNDS_MODE);
+            alert(labelWithValue(LABELS.alert.invalidBoundsMode, BOUNDS_MODE));
             return;
         }
 
@@ -145,6 +180,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 指定オブジェクトの境界を返す
+     * クリッピンググループはマスクパス（先頭アイテム）の geometricBounds を使う。
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @param {boolean} includeStrokeInBounds - 線を境界に含めるか
+     * @returns {number[]} 境界 [L, T, R, B]
+     */
+    function getItemBounds(pageItem, includeStrokeInBounds) {
+        if (pageItem.typename === "GroupItem" && pageItem.clipped === true) {
+            return pageItem.pageItems[0].geometricBounds;
+        }
+        return includeStrokeInBounds ? pageItem.visibleBounds : pageItem.geometricBounds;
+    }
+
+    /**
      * 揃える方向から移動量を求める
      * @param {Document} documentRef - 対象のドキュメント
      * @param {number[]} selectionBounds - 選択範囲の境界 [L, T, R, B]
@@ -163,20 +212,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var selectionEdge = getEdgeValueForAlignmentSide(selectionBounds, alignmentSide);
         var artboardEdge = getEdgeValueForAlignmentSide(artboardRect, alignmentSide);
         if (selectionEdge === null || artboardEdge === null) {
-            alert("揃える方向を判定できませんでした：" + alignmentSide);
+            alert(labelWithValue(LABELS.alert.invalidAlignmentSide, alignmentSide));
             return null;
         }
 
         var targetEdge = artboardEdge;
         if (USE_GUIDES) {
-            var snappedGuideValue = findGuideSnapValue(documentRef, artboardRect, selectionEdge, alignmentSide,
-                GUIDE_SEARCH_MODE, GUIDE_ORIENTATION_TOLERANCE);
+            var snappedGuideValue = findGuideSnapValue(documentRef, artboardRect, selectionEdge, alignmentSide);
             if (snappedGuideValue !== null) targetEdge = snappedGuideValue;
         }
 
         var edgeOffset = targetEdge - selectionEdge;
-        var isHorizontal = (alignmentSide === "left" || alignmentSide === "right");
-        return { x: isHorizontal ? edgeOffset : 0, y: isHorizontal ? 0 : edgeOffset };
+        return isHorizontalSide(alignmentSide) ? { x: edgeOffset, y: 0 } : { x: 0, y: edgeOffset };
+    }
+
+    /**
+     * 揃える方向が左右（X方向の移動）かを返す
+     * @param {string} alignmentSide - 揃える方向
+     * @returns {boolean} "left" / "right" なら true
+     */
+    function isHorizontalSide(alignmentSide) {
+        return alignmentSide === "left" || alignmentSide === "right";
     }
 
     /**
@@ -212,16 +268,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * アートボード内側にあるガイドのうち、指定した方向と探索範囲に合う吸着先座標を返す
+     * アートボード内側にあるガイドのうち、揃える方向と GUIDE_SEARCH_MODE に合う吸着先座標を返す
      * @param {Document} documentRef - 対象のドキュメント
      * @param {number[]} artboardRect - アクティブアートボードの矩形 [L, T, R, B]
      * @param {number} selectionEdge - 選択範囲の該当する端の座標
-     * @param {string} alignmentSide - 揃える方向
-     * @param {string} guideSearchMode - "inside" | "nearest"
-     * @param {number} guideOrientationTolerance - ガイドの水平・垂直判定に使う許容値
+     * @param {string} alignmentSide - 揃える方向（"left" | "right" | "top" | "bottom"）
      * @returns {number|null} 吸着先の座標。該当するガイドがなければ null
      */
-    function findGuideSnapValue(documentRef, artboardRect, selectionEdge, alignmentSide, guideSearchMode, guideOrientationTolerance) {
+    function findGuideSnapValue(documentRef, artboardRect, selectionEdge, alignmentSide) {
+        if (GUIDE_SEARCH_MODE !== "inside" && GUIDE_SEARCH_MODE !== "nearest") {
+            alert(labelWithValue(LABELS.alert.invalidGuideSearchMode, GUIDE_SEARCH_MODE));
+            return null;
+        }
+
+        /* アートボード端へ向かう向きの符号。left / bottom は座標が減る向き / sign toward the artboard edge */
+        var outwardSign = (alignmentSide === "left" || alignmentSide === "bottom") ? -1 : 1;
         var nearestGuideValue = null;
         var nearestGuideDistance = null;
         var documentPathItems = documentRef.pathItems;
@@ -230,26 +291,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var guidePathItem = documentPathItems[i];
             if (guidePathItem.guides !== true) continue;
 
-            var guideValue = getGuideValueForAlignmentSide(guidePathItem.geometricBounds, alignmentSide, guideOrientationTolerance);
+            var guideValue = getGuideValueForAlignmentSide(guidePathItem.geometricBounds, alignmentSide);
             if (guideValue === null) continue;
             if (!isGuideValueInsideArtboard(guideValue, artboardRect, alignmentSide)) continue;
 
-            if (guideSearchMode === "inside") {
-                if (!isGuideOnAlignmentSide(guideValue, selectionEdge, alignmentSide)) continue;
-                if (nearestGuideValue === null || isGuideCloserFromInside(guideValue, nearestGuideValue, alignmentSide)) {
+            if (GUIDE_SEARCH_MODE === "inside") {
+                /* 選択範囲より揃える向きの側にあり、その中で選択範囲に最も近いもの / nearest guide on the outward side */
+                if ((guideValue - selectionEdge) * outwardSign <= 0) continue;
+                if (nearestGuideValue === null || (guideValue - nearestGuideValue) * outwardSign < 0) {
                     nearestGuideValue = guideValue;
                 }
-
-            } else if (guideSearchMode === "nearest") {
+            } else {
                 var guideDistance = Math.abs(guideValue - selectionEdge);
                 if (nearestGuideDistance === null || guideDistance < nearestGuideDistance) {
                     nearestGuideValue = guideValue;
                     nearestGuideDistance = guideDistance;
                 }
-
-            } else {
-                alert("GUIDE_SEARCH_MODE の指定が不正です：" + guideSearchMode);
-                return null;
             }
         }
 
@@ -257,80 +314,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 揃える方向に対応するガイド座標を返す
+     * 揃える方向に対応するガイド座標を返す（左右なら垂直ガイドのX、上下なら水平ガイドのY）
      * @param {number[]} guideBounds - ガイドの境界 [L, T, R, B]
-     * @param {string} alignmentSide - 揃える方向
-     * @param {number} guideOrientationTolerance - 水平・垂直判定に使う許容値
+     * @param {string} alignmentSide - 揃える方向（"left" | "right" | "top" | "bottom"）
      * @returns {number|null} ガイドの座標。向きが対応しなければ null
      */
-    function getGuideValueForAlignmentSide(guideBounds, alignmentSide, guideOrientationTolerance) {
-        var isVerticalGuide = Math.abs(guideBounds[2] - guideBounds[0]) <= guideOrientationTolerance;
-        var isHorizontalGuide = Math.abs(guideBounds[1] - guideBounds[3]) <= guideOrientationTolerance;
-
-        if ((alignmentSide === "left" || alignmentSide === "right") && isVerticalGuide) return guideBounds[0];
-        if ((alignmentSide === "top" || alignmentSide === "bottom") && isHorizontalGuide) return guideBounds[1];
-        return null;
+    function getGuideValueForAlignmentSide(guideBounds, alignmentSide) {
+        if (isHorizontalSide(alignmentSide)) {
+            var isVerticalGuide = Math.abs(guideBounds[2] - guideBounds[0]) <= GUIDE_ORIENTATION_TOLERANCE;
+            return isVerticalGuide ? guideBounds[0] : null;
+        }
+        var isHorizontalGuide = Math.abs(guideBounds[1] - guideBounds[3]) <= GUIDE_ORIENTATION_TOLERANCE;
+        return isHorizontalGuide ? guideBounds[1] : null;
     }
 
     /**
      * ガイド座標がアクティブアートボード内にあるかを返す
      * @param {number} guideValue - ガイドの座標
      * @param {number[]} artboardRect - アクティブアートボードの矩形 [L, T, R, B]
-     * @param {string} alignmentSide - 揃える方向
+     * @param {string} alignmentSide - 揃える方向（"left" | "right" | "top" | "bottom"）
      * @returns {boolean} 内側にあれば true
      */
     function isGuideValueInsideArtboard(guideValue, artboardRect, alignmentSide) {
-        if (alignmentSide === "left" || alignmentSide === "right") {
+        if (isHorizontalSide(alignmentSide)) {
             return guideValue >= artboardRect[0] && guideValue <= artboardRect[2];
         }
-        if (alignmentSide === "top" || alignmentSide === "bottom") {
-            return guideValue <= artboardRect[1] && guideValue >= artboardRect[3];
-        }
-        return false;
-    }
-
-    /**
-     * GUIDE_SEARCH_MODE が inside のとき、揃える方向側にあるガイドかを返す
-     * @param {number} guideValue - ガイドの座標
-     * @param {number} selectionEdge - 選択範囲の該当する端の座標
-     * @param {string} alignmentSide - 揃える方向
-     * @returns {boolean} 揃える方向側にあれば true
-     */
-    function isGuideOnAlignmentSide(guideValue, selectionEdge, alignmentSide) {
-        if (alignmentSide === "left") return guideValue < selectionEdge;
-        if (alignmentSide === "right") return guideValue > selectionEdge;
-        if (alignmentSide === "top") return guideValue > selectionEdge;
-        if (alignmentSide === "bottom") return guideValue < selectionEdge;
-        return false;
-    }
-
-    /**
-     * inside 側にある複数のガイドのうち、選択範囲に近い方かを判定する
-     * @param {number} guideValue - 比較するガイドの座標
-     * @param {number} currentBestGuideValue - 現時点で最も近いガイドの座標
-     * @param {string} alignmentSide - 揃える方向
-     * @returns {boolean} より近ければ true
-     */
-    function isGuideCloserFromInside(guideValue, currentBestGuideValue, alignmentSide) {
-        if (alignmentSide === "left") return guideValue > currentBestGuideValue;
-        if (alignmentSide === "right") return guideValue < currentBestGuideValue;
-        if (alignmentSide === "top") return guideValue < currentBestGuideValue;
-        if (alignmentSide === "bottom") return guideValue > currentBestGuideValue;
-        return false;
-    }
-
-    /**
-     * 指定オブジェクトの境界を返す
-     * クリッピンググループはマスクパス（先頭アイテム）の geometricBounds を使う。
-     * @param {PageItem} pageItem - 対象のオブジェクト
-     * @param {boolean} includeStrokeInBounds - 線を境界に含めるか
-     * @returns {number[]} 境界 [L, T, R, B]
-     */
-    function getItemBounds(pageItem, includeStrokeInBounds) {
-        if (pageItem.typename === "GroupItem" && pageItem.clipped === true) {
-            return pageItem.pageItems[0].geometricBounds;
-        }
-        return includeStrokeInBounds ? pageItem.visibleBounds : pageItem.geometricBounds;
+        return guideValue <= artboardRect[1] && guideValue >= artboardRect[3];
     }
 
     main();

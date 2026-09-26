@@ -21,6 +21,10 @@ Exports every artboard of the active document to PNG, following per-name rules.
 
 Edit `buildExportJobs()` to add or change rules. Returning an empty array excludes the artboard; returning several entries exports it at several scales.
 
+### Update History
+
+- v1.0.5 (2026-09-27) Alerts and the progress window now switch between Japanese and English
+
 ### Script info
 
-- Version: v1.0.4
+- Version: v1.0.5

@@ -35,7 +35,8 @@
 - v1.0 (20250816) : Initial version
 - v1.1 (20250816) : Added arrow key increment feature
 - v1.2 (20250816) : Immediate application of changes (OK closes only), localization support
+- v1.3.2 (20260927) : Fixed typing other than the arrow keys re-rounding the value. Added a colon to the field label and removed the extra space in the dialog title
 
 ### Script info
 
-- Version: v1.3
+- Version: v1.3.2

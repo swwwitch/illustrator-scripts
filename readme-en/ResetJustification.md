@@ -25,3 +25,4 @@ Resets the justification settings — word spacing, letter spacing and glyph sca
 ### Update History
 
 - v1.0
+- v1.0.2 (2026-09-27): Reworded the completion message and added English alerts

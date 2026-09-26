@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkMiss
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RelinkMissingLinks";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkMissingLinks.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkMissingLinks.md"; /* README (English) */
@@ -36,385 +36,475 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 照合方法（先頭が初期値）/ Match modes; the first one is the default */
+    var MATCH_MODES = [
+        { labelKey: "exact", mode: "exact" },
+        { labelKey: "nameOnly", mode: "nameOnly" },
+        { labelKey: "preferPng", mode: "priority", ext: "png" },
+        { labelKey: "preferPsd", mode: "priority", ext: "psd" },
+        { labelKey: "preferJpg", mode: "priority", ext: "jpg" }
+    ];
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var FOLDER_PANEL_MARGINS = [5, 20, 5, 10];   /* フォルダーパネルの余白 [左,上,右,下] / folder panel margins */
+    var PANEL_MARGINS = [15, 20, 15, 10];        /* パネル余白 [左,上,右,下] / panel margins */
+    var COLUMN_SPACING = 20;                     /* 2カラムの間隔 / gap between the two columns */
+    var FOLDER_FIELD_CHARS = 30;                 /* フォルダー欄の文字数 / width of the folder field */
+    var CANDIDATE_LIST_BOUNDS = [0, 0, 400, 150];  /* 候補リストの大きさ / size of the candidate list */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var uiLang = getCurrentLang();
 
-    /* ラベル定義 / Label definitions */
+    /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "リンク切れの再リンク " + SCRIPT_VERSION,
-            en: "Relink Missing Links " + SCRIPT_VERSION
+        dialog: {
+            title: { ja: "リンク切れの再リンク", en: "Relink Missing Links" },
+            chooseCandidate: { ja: "候補を選択", en: "Choose a Candidate" }
         },
-        folderLabel: {
-            ja: "再リンク用フォルダー",
-            en: "Relink Folder"
+        panel: {
+            folder: { ja: "再リンク用フォルダー", en: "Relink Folder" },
+            matchMode: { ja: "拡張子の扱い", en: "Extension Handling" },
+            target: { ja: "対象", en: "Target" }
         },
-        chooseButton: {
-            ja: "指定",
-            en: "Choose"
+        checkbox: {
+            missing: { ja: "リンク切れの画像", en: "Missing Links" },
+            linked: { ja: "リンクが有効な画像", en: "Working Links" }
         },
-        matchGroup: {
-            ja: "拡張子の扱い",
-            en: "Extension Handling"
+        radio: {
+            exact: { ja: "完全一致", en: "Exact Match" },
+            nameOnly: { ja: "ファイル名のみ", en: "Name Only" },
+            preferPng: { ja: "pngを優先", en: "Prefer PNG" },
+            preferPsd: { ja: "psdを優先", en: "Prefer PSD" },
+            preferJpg: { ja: "jpgを優先", en: "Prefer JPG" }
         },
-        targetGroup: {
-            ja: "対象",
-            en: "Target"
+        fieldLabel: {
+            candidate: { ja: "再リンクするファイルを選んでください", en: "Choose the file to relink to" }
         },
-        chkMissing: {
-            ja: "リンク切れのみ",
-            en: "Missing Links Only"
+        tooltip: {
+            folder: { ja: "リンクし直す画像を探すフォルダーです。", en: "The folder searched for the images to relink." },
+            missing: { ja: "リンク切れになっている画像を対象にします。", en: "Targets the images whose link is broken." },
+            linked: {
+                ja: "リンク切れでない画像も、同名のファイルが見つかれば張り替えます。",
+                en: "Also relinks images that are not broken, when a file of the same name is found."
+            },
+            matchMode: {
+                ja: "フォルダー内のどのファイルを同じ画像とみなすかの決め方です。",
+                en: "How a file in the folder is matched to the linked image."
+            }
         },
-        chkAll: {
-            ja: "リンク変更",
-            en: "Relink Existing"
+        button: {
+            choose: { ja: "指定", en: "Choose" },
+            relink: { ja: "再リンク", en: "Relink" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        ok: {
-            ja: "再リンク",
-            en: "Relink"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        }
-        ,
-        tipFolder: {
-            ja: "リンクし直す画像を探すフォルダーです。",
-            en: "The folder searched for the images to relink."
-        },
-        tipMissing: {
-            ja: "リンク切れになっている画像だけを対象にします。",
-            en: "Targets only the images whose link is broken."
-        },
-        tipAll: {
-            ja: "リンク切れでない画像も、同名のファイルが見つかれば張り替えます。",
-            en: "Also relinks images that are not broken, when a file of the same name is found."
-        },
-        tipMatch: {
-            ja: "フォルダー内のどのファイルを同じ画像とみなすかの決め方です。",
-            en: "How a file in the folder is matched to the linked image."
-        },
-        options: {
-            ja: [
-                { label: "完全一致", value: "exact" },
-                { label: "ファイル名のみ", value: "nameOnly" },
-                { label: "pngを優先", value: "priority", ext: "png" },
-                { label: "psdを優先", value: "priority", ext: "psd" },
-                { label: "jpgを優先", value: "priority", ext: "jpg" }
-            ],
-            en: [
-                { label: "Exact Match", value: "exact" },
-                { label: "Name Only", value: "nameOnly" },
-                { label: "Prefer PNG", value: "priority", ext: "png" },
-                { label: "Prefer PSD", value: "priority", ext: "psd" },
-                { label: "Prefer JPG", value: "priority", ext: "jpg" }
-            ]
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noFolder: { ja: "再リンク用のフォルダーを指定してください。", en: "Choose a folder to relink from." },
+            invalidFolder: { ja: "有効なフォルダーを指定してください。", en: "Choose a folder that exists." },
+            relinkFailed: { ja: "再リンク失敗：", en: "Relink failed: " }
         }
     };
 
-    /* ダイアログを表示してユーザーに設定を選ばせる / Show dialog and get user settings */
-    function showRelinkDialog() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
-        dialog.alignChildren = "fill";
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "panel.folder" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
+    }
 
-        var folderGroup = dialog.add("panel", undefined, LABELS.folderLabel[uiLang]);
-        folderGroup.orientation = "column";
-        folderGroup.alignment = "fill";
-        folderGroup.margins = [5, 20, 5, 10];
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
 
-        var folderPath = folderGroup.add("edittext", undefined, "");
-        folderPath.helpTip = LABELS.tipFolder[uiLang];
-        folderPath.characters = 30;
+    // =========================================
+    // リンクの判定 / Link checks
+    // =========================================
 
-        var chooseBtn = folderGroup.add("button", undefined, LABELS.chooseButton[uiLang]);
-        chooseBtn.onClick = function() {
-            var target = Folder.selectDialog(LABELS.folderLabel[uiLang]);
-            if (target) folderPath.text = target.fsName;
-        };
-
-        var middleGroup = dialog.add("group");
-        middleGroup.orientation = "row";
-        middleGroup.alignment = "center";
-        middleGroup.spacing = 20;
-
-        var matchGroup = middleGroup.add("panel", undefined, LABELS.matchGroup[uiLang]);
-        matchGroup.orientation = "column";
-        matchGroup.alignment = "top";
-        matchGroup.margins = [15, 20, 15, 10];
-
-        // --- 対象パネル ---
-        var targetGroup = middleGroup.add("panel", undefined, LABELS.targetGroup[uiLang]);
-        targetGroup.orientation = "column";
-        targetGroup.alignment = "top";
-        targetGroup.margins = [15, 20, 15, 10];
-
-        var chkMissingOnly = targetGroup.add("checkbox", undefined, LABELS.chkMissing[uiLang]);
-        chkMissingOnly.helpTip = LABELS.tipMissing[uiLang];
-        chkMissingOnly.alignment = "left";
-        chkMissingOnly.value = true; // デフォルト
-
-        var chkAll = targetGroup.add("checkbox", undefined, LABELS.chkAll[uiLang]);
-        chkAll.helpTip = LABELS.tipAll[uiLang];
-        chkAll.alignment = "left";
-
-        // --- 追加: リンク切れ/有効リンクの有無をチェック ---
+    /**
+     * リンク切れかどうか
+     * @param {PlacedItem} item - 配置画像
+     * @returns {boolean} リンク切れなら true
+     */
+    function isLinkBroken(item) {
         try {
-            var doc = app.activeDocument;
-            var hasMissing = false;
-            var hasAlive = false;
-            for (var i = 0; i < doc.placedItems.length; i++) {
-                var pi = doc.placedItems[i];
-                if (isLinkBroken(pi)) {
-                    hasMissing = true;
-                } else {
-                    hasAlive = true;
-                }
-            }
-            if (!hasMissing) {
-                chkMissingOnly.enabled = false;
-                chkMissingOnly.value = false;
-            }
-            if (!hasAlive) {
-                chkAll.enabled = false;
-                chkAll.value = false;
-            } else {
-                // リンクが生きているものがあればONにする
-                chkAll.value = true;
-            }
-        } catch (e) {}
-
-        var options = LABELS.options[uiLang];
-
-        var radioButtons = [];
-        for (var i = 0; i < options.length; i++) {
-            radioButtons[i] = matchGroup.add("radiobutton", undefined, options[i].label);
-            radioButtons[i].helpTip = LABELS.tipMatch[uiLang];
-            radioButtons[i].alignment = "left";
+            if (!item.file) return true;  /* file が無い = リンク切れ / No file means a missing link */
+            return !item.file.exists;
+        } catch (e) {
+            /* リンク切れでは file の参照が例外になる / Accessing file throws on a missing link */
+            return true;
         }
-        radioButtons[0].value = true;
-
-        var btnGroup = dialog.add("group");
-        btnGroup.orientation = "row";
-        btnGroup.alignment = "center";
-        btnGroup.add("button", undefined, LABELS.cancel[uiLang], {name:"cancel"});
-        var okBtn = btnGroup.add("button", undefined, LABELS.ok[uiLang], {name:"ok"});
-
-        return validateDialogInput(dialog, folderPath, options, radioButtons, chkMissingOnly, chkAll);
     }
 
-    // ダイアログ入力を検証 / Validate dialog input
-    function validateDialogInput(dialog, folderPath, options, radioButtons, chkMissingOnly, chkAll) {
-        var targetFolder, mode, priorityExt;
-        while (true) {
-            if (dialog.show() != 1) return null;
-            if (folderPath.text === "") {
-                alert("再リンク用のフォルダーを指定してください。");
-                continue;
-            }
-            targetFolder = new Folder(folderPath.text);
-            if (!targetFolder.exists) {
-                alert("有効なフォルダーを指定してください。");
-                continue;
-            }
-            for (var i = 0; i < options.length; i++) {
-                if (radioButtons[i].value) {
-                    mode = options[i].value;
-                    if (options[i].ext) priorityExt = options[i].ext;
-                    break;
-                }
-            }
-            break;
-        }
-        return {
-            targetFolder: targetFolder,
-            mode: mode,
-            priorityExt: priorityExt,
-            targetMissingOnly: chkMissingOnly.value,
-            targetAll: chkAll.value
-        };
+    /**
+     * ［対象］の指定に照らして、再リンクする画像か
+     * @param {PlacedItem} item - 配置画像
+     * @param {Object} relinkOptions - showRelinkDialog() の結果
+     * @returns {boolean} 再リンクするなら true
+     */
+    function shouldRelinkItem(item, relinkOptions) {
+        var isBroken = isLinkBroken(item);
+        return (relinkOptions.targetMissing && isBroken) || (relinkOptions.targetLinked && !isBroken);
     }
 
-    // メイン処理 / Main process
-    function main() {
-        var dialogResult = showRelinkDialog();
-        if (!dialogResult) return;
+    /**
+     * 照合に使う元のファイル名を返す（リンク切れで file が読めないときは XMP の名前、無ければ画像の名前）
+     * @param {PlacedItem} item - 配置画像
+     * @param {string} xmpFileName - XMP から取ったファイル名（無ければ空）
+     * @returns {string} ファイル名。分からなければ空文字
+     */
+    function resolveLinkFileName(item, xmpFileName) {
+        try {
+            if (item.file && item.file.name) return item.file.name;
+        } catch (e) {
+            /* リンク切れでは file の参照が例外になる / Accessing file throws on a missing link */
+            return xmpFileName || "";
+        }
+        if (!isLinkBroken(item)) return "";
+        return xmpFileName || item.name || "";
+    }
 
-        var doc = app.activeDocument;
-
-        // XMPメタデータからfilePathノードを抽出しファイル名リスト化
+    /**
+     * XMP メタデータの stRef:filePath からファイル名の一覧を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {string[]} ファイル名（XMP の並び順）
+     */
+    function collectXmpFileNames(doc) {
+        var fileNames = [];
         var xmp;
         try {
             xmp = new XML(doc.XMPString);
         } catch (e) {
-            xmp = null;
+            /* XMP が読めなければ名前なしで続ける / Carry on without names when the XMP cannot be parsed */
+            return fileNames;
         }
-        var paths = [];
-        if (xmp) {
-            try {
-                var nodes = xmp.xpath('//stRef:filePath');
-                for (var i = 0; i < nodes.length(); i++) {
-                    var pathStr = nodes[i].toString();
-                    var fname = pathStr.replace(/^.*[\/\\]/, "");
-                    paths.push(fname);
-                }
-            } catch (e) {}
-        }
-
-        for (var j = 0; j < doc.placedItems.length; j++) {
-            var pi = doc.placedItems[j];
-
-            var shouldRelink = false;
-            if (dialogResult.targetAll) {
-                shouldRelink = true;
-            } else if (dialogResult.targetMissingOnly && isLinkBroken(pi)) {
-                shouldRelink = true;
-            }
-
-            if (shouldRelink) {
-                var fname = "";
-                try {
-                    if (pi.file && pi.file.name) {
-                        fname = pi.file.name;
-                    } else if (isLinkBroken(pi)) {
-                        // XMPから収集したファイル名を利用
-                        if (paths[j]) {
-                            fname = paths[j];
-                        } else if (pi.name) {
-                            fname = pi.name;
-                        }
-                    }
-                } catch (e) {
-                    if (paths[j]) {
-                        fname = paths[j];
-                    }
-                }
-                relinkSingleItem(
-                    pi,
-                    fname,
-                    dialogResult.targetFolder,
-                    dialogResult.mode,
-                    dialogResult.priorityExt,
-                    dialogResult
-                );
-            }
-        }
-    }
-
-    main();
-
-    // 個別再リンク処理 / Function to relink a single missing file
-    function relinkSingleItem(item, brokenName, targetFolder, mode, priorityExt, dialogResult) {
-        if (!(item instanceof PlacedItem)) return;
-
-        var shouldRelink = false;
-
-        // 「リンク切れのみ」の場合 → リンク切れのみ対象
-        if (dialogResult.targetMissingOnly && isLinkBroken(item)) {
-            shouldRelink = true;
-        }
-
-        // 「リンク変更」の場合 → リンクが生きている場合のみ対象
-        if (dialogResult.targetAll && !isLinkBroken(item)) {
-            shouldRelink = true;
-        }
-
-        if (!shouldRelink) return;
-
-        var originalName = "";
         try {
-            if (item.file && item.file.name) {
-                originalName = item.file.name.toLowerCase();
-            } else if (brokenName) {
-                originalName = brokenName.toLowerCase();
+            var filePathNodes = xmp.xpath("//stRef:filePath");
+            for (var i = 0; i < filePathNodes.length(); i++) {
+                fileNames.push(filePathNodes[i].toString().replace(/^.*[\/\\]/, ""));
             }
         } catch (e) {
-            if (brokenName) originalName = brokenName.toLowerCase();
+            /* 名前空間が無いなどで xpath が失敗したら名前なし / No names when xpath fails (e.g. missing namespace) */
         }
-        if (!originalName) return;
-
-        var originalBase = stripExt(originalName);
-
-        var filesInFolder = targetFolder.getFiles();
-        var candidates = [];
-        for (var k = 0; k < filesInFolder.length; k++) {
-            var candidate = filesInFolder[k];
-            if (!(candidate instanceof File)) continue;
-
-            var candidateName = candidate.name.toLowerCase();
-            if (matchCandidate(candidateName, originalName, originalBase, mode, priorityExt)) {
-                candidates.push(candidate);
-            }
-        }
-
-        if (candidates.length === 1) {
-            try {
-                item.file = candidates[0];
-            } catch (e) {
-                alert("再リンク失敗：" + candidates[0].name + "\n" + e);
-            }
-        } else if (candidates.length > 1) {
-            var chooseDlg = new Window("dialog", "候補を選択");
-            chooseDlg.alignChildren = "fill";
-            chooseDlg.add("statictext", undefined, "再リンクするファイルを選んでください:");
-
-            var list = chooseDlg.add("listbox", [0,0,400,150]);
-            for (var c = 0; c < candidates.length; c++) {
-                list.add("item", candidates[c].name);
-            }
-            list.selection = 0;
-
-            var btnGroup = chooseDlg.add("group");
-            btnGroup.alignment = "right";
-            btnGroup.add("button", undefined, "キャンセル", {name:"cancel"});
-            var okBtn = btnGroup.add("button", undefined, "OK");
-
-            if (chooseDlg.show() == 1 && list.selection) {
-                try {
-                    item.file = candidates[list.selection.index];
-                } catch (e) {
-                    alert("再リンク失敗：" + candidates[list.selection.index].name + "\n" + e);
-                }
-            }
-        }
+        return fileNames;
     }
 
-    // リンク切れ判定 / Check if link is broken
-    function isLinkBroken(item) {
-        try {
-            if (!item || !(item instanceof PlacedItem)) {
-                return false; // PlacedItem以外は対象外 / Not target if not PlacedItem
-            }
-            if (!item.file) {
-                return true; // fileプロパティが存在しない=リンク切れ / No file property means broken link
-            }
-            return !item.file.exists; // fileが存在しない / file does not exist
-        } catch (e) {
-            return true; // アクセス時例外=リンク切れ / Exception means broken link
-        }
+    // =========================================
+    // 照合 / Matching
+    // =========================================
+
+    /**
+     * 拡張子を除去する
+     * @param {string} fileName - ファイル名
+     * @returns {string} 拡張子を除いた名前
+     */
+    function stripExt(fileName) {
+        return fileName.replace(/\.[^\.]+$/, "");
     }
 
-    // 候補ファイルと比較 / Match candidate file
-    function matchCandidate(candidateName, brokenName, brokenBase, mode, priorityExt) {
-        var candidateBase = stripExt(candidateName); // キャッシュ
-
-        if (mode === "exact") {
-            // 拡張子を含めたファイル名が完全一致の場合のみ
-            return candidateName === brokenName;
-        } else if (mode === "nameOnly") {
-            return candidateBase === brokenBase;
-        } else if (mode === "priority") {
-            // ベース名に優先拡張子をつけたファイル名と完全一致
-            var expectedName = brokenBase + "." + priorityExt;
-            return candidateName === expectedName;
+    /**
+     * 候補ファイル名が元のファイル名に一致するか（名前は小文字で渡す）
+     * @param {string} candidateName - 候補のファイル名
+     * @param {string} originalName - 元のファイル名
+     * @param {string} originalBase - 元のファイル名（拡張子なし）
+     * @param {string} matchMode - "exact" / "nameOnly" / "priority"
+     * @param {string} priorityExt - "priority" のときの拡張子
+     * @returns {boolean} 一致すれば true
+     */
+    function matchCandidate(candidateName, originalName, originalBase, matchMode, priorityExt) {
+        if (matchMode === "exact") {
+            /* 拡張子まで完全一致 / Full name including the extension */
+            return candidateName === originalName;
+        } else if (matchMode === "nameOnly") {
+            return stripExt(candidateName) === originalBase;
+        } else if (matchMode === "priority") {
+            /* ベース名＋優先拡張子と完全一致 / Base name plus the preferred extension */
+            return candidateName === originalBase + "." + priorityExt;
         }
         return false;
     }
 
-    // 拡張子を除去 / Remove extension
-    function stripExt(filename) {
-        return filename.replace(/\.[^\.]+$/, "");
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * フォルダー欄と［指定］ボタンのパネルを作る
+     * @param {Window} dialog - ダイアログ
+     * @returns {EditText} フォルダーのパス欄
+     */
+    function buildFolderPanel(dialog) {
+        var folderPanel = dialog.add("panel", undefined, getLabel("panel.folder"));
+        folderPanel.orientation = "column";
+        folderPanel.alignment = "fill";
+        folderPanel.margins = FOLDER_PANEL_MARGINS;
+
+        var folderPathInput = folderPanel.add("edittext", undefined, "");
+        folderPathInput.helpTip = getLabel("tooltip.folder");
+        folderPathInput.characters = FOLDER_FIELD_CHARS;
+
+        var btnChooseFolder = folderPanel.add("button", undefined, getLabel("button.choose"));
+        btnChooseFolder.onClick = function () {
+            var chosenFolder = Folder.selectDialog(getLabel("panel.folder"));
+            if (chosenFolder) folderPathInput.text = chosenFolder.fsName;
+        };
+        return folderPathInput;
     }
+
+    /**
+     * ［対象］パネルを作り、ドキュメント内のリンクの状態で初期値を決める
+     * @param {Group} parent - 追加先
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object} { missingCheckbox, linkedCheckbox }
+     */
+    function buildTargetPanel(parent, doc) {
+        var targetPanel = parent.add("panel", undefined, getLabel("panel.target"));
+        targetPanel.orientation = "column";
+        targetPanel.alignment = "top";
+        targetPanel.margins = PANEL_MARGINS;
+
+        var missingCheckbox = targetPanel.add("checkbox", undefined, getLabel("checkbox.missing"));
+        missingCheckbox.helpTip = getLabel("tooltip.missing");
+        missingCheckbox.alignment = "left";
+        missingCheckbox.value = true;
+
+        var linkedCheckbox = targetPanel.add("checkbox", undefined, getLabel("checkbox.linked"));
+        linkedCheckbox.helpTip = getLabel("tooltip.linked");
+        linkedCheckbox.alignment = "left";
+
+        /* リンク切れ／有効なリンクが無ければその項目を無効に / Disable a checkbox when no such link exists */
+        var hasMissing = false;
+        var hasLinked = false;
+        for (var i = 0; i < doc.placedItems.length; i++) {
+            if (isLinkBroken(doc.placedItems[i])) {
+                hasMissing = true;
+            } else {
+                hasLinked = true;
+            }
+        }
+        if (!hasMissing) {
+            missingCheckbox.enabled = false;
+            missingCheckbox.value = false;
+        }
+        /* 有効なリンクがあれば初期状態で ON / On by default when working links exist */
+        linkedCheckbox.enabled = hasLinked;
+        linkedCheckbox.value = hasLinked;
+
+        return { missingCheckbox: missingCheckbox, linkedCheckbox: linkedCheckbox };
+    }
+
+    /**
+     * ［拡張子の扱い］パネルを作る
+     * @param {Group} parent - 追加先
+     * @returns {RadioButton[]} MATCH_MODES と同じ並びのラジオボタン
+     */
+    function buildMatchModePanel(parent) {
+        var matchModePanel = parent.add("panel", undefined, getLabel("panel.matchMode"));
+        matchModePanel.orientation = "column";
+        matchModePanel.alignment = "top";
+        matchModePanel.margins = PANEL_MARGINS;
+
+        var matchModeRadios = [];
+        for (var i = 0; i < MATCH_MODES.length; i++) {
+            matchModeRadios[i] = matchModePanel.add("radiobutton", undefined, getLabel("radio." + MATCH_MODES[i].labelKey));
+            matchModeRadios[i].helpTip = getLabel("tooltip.matchMode");
+            matchModeRadios[i].alignment = "left";
+        }
+        matchModeRadios[0].value = true;
+        return matchModeRadios;
+    }
+
+    /**
+     * ダイアログを表示し、フォルダーが有効になるまで繰り返す
+     * @param {Window} dialog - ダイアログ
+     * @param {EditText} folderPathInput - フォルダーのパス欄
+     * @returns {Folder|null} 再リンク用フォルダー。キャンセル時は null
+     */
+    function showUntilValidFolder(dialog, folderPathInput) {
+        while (true) {
+            if (dialog.show() != 1) return null;
+            if (folderPathInput.text === "") {
+                alert(getLabel("alert.noFolder"));
+                continue;
+            }
+            var targetFolder = new Folder(folderPathInput.text);
+            if (!targetFolder.exists) {
+                alert(getLabel("alert.invalidFolder"));
+                continue;
+            }
+            return targetFolder;
+        }
+    }
+
+    /**
+     * 設定ダイアログを表示する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object|null} { targetFolder, matchMode, priorityExt, targetMissing, targetLinked }。キャンセル時は null
+     */
+    function showRelinkDialog(doc) {
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        dialog.alignChildren = "fill";
+
+        var folderPathInput = buildFolderPanel(dialog);
+
+        var optionColumns = dialog.add("group");
+        optionColumns.orientation = "row";
+        optionColumns.alignment = "center";
+        optionColumns.spacing = COLUMN_SPACING;
+
+        var matchModeRadios = buildMatchModePanel(optionColumns);
+        var targetCheckboxes = buildTargetPanel(optionColumns, doc);
+
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "center";
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.relink"), { name: "ok" });
+
+        var targetFolder = showUntilValidFolder(dialog, folderPathInput);
+        if (!targetFolder) return null;
+
+        var selectedMode = MATCH_MODES[0];
+        for (var i = 0; i < MATCH_MODES.length; i++) {
+            if (matchModeRadios[i].value) {
+                selectedMode = MATCH_MODES[i];
+                break;
+            }
+        }
+
+        return {
+            targetFolder: targetFolder,
+            matchMode: selectedMode.mode,
+            priorityExt: selectedMode.ext,
+            targetMissing: targetCheckboxes.missingCheckbox.value,
+            targetLinked: targetCheckboxes.linkedCheckbox.value
+        };
+    }
+
+    /**
+     * 候補が複数あるとき、どれに再リンクするかを選ばせる
+     * @param {File[]} candidates - 候補のファイル
+     * @returns {File|null} 選んだファイル。キャンセル時は null
+     */
+    function chooseCandidateFile(candidates) {
+        var chooseDialog = new Window("dialog", getLabel("dialog.chooseCandidate"));
+        chooseDialog.alignChildren = "fill";
+        chooseDialog.add("statictext", undefined, labelText("fieldLabel.candidate"));
+
+        var candidateList = chooseDialog.add("listbox", CANDIDATE_LIST_BOUNDS);
+        for (var i = 0; i < candidates.length; i++) {
+            candidateList.add("item", candidates[i].name);
+        }
+        candidateList.selection = 0;
+
+        var btnRowGroup = chooseDialog.add("group");
+        btnRowGroup.alignment = "right";
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        if (chooseDialog.show() == 1 && candidateList.selection) {
+            return candidates[candidateList.selection.index];
+        }
+        return null;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 1つの画像を、フォルダー内で一致したファイルへ再リンクする（候補が複数なら選ばせる）
+     * @param {PlacedItem} item - 配置画像
+     * @param {string} linkFileName - 照合に使う元のファイル名
+     * @param {File[]} folderFiles - フォルダー内のファイル
+     * @param {Object} relinkOptions - showRelinkDialog() の結果
+     * @returns {void}
+     */
+    function relinkItem(item, linkFileName, folderFiles, relinkOptions) {
+        if (!linkFileName) return;
+        var originalName = linkFileName.toLowerCase();
+        var originalBase = stripExt(originalName);
+
+        var candidates = [];
+        for (var i = 0; i < folderFiles.length; i++) {
+            var candidateName = folderFiles[i].name.toLowerCase();
+            if (matchCandidate(candidateName, originalName, originalBase, relinkOptions.matchMode, relinkOptions.priorityExt)) {
+                candidates.push(folderFiles[i]);
+            }
+        }
+        if (candidates.length === 0) return;
+
+        var chosenFile = (candidates.length === 1) ? candidates[0] : chooseCandidateFile(candidates);
+        if (!chosenFile) return;
+        try {
+            item.file = chosenFile;
+        } catch (e) {
+            alert(getLabel("alert.relinkFailed") + chosenFile.name + "\n" + e);
+        }
+    }
+
+    /**
+     * フォルダー内のファイル（フォルダーを除く）を返す
+     * @param {Folder} targetFolder - 対象フォルダー
+     * @returns {File[]} ファイル
+     */
+    function getFolderFiles(targetFolder) {
+        var entries = targetFolder.getFiles();
+        var folderFiles = [];
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i] instanceof File) folderFiles.push(entries[i]);
+        }
+        return folderFiles;
+    }
+
+    /**
+     * メイン処理
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        var doc = app.activeDocument;
+
+        var relinkOptions = showRelinkDialog(doc);
+        if (!relinkOptions) return;
+
+        var xmpFileNames = collectXmpFileNames(doc);
+        var folderFiles = getFolderFiles(relinkOptions.targetFolder);
+
+        for (var i = 0; i < doc.placedItems.length; i++) {
+            var item = doc.placedItems[i];
+            if (!shouldRelinkItem(item, relinkOptions)) continue;
+            relinkItem(item, resolveLinkFileName(item, xmpFileNames[i]), folderFiles, relinkOptions);
+        }
+    }
+
+    main();
 
 })();

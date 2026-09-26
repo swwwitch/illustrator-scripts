@@ -36,16 +36,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    function setLayerTemplate(doc, name, on) {
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var TARGET_LAYER_NAME = "下絵";  /* テンプレートにするレイヤー名 / name of the layer to turn into a template */
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 名前が一致する最初のトップレベルレイヤーのテンプレート属性を切り替える
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @param {boolean} isTemplate - テンプレートにするなら true
+     * @returns {boolean} 対象のレイヤーが見つかれば true
+     */
+    function setLayerTemplate(doc, layerName, isTemplate) {
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                doc.layers[i].template = on;
+            if (doc.layers[i].name === layerName) {
+                doc.layers[i].template = isTemplate;
                 return true;
             }
         }
         return false;
     }
 
-    setLayerTemplate(app.activeDocument, "下絵", true);  // テンプレート化
+    setLayerTemplate(app.activeDocument, TARGET_LAYER_NAME, true);
 
 })();

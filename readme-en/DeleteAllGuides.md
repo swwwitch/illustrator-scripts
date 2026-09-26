@@ -42,7 +42,8 @@ https://note.com/dtp_tranist/n/n4907511336ad
 ### Update History
 
 - v1.0 (20250711) : Initial version
+- v1.0.1 (20260927) : The no-document alert is now shown in either Japanese or English to match the UI language
 
 ### Script info
 
-- Version: v1.0
+- Version: v1.0.1

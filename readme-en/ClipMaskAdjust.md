@@ -48,4 +48,5 @@
 
 ### Update History
 
+- v3.0.2 (20260927): Added tooltips to the English UI. Unit conversion now covers every ruler unit. Values are no longer re-rounded while typing, and the script works when the first selected item is not a clip group
 - ClipMaskAdjust-v3 (Auto-Preview): updated 2026-01-03

@@ -38,3 +38,4 @@
 - v1.2 (20250816): Added settings for restoring guide visibility and lock afterwards
 - v1.3 (20250816): Made the target layer name configurable
 - v1.4 (20250816): Added a redraw-suppression option
+- v1.4.2 (20260927): Does nothing when no document is open

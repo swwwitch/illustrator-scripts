@@ -59,7 +59,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [カーソルのある段落をひとつ下へ移動](readme-ja/MoveParagraphDown.md)
 - [2つのテキストの内容を入れ替える](readme-ja/SwapText.md)
 - [テキストと図形をエリア内文字に変換](readme-ja/TextWithShapeToAreaType.md)
-- [テキストの分割・結合パレット](readme-ja/TextBreakSplitMergePalette.md)
+- [テキスト処理パレット](readme-ja/TextProcessingPalette.md)
 - [統合文字組みパネル](readme-ja/UnifiedTypePalette.md)
 - [カーニング設定パレット](readme-ja/AutoKerningPalette.md)
 - [テキストのアウトライン化と復元](readme-ja/AiTextOutlineRestorePalette.md)
@@ -156,7 +156,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## 基本図形と変形
 
 - [正方形や正円、正三角形を作成するスクリプト](readme-ja/SmartShapeMaker.md)
-- [アスペクト比で変形](readme-ja/AspectRatioScaler.md)
+- [縦横比を指定してサイズ変更](readme-ja/AspectRatioScaler.md)
 - [自由変形（フリーディストート）](readme-ja/SmartFreeDistort.md)
 - [パスファインダー](readme-ja/AiSmartPathfinderPalette.md)
 - [パスの最適化](readme-ja/PathCleanupTool.md)

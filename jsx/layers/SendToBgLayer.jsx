@@ -42,48 +42,61 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf7c1e8a0f0c7"; /* 紹�
 
 (function () {
 
-    var TARGET_LAYER_NAME = "bg"; // 利用者が変更可能なレイヤー名 / User-editable target layer name
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var TARGET_LAYER_NAME = "bg";  /* 移動先のレイヤー名 / name of the destination layer */
 
-    /* メイン処理 / Main process */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 名前でレイヤーを探し、無ければ作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 見つけた、または作ったレイヤー
+     */
+    function getOrCreateLayer(doc, layerName) {
+        try {
+            /* 見つからないと例外になる / getByName throws when the layer does not exist */
+            return doc.layers.getByName(layerName);
+        } catch (e) {
+            var newLayer = doc.layers.add();
+            newLayer.name = layerName;
+            return newLayer;
+        }
+    }
+
+    /**
+     * 選択オブジェクトを重ね順を保ったまま背景レイヤーへ移し、レイヤーを最背面にしてロックする
+     * @returns {void}
+     */
     function main() {
         var activeDoc = app.activeDocument;
-        var originalLayer = activeDoc.activeLayer; // 元のアクティブレイヤーを記憶
+        var originalLayer = activeDoc.activeLayer; /* 元のアクティブレイヤー / Remember the active layer */
 
-        // 「bg」レイヤーが存在するか確認し、なければ作成し、元の可視状態を記憶
-        var bgLayer;
-        try {
-            bgLayer = activeDoc.layers.getByName(TARGET_LAYER_NAME);
-        } catch (e) {
-            bgLayer = activeDoc.layers.add();
-            bgLayer.name = TARGET_LAYER_NAME;
-        }
+        /* 表示状態を控えてから、表示・ロック解除 / Note the visibility, then show and unlock */
+        var bgLayer = getOrCreateLayer(activeDoc, TARGET_LAYER_NAME);
         var wasHidden = !bgLayer.visible;
         if (wasHidden) bgLayer.visible = true;
-        bgLayer.locked = false; // ロックを解除
+        bgLayer.locked = false;
 
-        var selectedItems;
-        try {
-            selectedItems = activeDoc.selection; // 現在の選択オブジェクトを取得
-        } catch (e) {
-            selectedItems = [];
-        }
-
-        if (selectedItems && selectedItems.length > 0) {
-            // 選択オブジェクトを重ね順を維持したまま「bg」レイヤーに移動
-            for (var i = 0; i < selectedItems.length; i++) {
-                try {
-                    selectedItems[i].move(bgLayer, ElementPlacement.PLACEATEND);
-                } catch (e) {
-                    // エラーがあっても処理を続行
-                }
+        /* 選択オブジェクトを重ね順を保ったまま移動 / Move the selection, keeping its stacking order */
+        var selectedItems = activeDoc.selection;
+        for (var i = 0; i < selectedItems.length; i++) {
+            try {
+                selectedItems[i].move(bgLayer, ElementPlacement.PLACEATEND);
+            } catch (e) {
+                /* 移動できないもの（ロックされた親の中など）は飛ばす / Skip items that cannot move */
             }
         }
 
-        bgLayer.zOrder(ZOrderMethod.SENDTOBACK); // 「bg」レイヤー自体を最背面に
+        /* レイヤーを最背面へ、表示状態を戻してロック / Send to back, restore visibility and lock */
+        bgLayer.zOrder(ZOrderMethod.SENDTOBACK);
         if (wasHidden) bgLayer.visible = false;
-        bgLayer.locked = true; // 「bg」レイヤーを再ロック
+        bgLayer.locked = true;
 
-        // 処理終了後、元のレイヤーを再アクティブ化
         activeDoc.activeLayer = originalLayer;
     }
 

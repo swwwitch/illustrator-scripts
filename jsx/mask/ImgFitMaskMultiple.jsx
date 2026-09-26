@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMask
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImgFitMaskMultiple";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMaskMultiple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMaskMultiple.md"; /* README (English) */
@@ -34,47 +34,70 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-(function() {
-    // ドキュメントが開かれていない場合は終了
-    if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
+(function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
+    var uiLang = getCurrentLang();
 
-    var doc = app.activeDocument;
-    var currentSelection = doc.selection;
-
-    if (currentSelection.length < 2) {
-        alert("エラー: 複数の画像と図形を選択してください。");
-        return;
-    }
-
-    var images = [];
-    var masks = [];
-
-    // 1. 選択アイテムを「画像」と「図形」に分類
-    for (var i = 0; i < currentSelection.length; i++) {
-        var item = currentSelection[i];
-        if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
-            // クリップグループ内のパスなどが誤って選択されないよう、親がLayerかGroupのみ対象にするなど
-            // 簡易的なチェックですが、通常選択ならこれでOK
-            masks.push(item);
-        } else if (item.typename === "PlacedItem" || item.typename === "RasterItem") {
-            images.push(item);
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectMultiple: { ja: "エラー: 複数の画像と図形を選択してください。", en: "Error: Select several images and shapes." },
+            needShapeAndImage: {
+                ja: "画像と図形がそれぞれ少なくとも1つずつ必要です。",
+                en: "At least one image and one shape are required."
+            }
         }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "alert.noDocument" のようなパス
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
     }
 
-    if (images.length === 0 || masks.length === 0) {
-        alert("画像と図形がそれぞれ少なくとも1つずつ必要です。");
-        return;
+    // =========================================
+    // 画像とマスク / Image and mask
+    // =========================================
+
+    /**
+     * マスクに使える図形（パス／複合パス）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 図形なら true
+     */
+    function isMaskShape(item) {
+        return item.typename === "PathItem" || item.typename === "CompoundPathItem";
     }
 
-    // 距離計算用の関数
-    function getDistance(p1, p2) {
-        return Math.sqrt(Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2));
+    /**
+     * 画像（配置画像／埋め込み画像）か
+     * @param {PageItem} item - 判定するアイテム
+     * @returns {boolean} 画像なら true
+     */
+    function isImageItem(item) {
+        return item.typename === "PlacedItem" || item.typename === "RasterItem";
     }
 
-    // 中心座標取得用の関数
+    /**
+     * アイテムの中心座標を返す
+     * @param {PageItem} item - 対象アイテム
+     * @returns {number[]} [x, y]
+     */
     function getCenter(item) {
         return [
             item.left + item.width / 2,
@@ -82,102 +105,140 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ];
     }
 
-    // 2. マッチングと処理の実行
-    // 画像を基準に、一番近いマスクを探すループ
-    // ※処理済みマスクを重複使用しないように管理する
-    var usedMasks = [];
+    /**
+     * 画像を図形を隙間なく覆う大きさに拡大・縮小して中央に合わせ、図形でクリッピングマスクを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PlacedItem|RasterItem} image - マスクされる画像
+     * @param {PathItem|CompoundPathItem} maskShape - マスクになる図形
+     * @returns {GroupItem} 作成したクリップグループ
+     */
+    function fitImageToMask(doc, image, maskShape) {
+        /* 隙間が出ないよう、倍率の大きい方を使う（全体を収めるなら Math.min）/ Use the larger ratio so no gap remains */
+        var scaleFactor = Math.max(maskShape.width / image.width, maskShape.height / image.height);
+        /* resize はパーセント指定 / resize() takes percentages */
+        image.resize(scaleFactor * 100, scaleFactor * 100, true, true, true, true);
 
-    // マッチング精度を高めるため、左上(X,Y座標)順などでソートしても良いですが、
-    // 今回は「総当たりで最短距離ペア」を見つける方式にします。
+        /* リサイズ後の中心を図形の中心に合わせる / Center the resized image on the shape */
+        var maskCenter = getCenter(maskShape);
+        var imageCenter = getCenter(image);
+        image.translate(maskCenter[0] - imageCenter[0], maskCenter[1] - imageCenter[1]);
 
-    // ペアリストを作成 {img: item, mask: item, dist: number}
-    var pairs = [];
-
-    for (var i = 0; i < images.length; i++) {
-        var img = images[i];
-        var imgCenter = getCenter(img);
-        var bestMask = null;
-        var minDist = Infinity;
-
-        for (var j = 0; j < masks.length; j++) {
-            var msk = masks[j];
-            var dist = getDistance(imgCenter, getCenter(msk));
-            
-            if (dist < minDist) {
-                minDist = dist;
-                bestMask = msk;
-            }
-        }
-        
-        if (bestMask) {
-            pairs.push({
-                image: img,
-                mask: bestMask,
-                distance: minDist
-            });
-        }
-    }
-
-    // 距離が近い順にソート（これが重要：遠くの誤判定を防ぐ）
-    pairs.sort(function(a, b) {
-        return a.distance - b.distance;
-    });
-
-    // ペアごとに処理実行（マスクが重複しないようにチェック）
-    var processedCount = 0;
-    
-    for (var k = 0; k < pairs.length; k++) {
-        var p = pairs[k];
-        
-        // このマスクがまだ使われていなければ処理実行
-        var isUsed = false;
-        for(var u=0; u<usedMasks.length; u++){
-            if(usedMasks[u] === p.mask) {
-                isUsed = true;
-                break;
-            }
-        }
-
-        if (!isUsed) {
-            processClip(p.image, p.mask);
-            usedMasks.push(p.mask);
-            processedCount++;
-        }
-    }
-
-    // 完了メッセージ（任意）
-    // alert(processedCount + " 組のマスクを作成しました。");
-
-    // --- 個別のマスク処理関数 ---
-    function processClip(targetImg, maskObj) {
-        
-        // スケール調整（隙間が出ないようにリサイズ）
-        var maskW = maskObj.width;
-        var maskH = maskObj.height;
-        var imgW = targetImg.width;
-        var imgH = targetImg.height;
-
-        var scaleX = maskW / imgW;
-        var scaleY = maskH / imgH;
-        var scaleFactor = Math.max(scaleX, scaleY);
-
-        targetImg.resize(scaleFactor * 100, scaleFactor * 100, true, true, true, true);
-
-        // 中央揃えの処理
-        var maskCenter = getCenter(maskObj);
-        var newImgCenter = getCenter(targetImg); // リサイズ後の中心再取得
-
-        var deltaX = maskCenter[0] - newImgCenter[0];
-        var deltaY = maskCenter[1] - newImgCenter[1];
-
-        targetImg.translate(deltaX, deltaY);
-
-        // クリッピングマスクの作成
+        /* 図形の重ね順の位置にグループを作り、図形を最前面に入れる / Group at the shape's stacking position, shape on top */
         var clipGroup = doc.groupItems.add();
-        clipGroup.move(maskObj, ElementPlacement.PLACEBEFORE);
-        maskObj.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
-        targetImg.move(clipGroup, ElementPlacement.PLACEATEND);
+        clipGroup.move(maskShape, ElementPlacement.PLACEBEFORE);
+        maskShape.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
+        image.move(clipGroup, ElementPlacement.PLACEATEND);
         clipGroup.clipped = true;
+        return clipGroup;
     }
+
+    // =========================================
+    // 組み合わせ / Pairing
+    // =========================================
+
+    /**
+     * 2点間の距離を返す
+     * @param {number[]} pointA - [x, y]
+     * @param {number[]} pointB - [x, y]
+     * @returns {number} 距離
+     */
+    function getDistance(pointA, pointB) {
+        return Math.sqrt(Math.pow(pointB[0] - pointA[0], 2) + Math.pow(pointB[1] - pointA[1], 2));
+    }
+
+    /**
+     * 各画像に中心が最も近い図形を組み合わせ、距離の近い順に並べる
+     * @param {PageItem[]} images - 画像
+     * @param {PageItem[]} maskShapes - 図形
+     * @returns {Object[]} { image, mask, distance } の配列（距離の昇順）
+     */
+    function buildNearestPairs(images, maskShapes) {
+        var pairs = [];
+        for (var i = 0; i < images.length; i++) {
+            var imageCenter = getCenter(images[i]);
+            var bestMask = null;
+            var minDistance = Infinity;
+            for (var j = 0; j < maskShapes.length; j++) {
+                var distance = getDistance(imageCenter, getCenter(maskShapes[j]));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestMask = maskShapes[j];
+                }
+            }
+            if (bestMask) {
+                pairs.push({ image: images[i], mask: bestMask, distance: minDistance });
+            }
+        }
+
+        /* 近い組から処理し、遠くの誤判定を防ぐ / Nearest pairs first, to avoid distant mismatches */
+        pairs.sort(function (a, b) {
+            return a.distance - b.distance;
+        });
+        return pairs;
+    }
+
+    /**
+     * 配列にアイテムが含まれているか
+     * @param {PageItem[]} items - 配列
+     * @param {PageItem} targetItem - 探すアイテム
+     * @returns {boolean} 含まれていれば true
+     */
+    function containsItem(items, targetItem) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === targetItem) return true;
+        }
+        return false;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択した画像と図形を近いもの同士で組み合わせ、それぞれクリッピングマスクを作る
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var currentSelection = doc.selection;
+
+        if (currentSelection.length < 2) {
+            alert(getLabel("alert.selectMultiple"));
+            return;
+        }
+
+        /* 選択を画像と図形に分ける / Split the selection into images and shapes */
+        var images = [];
+        var maskShapes = [];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
+            if (isMaskShape(item)) {
+                maskShapes.push(item);
+            } else if (isImageItem(item)) {
+                images.push(item);
+            }
+        }
+
+        if (images.length === 0 || maskShapes.length === 0) {
+            alert(getLabel("alert.needShapeAndImage"));
+            return;
+        }
+
+        /* 同じ図形を二度使わない / Never use the same shape twice */
+        var pairs = buildNearestPairs(images, maskShapes);
+        var usedMasks = [];
+        for (var k = 0; k < pairs.length; k++) {
+            if (containsItem(usedMasks, pairs[k].mask)) continue;
+            fitImageToMask(doc, pairs[k].image, pairs[k].mask);
+            usedMasks.push(pairs[k].mask);
+        }
+    }
+
+    main();
 
 })();

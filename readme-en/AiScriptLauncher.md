@@ -48,7 +48,7 @@ Keyboard:
 
 **Keyword buttons**
 
-Script names are split into words, and the most frequent ones are laid out as buttons. `SmartDistributorPalette.jsx` yields `Smart` and `Distributor`. Camel case, hyphens, underscores and digits are all treated as separators.
+Script names are split into words, and the most frequent ones are laid out as buttons. `SmartDistributorPalette.jsx` yields `Smart` and `Distributor`. Camel case, hyphens, underscores and digits are all treated as separators. `Palette` always comes first regardless of its count (it is hidden when no file matches).
 
 The buttons are **recomputed on every filter change**. Words the query already covers are dropped, since pressing them would narrow nothing, so what remains is the set of useful next steps.
 
@@ -134,6 +134,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.4.3 (2026-09-27): “Palette” now always leads the keyword buttons whenever a matching file exists
 - v1.4.2 (2026-08-31): Added “Remember the search”. While it is on, the keyword and the list selections carry over between runs within an Illustrator session
 - v1.4.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.4.0 (2026-08-26): Switched to two side-by-side lists; added keyword buttons, Finder reveal and the Preferences dialog

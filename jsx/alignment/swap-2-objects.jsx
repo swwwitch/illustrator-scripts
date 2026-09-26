@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/swap-2-obj
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "swap-2-objects";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/swap-2-objects.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/swap-2-objects.md"; /* README (English) */
@@ -37,6 +37,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 表示言語を判定する
+     * @returns {string} 日本語環境なら "ja"、それ以外は "en"
+     */
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義（UIパーツ別） / Bilingual labels grouped by UI part */
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectTwo: { ja: "2つのオブジェクトを選択してください。", en: "Select two objects." }
+        }
+    };
+
+    /**
+     * 現在の言語のラベルを返す
+     * @param {Object} labelSet - { ja: string, en: string }
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
+    }
+
+    // =========================================
+    // 入れ替え / Swapping
+    // =========================================
 
     /**
      * オブジェクトの中心座標を返す
@@ -80,19 +115,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         secondObject.translate(-dx, -dy);
     }
 
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
     /**
      * ドキュメントと選択を検証し、選択した2つのオブジェクトの中心位置を入れ替える
      * @returns {void}
      */
     function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。");
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
         var selectedObjects = app.activeDocument.selection;
-        if (!selectedObjects || selectedObjects.length !== 2) {
-            alert("2つのオブジェクトを選択してください。");
+        /* 文字ツールで文字を選択中は TextRange が返り、length は文字数になる / A text selection returns a TextRange whose length counts characters */
+        if (!selectedObjects || selectedObjects.typename === "TextRange" || selectedObjects.length !== 2) {
+            alert(getLabel(LABELS.alert.selectTwo));
             return;
         }
 

@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Preference
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManager-unit";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-unit.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-unit.md"; /* README (English) */
@@ -38,206 +38,60 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 現在のUI言語を取得 / Get the current UI language */
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    /* UIラベル定義 / UI Label Definitions */
-    var LABELS = {
-        dialogTitle: {
-            ja: "まとめて環境設定 " + SCRIPT_VERSION,
-            en: "Preferences " + SCRIPT_VERSION
+    /* モードのラジオボタンで切り替える単位コードと増減量（増減量は切り替え後の単位での値）
+       Unit codes and increments applied by each mode radio (increments are in the new units) */
+    var UNIT_MODE_PRESETS = {
+        printPt: {
+            units: { "rulerType": 1, "strokeUnits": 2, "text/units": 2, "text/asianunits": 2 },     /* mm / pt / pt / pt */
+            increments: { "cursorKeyLength": 0.1, "ovalRadius": 1, "text/sizeIncrement": 1, "text/riseIncrement": 0.1 }
         },
-        tipModePrintPt: { ja: "一般=mm、線=pt、文字=pt、東アジア言語のオプション=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt, East Asian=pt." },
-        tipModePrintQ: { ja: "一般=mm、線=mm、文字=Q、東アジア言語のオプション=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q, East Asian=Q." },
-        tipModeOnscreen: { ja: "一般・線・文字・東アジア言語のオプションをすべて px に切り替えます。", en: "Sets General, Stroke, Text and East Asian all to px." },
-        tipUnitGeneral: { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
-        tipUnitStroke: { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
-        tipUnitType: { ja: "フォントサイズや行送りに使う単位です。", en: "Unit used for font size and leading." },
-        tipUnitAsian: { ja: "東アジア言語のオプションで使う単位です。", en: "Unit used for East Asian typography options." },
-        tipKeyValue: { ja: "矢印キー1回で動く距離です。", en: "How far one arrow key press moves things." },
-        tipCornerRadius: { ja: "角丸ツールの既定の半径です。", en: "Default radius used by the rounded rectangle tool." },
-        tipSizeValue: { ja: "文字サイズ・行送りを増減する1回ぶんの量です。", en: "How much one step changes the type size or leading." },
-        tipBaselineValue: { ja: "ベースラインシフトを増減する1回ぶんの量です。", en: "How much one step changes the baseline shift." },
-        tipFontEnglish: { ja: "フォント名を英語表記で表示します。", en: "Shows font names in English." },
-        tipRecentFonts: { ja: "フォントメニューの先頭に並ぶ「最近使用したフォント」の表示件数です。0 で非表示になります。", en: "How many recently used fonts appear at the top of the font menu. 0 hides the list." },
-        tipGlyphBounds: { ja: "整列の基準を、仮想ボディではなく字形の実際の輪郭にします。", en: "Aligns text by the actual glyph outlines instead of the em box." },
-        tipPreviewBounds: { ja: "線幅や効果を含めた見た目の端を、オブジェクトの境界として扱います。", en: "Treats the visible edges including strokes and effects as the object bounds." },
-        tipTransformPattern: { ja: "オブジェクトを変形したとき、塗りのパターンも一緒に変形します。", en: "Transforms the pattern fill along with the object." },
-        tipScaleCorners: { ja: "拡大・縮小したとき、ライブコーナーの角丸も一緒に変わります。", en: "Scales live corner radii along with the object." },
-        tipScaleStroke: { ja: "拡大・縮小したとき、線幅と効果も一緒に変わります。", en: "Scales stroke weights and effects along with the object." },
-        tipRealtimeDrawing: { ja: "ドラッグ中もオブジェクトの結果を表示しながら描画・編集します。", en: "Draws and edits with a live result while dragging." },
-        modePrintPt: {
-            ja: "プリント（pt）",
-            en: "Print (pt)"
+        printQ: {
+            units: { "rulerType": 1, "strokeUnits": 1, "text/units": 5, "text/asianunits": 5 },     /* mm / mm / Q / H */
+            increments: { "cursorKeyLength": 1, "ovalRadius": 2, "text/sizeIncrement": 1, "text/riseIncrement": 0.1 }
         },
-        modePrintQ: {
-            ja: "プリント（Q）",
-            en: "Print (Q)"
-        },
-        modeOnscreen: {
-            ja: "オンスクリーン（px）",
-            en: "Onscreen (px)"
-        },
-        unitsTitle: {
-            ja: "単位",
-            en: "Units"
-        },
-        // --- Inserted localization for unit dropdowns ---
-        generalUnit: {
-            ja: "一般",
-            en: "General"
-        },
-        strokeUnit: {
-            ja: "線",
-            en: "Stroke"
-        },
-        textUnit: {
-            ja: "文字",
-            en: "Type"
-        },
-        asianUnit: {
-            ja: "東アジア言語",
-            en: "East Asian Type"
-        },
-        // -----------------------------------------------
-        textTitle: {
-            ja: "テキスト",
-            en: "Text"
-        },
-        fontEnglish: {
-            ja: "フォント名を英語表記",
-            en: "Show Font Names in English"
-        },
-        recentFonts: {
-            ja: "最近使用したフォント",
-            en: "Recent Fonts"
-        },
-        transformTitle: {
-            ja: "変形と整列",
-            en: "Transform & Align"
-        },
-        previewBounds: {
-            ja: "プレビュー境界",
-            en: "Preview Bounds"
-        },
-        transformPattern: {
-            ja: "パターンを変形",
-            en: "Transform Pattern Tiles"
-        },
-        scaleCorners: {
-            ja: "角を拡大・縮小",
-            en: "Scale Corners"
-        },
-        scaleStroke: {
-            ja: "線幅と効果も拡大・縮小",
-            en: "Scale Strokes & Effects"
-        },
-        realtimeDrawing: {
-            ja: "リアルタイムの描画と編集",
-            en: "Real-time Drawing & Editing"
-        },
-        glyphBounds: {
-            ja: "字形の境界に整列",
-            en: "Align to Glyph Bounds"
-        },
-        pointText: {
-            ja: "ポイント文字",
-            en: "Point Type"
-        },
-        areaText: {
-            ja: "エリア内文字",
-            en: "Area Type"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        leadingLabel: {
-            ja: "サイズ/行送り：",
-            en: "Size/Leading:"
-        },
-        baselineLabel: {
-            ja: "ベースライン：",
-            en: "Baseline Shift:"
-        },
-        // ---- Added missing localized labels ----
-        generalTitle: {
-            ja: "一般",
-            en: "General"
-        },
-        keyInputLabel: {
-            ja: "キー増加：",
-            en: "Keyboard Increment::"
-        },
-        cornerRadiusLabel: {
-            ja: "角丸の半径：",
-            en: "Corner Radius:"
-        },
-        textDetailTitle: {
-            ja: "テキスト",
-            en: "Text"
+        onscreen: {
+            units: { "rulerType": 6, "strokeUnits": 6, "text/units": 6, "text/asianunits": 6 },     /* px */
+            increments: { "cursorKeyLength": 1, "ovalRadius": 1, "text/sizeIncrement": 1, "text/riseIncrement": 0.5 }
         }
     };
 
-    /* ↑↓キーで値を増減 / Change value with arrow keys */
-    function changeValueByArrowKey(editText) {
-        editText.addEventListener("keydown", function(event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var DIALOG_OPACITY                = 0.97;               /* ダイアログの不透明度 / dialog opacity */
+    var MODE_ROW_MARGINS              = [15, 10, 15, 10];   /* モード行の余白 [左,上,右,下] */
+    var PANEL_MARGINS                 = [8, 20, 8, 15];     /* パネル余白 [左,上,右,下] */
+    var FIELD_LABEL_CHARACTERS        = 12;                 /* 項目名の幅 / field label width */
+    var VALUE_FIELD_CHARACTERS        = 4;                  /* 数値欄の幅 / numeric field width */
+    var UNIT_LABEL_CHARACTERS         = 4;                  /* 単位表示の幅 / unit label width */
+    var UNIT_DROPDOWN_CHARACTERS      = 9;                  /* 単位ドロップダウンの幅 / unit dropdown width */
+    var RECENT_FONTS_FIELD_CHARACTERS = 3;                  /* 最近使用したフォントの件数欄の幅 */
+    var BUTTON_WIDTH                  = 90;                 /* ボタンの幅 / button width */
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            }
-
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10; /* 小数第1位まで / Round to 1 decimal place */
-            } else {
-                value = Math.round(value);
-            }
-
-            editText.text = value;
-            editText.notify("onChange"); /* 値変更をトリガー / Trigger value change */
-        });
+    /**
+     * 縦並びのパネルを追加する
+     * @param {Group} parent - 追加先
+     * @param {string} labelPath - パネル見出しのラベルパス
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, labelPath) {
+        var panel = parent.add('panel', undefined, getLabel(labelPath));
+        panel.orientation = 'column';
+        panel.alignChildren = ['left', 'top'];
+        panel.margins = PANEL_MARGINS;
+        return panel;
     }
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -257,522 +111,562 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
+    // =========================================
+    // 環境設定の項目 / Preference items
+    // =========================================
+
+    /* 単位のドロップダウン（上から順に並ぶ）/ Unit dropdowns, top to bottom */
+    var UNIT_DROPDOWN_DEFINITIONS = [
+        { prefKey: "rulerType",       labelPath: "fieldLabel.generalUnit", tipPath: "tooltip.generalUnit" },
+        { prefKey: "strokeUnits",     labelPath: "fieldLabel.strokeUnit",  tipPath: "tooltip.strokeUnit" },
+        { prefKey: "text/units",      labelPath: "fieldLabel.typeUnit",    tipPath: "tooltip.typeUnit" },
+        { prefKey: "text/asianunits", labelPath: "fieldLabel.asianUnit",   tipPath: "tooltip.asianUnit" }
+    ];
+
+    /* 増減量の数値欄。値は pt で保存し、unitKey の単位で表示する
+       Increment fields; values are stored in pt and shown in the unit of unitKey */
+    var INCREMENT_FIELD_DEFINITIONS = [
+        { panelId: "general", valueKey: "cursorKeyLength",    unitKey: "rulerType",       labelPath: "fieldLabel.keyIncrement",      tipPath: "tooltip.keyIncrement" },
+        { panelId: "general", valueKey: "ovalRadius",         unitKey: "rulerType",       labelPath: "fieldLabel.cornerRadius",      tipPath: "tooltip.cornerRadius" },
+        { panelId: "text",    valueKey: "text/sizeIncrement", unitKey: "text/units",      labelPath: "fieldLabel.sizeIncrement",     tipPath: "tooltip.sizeIncrement" },
+        { panelId: "text",    valueKey: "text/riseIncrement", unitKey: "text/asianunits", labelPath: "fieldLabel.baselineIncrement", tipPath: "tooltip.baselineIncrement" }
+    ];
+
+    /* ON/OFF を真偽値で持つ環境設定のチェックボックス（パネルごと）
+       Checkboxes bound to boolean preferences, per panel */
+    var FONT_CHECKBOX_DEFINITIONS = [
+        { prefKey: "text/useEnglishFontNames", labelPath: "checkbox.fontNamesInEnglish", tipPath: "tooltip.fontNamesInEnglish" }
+    ];
+    var GLYPH_BOUNDS_CHECKBOX_DEFINITIONS = [
+        { prefKey: "EnableActualPointTextSpaceAlign", labelPath: "checkbox.pointType", tipPath: "tooltip.glyphBounds" },
+        { prefKey: "EnableActualAreaTextSpaceAlign",  labelPath: "checkbox.areaType",  tipPath: "tooltip.glyphBounds" }
+    ];
+    var TRANSFORM_CHECKBOX_DEFINITIONS = [
+        { prefKey: "includeStrokeInBounds", labelPath: "checkbox.previewBounds",    tipPath: "tooltip.previewBounds" },
+        { prefKey: "transformPatterns",     labelPath: "checkbox.transformPattern", tipPath: "tooltip.transformPattern" }
+    ];
+    var TRANSFORM_TAIL_CHECKBOX_DEFINITIONS = [
+        { prefKey: "scaleLineWeight",       labelPath: "checkbox.scaleStroke",      tipPath: "tooltip.scaleStroke" },
+        { prefKey: "LiveEdit_State_Machine", labelPath: "checkbox.realtimeDrawing", tipPath: "tooltip.realtimeDrawing" }
+    ];
+
+    /* 「角を拡大・縮小」の環境設定値（1=ON, 2=OFF）/ Values of the scale-corners preference */
+    var SCALE_CORNERS_ON = 1;
+    var SCALE_CORNERS_OFF = 2;
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
     /**
-     * 単位コードと環境設定キーから表示ラベルを返す
-     * @param {number} unitCode - 単位コード
-     * @param {string} [prefKey] - 環境設定キー（単位コード5の Q／H を分けるために使う）
-     * @returns {string} 表示ラベル
+     * Illustrator の UI 言語から表示言語を判定する
+     * @returns {string} "ja" または "en"
      */
-    function getUnitLabel(unitCode, prefKey) {
-        var unit = UNITS[unitCode] || UNITS[2];
-        return (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey || "rulerType"]) ? "H" : unit.label;
+    function detectUILang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = detectUILang();
+
+    var LABELS = {
+        dialog: {
+            title: { ja: "まとめて環境設定", en: "Preferences" }
+        },
+        panel: {
+            units: { ja: "単位", en: "Units" },
+            general: { ja: "一般", en: "General" },
+            textIncrement: { ja: "テキスト", en: "Text" },
+            text: { ja: "テキスト", en: "Text" },
+            glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
+            transform: { ja: "変形と整列", en: "Transform & Align" }
+        },
+        radio: {
+            printPt: { ja: "プリント（pt）", en: "Print (pt)" },
+            printQ: { ja: "プリント（Q）", en: "Print (Q)" },
+            onscreen: { ja: "オンスクリーン（px）", en: "Onscreen (px)" }
+        },
+        fieldLabel: {
+            generalUnit: { ja: "一般", en: "General" },
+            strokeUnit: { ja: "線", en: "Stroke" },
+            typeUnit: { ja: "文字", en: "Type" },
+            asianUnit: { ja: "東アジア言語", en: "East Asian Type" },
+            keyIncrement: { ja: "キー増加", en: "Keyboard Increment" },
+            cornerRadius: { ja: "角丸の半径", en: "Corner Radius" },
+            sizeIncrement: { ja: "サイズ/行送り", en: "Size/Leading" },
+            baselineIncrement: { ja: "ベースライン", en: "Baseline Shift" }
+        },
+        checkbox: {
+            fontNamesInEnglish: { ja: "フォント名を英語表記", en: "Show Font Names in English" },
+            recentFonts: { ja: "最近使用したフォント", en: "Recent Fonts" },
+            pointType: { ja: "ポイント文字", en: "Point Type" },
+            areaType: { ja: "エリア内文字", en: "Area Type" },
+            previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
+            transformPattern: { ja: "パターンを変形", en: "Transform Pattern Tiles" },
+            scaleCorners: { ja: "角を拡大・縮小", en: "Scale Corners" },
+            scaleStroke: { ja: "線幅と効果も拡大・縮小", en: "Scale Strokes & Effects" },
+            realtimeDrawing: { ja: "リアルタイムの描画と編集", en: "Real-time Drawing & Editing" }
+        },
+        tooltip: {
+            printPt: {
+                ja: "一般=mm、線=pt、文字=pt、東アジア言語のオプション=pt にまとめて切り替えます。",
+                en: "Sets General=mm, Stroke=pt, Text=pt, East Asian=pt."
+            },
+            printQ: {
+                ja: "一般=mm、線=mm、文字=Q、東アジア言語のオプション=H にまとめて切り替えます。",
+                en: "Sets General=mm, Stroke=mm, Text=Q, East Asian=H."
+            },
+            onscreen: {
+                ja: "一般・線・文字・東アジア言語のオプションをすべて px に切り替えます。",
+                en: "Sets General, Stroke, Text and East Asian all to px."
+            },
+            generalUnit: { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
+            strokeUnit: { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
+            typeUnit: { ja: "フォントサイズや行送りに使う単位です。", en: "Unit used for font size and leading." },
+            asianUnit: { ja: "東アジア言語のオプションで使う単位です。", en: "Unit used for East Asian typography options." },
+            keyIncrement: { ja: "矢印キー1回で動く距離です。", en: "How far one arrow key press moves things." },
+            cornerRadius: { ja: "角丸ツールの既定の半径です。", en: "Default radius used by the rounded rectangle tool." },
+            sizeIncrement: { ja: "文字サイズ・行送りを増減する1回ぶんの量です。", en: "How much one step changes the type size or leading." },
+            baselineIncrement: { ja: "ベースラインシフトを増減する1回ぶんの量です。", en: "How much one step changes the baseline shift." },
+            fontNamesInEnglish: { ja: "フォント名を英語表記で表示します。", en: "Shows font names in English." },
+            recentFonts: {
+                ja: "フォントメニューの先頭に並ぶ「最近使用したフォント」の表示件数です。0 で非表示になります。",
+                en: "How many recently used fonts appear at the top of the font menu. 0 hides the list."
+            },
+            glyphBounds: { ja: "整列の基準を、仮想ボディではなく字形の実際の輪郭にします。", en: "Aligns text by the actual glyph outlines instead of the em box." },
+            previewBounds: { ja: "線幅や効果を含めた見た目の端を、オブジェクトの境界として扱います。", en: "Treats the visible edges including strokes and effects as the object bounds." },
+            transformPattern: { ja: "オブジェクトを変形したとき、塗りのパターンも一緒に変形します。", en: "Transforms the pattern fill along with the object." },
+            scaleCorners: { ja: "拡大・縮小したとき、ライブコーナーの角丸も一緒に変わります。", en: "Scales live corner radii along with the object." },
+            scaleStroke: { ja: "拡大・縮小したとき、線幅と効果も一緒に変わります。", en: "Scales stroke weights and effects along with the object." },
+            realtimeDrawing: { ja: "ドラッグ中もオブジェクトの結果を表示しながら描画・編集します。", en: "Draws and edits with a live result while dragging." }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        }
+    };
+
+    /**
+     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
+     * @param {string} labelPath - "panel.units" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var labelPathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode["en"] || labelPath;
     }
 
-    /* 単位換算ユーティリティ / Unit conversion utilities */
-    function getPtFactorFromUnitCode(unitCode) {
-        return (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのパス
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
-    function convertFromPt(valuePt, unitCode) {
-        return valuePt / getPtFactorFromUnitCode(unitCode);
+    // =========================================
+    // 入力補助 / Input helpers
+    // =========================================
+
+    /**
+     * ↑↓キーで数値欄の値を増減する（Shift=10刻み、Option=0.1刻み）
+     * @param {EditText} editText - 対象の数値欄
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function (event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName == "Up");
+            var isDown = (event.keyName == "Down");
+
+            if (keyboard.shiftKey) {
+                /* 10の倍数にスナップ / Snap to multiples of 10 */
+                if (isUp) {
+                    value = Math.ceil((value + 1) / 10) * 10;
+                    event.preventDefault();
+                } else if (isDown) {
+                    value = Math.floor((value - 1) / 10) * 10;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                if (isUp) {
+                    value += 0.1;
+                    event.preventDefault();
+                } else if (isDown) {
+                    value -= 0.1;
+                    event.preventDefault();
+                }
+            } else {
+                if (isUp) {
+                    value += 1;
+                    event.preventDefault();
+                } else if (isDown) {
+                    value -= 1;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            }
+
+            /* Option 時は小数第1位、それ以外は整数に丸める / Round to 0.1 with Option, otherwise to integers */
+            value = keyboard.altKey ? Math.round(value * 10) / 10 : Math.round(value);
+
+            editText.text = value;
+            editText.notify("onChange"); /* 値変更をトリガー / Trigger value change */
+        });
     }
 
-    function convertToPt(valueUnit, unitCode) {
-        return valueUnit * getPtFactorFromUnitCode(unitCode);
+    // =========================================
+    // ダイアログの部品 / Dialog parts
+    // =========================================
+
+    /**
+     * 右揃えの項目名つきの行を追加する
+     * @param {Panel} parent - 追加先
+     * @param {string} labelPath - 項目名のラベルパス
+     * @returns {Group} 追加した行
+     */
+    function addFieldRow(parent, labelPath) {
+        var fieldRow = parent.add('group');
+        fieldRow.orientation = 'row';
+        var fieldLabel = fieldRow.add('statictext', undefined, labelText(labelPath));
+        fieldLabel.characters = FIELD_LABEL_CHARACTERS;
+        fieldLabel.justify = 'right';
+        return fieldRow;
     }
 
-    /* 複数チェックボックスを環境設定キーにバインド / Bind multiple checkboxes to preference keys */
-    function bindCheckboxes(pairs) {
-        for (var i = 0; i < pairs.length; i++) {
-            (function(pair) {
-                pair.checkbox.onClick = function() {
-                    app.preferences.setBooleanPreference(pair.prefKey, pair.checkbox.value === true);
-                };
-            })(pairs[i]);
+    /**
+     * 単位のドロップダウンを追加する（項目の添字が単位コード）
+     * @param {Panel} parent - 追加先
+     * @param {{prefKey: string, labelPath: string, tipPath: string}} definition - ドロップダウンの定義
+     * @returns {DropDownList} 追加したドロップダウン
+     */
+    function addUnitDropdown(parent, definition) {
+        var prefKey = definition.prefKey;
+        var unitRow = addFieldRow(parent, definition.labelPath);
+        var unitDropdown = unitRow.add('dropdownlist', undefined, []);
+        unitDropdown.characters = UNIT_DROPDOWN_CHARACTERS;
+        unitDropdown.helpTip = getLabel(definition.tipPath);
+
+        /* 単位コード5は環境設定キーによって Q か H / Code 5 reads Q or H depending on the key */
+        for (var code = 0; code < UNITS.length; code++) {
+            unitDropdown.add('item', (code === 5 && HA_UNIT_PREF_KEYS[prefKey]) ? "H" : UNITS[code].label);
+        }
+
+        var currentCode = app.preferences.getIntegerPreference(prefKey);
+        unitDropdown.selection = UNITS[currentCode] ? currentCode : 2;
+
+        unitDropdown.onChange = function () {
+            if (unitDropdown.selection) {
+                app.preferences.setIntegerPreference(prefKey, unitDropdown.selection.index);
+            }
+        };
+        return unitDropdown;
+    }
+
+    /**
+     * 増減量の数値欄（項目名・数値・単位）を追加する
+     * @param {Panel} parent - 追加先
+     * @param {{valueKey: string, unitKey: string, labelPath: string, tipPath: string}} definition - 数値欄の定義
+     * @param {Object[]} incrementFields - 数値欄の部品の一覧（追加した欄をここに積む）
+     * @returns {void}
+     */
+    function addIncrementField(parent, definition, incrementFields) {
+        var fieldRow = addFieldRow(parent, definition.labelPath);
+        var valueInput = fieldRow.add('edittext', undefined, "");
+        valueInput.helpTip = getLabel(definition.tipPath);
+        valueInput.characters = VALUE_FIELD_CHARACTERS;
+        var unitText = fieldRow.add('statictext', undefined, getUnitInfo(definition.unitKey).label);
+        unitText.characters = UNIT_LABEL_CHARACTERS;
+
+        var incrementField = { definition: definition, input: valueInput, unitText: unitText };
+        refreshIncrementValue(incrementField);
+        incrementFields.push(incrementField);
+
+        valueInput.onChange = function () {
+            var value = parseFloat(valueInput.text);
+            if (!isNaN(value)) {
+                app.preferences.setRealPreference(definition.valueKey, value * getUnitInfo(definition.unitKey).pointsPerUnit);
+                /* 単位ドロップダウンの変更も拾えるよう全欄を表示し直す / Refresh every field so unit changes show up too */
+                for (var i = 0; i < incrementFields.length; i++) {
+                    refreshIncrementValue(incrementFields[i]);
+                }
+            }
+        };
+        /* ↑↓キー操作を適用 / Apply arrow key value change */
+        changeValueByArrowKey(valueInput);
+    }
+
+    /**
+     * 数値欄に環境設定の値を現在の単位で表示し直す
+     * @param {{definition: Object, input: EditText}} incrementField - 数値欄の部品
+     * @returns {void}
+     */
+    function refreshIncrementValue(incrementField) {
+        var definition = incrementField.definition;
+        var valuePt = app.preferences.getRealPreference(definition.valueKey);
+        incrementField.input.text = (valuePt / getUnitInfo(definition.unitKey).pointsPerUnit).toFixed(1);
+    }
+
+    /**
+     * 真偽値の環境設定に連動するチェックボックスを追加する
+     * @param {Panel} parent - 追加先
+     * @param {{prefKey: string, labelPath: string, tipPath: string}} definition - チェックボックスの定義
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addPrefCheckbox(parent, definition) {
+        var prefCheckbox = parent.add('checkbox', undefined, getLabel(definition.labelPath));
+        prefCheckbox.helpTip = getLabel(definition.tipPath);
+        prefCheckbox.value = app.preferences.getBooleanPreference(definition.prefKey);
+        prefCheckbox.onClick = function () {
+            app.preferences.setBooleanPreference(definition.prefKey, prefCheckbox.value === true);
+        };
+        return prefCheckbox;
+    }
+
+    /**
+     * 定義の並びどおりにチェックボックスを追加する
+     * @param {Panel} parent - 追加先
+     * @param {Object[]} definitions - チェックボックスの定義の配列
+     * @returns {void}
+     */
+    function addPrefCheckboxes(parent, definitions) {
+        for (var i = 0; i < definitions.length; i++) {
+            addPrefCheckbox(parent, definitions[i]);
         }
     }
 
-    /* ダイアログ位置を調整 / Adjust dialog position */
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function() {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + offsetX, currentY + offsetY];
+    /**
+     * 「最近使用したフォント」の表示件数（チェックボックス＋件数欄）を追加する
+     * @param {Panel} parent - 追加先
+     * @returns {void}
+     */
+    function addRecentFontsRow(parent) {
+        var prefKey = "text/recentFontMenu/showNEntries";
+        var currentCount = app.preferences.getIntegerPreference(prefKey);
+        var recentFontsRow = parent.add('group');
+        recentFontsRow.orientation = 'row';
+
+        var recentFontsCheckbox = recentFontsRow.add('checkbox', undefined, getLabel("checkbox.recentFonts"));
+        recentFontsCheckbox.helpTip = getLabel("tooltip.recentFonts");
+        recentFontsCheckbox.value = (currentCount > 0);
+
+        var recentFontsInput = recentFontsRow.add('edittext', undefined, currentCount.toString());
+        recentFontsInput.helpTip = getLabel("tooltip.recentFonts");
+        recentFontsInput.characters = RECENT_FONTS_FIELD_CHARACTERS;
+        recentFontsInput.enabled = recentFontsCheckbox.value;
+
+        recentFontsCheckbox.onClick = function () {
+            if (recentFontsCheckbox.value) {
+                /* 0 や非数値のままONにしたら1件にする / Turning on with 0 or a non-number shows one entry */
+                var count = parseInt(recentFontsInput.text, 10);
+                if (count === 0 || isNaN(count)) {
+                    recentFontsInput.text = "1";
+                }
+                recentFontsInput.enabled = true;
+                app.preferences.setIntegerPreference(prefKey, parseInt(recentFontsInput.text, 10));
+            } else {
+                recentFontsInput.enabled = false;
+                recentFontsInput.text = "0";
+                app.preferences.setIntegerPreference(prefKey, 0);
+            }
+        };
+
+        recentFontsInput.onChange = function () {
+            var count = parseInt(recentFontsInput.text, 10);
+            if (!isNaN(count)) {
+                app.preferences.setIntegerPreference(prefKey, count);
+                recentFontsCheckbox.value = (count > 0);
+                recentFontsInput.enabled = recentFontsCheckbox.value;
+            }
         };
     }
 
-    /* ダイアログの透明度を設定 / Set dialog opacity */
-    function setDialogOpacity(dlg, opacityValue) {
-        dlg.opacity = opacityValue;
+    /**
+     * 「角を拡大・縮小」のチェックボックスを追加する（環境設定は 1=ON, 2=OFF の整数）
+     * @param {Panel} parent - 追加先
+     * @returns {void}
+     */
+    function addScaleCornersCheckbox(parent) {
+        var prefKey = "policyForPreservingCorners";
+        var scaleCornersCheckbox = parent.add('checkbox', undefined, getLabel("checkbox.scaleCorners"));
+        scaleCornersCheckbox.helpTip = getLabel("tooltip.scaleCorners");
+        scaleCornersCheckbox.value = (app.preferences.getIntegerPreference(prefKey) === SCALE_CORNERS_ON);
+        scaleCornersCheckbox.onClick = function () {
+            app.preferences.setIntegerPreference(prefKey, scaleCornersCheckbox.value ? SCALE_CORNERS_ON : SCALE_CORNERS_OFF);
+        };
     }
 
-    /* メイン処理 / Main entry point */
-    function main() {
-        var pref = app.preferences;
+    // =========================================
+    // モード切り替え / Unit modes
+    // =========================================
 
+    /**
+     * モードのプリセットどおりに単位と増減量を書き込み、表示を更新する
+     * @param {string} modeKey - "printPt" / "printQ" / "onscreen"
+     * @param {Object} unitDropdowns - 環境設定キー → 単位ドロップダウン
+     * @param {Object[]} incrementFields - 増減量の数値欄の部品
+     * @returns {void}
+     */
+    function applyUnitMode(modeKey, unitDropdowns, incrementFields) {
+        var preset = UNIT_MODE_PRESETS[modeKey];
+        var prefKey;
+        var i;
+
+        for (prefKey in unitDropdowns) {
+            unitDropdowns[prefKey].selection = preset.units[prefKey];
+        }
+
+        /* 増減量はプリセットの単位で与え、pt に直して保存 / Increments are given in the preset units and stored in pt */
+        for (i = 0; i < INCREMENT_FIELD_DEFINITIONS.length; i++) {
+            var definition = INCREMENT_FIELD_DEFINITIONS[i];
+            var unitCode = preset.units[definition.unitKey];
+            app.preferences.setRealPreference(definition.valueKey, preset.increments[definition.valueKey] * UNITS[unitCode].pointsPerUnit);
+        }
+
+        /* 単位の環境設定を確実に書き込む / Make sure the unit preferences are written */
+        for (prefKey in unitDropdowns) {
+            if (unitDropdowns[prefKey].selection) {
+                unitDropdowns[prefKey].onChange();
+            }
+        }
+
+        for (i = 0; i < incrementFields.length; i++) {
+            incrementFields[i].unitText.text = getUnitInfo(incrementFields[i].definition.unitKey).label;
+            refreshIncrementValue(incrementFields[i]);
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * モード選択のラジオボタン行を追加する
+     * @param {Window} dialog - ダイアログ
+     * @param {Object} unitDropdowns - 環境設定キー → 単位ドロップダウン
+     * @param {Object[]} incrementFields - 増減量の数値欄の部品
+     * @returns {RadioButton[]} 追加したラジオボタン
+     */
+    function addModeRadios(dialog, unitDropdowns, incrementFields) {
+        var modeRow = dialog.add('group');
+        modeRow.orientation = 'row';
+        modeRow.alignChildren = ['center', 'center'];
+        modeRow.alignment = ['center', 'top'];
+        modeRow.margins = MODE_ROW_MARGINS;
+
+        var modeKeys = ["printPt", "printQ", "onscreen"];
+        var modeRadios = [];
+        for (var i = 0; i < modeKeys.length; i++) {
+            (function (modeKey) {
+                var modeRadio = modeRow.add('radiobutton', undefined, getLabel("radio." + modeKey));
+                modeRadio.helpTip = getLabel("tooltip." + modeKey);
+                modeRadio.onClick = function () {
+                    applyUnitMode(modeKey, unitDropdowns, incrementFields);
+                };
+                modeRadios.push(modeRadio);
+            })(modeKeys[i]);
+        }
+        return modeRadios;
+    }
+
+    /**
+     * 環境設定ダイアログを作って表示する
+     * @returns {void}
+     */
+    function main() {
         var dialog = new Window('dialog');
-        dialog.text = LABELS.dialogTitle[uiLang];
+        dialog.text = getLabel("dialog.title") + " " + SCRIPT_VERSION;
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
+        dialog.opacity = DIALOG_OPACITY;
 
-        /* ダイアログ位置と透明度の調整 / Adjust dialog position and opacity */
-        var offsetX = 300;
-        var dialogOpacity = 0.97;
-        setDialogOpacity(dialog, dialogOpacity);
-        shiftDialogPosition(dialog, offsetX, 0);
+        /* ラジオ行は先頭に置くが、押したときに参照する部品はあとで埋める
+           The mode row comes first; the controls it updates are filled in below */
+        var unitDropdowns = {};
+        var incrementFields = [];
+        var modeRadios = addModeRadios(dialog, unitDropdowns, incrementFields);
 
-        /* モード選択ラジオボタン / Mode Selection Radio Buttons */
-        var modeGroup = dialog.add('group');
-        modeGroup.orientation = 'row';
-        modeGroup.alignChildren = ['center', 'center']; // 中央揃え
-        modeGroup.alignment = ['center', 'top']; // グループ自体を中央に配置
-        modeGroup.margins = [15, 10, 15, 10];
-
-        var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[uiLang]);
-        radioPrintPt.helpTip = LABELS.tipModePrintPt[uiLang];
-        var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[uiLang]);
-        radioPrintQ.helpTip = LABELS.tipModePrintQ[uiLang];
-        var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[uiLang]);
-        radioOnscreen.helpTip = LABELS.tipModeOnscreen[uiLang];
-        // radioPrintPt.value = true; // デフォルト選択を無効化
-        // None selected by default; set all to false on dialog show
-        dialog.onShow = function() {
-            radioPrintPt.value = false;
-            radioPrintQ.value = false;
-            radioOnscreen.value = false;
+        /* 表示時はどのモードも未選択にする / No mode is selected when the dialog opens */
+        dialog.onShow = function () {
+            for (var i = 0; i < modeRadios.length; i++) {
+                modeRadios[i].value = false;
+            }
         };
 
         /* 2カラムのメインコンテナ / Two-column main container */
-        var mainGroup = dialog.add('group');
-        mainGroup.orientation = 'row';
-        mainGroup.alignChildren = ['fill', 'top'];
+        var columnsGroup = dialog.add('group');
+        columnsGroup.orientation = 'row';
+        columnsGroup.alignChildren = ['fill', 'top'];
 
-        /* 左カラム / Left column */
-        var leftColumn = mainGroup.add('group');
+        /* 左カラム：単位と増減量 / Left column: units and increments */
+        var leftColumn = columnsGroup.add('group');
         leftColumn.orientation = 'column';
         leftColumn.alignChildren = ['fill', 'top'];
 
-        /* 単位パネルを追加 / Add "Units" panel */
-        var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[uiLang]);
-        unitsPanel.orientation = 'column';
-        unitsPanel.alignChildren = ['left', 'top'];
-        unitsPanel.margins = [8, 20, 8, 15];
-
-        /* 一般パネルを追加 / Add "General" panel */
-        var generalPanel = leftColumn.add('panel', undefined, LABELS.generalTitle[uiLang]);
-        generalPanel.orientation = 'column';
-        generalPanel.alignChildren = ['left', 'top'];
-        generalPanel.margins = [8, 20, 8, 15];
-
-        // 単位ラベル取得ヘルパー
-        function getGeneralUnitLabel() {
-            var code = app.preferences.getIntegerPreference("rulerType");
-            return getUnitLabel(code, "rulerType");
-        }
-
-        // キー増加
-        var groupKeyInput = generalPanel.add('group');
-        groupKeyInput.orientation = 'row';
-        var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[uiLang]);
-        labelKey.characters = 12;
-        labelKey.justify = 'right';
-        var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
-        var keyValuePt = pref.getRealPreference("cursorKeyLength");
-        var keyValue = convertFromPt(keyValuePt, unitCodeKey);
-        var inputKey = groupKeyInput.add('edittext', undefined, keyValue.toFixed(1));
-        inputKey.helpTip = LABELS.tipKeyValue[uiLang];
-        inputKey.characters = 4;
-        var unitLabelKey = groupKeyInput.add('statictext', undefined, getGeneralUnitLabel());
-        unitLabelKey.characters = 4; // 幅を広げる
-        inputKey.onChange = function() {
-            var value = parseFloat(inputKey.text);
-            if (!isNaN(value)) {
-                var ptValue = convertToPt(value, app.preferences.getIntegerPreference("rulerType"));
-                pref.setRealPreference("cursorKeyLength", ptValue);
-                refreshValues();
-            }
-        };
-        /* ↑↓キー操作を適用 / Apply arrow key value change */
-        changeValueByArrowKey(inputKey);
-
-        // 角丸の半径
-        var groupCornerRadius = generalPanel.add('group');
-        groupCornerRadius.orientation = 'row';
-        var labelCorner = groupCornerRadius.add('statictext', undefined, LABELS.cornerRadiusLabel[uiLang]);
-        labelCorner.characters = 12;
-        labelCorner.justify = 'right';
-        var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
-        var cornerValuePt = pref.getRealPreference("ovalRadius");
-        var cornerValue = convertFromPt(cornerValuePt, cornerUnitCode);
-        var inputCornerRadius = groupCornerRadius.add('edittext', undefined, cornerValue.toFixed(1));
-        inputCornerRadius.helpTip = LABELS.tipCornerRadius[uiLang];
-        inputCornerRadius.characters = 4;
-        var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getGeneralUnitLabel());
-        unitLabelCorner.characters = 4; // 幅を広げる
-        inputCornerRadius.onChange = function() {
-            var value = parseFloat(inputCornerRadius.text);
-            if (!isNaN(value)) {
-                var ptValue = convertToPt(value, app.preferences.getIntegerPreference("rulerType"));
-                pref.setRealPreference("ovalRadius", ptValue);
-                refreshValues();
-            }
-        };
-        /* ↑↓キー操作を適用 / Apply arrow key value change */
-        changeValueByArrowKey(inputCornerRadius);
-
-        /* テキスト詳細パネルを追加 / Add "Text Details" panel */
-        // --- Unit label helpers for text detail panel ---
-        function getTextUnitLabel() {
-            var code = app.preferences.getIntegerPreference("text/units");
-            return getUnitLabel(code, "text/units");
-        }
-
-        function getAsianUnitLabel() {
-            var code = app.preferences.getIntegerPreference("text/asianunits");
-            return getUnitLabel(code, "text/asianunits");
-        }
-        var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[uiLang]);
-        textDetailPanel.orientation = 'column';
-        textDetailPanel.alignChildren = ['left', 'top'];
-        textDetailPanel.margins = [8, 20, 8, 15];
-
-        // サイズ行送り
-        var groupLeading = textDetailPanel.add('group');
-        groupLeading.orientation = 'row';
-        var labelLeading = groupLeading.add('statictext', undefined, LABELS.leadingLabel[uiLang]);
-        labelLeading.characters = 12;
-        labelLeading.justify = 'right';
-        var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
-        var sizeValuePt = pref.getRealPreference("text/sizeIncrement");
-        var sizeValue = convertFromPt(sizeValuePt, sizeUnitCode);
-        var inputLeading = groupLeading.add('edittext', undefined, sizeValue.toFixed(1));
-        inputLeading.helpTip = LABELS.tipSizeValue[uiLang];
-        inputLeading.characters = 4;
-        var unitLabelLeading = groupLeading.add('statictext', undefined, getTextUnitLabel());
-        unitLabelLeading.characters = 4; // 幅を広げる
-        inputLeading.onChange = function() {
-            var value = parseFloat(inputLeading.text);
-            if (!isNaN(value)) {
-                var ptValue = convertToPt(value, app.preferences.getIntegerPreference("text/units"));
-                pref.setRealPreference("text/sizeIncrement", ptValue);
-                refreshValues();
-            }
-        };
-        /* ↑↓キー操作を適用 / Apply arrow key value change */
-        changeValueByArrowKey(inputLeading);
-
-        // ベースラインシフト
-        var groupBaseline = textDetailPanel.add('group');
-        groupBaseline.orientation = 'row';
-        var labelBaseline = groupBaseline.add('statictext', undefined, LABELS.baselineLabel[uiLang]);
-        labelBaseline.characters = 12;
-        labelBaseline.justify = 'right';
-        var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
-        var baselineValuePt = pref.getRealPreference("text/riseIncrement");
-        var baselineValue = convertFromPt(baselineValuePt, baselineUnitCode);
-        var inputBaseline = groupBaseline.add('edittext', undefined, baselineValue.toFixed(1));
-        inputBaseline.helpTip = LABELS.tipBaselineValue[uiLang];
-        inputBaseline.characters = 4;
-        var unitLabelBaseline = groupBaseline.add('statictext', undefined, getAsianUnitLabel());
-        unitLabelBaseline.characters = 4; // 幅を広げる
-        inputBaseline.onChange = function() {
-            var value = parseFloat(inputBaseline.text);
-            if (!isNaN(value)) {
-                var ptValue = convertToPt(value, app.preferences.getIntegerPreference("text/asianunits"));
-                pref.setRealPreference("text/riseIncrement", ptValue);
-                refreshValues();
-            }
-        };
-        /* ↑↓キー操作を適用 / Apply arrow key value change */
-        changeValueByArrowKey(inputBaseline);
-
-        var unitDropdowns = {};
-
-        function createUnitDropdown(parent, label, prefKey) {
-            var group = parent.add('group');
-            group.orientation = 'row';
-            var labelControl = group.add('statictext', undefined, label + "：");
-            labelControl.characters = 12;
-            labelControl.justify = 'right';
-
-            var dropdown = group.add('dropdownlist', undefined, []);
-            dropdown.characters = 9; // ← 幅を6文字分に指定
-            /* ラベルを追加（添字が単位コード）/ Add the labels (the index is the unit code) */
-            for (var code = 0; code < UNITS.length; code++) {
-                dropdown.add('item', getUnitLabel(code, prefKey));
-            }
-
-            var currentCode = app.preferences.getIntegerPreference(prefKey);
-            dropdown.selection = dropdown.find(getUnitLabel(currentCode, prefKey)) || dropdown.find("pt");
-
-            dropdown.onChange = function() {
-                var selectedLabel = dropdown.selection.text;
-                for (var c = 0; c < UNITS.length; c++) {
-                    if (getUnitLabel(c, prefKey) === selectedLabel) {
-                        app.preferences.setIntegerPreference(prefKey, c);
-                        break;
-                    }
-                }
-            };
-
-            unitDropdowns[prefKey] = dropdown;
-        }
-
-        /* 各プルダウンを作成 */
-        createUnitDropdown(unitsPanel, LABELS.generalUnit[uiLang], "rulerType");
-        createUnitDropdown(unitsPanel, LABELS.strokeUnit[uiLang], "strokeUnits");
-        createUnitDropdown(unitsPanel, LABELS.textUnit[uiLang], "text/units");
-        createUnitDropdown(unitsPanel, LABELS.asianUnit[uiLang], "text/asianunits");
-
-        function setUnitsForMode(mode) {
-            if (mode === "printPt") {
-                unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("mm"); // 一般は mm
-                unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("pt");
-                unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find("pt");
-                unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find("pt");
-
-                // 値を更新（すべてptで保存、UIはmm/pt表示）
-                var rulerCode = 1; // mm
-                var textCode = 2; // pt
-                var asianCode = 2; // pt
-                pref.setRealPreference("cursorKeyLength", convertToPt(0.1, rulerCode));
-                pref.setRealPreference("ovalRadius", convertToPt(1, rulerCode));
-                pref.setRealPreference("text/sizeIncrement", convertToPt(1.0, textCode));
-                pref.setRealPreference("text/riseIncrement", convertToPt(0.1, asianCode));
-
-            } else if (mode === "printQ") {
-                unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("mm");
-                unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("mm");
-                var qhUnitCode = 5;
-                unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find(getUnitLabel(qhUnitCode, "text/units"));
-                unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find(getUnitLabel(qhUnitCode, "text/asianunits"));
-
-                // 値を更新（すべてptで保存、UIはmm/Q/H表示）
-                var rulerCodeQ = 1; // mm
-                pref.setRealPreference("cursorKeyLength", convertToPt(1, rulerCodeQ));
-                pref.setRealPreference("ovalRadius", convertToPt(2, rulerCodeQ));
-                pref.setRealPreference("text/sizeIncrement", convertToPt(1, qhUnitCode));
-                pref.setRealPreference("text/riseIncrement", convertToPt(0.1, qhUnitCode));
-
-            } else if (mode === "onscreen") {
-                unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("px");
-                unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("px");
-                unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find("px");
-                unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find("px");
-
-                // 値を更新
-                var pxCode = 6;
-                pref.setRealPreference("cursorKeyLength", convertToPt(1, pxCode));
-                pref.setRealPreference("ovalRadius", convertToPt(1, pxCode));
-                pref.setRealPreference("text/sizeIncrement", convertToPt(1, pxCode));
-                pref.setRealPreference("text/riseIncrement", convertToPt(0.5, pxCode));
-            }
-
-            /* Trigger onChange manually to update preferences */
-            for (var key in unitDropdowns) {
-                if (unitDropdowns[key].selection) {
-                    unitDropdowns[key].onChange();
-                }
-            }
-
-            refreshUnitLabels();
-            refreshValues();
-        }
-
-        // --- Helper to refresh unit labels in panels ---
-        function refreshUnitLabels() {
-            // Update General panel unit labels
-            groupKeyInput.children[groupKeyInput.children.length - 1].text = getGeneralUnitLabel();
-            groupCornerRadius.children[groupCornerRadius.children.length - 1].text = getGeneralUnitLabel();
-            // Update Text Detail panel unit labels
-            groupLeading.children[groupLeading.children.length - 1].text = getTextUnitLabel();
-            groupBaseline.children[groupBaseline.children.length - 1].text = getAsianUnitLabel();
-        }
-
-        // --- Helper to refresh numeric field values with unit conversion ---
-        function refreshValues() {
-            var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
-            inputKey.text = convertFromPt(pref.getRealPreference("cursorKeyLength"), unitCodeKey).toFixed(1);
-
-            var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
-            inputCornerRadius.text = convertFromPt(pref.getRealPreference("ovalRadius"), cornerUnitCode).toFixed(1);
-
-            var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
-            inputLeading.text = convertFromPt(pref.getRealPreference("text/sizeIncrement"), sizeUnitCode).toFixed(1);
-
-            var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
-            inputBaseline.text = convertFromPt(pref.getRealPreference("text/riseIncrement"), baselineUnitCode).toFixed(1);
-        }
-
-        radioPrintPt.onClick = function() {
-            setUnitsForMode("printPt");
-            refreshUnitLabels();
-        };
-        radioPrintQ.onClick = function() {
-            setUnitsForMode("printQ");
-            refreshUnitLabels();
-        };
-        radioOnscreen.onClick = function() {
-            setUnitsForMode("onscreen");
-            refreshUnitLabels();
+        var unitsPanel = addPanel(leftColumn, "panel.units");
+        var incrementPanels = {
+            general: addPanel(leftColumn, "panel.general"),
+            text: addPanel(leftColumn, "panel.textIncrement")
         };
 
-        /* 右カラム / Right column */
-        var rightColumn = mainGroup.add('group');
+        var i;
+        for (i = 0; i < INCREMENT_FIELD_DEFINITIONS.length; i++) {
+            var fieldDefinition = INCREMENT_FIELD_DEFINITIONS[i];
+            addIncrementField(incrementPanels[fieldDefinition.panelId], fieldDefinition, incrementFields);
+        }
+        for (i = 0; i < UNIT_DROPDOWN_DEFINITIONS.length; i++) {
+            var dropdownDefinition = UNIT_DROPDOWN_DEFINITIONS[i];
+            unitDropdowns[dropdownDefinition.prefKey] = addUnitDropdown(unitsPanel, dropdownDefinition);
+        }
+
+        /* 右カラム：テキスト・字形の境界・変形と整列 / Right column: text, glyph bounds, transform */
+        var rightColumn = columnsGroup.add('group');
         rightColumn.orientation = 'column';
         rightColumn.alignChildren = ['fill', 'top'];
 
-        /* テキストパネルを追加 / Add "Text" panel */
-        var textPanel = rightColumn.add('panel', undefined, LABELS.textTitle[uiLang]);
-        textPanel.orientation = 'column';
-        textPanel.alignChildren = ['left', 'top'];
-        textPanel.margins = [8, 20, 8, 15];
+        var textPanel = addPanel(rightColumn, "panel.text");
+        addPrefCheckboxes(textPanel, FONT_CHECKBOX_DEFINITIONS);
+        addRecentFontsRow(textPanel);
 
-        var checkboxFontEnglish = textPanel.add('checkbox', undefined, LABELS.fontEnglish[uiLang]);
-        checkboxFontEnglish.helpTip = LABELS.tipFontEnglish[uiLang];
-        checkboxFontEnglish.value = app.preferences.getBooleanPreference("text/useEnglishFontNames");
-        checkboxFontEnglish.onClick = function() {
-            app.preferences.setBooleanPreference("text/useEnglishFontNames", checkboxFontEnglish.value === true);
-        };
+        addPrefCheckboxes(addPanel(rightColumn, "panel.glyphBounds"), GLYPH_BOUNDS_CHECKBOX_DEFINITIONS);
 
-        /* --- 新しい 最近使用したフォントの表示数 ロジック（UI調整） --- */
-        var currentRecentCount = app.preferences.getIntegerPreference("text/recentFontMenu/showNEntries");
-        var groupRecentFonts = textPanel.add('group');
-        groupRecentFonts.orientation = 'row';
+        var transformPanel = addPanel(rightColumn, "panel.transform");
+        addPrefCheckboxes(transformPanel, TRANSFORM_CHECKBOX_DEFINITIONS);
+        addScaleCornersCheckbox(transformPanel);
+        addPrefCheckboxes(transformPanel, TRANSFORM_TAIL_CHECKBOX_DEFINITIONS);
 
-        var checkboxRecentFonts = groupRecentFonts.add('checkbox', undefined, LABELS.recentFonts[uiLang]);
-        checkboxRecentFonts.helpTip = LABELS.tipRecentFonts[uiLang];
-        checkboxRecentFonts.value = (currentRecentCount > 0);
+        /* ボタン行（中央）/ Button row (centered) */
+        var btnRowGroup = dialog.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignChildren = ['center', 'center'];
+        btnRowGroup.alignment = ['center', 'bottom'];
 
-        var inputRecentFonts = groupRecentFonts.add('edittext', undefined, currentRecentCount.toString());
-        inputRecentFonts.helpTip = LABELS.tipRecentFonts[uiLang];
-        inputRecentFonts.characters = 3;
-        inputRecentFonts.enabled = checkboxRecentFonts.value;
-
-        checkboxRecentFonts.onClick = function() {
-            if (checkboxRecentFonts.value) {
-                if (parseInt(inputRecentFonts.text, 10) === 0 || isNaN(parseInt(inputRecentFonts.text, 10))) {
-                    inputRecentFonts.text = "1";
-                }
-                inputRecentFonts.enabled = true;
-                app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", parseInt(inputRecentFonts.text, 10));
-            } else {
-                inputRecentFonts.enabled = false;
-                inputRecentFonts.text = "0";
-                app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", 0);
-            }
-        };
-
-        inputRecentFonts.onChange = function() {
-            var value = parseInt(inputRecentFonts.text, 10);
-            if (!isNaN(value)) {
-                app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", value);
-                checkboxRecentFonts.value = (value > 0);
-                inputRecentFonts.enabled = checkboxRecentFonts.value;
-            }
-        };
-
-        var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[uiLang]);
-        glyphPanel.orientation = 'column';
-        glyphPanel.alignChildren = ['left', 'top'];
-        glyphPanel.margins = [8, 20, 8, 15];
-
-        var checkboxPoint = glyphPanel.add('checkbox', undefined, LABELS.pointText[uiLang]);
-        checkboxPoint.helpTip = LABELS.tipGlyphBounds[uiLang];
-        checkboxPoint.value = app.preferences.getBooleanPreference('EnableActualPointTextSpaceAlign');
-
-        var checkboxArea = glyphPanel.add('checkbox', undefined, LABELS.areaText[uiLang]);
-        checkboxArea.helpTip = LABELS.tipGlyphBounds[uiLang];
-        checkboxArea.value = app.preferences.getBooleanPreference('EnableActualAreaTextSpaceAlign');
-
-        bindCheckboxes([{
-                checkbox: checkboxPoint,
-                prefKey: 'EnableActualPointTextSpaceAlign'
-            },
-            {
-                checkbox: checkboxArea,
-                prefKey: 'EnableActualAreaTextSpaceAlign'
-            }
-        ]);
-
-        /* その他パネルを追加 / Add "Transform & Align" panel */
-        var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[uiLang]);
-        otherPanel.orientation = 'column';
-        otherPanel.alignChildren = ['left', 'top'];
-        otherPanel.margins = [8, 20, 8, 15];
-
-        //　プレビュー境界
-        var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[uiLang]);
-        checkboxPreview.helpTip = LABELS.tipPreviewBounds[uiLang];
-        checkboxPreview.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
-        checkboxPreview.onClick = function() {
-            app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
-        };
-
-        // パターンを変形
-        var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[uiLang]);
-        checkboxPattern.helpTip = LABELS.tipTransformPattern[uiLang];
-        checkboxPattern.value = app.preferences.getBooleanPreference("transformPatterns");
-        checkboxPattern.onClick = function() {
-            app.preferences.setBooleanPreference("transformPatterns", checkboxPattern.value === true);
-        };
-
-        // 角を拡大・縮小
-        var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[uiLang]);
-        checkboxCorner.helpTip = LABELS.tipScaleCorners[uiLang];
-        // 初期値を取得（1=ON, 2=OFF）
-        checkboxCorner.value = (app.preferences.getIntegerPreference("policyForPreservingCorners") === 1);
-        checkboxCorner.onClick = function() {
-            app.preferences.setIntegerPreference(
-                "policyForPreservingCorners",
-                checkboxCorner.value ? 1 : 2
-            );
-        };
-
-        /* 線幅と効果も拡大・縮小 */
-        var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[uiLang]);
-        checkboxStroke.helpTip = LABELS.tipScaleStroke[uiLang];
-        checkboxStroke.value = app.preferences.getBooleanPreference("scaleLineWeight");
-        checkboxStroke.onClick = function() {
-            app.preferences.setBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
-        };
-
-        /* リアルタイムの描画と編集 */
-        var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[uiLang]);
-        checkboxRealtime.helpTip = LABELS.tipRealtimeDrawing[uiLang];
-        checkboxRealtime.value = app.preferences.getBooleanPreference("LiveEdit_State_Machine");
-        checkboxRealtime.onClick = function() {
-            app.preferences.setBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);
-        };
-
-        var group2 = dialog.add('group', undefined, {
-            name: 'group2'
-        });
-        group2.orientation = 'row';
-        group2.alignChildren = ['center', 'center']; /* 中央揃え */
-        group2.alignment = ['center', 'bottom']; /* ダイアログ内で中央に配置 */
-
-        var cancelBtn = group2.add('button', undefined, LABELS.cancel[uiLang], {
-            name: 'cancel'
-        });
-        cancelBtn.preferredSize.width = 90;
-
-        var okBtn = group2.add('button', undefined, LABELS.ok[uiLang], {
-            name: 'ok'
-        });
-        okBtn.preferredSize.width = 90;
+        var btnCancel = btnRowGroup.add('button', undefined, getLabel("button.cancel"), { name: 'cancel' });
+        btnCancel.preferredSize.width = BUTTON_WIDTH;
+        var btnOK = btnRowGroup.add('button', undefined, getLabel("button.ok"), { name: 'ok' });
+        btnOK.preferredSize.width = BUTTON_WIDTH;
 
         dialog.show();
     }

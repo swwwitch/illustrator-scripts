@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ドキュメント内で使用されているフォントを集計し、使用数順に一覧表示します。
-一覧から選んだフォントを選択テキストへ即座に適用でき、テキストファイルとして書き出すこともできます。
+ドキュメント内で使用されているフォントを集計し、名前順に一覧表示します（括弧内は使用数）。
+一覧から選んだフォントを選択テキスト（グループ内を含む）へ即座に適用でき、テキストファイルとして書き出すこともできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyDocumentFonts.md
@@ -16,8 +16,8 @@ https://note.com/dtp_tranist/n/n01d6ef7e9b5f
 
 ### Overview
 
-Collects the fonts used in the document and lists them in order of usage count.
-A font picked from the list can be applied to the selected text right away, and the list can be exported as a text file.
+Collects the fonts used in the document and lists them by name with their usage counts.
+A font picked from the list can be applied to the selected text (including text in groups) right away, and the list can be exported as a text file.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyDocumentFonts.md
@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyDocum
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyDocumentFonts";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyDocumentFonts.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyDocumentFonts.md"; /* README (English) */
@@ -41,293 +41,388 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function() {
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS        = 20;            /* ダイアログの余白 */
+    var CONTROL_WIDTH         = 400;           /* 検索欄・一覧の幅 */
+    var FILTER_HEIGHT         = 24;            /* 検索欄の高さ */
+    var LIST_ROW_HEIGHT       = 20;            /* 一覧1行あたりの高さ（一覧の高さの計算用） */
+    var LIST_MIN_HEIGHT       = 100;           /* 一覧の最小の高さ */
+    var LIST_MAX_HEIGHT       = 300;           /* 一覧の最大の高さ */
+    var BUTTON_ROW_TOP_MARGIN = 10;            /* ボタン行の上余白 */
+    var BUTTON_SPACING        = 10;            /* 右側ボタンの間隔 */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
-
     var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "ドキュメントフォントを適用",
-            en: "Apply Document Fonts"
+        dialog: {
+            title: { ja: "ドキュメントフォントを適用", en: "Apply Document Fonts" }
         },
-        searchLabel: {
-            ja: "検索フィルター（フォント名・スタイル名・PostScript名に対応）",
-            en: "Search Filter (Font Name, Style, PostScript Name)"
+        fieldLabel: {
+            filter:   { ja: "検索フィルター", en: "Search filter" },
+            fontList: { ja: "ドキュメントフォント（名前順）", en: "Document fonts (by name)" }
         },
-        listLabel: {
-            ja: "ドキュメントフォント（使用数順）",
-            en: "Document Fonts (by Usage)"
+        tooltip: {
+            filter: {
+                ja: "フォント名・スタイル名・PostScript名に含まれる文字で一覧を絞り込みます。",
+                en: "Filters the list by text in the font name, style name or PostScript name."
+            },
+            fontList: {
+                ja: "ドキュメントで使われているフォントの一覧です（括弧内は使っているテキストの数）。選ぶと選択中のテキストにすぐ適用し、キャンセルで元に戻します。",
+                en: "The fonts used in the document (the number of text objects in parentheses). Picking one applies it to the selected text right away; Cancel reverts it."
+            },
+            exportList: {
+                ja: "表示中のフォント一覧を、デスクトップにテキストファイルとして書き出します。",
+                en: "Saves the listed fonts to a text file on the desktop."
+            }
         },
-        tipFilter: {
-            ja: "フォント名に含まれる文字で一覧を絞り込みます。",
-            en: "Filters the list by text in the font name."
+        button: {
+            exportList: { ja: "書き出し", en: "Export" },
+            cancel:     { ja: "キャンセル", en: "Cancel" },
+            ok:         { ja: "OK", en: "OK" }
         },
-        tipList: {
-            ja: "ドキュメントで使われているフォントの一覧です。選んで OK すると、選択中のテキストに適用します。",
-            en: "The fonts used in the document. Pick one and press OK to apply it to the selected text."
+        alert: {
+            noDocument:     { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            applyFontError: { ja: "フォントの適用に失敗しました。", en: "Failed to apply the font." },
+            exportSuccess:  { ja: "書き出しました：", en: "Font list saved:\n" },
+            exportError:    { ja: "ファイルの書き出しに失敗しました。", en: "Failed to save the file." }
         },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        exportLabel: {
-            ja: "書き出し",
-            en: "Export"
-        },
-        noDocument: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
-        },
-        errorApplyFont: {
-            ja: "フォントの適用に失敗しました。",
-            en: "Failed to apply the font."
-        },
-        exportSuccess: {
-            ja: "書き出しました：",
-            en: "Font list saved:\n"
-        },
-        exportFail: {
-            ja: "ファイルの書き出しに失敗しました。",
-            en: "Failed to save the file."
-        },
-        exportHeader: {
-            ja: "Adobe Illustrator ドキュメント情報",
-            en: "Adobe Illustrator Document Info"
-        },
-        exportDocLabel: {
-            ja: "ドキュメント : ",
-            en: "Document: "
-        },
-        exportFontCount: {
-            ja: "このドキュメントに使用されているフォント : ",
-            en: "Fonts used in this document: "
+        exportText: {
+            header:    { ja: "Adobe Illustrator ドキュメント情報", en: "Adobe Illustrator Document Info" },
+            document:  { ja: "ドキュメント : ", en: "Document: " },
+            fontCount: { ja: "このドキュメントに使用されているフォント : ", en: "Fonts used in this document: " },
+            fileSuffix: { ja: "-ドキュメントフォント一覧.txt", en: "-Document-Font-List.txt" }
         }
     };
 
-    function main() {
-        if (app.documents.length === 0) {
-            alert(LABELS.noDocument[uiLang]);
-            return;
+    /**
+     * ラベルを取得する
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー
+     * @returns {string} 現在のUI言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
         }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
-        var doc = app.activeDocument;
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - ドット区切りのキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ':');
+    }
+
+    // =========================================
+    // フォントの収集 / Font collection
+    // =========================================
+
+    /**
+     * フォントの表示名（ファミリー - スタイル）を返す
+     * @param {TextFont} textFont - フォント
+     * @returns {string} 表示名
+     */
+    function getFontDisplayName(textFont) {
+        return textFont.style ? (textFont.family + " - " + textFont.style) : textFont.family;
+    }
+
+    /**
+     * ドキュメントのテキストフレームからフォントの使用数を集計する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object} 表示名をキーに {count, postScriptName} を持つ表
+     */
+    function collectDocumentFonts(doc) {
         var fontMap = {};
-        var currentFontDisplayName = null;
-        var originalFonts = [];
-
-        function getFontDisplayName(textFont) {
-            return textFont.style ? (textFont.family + " - " + textFont.style) : textFont.family;
-        }
-
-        function collectFontsFromTextFrame(textFrame) {
-            if (!textFrame.contents || textFrame.contents.length === 0) return;
+        for (var i = 0; i < doc.textFrames.length; i++) {
+            var textFrame = doc.textFrames[i];
+            if (!textFrame.contents || textFrame.contents.length === 0) continue;
+            /* 未導入フォントなどで textFont が読めないことがある / textFont can throw (e.g. missing fonts) */
             try {
                 var textFont = textFrame.textRange.characterAttributes.textFont;
                 var displayName = getFontDisplayName(textFont);
                 if (!fontMap[displayName]) {
-                    fontMap[displayName] = {
-                        count: 1,
-                        postScriptName: textFont.name
-                    };
+                    fontMap[displayName] = { count: 1, postScriptName: textFont.name };
                 } else {
                     fontMap[displayName].count++;
                 }
             } catch (e) {}
         }
+        return fontMap;
+    }
 
-        function collectFontsFromGroup(groupItem) {
-            for (var i = 0; i < groupItem.pageItems.length; i++) {
-                var item = groupItem.pageItems[i];
-                if (item.typename === "TextFrame") {
-                    collectFontsFromTextFrame(item);
-                } else if (item.typename === "GroupItem") {
-                    collectFontsFromGroup(item);
-                }
-            }
-        }
-
-        // グループ再帰走査を削除し、textFramesのみでフォント情報を収集
-        for (var i = 0; i < doc.textFrames.length; i++) {
-            collectFontsFromTextFrame(doc.textFrames[i]);
-        }
-
-        for (var s = 0; s < app.selection.length; s++) {
-            if (app.selection[s].typename === "TextFrame") {
-                try {
-                    var selFont = app.selection[s].textRange.characterAttributes.textFont;
-                    currentFontDisplayName = getFontDisplayName(selFont);
-                    originalFonts.push({
-                        item: app.selection[s],
-                        font: selFont
-                    });
-                } catch (e) {}
-            }
-        }
-
+    /**
+     * 集計表を表示名の順に並べた配列にする
+     * @param {Object} fontMap - collectDocumentFonts() の結果
+     * @returns {Array<{displayName: string, postScriptName: string, count: number}>} 並べ替えたフォント
+     */
+    function sortFontsByName(fontMap) {
         var sortedFonts = [];
-        for (var name in fontMap) {
-            if (fontMap.hasOwnProperty(name)) {
+        for (var displayName in fontMap) {
+            if (fontMap.hasOwnProperty(displayName)) {
                 sortedFonts.push({
-                    displayName: name,
-                    postScriptName: fontMap[name].postScriptName
+                    displayName: displayName,
+                    postScriptName: fontMap[displayName].postScriptName,
+                    count: fontMap[displayName].count
                 });
             }
         }
         sortedFonts.sort(function(a, b) {
             return a.displayName.localeCompare(b.displayName);
         });
+        return sortedFonts;
+    }
 
-        function getListBoxHeight(fontList) {
-            return Math.min(300, Math.max(100, fontList.length * 20));
+    // =========================================
+    // フォントの適用 / Font application
+    // =========================================
+
+    /**
+     * 選択オブジェクトからテキストフレームを集める（グループの中も含む）
+     * @param {PageItem} item - 対象オブジェクト
+     * @param {TextFrame[]} result - テキストフレームを追加する配列
+     * @returns {void}
+     */
+    function collectTextFrames(item, result) {
+        if (item.typename === "TextFrame") {
+            result.push(item);
+        } else if (item.typename === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) {
+                collectTextFrames(item.pageItems[i], result);
+            }
         }
+    }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
+    /**
+     * テキストフレームと、その現在のフォントを控える
+     * @param {Array|TextRange} selection - 選択オブジェクト
+     * @returns {Array<{item: TextFrame, font: TextFont}>} 控え（キャンセル時の復元用）
+     */
+    function recordOriginalFonts(selection) {
+        /* 文字を編集中の選択は TextRange で、配列ではない / While editing text, the selection is a TextRange */
+        if (!selection || selection.typename) return [];
+        var textFrames = [];
+        for (var i = 0; i < selection.length; i++) {
+            collectTextFrames(selection[i], textFrames);
+        }
+        var originalFonts = [];
+        for (var j = 0; j < textFrames.length; j++) {
+            /* 未導入フォントなどで textFont が読めないことがある / textFont can throw (e.g. missing fonts) */
+            try {
+                originalFonts.push({ item: textFrames[j], font: textFrames[j].textRange.characterAttributes.textFont });
+            } catch (e) {}
+        }
+        return originalFonts;
+    }
+
+    /**
+     * 控えたテキストフレームにフォントを適用する
+     * @param {Array<{item: TextFrame, font: TextFont}>} originalFonts - 対象の控え
+     * @param {TextFont} targetFont - 適用するフォント
+     * @returns {void}
+     */
+    function applyFontToFrames(originalFonts, targetFont) {
+        for (var i = 0; i < originalFonts.length; i++) {
+            originalFonts[i].item.textRange.characterAttributes.textFont = targetFont;
+        }
+        app.redraw();
+    }
+
+    /**
+     * 控えたフォントに戻す
+     * @param {Array<{item: TextFrame, font: TextFont}>} originalFonts - 控え
+     * @returns {void}
+     */
+    function restoreOriginalFonts(originalFonts) {
+        for (var i = 0; i < originalFonts.length; i++) {
+            /* 途中で削除されたテキストなどは飛ばして続ける / Skip frames that can no longer be written */
+            try {
+                originalFonts[i].item.textRange.characterAttributes.textFont = originalFonts[i].font;
+            } catch (e) {}
+        }
+        app.redraw();
+    }
+
+    // =========================================
+    // 書き出し / Export
+    // =========================================
+
+    /**
+     * フォント一覧をデスクトップのテキストファイルに書き出す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string[]} fontNames - 書き出すフォントの表示名
+     * @returns {void}
+     */
+    function exportFontList(doc, fontNames) {
+        var docName = doc.name.replace(/\.[^\.]+$/, "");
+        var saveFile = new File(Folder.desktop.fsName + "/" + docName + getLabel("exportText.fileSuffix"));
+
+        var output = "";
+        output += getLabel("exportText.header") + "\n\n";
+        output += getLabel("exportText.document") + doc.fullName.fsName + "\n\n";
+        output += getLabel("exportText.fontCount") + fontNames.length + "\n\n";
+        output += fontNames.join("\n") + "\n";
+
+        /* ファイルの書き込みは権限などで失敗しうる / File I/O can fail (permissions etc.) */
+        try {
+            saveFile.encoding = "UTF-8";
+            saveFile.open("w");
+            saveFile.write(output);
+            saveFile.close();
+            alert(getLabel("alert.exportSuccess") + saveFile.fsName);
+        } catch (e) {
+            alert(getLabel("alert.exportError"));
+        }
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 絞り込み文字列に合うフォントで一覧を作り直す
+     * @param {ListBox} fontListBox - フォント一覧
+     * @param {Array<{displayName: string, postScriptName: string, count: number}>} sortedFonts - 全フォント
+     * @param {string} filterText - 絞り込み文字列（空ならすべて）
+     * @returns {void}
+     */
+    function updateFontList(fontListBox, sortedFonts, filterText) {
+        fontListBox.removeAll();
+        var filterLower = filterText.toLowerCase();
+        for (var i = 0; i < sortedFonts.length; i++) {
+            var font = sortedFonts[i];
+            if (filterLower === "" ||
+                font.displayName.toLowerCase().indexOf(filterLower) !== -1 ||
+                font.postScriptName.toLowerCase().indexOf(filterLower) !== -1) {
+                var listItem = fontListBox.add("item", font.displayName + " (" + font.count + ")");
+                listItem.fontDisplayName = font.displayName;
+                listItem.postScriptName = font.postScriptName;
+            }
+        }
+        if (fontListBox.items.length > 0) fontListBox.selection = 0;
+    }
+
+    /**
+     * ダイアログを組み立てて表示する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<{displayName: string, postScriptName: string, count: number}>} sortedFonts - 全フォント
+     * @param {Array<{item: TextFrame, font: TextFont}>} originalFonts - 選択中のテキストフレームと元のフォント
+     * @returns {void}
+     */
+    function showDialog(doc, sortedFonts, originalFonts) {
+        var dialog = new Window("dialog", getLabel("dialog.title"));
         dialog.orientation = "column";
         dialog.alignChildren = ["left", "top"];
-        dialog.margins = 20;
+        dialog.margins = DIALOG_MARGINS;
 
-        dialog.add("statictext", undefined, LABELS.searchLabel[uiLang]);
+        dialog.add("statictext", undefined, labelText("fieldLabel.filter"));
         var filterInput = dialog.add("edittext", undefined, "");
-        filterInput.helpTip = LABELS.tipFilter[uiLang];
-        filterInput.preferredSize = [400, 24];
+        filterInput.helpTip = getLabel("tooltip.filter");
+        filterInput.preferredSize = [CONTROL_WIDTH, FILTER_HEIGHT];
 
-        dialog.add("statictext", undefined, LABELS.listLabel[uiLang]);
-        var listBox = dialog.add("listbox", undefined, [], { multiselect: false });
-        listBox.helpTip = LABELS.tipList[uiLang];
-        listBox.preferredSize = [400, getListBoxHeight(sortedFonts)];
+        dialog.add("statictext", undefined, labelText("fieldLabel.fontList"));
+        var fontListBox = dialog.add("listbox", undefined, [], { multiselect: false });
+        fontListBox.helpTip = getLabel("tooltip.fontList");
+        fontListBox.preferredSize = [CONTROL_WIDTH, Math.min(LIST_MAX_HEIGHT, Math.max(LIST_MIN_HEIGHT, sortedFonts.length * LIST_ROW_HEIGHT))];
 
-        function updateListBox(filterText) {
-            listBox.removeAll();
-            var filter = filterText.toLowerCase();
-            for (var i = 0; i < sortedFonts.length; i++) {
-                var font = sortedFonts[i];
-                if (filter === "" || font.displayName.toLowerCase().indexOf(filter) !== -1 || font.postScriptName.toLowerCase().indexOf(filter) !== -1) {
-                    var count = fontMap[font.displayName].count;
-                    var label = font.displayName + " (" + count + ")";
-                    var item = listBox.add("item", label);
-                    item.fontDisplayName = font.displayName;
-                    item.postScriptName = font.postScriptName;
-                }
-            }
-            if (listBox.items.length > 0) listBox.selection = 0;
-        }
-
-        updateListBox("");
+        updateFontList(fontListBox, sortedFonts, "");
 
         filterInput.onChanging = function() {
-            updateListBox(filterInput.text);
+            updateFontList(fontListBox, sortedFonts, filterInput.text);
         };
 
-        // 再帰的にTextFrameへフォントを適用する関数
-        function applyFontToItem(item, targetFont) {
-            if (item.typename === "TextFrame") {
-                item.textRange.characterAttributes.textFont = targetFont;
-            } else if (item.typename === "GroupItem") {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    applyFontToItem(item.pageItems[i], targetFont);
-                }
-            } else if (item.typename === "CompoundPathItem" && item.pageItems && item.pageItems.length > 0) {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    applyFontToItem(item.pageItems[i], targetFont);
-                }
-            } else if (item.typename === "PathItem" || item.typename === "MeshItem") {
-                // 何もしない
-            } else if (item.typename === "ClipGroup" || (item.clipped && item.pageItems)) {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    applyFontToItem(item.pageItems[i], targetFont);
-                }
-            }
-        }
-
-        listBox.onChange = function() {
-            if (!listBox.selection) return;
+        fontListBox.onChange = function() {
+            if (!fontListBox.selection) return;
+            /* getByName は見つからないと例外 / getByName throws when the font is missing */
             try {
-                var targetFont = app.textFonts.getByName(listBox.selection.postScriptName);
-                for (var i = 0; i < app.selection.length; i++) {
-                    applyFontToItem(app.selection[i], targetFont);
-                }
-                app.redraw();
+                applyFontToFrames(originalFonts, app.textFonts.getByName(fontListBox.selection.postScriptName));
             } catch (e) {
-                alert(LABELS.errorApplyFont[uiLang]);
+                alert(getLabel("alert.applyFontError"));
             }
         };
 
-        var outerGroup = dialog.add("group");
-        outerGroup.orientation = "row";
-        outerGroup.alignChildren = ["fill", "center"];
-        outerGroup.alignment = "fill";
-        outerGroup.margins = [0, 10, 0, 0];
-        outerGroup.spacing = 0;
+        /* ボタン行 / Button row */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.alignment = "fill";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = 0;
 
-        var leftGroup = outerGroup.add("group");
-        leftGroup.orientation = "row";
-        leftGroup.alignChildren = "left";
-        leftGroup.alignment = ["left", "center"];
-        var exportButton = leftGroup.add("button", undefined, LABELS.exportLabel[uiLang]);
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = "left";
+        btnLeftGroup.alignment = ["left", "center"];
+        var btnExport = btnLeftGroup.add("button", undefined, getLabel("button.exportList"));
+        btnExport.helpTip = getLabel("tooltip.exportList");
 
-        var spacer = outerGroup.add("group");
+        var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 10;
 
-        var rightGroup = outerGroup.add("group");
-        rightGroup.orientation = "row";
-        rightGroup.alignChildren = ["right", "center"];
-        rightGroup.alignment = ["right", "center"];
-        rightGroup.spacing = 10;
-        var cancelButton = rightGroup.add("button", undefined, LABELS.cancel[uiLang], { name: "cancel" });
-        var okButton = rightGroup.add("button", undefined, LABELS.ok[uiLang], { name: "ok" });
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_SPACING;
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        okButton.onClick = function() {
+        btnOK.onClick = function() {
             dialog.close();
         };
 
-        cancelButton.onClick = function() {
-            for (var i = 0; i < originalFonts.length; i++) {
-                try {
-                    originalFonts[i].item.textRange.characterAttributes.textFont = originalFonts[i].font;
-                } catch (e) {}
-            }
-            app.redraw();
+        btnCancel.onClick = function() {
+            restoreOriginalFonts(originalFonts);
             dialog.close();
         };
 
-        exportButton.onClick = function() {
-            var docPath = doc.fullName.fsName;
-            var docName = doc.name.replace(/\.[^\.]+$/, "");
-            var defaultFileName = docName + ((uiLang === "ja") ? "-ドキュメントフォント一覧.txt" : "-Document-Font-List.txt");
-
-            var desktopFolder = Folder.desktop;
-            var saveFile = new File(desktopFolder.fsName + "/" + defaultFileName);
-
+        btnExport.onClick = function() {
             var fontNames = [];
-            for (var i = 0; i < listBox.items.length; i++) {
-                fontNames.push(listBox.items[i].fontDisplayName);
+            for (var i = 0; i < fontListBox.items.length; i++) {
+                fontNames.push(fontListBox.items[i].fontDisplayName);
             }
-
-            var output = "";
-            output += LABELS.exportHeader[uiLang] + "\n\n";
-            output += LABELS.exportDocLabel[uiLang] + docPath + "\n\n";
-            output += LABELS.exportFontCount[uiLang] + fontNames.length + "\n\n";
-            output += fontNames.join("\n") + "\n";
-
-            try {
-                saveFile.encoding = "UTF-8";
-                saveFile.open("w");
-                saveFile.write(output);
-                saveFile.close();
-                alert(LABELS.exportSuccess[uiLang] + saveFile.fsName);
-            } catch (e) {
-                alert(LABELS.exportFail[uiLang]);
-            }
+            exportFontList(doc, fontNames);
         };
 
         dialog.show();
-        listBox.active = true;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * メイン処理
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        var doc = app.activeDocument;
+        var sortedFonts = sortFontsByName(collectDocumentFonts(doc));
+        var originalFonts = recordOriginalFonts(doc.selection);
+        showDialog(doc, sortedFonts, originalFonts);
     }
 
     main();

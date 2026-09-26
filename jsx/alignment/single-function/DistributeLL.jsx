@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "DistributeLL";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeLL.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeLL.md"; /* README (English) */
@@ -35,31 +35,51 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-    if (app.documents.length < 1) return
 
-    var selectedObjects = app.activeDocument.selection
-    if (selectedObjects.length < 2) return
-
-    // 環境設定［一般］の「キー増加」増分（cursorKeyLength、pt）を移動幅に使う
-    var keyboardIncrementPt = app.preferences.getRealPreference("cursorKeyLength")
-
-    // 横並び → 最も左を固定し、以降を keyboardIncrementPt ずつ左へ寄せて間隔を狭める
-    var objectsLeftToRight = sortLeftToRight(selectedObjects)
-    for (var i = 1; i < objectsLeftToRight.length; i++) {
-        objectsLeftToRight[i].translate(-i * keyboardIncrementPt, 0)
-    }
+    // =========================================
+    // 並べ替え / Sorting
+    // =========================================
 
     /**
-     * 選択オブジェクトを左端X（position[0]）の昇順で並べ替えた新しい配列を返す
+     * 左端X（position[0]）で並べ替えた新しい配列を返す
      * @param {PageItem[]} targetObjects - 並べ替える対象のオブジェクト
-     * @returns {PageItem[]} 左端Xの昇順に並べ替えた新しい配列
+     * @param {boolean} rightFirst - true なら右から左（降順）、false なら左から右（昇順）
+     * @returns {PageItem[]} 並べ替えた新しい配列
      */
-    function sortLeftToRight(targetObjects) {
-        var sortedObjects = []
-        for (var i = 0; i < targetObjects.length; i++) sortedObjects.push(targetObjects[i])
+    function sortByLeftEdge(targetObjects, rightFirst) {
+        var sortedObjects = [];
+        for (var i = 0; i < targetObjects.length; i++) sortedObjects.push(targetObjects[i]);
         sortedObjects.sort(function (itemA, itemB) {
-            return itemA.position[0] - itemB.position[0]
-        })
-        return sortedObjects
+            var leftDelta = itemA.position[0] - itemB.position[0];
+            return rightFirst ? -leftDelta : leftDelta;
+        });
+        return sortedObjects;
     }
-})()
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 最も左のオブジェクトを固定し、以降をキー入力の値ずつ左へ寄せて間隔を狭める
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length < 1) return;
+
+        var selectedObjects = app.activeDocument.selection;
+        if (selectedObjects.length < 2) return;
+
+        /* 環境設定［一般］の「キー入力」（cursorKeyLength、pt）を移動幅に使う / Keyboard Increment in points */
+        var keyboardIncrementPt = app.preferences.getRealPreference("cursorKeyLength");
+
+        /* 最も左を固定し、以降を keyboardIncrementPt ずつ左へ寄せて間隔を狭める / Keep the leftmost one, move the rest left to tighten the spacing */
+        var objectsLeftToRight = sortByLeftEdge(selectedObjects, false);
+        for (var i = 1; i < objectsLeftToRight.length; i++) {
+            objectsLeftToRight[i].translate(-i * keyboardIncrementPt, 0);
+        }
+    }
+
+    main();
+
+})();

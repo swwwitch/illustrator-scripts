@@ -38,60 +38,70 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    /* 型名を安全に取得（host オブジェクトは typename を優先、JS オブジェクトは constructor.name） */
-    function getTypeName(obj) {
-        if (obj === null || obj === undefined) return "";
-        if (obj.typename) return obj.typename;
-        try {
-            return obj.constructor ? obj.constructor.name : "";
-        } catch (e) {
-            return "";
-        }
-    }
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var KERNING_METHOD = AutoKernType.OPTICAL; /* 自動カーニング方式 / auto-kerning method */
+    var TSUME_PERCENT  = 0; /* 文字ツメ（%）/ tsume (%) */
 
-    /* 選択中のテキスト範囲を取得 */
-    function getSelectedTextRanges() {
-        var activeDoc = app.activeDocument;
-        var currentSelection = activeDoc.selection;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択中のテキスト範囲を集める
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {TextRange[]} テキスト範囲の配列
+     */
+    function getSelectedTextRanges(doc) {
+        var currentSelection = doc.selection;
         var selectedRanges = [];
         if (!currentSelection) return selectedRanges;
-        /* テキスト編集モードでは selection が配列でなく TextRange になる */
-        if (getTypeName(currentSelection) === "TextRange") {
+        /* テキスト編集モードでは selection が配列でなく TextRange になる / In text-edit mode the selection is a single TextRange */
+        if (currentSelection.typename === "TextRange") {
             selectedRanges.push(currentSelection);
             return selectedRanges;
         }
-        if (currentSelection.length === 0) return selectedRanges;
         for (var i = 0; i < currentSelection.length; i++) {
             var selectedItem = currentSelection[i];
-            var itemType = getTypeName(selectedItem);
-            if (itemType === "TextFrame") {
+            if (selectedItem.typename === "TextFrame") {
                 selectedRanges.push(selectedItem.textRange);
-            } else if (itemType === "TextRange") {
+            } else if (selectedItem.typename === "TextRange") {
                 selectedRanges.push(selectedItem);
             }
         }
         return selectedRanges;
     }
 
-    /* 選択範囲にカーニング方式を適用（メトリクスのときのみプロポーショナルメトリクスをON、文字ツメは0%に） */
-    function applyKerningToRanges(ranges, kerningMethod) {
+    /**
+     * テキスト範囲にカーニング方式と文字ツメを適用する（プロポーショナルメトリクスはメトリクスのときだけ ON）
+     * @param {TextRange[]} textRanges - 対象のテキスト範囲
+     * @param {AutoKernType} kerningMethod - 自動カーニング方式
+     * @param {number} tsumePercent - 文字ツメ（%）
+     * @returns {void}
+     */
+    function applyKerningToRanges(textRanges, kerningMethod, tsumePercent) {
         var useProportionalMetrics = (kerningMethod === AutoKernType.AUTO);
-        for (var i = 0; i < ranges.length; i++) {
+        for (var i = 0; i < textRanges.length; i++) {
+            /* 適用できない範囲は飛ばして続行 / Skip ranges that reject the attributes */
             try {
-                ranges[i].characterAttributes.kerningMethod = kerningMethod;
-                ranges[i].characterAttributes.proportionalMetrics = useProportionalMetrics;
-                ranges[i].characterAttributes.Tsume = 0;
-            } catch (e) {
-                // 適用できない範囲はスキップ
-            }
+                var characterAttributes = textRanges[i].characterAttributes;
+                characterAttributes.kerningMethod = kerningMethod;
+                characterAttributes.proportionalMetrics = useProportionalMetrics;
+                characterAttributes.Tsume = tsumePercent;
+            } catch (e) {}
         }
     }
 
+    /**
+     * 選択中のテキストに設定を適用する
+     * @returns {void}
+     */
     function main() {
-        if (app.documents.length <= 0) return;
-        var targetRanges = getSelectedTextRanges();
+        if (app.documents.length === 0) return;
+        var targetRanges = getSelectedTextRanges(app.activeDocument);
         if (targetRanges.length === 0) return;
-        applyKerningToRanges(targetRanges, AutoKernType.OPTICAL);
+        applyKerningToRanges(targetRanges, KERNING_METHOD, TSUME_PERCENT);
     }
 
     main();

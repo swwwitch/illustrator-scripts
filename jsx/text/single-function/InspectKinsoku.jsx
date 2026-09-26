@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKin
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "InspectKinsoku";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectKinsoku.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKinsoku.md"; /* README (English) */
@@ -36,9 +36,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    var LABELS = {
+        alert: {
+            noParagraph: {
+                ja: "段落が選択されていません。\nテキスト、またはテキストフレームを選択してください。",
+                en: "No paragraph is selected.\nSelect text or a text frame."
+            },
+            reportTitle: { ja: "検出された禁則の値", en: "Kinsoku values found" }
+        },
+        fallbackName: {
+            kinsokuNone: { ja: "なし", en: "None" }
+        }
+    };
+
+    /**
+     * ドット区切りのキーから現在の UI 言語のラベルを返す
+     * @param {string} labelPath - "alert.noParagraph" のようなキー
+     * @returns {string} 現在の UI 言語のラベル
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    /**
+     * ラベルに言語別のコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - LABELS のキー
+     * @returns {string} コロン付きのラベル
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
     /**
      * コレクションの段落を配列に追加する
-     * @param {Object[]} targetParagraphs - 追加先の配列
+     * @param {TextRange[]} targetParagraphs - 追加先の配列
      * @param {Paragraphs} paragraphCollection - 段落のコレクション
      * @returns {void}
      */
@@ -62,7 +108,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 文字ツールでテキストを選択した場合 / Text selected with the Type tool */
-        if (currentSelection.constructor && currentSelection.constructor.name === "TextRange") {
+        if (currentSelection.typename === "TextRange") {
             appendParagraphs(targetParagraphs, currentSelection.paragraphs);
             return targetParagraphs;
         }
@@ -70,7 +116,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 選択ツールでオブジェクトを選択した場合（配列） / Objects selected with the Selection tool (array) */
         for (var i = 0; i < currentSelection.length; i++) {
             var selectedItem = currentSelection[i];
-            if (selectedItem.constructor && selectedItem.constructor.name === "TextFrame") {
+            if (selectedItem.typename === "TextFrame") {
                 appendParagraphs(targetParagraphs, selectedItem.textRange.paragraphs);
             }
         }
@@ -93,7 +139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 detectedKinsokuSet[String(kinsokuValue)] = true;
             } catch (e) {
                 if (e.number === 9563) {
-                    detectedKinsokuSet["なし"] = true;
+                    detectedKinsokuSet[getLabel("fallbackName.kinsokuNone")] = true;
                 } else {
                     detectedKinsokuSet["ERROR: " + e.message] = true;
                 }
@@ -110,13 +156,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
         var targetParagraphs = collectSelectedParagraphs(app.activeDocument);
         if (!targetParagraphs.length) {
-            alert("段落が選択されていません。\nテキスト、またはテキストフレームを選択してください。");
+            alert(getLabel("alert.noParagraph"));
             return;
         }
 
         var detectedKinsokuSet = collectKinsokuValues(targetParagraphs);
 
-        var reportText = "検出された禁則値:\n";
+        var reportText = labelText("alert.reportTitle") + "\n";
         for (var detectedValue in detectedKinsokuSet) {
             reportText += "  → \"" + detectedValue + "\"\n";
         }

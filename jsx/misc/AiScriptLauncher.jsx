@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLauncher.md"; /* README (English) */
@@ -65,6 +65,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /* ボタンにしない語。件数は多いが検索の役に立たない接続語 / Words never turned into buttons */
     var KEYWORD_STOP_WORDS = ["and", "the", "for", "with", "from", "into", "その他"];
+
+    /* 出現数に関係なく先頭に並べる語（小文字）。該当するファイルが1件もなければ出さない / Words always shown first */
+    var KEYWORD_PINNED_WORDS = ["palette"];
 
     /* Finder表示に使うAutomatorアプリと、パスを受け渡す一時ファイル / Automator app used to reveal a file */
     /* 一時ファイル名はアプリ内のAppleScriptが読む固定名。アプリを旧名 IllustratorRevealLink.app から
@@ -1130,7 +1133,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @param {number} minCount - ボタンにする最小出現ファイル数
      * @param {number} maxButtons - 返す語の最大個数
      * @param {Array<string>} searchTerms - 入力済みの検索語。これを含む語は除く
-     * @returns {Array<string>} 出現ファイル数の多い順に並べた語
+     * @returns {Array<string>} 固定の語に続けて、出現ファイル数の多い順に並べた語
      */
     function collectFrequentWords(scriptEntries, minCount, maxButtons, searchTerms) {
         var wordCounts = {};
@@ -1147,9 +1150,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             }
         }
 
+        var presetWords = [];
+        var pinnedKeys = {};
+        for (var p = 0; p < KEYWORD_PINNED_WORDS.length; p++) {
+            var pinnedWord = KEYWORD_PINNED_WORDS[p];
+            pinnedKeys["#" + pinnedWord] = true;
+            if (presetWords.length >= maxButtons) break;
+            if (!wordCounts["#" + pinnedWord]) continue;
+            if (isCoveredByTerms(pinnedWord, searchTerms)) continue;
+            presetWords.push(pinnedWord);
+        }
+
         var frequentWords = [];
         for (var countKey in wordCounts) {
             if (!wordCounts.hasOwnProperty(countKey)) continue;
+            if (pinnedKeys[countKey]) continue;
             if (wordCounts[countKey] < minCount) continue;
 
             /* 入力済みの語をボタンにしても絞り込めないので外す / A word the query already covers is a no-op */
@@ -1163,8 +1178,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             return wordA.word < wordB.word ? -1 : (wordA.word > wordB.word ? 1 : 0);
         });
 
-        var presetWords = [];
-        for (var k = 0; k < frequentWords.length && k < maxButtons; k++) {
+        for (var k = 0; k < frequentWords.length && presetWords.length < maxButtons; k++) {
             presetWords.push(frequentWords[k].word);
         }
         return presetWords;

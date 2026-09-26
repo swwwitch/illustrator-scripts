@@ -25,3 +25,4 @@ Finds the placed images that reference the same linked file as the selected one 
 ### Update History
 
 - v1.2 (2025-07-21)
+- v1.2.2 (2026-09-27): All messages now appear in English on English systems

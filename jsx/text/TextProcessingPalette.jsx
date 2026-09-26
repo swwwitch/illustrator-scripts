@@ -10,7 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択状態に応じて、実行できる処理のボタンだけを有効化します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePalette.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md
 
 note記事も参照してください。
 https://note.com/dtp_tranist/n/nf6f34559ba46
@@ -21,21 +21,21 @@ A palette that gathers breaking, splitting, joining and tidying — plus reorder
 Only the buttons that make sense for the current selection stay enabled.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePalette.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "TextBreakSplitMergePalette";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
+var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.8.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePalette.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePalette.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
@@ -411,7 +411,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
        toString() の出力が壊れるため、JSDoc と // 形式のコメントは使わない。 */
 
     function debugLog(context, err) {
-        var logMessage = "[TextBreakSplitMerge] " + context;
+        var logMessage = "[TextProcessing] " + context;
         if (err) logMessage += " :: " + (err.message ? err.message : String(err));
         try {
             $.writeln(logMessage);
@@ -3454,159 +3454,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 executeAction("concatToArea");
             };
 
-            /* === タブ2: 整形 === */
-            var tabCleanup = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.cleanup));
-            setupTab(tabCleanup, "row");
-
-            /* 左カラム：タブ・スペース */
-            var spaceCleanupColumn = addColumnGroup(tabCleanup);
-
-            var panelTabChar = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.tab));
-
-            var btnRemoveTabs = panelTabChar.add("button", undefined, getLabel(LABELS.button.removeTabs));
-            btnRemoveTabs.onClick = function () {
-                executeAction("removeTabs");
-            };
-
-            var btnTabsToSpaces = panelTabChar.add("button", undefined, getLabel(LABELS.button.tabsToSpaces));
-            btnTabsToSpaces.onClick = function () {
-                executeAction("tabsToSpaces");
-            };
-
-            var panelRemoveSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.space));
-
-            var btnTrimSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.trimSpaces));
-            btnTrimSpaces.helpTip = getLabel(LABELS.tooltip.trimSpaces);
-            btnTrimSpaces.onClick = function () {
-                executeAction("trimSpaces");
-            };
-
-            var btnCjkLatinSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cjkLatinSpaces));
-            btnCjkLatinSpaces.helpTip = getLabel(LABELS.tooltip.cjkLatinSpaces);
-            btnCjkLatinSpaces.onClick = function () {
-                executeAction("removeCjkLatinSpaces");
-            };
-
-            var btnCollapseSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.collapseSpaces));
-            btnCollapseSpaces.helpTip = getLabel(LABELS.tooltip.collapseSpaces);
-            btnCollapseSpaces.onClick = function () {
-                executeAction("collapseSpaces");
-            };
-
-            var btnCleanupSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cleanupSpaces));
-            btnCleanupSpaces.helpTip = getLabel(LABELS.tooltip.cleanupSpaces);
-            btnCleanupSpaces.onClick = function () {
-                executeAction("cleanupSpaces");
-            };
-
-            var btnRemoveAllSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.removeAllSpaces));
-            btnRemoveAllSpaces.helpTip = getLabel(LABELS.tooltip.removeAllSpaces);
-            btnRemoveAllSpaces.onClick = function () {
-                executeAction("removeAllSpaces");
-            };
-
-            var panelAddSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.addSpace));
-
-            var btnSpaceAfterPunct = panelAddSpace.add("button", undefined, getLabel(LABELS.button.spaceAfterPunct));
-            btnSpaceAfterPunct.helpTip = getLabel(LABELS.tooltip.spaceAfterPunct);
-            btnSpaceAfterPunct.onClick = function () {
-                executeAction("spaceAfterPunct");
-            };
-
-            /* 右カラム：変換・リスト */
-            var convertListColumn = addColumnGroup(tabCleanup);
-
-            /* スペースや記号の変換：変換前／変換後をラジオで選び、［変換］で置換する */
-            var panelSymbolConvert = addPanel(convertListColumn, getLabel(LABELS.panel.symbolConvert), ["fill", "top"]);
-
-            var symbolConvertColumn = panelSymbolConvert.add("group");
-            symbolConvertColumn.orientation = "column";
-            symbolConvertColumn.alignment = ["fill", "top"];
-            symbolConvertColumn.alignChildren = ["fill", "top"];
-            symbolConvertColumn.spacing = TAB_SPACING;
-
-            var panelSymbolBefore = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolBefore), ["left", "top"]);
-            var rbBeforeSpace = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.space));
-            var rbBeforeUnderscore = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
-            var rbBeforeHyphen = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
-            rbBeforeSpace.value = true;
-
-            var panelSymbolAfter = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolAfter), ["left", "top"]);
-            var rbAfterSpace = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.space));
-            var rbAfterUnderscore = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
-            var rbAfterHyphen = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
-            rbAfterUnderscore.value = true;
-
-            /**
-             * 変換前に選ばれている記号種別を返す
-             * @returns {string} "space" | "underscore" | "hyphen"
-             */
-            function getBeforeSymbol() {
-                if (rbBeforeUnderscore.value) return "underscore";
-                if (rbBeforeHyphen.value) return "hyphen";
-                return "space";
-            }
-
-            /**
-             * 変換後に選ばれている記号種別を返す
-             * @returns {string} "space" | "underscore" | "hyphen"
-             */
-            function getAfterSymbol() {
-                if (rbAfterSpace.value) return "space";
-                if (rbAfterHyphen.value) return "hyphen";
-                return "underscore";
-            }
-
-            var btnConvertSymbol = panelSymbolConvert.add("button", undefined, getLabel(LABELS.button.convertSymbol));
-            btnConvertSymbol.alignment = ["center", "top"];
-            btnConvertSymbol.onClick = function () {
-                executeAction("convertSymbol", { from: getBeforeSymbol(), to: getAfterSymbol() });
-            };
-
-            /**
-             * 変換前と変換後が同じ記号なら［変換］をディムにする
-             * @returns {void}
-             */
-            function updateConvertSymbolState() {
-                btnConvertSymbol.enabled = (getBeforeSymbol() !== getAfterSymbol());
-            }
-
-            var symbolRadios = [rbBeforeSpace, rbBeforeUnderscore, rbBeforeHyphen, rbAfterSpace, rbAfterUnderscore, rbAfterHyphen];
-            for (var radioIndex = 0; radioIndex < symbolRadios.length; radioIndex++) {
-                symbolRadios[radioIndex].onClick = updateConvertSymbolState;
-            }
-            updateConvertSymbolState();
-
-            /* 文字変換 */
-            var panelConvert = addPanel(convertListColumn, getLabel(LABELS.panel.convert), ["center", "center"]);
-
-            var btnFullToHalfAlnum = panelConvert.add("button", undefined, getLabel(LABELS.button.fullToHalfAlnum));
-            btnFullToHalfAlnum.onClick = function () {
-                executeAction("fullToHalfAlnum");
-            };
-
-            var btnHalfToFullKana = panelConvert.add("button", undefined, getLabel(LABELS.button.halfToFullKana));
-            btnHalfToFullKana.onClick = function () {
-                executeAction("halfToFullKana");
-            };
-
-            /* リストの除去 */
-            var panelRemoveList = addPanel(convertListColumn, getLabel(LABELS.panel.list));
-            panelRemoveList.orientation = "row";
-
-            var btnBulletList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.bulletList));
-            btnBulletList.helpTip = getLabel(LABELS.tooltip.bulletList);
-            btnBulletList.onClick = function () {
-                executeAction("removeBulletMarkers");
-            };
-
-            var btnNumberList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.numberList));
-            btnNumberList.helpTip = getLabel(LABELS.tooltip.numberList);
-            btnNumberList.onClick = function () {
-                executeAction("removeNumberMarkers");
-            };
-
-            /* === タブ3: 行の編集 === */
+            /* === タブ2: 行の編集 === */
             var tabLineArrange = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.lineArrange));
             setupTab(tabLineArrange, "row");
 
@@ -3774,6 +3622,158 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             var btnRemoveEmptyLines = panelLineDelete.add("button", undefined, getLabel(LABELS.button.removeEmptyLines));
             btnRemoveEmptyLines.onClick = function () {
                 executeActionThen("removeEmptyLines", {}, loadLinesToList);
+            };
+
+            /* === タブ3: 整形 === */
+            var tabCleanup = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.cleanup));
+            setupTab(tabCleanup, "row");
+
+            /* 左カラム：タブ・スペース */
+            var spaceCleanupColumn = addColumnGroup(tabCleanup);
+
+            var panelTabChar = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.tab));
+
+            var btnRemoveTabs = panelTabChar.add("button", undefined, getLabel(LABELS.button.removeTabs));
+            btnRemoveTabs.onClick = function () {
+                executeAction("removeTabs");
+            };
+
+            var btnTabsToSpaces = panelTabChar.add("button", undefined, getLabel(LABELS.button.tabsToSpaces));
+            btnTabsToSpaces.onClick = function () {
+                executeAction("tabsToSpaces");
+            };
+
+            var panelRemoveSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.space));
+
+            var btnTrimSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.trimSpaces));
+            btnTrimSpaces.helpTip = getLabel(LABELS.tooltip.trimSpaces);
+            btnTrimSpaces.onClick = function () {
+                executeAction("trimSpaces");
+            };
+
+            var btnCjkLatinSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cjkLatinSpaces));
+            btnCjkLatinSpaces.helpTip = getLabel(LABELS.tooltip.cjkLatinSpaces);
+            btnCjkLatinSpaces.onClick = function () {
+                executeAction("removeCjkLatinSpaces");
+            };
+
+            var btnCollapseSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.collapseSpaces));
+            btnCollapseSpaces.helpTip = getLabel(LABELS.tooltip.collapseSpaces);
+            btnCollapseSpaces.onClick = function () {
+                executeAction("collapseSpaces");
+            };
+
+            var btnCleanupSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cleanupSpaces));
+            btnCleanupSpaces.helpTip = getLabel(LABELS.tooltip.cleanupSpaces);
+            btnCleanupSpaces.onClick = function () {
+                executeAction("cleanupSpaces");
+            };
+
+            var btnRemoveAllSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.removeAllSpaces));
+            btnRemoveAllSpaces.helpTip = getLabel(LABELS.tooltip.removeAllSpaces);
+            btnRemoveAllSpaces.onClick = function () {
+                executeAction("removeAllSpaces");
+            };
+
+            var panelAddSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.addSpace));
+
+            var btnSpaceAfterPunct = panelAddSpace.add("button", undefined, getLabel(LABELS.button.spaceAfterPunct));
+            btnSpaceAfterPunct.helpTip = getLabel(LABELS.tooltip.spaceAfterPunct);
+            btnSpaceAfterPunct.onClick = function () {
+                executeAction("spaceAfterPunct");
+            };
+
+            /* 右カラム：変換・リスト */
+            var convertListColumn = addColumnGroup(tabCleanup);
+
+            /* スペースや記号の変換：変換前／変換後をラジオで選び、［変換］で置換する */
+            var panelSymbolConvert = addPanel(convertListColumn, getLabel(LABELS.panel.symbolConvert), ["fill", "top"]);
+
+            var symbolConvertColumn = panelSymbolConvert.add("group");
+            symbolConvertColumn.orientation = "column";
+            symbolConvertColumn.alignment = ["fill", "top"];
+            symbolConvertColumn.alignChildren = ["fill", "top"];
+            symbolConvertColumn.spacing = TAB_SPACING;
+
+            var panelSymbolBefore = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolBefore), ["left", "top"]);
+            var rbBeforeSpace = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.space));
+            var rbBeforeUnderscore = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
+            var rbBeforeHyphen = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
+            rbBeforeSpace.value = true;
+
+            var panelSymbolAfter = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolAfter), ["left", "top"]);
+            var rbAfterSpace = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.space));
+            var rbAfterUnderscore = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
+            var rbAfterHyphen = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
+            rbAfterUnderscore.value = true;
+
+            /**
+             * 変換前に選ばれている記号種別を返す
+             * @returns {string} "space" | "underscore" | "hyphen"
+             */
+            function getBeforeSymbol() {
+                if (rbBeforeUnderscore.value) return "underscore";
+                if (rbBeforeHyphen.value) return "hyphen";
+                return "space";
+            }
+
+            /**
+             * 変換後に選ばれている記号種別を返す
+             * @returns {string} "space" | "underscore" | "hyphen"
+             */
+            function getAfterSymbol() {
+                if (rbAfterSpace.value) return "space";
+                if (rbAfterHyphen.value) return "hyphen";
+                return "underscore";
+            }
+
+            var btnConvertSymbol = panelSymbolConvert.add("button", undefined, getLabel(LABELS.button.convertSymbol));
+            btnConvertSymbol.alignment = ["center", "top"];
+            btnConvertSymbol.onClick = function () {
+                executeAction("convertSymbol", { from: getBeforeSymbol(), to: getAfterSymbol() });
+            };
+
+            /**
+             * 変換前と変換後が同じ記号なら［変換］をディムにする
+             * @returns {void}
+             */
+            function updateConvertSymbolState() {
+                btnConvertSymbol.enabled = (getBeforeSymbol() !== getAfterSymbol());
+            }
+
+            var symbolRadios = [rbBeforeSpace, rbBeforeUnderscore, rbBeforeHyphen, rbAfterSpace, rbAfterUnderscore, rbAfterHyphen];
+            for (var radioIndex = 0; radioIndex < symbolRadios.length; radioIndex++) {
+                symbolRadios[radioIndex].onClick = updateConvertSymbolState;
+            }
+            updateConvertSymbolState();
+
+            /* 文字変換 */
+            var panelConvert = addPanel(convertListColumn, getLabel(LABELS.panel.convert), ["center", "center"]);
+
+            var btnFullToHalfAlnum = panelConvert.add("button", undefined, getLabel(LABELS.button.fullToHalfAlnum));
+            btnFullToHalfAlnum.onClick = function () {
+                executeAction("fullToHalfAlnum");
+            };
+
+            var btnHalfToFullKana = panelConvert.add("button", undefined, getLabel(LABELS.button.halfToFullKana));
+            btnHalfToFullKana.onClick = function () {
+                executeAction("halfToFullKana");
+            };
+
+            /* リストの除去 */
+            var panelRemoveList = addPanel(convertListColumn, getLabel(LABELS.panel.list));
+            panelRemoveList.orientation = "row";
+
+            var btnBulletList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.bulletList));
+            btnBulletList.helpTip = getLabel(LABELS.tooltip.bulletList);
+            btnBulletList.onClick = function () {
+                executeAction("removeBulletMarkers");
+            };
+
+            var btnNumberList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.numberList));
+            btnNumberList.helpTip = getLabel(LABELS.tooltip.numberList);
+            btnNumberList.onClick = function () {
+                executeAction("removeNumberMarkers");
             };
 
             /* === タブ4: 変換 === */
