@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSlice
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSliceWithPuzzlify";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md"; /* README (English) */
@@ -42,1303 +42,1281 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
 
 (function () {
 
-  function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-  }
-  var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-  /* 日英ラベル定義 / Japanese-English label definitions */
-  var LABELS = {
-    modePuzzle: { ja: "パズル", en: "Puzzle" },
-    modeGridSplit: { ja: "グリッド", en: "Grid" },
-    shapeTraditional: { ja: "トラディショナル", en: "Traditional" },
-    shapeRandom: { ja: "ランダム", en: "Random" },
-    totalPieces: { ja: "ピース数", en: "Total pieces" },
-    columns: { ja: "列数", en: "Columns" },
-    rows: { ja: "行数", en: "Rows" },
-    explode: { ja: "バラけ処理", en: "Scatter" },
-    offsetLabel: { ja: "オフセット", en: "Offset" },
-    overlap: { ja: "オーバーラップ", en: "Overlap" },
-    ruleCheck: { ja: "ケイ（1ptの罫線を追加）", en: "Add Stroke (1pt)" },
-    roundCheck: { ja: "角丸", en: "Apply Round Corners" },
-    shapeLabel: { ja: "形状：", en: "Shape:" },
-    tipModeGrid: { ja: "画像を格子状に切り分けます。", en: "Cuts the image into a plain grid." },
-    tipModePuzzle: { ja: "画像をジグソーパズルのピース状に切り分けます。", en: "Cuts the image into jigsaw puzzle pieces." },
-    tipTotalPieces: { ja: "作るピースの総数です。行数・列数はここから決まります。", en: "Total number of pieces. The rows and columns follow from it." },
-    tipColumns: { ja: "横に並べるピースの数です。", en: "How many pieces to place across." },
-    tipRows: { ja: "縦に並べるピースの数です。", en: "How many pieces to place down." },
-    tipShapeTraditional: { ja: "はめ込みの突起を規則的に並べた、よくあるパズル形状にします。", en: "Uses the familiar puzzle shape with regularly placed tabs." },
-    tipShapeRandom: { ja: "突起の向きや大きさをランダムにします。", en: "Randomizes the direction and size of the tabs." },
-    tipOffset: { ja: "ピースの輪郭を内側／外側へずらします。マイナスで内側に細くなります。", en: "Offsets the outline of each piece. A negative value shrinks it inward." },
-    tipOverlap: { ja: "隣り合うピースを重ねる幅です。継ぎ目を目立たせたくないときに使います。", en: "How far neighbouring pieces overlap. Use it to hide the seams." },
-    tipScatter: { ja: "切り分けたピースを少しずつずらして散らします。", en: "Nudges the finished pieces apart so they scatter." },
-    tipScatterStrength: { ja: "散らす強さです。大きいほど大きくずれます。", en: "How far the pieces scatter. Larger values spread them further." },
-    tipRule: { ja: "各ピースに1ptのケイ線を追加します。", en: "Adds a 1pt stroke to each piece." },
-    tipRound: { ja: "ピースの角を丸めます。右の欄で半径を指定します。", en: "Rounds the corners of each piece. The field on the right sets the radius." },
-    alertMaskNotPath: {
-      ja: "マスク用オブジェクトが PathItem ではないため、マスクをスキップします。",
-      en: "The mask object is not a PathItem, so the mask step will be skipped."
-    },
-    alertMultiSymbolizeFailed: {
-      ja: "複数オブジェクトのシンボル化に失敗しました: ",
-      en: "Failed to symbolize multiple objects: "
-    },
-    alertRasterSymbolizeFailed: {
-      ja: "埋め込み画像のシンボル化に失敗しました: ",
-      en: "Failed to symbolize embedded artwork: "
-    },
-    alertVectorSymbolizeFailed: {
-      ja: "ベクターオブジェクトのシンボル化に失敗しました: ",
-      en: "Failed to symbolize vector artwork: "
-    },
-    alertOffsetGroupNoPath: {
-      ja: "オフセット後の GroupItem に PathItem が含まれていません。マスク処理をスキップします。",
-      en: "The offset GroupItem does not contain a PathItem, so the mask step will be skipped."
-    },
-    alertOffsetUnexpectedType: {
-      ja: "オフセット後のオブジェクトが予期しない型です。マスク処理をスキップします。",
-      en: "The object after offsetting has an unexpected type, so the mask step will be skipped."
-    },
-    alertOffsetError: {
-      ja: "オフセット適用中にエラーが発生しました: ",
-      en: "An error occurred while applying the offset: "
-    },
-    alertScriptError: {
-      ja: "スクリプト実行中にエラーが発生しました: ",
-      en: "An error occurred while running the script: "
-    },
-    alertGeneralError: {
-      ja: "エラーが発生しました：\n",
-      en: "An error occurred:\n"
-    },
-    dialogTitle: {
-      ja: "オブジェクトの分割",
-      en: "Split Artwork"
-    },
-    panelSplit: { ja: "分割", en: "Split" },
-    panelOptions: { ja: "オプション", en: "Options" },
-    okBtn: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" }
-  };
+    /* ダイアログの初期値 / Initial dialog values */
+    var DEFAULT_PIECES_PUZZLE = "25";  /* パズル時のピース数 / piece count in puzzle mode */
+    var DEFAULT_PIECES_GRID   = "2";   /* グリッド時のピース数 / piece count in grid mode */
+    var DEFAULT_COLUMNS       = "6";   /* 選択の寸法が取れないときの列数 / columns when the selection size is unknown */
+    var DEFAULT_ROWS          = "4";   /* 選択の寸法が取れないときの行数 / rows when the selection size is unknown */
+    var DEFAULT_OFFSET        = "-2";  /* オフセット / offset */
+    var DEFAULT_OVERLAP       = "10";  /* オーバーラップ / overlap */
+    var DEFAULT_SCATTER       = "30";  /* バラけの最大移動量 / maximum scatter distance */
+    var DEFAULT_ROUND_RADIUS  = "3";   /* 角丸の半径 / round corner radius */
 
-  function getLabel(key) {
-    return LABELS[key][uiLang];
-  }
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
-  // =========================================
-  // 単位 / Units
-  // =========================================
+    var MODE_ROW_MARGINS     = [10, 5, 10, 5];   /* 分割方法の行の余白 / margins of the mode row */
+    var PANEL_MARGINS        = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / panel margins */
+    var SHAPE_ROW_MARGINS    = [0, 10, 0, 10];   /* 形状の行の余白 / margins of the shape row */
+    var PROGRESS_ROW_MARGINS = [10, 0, 10, 0];   /* プログレスバーの行の余白 / margins of the progress row */
+    var PROGRESS_BAR_SIZE    = [200, 7];         /* プログレスバーの寸法 / progress bar size */
+    var BUTTON_ROW_MARGINS   = [0, 0, 0, 0];     /* ボタンエリアの余白 / margins of the button row */
 
-  /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
-     Unit code -> display label and points per unit */
-  var UNITS = [
-      { label: "in",    pointsPerUnit: 72 },                /* 0 */
-      { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
-      { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
-      { label: "pica",  pointsPerUnit: 12 },                /* 3 */
-      { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
-      { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
-      { label: "px",    pointsPerUnit: 1 },                 /* 6 */
-      { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
-      { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
-      { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
-      { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
-  ];
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-  /**
-   * 環境設定キーの単位を返す
-   * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
-   * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
-   */
-  function getUnitInfo(prefKey) {
-      var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
-      /* 未知のコードは pt に寄せる / unknown codes fall back to points */
-      var unit = UNITS[unitCode] || UNITS[2];
-      return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
-  }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-  // 画像サイズに基づく初期グリッドサイズを計算
-  function getInitialGridSize(imageWidth, imageHeight, totalPieces) {
-    var aspectRatio = imageWidth / imageHeight;
-    var cols = Math.round(Math.sqrt(totalPieces * aspectRatio));
-    if (cols < 1) cols = 1;
-    var rows = Math.round(totalPieces / cols);
-    if (rows < 1) rows = 1;
-    return [rows, cols];
-  }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-  // EditText arrow key increment/decrement support
-  function changeValueByArrowKey(editText, allowNegative, onValueChanged) {
-    editText.addEventListener("keydown", function (event) {
-      var value = Number(editText.text);
-      if (isNaN(value)) return;
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
-      var keyboard = ScriptUI.environment.keyboardState;
-      var delta = 1;
-      var handled = false;
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
-      if (keyboard.shiftKey) {
-        delta = 10;
-        if (event.keyName == "Up") {
-          value = Math.ceil((value + 1) / delta) * delta;
-          handled = true;
-        } else if (event.keyName == "Down") {
-          value = Math.floor((value - 1) / delta) * delta;
-          handled = true;
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "グリッド／パズルに分割", en: "Slice into Grid or Puzzle" }
+        },
+        panel: {
+            slice:   { ja: "分割", en: "Slice" },
+            options: { ja: "オプション", en: "Options" }
+        },
+        fieldLabel: {
+            mode:        { ja: "分割方法", en: "Method" },
+            totalPieces: { ja: "ピース数", en: "Pieces" },
+            columns:     { ja: "列数", en: "Columns" },
+            rows:        { ja: "行数", en: "Rows" },
+            shape:       { ja: "形状", en: "Shape" }
+        },
+        radio: {
+            grid:        { ja: "グリッド", en: "Grid" },
+            puzzle:      { ja: "パズル", en: "Puzzle" },
+            traditional: { ja: "トラディショナル", en: "Traditional" },
+            random:      { ja: "ランダム", en: "Random" }
+        },
+        checkbox: {
+            offset:       { ja: "オフセット", en: "Offset" },
+            overlap:      { ja: "オーバーラップ", en: "Overlap" },
+            scatter:      { ja: "バラけさせる", en: "Scatter" },
+            stroke:       { ja: "ケイ線を追加", en: "Add stroke" },
+            roundCorners: { ja: "角丸", en: "Round corners" }
+        },
+        tooltip: {
+            modeGrid:         { ja: "画像を格子状に切り分けます。", en: "Cuts the image into a plain grid." },
+            modePuzzle:       { ja: "画像をジグソーパズルのピース状に切り分けます。", en: "Cuts the image into jigsaw puzzle pieces." },
+            totalPieces: {
+                ja: "作るピースのおおよその数です。オブジェクトを1つ選択しているときは、その縦横比から行数・列数を決めます。",
+                en: "Approximate number of pieces. With one object selected, the rows and columns follow from its aspect ratio."
+            },
+            columns:          { ja: "横に並べるピースの数です。0 にすると行数と縦横比から決めます。", en: "Pieces across. Enter 0 to derive it from the rows and aspect ratio." },
+            rows:             { ja: "縦に並べるピースの数です。0 にすると列数と縦横比から決めます。", en: "Pieces down. Enter 0 to derive it from the columns and aspect ratio." },
+            shapeTraditional: { ja: "はめ込みの突起を規則的に並べた、よくあるパズル形状にします。", en: "Uses the familiar puzzle shape with regularly placed tabs." },
+            shapeRandom:      { ja: "突起の向きをランダムにします。", en: "Randomizes the direction of the tabs." },
+            offset:           { ja: "ピースの輪郭をずらします。マイナスで内側に縮みます。", en: "Offsets the outline of each piece. A negative value shrinks it inward." },
+            overlap:          { ja: "隣り合うピースを重ねる幅です。継ぎ目のすき間を防ぎます。", en: "How far neighbouring pieces overlap. Use it to hide the seams." },
+            scatter:          { ja: "切り分けたピースを少しずつずらして散らします。", en: "Nudges the finished pieces apart so they scatter." },
+            scatterDistance:  { ja: "ピースをずらす最大距離です。", en: "Maximum distance a piece moves." },
+            stroke:           { ja: "各ピースに線を追加します。", en: "Adds a stroke to each piece." },
+            roundCorners:     { ja: "各ピースに効果［角を丸くする］を適用します。", en: "Applies the Round Corners effect to each piece." },
+            roundRadius:      { ja: "角丸の半径です。", en: "Corner radius." }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noSelection:       { ja: "分割するオブジェクトを選択してください。", en: "Select the artwork to slice." },
+            symbolizeMultiple: { ja: "複数オブジェクトのシンボル化に失敗しました：", en: "Failed to symbolize multiple objects: " },
+            symbolizeRaster:   { ja: "埋め込み画像のシンボル化に失敗しました：", en: "Failed to symbolize embedded artwork: " },
+            symbolizeVector:   { ja: "ベクターオブジェクトのシンボル化に失敗しました：", en: "Failed to symbolize vector artwork: " },
+            maskNotPath: {
+                ja: "マスク用のパスを作れなかったため、このピースはマスクせずに残します。",
+                en: "No mask path was available, so this piece is left unmasked."
+            },
+            offsetNoPath: {
+                ja: "オフセット後にパスが見つからないため、このピースのマスクをスキップします。",
+                en: "No path was found after the offset, so the mask for this piece is skipped."
+            },
+            offsetFailed:      { ja: "オフセットの適用中にエラーが発生しました：", en: "An error occurred while applying the offset: " },
+            scriptError:       { ja: "スクリプトの実行中にエラーが発生しました：", en: "An error occurred while running the script: " }
         }
-      } else if (keyboard.altKey) {
-        delta = 0.1;
-        if (event.keyName == "Up") {
-          value += delta;
-          handled = true;
-        } else if (event.keyName == "Down") {
-          value -= delta;
-          handled = true;
+    };
+
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel("radio", "grid")）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
         }
-      } else {
-        delta = 1;
-        if (event.keyName == "Up") {
-          value += delta;
-          handled = true;
-        } else if (event.keyName == "Down") {
-          value -= delta;
-          handled = true;
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+    }
+
+    /**
+     * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelKey) {
+        return getLabel("fieldLabel", labelKey) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // 入力補助 / Input helpers
+    // =========================================
+
+    /**
+     * 数値欄を↑↓キーで増減できるようにする（shift で10刻み、option で0.1刻み）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - マイナスを許すなら true
+     * @param {Function} [onValueChanged] - 値を変えたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, allowNegative, onValueChanged) {
+        editText.addEventListener("keydown", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName == "Up");
+            if (keyboard.shiftKey) {
+                /* 10の倍数にスナップ / Snap to multiples of 10 */
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboard.altKey) {
+                value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
+            } else {
+                value = Math.round(value + (isUp ? 1 : -1));
+            }
+
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+            if (typeof onValueChanged === "function") onValueChanged(editText, value);
+        });
+    }
+
+    /**
+     * 入力欄の数値を pt に換算する（数値でなければ 0）
+     * @param {EditText} editText - 定規の単位で入力された欄
+     * @returns {number} pt 値
+     */
+    function readLengthInPoints(editText) {
+        var inputValue = parseFloat(editText.text);
+        return (isNaN(inputValue) ? 0 : inputValue) * getUnitInfo().pointsPerUnit;
+    }
+
+    /**
+     * ピース数と縦横比から行数・列数を計算する
+     * @param {number} artworkWidth - 対象の幅
+     * @param {number} artworkHeight - 対象の高さ
+     * @param {number} pieceCount - 作りたいピース数
+     * @returns {{rows: number, columns: number}} 行数と列数
+     */
+    function calcGridSizeFromPieceCount(artworkWidth, artworkHeight, pieceCount) {
+        var aspectRatio = artworkWidth / artworkHeight;
+        var columns = Math.round(Math.sqrt(pieceCount * aspectRatio));
+        if (columns < 1) columns = 1;
+        var rows = Math.round(pieceCount / columns);
+        if (rows < 1) rows = 1;
+        return { rows: rows, columns: columns };
+    }
+
+    /**
+     * 1つだけ選択している対象の寸法を返す（対象外なら null）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{width: number, height: number}|null} 幅と高さ
+     */
+    function getSelectedArtworkSize(doc) {
+        if (doc.selection.length != 1) return null;
+        var selectedItem = doc.selection[0];
+        var sizableTypes = { RasterItem: 1, PlacedItem: 1, SymbolItem: 1, PathItem: 1, GroupItem: 1, CompoundPathItem: 1 };
+        if (!sizableTypes[selectedItem.typename]) return null;
+        var bounds = selectedItem.geometricBounds;
+        return { width: bounds[2] - bounds[0], height: Math.abs(bounds[1] - bounds[3]) };
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 項目名＋数値欄の組を追加する
+     * @param {Group|Panel} parentContainer - 追加先
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @param {string} defaultText - 初期値
+     * @param {number} characters - 欄の文字数
+     * @param {string} tooltipKey - LABELS.tooltip のキー
+     * @returns {{label: StaticText, input: EditText}} 追加したコントロール
+     */
+    function addNumberField(parentContainer, labelKey, defaultText, characters, tooltipKey) {
+        var fieldGroup = parentContainer.add("group");
+        fieldGroup.orientation = "row";
+        var fieldLabel = fieldGroup.add("statictext", undefined, labelText(labelKey));
+        var fieldInput = fieldGroup.add("edittext", undefined, defaultText);
+        fieldInput.characters = characters;
+        fieldInput.helpTip = getLabel("tooltip", tooltipKey);
+        return { label: fieldLabel, input: fieldInput };
+    }
+
+    /**
+     * チェックボックス＋数値欄＋単位の行を追加する
+     * @param {Panel} parentPanel - 追加先
+     * @param {string} checkboxKey - LABELS.checkbox のキー
+     * @param {string} defaultText - 初期値
+     * @param {number} characters - 欄の文字数
+     * @param {string} inputTooltipKey - 数値欄の LABELS.tooltip のキー
+     * @returns {{checkbox: Checkbox, input: EditText, unitLabel: StaticText}} 追加したコントロール
+     */
+    function addCheckboxValueRow(parentPanel, checkboxKey, defaultText, characters, inputTooltipKey) {
+        var valueRow = parentPanel.add("group");
+        valueRow.orientation = "row";
+        valueRow.alignChildren = "left";
+        var rowCheckbox = valueRow.add("checkbox", undefined, getLabel("checkbox", checkboxKey));
+        rowCheckbox.helpTip = getLabel("tooltip", checkboxKey);
+        var rowInput = valueRow.add("edittext", undefined, defaultText);
+        rowInput.helpTip = getLabel("tooltip", inputTooltipKey);
+        rowInput.characters = characters;
+        var rowUnitLabel = valueRow.add("statictext", undefined, getUnitInfo().label);
+        return { checkbox: rowCheckbox, input: rowInput, unitLabel: rowUnitLabel };
+    }
+
+    /**
+     * 分割方法（グリッド／パズル）の行を作る
+     * @param {Window} dlg - ダイアログ
+     * @param {Object} controls - コントロールの格納先
+     * @returns {void}
+     */
+    function buildModeRow(dlg, controls) {
+        var modeRow = dlg.add("group");
+        modeRow.orientation = "row";
+        modeRow.alignChildren = "left";
+        modeRow.margins = MODE_ROW_MARGINS;
+        modeRow.add("statictext", undefined, labelText("mode"));
+        controls.modeGridRadio = modeRow.add("radiobutton", undefined, getLabel("radio", "grid"));
+        controls.modeGridRadio.helpTip = getLabel("tooltip", "modeGrid");
+        controls.modePuzzleRadio = modeRow.add("radiobutton", undefined, getLabel("radio", "puzzle"));
+        controls.modePuzzleRadio.helpTip = getLabel("tooltip", "modePuzzle");
+        controls.modeGridRadio.value = true;
+        controls.modeRow = modeRow;
+    }
+
+    /**
+     * 分割パネル（ピース数／列数・行数／形状／オフセット／オーバーラップ）を作る
+     * @param {Group} parentGroup - 追加先
+     * @param {Object} controls - コントロールの格納先
+     * @returns {void}
+     */
+    function buildSlicePanel(parentGroup, controls) {
+        var slicePanel = parentGroup.add("panel", undefined, getLabel("panel", "slice"));
+        slicePanel.orientation = "column";
+        slicePanel.alignChildren = "left";
+        slicePanel.margins = PANEL_MARGINS;
+
+        var totalPiecesField = addNumberField(slicePanel, "totalPieces", DEFAULT_PIECES_PUZZLE, 4, "totalPieces");
+        controls.totalPiecesLabel = totalPiecesField.label;
+        controls.totalPiecesInput = totalPiecesField.input;
+
+        var gridSizeRow = slicePanel.add("group");
+        gridSizeRow.orientation = "row";
+        gridSizeRow.alignChildren = "left";
+        controls.columnsInput = addNumberField(gridSizeRow, "columns", DEFAULT_COLUMNS, 3, "columns").input;
+        controls.rowsInput = addNumberField(gridSizeRow, "rows", DEFAULT_ROWS, 3, "rows").input;
+
+        var shapeRow = slicePanel.add("group");
+        shapeRow.orientation = "row";
+        shapeRow.alignChildren = ["left", "top"];
+        shapeRow.margins = SHAPE_ROW_MARGINS;
+        shapeRow.add("statictext", undefined, labelText("shape"));
+        var shapeRadioColumn = shapeRow.add("group");
+        shapeRadioColumn.orientation = "column";
+        shapeRadioColumn.alignChildren = "left";
+        controls.shapeTraditionalRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio", "traditional"));
+        controls.shapeTraditionalRadio.helpTip = getLabel("tooltip", "shapeTraditional");
+        controls.shapeRandomRadio = shapeRadioColumn.add("radiobutton", undefined, getLabel("radio", "random"));
+        controls.shapeRandomRadio.helpTip = getLabel("tooltip", "shapeRandom");
+        controls.shapeTraditionalRadio.value = true;
+        controls.shapeRow = shapeRow;
+
+        controls.offsetRow = addCheckboxValueRow(slicePanel, "offset", DEFAULT_OFFSET, 4, "offset");
+        controls.overlapRow = addCheckboxValueRow(slicePanel, "overlap", DEFAULT_OVERLAP, 4, "overlap");
+        controls.slicePanel = slicePanel;
+    }
+
+    /**
+     * オプションパネル（バラけ／ケイ線／角丸）を作る
+     * @param {Group} parentGroup - 追加先
+     * @param {Object} controls - コントロールの格納先
+     * @returns {void}
+     */
+    function buildOptionsPanel(parentGroup, controls) {
+        var optionsPanel = parentGroup.add("panel", undefined, getLabel("panel", "options"));
+        optionsPanel.orientation = "column";
+        optionsPanel.alignChildren = "left";
+        optionsPanel.margins = PANEL_MARGINS;
+
+        controls.scatterRow = addCheckboxValueRow(optionsPanel, "scatter", DEFAULT_SCATTER, 4, "scatterDistance");
+
+        var strokeRow = optionsPanel.add("group");
+        strokeRow.orientation = "row";
+        strokeRow.alignChildren = "left";
+        controls.strokeCheckbox = strokeRow.add("checkbox", undefined, getLabel("checkbox", "stroke"));
+        controls.strokeCheckbox.helpTip = getLabel("tooltip", "stroke");
+
+        controls.roundCornerRow = addCheckboxValueRow(optionsPanel, "roundCorners", DEFAULT_ROUND_RADIUS, 5, "roundRadius");
+        controls.optionsPanel = optionsPanel;
+    }
+
+    /**
+     * プログレスバー（処理中のみ表示）とボタンエリアを作る
+     * @param {Window} dlg - ダイアログ
+     * @param {Object} controls - コントロールの格納先
+     * @returns {void}
+     */
+    function buildProgressAndButtons(dlg, controls) {
+        /* プログレスバーとボタンを同じ位置に重ね、非表示の行でボタンの上に余白ができないようにする
+           Stack the progress bar and buttons so the hidden row adds no gap above the buttons */
+        var bottomStack = dlg.add("group");
+        bottomStack.orientation = "stack";
+        bottomStack.alignment = ["fill", "bottom"];
+
+        var progressRow = bottomStack.add("group");
+        progressRow.orientation = "column";
+        progressRow.alignment = ["fill", "center"];
+        progressRow.alignChildren = "fill";
+        progressRow.margins = PROGRESS_ROW_MARGINS;
+        controls.progressBar = progressRow.add("progressbar", undefined, 0, 100);
+        controls.progressBar.preferredSize = PROGRESS_BAR_SIZE;
+        progressRow.visible = false;
+        controls.progressRow = progressRow;
+
+        var btnRowGroup = bottomStack.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
+        btnRowGroup.alignment = "center";
+        controls.btnCancel = btnRowGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
+        controls.btnOK = btnRowGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
+        controls.btnOK.active = true;
+        controls.btnRowGroup = btnRowGroup;
+    }
+
+    /**
+     * チェックボックス付きの行を有効／無効にする（数値欄はチェック時のみ有効）
+     * @param {Object} valueRow - addCheckboxValueRow() の戻り値
+     * @param {boolean} rowEnabled - 行を有効にするなら true
+     * @returns {void}
+     */
+    function setValueRowEnabled(valueRow, rowEnabled) {
+        valueRow.checkbox.enabled = rowEnabled;
+        valueRow.input.enabled = rowEnabled && valueRow.checkbox.value;
+        valueRow.unitLabel.enabled = rowEnabled && valueRow.checkbox.value;
+    }
+
+    /**
+     * 分割方法とチェック状態に合わせて各コントロールを有効／無効にする
+     * @param {Object} controls - ダイアログのコントロール
+     * @returns {void}
+     */
+    function syncEnabledStates(controls) {
+        var isPuzzle = controls.modePuzzleRadio.value;
+        /* パズル時のみ有効 / Puzzle only */
+        controls.totalPiecesLabel.enabled = isPuzzle;
+        controls.totalPiecesInput.enabled = isPuzzle;
+        controls.shapeRow.enabled = isPuzzle;
+        setValueRowEnabled(controls.offsetRow, isPuzzle);
+        setValueRowEnabled(controls.scatterRow, isPuzzle);
+        /* グリッド時のみ有効 / Grid only */
+        setValueRowEnabled(controls.overlapRow, !isPuzzle);
+        setValueRowEnabled(controls.roundCornerRow, !isPuzzle);
+    }
+
+    /**
+     * 分割方法ごとの初期値に戻す
+     * @param {Object} controls - ダイアログのコントロール
+     * @returns {void}
+     */
+    function applyModeDefaults(controls) {
+        controls.totalPiecesInput.text = controls.modeGridRadio.value ? DEFAULT_PIECES_GRID : DEFAULT_PIECES_PUZZLE;
+        controls.offsetRow.checkbox.value = false;
+        controls.offsetRow.input.text = DEFAULT_OFFSET;
+        controls.overlapRow.checkbox.value = false;
+        controls.overlapRow.input.text = DEFAULT_OVERLAP;
+        controls.scatterRow.checkbox.value = false;
+        controls.scatterRow.input.text = DEFAULT_SCATTER;
+        controls.strokeCheckbox.value = false;
+        controls.roundCornerRow.checkbox.value = false;
+        controls.roundCornerRow.input.text = DEFAULT_ROUND_RADIUS;
+    }
+
+    /**
+     * ダイアログのイベントを結び付け、初期状態を整える
+     * @param {Object} controls - ダイアログのコントロール
+     * @param {{width: number, height: number}|null} artworkSize - 選択対象の寸法
+     * @returns {void}
+     */
+    function bindDialogEvents(controls, artworkSize) {
+        /* ピース数から行数・列数を決める / Derive rows and columns from the piece count */
+        function updateGridSizeFromPieces() {
+            var pieceCount = parseInt(controls.totalPiecesInput.text, 10);
+            if (isNaN(pieceCount) || pieceCount < 1 || !artworkSize) return;
+            var gridSize = calcGridSizeFromPieceCount(artworkSize.width, artworkSize.height, pieceCount);
+            controls.rowsInput.text = String(gridSize.rows);
+            controls.columnsInput.text = String(gridSize.columns);
         }
-      }
 
-      if (!handled) return;
-
-      if (keyboard.altKey) {
-        value = Math.round(value * 10) / 10;
-      } else {
-        value = Math.round(value);
-      }
-
-      if (!allowNegative && value < 0) value = 0;
-
-      event.preventDefault();
-      editText.text = value;
-      if (typeof onValueChanged === "function") onValueChanged(editText, value);
-    });
-  }
-
-  /* ダイアログボックス作成 / Build the dialog window */
-  function createDialog() {
-    var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-    dlg.orientation = 'column';
-    dlg.alignment = 'right';
-
-    /* 共通セクション（上部） / Common section (top) */
-    var commonGroup = dlg.add('group');
-    commonGroup.orientation = 'column';
-    commonGroup.alignChildren = 'left';
-    commonGroup.margins = [10, 5, 10, 5];
-
-    /* モード選択（パズル / グリッド分割） */
-    var modeGroup = commonGroup.add("group");
-    modeGroup.orientation = "row";
-    modeGroup.alignChildren = "left";
-    var modeRadioGrid = modeGroup.add("radiobutton", undefined, LABELS.modeGridSplit[uiLang]);
-    modeRadioGrid.helpTip = LABELS.tipModeGrid[uiLang];
-    var modeRadioPuzzle = modeGroup.add("radiobutton", undefined, LABELS.modePuzzle[uiLang]);
-    modeRadioPuzzle.helpTip = LABELS.tipModePuzzle[uiLang];
-    modeRadioGrid.value = true;
-
-    /* 縦積みのパネル群 / Vertically stacked panels */
-    var panelsGroup = dlg.add('group');
-    panelsGroup.orientation = 'column';
-    panelsGroup.alignChildren = 'fill';
-
-    /* 分割パネル: ピース数 / 列数・行数 / 形状 / オフセット / オーバーラップ */
-    var splitPanel = panelsGroup.add('panel', undefined, LABELS.panelSplit[uiLang]);
-    splitPanel.orientation = 'column';
-    splitPanel.alignChildren = 'left';
-    splitPanel.margins = [15, 20, 15, 10];
-
-    /* ピース数 */
-    var totalPiecesGroup = splitPanel.add("group");
-    totalPiecesGroup.orientation = "row";
-    totalPiecesGroup.alignment = "left";
-    var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[uiLang]);
-    var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
-    totalPiecesInput.helpTip = LABELS.tipTotalPieces[uiLang];
-    totalPiecesInput.characters = 4;
-
-    /* 列数・行数 */
-    var rowColGroup = splitPanel.add('group');
-    rowColGroup.orientation = 'row';
-    rowColGroup.alignChildren = 'left';
-    var colGroup = rowColGroup.add('group');
-    colGroup.orientation = 'row';
-    colGroup.add('statictext', undefined, LABELS.columns[uiLang]);
-    var columnsInput = colGroup.add('edittext', undefined, "6");
-    columnsInput.helpTip = LABELS.tipColumns[uiLang];
-    columnsInput.characters = 3;
-    var rowGroup = rowColGroup.add('group');
-    rowGroup.orientation = 'row';
-    rowGroup.add('statictext', undefined, LABELS.rows[uiLang]);
-    var rowsInput = rowGroup.add('edittext', undefined, "4");
-    rowsInput.helpTip = LABELS.tipRows[uiLang];
-    rowsInput.characters = 3;
-
-    function getSelectedArtworkSize() {
-      if (app.documents.length > 0 && app.selection.length == 1) {
-        var selectedArtworkItem = app.selection[0];
-        if (
-          selectedArtworkItem.typename === "RasterItem" ||
-          selectedArtworkItem.typename === "PlacedItem" ||
-          selectedArtworkItem.typename === "SymbolItem" ||
-          selectedArtworkItem.typename === "PathItem" ||
-          selectedArtworkItem.typename === "GroupItem" ||
-          selectedArtworkItem.typename === "CompoundPathItem"
-        ) {
-          var artworkBounds = selectedArtworkItem.geometricBounds;
-          var artworkWidth = artworkBounds[2] - artworkBounds[0];
-          var artworkHeight = artworkBounds[1] - artworkBounds[3];
-          if (artworkHeight < 0) artworkHeight = -artworkHeight;
-          return { width: artworkWidth, height: artworkHeight };
+        function onSyncEnabled() {
+            syncEnabledStates(controls);
         }
-      }
-      return null;
-    }
-    var selectedArtwork = getSelectedArtworkSize();
-    if (selectedArtwork) {
-      var grid = getInitialGridSize(selectedArtwork.width, selectedArtwork.height, 25);
-      rowsInput.text = String(grid[0]);
-      columnsInput.text = String(grid[1]);
-    }
 
-    function updateRowsColsFromTotalPieces() {
-      var val = parseInt(totalPiecesInput.text, 10);
-      if (isNaN(val) || val < 1) return;
-      var selectedArtwork = getSelectedArtworkSize();
-      if (selectedArtwork) {
-        var grid = getInitialGridSize(selectedArtwork.width, selectedArtwork.height, val);
-        rowsInput.text = String(grid[0]);
-        columnsInput.text = String(grid[1]);
-      }
-    }
-
-    totalPiecesInput.onChanging = function () {
-      updateRowsColsFromTotalPieces();
-    };
-
-    /* 形状 */
-    var shapeGroup = splitPanel.add("group");
-    shapeGroup.orientation = "row";
-    shapeGroup.alignChildren = ["left", "top"];
-    shapeGroup.margins = [0, 10, 0, 10];
-
-    var shapeLabel = shapeGroup.add('statictext', undefined, getLabel('shapeLabel'));
-    shapeLabel.preferredSize.width = 28;
-
-    var shapeOptions = shapeGroup.add("group");
-    shapeOptions.orientation = "column";
-    shapeOptions.alignChildren = "left";
-
-    var shapeRadioTraditional = shapeOptions.add("radiobutton", undefined, LABELS.shapeTraditional[uiLang]);
-    shapeRadioTraditional.helpTip = LABELS.tipShapeTraditional[uiLang];
-    var shapeRadioRandom = shapeOptions.add("radiobutton", undefined, LABELS.shapeRandom[uiLang]);
-    shapeRadioRandom.helpTip = LABELS.tipShapeRandom[uiLang];
-    shapeRadioTraditional.value = true;
-
-    /* オフセット */
-    var offsetGroup = splitPanel.add("group");
-    offsetGroup.orientation = "row";
-    offsetGroup.alignChildren = "left";
-    var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[uiLang]);
-    offsetCheckbox.helpTip = LABELS.tipOffset[uiLang];
-    offsetCheckbox.value = false;
-    var offsetValueInput = offsetGroup.add("edittext", undefined, "-2");
-    offsetValueInput.helpTip = LABELS.tipOffset[uiLang];
-    offsetValueInput.characters = 4;
-    var offsetUnitLabel = offsetGroup.add("statictext", undefined, getUnitInfo().label);
-    offsetValueInput.enabled = offsetCheckbox.value;
-    offsetUnitLabel.enabled = offsetCheckbox.value;
-    offsetCheckbox.onClick = function () {
-      var puzzle = modeRadioPuzzle.value;
-      offsetValueInput.enabled = puzzle && offsetCheckbox.value;
-      offsetUnitLabel.enabled = puzzle && offsetCheckbox.value;
-    };
-
-    /* オーバーラップ */
-    var overlapGroup = splitPanel.add("group");
-    overlapGroup.orientation = "row";
-    overlapGroup.alignChildren = "left";
-    var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[uiLang]);
-    overlapCheckbox.helpTip = LABELS.tipOverlap[uiLang];
-    overlapCheckbox.value = false;
-    var overlapInput = overlapGroup.add("edittext", undefined, "10");
-    overlapInput.helpTip = LABELS.tipOverlap[uiLang];
-    overlapInput.characters = 4;
-    var overlapUnitLabel = overlapGroup.add("statictext", undefined, getUnitInfo().label);
-    overlapInput.enabled = overlapCheckbox.value;
-    overlapUnitLabel.enabled = overlapCheckbox.value;
-    overlapCheckbox.onClick = function () {
-      var gridMode = modeRadioGrid.value;
-      overlapInput.enabled = gridMode && overlapCheckbox.value;
-      overlapUnitLabel.enabled = gridMode && overlapCheckbox.value;
-    };
-
-    /* オプションパネル: バラけ処理 / ケイ / 角丸 */
-    var optionsPanel = panelsGroup.add('panel', undefined, LABELS.panelOptions[uiLang]);
-    optionsPanel.orientation = 'column';
-    optionsPanel.alignChildren = 'left';
-    optionsPanel.margins = [15, 20, 15, 10];
-
-    /* バラけ処理 */
-    var scatterGroup = optionsPanel.add("group");
-    scatterGroup.orientation = "row";
-    scatterGroup.alignChildren = "left";
-    var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[uiLang]);
-    scatterCheckbox.helpTip = LABELS.tipScatter[uiLang];
-    scatterCheckbox.value = false;
-    var scatterStrengthInput = scatterGroup.add("edittext", undefined, "30");
-    scatterStrengthInput.helpTip = LABELS.tipScatterStrength[uiLang];
-    scatterStrengthInput.characters = 4;
-    var scatterUnitLabel = scatterGroup.add("statictext", undefined, getUnitInfo().label);
-    scatterStrengthInput.enabled = scatterCheckbox.value;
-    scatterUnitLabel.enabled = scatterCheckbox.value;
-    scatterCheckbox.onClick = function () {
-      scatterStrengthInput.enabled = scatterCheckbox.value;
-      scatterUnitLabel.enabled = scatterCheckbox.value;
-    };
-
-    /* ケイ */
-    var ruleGroup = optionsPanel.add("group");
-    ruleGroup.orientation = "row";
-    ruleGroup.alignChildren = "left";
-    var ruleCheckbox = ruleGroup.add('checkbox', undefined, LABELS.ruleCheck[uiLang]);
-    ruleCheckbox.helpTip = LABELS.tipRule[uiLang];
-    ruleCheckbox.value = false;
-
-    /* 角丸 */
-    var roundCornerGroup = optionsPanel.add("group");
-    roundCornerGroup.orientation = "row";
-    roundCornerGroup.alignChildren = "left";
-    var roundCornerCheckbox = roundCornerGroup.add('checkbox', undefined, LABELS.roundCheck[uiLang]);
-    roundCornerCheckbox.helpTip = LABELS.tipRound[uiLang];
-    roundCornerCheckbox.value = false;
-    var roundRadiusInput = roundCornerGroup.add("edittext", undefined, "3");
-    roundRadiusInput.helpTip = LABELS.tipRound[uiLang];
-    roundRadiusInput.characters = 5;
-    var roundCornerUnitLabel = roundCornerGroup.add("statictext", undefined, getUnitInfo().label);
-    roundRadiusInput.enabled = roundCornerCheckbox.value;
-    roundCornerUnitLabel.enabled = roundCornerCheckbox.value;
-    roundCornerCheckbox.onClick = function () {
-      var gridMode = modeRadioGrid.value;
-      roundRadiusInput.enabled = gridMode && roundCornerCheckbox.value;
-      roundCornerUnitLabel.enabled = gridMode && roundCornerCheckbox.value;
-    };
-
-    /* モードに応じてディム化 / Toggle enabled state by mode */
-    function updateModeDependentEnabled() {
-      var puzzle = modeRadioPuzzle.value;
-      /* パズル時のみ有効 / Puzzle only */
-      shapeGroup.enabled = puzzle;
-      totalPiecesInput.enabled = puzzle;
-      totalPiecesLabel.enabled = puzzle;
-      offsetCheckbox.enabled = puzzle;
-      offsetValueInput.enabled = puzzle && offsetCheckbox.value;
-      offsetUnitLabel.enabled = puzzle && offsetCheckbox.value;
-      scatterCheckbox.enabled = puzzle;
-      scatterStrengthInput.enabled = puzzle && scatterCheckbox.value;
-      /* グリッド分割時のみ有効 / Grid only */
-      overlapCheckbox.enabled = !puzzle;
-      overlapInput.enabled = !puzzle && overlapCheckbox.value;
-      overlapUnitLabel.enabled = !puzzle && overlapCheckbox.value;
-      ruleCheckbox.enabled = !puzzle;
-      roundCornerCheckbox.enabled = !puzzle;
-      roundRadiusInput.enabled = !puzzle && roundCornerCheckbox.value;
-      roundCornerUnitLabel.enabled = !puzzle && roundCornerCheckbox.value;
-    }
-
-    /* モードごとの既定値を適用 / Apply mode-specific defaults */
-    function applyModeDefaults() {
-      if (modeRadioGrid.value) {
-        totalPiecesInput.text = "2";
-        offsetValueInput.text = "-2";
-        offsetCheckbox.value = false;
-        overlapCheckbox.value = false;
-        overlapInput.text = "10";
-        ruleCheckbox.value = false;
-        roundCornerCheckbox.value = false;
-        roundRadiusInput.text = "3";
-      } else {
-        totalPiecesInput.text = "25";
-        offsetValueInput.text = "-2";
-        offsetCheckbox.value = false;
-        scatterCheckbox.value = false;
-        scatterStrengthInput.text = "30";
-        overlapCheckbox.value = false;
-        ruleCheckbox.value = false;
-        roundCornerCheckbox.value = false;
-        roundRadiusInput.text = "3";
-      }
-    }
-
-    function onModeChange() {
-      applyModeDefaults();
-      updateRowsColsFromTotalPieces();
-      updateModeDependentEnabled();
-    }
-    modeRadioPuzzle.onClick = onModeChange;
-    modeRadioGrid.onClick = onModeChange;
-    /* デフォルトはグリッド分割 / Default to grid split */
-    applyModeDefaults();
-    updateRowsColsFromTotalPieces();
-    updateModeDependentEnabled();
-
-    /* プログレスバー（処理中のみ表示） / Progress bar (shown during processing) */
-    var progressGroup = dlg.add('group');
-    progressGroup.orientation = 'column';
-    progressGroup.alignChildren = 'fill';
-    progressGroup.margins = [10, 0, 10, 0];
-    var progressBar = progressGroup.add('progressbar', undefined, 0, 100);
-    progressBar.preferredSize = [200, 7];
-    progressGroup.visible = false;
-
-    /* OK・キャンセルボタン / OK and Cancel buttons */
-    var buttonGroup = dlg.add('group');
-    buttonGroup.orientation = 'row';
-    buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[uiLang], { name: "cancel" });
-    var okBtn = buttonGroup.add('button', undefined, LABELS.okBtn[uiLang], { name: "ok" });
-    okBtn.active = true;
-
-    // Add arrow-key increment/decrement support for edittext fields
-    changeValueByArrowKey(columnsInput, false);
-    changeValueByArrowKey(rowsInput, false);
-    changeValueByArrowKey(totalPiecesInput, false, updateRowsColsFromTotalPieces);
-    changeValueByArrowKey(overlapInput, false);
-    changeValueByArrowKey(roundRadiusInput, false);
-    changeValueByArrowKey(offsetValueInput, true);
-    changeValueByArrowKey(scatterStrengthInput, false);
-
-    return {
-      dialog: dlg,
-      modeRadioPuzzle: modeRadioPuzzle,
-      modeRadioGrid: modeRadioGrid,
-      totalPiecesInput: totalPiecesInput,
-      columnsInput: columnsInput,
-      rowsInput: rowsInput,
-      shapeRadioTraditional: shapeRadioTraditional,
-      shapeRadioRandom: shapeRadioRandom,
-      scatterCheckbox: scatterCheckbox,
-      scatterStrengthInput: scatterStrengthInput,
-      offsetCheckbox: offsetCheckbox,
-      offsetValueInput: offsetValueInput,
-      overlapCheckbox: overlapCheckbox,
-      overlapInput: overlapInput,
-      ruleCheckbox: ruleCheckbox,
-      roundCornerCheckbox: roundCornerCheckbox,
-      roundRadiusInput: roundRadiusInput,
-      okBtn: okBtn,
-      cancelBtn: cancelBtn,
-      commonGroup: commonGroup,
-      splitPanel: splitPanel,
-      optionsPanel: optionsPanel,
-      buttonGroup: buttonGroup,
-      progressGroup: progressGroup,
-      progressBar: progressBar
-    };
-  }
-
-  /* オフセットパスエフェクトユーティリティ / Offset Path Effect Utility */
-  function createOffsetEffectXML(offsetVal) {
-    var xml = '<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst value I jntp 2 "/></LiveEffect>';
-    return xml.replace("value", offsetVal);
-  }
-
-  function applyOffsetPathToSelection(offsetVal) {
-    var doc = app.activeDocument;
-    var prevUIL = app.userInteractionLevel;
-    if (!doc.selection || doc.selection.length === 0) {
-      return null;
-    }
-    var prevSelection = doc.selection ? doc.selection.slice(0) : null;
-    try {
-      var sourceItem = doc.selection[0];
-
-      app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
-      doc.selection = null;
-
-      var duplicatedItem = sourceItem.duplicate(sourceItem, ElementPlacement.PLACEAFTER);
-      sourceItem.remove();
-
-      duplicatedItem.selected = true;
-      duplicatedItem.applyEffect(createOffsetEffectXML(offsetVal));
-      app.redraw();
-      app.executeMenuCommand('expandStyle');
-
-      if (app.selection && app.selection.length > 0) {
-        return app.selection[0];
-      }
-      return null;
-    } catch (err) {
-      alert(getLabel("alertGeneralError") + err.message);
-      return null;
-    } finally {
-      // 必ず UIレベルと選択状態を戻す
-      try { app.userInteractionLevel = prevUIL; } catch (e) {}
-      try {
-        if (prevSelection && prevSelection.length) {
-          doc.selection = null;
-          for (var i = 0; i < prevSelection.length; i++) {
-            try { prevSelection[i].selected = true; } catch (e) {}
-          }
+        function onModeChange() {
+            applyModeDefaults(controls);
+            updateGridSizeFromPieces();
+            syncEnabledStates(controls);
         }
-      } catch (e) {}
-    }
-  }
 
-  /* ケイ・角丸を適用 / Apply stroke (rule) and round corners to target */
-  function applyRuleAndRoundCorners(target, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints) {
-    if (!target) return;
-    if (shouldAddStroke) {
-      try {
-        app.activeDocument.selection = null;
-        target.selected = true;
-        app.executeMenuCommand('Adobe New Stroke Shortcut');
-        app.executeMenuCommand('Live Pathfinder Add');
-      } catch (e) { }
-    }
-    if (shouldApplyRoundCorners && roundRadiusInPoints > 0) {
-      try {
-        var roundXML = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + roundRadiusInPoints + ' "/></LiveEffect>';
-        target.applyEffect(roundXML);
-      } catch (e) { }
-    }
-  }
+        controls.totalPiecesInput.onChanging = updateGridSizeFromPieces;
+        controls.modeGridRadio.onClick = onModeChange;
+        controls.modePuzzleRadio.onClick = onModeChange;
+        controls.offsetRow.checkbox.onClick = onSyncEnabled;
+        controls.overlapRow.checkbox.onClick = onSyncEnabled;
+        controls.scatterRow.checkbox.onClick = onSyncEnabled;
+        controls.roundCornerRow.checkbox.onClick = onSyncEnabled;
 
-  function readDialogValues(ui) {
-    var ruleCheckbox = ui.ruleCheckbox;
-    var roundCornerCheckbox = ui.roundCornerCheckbox;
-    var roundRadiusInput = ui.roundRadiusInput;
-    var overlapCheckbox = ui.overlapCheckbox;
-    var overlapInput = ui.overlapInput;
-    var columnsInput = ui.columnsInput;
-    var rowsInput = ui.rowsInput;
-    var scatterCheckbox = ui.scatterCheckbox;
-    var scatterStrengthInput = ui.scatterStrengthInput;
-    var offsetCheckbox = ui.offsetCheckbox;
-    var offsetValueInput = ui.offsetValueInput;
+        changeValueByArrowKey(controls.columnsInput, false);
+        changeValueByArrowKey(controls.rowsInput, false);
+        changeValueByArrowKey(controls.totalPiecesInput, false, updateGridSizeFromPieces);
+        changeValueByArrowKey(controls.overlapRow.input, false);
+        changeValueByArrowKey(controls.roundCornerRow.input, false);
+        changeValueByArrowKey(controls.offsetRow.input, true);
+        changeValueByArrowKey(controls.scatterRow.input, false);
 
-    var shouldAddStroke = ruleCheckbox.value;
-    var shouldApplyRoundCorners = roundCornerCheckbox.value;
-    var roundRadiusInputValue = parseFloat(roundRadiusInput.text);
-    var roundRadiusInPoints = (isNaN(roundRadiusInputValue) ? 0 : roundRadiusInputValue) * getUnitInfo().pointsPerUnit;
-
-    var overlapInPoints = 0;
-    if (overlapCheckbox.value) {
-      var overlapInputValue = parseFloat(overlapInput.text);
-      overlapInPoints = (isNaN(overlapInputValue) ? 0 : overlapInputValue) * getUnitInfo().pointsPerUnit;
+        onModeChange();
     }
 
-    var shouldScatter = scatterCheckbox.value;
-    var scatterStrengthInputValue = parseFloat(scatterStrengthInput.text);
-    var scatterStrength = (isNaN(scatterStrengthInputValue) ? 0 : scatterStrengthInputValue) * getUnitInfo().pointsPerUnit;
+    /**
+     * ダイアログを作る
+     * @param {{width: number, height: number}|null} artworkSize - 選択対象の寸法
+     * @returns {Object} ダイアログ（dialog）と各コントロール
+     */
+    function buildDialog(artworkSize) {
+        var dlg = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        dlg.orientation = "column";
+        var controls = { dialog: dlg };
 
-    var shouldApplyOffset = offsetCheckbox.value;
-    var offsetInputValue = parseFloat(offsetValueInput.text);
-    var offsetInPoints = (isNaN(offsetInputValue) ? 0 : offsetInputValue) * getUnitInfo().pointsPerUnit;
+        buildModeRow(dlg, controls);
 
-    var columnCount = Math.round(Number(columnsInput.text));
-    var rowCount = Math.round(Number(rowsInput.text));
+        var panelStack = dlg.add("group");
+        panelStack.orientation = "column";
+        panelStack.alignChildren = "fill";
+        buildSlicePanel(panelStack, controls);
+        buildOptionsPanel(panelStack, controls);
 
-    return {
-      shouldAddStroke: shouldAddStroke,
-      shouldApplyRoundCorners: shouldApplyRoundCorners,
-      roundRadiusInPoints: roundRadiusInPoints,
-      overlapInPoints: overlapInPoints,
-      shouldScatter: shouldScatter,
-      scatterStrength: scatterStrength,
-      shouldApplyOffset: shouldApplyOffset,
-      offsetInPoints: offsetInPoints,
-      columnCount: columnCount,
-      rowCount: rowCount
-    };
-  }
+        buildProgressAndButtons(dlg, controls);
+        bindDialogEvents(controls, artworkSize);
+        return controls;
+    }
 
-  function prepareSourceItems() {
-    var workingSourceItem;
-    var contentSourceItem = null;
-    var maskSourceItem;
-    var isTemporaryBoundsRect = false;
+    /**
+     * ダイアログの値を分割の設定として読み取る（分割方法で使わない項目は無効扱い）
+     * @param {Object} controls - ダイアログのコントロール
+     * @returns {Object} 分割の設定
+     */
+    function readSliceSettings(controls) {
+        var isGridMode = controls.modeGridRadio.value;
+        return {
+            isGridMode: isGridMode,
+            isRandomShape: controls.shapeRandomRadio.value,
+            columnCount: Math.round(Number(controls.columnsInput.text)),
+            rowCount: Math.round(Number(controls.rowsInput.text)),
+            shouldApplyOffset: !isGridMode && controls.offsetRow.checkbox.value,
+            offsetInPoints: readLengthInPoints(controls.offsetRow.input),
+            overlapInPoints: (isGridMode && controls.overlapRow.checkbox.value) ? readLengthInPoints(controls.overlapRow.input) : 0,
+            shouldScatter: !isGridMode && controls.scatterRow.checkbox.value,
+            scatterDistance: readLengthInPoints(controls.scatterRow.input),
+            shouldAddStroke: controls.strokeCheckbox.value,
+            shouldApplyRoundCorners: isGridMode && controls.roundCornerRow.checkbox.value,
+            roundRadiusInPoints: readLengthInPoints(controls.roundCornerRow.input)
+        };
+    }
 
-    /* 複数選択時はグループ化してシンボル化（重ね順を保持） */
-    if (app.selection.length > 1) {
-      try {
-        var tempGroup = app.activeDocument.groupItems.add();
+    /**
+     * 処理中の表示（入力を無効化してプログレスバーを出す）に切り替える
+     * @param {Object} controls - ダイアログのコントロール
+     * @returns {void}
+     */
+    function showProgressState(controls) {
+        controls.modeRow.enabled = false;
+        controls.slicePanel.enabled = false;
+        controls.optionsPanel.enabled = false;
+        controls.btnRowGroup.visible = false;
+        controls.progressRow.visible = true;
+        controls.progressBar.value = 0;
+        controls.dialog.layout.layout(true);
+        controls.dialog.update();
+    }
+
+    // =========================================
+    // 元オブジェクトの準備 / Source preparation
+    // =========================================
+
+    /**
+     * オブジェクトをシンボル化し、同じ位置にインスタンスを置いて元を削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} sourceItem - シンボル化する対象
+     * @returns {SymbolItem} 置き換えたインスタンス
+     */
+    function convertToSymbolItem(doc, sourceItem) {
+        var sourceLeft = sourceItem.left;
+        var sourceTop = sourceItem.top;
+        var sourceParent = sourceItem.parent;
+        var createdSymbol = doc.symbols.add(sourceItem);
+        var symbolInstance = sourceParent.symbolItems.add(createdSymbol);
+        symbolInstance.left = sourceLeft;
+        symbolInstance.top = sourceTop;
+        sourceItem.remove();
+        return symbolInstance;
+    }
+
+    /**
+     * 選択中のオブジェクトを重ね順を保ったまま1つのグループにまとめる
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {GroupItem} まとめたグループ
+     */
+    function groupSelectedItems(doc) {
         var selectedItems = [];
-        for (var selectedIndex = 0; selectedIndex < app.selection.length; selectedIndex++) {
-          selectedItems.push(app.selection[selectedIndex]);
+        for (var i = 0; i < doc.selection.length; i++) {
+            selectedItems.push(doc.selection[i]);
         }
-        for (var selectedItemIndex = selectedItems.length - 1; selectedItemIndex >= 0; selectedItemIndex--) {
-          selectedItems[selectedItemIndex].move(tempGroup, ElementPlacement.PLACEATBEGINNING);
+        var selectionGroup = doc.groupItems.add();
+        for (var j = selectedItems.length - 1; j >= 0; j--) {
+            selectedItems[j].move(selectionGroup, ElementPlacement.PLACEATBEGINNING);
         }
-        var groupLeft = tempGroup.left;
-        var groupTop = tempGroup.top;
-        var groupParent = tempGroup.parent;
-        var groupedSymbol = app.activeDocument.symbols.add(tempGroup);
-        var symbolItem = groupParent.symbolItems.add(groupedSymbol);
-        symbolItem.left = groupLeft;
-        symbolItem.top = groupTop;
-        tempGroup.remove();
-        workingSourceItem = symbolItem;
-      } catch (e) {
-        alert(getLabel("alertMultiSymbolizeFailed") + e);
+        return selectionGroup;
+    }
+
+    /**
+     * 選択を分割できる形に整える（複数選択・埋め込み画像・ベクターはシンボル化、
+     * 画像やシンボルはマスク用の矩形を用意）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{contentSourceItem: PageItem, maskSourceItem: PageItem, isTemporaryBoundsRect: boolean}|null} 準備した対象（失敗時は null）
+     */
+    function prepareSourceItems(doc) {
+        var vectorTypes = { PathItem: 1, GroupItem: 1, CompoundPathItem: 1 };
+        var failureAlertKey = "symbolizeMultiple";
+        var workingItem;
+
+        try {
+            if (doc.selection.length > 1) {
+                workingItem = convertToSymbolItem(doc, groupSelectedItems(doc));
+            } else {
+                workingItem = doc.selection[0];
+                if (workingItem.typename === "RasterItem") {
+                    failureAlertKey = "symbolizeRaster";
+                    workingItem = convertToSymbolItem(doc, workingItem);
+                } else if (vectorTypes[workingItem.typename]) {
+                    failureAlertKey = "symbolizeVector";
+                    workingItem = convertToSymbolItem(doc, workingItem);
+                }
+            }
+        } catch (e) {
+            alert(getLabel("alert", failureAlertKey) + e);
+            return null;
+        }
+
+        /* 配置画像とシンボルは外接矩形をマスクの元にする / Placed images and symbols get a bounding rectangle as the mask source */
+        if (workingItem.typename === "PlacedItem" || workingItem.typename === "SymbolItem") {
+            var sourceBounds = workingItem.geometricBounds;
+            var rectWidth = sourceBounds[2] - sourceBounds[0];
+            var rectHeight = Math.abs(sourceBounds[1] - sourceBounds[3]);
+            return {
+                contentSourceItem: workingItem,
+                maskSourceItem: doc.pathItems.rectangle(sourceBounds[1], sourceBounds[0], rectWidth, rectHeight),
+                isTemporaryBoundsRect: true
+            };
+        }
+        return { contentSourceItem: null, maskSourceItem: workingItem, isTemporaryBoundsRect: false };
+    }
+
+    /**
+     * 分割の元にしたオブジェクトと一時矩形を削除する
+     * @param {Object} preparedItems - prepareSourceItems() の戻り値
+     * @returns {void}
+     */
+    function cleanupSourceItems(preparedItems) {
+        if (preparedItems.contentSourceItem) preparedItems.contentSourceItem.remove();
+        if (preparedItems.isTemporaryBoundsRect) preparedItems.maskSourceItem.remove();
+    }
+
+    /**
+     * 0 の列数／行数を、もう一方と縦横比から補う
+     * @param {number} columnCount - 列数（0 なら自動）
+     * @param {number} rowCount - 行数（0 なら自動）
+     * @param {number[]} bounds - マスク元の geometricBounds
+     * @returns {{columnCount: number, rowCount: number}} 補った列数と行数
+     */
+    function resolveGridCounts(columnCount, rowCount, bounds) {
+        var boundsWidth = bounds[2] - bounds[0];
+        var boundsHeight = bounds[3] - bounds[1];
+        if (columnCount == 0) {
+            columnCount = Math.max(1, Math.round(Math.abs(boundsWidth / boundsHeight) * rowCount));
+        }
+        if (rowCount == 0) {
+            rowCount = Math.max(1, Math.round(Math.abs(boundsHeight / boundsWidth) * columnCount));
+        }
+        return { columnCount: columnCount, rowCount: rowCount };
+    }
+
+    /**
+     * 列数・行数の入力が分割できる組み合わせか（どちらかが1以上、もう一方は0以上）
+     * @param {number} columnCount - 列数
+     * @param {number} rowCount - 行数
+     * @returns {boolean} 分割できるなら true
+     */
+    function isValidGridCount(columnCount, rowCount) {
+        return columnCount >= 0 && rowCount >= 0 && (columnCount >= 1 || rowCount >= 1);
+    }
+
+    // =========================================
+    // マスク形状 / Mask shapes
+    // =========================================
+
+    /**
+     * 分割の基準となる格子を作る（パズル時は各ピースの突起の向きとずれも決める）
+     * @param {number[]} bounds - マスク元の geometricBounds
+     * @param {number} columnCount - 列数
+     * @param {number} rowCount - 行数
+     * @param {boolean} isPuzzle - パズル形状なら true
+     * @param {boolean} isRandomShape - 突起の向きをランダムにするなら true
+     * @returns {Object} 格子の情報
+     */
+    function buildSliceGrid(bounds, columnCount, rowCount, isPuzzle, isRandomShape) {
+        var sliceGrid = {
+            originX: bounds[0],
+            originY: bounds[1],
+            right: bounds[2],
+            bottom: bounds[3],
+            columnCount: columnCount,
+            rowCount: rowCount,
+            pieceWidth: (bounds[2] - bounds[0]) / columnCount,
+            pieceHeight: (bounds[1] - bounds[3]) / rowCount,
+            edgeData: null
+        };
+        if (!isPuzzle) return sliceGrid;
+
+        var edgeData = new Array(rowCount);
+        for (var y = 0; y < rowCount; y++) {
+            edgeData[y] = new Array(columnCount);
+            for (var x = 0; x < columnCount; x++) {
+                var isTopOut = isRandomShape ? Math.random() < 0.5 : (x & 1) ^ (y & 1);
+                var isRightOut = isRandomShape ? Math.random() < 0.5 : !((x & 1) ^ (y & 1));
+                edgeData[y][x] = {
+                    topOut: isTopOut,
+                    rightOut: isRightOut,
+                    verticalOffset: sliceGrid.pieceHeight * (Math.random() - 0.5) / 10,
+                    horizontalOffset: sliceGrid.pieceWidth * (Math.random() - 0.5) / 10
+                };
+            }
+        }
+        sliceGrid.edgeData = edgeData;
+        return sliceGrid;
+    }
+
+    /**
+     * グリッド1マス分の矩形マスクを作る（オーバーラップ分広げ、元の範囲内に収める）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} columnIndex - 列番号
+     * @param {number} rowIndex - 行番号
+     * @param {number} overlapInPoints - オーバーラップ（pt）
+     * @returns {PathItem} 矩形マスク
+     */
+    function createGridMask(doc, sliceGrid, columnIndex, rowIndex, overlapInPoints) {
+        var rectLeft = sliceGrid.originX + columnIndex * sliceGrid.pieceWidth - overlapInPoints / 2;
+        var rectWidth = sliceGrid.pieceWidth + overlapInPoints;
+        if (rectLeft < sliceGrid.originX) {
+            rectWidth -= (sliceGrid.originX - rectLeft);
+            rectLeft = sliceGrid.originX;
+        }
+        if (rectLeft + rectWidth > sliceGrid.right) {
+            rectWidth = sliceGrid.right - rectLeft;
+        }
+
+        var rectTop = sliceGrid.originY - rowIndex * sliceGrid.pieceHeight + overlapInPoints / 2;
+        var rectHeight = sliceGrid.pieceHeight + overlapInPoints;
+        if (rectTop > sliceGrid.originY) {
+            rectHeight -= (rectTop - sliceGrid.originY);
+            rectTop = sliceGrid.originY;
+        }
+        if (rectTop - rectHeight < sliceGrid.bottom) {
+            rectHeight = rectTop - sliceGrid.bottom;
+        }
+
+        var gridMask = doc.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
+        gridMask.closed = true;
+        gridMask.filled = false;
+        gridMask.stroked = false;
+        return gridMask;
+    }
+
+    /**
+     * コーナーポイントを追加する
+     * @param {PathItem} pathItem - 対象パス
+     * @param {number} anchorX - X座標
+     * @param {number} anchorY - Y座標
+     * @returns {void}
+     */
+    function addCornerPoint(pathItem, anchorX, anchorY) {
+        var cornerPoint = pathItem.pathPoints.add();
+        cornerPoint.anchor = [anchorX, anchorY];
+        cornerPoint.leftDirection = [anchorX, anchorY];
+        cornerPoint.rightDirection = [anchorX, anchorY];
+        cornerPoint.pointType = PointType.CORNER;
+    }
+
+    /**
+     * スムーズポイントを追加する
+     * @param {PathItem} pathItem - 対象パス
+     * @param {number} anchorX - アンカーのX座標
+     * @param {number} anchorY - アンカーのY座標
+     * @param {number} leftX - 前側ハンドルのX座標
+     * @param {number} leftY - 前側ハンドルのY座標
+     * @param {number} rightX - 後側ハンドルのX座標
+     * @param {number} rightY - 後側ハンドルのY座標
+     * @returns {void}
+     */
+    function addCurvePoint(pathItem, anchorX, anchorY, leftX, leftY, rightX, rightY) {
+        var curvePoint = pathItem.pathPoints.add();
+        curvePoint.anchor = [anchorX, anchorY];
+        curvePoint.leftDirection = [leftX, leftY];
+        curvePoint.rightDirection = [rightX, rightY];
+        curvePoint.pointType = PointType.SMOOTH;
+    }
+
+    /**
+     * パズルピース1つ分のマスクパスを作る（下辺→右辺→上辺→左辺の順に突起を描く）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} x - 列番号
+     * @param {number} y - 行番号
+     * @returns {PathItem} マスクパス
+     */
+    function createPuzzleMaskPath(doc, sliceGrid, x, y) {
+        var leftX = sliceGrid.originX + x * sliceGrid.pieceWidth;
+        var rightX = sliceGrid.originX + (x + 1) * sliceGrid.pieceWidth;
+        var topY = sliceGrid.originY - y * sliceGrid.pieceHeight;
+        var bottomY = sliceGrid.originY - (y + 1) * sliceGrid.pieceHeight;
+
+        var maskPath = doc.pathItems.add();
+        addCornerPoint(maskPath, leftX, bottomY);
+        appendLowerTab(maskPath, sliceGrid, x, y);
+        addCornerPoint(maskPath, rightX, bottomY);
+        appendRightTab(maskPath, sliceGrid, x, y);
+        addCornerPoint(maskPath, rightX, topY);
+        appendUpperTab(maskPath, sliceGrid, x, y);
+        addCornerPoint(maskPath, leftX, topY);
+        appendLeftTab(maskPath, sliceGrid, x, y);
+        maskPath.closed = true;
+        return maskPath;
+    }
+
+    /**
+     * 下隣のピースとの境界（y+1 行目との辺）の突起を追加する
+     * @param {PathItem} maskPath - 描画中のパス
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} x - 列番号
+     * @param {number} y - 行番号
+     * @returns {void}
+     */
+    function appendLowerTab(maskPath, sliceGrid, x, y) {
+        if (y >= sliceGrid.rowCount - 1) return;
+        var edge = sliceGrid.edgeData[y + 1][x];
+        var left = sliceGrid.originX + x * sliceGrid.pieceWidth;
+        var rowTop = sliceGrid.originY - y * sliceGrid.pieceHeight;
+        var rowBottom = sliceGrid.originY - (y + 1) * sliceGrid.pieceHeight;
+        var thirdWidth = sliceGrid.pieceWidth / 3;
+        var quarterHeight = sliceGrid.pieceHeight / 4;
+        var shift = edge.verticalOffset;
+
+        if (edge.topOut) {
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowBottom - shift,
+                left + 0.67 * thirdWidth, rowBottom + 0.33 * quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowBottom - 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowBottom - quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowBottom - quarterHeight + 0.33 * quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowBottom - quarterHeight - 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowBottom - quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowBottom - quarterHeight - 0.33 * quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowBottom - quarterHeight + 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowBottom - shift,
+                left + 1.67 * thirdWidth, rowBottom - 0.33 * quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowBottom + 0.33 * quarterHeight - shift);
+        } else {
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowBottom - shift,
+                left + 0.67 * thirdWidth, rowBottom - 0.33 * quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowBottom + 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowTop - 3 * quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowTop - 3.5 * quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowTop - 2.5 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowTop - 3 * quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowTop - 2.5 * quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowTop - 3.5 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowBottom - shift,
+                left + 1.67 * thirdWidth, rowBottom + 0.33 * quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowBottom - 0.33 * quarterHeight - shift);
+        }
+    }
+
+    /**
+     * 右隣のピースとの境界の突起を追加する
+     * @param {PathItem} maskPath - 描画中のパス
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} x - 列番号
+     * @param {number} y - 行番号
+     * @returns {void}
+     */
+    function appendRightTab(maskPath, sliceGrid, x, y) {
+        if (x >= sliceGrid.columnCount - 1) return;
+        var edge = sliceGrid.edgeData[y][x + 1];
+        var left = sliceGrid.originX + x * sliceGrid.pieceWidth;
+        var rowTop = sliceGrid.originY - y * sliceGrid.pieceHeight;
+        var thirdHeight = sliceGrid.pieceHeight / 3;
+        var quarterWidth = sliceGrid.pieceWidth / 4;
+        var shift = edge.horizontalOffset;
+
+        if (edge.rightOut) {
+            addCurvePoint(maskPath,
+                left + 4 * quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 5 * quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight,
+                left + 5.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 5 * quarterWidth - shift, rowTop - thirdHeight,
+                left + 5.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 4 * quarterWidth - shift, rowTop - thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight);
+        } else {
+            addCurvePoint(maskPath,
+                left + 4 * quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 3 * quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight,
+                left + 2.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 3 * quarterWidth - shift, rowTop - thirdHeight,
+                left + 2.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + 4 * quarterWidth - shift, rowTop - thirdHeight,
+                left + 3.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight,
+                left + 4.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight);
+        }
+    }
+
+    /**
+     * 上隣のピースとの境界（y 行目の上辺）の突起を追加する
+     * @param {PathItem} maskPath - 描画中のパス
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} x - 列番号
+     * @param {number} y - 行番号
+     * @returns {void}
+     */
+    function appendUpperTab(maskPath, sliceGrid, x, y) {
+        if (y <= 0) return;
+        var edge = sliceGrid.edgeData[y][x];
+        var left = sliceGrid.originX + x * sliceGrid.pieceWidth;
+        var rowTop = sliceGrid.originY - y * sliceGrid.pieceHeight;
+        var thirdWidth = sliceGrid.pieceWidth / 3;
+        var quarterHeight = sliceGrid.pieceHeight / 4;
+        var shift = edge.verticalOffset;
+
+        if (edge.topOut) {
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowTop - shift,
+                left + 2.33 * thirdWidth, rowTop + 0.33 * quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowTop - 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowTop - quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowTop - quarterHeight + 0.33 * quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowTop - quarterHeight - 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowTop - quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowTop - quarterHeight - 0.33 * quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowTop - quarterHeight + 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowTop - shift,
+                left + 1.33 * thirdWidth, rowTop - 0.33 * quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowTop + 0.33 * quarterHeight - shift);
+        } else {
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowTop - shift,
+                left + 2.33 * thirdWidth, rowTop - 0.33 * quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowTop + 0.33 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + 2 * thirdWidth, rowTop + quarterHeight - shift,
+                left + 2.33 * thirdWidth, rowTop + 0.5 * quarterHeight - shift,
+                left + 1.67 * thirdWidth, rowTop + 1.5 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowTop + quarterHeight - shift,
+                left + 1.33 * thirdWidth, rowTop + 1.5 * quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowTop + 0.5 * quarterHeight - shift);
+            addCurvePoint(maskPath,
+                left + thirdWidth, rowTop - shift,
+                left + 1.33 * thirdWidth, rowTop + 0.33 * quarterHeight - shift,
+                left + 0.67 * thirdWidth, rowTop - 0.33 * quarterHeight - shift);
+        }
+    }
+
+    /**
+     * 左隣のピースとの境界の突起を追加する
+     * @param {PathItem} maskPath - 描画中のパス
+     * @param {Object} sliceGrid - buildSliceGrid() の戻り値
+     * @param {number} x - 列番号
+     * @param {number} y - 行番号
+     * @returns {void}
+     */
+    function appendLeftTab(maskPath, sliceGrid, x, y) {
+        if (x <= 0) return;
+        var edge = sliceGrid.edgeData[y][x];
+        var left = sliceGrid.originX + x * sliceGrid.pieceWidth;
+        var rowTop = sliceGrid.originY - y * sliceGrid.pieceHeight;
+        var thirdHeight = sliceGrid.pieceHeight / 3;
+        var quarterWidth = sliceGrid.pieceWidth / 4;
+        var shift = edge.horizontalOffset;
+
+        if (edge.rightOut) {
+            addCurvePoint(maskPath,
+                left - shift, rowTop - thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + quarterWidth - shift, rowTop - thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight,
+                left + 1.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left + quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left + 1.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left - shift, rowTop - 2 * thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight);
+        } else {
+            addCurvePoint(maskPath,
+                left - shift, rowTop - thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left - quarterWidth - shift, rowTop - thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 0.67 * thirdHeight,
+                left - 1.5 * quarterWidth - shift, rowTop - 1.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left - quarterWidth - shift, rowTop - 2 * thirdHeight,
+                left - 1.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight);
+            addCurvePoint(maskPath,
+                left - shift, rowTop - 2 * thirdHeight,
+                left - 0.5 * quarterWidth - shift, rowTop - 1.67 * thirdHeight,
+                left + 0.5 * quarterWidth - shift, rowTop - 2.33 * thirdHeight);
+        }
+    }
+
+    // =========================================
+    // オフセット / Offset
+    // =========================================
+
+    /**
+     * 効果［パスのオフセット］を適用して分割し、分割後のオブジェクトを返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} maskPath - 対象のマスクパス（処理後は削除される）
+     * @param {number} offsetInPoints - オフセット量（pt）
+     * @returns {PageItem|null} 分割後のオブジェクト
+     */
+    function applyOffsetEffect(doc, maskPath, offsetInPoints) {
+        var previousInteractionLevel = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+        try {
+            doc.selection = null;
+            var offsetTarget = maskPath.duplicate(maskPath, ElementPlacement.PLACEAFTER);
+            maskPath.remove();
+            offsetTarget.selected = true;
+            offsetTarget.applyEffect('<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + offsetInPoints + ' I jntp 2 "/></LiveEffect>');
+            app.redraw();
+            app.executeMenuCommand("expandStyle");
+            var expandedItem = (doc.selection.length > 0) ? doc.selection[0] : null;
+            doc.selection = null;
+            return expandedItem;
+        } finally {
+            /* 例外時も警告の表示設定を戻す / Restore the alert level even on failure */
+            app.userInteractionLevel = previousInteractionLevel;
+        }
+    }
+
+    /**
+     * オブジェクトからマスクに使えるパスを取り出す（グループなら最初のパス）
+     * @param {PageItem|null} targetItem - 対象
+     * @returns {PathItem|null} 見つかったパス
+     */
+    function findMaskPath(targetItem) {
+        if (!targetItem) return null;
+        if (targetItem.typename === "PathItem") return targetItem;
+        if (targetItem.typename === "GroupItem") {
+            for (var i = 0; i < targetItem.pageItems.length; i++) {
+                if (targetItem.pageItems[i].typename === "PathItem") return targetItem.pageItems[i];
+            }
+        }
         return null;
-      }
-    } else {
-      workingSourceItem = app.selection[0];
-    }
-    maskSourceItem = workingSourceItem;
-
-    /* 埋め込み画像(RasterItem)をSymbolItemに変換 */
-    if (workingSourceItem.typename === "RasterItem") {
-      try {
-        var rasterLeft = workingSourceItem.left;
-        var rasterTop = workingSourceItem.top;
-        var rasterParent = workingSourceItem.parent;
-        var tempSymbol = app.activeDocument.symbols.add(workingSourceItem);
-        var rasterSymbolItem = rasterParent.symbolItems.add(tempSymbol);
-        rasterSymbolItem.left = rasterLeft;
-        rasterSymbolItem.top = rasterTop;
-        workingSourceItem.remove();
-        workingSourceItem = rasterSymbolItem;
-      } catch (e) {
-        alert(getLabel("alertRasterSymbolizeFailed") + e);
-        return null;
-      }
-    }
-    /* ベクターオブジェクトをSymbolItemに変換 */
-    else if (
-      workingSourceItem.typename === "PathItem" ||
-      workingSourceItem.typename === "GroupItem" ||
-      workingSourceItem.typename === "CompoundPathItem"
-    ) {
-      try {
-        var vectorLeft = workingSourceItem.left;
-        var vectorTop = workingSourceItem.top;
-        var vectorParent = workingSourceItem.parent;
-        var vectorSymbol = app.activeDocument.symbols.add(workingSourceItem);
-        var vectorSymbolItem = vectorParent.symbolItems.add(vectorSymbol);
-        vectorSymbolItem.left = vectorLeft;
-        vectorSymbolItem.top = vectorTop;
-        workingSourceItem.remove();
-        workingSourceItem = vectorSymbolItem;
-      } catch (e) {
-        alert(getLabel("alertVectorSymbolizeFailed") + e);
-        return null;
-      }
     }
 
-    /* PlacedItem/RasterItem/SymbolItemは矩形化 */
-    var workingSourceType = workingSourceItem.typename;
-    if (workingSourceType == "PlacedItem" || workingSourceType == "RasterItem" || workingSourceType == "SymbolItem") {
-      var sourceBounds = workingSourceItem.geometricBounds;
-      var rectWidth = sourceBounds[2] - sourceBounds[0];
-      var rectHeight = sourceBounds[1] - sourceBounds[3];
-      if (rectHeight < 0) rectHeight = -rectHeight;
-      var tempBoundsRect = app.activeDocument.pathItems.rectangle(sourceBounds[1], sourceBounds[0], rectWidth, rectHeight);
-      maskSourceItem = tempBoundsRect;
-      contentSourceItem = workingSourceItem;
-      isTemporaryBoundsRect = true;
+    /**
+     * マスクパスにオフセットを掛けたパスを返す（パスが得られなければ警告して元の結果を返す）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} maskPath - 対象のマスクパス
+     * @param {number} offsetInPoints - オフセット量（pt）
+     * @returns {PageItem|null} マスクに使うオブジェクト
+     */
+    function offsetMaskPath(doc, maskPath, offsetInPoints) {
+        try {
+            var expandedItem = applyOffsetEffect(doc, maskPath, offsetInPoints);
+            var offsetPath = findMaskPath(expandedItem);
+            if (offsetPath) return offsetPath;
+            alert(getLabel("alert", "offsetNoPath"));
+            return expandedItem;
+        } catch (e) {
+            alert(getLabel("alert", "offsetFailed") + e.message);
+            return maskPath;
+        }
     }
 
-    return {
-      contentSourceItem: contentSourceItem,
-      maskSourceItem: maskSourceItem,
-      isTemporaryBoundsRect: isTemporaryBoundsRect
-    };
-  }
+    // =========================================
+    // ピースの仕上げ / Piece finishing
+    // =========================================
 
-  function createClippedPiece(contentSourceItem, maskPath) {
-    var placedCopy = contentSourceItem.duplicate();
-    var clippingGroup = app.activeDocument.groupItems.add();
-    placedCopy.moveToBeginning(clippingGroup);
-    if (maskPath && maskPath.typename === "PathItem") {
-      maskPath.moveToBeginning(clippingGroup);
-      maskPath.clipping = true;
-      clippingGroup.clipped = true;
-    } else {
-      alert(getLabel("alertMaskNotPath"));
-    }
-    return clippingGroup;
-  }
-
-  function isClippableContent(item) {
-    return item && (item.typename === "PlacedItem" || item.typename === "SymbolItem");
-  }
-
-  function finalizePieceAppearance(pieceItem, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints) {
-    if (shouldScatter && scatterStrength > 0) {
-      // ガウス分布（中央寄り）+ 最大移動量でクランプ / Gaussian distribution (center-biased) with max-offset clamp
-      function randomGaussian() {
+    /**
+     * 中央寄りの正規乱数を返す（Box-Muller 法）
+     * @returns {number} 平均0・標準偏差1の乱数
+     */
+    function randomGaussian() {
         var u = 0, v = 0;
         while (u === 0) u = Math.random();
         while (v === 0) v = Math.random();
         return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-      }
+    }
 
-      function clamp(value, minValue, maxValue) {
+    /**
+     * 値を範囲内に収める
+     * @param {number} value - 対象の値
+     * @param {number} minValue - 下限
+     * @param {number} maxValue - 上限
+     * @returns {number} 範囲内に収めた値
+     */
+    function clampValue(value, minValue, maxValue) {
         return Math.max(minValue, Math.min(maxValue, value));
-      }
-
-      var maxOffset = scatterStrength;
-      var offsetX = clamp(randomGaussian() * scatterStrength * 0.5, -maxOffset, maxOffset);
-      var offsetY = clamp(randomGaussian() * scatterStrength * 0.5, -maxOffset, maxOffset);
-
-      var moveMatrix = app.getTranslationMatrix(offsetX, offsetY);
-      pieceItem.transform(moveMatrix);
-    }
-    pieceItem.selected = true;
-    applyRuleAndRoundCorners(pieceItem, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-  }
-
-  function cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect) {
-    if (contentSourceItem && typeof contentSourceItem.remove === "function") {
-      contentSourceItem.remove();
-    }
-    if (isTemporaryBoundsRect && maskSourceItem && typeof maskSourceItem.remove === "function") {
-      maskSourceItem.remove();
-    }
-  }
-
-  function createGridMask(originX, originY, columnIndex, rowIndex, pieceWidth, pieceHeight, overlapInPoints, imgLeft, imgRight, imgTop, imgBottom) {
-    /* オーバーラップ考慮の矩形計算 / Rect with overlap, clamped to image bounds */
-    var rectLeft = originX + columnIndex * pieceWidth - overlapInPoints / 2;
-    var rectWidthActual = pieceWidth + overlapInPoints;
-    if (rectLeft < imgLeft) {
-      rectWidthActual -= (imgLeft - rectLeft);
-      rectLeft = imgLeft;
-    }
-    if (rectLeft + rectWidthActual > imgRight) {
-      rectWidthActual = imgRight - rectLeft;
     }
 
-    var rectTop = originY - rowIndex * pieceHeight + overlapInPoints / 2;
-    var rectHeightActual = pieceHeight + overlapInPoints;
-    if (rectTop > imgTop) {
-      rectHeightActual -= (rectTop - imgTop);
-      rectTop = imgTop;
-    }
-    if (rectTop - rectHeightActual < imgBottom) {
-      rectHeightActual = rectTop - imgBottom;
-    }
-
-    var gridMask = app.activeDocument.pathItems.rectangle(
-      rectTop,
-      rectLeft,
-      rectWidthActual,
-      rectHeightActual
-    );
-    gridMask.closed = true;
-    gridMask.filled = false;
-    gridMask.stroked = false;
-    return gridMask;
-  }
-
-  function addPoint(obj, x, y) {
-    var np = obj.pathPoints.add();
-    np.anchor = [x, y];
-    np.leftDirection = [x, y];
-    np.rightDirection = [x, y];
-    np.pointType = PointType.CORNER;
-  }
-
-  function addCurvePoint(pathItem, anchorX, anchorY, leftX, leftY, rightX, rightY) {
-    var curvePoint = pathItem.pathPoints.add();
-    curvePoint.anchor = [anchorX, anchorY];
-    curvePoint.leftDirection = [leftX, leftY];
-    curvePoint.rightDirection = [rightX, rightY];
-    curvePoint.pointType = PointType.SMOOTH;
-    return curvePoint;
-  }
-
-  function createPuzzleMaskPath(originX, originY, x, y, pieceWidth, pieceHeight, columnCount, rowCount, oneThirdWide, oneQuarterHigh, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
-    var maskPath = app.activeDocument.pathItems.add();
-    addPoint(maskPath, originX + x * pieceWidth, originY - (y + 1) * pieceHeight);
-    appendTopEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, rowCount, oneThirdWide, oneQuarterHigh, pieceEdgeData);
-    addPoint(maskPath, originX + (x + 1) * pieceWidth, originY - (y + 1) * pieceHeight);
-    appendRightEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, columnCount, oneThirdHigh, oneQuarterWide, pieceEdgeData);
-    addPoint(maskPath, originX + (x + 1) * pieceWidth, originY - y * pieceHeight);
-    appendBottomEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdWide, oneQuarterHigh, pieceEdgeData);
-    addPoint(maskPath, originX + x * pieceWidth, originY - y * pieceHeight);
-    appendLeftEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdHigh, oneQuarterWide, pieceEdgeData);
-
-    maskPath.closed = true;
-
-    return maskPath;
-  }
-
-  function appendTopEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, rowCount, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
-    /* 上辺突起 */
-    if (y < rowCount - 1) {
-      if (pieceEdgeData[y + 1][x].topOut) {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-      } else {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset
-        );
-      }
-    }
-  }
-
-  function appendRightEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, columnCount, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
-    /* 右辺突起 */
-    if (x < columnCount - 1) {
-      if (pieceEdgeData[y][x + 1].rightOut) {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh,
-          originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh,
-          originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh
-        );
-      } else {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh,
-          originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh,
-          originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh,
-          originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh,
-          originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh
-        );
-      }
-    }
-  }
-
-  function appendBottomEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
-    /* 下辺突起 */
-    if (y > 0) {
-      if (pieceEdgeData[y][x].topOut) {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-      } else {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset,
-          originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset
-        );
-      }
-    }
-  }
-
-  function appendLeftEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
-    /* 左辺突起 */
-    if (x > 0) {
-      if (pieceEdgeData[y][x].rightOut) {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh,
-          originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh
-        );
-      } else {
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh,
-          originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh
-        );
-
-        addCurvePoint(maskPath,
-          originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh,
-          originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh,
-          originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh
-        );
-      }
-    }
-  }
-
-  function executeSlice(ui, onProgress) {
-    var modeRadioGrid = ui.modeRadioGrid;
-    var shapeRadioRandom = ui.shapeRadioRandom;
-
-    /* ダイアログ値取得 / Read dialog values */
-    var dialogValues = readDialogValues(ui);
-    var shouldAddStroke = dialogValues.shouldAddStroke;
-    var shouldApplyRoundCorners = dialogValues.shouldApplyRoundCorners;
-    var roundRadiusInPoints = dialogValues.roundRadiusInPoints;
-    var overlapInPoints = dialogValues.overlapInPoints;
-    var shouldScatter = dialogValues.shouldScatter;
-    var scatterStrength = dialogValues.scatterStrength;
-    var shouldApplyOffset = dialogValues.shouldApplyOffset;
-    var offsetInPoints = dialogValues.offsetInPoints;
-
-    // 選択オブジェクト取得 / Get selected object
-    var preparedItems = prepareSourceItems();
-    if (!preparedItems) {
-      return;
-    }
-
-    var contentSourceItem = preparedItems.contentSourceItem;
-    var maskSourceItem = preparedItems.maskSourceItem;
-    var isTemporaryBoundsRect = preparedItems.isTemporaryBoundsRect;
-
-    /* 列・行数取得 */
-    var columnCount = dialogValues.columnCount;
-    var rowCount = dialogValues.rowCount;
-
-    if (
-      (columnCount >= 1 && rowCount >= 1) ||
-      (columnCount == 0 && rowCount >= 1) ||
-      (columnCount >= 1 && rowCount == 0)
-    ) {
-      maskSourceItem.selected = false;
-
-      var aspectRatio;
-      if (columnCount == 0) {
-        aspectRatio = Math.abs(
-          (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0]) /
-          (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1])
-        );
-        columnCount = Math.round(aspectRatio * rowCount);
-      }
-      if (rowCount == 0) {
-        aspectRatio = Math.abs(
-          (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1]) /
-          (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0])
-        );
-        rowCount = Math.round(aspectRatio * columnCount);
-      }
-
-      var maskBounds = maskSourceItem.geometricBounds;
-      var maskLeft = maskBounds[0];
-      var maskTop = maskBounds[1];
-      var maskRight = maskBounds[2];
-      var maskBottom = maskBounds[3];
-
-      var originX = maskLeft;
-      var originY = maskTop;
-
-      var pieceWidth = (maskRight - maskLeft) / columnCount;
-      var pieceHeight = (maskTop - maskBottom) / rowCount;
-
-      var oneThirdWide = pieceWidth / 3;
-      var oneQuarterHigh = pieceHeight / 4;
-      var oneThirdHigh = pieceHeight / 3;
-      var oneQuarterWide = pieceWidth / 4;
-
-      var pieceEdgeData = new Array(rowCount);
-      if (shapeRadioRandom.value) {
-        for (var y = 0; y < rowCount; y++) {
-          pieceEdgeData[y] = new Array(columnCount);
-          for (var x = 0; x < columnCount; x++) {
-            pieceEdgeData[y][x] = {
-              topOut: Math.random() < 0.5,
-              rightOut: Math.random() < 0.5,
-              verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
-              horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
-            };
-          }
+    /**
+     * 元オブジェクトの複製をマスクパスでクリップしたグループを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} contentSourceItem - 中身にする配置画像／シンボル
+     * @param {PageItem|null} maskPath - マスクにするパス
+     * @returns {GroupItem} クリップグループ
+     */
+    function createClippedPiece(doc, contentSourceItem, maskPath) {
+        var contentCopy = contentSourceItem.duplicate();
+        var clippingGroup = doc.groupItems.add();
+        contentCopy.moveToBeginning(clippingGroup);
+        if (maskPath && maskPath.typename === "PathItem") {
+            maskPath.moveToBeginning(clippingGroup);
+            maskPath.clipping = true;
+            clippingGroup.clipped = true;
+        } else {
+            alert(getLabel("alert", "maskNotPath"));
         }
-      } else {
-        for (var y = 0; y < rowCount; y++) {
-          pieceEdgeData[y] = new Array(columnCount);
-          for (var x = 0; x < columnCount; x++) {
-            pieceEdgeData[y][x] = {
-              topOut: (x & 1) ^ (y & 1),
-              rightOut: !((x & 1) ^ (y & 1)),
-              verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
-              horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
-            };
-          }
+        return clippingGroup;
+    }
+
+    /**
+     * ピースにバラけ・ケイ線・角丸を適用する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem|null} pieceItem - 対象のピース
+     * @param {Object} sliceSettings - readSliceSettings() の戻り値
+     * @returns {void}
+     */
+    function finishPiece(doc, pieceItem, sliceSettings) {
+        if (!pieceItem) return;
+        if (sliceSettings.shouldScatter && sliceSettings.scatterDistance > 0) {
+            /* ガウス分布（中央寄り）で動かし、最大移動量で抑える / Gaussian nudge clamped to the maximum distance */
+            var maxDistance = sliceSettings.scatterDistance;
+            var dx = clampValue(randomGaussian() * maxDistance * 0.5, -maxDistance, maxDistance);
+            var dy = clampValue(randomGaussian() * maxDistance * 0.5, -maxDistance, maxDistance);
+            pieceItem.transform(app.getTranslationMatrix(dx, dy));
         }
-      }
+        pieceItem.selected = true;
 
-      var totalPieces = rowCount * columnCount;
-      var piecesDone = 0;
-      if (onProgress) onProgress(0, totalPieces);
-
-      /* グリッド形状（矩形マスク）モード */
-      if (modeRadioGrid.value) {
-        var imgLeft = maskLeft;
-        var imgRight = maskRight;
-        var imgTop = maskTop;
-        var imgBottom = maskBottom;
-        for (var y = 0; y < rowCount; y++) {
-          for (var x = 0; x < columnCount; x++) {
-            var gridMask = createGridMask(
-              originX,
-              originY,
-              x,
-              y,
-              pieceWidth,
-              pieceHeight,
-              overlapInPoints,
-              imgLeft,
-              imgRight,
-              imgTop,
-              imgBottom
-            );
-            if (isClippableContent(contentSourceItem)) {
-              var clippedPiece = createClippedPiece(contentSourceItem, gridMask);
-              finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-            } else {
-              finalizePieceAppearance(gridMask, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-            }
-            piecesDone++;
-            if (onProgress) onProgress(piecesDone, totalPieces);
-          }
+        if (sliceSettings.shouldAddStroke) {
+            doc.selection = null;
+            pieceItem.selected = true;
+            app.executeMenuCommand("Adobe New Stroke Shortcut");
+            app.executeMenuCommand("Live Pathfinder Add");
         }
+        if (sliceSettings.shouldApplyRoundCorners && sliceSettings.roundRadiusInPoints > 0) {
+            pieceItem.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + sliceSettings.roundRadiusInPoints + ' "/></LiveEffect>');
+        }
+    }
 
-        cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
-        return;
-      }
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-      /* ジグソー形状モード */
-      for (var y = 0; y < rowCount; y++) {
-        for (var x = 0; x < columnCount; x++) {
-          var maskPath = createPuzzleMaskPath(
-            originX,
-            originY,
-            x,
-            y,
-            pieceWidth,
-            pieceHeight,
-            columnCount,
-            rowCount,
-            oneThirdWide,
-            oneQuarterHigh,
-            oneThirdHigh,
-            oneQuarterWide,
-            pieceEdgeData
-          );
+    /**
+     * 選択オブジェクトを分割してピースを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} sliceSettings - readSliceSettings() の戻り値
+     * @param {Function} onProgress - 進み具合を受け取る関数 (完了数, 総数)
+     * @returns {void}
+     */
+    function executeSlice(doc, sliceSettings, onProgress) {
+        var preparedItems = prepareSourceItems(doc);
+        if (!preparedItems) return;
 
-          /* オフセット効果を適用 */
-          if (shouldApplyOffset && maskPath) {
-            var offsetVal = offsetInPoints;
-            app.selection = null;
-            try {
-              maskPath.selected = true;
-              var offsetResultItem = applyOffsetPathToSelection(offsetVal);
-              if (offsetResultItem) {
-                if (offsetResultItem.typename === "PathItem") {
-                  maskPath = offsetResultItem;
-                } else if (offsetResultItem.typename === "GroupItem") {
-                  for (var pageItemIndex = 0; pageItemIndex < offsetResultItem.pageItems.length; pageItemIndex++) {
-                    if (offsetResultItem.pageItems[pageItemIndex].typename === "PathItem") {
-                      maskPath = offsetResultItem.pageItems[pageItemIndex];
-                      break;
-                    }
-                  }
-                  if (maskPath.typename !== "PathItem") {
-                    alert(getLabel("alertOffsetGroupNoPath"));
-                  }
+        var maskSourceItem = preparedItems.maskSourceItem;
+        var contentSourceItem = preparedItems.contentSourceItem;
+        maskSourceItem.selected = false;
+
+        var bounds = maskSourceItem.geometricBounds;
+        var gridCounts = resolveGridCounts(sliceSettings.columnCount, sliceSettings.rowCount, bounds);
+        var sliceGrid = buildSliceGrid(bounds, gridCounts.columnCount, gridCounts.rowCount,
+            !sliceSettings.isGridMode, sliceSettings.isRandomShape);
+
+        var totalPieces = sliceGrid.rowCount * sliceGrid.columnCount;
+        var finishedPieces = 0;
+        onProgress(0, totalPieces);
+
+        for (var y = 0; y < sliceGrid.rowCount; y++) {
+            for (var x = 0; x < sliceGrid.columnCount; x++) {
+                var maskPath;
+                if (sliceSettings.isGridMode) {
+                    maskPath = createGridMask(doc, sliceGrid, x, y, sliceSettings.overlapInPoints);
                 } else {
-                  alert(getLabel("alertOffsetUnexpectedType"));
+                    maskPath = createPuzzleMaskPath(doc, sliceGrid, x, y);
+                    if (sliceSettings.shouldApplyOffset) {
+                        maskPath = offsetMaskPath(doc, maskPath, sliceSettings.offsetInPoints);
+                    }
                 }
-              }
-            } catch (e) {
-              alert(getLabel("alertOffsetError") + e.message);
+
+                var pieceItem = contentSourceItem ? createClippedPiece(doc, contentSourceItem, maskPath) : maskPath;
+                finishPiece(doc, pieceItem, sliceSettings);
+
+                finishedPieces++;
+                onProgress(finishedPieces, totalPieces);
             }
-          }
-
-          /* 画像クリッピンググループ処理 */
-          if (isClippableContent(contentSourceItem)) {
-            var clippedPiece = createClippedPiece(contentSourceItem, maskPath);
-            finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-          } else {
-            finalizePieceAppearance(maskPath, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-          }
-
-          piecesDone++;
-          if (onProgress) onProgress(piecesDone, totalPieces);
         }
-      }
 
-      cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
+        cleanupSourceItems(preparedItems);
     }
-  }
 
-  function main() {
-    try {
-      /* Illustrator状態チェック / Illustrator state check */
-      if (app.documents.length === 0 || app.selection.length === 0) {
-        return;
-      }
-
-      var ui = createDialog();
-      var puzzlifyDialog = ui.dialog;
-
-      ui.okBtn.onClick = function () {
-        /* 入力チェック / Input validation */
-        if (!(ui.columnsInput.text || ui.rowsInput.text)) {
-          return;
+    /**
+     * エントリーポイント：ダイアログを表示し、OK で分割を実行する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
+        var doc = app.activeDocument;
+        if (doc.selection.length === 0) {
+            alert(getLabel("alert", "noSelection"));
+            return;
         }
 
-        /* プログレス表示モードへ切替 / Switch to progress display */
-        ui.commonGroup.enabled = false;
-        ui.splitPanel.enabled = false;
-        ui.optionsPanel.enabled = false;
-        ui.buttonGroup.visible = false;
-        ui.progressGroup.visible = true;
-        ui.progressBar.value = 0;
-        puzzlifyDialog.layout.layout(true);
-        puzzlifyDialog.update();
+        var controls = buildDialog(getSelectedArtworkSize(doc));
+        var sliceDialog = controls.dialog;
 
-        try {
-          executeSlice(ui, function (current, total) {
-            ui.progressBar.value = total > 0 ? (current / total) * 100 : 0;
-            puzzlifyDialog.update();
-          });
-        } catch (e) {
-          alert(getLabel("alertScriptError") + e);
-        }
+        controls.btnOK.onClick = function () {
+            var sliceSettings = readSliceSettings(controls);
+            /* 分割できない列数・行数なら閉じずに待つ / Stay open when the counts cannot be sliced */
+            if (!isValidGridCount(sliceSettings.columnCount, sliceSettings.rowCount)) return;
 
-        /* 処理完了後にダイアログを閉じる / Close dialog after processing completes */
-        puzzlifyDialog.close(1);
-      };
+            showProgressState(controls);
+            try {
+                executeSlice(doc, sliceSettings, function (current, total) {
+                    controls.progressBar.value = total > 0 ? (current / total) * 100 : 0;
+                    sliceDialog.update();
+                });
+            } catch (e) {
+                alert(getLabel("alert", "scriptError") + e);
+            }
+            sliceDialog.close(1);
+        };
 
-      puzzlifyDialog.show();
-    } catch (e) {
-      alert(getLabel("alertScriptError") + e);
+        sliceDialog.show();
     }
-  }
 
-  main();
+    main();
 
 })();

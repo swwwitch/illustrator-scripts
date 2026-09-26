@@ -42,3 +42,4 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.0.1 (20250608): Added symbol and vector artwork support
 - v1.0.2 (20250609): Added grid shape support
 - v1.0.3 (20250610): Added offset feature and unit code support
+- v1.5.2 (20260927): "Add stroke" now works in Puzzle mode too; revised the dialog title, field labels and tooltips; options disabled for the current method (such as Scatter in Grid mode) no longer take effect; the dialog stays open when the column/row counts cannot be sliced
