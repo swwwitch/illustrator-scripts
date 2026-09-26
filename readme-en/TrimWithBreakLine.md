@@ -16,7 +16,7 @@
 - Handy for shortening long screenshots or menus while keeping both ends visible.
 - The cut edge can be bent with a Flag, Rise or Straight warp or made jagged with a zig zag, and break lines can be drawn along it.
 
-<img alt="The Trim with Break Lines dialog" src="../png/ss-840-936-144-20260925-192454.png" width="50%" />
+<img alt="The Trim with Break Lines dialog" src="../png/ss-840-862-144-20260927-052248.png" width="50%" />
 
 ### Features
 
@@ -84,6 +84,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
+- v1.1.0 (20260927) : The cut-edge shape radio buttons are now icon buttons that show each shape
 - v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now laid out in two rows of two
 - v1.0.7 (20260923) : Added the size along the cut edge (width when cutting top and bottom, height when cutting left and right) to the Mask shape panel. Renamed the Rise (straight) style to Straight, dropped the Warp style label and put Flag, Rise and Straight in one row. Reviewed the UI wording: the title is now Trim with Break Lines, the Trim panel is now Cut edge and the cap option None is now Butt; tooltips were rewritten to match the actual behavior and added to the panels, the styles and the row labels
 - v1.0.6 (20260921) : When cutting left and right, the left part now stays in place and the right part closes up to it

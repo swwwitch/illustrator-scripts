@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md"; /* README (English) */
@@ -79,7 +79,7 @@ var WARP_STYLES = {
     jagged:       { jagged: true }                                       /* ギザギザ（ジグザグ効果）/ Jagged (Zig Zag effect) */
 };
 
-/* ラジオボタンに並べる順 / the order they appear as radio buttons */
+/* アイコンボタンに並べる順 / the order they appear as icon buttons */
 var WARP_STYLE_KEYS = ["flag", "rise", "riseStraight", "jagged"];
 
 /**
@@ -140,7 +140,11 @@ var WINDOW_MARGINS        = 16;  /* ウィンドウ外周の余白 */
 var WINDOW_SPACING        = 12;  /* ウィンドウ内の要素間隔 */
 var ROW_SPACING           = 6;   /* 行内の要素間隔 */
 var RADIO_COLUMN_SPACING  = 2;   /* 縦に並べたラジオボタンの間隔 */
-var RADIO_GRID_BOTTOM_MARGIN = 5; /* 切り口のラジオボタンの下の余白 */
+var STYLE_ICON_BUTTON_SIZE = 36;  /* 切り口の形のアイコンボタンの一辺 */
+var STYLE_ICON_SIZE       = 24;  /* アイコンの図形（正方形）の一辺 */
+var STYLE_ICON_CUT_WIDTH  = 2.5; /* アイコンの切り口の線幅 */
+var STYLE_ICON_SPACING    = 4;   /* アイコンボタンの間隔 */
+var STYLE_ICON_BOTTOM_MARGIN = 5; /* アイコンボタンの下の余白 */
 var PANEL_MARGINS         = [16, 20, 16, 12];  /* パネル余白 [左,上,右,下] */
 var PANEL_SPACING         = 6;   /* パネル内の要素間隔 */
 var COLUMN_SPACING        = 12;  /* 2カラムの間隔 */
@@ -666,23 +670,6 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     function wireClickControls(clickControls, onValueChanged) {
         for (var controlIndex = 0; controlIndex < clickControls.length; controlIndex++) {
             clickControls[controlIndex].onClick = onValueChanged;
-        }
-    }
-
-    /**
-     * 親が分かれたラジオボタンを、1つだけ選べるようにつなぐ
-     * @param {RadioButton[]} radioButtons - 対象のラジオボタン
-     * @param {function} onValueChanged - 選択が変わったあとに呼ぶ処理
-     * @returns {void}
-     */
-    function wireRadioGrid(radioButtons, onValueChanged) {
-        for (var radioIndex = 0; radioIndex < radioButtons.length; radioIndex++) {
-            radioButtons[radioIndex].onClick = function () {
-                for (var otherIndex = 0; otherIndex < radioButtons.length; otherIndex++) {
-                    if (radioButtons[otherIndex] !== this) radioButtons[otherIndex].value = false;
-                }
-                onValueChanged();
-            };
         }
     }
 
@@ -1605,9 +1592,9 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * ワープのキーが、ラジオボタンの何番目かを返す
+     * ワープのキーが、アイコンボタンの何番目かを返す
      * @param {string} warpStyleKey - WARP_STYLES のキー
-     * @returns {number} ラジオボタンの位置（見つからなければ0）
+     * @returns {number} アイコンボタンの位置（見つからなければ0）
      */
     function getWarpStyleIndex(warpStyleKey) {
         for (var styleIndex = 0; styleIndex < WARP_STYLE_KEYS.length; styleIndex++) {
@@ -1616,71 +1603,187 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         return 0;
     }
 
+
     /**
-     * 選ばれているラジオボタンから、ワープのキーを返す
-     * @param {RadioButton[]} styleRadios - スタイルのラジオボタン
-     * @returns {string} WARP_STYLES のキー
+     * IllustratorのUIが明るいテーマか判定する
+     * @returns {boolean} 明るいテーマなら true
      */
-    function getSelectedWarpStyleKey(styleRadios) {
-        for (var styleIndex = 0; styleIndex < styleRadios.length; styleIndex++) {
-            if (styleRadios[styleIndex].value) return WARP_STYLE_KEYS[styleIndex];
+    function isLightUI() {
+        return app.preferences.getRealPreference("uiBrightness") > 0.5;
+    }
+
+    /* アイコンボタンの配色（UIの明暗で切り替える）/ icon button colors for the light and dark UI */
+    var STYLE_ICON_COLORS = isLightUI() ? {
+        shape: [0.55, 0.55, 0.55, 1], selectedShape: [0.13, 0.12, 0.11, 1],
+        frame: [0.2, 0.5, 0.95, 1]
+    } : {
+        shape: [0.55, 0.55, 0.55, 1], selectedShape: [0.92, 0.92, 0.92, 1],
+        frame: [0.3, 0.6, 1, 1]
+    };
+
+    /**
+     * 切り口の形のアイコンに描く、切り口の線の点を返す（0〜1の比率、Yは下向き）
+     * @param {string} warpStyleKey - WARP_STYLES のキー
+     * @returns {number[][]} 点の並び
+     */
+    function getStyleIconCutPoints(warpStyleKey) {
+        var cutPoints = [];
+        var stepCount = 24;
+        var stepIndex;
+        var ratioX;
+        if (warpStyleKey === "flag") {
+            /* 1周期の波 / one period of a wave */
+            for (stepIndex = 0; stepIndex <= stepCount; stepIndex++) {
+                ratioX = stepIndex / stepCount;
+                cutPoints.push([ratioX, 0.5 + 0.16 * Math.sin(ratioX * Math.PI * 2)]);
+            }
+        } else if (warpStyleKey === "rise") {
+            /* 左から右へせり上がるS字 / an S-curve rising to the right */
+            for (stepIndex = 0; stepIndex <= stepCount; stepIndex++) {
+                ratioX = stepIndex / stepCount;
+                cutPoints.push([ratioX, 0.68 - 0.36 * (1 - Math.cos(ratioX * Math.PI)) / 2]);
+            }
+        } else if (warpStyleKey === "riseStraight") {
+            cutPoints.push([0, 0.6], [1, 0.42]);
+        } else {
+            /* ギザギザ / zigzag */
+            var ridgeCount = 6;
+            for (stepIndex = 0; stepIndex <= ridgeCount; stepIndex++) {
+                cutPoints.push([stepIndex / ridgeCount, (stepIndex % 2 === 0) ? 0.44 : 0.56]);
+            }
         }
-        return DEFAULT_WARP_STYLE;
+        return cutPoints;
     }
 
     /**
-     * ラジオボタンを格子状に並べる（上の行から左→右の順）
-     * 列ごとのグループに入れて縦をそろえるので、排他は wireRadioGrid でつなぐ
-     * @param {Window|Group} parentGroup - 追加先
-     * @param {string[]} tooltipPaths - 選択肢ごとのtooltipのラベルキー
-     * @param {string[]} optionLabelPaths - 選択肢のラベルキー
-     * @param {number} selectedIndex - 初期選択の位置
-     * @param {number} columnCount - 列数
-     * @returns {{row: Group, radios: RadioButton[]}} 追加した行とラジオボタン
+     * 切り口の線の、指定のX（0〜1）でのYと傾きを返す（点の間は直線でつなぐ）
+     * @param {number[][]} cutPoints - 切り口の線の点（Xの昇順）
+     * @param {number} ratioX - X（0〜1）
+     * @returns {{y: number, slope: number}} Y（0〜1）と傾き
      */
-    function addRadioGrid(parentGroup, tooltipPaths, optionLabelPaths, selectedIndex, columnCount) {
-        var gridRow = addFieldRow(parentGroup);
-        gridRow.alignChildren = ["left", "top"];
-        gridRow.margins = [0, 0, 0, RADIO_GRID_BOTTOM_MARGIN];
+    function sampleCutLine(cutPoints, ratioX) {
+        for (var pointIndex = 1; pointIndex < cutPoints.length; pointIndex++) {
+            var startPoint = cutPoints[pointIndex - 1];
+            var endPoint = cutPoints[pointIndex];
+            if (ratioX > endPoint[0] && pointIndex < cutPoints.length - 1) continue;
+            var slope = (endPoint[1] - startPoint[1]) / (endPoint[0] - startPoint[0]);
+            return { y: startPoint[1] + (ratioX - startPoint[0]) * slope, slope: slope };
+        }
+        return { y: cutPoints[0][1], slope: 0 };
+    }
 
-        var columnGroups = [];
-        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-            var columnGroup = gridRow.add("group");
-            columnGroup.orientation = "column";
-            columnGroup.alignChildren = ["left", "center"];
-            columnGroup.spacing = RADIO_COLUMN_SPACING;
-            columnGroups.push(columnGroup);
+    /**
+     * 切り口の形のアイコンボタンを描く（背景は塗らない）
+     * 多角形は塗れないので、1px幅の縦の短冊を、切り口の上と下に分けて塗る
+     * @param {Button} iconButton - 対象のボタン（warpStyleKey と isSelected を持つ）
+     * @returns {void}
+     */
+    function drawStyleIconButton(iconButton) {
+        var graphics = iconButton.graphics;
+        var buttonWidth = iconButton.size[0];
+        var buttonHeight = iconButton.size[1];
+        var isSelected = iconButton.isSelected;
+        var shapeBrush = graphics.newBrush(graphics.BrushType.SOLID_COLOR,
+            isSelected ? STYLE_ICON_COLORS.selectedShape : STYLE_ICON_COLORS.shape);
+
+        var originX = Math.round((buttonWidth - STYLE_ICON_SIZE) / 2);
+        var originY = Math.round((buttonHeight - STYLE_ICON_SIZE) / 2);
+        var cutPoints = getStyleIconCutPoints(iconButton.warpStyleKey);
+
+        for (var columnIndex = 0; columnIndex < STYLE_ICON_SIZE; columnIndex++) {
+            var cutSample = sampleCutLine(cutPoints, (columnIndex + 0.5) / STYLE_ICON_SIZE);
+            /* 斜めでも切り口の太さがそろうよう、縦の幅を傾きで広げる / widen the vertical gap on slopes */
+            var halfGap = STYLE_ICON_CUT_WIDTH / 2 * Math.sqrt(1 + cutSample.slope * cutSample.slope);
+            var cutY = cutSample.y * STYLE_ICON_SIZE;
+            var upperHeight = cutY - halfGap;
+            var lowerTop = cutY + halfGap;
+
+            if (upperHeight > 0) {
+                graphics.newPath();
+                graphics.rectPath(originX + columnIndex, originY, 1, upperHeight);
+                graphics.fillPath(shapeBrush);
+            }
+            if (lowerTop < STYLE_ICON_SIZE) {
+                graphics.newPath();
+                graphics.rectPath(originX + columnIndex, originY + lowerTop, 1, STYLE_ICON_SIZE - lowerTop);
+                graphics.fillPath(shapeBrush);
+            }
         }
 
-        var radioButtons = [];
-        for (var optionIndex = 0; optionIndex < optionLabelPaths.length; optionIndex++) {
-            var radioButton = columnGroups[optionIndex % columnCount].add("radiobutton", undefined, getLabel(optionLabelPaths[optionIndex]));
-            radioButton.helpTip = getLabel(tooltipPaths[optionIndex]);
-            radioButton.value = (optionIndex === selectedIndex);
-            radioButtons.push(radioButton);
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(1, 1, buttonWidth - 2, buttonHeight - 2);
+            graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, STYLE_ICON_COLORS.frame, 2));
         }
-        return { row: gridRow, radios: radioButtons };
+    }
+
+    /**
+     * 切り口の形を選ぶアイコンボタンを横に並べる（ラジオボタンの代わり）
+     * @param {Window|Group} parentGroup - 追加先
+     * @param {number} selectedIndex - 初期選択の位置（WARP_STYLE_KEYS 上）
+     * @param {function} onValueChanged - 選択が変わったあとに呼ぶ処理
+     * @returns {{row: Group, getSelectedKey: function}} 追加した行と、選択中のキーを返す関数
+     */
+    function addStyleIconRow(parentGroup, selectedIndex, onValueChanged) {
+        var iconRow = addFieldRow(parentGroup);
+        iconRow.spacing = STYLE_ICON_SPACING;
+        iconRow.margins = [0, 0, 0, STYLE_ICON_BOTTOM_MARGIN];
+
+        var iconButtons = [];
+
+        /**
+         * 指定の位置のアイコンを選択状態にして描き直す
+         * @param {number} targetIndex - 選ぶ位置
+         * @returns {void}
+         */
+        function selectIconAt(targetIndex) {
+            for (var buttonIndex = 0; buttonIndex < iconButtons.length; buttonIndex++) {
+                iconButtons[buttonIndex].isSelected = (buttonIndex === targetIndex);
+                iconButtons[buttonIndex].notify("onDraw");
+            }
+        }
+
+        for (var styleIndex = 0; styleIndex < WARP_STYLE_KEYS.length; styleIndex++) {
+            var warpStyleKey = WARP_STYLE_KEYS[styleIndex];
+            var iconButton = iconRow.add("button", undefined, "");
+            iconButton.preferredSize = [STYLE_ICON_BUTTON_SIZE, STYLE_ICON_BUTTON_SIZE];
+            iconButton.helpTip = labelText("radio." + warpStyleKey) + getLabel("tooltip." + warpStyleKey);
+            iconButton.warpStyleKey = warpStyleKey;
+            iconButton.styleIndex = styleIndex;
+            iconButton.isSelected = (styleIndex === selectedIndex);
+            iconButton.onDraw = function () {
+                drawStyleIconButton(this);
+            };
+            iconButton.onClick = function () {
+                if (this.isSelected) return;
+                selectIconAt(this.styleIndex);
+                onValueChanged();
+            };
+            iconButtons.push(iconButton);
+        }
+
+        return {
+            row: iconRow,
+            getSelectedKey: function () {
+                for (var buttonIndex = 0; buttonIndex < iconButtons.length; buttonIndex++) {
+                    if (iconButtons[buttonIndex].isSelected) return iconButtons[buttonIndex].warpStyleKey;
+                }
+                return DEFAULT_WARP_STYLE;
+            }
+        };
     }
 
     /**
      * 「切り口」パネルを組み立てる
      * @param {Group} parentGroup - 追加先の列グループ
+     * @param {function} onStyleChanged - 切り口の形が変わったあとに呼ぶ処理
      * @returns {object} パネルの入力コントロール
      */
-    function buildCutEdgePanel(parentGroup) {
+    function buildCutEdgePanel(parentGroup, onStyleChanged) {
         var cutEdgePanel = addPanel(parentGroup, "panel.cutEdge", "tooltip.cutEdgePanel");
 
-        /* 選択肢ごとに説明を付ける / each style carries its own tooltip */
-        var styleLabelPaths = [];
-        var styleTooltipPaths = [];
-        for (var styleIndex = 0; styleIndex < WARP_STYLE_KEYS.length; styleIndex++) {
-            styleLabelPaths.push("radio." + WARP_STYLE_KEYS[styleIndex]);
-            styleTooltipPaths.push("tooltip." + WARP_STYLE_KEYS[styleIndex]);
-        }
-
-        /* スタイルは項目名なしで2行2列に並べ、パネルの左右中央に置く / the styles sit in a centered 2x2 grid without a label */
-        var warpStyleRow = addRadioGrid(cutEdgePanel, styleTooltipPaths,
-            styleLabelPaths, getWarpStyleIndex(initialValues.warpStyleKey), 2);
+        /* 形は項目名なしのアイコンで横に並べ、パネルの左右中央に置く / the styles sit in a centered row of icons without a label */
+        var warpStyleRow = addStyleIconRow(cutEdgePanel, getWarpStyleIndex(initialValues.warpStyleKey), onStyleChanged);
         warpStyleRow.row.alignment = ["center", "center"];
         var warpAmountRow = addNumberFieldRow(cutEdgePanel, "fieldLabel.warpAmount", "tooltip.warpAmount",
             formatFieldNumber(initialValues.warpPercent), "%");
@@ -1695,7 +1798,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         gapRow.row.enabled = !keepOneSide;
 
         return {
-            styleRadios: warpStyleRow.radios,
+            getStyleKey: warpStyleRow.getSelectedKey,
             warpAmountRow: warpAmountRow.row,
             warpAmountField: warpAmountRow.field,
             jaggedSizeRow: jaggedSizeRow.row,
@@ -1764,7 +1867,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         var rightColumn = addColumn(columnsGroup);
 
         var maskControls = buildMaskPanel(leftColumn);
-        var cutEdgeControls = buildCutEdgePanel(leftColumn);
+        var cutEdgeControls = buildCutEdgePanel(leftColumn, onSettingChanged);
         var ruleControls = buildBreakLinePanel(rightColumn);
         var buttonControls = addButtonRow(dialog);
 
@@ -1786,7 +1889,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
          * @returns {void}
          */
         function updateCutEdgeRows() {
-            var isJagged = getWarpStyle(getSelectedWarpStyleKey(cutEdgeControls.styleRadios)).jagged === true;
+            var isJagged = getWarpStyle(cutEdgeControls.getStyleKey()).jagged === true;
             cutEdgeControls.warpAmountRow.enabled = !isJagged;
             cutEdgeControls.jaggedSizeRow.enabled = isJagged;
             cutEdgeControls.jaggedRidgesRow.enabled = isJagged;
@@ -1802,7 +1905,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
                 maskScale: readFieldValue(maskControls.scaleField, clampMaskScale),
                 maskCrossScale: readFieldValue(maskControls.crossScaleField, clampMaskCrossScale),
                 maskOffsetPt: readFieldValue(maskControls.offsetField, clampOffsetValue) * rulerUnit.pointsPerUnit,
-                warpStyleKey: getSelectedWarpStyleKey(cutEdgeControls.styleRadios),
+                warpStyleKey: cutEdgeControls.getStyleKey(),
                 warpPercent: readFieldValue(cutEdgeControls.warpAmountField, clampWarpPercent),
                 jaggedSizePt: readFieldValue(cutEdgeControls.jaggedSizeField, clampJaggedSize) * rulerUnit.pointsPerUnit,
                 jaggedRidges: readFieldValue(cutEdgeControls.jaggedRidgesField, clampJaggedRidges),
@@ -1835,7 +1938,6 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         wireNumberField(cutEdgeControls.gapField, clampGapValue, onSettingChanged);
         wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged);
         wireNumberField(ruleControls.widthField, clampRuleWidth, onSettingChanged);
-        wireRadioGrid(cutEdgeControls.styleRadios, onSettingChanged);
         wireClickControls([ruleControls.addRuleCheckbox]
             .concat(ruleControls.styleRadios)
             .concat(ruleControls.capRadios)
