@@ -45,7 +45,7 @@ The anchors of the source object itself are excluded from the placement targets.
 
 These apply to "Auto-generate square".
 
-**Size** is in points. Decimals are accepted, and the arrow keys step it: ↑↓ for ±1, Shift + ↑↓ for ±10 (snapping to multiples of 10), ⌘ + ↑↓ for ±0.1.
+**Size** is in points. Decimals are accepted, and the ∧∨ stepper buttons or the arrow keys step it to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by ±0.1.
 
 **Color** is set through the Choose... button, with R / G / B sliders and numeric fields. The script uses its own dialog rather than the system color picker because, on some setups, opening the standard color palette on top of a modal dialog leaves the parent dialog unresponsive. The default is RGB(79, 128, 255).
 
@@ -90,6 +90,7 @@ The dialog follows the Japanese / English UI. The 3×3 registration widget is dr
 
 ## Change log
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten). The 0.1 step modifier moved from ⌘ to Option
 - v1.0.1 (2026-07-06): Changed the default anchor point color to RGB(79, 128, 255)
 - v1.0.0 (2026-07-05): Initial version
 

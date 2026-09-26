@@ -75,5 +75,6 @@ The original artwork and path stay as they are, and the only additions are one c
 
 ### Changelog
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-20): Adds the Spotlight effect and the Spotlight preset, reworks the dialog wording and layout, and makes the loupe's Y behave the same with and without Scale with Transform effect
 - v1.0.0 (2026-09-20): First release

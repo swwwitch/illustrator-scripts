@@ -26,7 +26,7 @@ Creates a curly bracket path. The on-artboard preview updates as the two radii, 
 - A dropdown applies any brush held in the bundled `brushlibrary.ai` ("None" leaves a plain stroke)
 - Automatic placement against the selection, with an adjustable offset
 - Brackets are marked, so selecting one and running again redraws it in place, facing the same way
-- Arrow keys step the numeric fields (Shift for 10s, Option for 0.1), noted in every field's tooltip
+- The stepper buttons (∧∨) and arrow keys step the numeric fields (to the next whole number, e.g. 1.5 → 2; Shift to the next multiple of 10; Option by 0.1), noted in every field's tooltip
 - Dialog state is remembered for the rest of the Illustrator session and restored on the next run
 - Japanese / English UI
 
@@ -102,3 +102,4 @@ https://note.com/dtp_tranist/n/nd6b3e36ff79d
 - v1.0.0 (20260905) : Initial release
 - v1.0.1 (20260906) : The center radius now accepts 0
 - v1.0.2 (20260906) : Brushes can be picked from the bundled `brushlibrary.ai`
+- v1.1.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

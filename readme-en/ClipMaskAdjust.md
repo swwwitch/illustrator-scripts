@@ -29,7 +29,7 @@
 - "Circle": enabled only while "Square" is selected. Turning it on enables Round Corners and sets the radius to half the shorter side
 - Changing the radius clears the existing effect before reapplying it, so effects never stack
 - Anchor points can be switched from the keyboard (q/w/e, a/s/d, z/x/c)
-- Numeric fields respond to arrow keys: ±1, Shift+arrows ±10, Option+arrows ±0.1
+- Numeric fields step with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by ±0.1
 - Automatic Japanese / English UI
 
 ### Workflow
@@ -48,5 +48,6 @@
 
 ### Update History
 
+- v3.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v3.0.2 (20260927): Added tooltips to the English UI. Unit conversion now covers every ruler unit. Values are no longer re-rounded while typing, and the script works when the first selected item is not a clip group
 - ClipMaskAdjust-v3 (Auto-Preview): updated 2026-01-03

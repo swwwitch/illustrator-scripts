@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md"; /* README (English) */
@@ -91,6 +91,432 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         scale: 6,        /* 伸張率 / scale */
         layerName: 16    /* レイヤー名 / layer name */
     };
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
+    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
+    //    getLabel() と uiLang はコピー先のものをそのまま使う
+    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
+    //      var widthInput = addSteppedField(parentPanel, {
+    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
+    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
+    //          onStep: function (numberInput) { updatePreview(); }
+    //      });
+    //    値の種類は options で切り分ける:
+    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
+    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
+    //      整数・0以上（間隔の数など）  … integer: true, min: 0
+    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
+    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
+    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
+    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
+    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
+    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
+    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
+    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    // -----------------------------------------
+    // ステップボタンの寸法・増減量 / Stepper metrics and steps
+    // -----------------------------------------
+    var STEPPER_BUTTON_WIDTH   = 20;  /* ∧∨ボタンの幅 / button width */
+    var STEPPER_BUTTON_HEIGHT  = 11;  /* ∧∨ボタン1つの高さ（2つ重ねた全体の高さは22） / button height (22 for the pair) */
+    var STEPPER_CORNER_RADIUS  = 2;   /* 枠の角丸の半径（ScriptUIは円弧を描けないため短い線分で近似） / corner radius, approximated with segments */
+    var STEPPER_FIELD_SPACING  = 3;   /* 項目名と∧∨の間隔 / spacing between the label and the stepper */
+    var STEPPER_SIDE_MARGIN    = 3;   /* ∧∨の左に足す余白（右は入力欄に突き合わせる） / extra space left of the stepper */
+    var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
+    var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
+
+    // -----------------------------------------
+    // ステップボタンの配色 / Stepper colors
+    // -----------------------------------------
+    /**
+     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkStepperUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    var STEPPER_UI_DARK           = isDarkStepperUI();
+    /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
+       ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
+       UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
+       dialog background. Dark values are measured from Illustrator's own spinner; light values derived for the lightest level */
+    var STEPPER_FILL_COLOR        = STEPPER_UI_DARK ? [0, 0, 0, 0.10]  : [1, 1, 1, 0.50];  /* 地 / background */
+    var STEPPER_FRAME_COLOR       = STEPPER_UI_DARK ? [1, 1, 1, 0.07]  : [0, 0, 0, 0.10];  /* 枠線 / frame */
+    var STEPPER_PRESSED_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 0.12]  : [0, 0, 0, 0.13];  /* 押下中 / pressed */
+    var STEPPER_CHEVRON_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 1]     : [0, 0, 0, 0.70];  /* 山形の線 / chevron */
+    var STEPPER_DIM_FILL_COLOR    = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [1, 1, 1, 0.30];  /* 無効時の地 / background when disabled */
+    var STEPPER_DIM_FRAME_COLOR   = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [0, 0, 0, 0.05];  /* 無効時の枠線（ダークは地と同じで見せない） / frame when disabled */
+    var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0.25];  /* 無効時の山形 / chevron when disabled */
+
+    // -----------------------------------------
+    // 数値欄を作る（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
+     * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
+     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す
+     * @param {Group|Panel} parent - 追加先
+     * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
+     *     step / min / max / integer（true で整数のみ）/ unit / onStep
+     * @returns {EditText} 入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
+     */
+    function addSteppedField(parent, fieldOptions) {
+        var fieldRowGroup = parent.add("group");
+        fieldRowGroup.orientation = "row";
+        fieldRowGroup.alignChildren = ["left", "center"];
+        fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
+
+        var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
+        if (fieldOptions.labelWidth) {
+            fieldLabel.preferredSize.width = fieldOptions.labelWidth;
+            fieldLabel.justify = "right";
+        }
+
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = fieldRowGroup.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var numberInput;
+        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
+        numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
+        numberInput.characters = fieldOptions.characters || 6;
+        numberInput.fieldLabel = fieldLabel;
+        numberInput.stepperGroup = stepperGroup;
+
+        /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
+        bindSteppedArrowKeys(numberInput, stepperGroup);
+
+        /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
+        numberInput.lastValidText = numberInput.text;
+        numberInput.onChange = function () {
+            var value = parseFloat(numberInput.text);
+            if (isNaN(value)) {
+                numberInput.text = numberInput.lastValidText;
+                return;
+            }
+            writeSteppedValue(numberInput, value, fieldOptions);
+        };
+        return numberInput;
+    }
+
+    /**
+     * 数値欄の有効／無効を、項目名・∧∨ごとまとめて切り替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setSteppedFieldEnabled(numberInput, isEnabled) {
+        numberInput.enabled = isEnabled;
+        numberInput.fieldLabel.enabled = isEnabled;
+        numberInput.stepperGroup.enabled = isEnabled;
+        /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
+        for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
+            redrawStepperGroup(numberInput.stepperGroup.children[i]);
+        }
+    }
+
+    /**
+     * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
+     * @param {Object} stepOptions - step（増減量）/ min / max / integer / unit（例 " mm"）/ onStep(numberInput)
+     * @returns {Group} ∧∨をまとめた group（.stepBy(direction) で同じ増減を呼べる）
+     */
+    function addStepper(parent, getNumberInput, stepOptions) {
+        var stepperGroup = parent.add("group");
+        stepperGroup.orientation = "column";
+        stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
+        stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
+        stepperGroup.alignment = ["left", "center"];
+
+        /**
+         * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
+         * @param {number} direction - 増やすなら 1、減らすなら -1
+         * @returns {void}
+         */
+        function stepBy(direction) {
+            var numberInput = getNumberInput();
+            if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
+            var value = parseFloat(numberInput.text);
+            if (isNaN(value)) value = 0;
+            writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
+            if (stepOptions.onStep) stepOptions.onStep(numberInput);
+        }
+
+        /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
+        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
+        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+        stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+        return stepperGroup;
+    }
+
+    /**
+     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {Group} stepperGroup - addStepper() で作った∧∨
+     * @returns {void}
+     */
+    function bindSteppedArrowKeys(numberInput, stepperGroup) {
+        numberInput.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
+            event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+        });
+    }
+
+    // -----------------------------------------
+    // 値の計算 / Value helpers
+    // -----------------------------------------
+    /**
+     * 押された修飾キーに応じて、1回分増減した値を返す
+     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step の倍数へ（1.5→2、1.5→1）。
+     * 整数の欄では option を無視して step の倍数へ）
+     * @param {number} value - 元の値
+     * @param {number} direction - 増やすなら 1、減らすなら -1
+     * @param {Object} stepOptions - step（通常の増減量。省略時は 1）/ integer
+     * @returns {number} 増減した値（下限・上限は未適用）
+     */
+    function computeSteppedValue(value, direction, stepOptions) {
+        var keyState = ScriptUI.environment.keyboardState;
+        if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
+        if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
+        return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
+    }
+
+    /**
+     * 値を、指定した方向にある次の倍数へ移す（230→240、232→240、下げるときは 232→230、230→220）
+     * @param {number} value - 元の値
+     * @param {number} multiple - 倍数の単位（例 10）
+     * @param {number} direction - 上げるなら 1、下げるなら -1
+     * @returns {number} 移した値
+     */
+    function snapStepperToNextMultiple(value, multiple, direction) {
+        if (direction > 0) return Math.floor(value / multiple) * multiple + multiple;
+        return Math.ceil(value / multiple) * multiple - multiple;
+    }
+
+    /**
+     * 値を下限・上限の範囲に収める
+     * @param {number} value - 数値
+     * @param {Object} rangeOptions - min / max（どちらも省略可）
+     * @returns {number} 範囲に収めた値
+     */
+    function clampSteppedValue(value, rangeOptions) {
+        if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
+        if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
+        return value;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、単位を付けて入力欄に書き込む（直前の正しい値としても控える）
+     * @param {EditText} numberInput - 書き込む入力欄
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {void}
+     */
+    function writeSteppedValue(numberInput, value, valueOptions) {
+        numberInput.text = formatSteppedValue(value, valueOptions);
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、丸めて単位を付けた表示用の文字列にする。
+     * 整数化してから下限で止めるので、「整数・下限1」の欄に 0.4 が入っても 1 になる
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {string} 入力欄に入れる文字列（例 "20 mm"）
+     */
+    function formatSteppedValue(value, valueOptions) {
+        if (valueOptions.integer) value = Math.round(value);
+        return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
+    }
+
+    /**
+     * 小数第2位で丸めた数値を文字列で返す
+     * @param {number} value - 数値
+     * @returns {string} 表示用の数値文字列
+     */
+    function formatStepperNumber(value) {
+        return String(Math.round(value * 100) / 100);
+    }
+
+    // -----------------------------------------
+    // ∧∨ボタンの描画 / Drawing
+    // -----------------------------------------
+    /**
+     * 山形（∧／∨）の極小ボタンを作成する。
+     * 上下2つを隙間なく積んで1つの枠に見えるよう、枠線は外側の辺だけ描き（上ボタンは上側、下ボタンは下側）、
+     * 継ぎ目に線は引かない
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} direction - "up" または "down"
+     * @param {Function} onClickFn - クリック時の処理
+     * @returns {Group} ボタンとして使う group
+     */
+    function makeStepperChevronButton(parent, direction, onClickFn) {
+        var buttonWidth = STEPPER_BUTTON_WIDTH;
+        var buttonHeight = STEPPER_BUTTON_HEIGHT;
+        var isUp = (direction === "up");
+        var chevronBox = parent.add("group");
+        chevronBox.margins = 0;
+        chevronBox.spacing = 0;
+        chevronBox.preferredSize = [buttonWidth, buttonHeight];
+        chevronBox.minimumSize = [buttonWidth, buttonHeight];
+        chevronBox.maximumSize = [buttonWidth, buttonHeight];
+        chevronBox.isPressed = false;
+        chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
+
+        chevronBox.onDraw = function () {
+            var boxGraphics = chevronBox.graphics;
+            /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
+               Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
+            var isDimmed = !isStepperEnabledInTree(chevronBox);
+
+            /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
+            var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
+            boxGraphics.newPath();
+            boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
+            boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
+
+            drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
+            drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
+        };
+
+        /**
+         * 押下状態を変えて描き直す
+         * @param {boolean} isPressed - 押下中なら true
+         * @returns {void}
+         */
+        function repaint(isPressed) {
+            if (chevronBox.isPressed === isPressed) return;
+            chevronBox.isPressed = isPressed;
+            redrawStepperGroup(chevronBox);
+        }
+        chevronBox.addEventListener("mousedown", function () {
+            if (!isStepperEnabledInTree(chevronBox)) return;
+            repaint(true);
+            if (onClickFn) onClickFn();
+        });
+        chevronBox.addEventListener("mouseup", function () { repaint(false); });
+        /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
+        chevronBox.addEventListener("mouseout", function () { repaint(false); });
+        return chevronBox;
+    }
+
+    /**
+     * 外側の辺だけの枠を描く（角は丸める）。継ぎ目側は開けておき、上下2つで1つの枠に見せる。
+     * ScriptUI は円弧を描けないため、角丸は短い線分で近似する
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - 上のボタンなら true（上側に枠を描く）
+     * @param {number[]} frameColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
+        var frameLeft = 0.5;
+        var frameRight = boxWidth - 0.5;
+        var outerY = isUp ? 0.5 : boxHeight - 0.5;
+        var seamY = isUp ? boxHeight : 0;
+        var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
+        var radius = STEPPER_CORNER_RADIUS;
+        var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
+        var angle, k;
+
+        boxGraphics.newPath();
+        boxGraphics.moveTo(frameLeft, seamY);
+        /* 左の角丸 / left corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
+        }
+        /* 右の角丸 / right corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
+        }
+        boxGraphics.lineTo(frameRight, seamY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
+    }
+
+    /**
+     * 山形（∧／∨）を描く。文字グリフの▲▼は上下で大きさやベースラインが揃わないため、線で描く
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - ∧なら true、∨なら false
+     * @param {number[]} chevronColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
+        var centerX = boxWidth / 2;
+        var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
+        var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
+        var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
+        boxGraphics.newPath();
+        boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
+        boxGraphics.lineTo(centerX, centerY + tipOffsetY);
+        boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isStepperEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コンテナ以下にある∧∨ボタンをすべて描き直す。行やパネルの enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - 行・グループ・パネルなど
+     * @returns {void}
+     */
+    function redrawSteppersIn(container) {
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            var child = container.children[i];
+            if (child.isStepperButton) redrawStepperGroup(child);
+            else redrawSteppersIn(child);
+        }
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} targetGroup - 描き直す group
+     * @returns {void}
+     */
+    function redrawStepperGroup(targetGroup) {
+        targetGroup.hide();
+        targetGroup.show();
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ローカライズ / Localization
@@ -256,7 +682,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             preview: {
                 ja: "設定の結果をドキュメント上で確認します。",
                 en: "Shows the result on the document while you adjust the settings."
-            }
+            },
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         prompt: {
             presetName: { ja: "プリセット名を入力してください：", en: "Enter preset name:" }
@@ -1600,13 +2036,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @param {string} initialText - 初期値。
      * @param {number} characters - 入力欄の幅（文字数）。
      * @param {Object} tooltipSet - tooltip のラベル。
-     * @returns {EditText} 追加した入力欄。
+     * @param {Object} [stepOptions] - 指定すると入力欄の左に∧∨を置く（min / integer など。addStepper() に渡す）。
+     *     増減後の処理は、あとから入力欄の onStepped に設定します。
+     * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup で参照できます）。
      */
-    function addInput(parentGroup, initialText, characters, tooltipSet) {
-        var inputField = parentGroup.add("edittext", undefined, initialText);
+    function addInput(parentGroup, initialText, characters, tooltipSet, stepOptions) {
+        if (!stepOptions) {
+            var plainInput = parentGroup.add("edittext", undefined, initialText);
+            plainInput.characters = characters;
+            plainInput.helpTip = getLabel(tooltipSet);
+            return plainInput;
+        }
+
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = parentGroup.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var inputField;
+        /* 増減後の処理はイベント設定時に onStepped へ入れる / the follow-up is set later as onStepped */
+        stepOptions.onStep = function (numberInput) {
+            if (numberInput.onStepped) numberInput.onStepped();
+        };
+        var stepperGroup = addStepper(stepperInputGroup, function () { return inputField; }, stepOptions);
+        inputField = stepperInputGroup.add("edittext", undefined, initialText);
         inputField.characters = characters;
         inputField.helpTip = getLabel(tooltipSet);
+        inputField.stepperGroup = stepperGroup;
+        bindSteppedArrowKeys(inputField, stepperGroup);
         return inputField;
+    }
+
+    /**
+     * 入力欄の使用可否を、∧∨のディム表示とあわせて切り替えます。
+     *
+     * @param {EditText} inputField - addInput() で作った入力欄。
+     * @param {boolean} isEnabled - 使用可にするとき true。
+     * @returns {void}
+     */
+    function setInputEnabled(inputField, isEnabled) {
+        inputField.enabled = isEnabled;
+        if (!inputField.stepperGroup) return;
+        inputField.stepperGroup.enabled = isEnabled;
+        redrawSteppersIn(inputField.stepperGroup);
     }
 
     /**
@@ -1618,12 +2092,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @param {number} characters - 入力欄の幅（文字数）。
      * @param {Object} tooltipSet - tooltip のラベル。
      * @param {string} [unitText] - 入力欄の後ろに置く単位。
+     * @param {Object} [stepOptions] - ∧∨の設定（addInput() に渡す）。
      * @returns {EditText} 追加した入力欄。
      */
-    function addLabeledInput(parentGroup, labelSet, initialText, characters, tooltipSet, unitText) {
+    function addLabeledInput(parentGroup, labelSet, initialText, characters, tooltipSet, unitText, stepOptions) {
         var rowGroup = addRow(parentGroup);
         rowGroup.add("statictext", undefined, labelText(labelSet));
-        var inputField = addInput(rowGroup, initialText, characters, tooltipSet);
+        var inputField = addInput(rowGroup, initialText, characters, tooltipSet, stepOptions);
         if (unitText) rowGroup.add("statictext", undefined, unitText);
         return inputField;
     }
@@ -1674,7 +2149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         /* 左：分割数・クリアスペース・ガイド化 / Left: divisions, clear space, guides */
         dialogUI.clearSpaceDivInput = addLabeledInput(commonLeftColumn, LABELS.fieldLabel.divisions, "4",
-            FIELD_WIDTH.count, LABELS.tooltip.divisions);
+            FIELD_WIDTH.count, LABELS.tooltip.divisions, "", { min: 0 });
         dialogUI.clearSpaceCheck = addCheckbox(addRow(commonLeftColumn),
             LABELS.checkbox.clearSpace, LABELS.tooltip.clearSpace, false);
         dialogUI.convertToGuidesCheck = addCheckbox(addRow(commonLeftColumn),
@@ -1682,7 +2157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         /* 右：線幅・境界線の強調・グループ化 / Right: stroke width, emphasized bounds, grouping */
         dialogUI.strokeWidthInput = addLabeledInput(commonRightColumn, LABELS.fieldLabel.strokeWidth, "0.25",
-            FIELD_WIDTH.strokeWidth, LABELS.tooltip.strokeWidth, getUnitInfo("strokeUnits").label);
+            FIELD_WIDTH.strokeWidth, LABELS.tooltip.strokeWidth, getUnitInfo("strokeUnits").label, { min: 0 });
         dialogUI.emphasizeBoundsCheck = addCheckbox(addRow(commonRightColumn),
             LABELS.checkbox.emphasizeBounds, LABELS.tooltip.emphasizeBounds, false);
         dialogUI.groupItemsCheck = addCheckbox(addRow(commonRightColumn),
@@ -1704,12 +2179,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         dialogUI.horizontalPanel = horizontalPanel;
 
         dialogUI.widthScaleInput = addLabeledInput(horizontalPanel, LABELS.fieldLabel.widthScale, "140",
-            FIELD_WIDTH.scale, LABELS.tooltip.widthScale, "%");
+            FIELD_WIDTH.scale, LABELS.tooltip.widthScale, "%", { min: 0 });
 
         var extraHLinesRow = addRow(horizontalPanel);
         dialogUI.extraHLinesCheck = addCheckbox(extraHLinesRow,
             LABELS.checkbox.extraHorizontal, LABELS.tooltip.extraHorizontal, false);
-        dialogUI.extraHLinesInput = addInput(extraHLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.extraHorizontal);
+        dialogUI.extraHLinesInput = addInput(extraHLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.extraHorizontal, { min: 1, integer: true });
 
         dialogUI.extendLeftCheck = addCheckbox(addRow(horizontalPanel),
             LABELS.checkbox.extendLeft, LABELS.tooltip.extendLeft, false);
@@ -1725,7 +2200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         var evenLineCountRow = addRow(lineMethodPanel);
         dialogUI.methodEvenRadio = addRadio(evenLineCountRow, LABELS.radio.lineEven, LABELS.tooltip.lineEven);
-        dialogUI.evenLineCountInput = addInput(evenLineCountRow, "4", FIELD_WIDTH.count, LABELS.tooltip.lineEven);
+        dialogUI.evenLineCountInput = addInput(evenLineCountRow, "4", FIELD_WIDTH.count, LABELS.tooltip.lineEven, { min: 1, integer: true });
         evenLineCountRow.add("statictext", undefined, getLabel(LABELS.unit.lines));
     }
 
@@ -1741,12 +2216,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         dialogUI.verticalPanel = verticalPanel;
 
         dialogUI.heightScaleInput = addLabeledInput(verticalPanel, LABELS.fieldLabel.heightScale, "200",
-            FIELD_WIDTH.scale, LABELS.tooltip.heightScale, "%");
+            FIELD_WIDTH.scale, LABELS.tooltip.heightScale, "%", { min: 0 });
 
         var outerVLinesRow = addRow(verticalPanel);
         dialogUI.outerVLinesCheck = addCheckbox(outerVLinesRow,
             LABELS.checkbox.outerVertical, LABELS.tooltip.outerVertical, false);
-        dialogUI.outerVLinesInput = addInput(outerVLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.outerVertical);
+        dialogUI.outerVLinesInput = addInput(outerVLinesRow, "1", FIELD_WIDTH.count, LABELS.tooltip.outerVertical, { min: 1, integer: true });
 
         dialogUI.extendUpCheck = addCheckbox(addRow(verticalPanel),
             LABELS.checkbox.extendUp, LABELS.tooltip.extendUp, false);
@@ -1756,8 +2231,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         var columnDivRow = addRow(verticalOptionsPanel);
         dialogUI.columnDivCheck = addCheckbox(columnDivRow, LABELS.checkbox.columnDiv, LABELS.tooltip.columnDiv, false);
-        dialogUI.columnDivInput = addInput(columnDivRow, "2", FIELD_WIDTH.count, LABELS.tooltip.columnDiv);
-        dialogUI.columnDivInput.enabled = false;
+        dialogUI.columnDivInput = addInput(columnDivRow, "2", FIELD_WIDTH.count, LABELS.tooltip.columnDiv, { min: 1, integer: true });
+        setInputEnabled(dialogUI.columnDivInput, false);
 
         dialogUI.verticalElementsCheck = addCheckbox(addRow(verticalOptionsPanel),
             LABELS.checkbox.verticalElements, LABELS.tooltip.verticalElements, false);
@@ -1838,7 +2313,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {void}
      */
     function updateColumnDivField(dialogUI) {
-        dialogUI.columnDivInput.enabled = dialogUI.columnDivCheck.enabled && dialogUI.columnDivCheck.value;
+        setInputEnabled(dialogUI.columnDivInput, dialogUI.columnDivCheck.enabled && dialogUI.columnDivCheck.value);
     }
 
     /**
@@ -1855,7 +2330,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         if (evenMode && !isNaN(evenCount) && evenCount >= 1) {
             dialogUI.clearSpaceDivInput.text = String(evenCount + 1);
         }
-        dialogUI.clearSpaceDivInput.enabled = dialogUI.clearSpaceCheck.value || !evenMode;
+        setInputEnabled(dialogUI.clearSpaceDivInput, dialogUI.clearSpaceCheck.value || !evenMode);
     }
 
     /**
@@ -1881,13 +2356,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         /* 横線・縦線はパネルごとディム / Dim the whole horizontal and vertical panels */
         dialogUI.horizontalPanel.enabled = !clearSpace;
         dialogUI.verticalPanel.enabled = !clearSpace;
-        dialogUI.extraHLinesInput.enabled = !clearSpace && dialogUI.extraHLinesCheck.value;
-        dialogUI.evenLineCountInput.enabled = !clearSpace && dialogUI.methodEvenRadio.value;
-        dialogUI.outerVLinesInput.enabled = !clearSpace && dialogUI.outerVLinesCheck.value;
-        dialogUI.columnDivInput.enabled = !clearSpace && dialogUI.columnDivCheck.value;
+        redrawSteppersIn(dialogUI.horizontalPanel); /* ∧∨のディム表示を描き直す / redraw the steppers' dimming */
+        redrawSteppersIn(dialogUI.verticalPanel);
+        setInputEnabled(dialogUI.extraHLinesInput, !clearSpace && dialogUI.extraHLinesCheck.value);
+        setInputEnabled(dialogUI.evenLineCountInput, !clearSpace && dialogUI.methodEvenRadio.value);
+        setInputEnabled(dialogUI.outerVLinesInput, !clearSpace && dialogUI.outerVLinesCheck.value);
+        setInputEnabled(dialogUI.columnDivInput, !clearSpace && dialogUI.columnDivCheck.value);
 
         /* クリアスペース中は線幅とガイド化を使わず、グループ化はON固定 */
-        dialogUI.strokeWidthInput.enabled = !clearSpace;
+        setInputEnabled(dialogUI.strokeWidthInput, !clearSpace);
         dialogUI.convertToGuidesCheck.enabled = !clearSpace;
         if (clearSpace) {
             dialogUI.convertToGuidesCheck.value = false;
@@ -2366,60 +2843,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     // =========================================
 
     /**
-     * 入力欄で↑↓キーによる増減を有効にします（shiftで10、optionで0.1刻み）。
+     * ∧∨・↑↓キーで増減したあとの処理を、各入力欄に設定します（伸張率の表記、分割欄の連動、プレビュー更新）。
      *
-     * @param {EditText} editText - 対象の入力欄。
-     * @param {boolean} integerOnly - 整数だけを扱うか。
      * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
      * @returns {void}
      */
-    function changeValueByArrowKey(editText, integerOnly, dialogUI, gridContext) {
-        editText.addEventListener("keydown", function (event) {
-            if (event.keyName !== "Up" && event.keyName !== "Down") return;
-
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
-
-            var isUp = (event.keyName === "Up");
-            var keyboardState = ScriptUI.environment.keyboardState;
-            if (keyboardState.shiftKey) {
-                value = isUp ? (Math.ceil((value + 1) / 10) * 10) : (Math.floor((value - 1) / 10) * 10);
-            } else if (keyboardState.altKey && !integerOnly) {
-                value += isUp ? 0.1 : -0.1;
-            } else {
-                value += isUp ? 1 : -1;
-            }
-
-            if (value < 0) value = 0;
-            value = (keyboardState.altKey && !integerOnly) ? (Math.round(value * 10) / 10) : Math.round(value);
-
-            event.preventDefault();
-            editText.text = isScaleField(dialogUI, editText) ? value.toFixed(1) : String(value);
-
-            if (editText === dialogUI.evenLineCountInput || editText === dialogUI.columnDivInput) {
-                syncDivisionFields(dialogUI);
-            }
-            refreshPreview(dialogUI, gridContext);
-        });
+    function bindStepperHandlers(dialogUI, gridContext) {
+        var steppedFields = [
+            dialogUI.widthScaleInput, dialogUI.heightScaleInput, dialogUI.strokeWidthInput,
+            dialogUI.clearSpaceDivInput, dialogUI.columnDivInput, dialogUI.extraHLinesInput,
+            dialogUI.outerVLinesInput, dialogUI.evenLineCountInput
+        ];
+        for (var i = 0; i < steppedFields.length; i++) {
+            steppedFields[i].onStepped = createStepFollowUp(dialogUI, gridContext, steppedFields[i]);
+        }
     }
 
     /**
-     * ↑↓キーで増減できる入力欄をまとめて設定します。
+     * 1つの入力欄について、増減後の処理を作ります。
      *
      * @param {Object} dialogUI - buildDialog() が返すUI参照。
      * @param {Object} gridContext - buildGridContext() が返すコンテキスト。
-     * @returns {void}
+     * @param {EditText} inputField - 対象の入力欄。
+     * @returns {Function} 増減後に呼ぶ関数。
      */
-    function bindArrowKeyHandlers(dialogUI, gridContext) {
-        changeValueByArrowKey(dialogUI.widthScaleInput, false, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.heightScaleInput, false, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.strokeWidthInput, false, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.clearSpaceDivInput, false, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.columnDivInput, true, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.extraHLinesInput, true, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.outerVLinesInput, true, dialogUI, gridContext);
-        changeValueByArrowKey(dialogUI.evenLineCountInput, true, dialogUI, gridContext);
+    function createStepFollowUp(dialogUI, gridContext, inputField) {
+        return function () {
+            /* 伸張率は小数第1位で表示する / Scale fields show one decimal place */
+            if (isScaleField(dialogUI, inputField)) inputField.text = parseFloat(inputField.text).toFixed(1);
+            if (inputField === dialogUI.evenLineCountInput || inputField === dialogUI.columnDivInput) {
+                syncDivisionFields(dialogUI);
+            }
+            refreshPreview(dialogUI, gridContext);
+        };
     }
 
     /**
@@ -2480,7 +2937,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         dialogUI.methodNoneRadio.onClick = dialogUI.methodAutoRadio.onClick =
             dialogUI.methodSegmentRadio.onClick = dialogUI.methodEvenRadio.onClick = function () {
-                dialogUI.evenLineCountInput.enabled = dialogUI.methodEvenRadio.value;
+                setInputEnabled(dialogUI.evenLineCountInput, dialogUI.methodEvenRadio.value);
                 syncDivisionFields(dialogUI);
                 refreshPreview(dialogUI, gridContext);
             };
@@ -2489,8 +2946,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             dialogUI.outerVLinesCheck.onClick = dialogUI.columnDivCheck.onClick =
             dialogUI.extendUpCheck.onClick = dialogUI.verticalElementsCheck.onClick =
             dialogUI.diagonalElementsCheck.onClick = dialogUI.groupItemsCheck.onClick = function () {
-                dialogUI.extraHLinesInput.enabled = dialogUI.extraHLinesCheck.enabled && dialogUI.extraHLinesCheck.value;
-                dialogUI.outerVLinesInput.enabled = dialogUI.outerVLinesCheck.enabled && dialogUI.outerVLinesCheck.value;
+                setInputEnabled(dialogUI.extraHLinesInput, dialogUI.extraHLinesCheck.enabled && dialogUI.extraHLinesCheck.value);
+                setInputEnabled(dialogUI.outerVLinesInput, dialogUI.outerVLinesCheck.enabled && dialogUI.outerVLinesCheck.value);
                 syncDivisionFields(dialogUI);
                 refreshPreview(dialogUI, gridContext);
             };
@@ -2571,7 +3028,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         toggleLiveCornerAnnotator();
         try {
             var dialogUI = buildDialog();
-            bindArrowKeyHandlers(dialogUI, gridContext);
+            bindStepperHandlers(dialogUI, gridContext);
             bindEvents(dialogUI, gridContext);
             applyPreset(dialogUI, gridContext);
             dialogUI.dialog.show();

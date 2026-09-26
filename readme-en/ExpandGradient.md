@@ -24,7 +24,7 @@ Post-processing can tidy the overlaps into a single set, or build a blend from t
 
 **Steps**
 
-The number of solid-color objects to produce. Defaults to 5; any integer of 2 or more. Up/Down adjusts by 1, Shift+Up/Down snaps to multiples of 10.
+The number of solid-color objects to produce. Defaults to 5; any integer of 2 or more. The stepper buttons and Up/Down adjust by 1; with Shift they snap to the next multiple of 10.
 
 With "Convert to blend" selected the value is fixed at 2 and the field is dimmed.
 
@@ -46,5 +46,6 @@ With "Convert to blend" selected the value is fixed at 2 and the field is dimmed
 
 ### Update History
 
+- v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten). Also fixed an error when opening the dialog and the missing tooltips
 - v1.1.2 (2026-08-27): Fixed the object count coming out one short; the step count is fixed at 2 and dimmed for "Convert to blend"; added the article link; removed ExpandGradient-v2.jsx; cleaned up the code
 - v1.1.0 (2026-05-25)

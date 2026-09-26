@@ -23,7 +23,7 @@ Edit the values of a format in the list, or replace it with another format, and 
 - Choose formats in the list (one or more), pick a format in the popup, and **Replace** them with it in one go
 - After every Update or Replace the document is surveyed again: paragraphs that now share a format merge into one row and the paragraph count is recounted
 - **OK** keeps the changes; **Cancel** puts everything back as it was when the dialog opened
-- Number fields step with the ↑↓ keys (Shift for ±10, Option for ±0.1)
+- Number fields step with the stepper buttons and the ↑↓ keys (to the next whole number, 1.5 → 2; Shift to the next multiple of 10; Option for ±0.1)
 - Font size, leading and paragraph spacing are shown in the type unit set in Preferences (pt, Q, mm and so on)
 
 ### How to Use
@@ -72,9 +72,10 @@ Edit the values of a format in the list, or replace it with another format, and 
 
 ### Release Notes
 
+- v1.1.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (20260926) : Fixed formats not merging, and paragraph counts not being recounted, after replacing with a format that differs only in its auto-leading percentage
 - v1.0.0 (20260926) : Initial release
 
 ### Script Info
 
-- Version: v1.0.1
+- Version: v1.1.0

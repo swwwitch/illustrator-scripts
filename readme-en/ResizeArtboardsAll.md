@@ -20,7 +20,7 @@
 - Anchor: Top-Left / Center
 - Units follow the document ruler (snap top-left to integer when in px)
 - Dialog position & opacity persistence across sessions
-- Arrow keys: Up/Down = ±1, Shift = snap to multiples of 10, Option(Alt) = ±0.1 (rounded to integer at commit)
+- Stepper buttons and arrow keys: step to the next whole number (1.5 → 2), Shift = snap to the next multiple of 10, Option(Alt) = ±0.1
 
 ### Process Flow
 
@@ -30,6 +30,7 @@
 
 ### Update History
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.2 (2026-09-27): Fixed the artboard-number field staying enabled after switching back from Specify, and the width/height fields being overwritten with the active artboard's size while typing. Each preview now starts from the original sizes, so artboards dropped from the target go back. Units now come from the ruler-unit preference, including H. Tidied wording and tooltips
 - v1.0 (2025-08-29): Initial release
 

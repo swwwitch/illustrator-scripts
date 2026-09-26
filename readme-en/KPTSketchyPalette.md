@@ -69,6 +69,7 @@
 
 ### Changelog
 
+- v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.2.3 (2026-09-26) Renamed the file from `KPTSketchy.jsx` to `KPTSketchyPalette.jsx`.
 - v1.2.1 (2026-09-05): Keep the palette reference on `$.global` so a re-run reliably closes the
   previous palette, revise the automatic undo after a timeout or a failed send, validate and
@@ -83,6 +84,6 @@
 
 ### Script info
 
-- Version: v1.2.3
+- Version: v1.3.0
 - First release: 2026-04-14
-- Last updated: 2026-09-26
+- Last updated: 2026-09-27

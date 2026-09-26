@@ -44,7 +44,7 @@ Slices the selected image or artwork into grid cells or jigsaw pieces and masks 
 | Round corners | Grid | Applies the Round Corners effect to each piece. The value is the radius |
 
 - Distances are entered in the ruler units
-- In number fields, Up/Down changes the value by 1, with Shift by 10, and with Option by 0.1
+- In number fields, the stepper buttons on the left and the Up/Down keys move the value to the next whole number (1.5 → 2), with Shift to the next multiple of 10, and with Option by 0.1 (pieces, columns and rows take whole numbers only)
 - Switching the method resets the options to their defaults
 
 ### Notes
@@ -70,3 +70,4 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.0.2 (20250609): Added grid shape support
 - v1.0.3 (20250610): Added offset feature and unit code support
 - v1.5.2 (20260927): "Add stroke" now works in Puzzle mode too; revised the dialog title, field labels and tooltips; options disabled for the current method (such as Scatter in Grid mode) no longer take effect; the dialog stays open when the column/row counts cannot be sliced
+- v1.6.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

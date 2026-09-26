@@ -86,6 +86,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* ツールチップ / Tooltips */
         tooltip: {
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
             presetList:   { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
             baseDate:     { ja: "カレンダーの起点になる年・月・日です。", en: "The year, month and day the calendar starts from." },
             preset1:      { ja: "1か月分だけ作ります。", en: "Builds a single month." },
@@ -372,6 +382,454 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         tab.alignChildren = "fill";
         tab.margins = TAB_MARGINS;
         if (typeof spacing === "number") tab.spacing = spacing;
+    }
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
+    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
+    //    getLabel() と uiLang はコピー先のものをそのまま使う
+    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
+    //      var widthInput = addSteppedField(parentPanel, {
+    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
+    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
+    //          onStep: function (numberInput) { updatePreview(); }
+    //      });
+    //    値の種類は options で切り分ける:
+    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
+    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
+    //      整数・0以上（間隔の数など）  … integer: true, min: 0
+    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
+    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
+    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
+    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
+    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
+    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
+    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
+    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    // -----------------------------------------
+    // ステップボタンの寸法・増減量 / Stepper metrics and steps
+    // -----------------------------------------
+    var STEPPER_BUTTON_WIDTH   = 20;  /* ∧∨ボタンの幅 / button width */
+    var STEPPER_BUTTON_HEIGHT  = 11;  /* ∧∨ボタン1つの高さ（2つ重ねた全体の高さは22） / button height (22 for the pair) */
+    var STEPPER_CORNER_RADIUS  = 2;   /* 枠の角丸の半径（ScriptUIは円弧を描けないため短い線分で近似） / corner radius, approximated with segments */
+    var STEPPER_FIELD_SPACING  = 3;   /* 項目名と∧∨の間隔 / spacing between the label and the stepper */
+    var STEPPER_SIDE_MARGIN    = 3;   /* ∧∨の左に足す余白（右は入力欄に突き合わせる） / extra space left of the stepper */
+    var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
+    var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
+
+    // -----------------------------------------
+    // ステップボタンの配色 / Stepper colors
+    // -----------------------------------------
+    /**
+     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkStepperUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    var STEPPER_UI_DARK           = isDarkStepperUI();
+    /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
+       ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
+       UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
+       dialog background. Dark values are measured from Illustrator's own spinner; light values derived for the lightest level */
+    var STEPPER_FILL_COLOR        = STEPPER_UI_DARK ? [0, 0, 0, 0.10]  : [1, 1, 1, 0.50];  /* 地 / background */
+    var STEPPER_FRAME_COLOR       = STEPPER_UI_DARK ? [1, 1, 1, 0.07]  : [0, 0, 0, 0.10];  /* 枠線 / frame */
+    var STEPPER_PRESSED_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 0.12]  : [0, 0, 0, 0.13];  /* 押下中 / pressed */
+    var STEPPER_CHEVRON_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 1]     : [0, 0, 0, 0.70];  /* 山形の線 / chevron */
+    var STEPPER_DIM_FILL_COLOR    = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [1, 1, 1, 0.30];  /* 無効時の地 / background when disabled */
+    var STEPPER_DIM_FRAME_COLOR   = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [0, 0, 0, 0.05];  /* 無効時の枠線（ダークは地と同じで見せない） / frame when disabled */
+    var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0.25];  /* 無効時の山形 / chevron when disabled */
+
+    // -----------------------------------------
+    // 数値欄を作る（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
+     * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
+     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す
+     * @param {Group|Panel} parent - 追加先
+     * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
+     *     step / min / max / integer（true で整数のみ）/ unit / onStep
+     * @returns {EditText} 入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
+     */
+    function addSteppedField(parent, fieldOptions) {
+        var fieldRowGroup = parent.add("group");
+        fieldRowGroup.orientation = "row";
+        fieldRowGroup.alignChildren = ["left", "center"];
+        fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
+
+        var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
+        if (fieldOptions.labelWidth) {
+            fieldLabel.preferredSize.width = fieldOptions.labelWidth;
+            fieldLabel.justify = "right";
+        }
+
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperInputGroup = fieldRowGroup.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var numberInput;
+        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
+        numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
+        numberInput.characters = fieldOptions.characters || 6;
+        numberInput.fieldLabel = fieldLabel;
+        numberInput.stepperGroup = stepperGroup;
+
+        /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
+        bindSteppedArrowKeys(numberInput, stepperGroup);
+
+        /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
+        numberInput.lastValidText = numberInput.text;
+        numberInput.onChange = function () {
+            var value = parseFloat(numberInput.text);
+            if (isNaN(value)) {
+                numberInput.text = numberInput.lastValidText;
+                return;
+            }
+            writeSteppedValue(numberInput, value, fieldOptions);
+        };
+        return numberInput;
+    }
+
+    /**
+     * 数値欄の有効／無効を、項目名・∧∨ごとまとめて切り替える
+     * @param {EditText} numberInput - addSteppedField() で作った入力欄
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setSteppedFieldEnabled(numberInput, isEnabled) {
+        numberInput.enabled = isEnabled;
+        numberInput.fieldLabel.enabled = isEnabled;
+        numberInput.stepperGroup.enabled = isEnabled;
+        /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
+        for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
+            redrawStepperGroup(numberInput.stepperGroup.children[i]);
+        }
+    }
+
+    /**
+     * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
+     * @param {Object} stepOptions - step（増減量）/ min / max / integer / unit（例 " mm"）/ onStep(numberInput)
+     * @returns {Group} ∧∨をまとめた group（.stepBy(direction) で同じ増減を呼べる）
+     */
+    function addStepper(parent, getNumberInput, stepOptions) {
+        var stepperGroup = parent.add("group");
+        stepperGroup.orientation = "column";
+        stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
+        stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
+        stepperGroup.alignment = ["left", "center"];
+
+        /**
+         * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
+         * @param {number} direction - 増やすなら 1、減らすなら -1
+         * @returns {void}
+         */
+        function stepBy(direction) {
+            var numberInput = getNumberInput();
+            if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
+            var value = parseFloat(numberInput.text);
+            if (isNaN(value)) value = 0;
+            writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
+            if (stepOptions.onStep) stepOptions.onStep(numberInput);
+        }
+
+        /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
+        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
+        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+        stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+        return stepperGroup;
+    }
+
+    /**
+     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {Group} stepperGroup - addStepper() で作った∧∨
+     * @returns {void}
+     */
+    function bindSteppedArrowKeys(numberInput, stepperGroup) {
+        numberInput.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
+            event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+        });
+    }
+
+    // -----------------------------------------
+    // 値の計算 / Value helpers
+    // -----------------------------------------
+    /**
+     * 押された修飾キーに応じて、1回分増減した値を返す
+     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step の倍数へ（1.5→2、1.5→1）。
+     * 整数の欄では option を無視して step の倍数へ）
+     * @param {number} value - 元の値
+     * @param {number} direction - 増やすなら 1、減らすなら -1
+     * @param {Object} stepOptions - step（通常の増減量。省略時は 1）/ integer
+     * @returns {number} 増減した値（下限・上限は未適用）
+     */
+    function computeSteppedValue(value, direction, stepOptions) {
+        var keyState = ScriptUI.environment.keyboardState;
+        if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
+        if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
+        return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
+    }
+
+    /**
+     * 値を、指定した方向にある次の倍数へ移す（230→240、232→240、下げるときは 232→230、230→220）
+     * @param {number} value - 元の値
+     * @param {number} multiple - 倍数の単位（例 10）
+     * @param {number} direction - 上げるなら 1、下げるなら -1
+     * @returns {number} 移した値
+     */
+    function snapStepperToNextMultiple(value, multiple, direction) {
+        if (direction > 0) return Math.floor(value / multiple) * multiple + multiple;
+        return Math.ceil(value / multiple) * multiple - multiple;
+    }
+
+    /**
+     * 値を下限・上限の範囲に収める
+     * @param {number} value - 数値
+     * @param {Object} rangeOptions - min / max（どちらも省略可）
+     * @returns {number} 範囲に収めた値
+     */
+    function clampSteppedValue(value, rangeOptions) {
+        if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
+        if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
+        return value;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、単位を付けて入力欄に書き込む（直前の正しい値としても控える）
+     * @param {EditText} numberInput - 書き込む入力欄
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {void}
+     */
+    function writeSteppedValue(numberInput, value, valueOptions) {
+        numberInput.text = formatSteppedValue(value, valueOptions);
+        numberInput.lastValidText = numberInput.text;
+    }
+
+    /**
+     * 値を整数化・下限・上限でそろえ、丸めて単位を付けた表示用の文字列にする。
+     * 整数化してから下限で止めるので、「整数・下限1」の欄に 0.4 が入っても 1 になる
+     * @param {number} value - 数値
+     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
+     * @returns {string} 入力欄に入れる文字列（例 "20 mm"）
+     */
+    function formatSteppedValue(value, valueOptions) {
+        if (valueOptions.integer) value = Math.round(value);
+        return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
+    }
+
+    /**
+     * 小数第2位で丸めた数値を文字列で返す
+     * @param {number} value - 数値
+     * @returns {string} 表示用の数値文字列
+     */
+    function formatStepperNumber(value) {
+        return String(Math.round(value * 100) / 100);
+    }
+
+    // -----------------------------------------
+    // ∧∨ボタンの描画 / Drawing
+    // -----------------------------------------
+    /**
+     * 山形（∧／∨）の極小ボタンを作成する。
+     * 上下2つを隙間なく積んで1つの枠に見えるよう、枠線は外側の辺だけ描き（上ボタンは上側、下ボタンは下側）、
+     * 継ぎ目に線は引かない
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} direction - "up" または "down"
+     * @param {Function} onClickFn - クリック時の処理
+     * @returns {Group} ボタンとして使う group
+     */
+    function makeStepperChevronButton(parent, direction, onClickFn) {
+        var buttonWidth = STEPPER_BUTTON_WIDTH;
+        var buttonHeight = STEPPER_BUTTON_HEIGHT;
+        var isUp = (direction === "up");
+        var chevronBox = parent.add("group");
+        chevronBox.margins = 0;
+        chevronBox.spacing = 0;
+        chevronBox.preferredSize = [buttonWidth, buttonHeight];
+        chevronBox.minimumSize = [buttonWidth, buttonHeight];
+        chevronBox.maximumSize = [buttonWidth, buttonHeight];
+        chevronBox.isPressed = false;
+        chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
+
+        chevronBox.onDraw = function () {
+            var boxGraphics = chevronBox.graphics;
+            /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
+               Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
+            var isDimmed = !isStepperEnabledInTree(chevronBox);
+
+            /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
+            var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
+            boxGraphics.newPath();
+            boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
+            boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
+
+            drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
+            drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
+        };
+
+        /**
+         * 押下状態を変えて描き直す
+         * @param {boolean} isPressed - 押下中なら true
+         * @returns {void}
+         */
+        function repaint(isPressed) {
+            if (chevronBox.isPressed === isPressed) return;
+            chevronBox.isPressed = isPressed;
+            redrawStepperGroup(chevronBox);
+        }
+        chevronBox.addEventListener("mousedown", function () {
+            if (!isStepperEnabledInTree(chevronBox)) return;
+            repaint(true);
+            if (onClickFn) onClickFn();
+        });
+        chevronBox.addEventListener("mouseup", function () { repaint(false); });
+        /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
+        chevronBox.addEventListener("mouseout", function () { repaint(false); });
+        return chevronBox;
+    }
+
+    /**
+     * 外側の辺だけの枠を描く（角は丸める）。継ぎ目側は開けておき、上下2つで1つの枠に見せる。
+     * ScriptUI は円弧を描けないため、角丸は短い線分で近似する
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - 上のボタンなら true（上側に枠を描く）
+     * @param {number[]} frameColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
+        var frameLeft = 0.5;
+        var frameRight = boxWidth - 0.5;
+        var outerY = isUp ? 0.5 : boxHeight - 0.5;
+        var seamY = isUp ? boxHeight : 0;
+        var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
+        var radius = STEPPER_CORNER_RADIUS;
+        var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
+        var angle, k;
+
+        boxGraphics.newPath();
+        boxGraphics.moveTo(frameLeft, seamY);
+        /* 左の角丸 / left corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
+        }
+        /* 右の角丸 / right corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
+        }
+        boxGraphics.lineTo(frameRight, seamY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
+    }
+
+    /**
+     * 山形（∧／∨）を描く。文字グリフの▲▼は上下で大きさやベースラインが揃わないため、線で描く
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - ∧なら true、∨なら false
+     * @param {number[]} chevronColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
+        var centerX = boxWidth / 2;
+        var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
+        var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
+        var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
+        boxGraphics.newPath();
+        boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
+        boxGraphics.lineTo(centerX, centerY + tipOffsetY);
+        boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isStepperEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コンテナ以下にある∧∨ボタンをすべて描き直す。行やパネルの enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - 行・グループ・パネルなど
+     * @returns {void}
+     */
+    function redrawSteppersIn(container) {
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            var child = container.children[i];
+            if (child.isStepperButton) redrawStepperGroup(child);
+            else redrawSteppersIn(child);
+        }
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} targetGroup - 描き直す group
+     * @returns {void}
+     */
+    function redrawStepperGroup(targetGroup) {
+        targetGroup.hide();
+        targetGroup.show();
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /**
+     * ∧∨付きの数値欄を追加する（∧∨と入力欄は隙間0で突き合わせ、↑↓キーも∧∨と同じ処理で増減する）
+     * @param {Group|Panel} parent - 追加先の行
+     * @param {string} initialText - 初期値
+     * @param {Object} stepOptions - addStepper() に渡す step / min / max / integer / onStep
+     * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）
+     */
+    function addStepperInput(parent, initialText, stepOptions) {
+        var stepperInputGroup = parent.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0;
+        stepperInputGroup.margins = 0;
+
+        var numberInput;
+        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, stepOptions);
+        numberInput = stepperInputGroup.add("edittext", undefined, initialText);
+        numberInput.stepperGroup = stepperGroup;
+        bindSteppedArrowKeys(numberInput, stepperGroup);
+        return numberInput;
     }
 
     (function () {
@@ -942,17 +1400,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         var gBaseDateRow = pnlBaseDate.add("group");
         gBaseDateRow.add("statictext", undefined, labelText("field.year"));
-        var inputY = gBaseDateRow.add("edittext", undefined, String(today.getFullYear()));
+        var inputY = addStepperInput(gBaseDateRow, String(today.getFullYear()), { integer: true, min: 1, max: 9999, onStep: refreshPreviewOnStep });
         inputY.helpTip = getLabel("tooltip.baseDate");
         inputY.characters = 4;
 
         gBaseDateRow.add("statictext", undefined, labelText("field.month"));
-        var inputM = gBaseDateRow.add("edittext", undefined, String(today.getMonth() + 1));
+        var inputM = addStepperInput(gBaseDateRow, String(today.getMonth() + 1), { integer: true, min: 1, max: 12, onStep: refreshPreviewOnStep });
         inputM.helpTip = getLabel("tooltip.baseDate");
         inputM.characters = 2;
 
         gBaseDateRow.add("statictext", undefined, labelText("field.day"));
-        var inputD = gBaseDateRow.add("edittext", undefined, String(today.getDate()));
+        var inputD = addStepperInput(gBaseDateRow, String(today.getDate()), { integer: true, min: 1, max: 31, onStep: refreshPreviewOnStep });
         inputD.helpTip = getLabel("tooltip.baseDate");
         inputD.characters = 2;
 
@@ -984,6 +1442,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             gYearMargin.enabled = chkTopYear.value;
 
+            redrawSteppersIn(gYearMargin);
+
             // 12ヶ月のときは月タイトルの「年を併記」をOFF
             try {
                 if (months === 12) chkMonthYear.value = false;
@@ -998,6 +1458,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             } catch (e) { }
             // レイアウトの月数/列数は 1ヶ月 のときディム
             gCount.enabled = (months !== 1);
+            redrawSteppersIn(gCount);
             try {
                 chkGhost.enabled = (months === 1);
                 if (months !== 1) chkGhost.value = false;
@@ -1009,7 +1470,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         function __SCM_syncYearPanelDimToFontSize() {
             var en = false;
             try { en = !!(chkTopYear && chkTopYear.enabled); } catch (e) { }
-            try { if (inputYearFontSize) inputYearFontSize.enabled = en; } catch (e) { }
+            try {
+                if (inputYearFontSize) {
+                    inputYearFontSize.enabled = en;
+                    inputYearFontSize.stepperGroup.enabled = en;
+                    redrawSteppersIn(inputYearFontSize.stepperGroup);
+                }
+            } catch (e) { }
             try { if (stFSYear) stFSYear.enabled = en; } catch (e) { }
         }
 
@@ -1115,7 +1582,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekdayBottomMargin.orientation = "row";
         gWeekdayBottomMargin.alignChildren = ["left", "center"];
         gWeekdayBottomMargin.add("statictext", undefined, getLabel("weekday.margin"));
-        var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
+        var inputWeekdayBottomMargin = addStepperInput(gWeekdayBottomMargin, "2", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputWeekdayBottomMargin.helpTip = getLabel("tooltip.weekdayBottomMargin");
         inputWeekdayBottomMargin.characters = 4;
         gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
@@ -1194,7 +1661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthMargin.orientation = "row";
         gMonthMargin.alignChildren = ["left", "center"];
         gMonthMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
-        var inputMonthBottomMargin = gMonthMargin.add("edittext", undefined, "3");
+        var inputMonthBottomMargin = addStepperInput(gMonthMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputMonthBottomMargin.helpTip = getLabel("tooltip.monthBottomMargin");
         inputMonthBottomMargin.characters = 4;
         gMonthMargin.add("statictext", undefined, unitLabel);
@@ -1222,6 +1689,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         chkTopYear.enabled = false;    // 12ヶ月以外は触れない
         chkTopYear.onClick = function () {
             gYearMargin.enabled = chkTopYear.value;
+            redrawSteppersIn(gYearMargin);
             schedulePreviewRefresh(true);
         };
 
@@ -1230,13 +1698,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYearMargin.orientation = "row";
         gYearMargin.alignChildren = ["left", "center"];
         gYearMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
-        var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
+        var inputTopYearBottomMargin = addStepperInput(gYearMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputTopYearBottomMargin.helpTip = getLabel("tooltip.topYearBottomMargin");
         inputTopYearBottomMargin.characters = 4;
         gYearMargin.add("statictext", undefined, unitLabel);
         inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
 
         gYearMargin.enabled = chkTopYear.value;
+
+        redrawSteppersIn(gYearMargin);
         /* 選択中の曜日表記モードを返す / Return the selected weekday-label mode */
         function getWeekdayLabelMode() {
             // "jp" | "mtw" | "mon"
@@ -1284,12 +1754,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCount.orientation = "row";
         gCount.alignChildren = ["left", "center"];
         gCount.add("statictext", undefined, labelText("layout.months"));
-        var inputMonths = gCount.add("edittext", undefined, "1");
+        var inputMonths = addStepperInput(gCount, "1", { integer: true, min: 1, max: 24, onStep: refreshPreviewOnStep });
         inputMonths.helpTip = getLabel("tooltip.months");
         inputMonths.characters = 3;
         rbPreset1.value = true;
         gCount.add("statictext", undefined, labelText("layout.cols"));
-        var inputCols = gCount.add("edittext", undefined, "1");
+        var inputCols = addStepperInput(gCount, "1", { integer: true, min: 1, max: 12, onStep: refreshPreviewOnStep });
         inputCols.helpTip = getLabel("tooltip.columns");
         inputCols.characters = 3;
 
@@ -1315,7 +1785,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterH.orientation = "row";
         gOuterH.alignChildren = ["left", "center"];
         gOuterH.add("statictext", undefined, getLabel("common.lr"));
-        var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
+        var inputOuterMarginX = addStepperInput(gOuterH, "10", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
         inputOuterMarginX.helpTip = getLabel("tooltip.outerMarginX");
         inputOuterMarginX.characters = 3;
         inputOuterMarginX.onChanging = schedulePreviewRefresh;
@@ -1324,7 +1794,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterV.orientation = "row";
         gOuterV.alignChildren = ["left", "center"];
         gOuterV.add("statictext", undefined, getLabel("common.ud"));
-        var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
+        var inputOuterMarginY = addStepperInput(gOuterV, "3", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
         inputOuterMarginY.helpTip = getLabel("tooltip.outerMarginY");
         inputOuterMarginY.characters = 3;
         inputOuterMarginY.onChanging = schedulePreviewRefresh;
@@ -1463,7 +1933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         if (!__fs0 || __fs0 <= 0) __fs0 = 12;
         var __defaultCellW_pt = Math.round(__fs0 * 1.5);
         var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
-        var inputCellW = gCellW.add("edittext", undefined, String(__defaultCellW));
+        var inputCellW = addStepperInput(gCellW, String(__defaultCellW), { min: 1, max: 2000, onStep: refreshPreviewOnStep });
         inputCellW.helpTip = getLabel("tooltip.cellWidth");
         inputCellW.characters = 3;
         gCellW.add("statictext", undefined, unitLabel);
@@ -1474,7 +1944,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         stCellH.preferredSize.width = 30;
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
         var __defaultCellH = Math.round(ptToUnitValue(__defaultCellH_pt));
-        var inputCellH = gCellH.add("edittext", undefined, String(__defaultCellH));
+        var inputCellH = addStepperInput(gCellH, String(__defaultCellH), { min: 1, max: 2000, onStep: refreshPreviewOnStep });
         inputCellH.helpTip = getLabel("tooltip.cellHeight");
         inputCellH.characters = 3;
         gCellH.add("statictext", undefined, unitLabel);
@@ -1495,7 +1965,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapX.orientation = "row";
         gCellGapX.alignChildren = ["left", "center"];
         gCellGapX.add("statictext", undefined, getLabel("common.lr"));
-        var inputCellGapX = gCellGapX.add("edittext", undefined, "0");
+        var inputCellGapX = addStepperInput(gCellGapX, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputCellGapX.helpTip = getLabel("tooltip.cellGapX");
         inputCellGapX.characters = 3;
 
@@ -1503,28 +1973,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapY.orientation = "row";
         gCellGapY.alignChildren = ["left", "center"];
         gCellGapY.add("statictext", undefined, getLabel("common.ud"));
-        var inputCellGapY = gCellGapY.add("edittext", undefined, "0");
+        var inputCellGapY = addStepperInput(gCellGapY, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputCellGapY.helpTip = getLabel("tooltip.cellGapY");
         inputCellGapY.characters = 3;
 
         inputCellGapX.onChanging = schedulePreviewRefresh;
         inputCellGapY.onChanging = schedulePreviewRefresh;
 
-        changeValueByArrowKey(inputCellGapX, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputCellGapY, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
-
         // セル位置調整（上下）
         var gCellPosAdj = pnlCell.add("group");
         gCellPosAdj.orientation = "row";
         gCellPosAdj.alignChildren = ["left", "center"];
         gCellPosAdj.add("statictext", undefined, "セル位置調整：");
-        var inputCellPosAdjY = gCellPosAdj.add("edittext", undefined, "0");
+        var inputCellPosAdjY = addStepperInput(gCellPosAdj, "0", { min: -2000, max: 2000, onStep: refreshPreviewOnStep });
         inputCellPosAdjY.helpTip = getLabel("tooltip.cellPosAdjY");
         inputCellPosAdjY.characters = 4;
         gCellPosAdj.add("statictext", undefined, unitLabel);
 
         inputCellPosAdjY.onChanging = schedulePreviewRefresh;
-        changeValueByArrowKey(inputCellPosAdjY, { integer: false, min: -2000, max: 2000, allowNegative: true }, schedulePreviewRefresh);
 
         // セル背景の塗り
         var chkCellFill = pnlCell.add("checkbox", undefined, getLabel("layout.cellFill"));
@@ -1620,9 +2086,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         inputCellW.onChanging = schedulePreviewRefresh;
         inputCellH.onChanging = schedulePreviewRefresh;
 
-        changeValueByArrowKey(inputCellW, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputCellH, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
-
         // ===== 書式パネル =====
         var pnlFormat = tabText.add("panel", undefined, getLabel("panel.font"));
         pnlFormat.orientation = "column";
@@ -1668,28 +2131,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gFSInputs.alignChildren = ["left", "center"];
         gFSInputs.alignment = ["left", "top"];
 
-        inputFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
         inputFontSize.helpTip = getLabel("tooltip.fontSize");
         inputFontSize.characters = 3;
         inputFontSize.onChanging = schedulePreviewRefresh;
 
-        inputWeekdayFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputWeekdayFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
         inputWeekdayFontSize.helpTip = getLabel("tooltip.fontSize");
         inputWeekdayFontSize.characters = 3;
         inputWeekdayFontSize.onChanging = schedulePreviewRefresh;
-        changeValueByArrowKey(inputWeekdayFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
-        inputMonthFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputMonthFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
         inputMonthFontSize.helpTip = getLabel("tooltip.fontSize");
         inputMonthFontSize.characters = 3;
         inputMonthFontSize.onChanging = schedulePreviewRefresh;
-        changeValueByArrowKey(inputMonthFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
-        inputYearFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputYearFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
         inputYearFontSize.helpTip = getLabel("tooltip.fontSize");
         inputYearFontSize.characters = 3;
         inputYearFontSize.onChanging = schedulePreviewRefresh;
-        changeValueByArrowKey(inputYearFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
         try { __SCM_syncYearPanelDimToFontSize(); } catch (e) { }
 
@@ -2004,18 +2464,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var cancelBtn = gBottomRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var okBtn = gBottomRight.add("button", undefined, getLabel("button.create"), { name: "ok" });
 
-        // ===== キー操作（↑↓で数値増減）=====
-        changeValueByArrowKey(inputY, { integer: true, min: 1, max: 9999 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputM, { integer: true, min: 1, max: 12 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputD, { integer: true, min: 1, max: 31 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputMonths, { integer: true, min: 1, max: 24 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputCols, { integer: true, min: 1, max: 12 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputMonthBottomMargin, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputTopYearBottomMargin, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputWeekdayBottomMargin, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputOuterMarginX, { integer: false, min: 0, max: 5000 }, schedulePreviewRefresh);
-        changeValueByArrowKey(inputOuterMarginY, { integer: false, min: 0, max: 5000 }, schedulePreviewRefresh);
 
         // ===== プレビュー更新のデバウンス（入力中の連打を抑制）=====
         // onChanging が連続発火すると「全消去→大量生成」を連打してしまい重くなるため、
@@ -2029,6 +2477,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 refreshPreview();
             } catch (e) { }
         };
+
+        /* ∧∨・↑↓で値を変えたあとのプレビュー更新 / Refresh the preview after a stepper or arrow-key step */
+        function refreshPreviewOnStep() {
+            schedulePreviewRefresh();
+        }
 
         /* プレビュー更新をデバウンスして予約 / Schedule a debounced preview refresh */
         function schedulePreviewRefresh(immediate) {
@@ -2162,6 +2615,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             setCheckSafe(chkTopYear, obj.showTopYear);
             setTextSafe(inputTopYearBottomMargin, obj.topYearBottomMargin);
             gYearMargin.enabled = !!(chkTopYear && chkTopYear.value);
+            redrawSteppersIn(gYearMargin);
 
             // month
             setCheckSafe(chkMonthYear, obj.includeYearInMonthTitle);
@@ -2203,6 +2657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 var mc = Math.round(Number(inputMonths.text));
                 pnlMonthOuter.enabled = (mc !== 1);
+                redrawSteppersIn(pnlMonthOuter);
             } catch (e) { }
 
             try { schedulePreviewRefresh(true); } catch (e) { }
@@ -2341,8 +2796,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (!__mc || __mc < 1) __mc = 1;
                 if (__mc > 24) __mc = 24;
                 pnlMonthOuter.enabled = (__mc !== 1);
+                redrawSteppersIn(pnlMonthOuter);
                 // レイアウトの月数/列数は 1ヶ月 のときディム
                 gCount.enabled = (__mc !== 1);
+                redrawSteppersIn(gCount);
                 // ゴーストは 1ヶ月 のときだけ有効
                 try {
                     chkGhost.enabled = (__mc === 1);
@@ -2388,6 +2845,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 __SCM_syncYearPanelDimToFontSize();
 
                 gYearMargin.enabled = chkTopYear.value;
+
+                redrawSteppersIn(gYearMargin);
 
                 // 12ヶ月 プリセット時は「1月から」を強制
                 if (isP12) {
@@ -2836,70 +3295,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         dlg.show();
 
         // ====== functions ======
-        /* 値をmin/maxで丸める / Clamp a number to min/max */
-        function clampNumber(v, minV, maxV) {
-            if (typeof minV === "number" && v < minV) v = minV;
-            if (typeof maxV === "number" && v > maxV) v = maxV;
-            return v;
-        }
-
-        /**
-         * ↑↓キーで数値を増減（Shift: ±10スナップ / Option: ±0.1）
-         * @param {EditText} editText
-         * @param {{integer?:boolean, min?:number, max?:number, allowNegative?:boolean}} options
-         * @param {Function=} onChanged 変更後に呼ぶ（プレビュー更新など）
-         */
-        function changeValueByArrowKey(editText, options, onChanged) {
-            options = options || {};
-            editText.addEventListener("keydown", function (event) {
-                if (event.keyName !== "Up" && event.keyName !== "Down") return;
-
-                var value = Number(editText.text);
-                if (isNaN(value)) return;
-
-                var keyboard = ScriptUI.environment.keyboardState;
-                var delta = 1;
-
-                if (keyboard.shiftKey) {
-                    delta = 10;
-
-                    // Shiftキー押下時は10の倍数にスナップ
-                    if (event.keyName === "Up") {
-                        value = Math.ceil((value + 1) / delta) * delta;
-                    } else {
-                        value = Math.floor((value - 1) / delta) * delta;
-                    }
-                } else if (keyboard.altKey) {
-                    delta = 0.1;
-
-                    if (event.keyName === "Up") value += delta;
-                    else value -= delta;
-                } else {
-                    delta = 1;
-
-                    if (event.keyName === "Up") value += delta;
-                    else value -= delta;
-                }
-
-                // 丸め
-                if (keyboard.altKey && options.integer !== true) {
-                    value = Math.round(value * 10) / 10; // 小数第1位
-                } else {
-                    value = Math.round(value); // 整数
-                }
-
-                // 下限
-                if (options.allowNegative !== true && value < 0) value = 0;
-
-                // min/max
-                value = clampNumber(value, options.min, options.max);
-
-                event.preventDefault();
-                editText.text = String(value);
-
-                if (typeof onChanged === "function") onChanged();
-            });
-        }
         /* カレンダー本体（年/月/曜日/日付/罫線）を描画 / Draw the calendar body (year/month/weekday/dates/borders) */
         function buildCalendar(
             doc, baseDate, layerName, fontSize, alignMode, monthTitleAlign, fontName,

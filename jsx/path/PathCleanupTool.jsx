@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md"; /* README (English) */
@@ -107,6 +107,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             lostSelection: { ja: "選択していたオブジェクトが見つからないため、処理を中止しました。", en: "The selected objects are no longer available, so processing was cancelled." }
         },
         tooltip: {
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger:   { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+            stepUpTolerance:   { ja: "値を0.01増やす（shift＋クリックで0.1の倍数へ）", en: "Increase by 0.01 (Shift-click to snap to 0.1s)" },
+            stepDownTolerance: { ja: "値を0.01減らす（shift＋クリックで0.1の倍数へ）", en: "Decrease by 0.01 (Shift-click to snap to 0.1s)" },
             removeSameAnchors: { ja: "連続して同じ座標にあるアンカーポイントを1つに統合します（離れた位置の同座標は対象外）。", en: "Merges consecutive anchors that share the same coordinates (non-adjacent duplicates are ignored)." },
             removeAnchors:     { ja: "前後のアンカーと一直線上にある冗長なアンカーポイントを削除します。", en: "Removes redundant anchors that lie on a straight line between their neighbors." },
             removeHandles:     { ja: "直線とみなせる区間のハンドルをアンカーに戻します（見た目を変えずにハンドルを整理）。", en: "Resets handles on segments that are effectively straight (tidies handles without changing appearance)." },
@@ -1110,31 +1122,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             }
 
             /**
-             * 数値入力欄で↑↓キーによる増減を有効にします（Shift併用で0.1刻み）。
-             * @param {EditText} inputField - 対象の入力欄。
-             * @param {function(number):void} onValueChanged - 増減後の値を受け取るコールバック。
-             * @returns {void}
-             */
-            function changeValueByArrowKey(inputField, onValueChanged) {
-                inputField.addEventListener('keydown', function (event) {
-                    if (event.keyName != 'Up' && event.keyName != 'Down') return;
-                    var currentValue = parseToleranceText(inputField.text);
-                    if (isNaN(currentValue)) return;
-
-                    /* 修飾キーは event から読む（keyboardState は macOS で誤報あり）
-                       Read the modifier from event (keyboardState misreports on macOS) */
-                    var shiftPressed = event.shiftKey;
-                    if (shiftPressed === undefined) {
-                        shiftPressed = ScriptUI.environment.keyboardState.shiftKey;
-                    }
-
-                    var stepDirection = (event.keyName == 'Up') ? 1 : -1;
-                    event.preventDefault();
-                    onValueChanged(currentValue + stepDirection * (shiftPressed ? 0.1 : 0.01));
-                });
-            }
-
-            /**
              * 「チェックボックス＋許容誤差（ラベル・入力欄・スライダー）」を1組生成します。
              * @param {Object} config - 生成設定。
              * @param {string} config.checkboxKey - チェックボックスの LABELS キー。
@@ -1165,7 +1152,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 label.helpTip = getLabel(config.tooltipKey);
                 label.characters = 10;
 
-                var input = row.add('edittext', undefined, config.initial.toFixed(2));
+                /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+                var stepperFieldGroup = row.add('group');
+                stepperFieldGroup.orientation = 'row';
+                stepperFieldGroup.alignChildren = ['left', 'center'];
+                stepperFieldGroup.spacing = 0;
+                stepperFieldGroup.margins = 0;
+
+                /* 0.01刻み（shift で0.1の倍数へ）・0.01〜3.00。増減後はスライダーと予測表示も揃える
+                   steps of 0.01 (Shift: multiples of 0.1), 0.01-3.00; the slider and the prediction follow */
+                var stepperGroup = addStepper(stepperFieldGroup, function () { return input; }, {
+                    step: 0.01, shiftStep: 0.1, min: TOL_MIN, max: TOL_MAX,
+                    upTooltipKey: 'tooltip.stepUpTolerance', downTooltipKey: 'tooltip.stepDownTolerance',
+                    onStep: function () { sync(parseToleranceText(input.text), true); }
+                });
+                var input = stepperFieldGroup.add('edittext', undefined, config.initial.toFixed(2));
                 input.helpTip = getLabel(config.tooltipKey);
                 input.characters = 6;
 
@@ -1200,9 +1201,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 input.onChange = function () {
                     sync(parseToleranceText(input.text), true);
                 };
-                changeValueByArrowKey(input, function (steppedValue) {
-                    sync(steppedValue, true);
-                });
+                /* ↑↓キーも∧∨と同じ処理で増減する / arrow keys share the stepper's logic */
+                bindSteppedArrowKeys(input, stepperGroup);
 
                 return {
                     checkbox: checkbox,
@@ -1210,6 +1210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                     setEnabled: function (enabled) {
                         row.enabled = enabled;
                         slider.enabled = enabled;
+                        redrawSteppersIn(row); /* ∧∨のディム表示を切り替える / update the stepper dimming */
                     }
                 };
             }

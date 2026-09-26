@@ -26,5 +26,9 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v1.2.1
-- Last updated: 2026-02-26
+- Version: v1.3.0
+- Last updated: 2026-09-27
+
+### Update history
+
+- v1.3.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

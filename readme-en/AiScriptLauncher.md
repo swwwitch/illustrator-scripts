@@ -72,7 +72,7 @@ text align       2 files  (no buttons left)
 | Occurrences | Minimum number of files a word must appear in | 4 |
 | Keywords | Maximum number of buttons | 10 |
 
-The number fields step by ±1 with the arrow keys, or ±10 with shift. Settings are stored in Illustrator's preferences and survive a restart.
+The number fields step to the next whole number with the stepper buttons on their left or the arrow keys, or to the next multiple of ten with shift. Settings are stored in Illustrator's preferences and survive a restart.
 
 **Include subdirectories**
 
@@ -134,6 +134,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.3 (2026-09-27): “Palette” now always leads the keyword buttons whenever a matching file exists
 - v1.4.2 (2026-08-31): Added “Remember the search”. While it is on, the keyword and the list selections carry over between runs within an Illustrator session
 - v1.4.1 (2026-08-27): Added a clear (×) button to the keyword field

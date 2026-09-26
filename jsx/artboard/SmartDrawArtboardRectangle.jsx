@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -1505,6 +1505,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 applyBleedState(false);
             }
         };
+    }
+
+    /**
+     * 配列の指定番目の入力欄を返す関数を作る（ループ内で∧∨に渡すため、添字を閉じ込める）
+     * @param {EditText[]} inputList - 入力欄の配列（あとから push されてもよい）
+     * @param {number} inputIndex - 添字
+     * @returns {Function} 入力欄を返す関数
+     */
+    function makeInputGetter(inputList, inputIndex) {
+        return function () { return inputList[inputIndex]; };
     }
 
     /**

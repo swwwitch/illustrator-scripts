@@ -24,4 +24,5 @@ Adds a stroke to the selected placed images as an appearance.
 
 ### Update History
 
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0

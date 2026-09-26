@@ -24,13 +24,14 @@ Width is set with a slider or a numeric field, and its maximum is taken automati
 To reduce drift caused by side bearings and similar, the text is temporarily converted to outlines to measure its bounding box, and the temporary items are deleted immediately afterwards.
 The background rectangles are then placed behind the selected objects and previewed live inside the dialog; the original objects are never modified.
 
-In the height (%) and Width fields, Up/Down steps by ±1, Shift+Up/Down by ±10 (snapping to multiples of 10), and Option+Up/Down by ±0.1.
+In the height (%), stroke weight, corner radius and Width fields, the stepper buttons on the left or Up/Down step to the next whole number (1.5 → 2), Shift-click or Shift+Up/Down to the next multiple of 10, and Option-click or Option+Up/Down by ±0.1.
 
 ### Update History
 
 - v1.0 (20260124): Initial version
 - v1.1 (20260126): Added Balance (None / Left / Right) and Width so the left/right ratio can be tuned; Width takes the inter-object gap as its maximum and supports slider, numeric input and arrow keys
 - v1.2 (20260131): Introduced a PreviewManager based on `app.undo()` so the preview does not pollute the Undo history; on OK the preview is rolled back and the real run happens once, so a single Ctrl+Z reverts it
+- v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### Script info
 

@@ -31,7 +31,7 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 - Centers the whole layout on the canvas
 - Fits the view to the result once placement finishes
 - Shows progress in a palette while importing many pages
-- Numeric fields step with the arrow keys (±10 with Shift)
+- Numeric fields step with the stepper buttons and arrow keys (Shift snaps to the next multiple of 10)
 - Japanese and English UI
 
 ### Usage
@@ -55,7 +55,7 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 | Stroke | None | None, or Add stroke: builds a clipping mask from the page's bounding rectangle and strokes it |
 | Round corners | Off (3) | Available only when a stroke is added. Uses the current ruler unit |
 
-Numeric fields step with the arrow keys (Shift steps by 10 and snaps to multiples of 10). Pressing Up while Columns shows Auto sets it to 1, and pressing Down from 1 returns it to Auto.
+Numeric fields step with the stepper buttons and arrow keys, to the next whole number rather than by 1 (1.5 → 2; Shift snaps to the next multiple of 10). Stepping up while Columns shows Auto sets it to 1, and stepping down from 1 returns it to Auto.
 
 ### Notes
 
@@ -73,6 +73,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.2 (2026-09-19): Run placement after the dialog closes, add the row count readout, move Scale to its own Options panel, remove duplicate page measurement, fix restoring the crop preference
 - v1.1.1 (2026-06-14): Internal restructuring
 - v1.1.0 (2026-04-13): Added stroke and rounded corners

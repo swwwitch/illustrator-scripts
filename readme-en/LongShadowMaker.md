@@ -16,7 +16,7 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Features
 
-- Distance, angle and scale set from a number field and a slider (arrow keys step the value)
+- Distance, angle and scale set from a number field and a slider (the stepper buttons (∧∨) and arrow keys step the value)
 - Eight presets that set the scale and the angle in one go
 - An offset that grows the shadow (miter, round or bevel corners)
 - A Simplify pass that reduces the number of anchor points
@@ -58,5 +58,6 @@ The shadow is built by bridging the original shape and a moved, scaled copy of i
 
 ### Update History
 
+- v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (2026-09-20): Added tooltips to the controls. Fixed the preview (nothing appeared for a group selection, an opaque copy was left behind for a text selection, copies survived closing the dialog by its close box) and the slider, preset and arrow-key values not staying in sync
 - v1.2 (2026-02-25): First release

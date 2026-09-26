@@ -69,7 +69,7 @@ Enabled for Artboard only.
 | Direction | Whether the new artboard goes to the Right (horizontal) or Down (vertical) of the current one. |
 | Spacing | Gap between artboards, entered in the ruler unit. The default is inferred from the existing layout, falling back to the preference value when there are fewer than two artboards. |
 
-The spacing field responds to the arrow keys (Shift for ±10 snapped to multiples of 10, Option/Alt for ±0.1).
+The spacing field steps with the stepper buttons on its left or the arrow keys (to the next whole number, 1.5 → 2; Shift to the next multiple of 10; Option/Alt for ±0.1; never below 0).
 
 ## Options panel
 
@@ -128,5 +128,6 @@ The artboard layout logic is ported from [AddArtboardPlus.jsx](https://github.co
 
 ## Update history
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-05): Fixed the dialog settings never being remembered between runs (they are now kept on `$.global` in the persistent engine)
 - v1.0.0 (2026-07-29): Initial version

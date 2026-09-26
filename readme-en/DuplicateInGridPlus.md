@@ -32,7 +32,7 @@ Spacing is entered in the current ruler unit (the unit set in Preferences) and c
   - Fill to Artboard Edge: counts the rows and columns that fit from the selected object to the artboard edge
   - Fill Full Artboard: counts the largest grid that fits the artboard and, on OK, moves the whole set (original plus copies) to the artboard center
 - **Zoom**: change Illustrator's zoom level without closing the dialog. With Light mode on, the zoom is applied only when the slider is released, not while dragging
-- Numeric fields respond to the up/down arrow keys (shift for steps of 10, option/alt for steps of 0.1)
+- Numeric fields step with the stepper buttons on their left or the up/down arrow keys (to the next whole number rather than by 1, e.g. 1.5 → 2; shift to the next multiple of 10; option/alt by 0.1; counts take whole numbers of 1 or more)
 - Uses the clipping mask's bounds when the object is clipped, otherwise the visible bounds
 - Multiple selected objects are grouped automatically before processing
 - Japanese / English UI
@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.2 (2026-08-15): Multi-selection grouping now happens after OK, so cancelling leaves the document untouched. The count slider is disabled while a Fill option is on. Fixed: returning to Grid from Row/Column/Random left Link off and the slider dead; toggling the gap Link did not recalculate the fill counts; the slider truncated its value and landed one below the drag position; preview cleanup could abort partway and leave duplicates behind; grouping stopped at the first item that refused to move; and the per-method direction states were overwritten by the Fill checkboxes. Preview updates no longer repaint twice, which reduces flicker. Switching from Column to Random now carries the count over
 - v2.0.1 (2026-02-26): Repeat methods (grid / row / column / random), fill options (to artboard edge / full artboard), the count slider, and the zoom control
 - (2025-10-23): Initial release

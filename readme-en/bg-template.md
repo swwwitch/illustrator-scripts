@@ -31,3 +31,4 @@ Creates a rectangle the size of the current artboard, places it on a "bg-templat
 
 - v1.0 (2025-07-29)
 - v1.0.2 (2026-09-27): Changing RGB with the arrow keys now updates the hex field. Fixed other keys re-rounding the value. Field-label colons now follow the UI language
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

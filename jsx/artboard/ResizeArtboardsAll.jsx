@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */

@@ -32,3 +32,4 @@ Takes pairs of adjacent anchor points from the paths in the selection — groups
 ### Update History
 
 - v1.0 (2026-02-28)
+- v1.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
