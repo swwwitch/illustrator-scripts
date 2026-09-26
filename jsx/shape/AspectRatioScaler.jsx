@@ -559,7 +559,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             basisVertical: { ja: "高さ", en: "Height" }
         },
         fieldLabel: {
-            basis: { ja: "固定する辺", en: "Fixed Side" },
+            basis: { ja: "固定", en: "Fixed" },
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" }
         },
@@ -603,8 +603,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
                 en: "Length of the fixed side. Leave blank to keep each object's current length."
             },
             computedValue: {
-                ja: "比率から求めた長さです。入力するには［固定する辺］をこちらに切り替えます。",
-                en: "Length from the ratio. Switch the fixed side to this one to edit it."
+                ja: "比率から求めた長さです。入力するには［固定］をこちらに切り替えます。",
+                en: "Length from the ratio. Switch Fixed to this side to edit it."
             },
             alignToPixelGrid: {
                 ja: "結果をピクセルグリッドに合わせます（［ピクセルを最適化］を実行）。",

@@ -12,14 +12,14 @@
 
 Resizes the selected objects to a chosen aspect ratio (16:9, 1:1, A4 or custom). You can also set the length of the fixed side and the reference point. With nothing selected, it draws a rectangle of that ratio at the center of the artboard.
 
-<img alt="Resize to Aspect Ratio dialog" src="../png/ss-478-1152-144-20260923-150908.png" width="40%" />
+<img alt="Resize to Aspect Ratio dialog" src="../png/ss-914-734-144-20260927-044110.png" width="50%" />
 
 ### Key Features
 
 - Aspect ratio: 16:9, 1:1 (Square), A4 (1:1.414), or Custom (enter width:height)
 - Orientation: choose Portrait or Landscape with icons
 - Reference point: pick the point that stays put with the 9-axis widget (center by default)
-- Size: choose the fixed side (width or height) and enter its length; the other side shows the length from the ratio
+- Size: choose Fixed (width or height) and enter its length; the other side shows the length from the ratio
 - Live preview on the artboard as you change settings
 - Numeric fields step by ±1 with the arrow keys, ±10 with Shift, ±0.1 with Option
 
@@ -51,4 +51,4 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.1 (20250721): Added artboard conversion & custom ratio
 - v1.2 (20250722): Improved dialog structure, localization, and key input
 - v1.5.2 (20260923): Fixed decimals being dropped while typing in numeric fields; added shift/option stepping; revised UI wording
-- v1.6.0 (20260927): Two-column dialog layout; "Make Pixel Perfect" now on by default; width and height fields shown together (only the fixed side is editable); added a reference point (9-axis) picker; orientation is now chosen with icons; shows an alert when no document is open; revised the dialog title, panel names and tooltips
+- v1.6.0 (20260927): Two-column dialog layout; "Make Pixel Perfect" now on by default; width and height fields shown together (only the fixed side is editable); added a reference point (9-axis) picker; orientation is now chosen with icons; shows an alert when no document is open; the width is now rounded to the ruler unit when the height is fixed; revised the dialog title, panel names and tooltips
