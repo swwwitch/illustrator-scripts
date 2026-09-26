@@ -8,11 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アクティブなドキュメントで使われている書式（フォント・サイズ・行送り・字間・行揃え・段落前後のアキ）を段落ごとに調べて一覧にし、
 一覧で選んだ書式を編集・置換すると、その書式の段落をまとめて更新します（段落スタイルを使わない再定義）。
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetCollector.md
+
 ### Overview
 
 Lists every format (font, size, leading, letter spacing, justification and paragraph spacing) used in the active document,
 paragraph by paragraph. Edit or replace a format and every paragraph in that format is updated at once,
 much like redefining a paragraph style without using styles.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetCollector.md
 
 */
 
@@ -24,6 +30,9 @@ var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetCollector.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetCollector.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
