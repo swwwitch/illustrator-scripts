@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNum
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddPageNumberFromTextSelection"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-23";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md"; /* README (English) */
@@ -278,8 +278,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹�
      * @returns {number} 移した値
      */
     function snapStepperToNextMultiple(value, multiple, direction) {
-        if (direction > 0) return Math.floor(value / multiple) * multiple + multiple;
-        return Math.ceil(value / multiple) * multiple - multiple;
+        /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
+           round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
+        var quotient = Math.round(value / multiple * 1e6) / 1e6;
+        if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
+        return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
     }
 
     /**

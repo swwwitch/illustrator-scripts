@@ -25,11 +25,16 @@ Depending on the selection it converts to area type automatically and opens the 
 - Left / right indent (linkable) and outer spacing
 - Justification and vertical alignment are always centered
 - Preview is always on and reflects changes instantly
+- Number fields step with the stepper buttons on their left or the arrow keys (to the next whole number, 1.5 → 2; Shift to the next multiple of 10; Option by 0.1)
 
 ### Notes
 
 - Vertical centering uses a frame-alignment action that is loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
 
+### Update history
+
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.1.0

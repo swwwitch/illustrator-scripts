@@ -14,7 +14,7 @@ Draws a rectangle the size of the active artboard, or of every artboard, taking 
 
 ### Key Features
 
-- Offset (a negative value shrinks inward). Up/Down keys step the value (Shift = 10, Option = 0.1)
+- Offset (a negative value shrinks inward). The ∧∨ buttons and Up/Down keys step to the next whole number (1.5 → 2; Shift = next multiple of 10, Option = 0.1)
 - Bleed presets (mm = 3, Q/H = 12, pt = 9; every other unit shows the 3 mm equivalent converted)
 - Color modes (None / K100 at 15% opacity / HEX / CMYK)
 - Placement (Front / Back / bg layer; defaults to Front)
@@ -95,6 +95,7 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Update History
 
+- v1.6.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.5 (2026-09-03) Reliable preview-layer cleanup; guide mode renames items to `<Guide>` and clears the selection; the HEX field accepts color names, shorthand hex and grayNN; the center widget is applied only when converting to a live shape. Alongside an internal cleanup (naming, structure, function splits), fixed the preview staying faint after switching to None or entering an invalid HEX value, and the mismatch between the shown offset and the drawn offset when Bleed was used with a unit other than mm, Q/H or pt
 - v1.5.4 (2026-06-01) Fixed Error 8705 when the front-most layer is a template or locked layer
 - v1.5.3 (2026-05-31) Renamed the object to `<Rectangle>`, tweaked the offset field width

@@ -28,5 +28,6 @@
 
 ### 更新履歴
 
+- v1.2.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）。
 - v1.1.2（2026-09-26）ファイル名を `ApplyLeadingPerTextFrame.jsx` から `ApplyLeadingPerTextFramePalette.jsx` に変更。
 - v1.1.0 (2026-07-08)

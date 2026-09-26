@@ -48,8 +48,8 @@
 
 | Key | Action |
 | --- | --- |
-| Up / Down | Steps the start number by 1 |
-| Shift + Up / Down | Snaps the start number to a multiple of 10 |
+| Up / Down | Steps the start number to the next whole number (the stepper buttons left of the field do the same) |
+| Shift + Up / Down | Steps the start number to the next multiple of 10 (also Shift-click on the stepper) |
 | Z | Toggles zero padding |
 | A | Toggles the total page display |
 
@@ -68,6 +68,7 @@ Z and A do not toggle while a text field has focus — typing takes precedence t
 
 ### Update History
 
+- v2.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.1.0 (2026-07-27): Unified UI wording around "page number". Added tooltips. Checkbox toggles and committed field edits now refresh the preview. Fixed detection of a nested `_pagenumber` layer, excluded off-artboard text from numbering, and made a failed cut abort instead of deleting the existing text. Consolidated internal routines.
 - v2.0.1 (2026-05-16): Internal cleanup. Improved template detection on commit, preview undo tracking, and `_pagenumber` restoration.
 - v2.0 (2026-01-08): Added rollback-based preview management.

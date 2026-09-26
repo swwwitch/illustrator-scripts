@@ -32,7 +32,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 - Export location: desktop or the folder of the current document
 - Opens the destination folder after the export (macOS only)
 - Four built-in presets, plus a command that writes the current settings to a text file
-- Numeric fields step with the arrow keys (shift for 10, option for 0.1)
+- Numeric fields step to the next whole number with the stepper buttons on their left or the arrow keys (1.5 → 2; shift to the next multiple of 10, option by 0.1)
 
 ### How to Use
 
@@ -72,6 +72,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.2 (2026-09-11): Fixed stacking order across layers, the working layer left behind when something failed mid-run, deletion of same-named user artwork, the crash on a text-tool selection, the destination folder for an unsaved document, the delimiter with no document name, how an unreadable color code is handled for the background and border, and the transparency grid spilling past the export area. Preset margins and border widths are now kept in mm, the UI wording was revised, and tooltips were added throughout
 - v1.0.1 (2026-09-11): Margins are now set per side with a Linked option, Rounding picks how the export area is rounded, the border and the suffix are toggled with checkboxes, text is measured from an outlined copy, the transparency grid tile no longer depends on the ruler unit (an 8pt square at 100%), and the export size labels are no longer clipped
 - v1.0.0 (2026-09-11): Reorganized internals (shared settings reader, preview and export). Fixed the scale calculation for a target width, the error when a preset was selected, the RGB/CMYK color code formats, the custom scale radio that could not be selected, the margin in the scale labels, and the appearance on a dark UI

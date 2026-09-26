@@ -20,7 +20,7 @@
 - "Objects to Level" panel: Text / Placed-Embedded Image / Rectangle (Path) checkboxes (all ON by default)
 - "Clipping Group" checkbox: when ON, the clip group itself is rotated (scope is fixed to Topmost and cannot be changed from the UI)
 - "Reset Character Scale" in the "Text" panel: resets the character horizontal / vertical scale to 100% (ON by default)
-- "Level Tolerance (°)" in the "Correction Options" panel: numeric threshold (clamped to 0.01–10°, default 0.1). Arrow keys ±1, Shift+arrows ±10, Option+arrows ±0.1
+- "Level Tolerance (°)" in the "Correction Options" panel: numeric threshold (clamped to 0.01–10°, default 0.1). The stepper buttons (∧∨) and arrow keys step to the next whole number (1.5 → 2), Shift to the next multiple of 10, Option by ±0.1
 - Rotation angle is estimated from the transformation matrix, falling back to path vertices (first segment) for paths
 - Mirrored transforms (negative determinant) are taken into account when deciding the rotation direction
 - Rotation is applied about the object center (Transformation.CENTER), followed by a per-item "Reset Bounding Box"
@@ -50,3 +50,4 @@
 - v1.2 (20250815): Fixed clip scope to "Topmost" and removed scope selection from the UI
 - v1.3 (20250815): Added the text frame aspect-ratio option
 - v1.3.2 (2026-09-27): Added a colon to the "Level Tolerance" label, corrected tooltips and English labels to match the actual behavior, and showed alerts in the UI language only; code cleanup
+- v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

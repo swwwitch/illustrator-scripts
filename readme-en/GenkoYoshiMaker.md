@@ -70,7 +70,7 @@ Vertical and horizontal, point and area text are all supported, and the writing 
 | Segments (crosshairs) | 9 | Dashes per crosshair line; rounded to zero or an odd number of 3 or more |
 | Preview | On | Shows the result without closing the dialog |
 
-Numeric fields step with the up and down arrow keys (Shift steps by 10 and snaps to multiples of 10). The segment count steps 0, 3, 5, 7 instead.
+Numeric fields step with the ∧∨ buttons and the up and down arrow keys, to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10. The segment count steps 0, 3, 5, 7 instead.
 
 ### Rule specifications
 
@@ -132,6 +132,7 @@ Area text is fitted to its contents with Auto Size when the script starts and ag
 
 ### Change log
 
+- v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.0 (2026-09-23): Added the "No crosshairs, with margin" and "Rectangle cells" presets
 - v1.1.0 (2026-09-23): Added "Draw a rectangle for each character"
 - v1.0.0 (2026-09-19): Initial release

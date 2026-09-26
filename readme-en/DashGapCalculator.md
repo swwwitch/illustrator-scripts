@@ -110,13 +110,13 @@ Turning it on sets the gap to 0, and the dash length becomes "path length ÷ Seg
 
 All values use the unit set in Preferences → Units → Stroke. The Q / H label follows the East Asian options in the preferences.
 
-Numeric fields accept the arrow keys.
+Numeric fields step with the up/down buttons to their left or with the arrow keys (both work the same way).
 
 | Key | Step |
 | --- | --- |
-| Up / Down | 1 |
-| Shift + Up / Down | 10 (snaps to multiples of 10) |
-| Option + Up / Down | 0.1 |
+| Up / Down (click) | To the next whole number (1.5 → 2, 2 → 3) |
+| Shift + Up / Down (Shift-click) | To the next multiple of 10 (232 → 240) |
+| Option + Up / Down (Option-click) | 0.1 (1 for Segments) |
 
 ### Multiple selections
 
@@ -136,10 +136,11 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.0 (2026-02-28) : Added the random mode
 - v2.0.1 (2026-08-13) : Reorganized the internal structure; fixed the random mode being blocked by the unused segment count; added tooltips to the dialog
 - v2.0.3 (2026-09-22) : Fixed the OK button not sitting flush with the right edge of the dialog
+- v2.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### Script info
 
-- Version: v2.0.3
+- Version: v2.1.0
 - First release: 2026-02-25
-- Last updated: 2026-09-22
+- Last updated: 2026-09-27
 - Article: https://note.com/dtp_tranist/n/n868bedb96542

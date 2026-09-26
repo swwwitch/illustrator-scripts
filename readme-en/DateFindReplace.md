@@ -24,5 +24,6 @@ Finds dates in the text frames of the document and replaces only the ones you ti
 
 ### Update History
 
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.4 (20260927): Added an English UI. Fixed Option-click toggling all items, reverting the preview when the dialog is closed with Esc, and values being re-rounded while typing
 - v1.0.2

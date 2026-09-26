@@ -21,6 +21,10 @@
 - Generates specimen text at several sizes
 - Shows labels in the current unit
 
+### Update History
+
+- v1.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.2
+- Version: v1.3.0

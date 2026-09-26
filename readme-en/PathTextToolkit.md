@@ -17,6 +17,10 @@ A toolkit that creates, detaches and adjusts point type and type on a path.
 - Generate a circle: build a circular path from the text width automatically and create type on a path
 - Detach text: split type on a path into its text and its path (with options to keep or drop the formatting, and to delete the path)
 
+### Update history
+
+- v1.4.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.3.3
+- Version: v1.4.0

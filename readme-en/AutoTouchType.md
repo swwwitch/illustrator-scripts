@@ -30,5 +30,6 @@ https://note.com/dtp_tranist/n/ne6545c4717af
 
 ### Update History
 
+- v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.9 (2026-09-19): Added the article link and reorganized the internals (nested label definitions, clearer naming, merged duplicated code).
 - v1.2.7 (2026-02-20)

@@ -17,10 +17,14 @@ A persistent palette that moves/duplicates and flips/rotates the selection immed
 - Options (Margin / Preview bounds; applied to both move-duplicate and flip-rotate)
 	- Margin: extra gap added after the transform, away from the anchor (unit follows the ruler); ignored for flip/rotate when the 9-axis anchor is centered
 	- Preview bounds: uses the visible bounds (including stroke/effects) for size and pivot
-- Keyboard: Esc closes the palette; the Margin field steps with ↑↓ (Shift = ±10, Option = ±0.1). Directional move/duplicate is by icon click only
+- Keyboard: Esc closes the palette; the Margin field steps to the next whole number with the stepper buttons on its left or ↑↓ (1.5 → 2; Shift = next multiple of 10, Option = ±0.1). Directional move/duplicate is by icon click only
 
 DOM work (selection, move, duplicate, flip, rotate) is delegated to the main engine via BridgeTalk.
 
+### Update history
+
+- v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.3.1
+- Version: v1.4.0

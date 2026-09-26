@@ -21,7 +21,7 @@ Groups and compound paths are walked recursively. Text is handled by outlining a
 - Straight segments: draws the extension of every straight segment. Turn it off to draw nothing but the circles from "Create circles from arcs"
 - Horizontal / Vertical / Diagonal lines: narrows down which directions are drawn. Option (Alt) + click leaves only the direction you clicked on
 - Create circles from arcs: estimates a circle from a Bézier segment. When the segment is not a true arc, the fallback is Ignore, Chord, or Extend chord
-- Stroke Width: follows the "strokeUnits" preference and starts at the equivalent of 0.1 mm. Arrow keys step by 1, shift by 10, and option by 0.1
+- Stroke Width: follows the "strokeUnits" preference and starts at the equivalent of 0.1 mm. The stepper buttons on its left and the arrow keys step to the next whole number (1.5 → 2), shift to the next multiple of 10, and option by 0.1
 
 **Shapes on anchor points**
 
@@ -61,5 +61,6 @@ Groups and compound paths are walked recursively. Text is handled by outlining a
 
 ### Update History
 
+- v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (2026-09-17): Preview is now on by default. Fixed the dialog position not being remembered, the output layer changing after using the preview, and the previous anchor shapes surviving when the shape is set back to None. Code cleanup as well
 - v1.2 (2026-03-12)

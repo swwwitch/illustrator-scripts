@@ -29,5 +29,6 @@ A persistent palette for switching a range of Illustrator preferences. Every cha
 
 ### Update History
 
+- v1.7.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.2 (2026-09-26) Renamed the file from `PreferenceManagerForTransformAndAlign.jsx` to `PreferenceManagerForTransformAndAlignPalette.jsx`.
 - v1.6.0 (2026-06-27)

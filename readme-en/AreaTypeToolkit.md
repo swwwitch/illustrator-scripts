@@ -164,12 +164,12 @@ The resulting point text keeps the justification, indents, leading, kinsoku, moj
 
 ## Input fields
 
-Every numeric field responds to the arrow keys.
+Every numeric field steps with the stepper buttons (∧∨) on its left and with the arrow keys (click, Shift-click and Option-click on the buttons match the table below). Values never go below 0.
 
 | Key | Step |
 | --- | --- |
-| Up / Down | ±1 |
-| Shift + Up / Down | ±10 (snaps to multiples of 10) |
+| Up / Down | To the next whole number (1.5 → 2) |
+| Shift + Up / Down | To the next multiple of 10 (232 → 240) |
 | Option (Alt) + Up / Down | ±0.1 |
 
 ## Targets
@@ -185,6 +185,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.2 (2026-08-03) Fixed path text being replaced even when the convert dialog was cancelled — the split now happens once [Convert] is clicked. Fixed opening existing Area Type and clicking OK resetting the vertical alignment to Top and overwriting kinsoku / mojikumi with the defaults. Renamed the dynamic action sets to `AreaTypeToolkit_AutoSize` and `AreaTypeToolkit_Alignment` so a user's own same-named action sets are no longer unloaded. Fixed "Pour into selected shape" ignoring compound paths. Fixed clearing the mojikumi on a non-Japanese UI
 - v1.2.0 (2026-07-28) Moved "Separate text" into its own dialog, reached from a [Separate text...] button in the adjust dialog; separating now preserves per-character formatting and selects the resulting rectangle and point text. Dropped the preview checkbox — the preview is now always on. Added the Role (Body / Heading / Menu), Leading, and Japanese-composition (kinsoku / mojikumi) panels. Justification and text alignment are now icon buttons. Folded the leader-tabs checkbox into the Menu role. Auto-size is now a checkbox that applies on click; while it is on the height field is dimmed and the height is no longer overwritten, and the font-fit passes switch it off for the pass. Renamed "Inset spacing" to "Offset". Clear overset and Fit to frame now stop on text with line breaks and write the resulting size back to the font-size and frame-size fields. Aligned the UI wording with Illustrator's own terms and added tooltips. Fixed reading justification and indents from existing Area Type. "Pour into selected shape" now handles multiple pairs. Added Q (ha) ruler unit. Added a warning when nothing can be converted
 - v1.1.3 (2026-03-04) Added input validation for width and height

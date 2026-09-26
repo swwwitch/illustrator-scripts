@@ -21,7 +21,7 @@
 - The target starts at "Selected objects only" when something is selected, otherwise at "Current artboard only" ("Selected objects only" is unavailable without a selection)
 - "Current artboard only" and "Entire document" include rectangles inside groups. A rectangle counts as on the artboard when it overlaps it
 - "Keep zero radii at zero" (on by default): corners without rounding stay square and only rounded corners get the new radius. Turn it off to set all four corners to the radius
-- Up/Down arrow keys change the value (Shift: 10, Option: 0.1)
+- The stepper buttons left of the field and the Up/Down arrow keys step to the next whole number (1.5 → 2; Shift: next multiple of 10, Option: 0.1)
 - "Preview" shows the result while you adjust
 - Multiple selections are supported (the same radii are applied to every rectangle)
 - To round a plain rectangle, turn off "Keep zero radii at zero"
@@ -47,9 +47,10 @@
 
 ### Update History
 
+- v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (2026-09-26): Merged the radius input into one field so the corners get the same radius; added "Keep zero radii at zero", "Include the Round Corners effect", "Convert to Round Corners effect" and a target switch (selection / current artboard / entire document); the initial radius is now the average of the targets
 - v1.0.0 (2026-09-26): Initial release
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.2.0

@@ -26,8 +26,12 @@
 - Arrowhead and tip alignment names must match the Illustrator UI labels (language dependent).
 - The arrowhead scale keys (asc1 / asc2) are estimated values.
 
+### Update history
+
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.1.0
 - First release: 2026-07-22
-- Last updated: 2026-07-22
+- Last updated: 2026-09-27

@@ -20,7 +20,7 @@
 - Spacing panel for column and row gaps; "Link" mirrors the column gap to the row gap
   - Input follows the document ruler unit (rulerType)
   - Default gap is the active artboard width divided by 8, rounded to an integer
-  - Arrow keys step the value (Shift snaps to multiples of 10, Option steps by 0.1)
+  - The ∧∨ buttons and arrow keys step the value to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 - Two exception modes for unmatched / duplicate names
   - **Append to current row**: unmatched names go to the end of the most recently matched row (from max column + 1 onward)
   - **Collect in final row**: unmatched names are laid out in the final row in the order they appear
@@ -50,4 +50,5 @@
 
 ### Update History
 
-- v1.1.0: Current version
+- v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.1.0

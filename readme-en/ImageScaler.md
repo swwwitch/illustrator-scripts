@@ -19,8 +19,8 @@
 - Dialog with scale % input (prefilled for single selection)
 - Apply relative scaling immediately on value change
 - Keyboard increments:
-  - ↑↓ = ±1
-  - Shift+↑↓ = ±10 (snap to multiples of 10)
+  - ↑↓ = to the next whole number (1.5 → 2). Clicking the stepper buttons left of the field works the same way
+  - Shift+↑↓ = to the next multiple of 10 (232 → 240)
   - Option(Alt)+↑↓ = ±0.1
 
 ### Process Flow
@@ -36,6 +36,7 @@
 - v1.1 (20250816) : Added arrow key increment feature
 - v1.2 (20250816) : Immediate application of changes (OK closes only), localization support
 - v1.3.2 (20260927) : Fixed typing other than the arrow keys re-rounding the value. Added a colon to the field label and removed the extra space in the dialog title
+- v1.4.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### Script info
 

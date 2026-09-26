@@ -42,7 +42,7 @@ The bottom of the dialog shows the number of paragraphs to place and the current
 | Artboard gap | Gap between added artboards, in pt. Prefilled from the existing layout when it can be read (20 pt otherwise) |
 | Keep the original text | When on, the source text is kept instead of deleted (off by default) |
 
-In the number fields, Up/Down changes the value by 1, and Shift+Up/Down by 10.
+In the number fields, the ∧∨ stepper buttons on the left or Up/Down step the value to the next whole number (1.5 → 2), and with Shift to the next multiple of 10.
 
 These can also be changed in the user settings at the top of the script:
 
@@ -61,4 +61,5 @@ These can also be changed in the user settings at the top of the script:
 
 ### Version history
 
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.0 (2026-09-01): Initial version

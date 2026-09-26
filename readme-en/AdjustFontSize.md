@@ -21,7 +21,7 @@
   - Font Size: entered in the ruler unit (the text unit from Preferences)
   - Scale: one value sets both horizontal and vertical scale (%)
   - Apparent: the actual visual size computed as font size × scale (dimmed while the scale is 100%)
-  - Arrow keys increment / decrement the value (shift for steps of 10, option for 0.1 — 5 for the scale)
+  - The stepper buttons left of each field and the arrow keys change the value (to the next whole number rather than by 1, e.g. 1.5 → 2; shift to the next multiple of 10; option by 0.1)
 - "Actual ↔ Apparent" button converts between size and scale
   - Each press toggles between baking size × scale into the actual font size at 100% and restoring the previous scaled state
   - Typing a size or scale by hand discards the saved pre-bake state
@@ -46,3 +46,4 @@
 ### Update History
 
 - v1.0.0 (20260802): Initial release
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

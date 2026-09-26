@@ -37,7 +37,7 @@
 - Drawing panel: Fill (Left) and Fill (Right) (Fill (Top) and Fill (Bottom) for a top/bottom split), Overall frame, Divider
 - Options panel: Stroke width sets the weight of the frame and divider (in the stroke units preference); Corner radius sets the corner size (in ruler units; 0 keeps square corners). Controls that do not apply are dimmed
 - Balance: None splits at the middle of the gap. Left or Right (Top or Bottom for a top/bottom split) pins that side's margin to Width and gives the rest to the other side. Width is capped at the gap and can also be set with the slider (hold Option while dragging for whole units)
-- In the number fields, Up/Down steps by ±1, Shift+Up/Down by ±10 (snapping to multiples of 10), and Option+Up/Down by ±0.1
+- In the number fields, the stepper buttons and Up/Down step to the next whole number (1.5 → 2), Shift to the next multiple of 10, and Option by ±0.1
 - Dialog values carry over to the next run until Illustrator quits
 
 ### Notes
@@ -67,3 +67,4 @@
 - v2.8 (20260228): Preview rollback now deletes preview-marked objects directly instead of relying on undo, fixing stroke previews that did not update or doubled up
 - v2.9 (20260228): Previews are drawn on a dedicated layer and cleared layer by layer, further reducing leftovers and duplicates
 - v2.9.2 (20260922): Fixed OK drawing with the last preview's values instead of the dialog's (settings could be ignored, for example after clearing the stroke or corner field). Removed the Preview checkbox; the preview is now always on. OK with an invalid stroke or corner value now returns to that field. Fixed the default stroke becoming 0 with inch or cm stroke units, which kept the preview from appearing. Fixed Cancel still moving the original objects to the front and dropping the selection, and the script rewriting the print and template settings of the objects' layer. Fixed an error on whitespace-only text, and shapes appearing at the origin when run with two characters selected while editing text. Fixed preview layers piling up for objects on sublayers. Clip groups are now measured by their mask. Fixed Width not accepting a decimal point. Rounding now follows the unit size (1 decimal for pt, 2 for mm, 3 for in, cm and larger units), and the last values are kept in pt so they survive a unit change. In a top/bottom split, the Balance tooltips now describe top and bottom. Objects are measured once when the dialog opens, which speeds up the preview. Internal cleanup
+- v2.10.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

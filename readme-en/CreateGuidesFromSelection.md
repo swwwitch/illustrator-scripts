@@ -46,3 +46,4 @@
 - v1.8.0 (20250802): UI cleanup, wording and tooltip adjustments
 - v1.9.0 (20260628): Live preview, structured localization, existing guides hidden during preview
 - v1.9.1 (20260803): Added the "Destination" panel (selection layer / "_guide" layer), added "Group the guides to draw", reworded the per-object option, dimmed the margin field for center-only guides, fixed bounds for mixed text and object selections, internal refactoring
+- v1.10.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

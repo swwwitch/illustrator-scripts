@@ -59,7 +59,7 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
     //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
     // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に changeValueByArrowKey() を付けない（↑↓キーが二重に効く）
+    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
     // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
     // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
@@ -254,8 +254,11 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
      * @returns {number} 移した値
      */
     function snapStepperToNextMultiple(value, multiple, direction) {
-        if (direction > 0) return Math.floor(value / multiple) * multiple + multiple;
-        return Math.ceil(value / multiple) * multiple - multiple;
+        /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
+           round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
+        var quotient = Math.round(value / multiple * 1e6) / 1e6;
+        if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
+        return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
     }
 
     /**

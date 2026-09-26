@@ -39,7 +39,7 @@ Selecting a text frame together with the object switches to text alignment mode.
 
 Stroke width and tip marker size follow the stroke unit in your preferences. The distance to text is always in points.
 
-In numeric fields the arrow keys step the value. Shift steps larger, Option (Alt) steps finer.
+In numeric fields the stepper buttons and the arrow keys step the value: the angle to the next whole number (1.5 → 2), the widths, size and distance by 0.1. Shift snaps to the next multiple of 10, Option (Alt) steps by 0.1.
 
 ### Re-applying
 
@@ -65,11 +65,12 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Changelog
 
+- v1.6.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.2 (2026-08-12) : Fixed the tip marker being placed on the wrong end in text alignment mode, fixed "Group items" being unavailable when the edge is on without a tip marker, reorganized the internal structure
 
 ### Script info
 
-- Version: v1.5.2
+- Version: v1.6.0
 - First release: 2026-03-06
 - Last updated: 2026-08-12
 - Article: https://note.com/dtp_tranist/n/n506df641d5c5

@@ -21,7 +21,7 @@ Use it to show the flow or the relationship between elements in a layout.
 - The width is calculated automatically (from the height for `▶` / `>` / `>>`, from the narrowest gap for the rest; it can also be typed in)
 - A width you type is the drawn size of the mark
 - Height (%), stroke width and position (horizontal / vertical) are adjustable
-- Position accepts negative values and can be stepped with the arrow keys
+- Position accepts negative values and can be stepped with the stepper buttons or the arrow keys (to the next whole number in units that step by 1; Shift to the next multiple of 10)
 - Follows the current ruler units (and the stroke unit setting for the stroke width)
 - `▶` can be reshaped with Inset (up to 80% of the width) and rounded with Rounded corners
 - `─\` takes an angle for the slash, supports round ends, and can be mirrored
@@ -66,7 +66,7 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 | --- | --- |
 | Height | Percentage of the combined height of the two adjacent objects, up to 200%. Unused for `─` / `＋` / `×` / `➡`. |
 | Width | Drawn width of the mark. Clear it to calculate it automatically again (from the height for `▶` / `>` / `>>`, from the narrowest gap for the rest). |
-| Inset | The dent in the left edge of `▶`, up to 80% of the width (the arrow keys stop there too). |
+| Inset | The dent in the left edge of `▶`, up to 80% of the width (the steppers and arrow keys stop there too). |
 | Gap | Distance between the two chevrons of `>>`. Negative values are allowed. |
 | Stroke | Stroke width. The minimum is the equivalent of 0.25 pt, and the alert states it in the unit on screen. Unused for `▶`, which is fill-only. |
 | Angle | Slope of the slash in `─\`, up to 89°. |
@@ -150,6 +150,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.4 (2026-09-22): Cleaned up the code (shared shape settings, smaller functions). Added tooltips to the fields, checkboxes and shortcuts. Fixed `F` / `R` switching the end style while `▶` / `➡` was selected, which then carried over to other shapes. Inset now stops at 80% of the width when stepped with the arrow keys too. Renamed settings variables (`TRI_CORNER_RADIUS_RATIO` → `TRIANGLE_CORNER_RADIUS_RATIO`, `ARROW3_HEIGHT_TO_STROKE_RATIO` → `SOLID_ARROW_HEIGHT_TO_STROKE_RATIO`)
 - v1.3.3 (2026-09-19): Moved unit conversion to the shared unit table (no change in behavior)
 - v1.3.2 (2026-08-01): Unified the shape-creation code; reorganized the label definitions and layout settings. Made Width the drawn size for every shape (fixing the mismatch between the stroked and filled `>` / `>>`), kept the heads of `→` / `➡` inside Width, sized `➡` from its stroke width (head height = stroke × 3, dropping the Stroke ×3 label), added unit-aware decimals and arrow-key steps, and moved the locked-layer and no-gap checks to startup

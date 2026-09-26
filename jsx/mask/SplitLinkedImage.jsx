@@ -396,8 +396,11 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
      * @returns {number} 移した値
      */
     function snapStepperToNextMultiple(value, multiple, direction) {
-        if (direction > 0) return Math.floor(value / multiple) * multiple + multiple;
-        return Math.ceil(value / multiple) * multiple - multiple;
+        /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
+           round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
+        var quotient = Math.round(value / multiple * 1e6) / 1e6;
+        if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
+        return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
     }
 
     /**

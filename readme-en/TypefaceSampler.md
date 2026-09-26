@@ -64,7 +64,7 @@ Full-width spaces and commas are handled as well, and the forms combine (for exa
 | --- | --- |
 | Weight Count | Appends the number of fonts to the category name |
 | Weight List | When off, draws only the category names in a single column, set in that category's lightest weight |
-| Columns | Number of columns of categories (arrow keys step the value, shift steps by 10) |
+| Columns | Number of columns of categories (the ∧∨ buttons and arrow keys step the value, shift snaps to the next multiple of 10) |
 | Debug Score | Appends the sort score (only for the Font Name + Weight/Style output) |
 
 **Weight**
@@ -111,3 +111,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.3.1 (20250706): Localization adjustments
 - v1.3.2 (20260902): Added weight and style-category filters (merged TypefaceSampler-text.jsx)
 - v1.3.4 (20260922): Columns and rows now fit their contents (no more overlaps); fixed weight detection for styles such as Ultra Condensed, quoted keyword search and full-width commas; missing fonts are left out
+- v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

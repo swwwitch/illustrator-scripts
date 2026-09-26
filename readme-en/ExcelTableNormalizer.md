@@ -36,3 +36,4 @@ Normalizes Illustrator artwork that came from Excel so that it is easier to work
 ### Update History
 
 - v1.1.0 (2026-04-30)
+- v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

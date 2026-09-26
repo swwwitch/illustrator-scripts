@@ -51,7 +51,7 @@
   - Sort all rows by name, by number, or by number descending (rows without a number go last)
 - "Show Hidden Characters" toggles display of tabs and line breaks
 - "Reset" clears scale, baseline shift, color, indent and tab stops at once
-- Numeric fields step with the arrow keys (Shift = ±10, Option = ±0.1)
+- Numeric fields step with the stepper buttons and arrow keys to the next whole number (1.5 → 2; Shift = next multiple of 10, Option = ±0.1)
 - Automatic Japanese / English switching
 
 ### Workflow
@@ -79,6 +79,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.0 (2026-09-26): Supports Illustrator bullet and numbered lists: before the dialog opens they are turned into text markers with *Convert to Text*, so the current state is detected and the markers can be replaced. Switching between bullets, numbers and None now clears every tab stop before adding the new ones
 - v1.2.2 (2026-09-21): Folded ColorPicker.jsx into the script, so it now runs on its own. Fixed the color picker not opening when the Marker/Number or Delimiter color swatch is clicked. CMYK swatches are now drawn in the same color as the picker shows
 - v1.2.1 (2026-09-19): Now loads ColorPicker.jsx from `jsx/stroke-table/` (the copy in `jsx/text/` was retired)

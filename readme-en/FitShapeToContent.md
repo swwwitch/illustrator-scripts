@@ -37,13 +37,13 @@ Quickly creates and adjusts a backing shape that fits a text frame or a group. P
 
 The radius cannot exceed half the shorter side of the backing shape; a larger entry is clamped automatically.
 
-Padding and radius are shown and entered in the document's ruler unit. The arrow keys step the values.
+Padding and radius are shown and entered in the document's ruler unit. The ∧∨ stepper buttons to the left of each field and the arrow keys step the values the same way.
 
-| Key | Step |
+| Action | Step |
 | --- | --- |
-| Up / Down | ±1 |
-| Shift + Up / Down | ±10 (snaps to multiples of 10) |
-| Option + Up / Down | ±0.1 |
+| ∧∨ / Up / Down | To the next whole number (1.5 → 2) |
+| Shift + ∧∨ / Up / Down | To the next multiple of 10 (232 → 240) |
+| Option + ∧∨ / Up / Down | ±0.1 |
 
 "Adjust Shape" starts on when the rectangle is created automatically (only a text frame or group selected), and off when an existing shape is reused.
 
@@ -61,5 +61,6 @@ https://note.com/dtp_tranist/n/n6e4a6a2b175f
 
 ### Update History
 
+- v2.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.3 (2026-08-31) Padding and radius now honor the ruler unit. A selected text+shape group keeps its group and original shape. Padding is measured from the path instead of the stroke. The corner radius is capped at half the shorter side
 - v2.0.2 (2026-05-25)

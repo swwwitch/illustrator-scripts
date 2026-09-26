@@ -22,7 +22,7 @@
   - Font size: change the font size so the text reaches both path endpoints (shrinks in 0.1 pt steps, growing first when needed)
   - Tracking: keep the font size and adjust letter spacing with a coarse pass followed by a fine pass
 - **Effect:** Type on a Path effect — Rainbow (default) / Skew / 3D Ribbon / Stair Step / Gravity
-- **Tracking:** when the checkbox is on, adds the given value to the existing tracking (-100 to 500; arrow keys adjust, Shift = 10, Option = 0.1). Turning it off resets it to 0. Dimmed while "Fit to path width: Tracking" is selected
+- **Tracking:** when the checkbox is on, adds the given value to the existing tracking (-100 to 500; the stepper buttons on the left or the arrow keys step by 1, Shift to the next multiple of 10). Turning it off resets it to 0. Dimmed while "Fit to path width: Tracking" is selected
 - **Preview:** on by default. Shows a temporary result while enabled; turning it off or cancelling restores the original
 - Paragraph justification is always centered
 - Automatic Japanese / English UI, with tooltips on every option
@@ -47,4 +47,5 @@
 
 ### Update History
 
+- v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (20260519): Public release

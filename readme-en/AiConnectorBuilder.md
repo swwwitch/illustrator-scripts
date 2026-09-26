@@ -130,3 +130,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.5 (20260909): Key object detection no longer adds undo steps
 - v1.0.7 (20260926): Tidied the UI wording (dialog title "Build Connectors", "Weight", "Corner radius", "Tip", "Offset"); the start-object dialog's "Close and pick it manually" checkbox is now a "Set Manually" button; internal cleanup
 - v1.0.8 (20260926): Fixed the Ends & Arrowheads labels being cut off (the colon was hidden)
+- v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

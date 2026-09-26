@@ -30,4 +30,5 @@ Cuts a gap into a rule around the selected objects.
 
 ### Update History
 
+- v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0

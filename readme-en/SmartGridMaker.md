@@ -24,7 +24,7 @@ The outer frame (edge extension, line caps, rounded corners), the title area, th
 - Divider line types (Solid, Dashed, Dotted)
 - Bleed-aware frame, 3 mm (artboard-based runs only)
 - Zoom and pan plus view commands in the Display tab (Fit Artboard in Window, Actual Size, Fit All in Window)
-- Up and Down keys step the numeric fields (Shift for ±10 snapped to tens, Option for ±0.1)
+- The stepper buttons and the Up and Down keys step the numeric fields to the next whole number (1.5 → 2; Shift to the next multiple of 10, Option for ±0.1)
 - Tooltips on every option
 - Dialog with a live preview
 - Values are entered in Illustrator's ruler unit
@@ -73,6 +73,7 @@ The Artboard tab is hidden when the script starts from a selected rectangle; mar
 
 ### Changelog
 
+- v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.1 (2026-09-16): Revised the UI wording (tab names, the title area's Divider and Extend divider options, line types as Solid, Dashed and Dotted) and added tooltips to every option. Fixed 15 issues, including the preview not matching the result, short edges turning inside out with the edge extension, and the inner area disappearing for a left or right title. Reorganised the internal naming and structure
 - v1.4.1 (2026-02-24): Improved the stability of rounded-corner handling (Error 23)
 - v1.4.0 (2026-02-24): Added rounded corners for the title area and a Display panel

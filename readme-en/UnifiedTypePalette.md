@@ -235,4 +235,5 @@ The two lists on each tab (Font only / Details) are stacked at the same position
 
 ### Update History
 
+- v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.7 (2026-09-26) Renamed the file from `UnifiedTypePanel.jsx` to `UnifiedTypePalette.jsx`.
