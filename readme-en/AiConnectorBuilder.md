@@ -12,6 +12,8 @@
 
 Draws a connector from the key object to each of the other selected objects. You choose the route, the stroke, the caps and the arrowheads; the preview on the artboard updates as you change them, and OK keeps exactly what you see. The connectors are collected on a "Connector" layer.
 
+<img alt="The Build Connectors dialog (Japanese UI)" src="../png/ss-904-1450-144-20260926-151934.png" width="50%" />
+
 ### Main Features
 
 - Five routes: straight, warp, elbow, branch and curve
@@ -35,6 +37,8 @@ Draws a connector from the key object to each of the other selected objects. You
 3. Choose the shape, stroke and arrowheads, check the preview, and click OK.
 
 If no key object is set, the "Choose the Start Object" dialog opens first. Click any cell of the 3x3 grid and the object nearest that position in the selection becomes the start. "Set Manually" closes the dialog so you can set a key object and run the script again. With exactly two objects selected, the left one is used as the start even without a key object.
+
+<img alt="The Choose the Start Object dialog (Japanese UI)" src="../png/ss-656-468-144-20260926-151930.png" width="40%" />
 
 ### Options
 
@@ -112,6 +116,10 @@ Save the current settings under a name. Presets are stored in your user settings
 
 Egor Chistyakov https://x.com/tchegr
 
+### Article
+
+[Draw connectors from the key object to each selected object with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/nd0d3486e5f68)
+
 ### Update History
 
 - v1.0.0 (20260905): Initial release
@@ -121,3 +129,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.4 (20260908): Added the Curve shape
 - v1.0.5 (20260909): Key object detection no longer adds undo steps
 - v1.0.7 (20260926): Tidied the UI wording (dialog title "Build Connectors", "Weight", "Corner radius", "Tip", "Offset"); the start-object dialog's "Close and pick it manually" checkbox is now a "Set Manually" button; internal cleanup
+- v1.0.8 (20260926): Fixed the Ends & Arrowheads labels being cut off (the colon was hidden)

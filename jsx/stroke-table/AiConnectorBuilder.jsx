@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd0d3486e5f68
+
 ### Overview
 
 Draws a connector from the key object to each of the selected objects.
@@ -25,13 +28,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnecto
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiConnectorBuilder";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -116,7 +120,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 */
     var LABEL_WIDTH        = 84;             /* コネクターパネルの行ラベル幅（右揃え） */
     var COLUMN_LABEL_WIDTH = 70;             /* 線パネルの行ラベル幅（2カラムなので狭め） */
-    var ARROW_LABEL_WIDTH  = 30;             /* 矢印パネルの行ラベル幅（2文字ぶん） */
+    var ARROW_LABEL_WIDTH  = { ja: 42, en: 50 }; /* 矢印パネルの行ラベル幅（コロン込み。英語は「Offset:」が入る幅） */
     var FIELD_CHARS    = 4;                  /* 数値欄の文字数 */
     var LIST_WIDTH     = 150;                /* ドロップダウンの幅 */
     var SLIDER_MIN_WIDTH = 60;               /* スライダーの最小幅（余白は fill で伸ばす） */
@@ -2468,7 +2472,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var dashGapField = addNumberRow(linePanel, LABELS.fieldLabel.dashGap, DEFAULT_DASH_GAP, LABELS.unit.pt, LABELS.tooltip.dashGap);
 
     /* 矢印 / Arrowheads */
-    setLabelWidth(ARROW_LABEL_WIDTH);
+    setLabelWidth(ARROW_LABEL_WIDTH[uiLang]);
     var arrowPanel = addPanel(lineArrowColumnsGroup, getLabel(LABELS.panel.arrow));
     var arrowShapeField = addArrowShapeRow(arrowPanel, DEFAULT_ARROW_INDEX, function () {
         // 矢印ごとに見え方が違うので、選び直したらその矢印の既定値（倍率・位置・線端）を入れる
