@@ -18,7 +18,7 @@ Adjusts the brightness of the selected objects with a slider. Positive values li
 
 - Slider range -50 to +50; the Amount field accepts -100 to +100 for amounts beyond the slider range
 - Hold shift while dragging the slider for 10% steps
-- Arrow keys step the Amount field by 1, or by 10 with shift
+- The stepper buttons (∧∨) and arrow keys step the Amount field by 1, or to the next multiple of 10 with shift
 - R resets the adjustment
 - Commits as a single undo step so the history stays clean
 - Supports CMYK, RGB, grayscale, and spot colors (tint)
@@ -44,5 +44,6 @@ https://note.com/dtp_tranist/n/n88e33648b19a
 
 ### Update History
 
+- v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-17) Added 10% snapping while dragging the slider with shift, removed "(R)" from the Reset label, revised the UI wording (title, slider end labels, Amount field, alerts), added tooltips, and reorganized internal naming and functions
 - v1.0 (2025-12-28) Initial release

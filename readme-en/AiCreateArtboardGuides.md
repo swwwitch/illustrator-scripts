@@ -29,7 +29,7 @@
   - "All artboards" on: draw on every artboard; off: the active artboard only
 - **Preview** (on by default): colored lines are drawn on a dedicated layer and replaced by real guides on commit; originals targeted for conversion are hidden temporarily
 - Entered values are treated in the current ruler unit (rulerType) and converted to points
-- Arrow keys step by ±1, Shift by ±10 (snapping to multiples of 10)
+- The number fields step with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 - Automatic Japanese / English UI, with tooltips on every option
 
 ### Workflow
@@ -53,4 +53,5 @@ https://note.com/dtp_tranist/n/n56d9c936a364
 
 ### Update History
 
+- v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0: Current version

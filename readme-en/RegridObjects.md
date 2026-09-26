@@ -13,7 +13,7 @@
 ### Overview
 
 - Assumes the selected objects are roughly arranged in a grid, and re-lays them out using horizontal and vertical spacing values.
-- Always-on preview. Values are typed directly into the fields, or stepped with Up/Down (×10 with Shift, ×0.1 with Option).
+- Always-on preview. Values are typed directly into the fields, or stepped with the stepper buttons left of each field or with Up/Down (to the next whole number, 1.5 → 2; to the next multiple of ten with Shift; by 0.1 with Option).
 - Spacing is entered in the current ruler unit (mm / pt / px, and so on) and converted to points internally; the unit is shown in the panel title.
 - Existing groups (including clip groups) are treated as a single object with one bounding box, rather than being broken apart.
 - Objects are not grouped automatically afterwards; they simply stay selected.
@@ -28,6 +28,7 @@
 
 ### Update History
 
+- v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.2 (2026-09-25): Fixed Force Grid moving objects to the top of the artboard, renamed the dialog to "Regrid Objects", clarified the message shown when transposing puts two objects in one cell, and tidied the code
 - v1.6.0 (2026-07-08): Added Center (a sub-option of Force grid), made Transpose a toggle that reverts when off, added ruler-unit input (mm / pt / px, converted to points internally), and tidied the apply functions and their naming
 - v1.0 (2025-10-31): Always-on preview, linked values (vertical dimmed), and arrow-key stepping

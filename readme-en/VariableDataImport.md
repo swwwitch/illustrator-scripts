@@ -29,7 +29,7 @@ The original document is duplicated with Save As and the merge happens in the co
 - Generate one artboard per data row automatically
 - Pick the column count that makes the grid closest to a square, or set the count explicitly
 - Set the gap between artboards (rounded to 10 pt increments)
-- Step numeric fields with the arrow keys (shift for tens, option for tenths)
+- Step numeric fields with the stepper buttons on their left or the arrow keys (Columns to the next whole number, Shift to the next multiple of ten; the gap moves by 10 pt)
 - Choose the data column used for artboard names (a column containing 名前 / 御中 / 宛先 / 様 / 会社名 is preselected)
 - Configure the saved file name (base name, suffix, separator, date, time)
 - Preview the result in a duplicate file without touching the original
@@ -145,6 +145,7 @@ Both are created next to the original document, which stays unchanged. The previ
 
 ## Changelog
 
+- v1.6.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.0 (2026-08-25): Added match-by-column-name and manual mapping modes, sample values and dimming of used columns in the mapping dropdowns, consumption-tax derivation, an explicit column count, file-name settings, and keyboard stepping for numeric fields
 - v1.4.1 (2026-05-18): Stability improvements
 - v1.4.0 (2026-05-15): Added Preview

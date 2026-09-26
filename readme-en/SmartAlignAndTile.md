@@ -26,7 +26,7 @@
 - Vertical alignment (top / middle / bottom / none) and horizontal alignment (left / center / right / none)
 - Anchor to the key object (detected automatically; the checkbox is dimmed when none is found)
 - Random arrangement, keeping the top-left corner of the whole block in place
-- Up/Down keys step the numeric fields (Shift+Up/Down snaps to multiples of 10); the row/column count is clamped to 1 or more
+- The stepper buttons and the Up/Down keys step the numeric fields to the next whole number (1.5 → 2; Shift snaps to the next multiple of 10); the row/column count is clamped to 1 or more
 - Undo-safe preview and single-step Undo after confirming
 
 ### How to Use
@@ -69,6 +69,7 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Update History
 
+- v2.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.0 (2026-09-06): Merged `SmartAlignAndTile-yoko` (v1.7.1) and `SmartAlignAndTile-tate` (v1.8) into one script with a direction switch. The key object now acts as the origin of the layout, "None" was added to both alignment rows, and the lane band is unified on the largest item size. Also fixed the Shift+Down snap, the row/column count clamping, the lane distribution (the requested count is always used) and the preference restore.
 
 ---

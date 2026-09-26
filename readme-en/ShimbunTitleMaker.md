@@ -53,7 +53,7 @@ The dummy text is split into tiers to match the height of the rules and blurred.
 | Options | Rotation | 3° | Rotation applied to the whole piece with the Transform effect; 0 adds no effect |
 | Options | Mask | On | Masks the whole piece with a rectangle that leaves no corner missing after the rotation; when off, no clip group is made. Turns off automatically when Extra tiers is set to 0 |
 
-Lengths are shown in the ruler unit. The numeric fields step with the Up/Down arrow keys (Shift: ±10 snapped to multiples of ten, Option: ±0.1). Only Rotation accepts negative values.
+Lengths are shown in the ruler unit. The numeric fields step with the stepper buttons to their left or the Up/Down arrow keys (to the next whole number rather than by 1, e.g. 1.5 → 2; Shift: to the next multiple of ten; Option: ±0.1; Chars per line, Tiers and Extra tiers take whole numbers only). Only Rotation accepts negative values.
 
 ### Dummy text dimensions
 
@@ -95,6 +95,7 @@ https://note.com/dtp_tranist/n/ndb9bee6b7a2e
 
 ### Change log
 
+- v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.0 (2026-09-24): Added Mask to Options (off: no clip group; turns off automatically when Extra tiers is set to 0)
 - v1.1.1 (2026-09-24): Added periods to the dummy text (kinsoku set to None); widened the label column so long labels are not clipped
 - v1.1.0 (2026-09-24): Added the dummy text (tiers, tiers above and below, blur, background), rotation, mask and preview; the margins are now two items, vertical and horizontal

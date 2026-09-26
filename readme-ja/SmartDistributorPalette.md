@@ -27,6 +27,7 @@ DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレ�
 
 ### 更新履歴
 
+- v1.1.0（2026-09-27）移動距離「カスタム」の数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.0.3（2026-09-26）ファイル名を `SmartDistributor.jsx` から `SmartDistributorPalette.jsx` に変更。
 - v1.0.2 (2026-09-19) 綴り違いの重複 `SmartDistributer.jsx` を統合
 - v1.0.1

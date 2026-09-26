@@ -21,7 +21,7 @@ Sets the gap and the position of the selected objects to a value you specify. Th
 - Alignment perpendicular to the gap (none / left (top) / center / right (bottom)), plus an extra offset from there
 - Text alignment (auto / left / center / right / justify) as icon buttons
 - Preview Bounds switches between visible bounds (stroke and effects included) and geometric bounds
-- Arrow keys step the numeric fields (Shift by 10, Option by 0.1)
+- The stepper buttons and arrow keys step the numeric fields to the next whole number (1.5 → 2; Shift to the next multiple of 10, Option by 0.1)
 - Keyboard shortcuts for alignment (L / C / R for the horizontal direction, T / M / B for the vertical one)
 - Values follow the current ruler unit
 - Remembers the dialog state and restores it next time
@@ -106,3 +106,4 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 - v1.3.0 (20260628): Added artboard mode, text alignment, position offsets and alignment shortcuts
 - v1.3.1 (20260629): Reorganized the dialog naming and panels
 - v1.3.2 (20260906): Merged the Horizontal/Vertical panels into a single Position panel, renamed the old Position panel to Offset and moved the unit into its title, turned text alignment into icon buttons, and fixed modified keystrokes being swallowed and text shifting on justification changes
+- v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

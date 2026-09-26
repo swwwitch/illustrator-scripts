@@ -41,13 +41,13 @@ Every time you switch the base, the selection is restored to its original state 
 
 Only one base can be checked at a time. Clicking one turns all the others off.
 
-The "Fixed Size" field uses the document's ruler units, and starts at the average width of the selection. You can nudge the value with the arrow keys.
+The "Fixed Size" field uses the document's ruler units, and starts at the average width of the selection. You can nudge the value with the up/down buttons to the left of the field or with the arrow keys (both work the same way).
 
 | Key | Step |
 | --- | --- |
-| ↑↓ | ±1 |
-| Shift + ↑↓ | ±10 (snaps to multiples of 10) |
-| Option + ↑↓ | ±0.1 |
+| ↑↓ (click) | To the next whole number (1.5 → 2, 2 → 3) |
+| Shift + ↑↓ (Shift-click) | To the next multiple of 10 (232 → 240) |
+| Option + ↑↓ (Option-click) | ±0.1 |
 
 ### How the key object is detected
 
@@ -172,6 +172,7 @@ The key-object detection is based on the idea published in this article.
 
 ## Update history
 
+- v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.4 (2026-08-26): Added "Key object" (width / height) as a resize base — the key object is detected by probing the align commands, and the row is dimmed when it cannot be identified. Row labels are now right-aligned at a shared width. Fixed: the "Fixed Size" field started at a value in points instead of the ruler units it is labelled with (a mm ruler resized to 283 mm). Fixed: when a resize was aborted (Fixed Size of 0, or the base being cleared by "One side only"), a later alignment click restored the stale resized geometry. Center / Middle alignment now uses the center of the selection's bounding box instead of the average of the object centers, matching Illustrator's own align command. "Distribute evenly" and "Zero gap" are dimmed when the selection is too small. Outline-bounds measurement now tracks its temporary objects directly instead of diffing every page item in the document (slow on large documents), and its selection save / restore was fixed
 - v1.4.3 (2026-08-22): Artboard and Bleed can now be used as bases in "One side only" mode (only the base axis is stretched; the other axis keeps its size, and centering is unchanged). "One side only" now dims only Ref. side and Area. Fixed line widths drifting on revert (restoring a one-side resize, which never changes line widths, still applied the shrink factor to them). Condensed the header overview so it points to the README for details, and removed duplicate / unused code
 - v1.4.2 (2026-07-22): Added Japanese and English READMEs, linked from the script's basic info. Fixed: Esc and the window close box now cancel instead of committing the transform. Fixed: Reset now also clears the resize-base radios and the internal base state (clicking an alignment after Reset used to restore the resized geometry). Switching to "One side only" now clears the bases it dims (Ref. side / Area / Artboard / Bleed). Distribution (evenly / zero gap) now moves by delta so it follows "Measure by preview bounds". "Distribute evenly" now requires 3+ objects and "Zero gap" 2+. Added a guard for when no document is open. One-side-only resize now anchors at the top-left like every other mode

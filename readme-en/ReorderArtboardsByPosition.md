@@ -45,3 +45,4 @@
 - v1.3.1 (20260508): Swapped the execution order of rearrange and panel reorder so the panel order matches the post-rearrange visual layout
 - v1.4.0 (20260513): Replaced the panel order option with radio buttons (By name / Match canvas order / Keep as is); by-name uses a natural sort that zero-pads digit runs to 10 characters
 - (20260807): Unified the overview and basic-info blocks with the shared format, reorganized layout constants and UI helpers, and added JSDoc to every function (no functional change)
+- v1.5.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

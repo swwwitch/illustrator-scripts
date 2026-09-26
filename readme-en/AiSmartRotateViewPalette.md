@@ -24,7 +24,7 @@ You can also read the angle of a selected object and rotate the view to it, or r
   - Hold Shift while dragging to snap to 15° steps
   - [Reset] returns only the view rotation to 0° (dimmed when it is already 0°)
 - **Constrain angle**
-  - Set it with the number field (↑↓ for ±1, Shift+↑↓ for ±10) or the slider
+  - Set it with the number field (the stepper buttons (∧∨) or ↑↓ step to the next whole number, e.g. 1.5 → 2; Shift to the next multiple of 10; Option by ±0.1) or the slider
   - The slider updates the field while dragging and applies the preference on release (15° steps with Shift)
   - [Change value] applies the field value to the preference
   - With "Link to view rotation" on, the same angle is applied automatically whenever the view rotation changes
@@ -62,8 +62,9 @@ Illustrator stores the actual constraint direction in `constrain/sin` and `const
 
 - Version: v1.0.2
 - First release: 2026-06-05
-- Last updated: 2026-09-26
+- Last updated: 2026-09-27
 
 ### Update History
 
+- v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.2 (2026-09-26) Renamed the file from `AiSmartRotateView.jsx` to `AiSmartRotateViewPalette.jsx`.

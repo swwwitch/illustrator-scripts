@@ -35,7 +35,8 @@ Last Updated: 2025-08-22 (v1.3)
 - v1.1 (20250704): Cleaned comments and optimized logic
 - v1.2 (20250705): Adjusted behavior for clip groups
 - v1.3 (20250822): Added keyboard increments (Up/Down, Shift+Up/Down, Option+Up/Down)
+- v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### Script info
 
-- Version: v1.3
+- Version: v1.4.0

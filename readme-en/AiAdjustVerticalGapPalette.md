@@ -17,7 +17,7 @@ with a live preview that updates as you change the settings.
 - On open, reads the current gap of the two selected objects into the field (nothing moves)
 - Keeps the chosen key object (top, bottom, or auto) in place and moves the other
 - Auto (the default) detects the key object set in Illustrator and uses it as the anchor: only with exactly two selected items; align commands probe temporarily and every item is moved back; falls back to Top when it cannot be detected
-- The gap value uses the document's ruler unit (arrow keys: Shift ±10 / Option ±0.1)
+- The gap value uses the document's ruler unit; the stepper buttons and arrow keys step it to the next whole number (1.5 → 2; Shift to the next multiple of 10 / Option ±0.1)
 - Negative gap values overlap the two objects
 - Optional horizontal alignment (none / left / center / right)
 - An extra "Offset" value shifts the moving object further horizontally after alignment (positive = right, negative = left; unit follows the ruler), and works even when align is none
@@ -34,9 +34,10 @@ with a live preview that updates as you change the settings.
 
 ### Script info
 
-- Version: v1.3.3
+- Version: v1.4.0
 
 ### Update History
 
+- v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.3.3 (2026-09-26) Renamed the file from `AiAdjustVerticalGap.jsx` to `AiAdjustVerticalGapPalette.jsx`.
 - v1.3.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

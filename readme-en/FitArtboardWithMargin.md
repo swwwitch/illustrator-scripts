@@ -25,7 +25,7 @@ Adjusts artboard size by operation (fit to objects / expand the artboard), targe
 - Switch between preview bounds (including strokes and effects) and geometric bounds
 - Rounding for artboard position and size: optimize to pixel grid / round in the current unit / do nothing
 - Live preview; Cancel restores the state from when the dialog opened
-- Arrow keys change the value: Shift snaps to multiples of 10, Option steps by 0.1
+- The stepper buttons left of each field and the arrow keys change the value: to the next whole number (1.5 → 2), Shift snaps to multiples of 10, Option steps by 0.1
 - Remembers the last settings and dialog position for the session
 - Japanese / English UI
 
@@ -94,3 +94,4 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.2 (2025-07-09): UI improvements and bug fixes
 - v1.3 (2025-07-10): UI improvements, added panel and radio buttons
 - v1.9.2 (2026-09-10): Added width/height checkboxes to Adjustment basis; merged FitArtboardHeight.jsx so that running Fit with nothing selected resizes every artboard to the objects it contains. Also fixed preview restore on a partial failure, group-level effects being dropped from measurements, outlining failures aborting the run, and the first-run dialog appearing off-screen
+- v1.10.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

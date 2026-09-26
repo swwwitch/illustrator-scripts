@@ -14,8 +14,9 @@ A persistent palette that applies the "Convert to Shape" live effect to the sele
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.1.0
 
 ### Update History
 
+- v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-26) Renamed the file from `LEConvertToShape.jsx` to `LEConvertToShapePalette.jsx`.
