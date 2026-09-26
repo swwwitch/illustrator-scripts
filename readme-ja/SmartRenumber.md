@@ -1,6 +1,6 @@
 # 数字・英字・漢数字をソートして連番を振り直す
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenumber.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartRenumber.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenumber.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/increment/SmartRenumber.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md)
 

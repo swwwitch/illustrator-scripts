@@ -1,6 +1,6 @@
 # テキスト内の数字・英字を増分しながら複製
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartIncrementText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartIncrementText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartIncrementText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/increment/SmartIncrementText.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md)
 

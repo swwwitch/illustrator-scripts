@@ -1,6 +1,6 @@
 # Sort numbers, letters or Japanese numerals and renumber them in sequence
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenumber.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartRenumber.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenumber.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/increment/SmartRenumber.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md)
 
