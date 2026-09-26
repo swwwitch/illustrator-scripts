@@ -36,9 +36,10 @@ AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelRein
 
 ### Script info
 
-- Version: v1.0.2
+- Version: v1.0.3
 
 ### Update History
 
+- v1.0.3 (2026-09-26) No longer shows an alert when no palettes are open.
 - v1.0.2 (2026-09-25) Added AiAdjustVerticalGap, DirectPrefs, DocumentFontListSelector and TextFontPanelReinvented.
 - v1.0.1 (2026-09-25) Fixed ArtboardDisplayPresetManager not closing: its engine and reference names did not match the script. Added 13 more persistent palettes (AiAlignToArtboard and others).

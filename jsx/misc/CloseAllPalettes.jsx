@@ -44,10 +44,10 @@ AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelRein
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -119,8 +119,7 @@ var uiLang = detectUILanguage();
 
 var LABELS = {
     alert: {
-        closedSome: { ja: "個のパレットを閉じました:", en: " palette(s) closed:" },
-        closedNone: { ja: "開いているパレットはありませんでした。", en: "No open palettes were found." }
+        closedSome: { ja: "個のパレットを閉じました:", en: " palette(s) closed:" }
     }
 };
 
@@ -140,14 +139,11 @@ function getLabel(labelEntry) {
     var pendingBridgeTalks = [];  // 応答が返るまで参照を保持（GC 防止）/ Keep references until responses return (prevent GC)
 
     /**
-     * 閉じた結果をまとめて表示する
+     * 閉じた結果をまとめて表示する（1 つも閉じなかったときは何も表示しない）
      * @returns {void}
      */
     function showSummary() {
-        if (closedNames.length === 0) {
-            alert(getLabel(LABELS.alert.closedNone));
-            return;
-        }
+        if (closedNames.length === 0) return;
         alert(closedNames.length + getLabel(LABELS.alert.closedSome) + "\n\n" + closedNames.join("\n"));
     }
 

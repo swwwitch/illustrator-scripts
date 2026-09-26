@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnecto
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiConnectorBuilder";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
@@ -60,7 +60,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* コネクターの初期値 / Connector defaults */
     var DEFAULT_LINE_SHAPE    = 0;    /* 0=直線 1=ワープ 2=カギ 3=分岐 4=カーブ */
-    var DEFAULT_START_POINT   = 0;    /* 0=各辺の中心 1=等分 2=中心 */
+    var DEFAULT_START_POINT   = 0;    /* 開始点 0=各辺の中心 1=等分 2=中心 */
     var DEFAULT_UNIFY_ANCHOR  = 4;    /* 開始点をまとめるときの位置（0〜8。4=中央＝自動） */
     var DEFAULT_WARP_TYPE     = 0;    /* WARP_TYPE_CHOICES のインデックス（0=でこぼこ） */
     var DEFAULT_WARP_AMOUNT   = -80;  /* カーブ（%）：ワープの曲がり具合とカーブのふくらみに共用 */
@@ -135,21 +135,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ICON_PADDING = 4;                    /* 矢印アイコンの内側の余白 */
     var ICON_ROW_BOTTOM_MARGIN = 5;          /* 矢印アイコン行の下余白 */
 
-    /* 矢印アイコンの配色。UIの明暗に合わせて initIconColors() で入れ替える */
-    var ICON_COLOR          = [0.25, 0.25, 0.25, 1];
-    var ICON_SELECTED_COLOR = [1, 1, 1, 1];
-    var ICON_BG             = [1, 1, 1, 1];
-    var ICON_SELECTED_BG    = [0.4, 0.4, 0.4, 1];
-    var ICON_BORDER_COLOR   = [0.65, 0.65, 0.65, 1];
+    /* 矢印アイコンの配色と起点ウィジェットの選択セルの塗り。UIの明暗に合わせて initThemeColors() で決める */
+    var ICON_COLOR;
+    var ICON_SELECTED_COLOR;
+    var ICON_BG;
+    var ICON_SELECTED_BG;
+    var ICON_BORDER_COLOR;
+    var ANCHOR_SELECTED_FILL;
 
-    // 確定／破棄の判定は show() の戻り値に一本化する
-    // （ESCやウィンドウを閉じたときは onClick が発火しないため）
+    /* 確定／破棄の判定は show() の戻り値に一本化する（ESCやウィンドウを閉じたときは onClick が発火しないため） */
     var DIALOG_RESULT_OK = 1;
     var DIALOG_RESULT_CANCEL = 2;
 
-    /* 起点ウィジェットのケイ線・枠線（常時この色）／選択セルの塗りは明暗で入れ替える */
+    /* 起点ウィジェットのケイ線・枠線（常時この色） */
     var ANCHOR_LINE_COLOR    = [0.6, 0.6, 0.6, 1];
-    var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];
     var ANCHOR_DISABLED_LINE = [0.75, 0.75, 0.75, 1];
     var ANCHOR_DISABLED_FILL = [0.75, 0.75, 0.75, 1];
     /* 外周の□どうしをつなぐケイ線（中央は独立）*/
@@ -213,35 +212,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var LABELS = {
         dialog: {
-            title:     { ja: "コネクター", en: "Connector" },
-            keyObject: { ja: "起点にするオブジェクト", en: "Start object" }
+            title:     { ja: "コネクターを作成", en: "Build Connectors" },
+            keyObject: { ja: "起点にするオブジェクト", en: "Choose the Start Object" }
         },
         message: {
-            noKeyObject: { ja: "キーオブジェクトが設定されていません。起点にするオブジェクトの位置を選んでください。", en: "No key object is set. Pick where the object you want to start from sits." }
+            noKeyObject: {
+                ja: "キーオブジェクトが設定されていません。起点にするオブジェクトの位置を選んでください。",
+                en: "No key object is set. Pick where the object you want to start from sits."
+            }
         },
         panel: {
             connector: { ja: "コネクター", en: "Connector" },
-            line:   { ja: "線", en: "Line" },
-            arrow:  { ja: "線端と矢印", en: "Ends & arrowheads" }
+            line:      { ja: "線", en: "Line" },
+            arrow:     { ja: "線端と矢印", en: "Ends & Arrowheads" }
         },
         fieldLabel: {
-            preset:         { ja: "プリセット", en: "Preset" },
-            strokeWidth:    { ja: "線幅", en: "Stroke width" },
-            strokeJoin:     { ja: "角の形状", en: "Corner" },
-            strokeCap:      { ja: "線端", en: "Cap" },
-            dashStyle:      { ja: "破線", en: "Dashes" },
-            dashSegments:   { ja: "分割数", en: "Divisions" },
-            dashGap:        { ja: "間隔", en: "Gap" },
-            lineShape:      { ja: "形状", en: "Shape" },
-            startPoint:     { ja: "開始ポイント", en: "Start point" },
-            warpType:       { ja: "種類", en: "Style" },
-            warpAmount:     { ja: "カーブ", en: "Bend" },
-            warpAxis:       { ja: "方向", en: "Axis" },
-            cornerRadius:   { ja: "角丸", en: "Round corners" },
-            arrowScale:     { ja: "倍率", en: "Scale" },
-            endGap:         { ja: "余白", en: "Gap" },
-            arrowPosition:  { ja: "先端", en: "Ends" },
-            arrowTip:       { ja: "位置", en: "Position" }
+            preset:        { ja: "プリセット", en: "Preset" },
+            strokeWidth:   { ja: "線幅", en: "Weight" },
+            strokeJoin:    { ja: "角の形状", en: "Corner" },
+            strokeCap:     { ja: "線端", en: "Cap" },
+            dashStyle:     { ja: "破線", en: "Dashes" },
+            dashSegments:  { ja: "分割数", en: "Divisions" },
+            dashGap:       { ja: "間隔", en: "Gap" },
+            lineShape:     { ja: "形状", en: "Shape" },
+            startPoint:    { ja: "開始点", en: "Start point" },
+            warpType:      { ja: "種類", en: "Style" },
+            warpAmount:    { ja: "カーブ", en: "Bend" },
+            warpAxis:      { ja: "方向", en: "Axis" },
+            cornerRadius:  { ja: "角丸", en: "Corner radius" },
+            arrowScale:    { ja: "倍率", en: "Scale" },
+            endGap:        { ja: "余白", en: "Offset" },
+            arrowPosition: { ja: "位置", en: "Ends" },
+            arrowTip:      { ja: "先端", en: "Tip" }
         },
         radio: {
             joinMiter:      { ja: "マイター", en: "Miter" },
@@ -267,23 +269,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             arrowNone:      { ja: "なし", en: "None" },
             arrow8:         { ja: "矢印8", en: "Arrow 8" },
             arrow11:        { ja: "矢印11", en: "Arrow 11" },
-            dotFilled:      { ja: "黒丸", en: "Dot" },
-            dotHollow:      { ja: "白丸", en: "Circle" },
+            dotFilled:      { ja: "黒丸", en: "Filled dot" },
+            dotHollow:      { ja: "白丸", en: "Open dot" },
             arrowEnd:       { ja: "終点", en: "End" },
+            arrowBoth:      { ja: "両端", en: "Both ends" },
             tipAtEnd:       { ja: "終点に", en: "At end" },
-            tipBeyondEnd:   { ja: "終点から", en: "Beyond" },
-            arrowBoth:      { ja: "両端", en: "Both ends" }
+            tipBeyondEnd:   { ja: "終点から", en: "Beyond end" }
         },
-        check: {
-            manualKey:  { ja: "ダイアログを閉じて手動で選ぶ", en: "Close and pick it manually" },
+        checkbox: {
             unifyStart: { ja: "開始点をまとめる", en: "Share one start point" }
         },
-        arrow: {
-            none:   { ja: "[なし]", en: "[None]" },
-            prefix: { ja: "矢印 ", en: "Arrow " },
-            /* アクションに埋め込む Illustrator の表示名 / labels embedded in the action */
-            tipAtEndName:     { ja: "パスの終点に配置", en: "Place Arrow Tip At End of Path" },
-            tipBeyondEndName: { ja: "パスの終点から配置", en: "Extend Arrow Tip Beyond End of Path" }
+        dropdown: {
+            customPreset: { ja: "（カスタム）", en: "(Custom)" }
         },
         unit: {
             blank:   { ja: "", en: "" },
@@ -291,40 +288,106 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             percent: { ja: "%", en: "%" }
         },
         button: {
-            save:   { ja: "保存", en: "Save" },
-            remove: { ja: "削除", en: "Delete" },
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            manualKey:    { ja: "手動で設定", en: "Set Manually" },
+            savePreset:   { ja: "保存…", en: "Save…" },
+            removePreset: { ja: "削除", en: "Delete" },
+            cancel:       { ja: "キャンセル", en: "Cancel" }
         },
-        preset: {
-            custom: { ja: "（カスタム）", en: "(Custom)" }
+        /* アクションに埋め込む Illustrator の表示名（UIには出さない）/ names embedded in the action */
+        actionName: {
+            arrowNone:    { ja: "[なし]", en: "[None]" },
+            arrowPrefix:  { ja: "矢印 ", en: "Arrow " },
+            tipAtEnd:     { ja: "パスの終点に配置", en: "Place Arrow Tip At End of Path" },
+            tipBeyondEnd: { ja: "パスの終点から配置", en: "Extend Arrow Tip Beyond End of Path" }
         },
         tooltip: {
-            strokeJoin:     { ja: "カギ・分岐の折れ角の見え方です（［線］パネルの角の形状）。", en: "How the elbow corners look (the Stroke panel's corner setting)." },
-            strokeCap:      { ja: "線の端の見え方です（［線］パネルの線端）。ドットは丸形にしないと点が出ません。", en: "How the line ends look (the Stroke panel's cap). Dots need the round cap to show up." },
-            dashSegments:   { ja: "線分の数です。両端が線分で終わるように線分の長さを計算します。", en: "Number of dashes; the dash length is solved so both ends finish with a dash." },
-            dashGap:        { ja: "線分（ドット）どうしのすき間です。ドットでは両端がドットで乗るよう、指定に近い間隔へそろえます。", en: "Gap between dashes (dots). For dots it is nudged to the nearest value that lands a dot on both ends." },
-            keyObject:      { ja: "キーオブジェクトが未設定のため、起点にするオブジェクトを位置で選びます。選択範囲の左上〜中央〜右下のうち、押した位置にいちばん近いオブジェクトが起点になります。", en: "No key object was set, so pick the start object by position: the object nearest the corner or center you click becomes the start." },
-            manualKey:      { ja: "ダイアログを閉じます。選択したうえで基準にしたいオブジェクトをもう一度クリックしてキーオブジェクトにしてから、スクリプトを実行し直してください。", en: "Closes the dialog. With the objects selected, click the one you want as the key object, then run the script again." },
-            unifyStart:     { ja: "すべてのコネクターをキーオブジェクトの同じ位置から出します。位置は右の9分割で選びます。", en: "Runs every connector out of the same point on the key object; pick the point with the 3x3 grid on the right." },
-            unifyAnchor:    { ja: "開始点をまとめるときの位置です。中央は本数のいちばん多い辺を自動で選びます。上下の中央は上辺・下辺、左右の中央は左辺・右辺、四隅はその高さの左辺・右辺から出します。", en: "Where the shared start point sits. Center picks the edge used by the most connectors; the top and bottom cells use those edges, the left and right cells use theirs, and the corners leave from the left or right edge at that height." },
-            startPoint:     { ja: "等分は、同じ辺から出るコネクターの本数＋1でその辺を等分し、起点をずらします。中心は、キーオブジェクトの中心から相手へ向かう向きで、起点を辺の上に置きます。", en: "Divided spreads the start points along the key object's edge, splitting it into (connectors + 1) parts; Center aims each connector from the key object's center and starts it where that line meets the edge." },
-            lineShape:      { ja: "直線はまっすぐ結び、ワープは直線にワープ効果、カギは直角に折れる線、分岐は折れ位置をそろえて幹を共有し、カーブは弧を描いて結びます。", en: "Straight connects directly, Warp adds a warp effect to the straight line, Elbow is a right-angled route, Branch shares a trunk with aligned bends, and Curve bows the line into an arc." },
-            warpAmount:     { ja: "ワープの曲がり具合と、カーブのふくらみ（線の長さに対する割合）です。マイナス値で向きが逆になります。", en: "How much Warp bends, and how far Curve bows out relative to the line length. A negative value flips the direction." },
-            warpAxis:       { ja: "自動は全コネクターをまとめて水平／垂直を選びます（線ごとに変えるとアピアランスが混在するため）。線に沿った向きのワープは曲がりません。", en: "Auto picks one axis for all the connectors together (a per-line axis would mix their appearances); warping along the line has no visible effect." },
-            cornerRadius:   { ja: "カギ・分岐の角を丸めます（0で角丸なし）。", en: "Round the corners of Elbow and Branch routes (0 = square corners)." },
-            preset:         { ja: "現在の設定に名前を付けて保存できます。保存先はユーザーの設定フォルダーです。", en: "Save the current settings under a name; presets are stored in your user settings folder." },
-            arrowShape:     { ja: "［線］パネルの矢印を使います。黒丸も矢印の一種です。", en: "Uses the Stroke panel arrowheads; the dot is an arrowhead preset too." },
-            arrowScale:     { ja: "矢印の大きさ（%）。線幅に対する比率です。", en: "Arrowhead size in percent, relative to the stroke width." },
-            endGap:         { ja: "終点と相手の図形とのすき間です。最後の線分より大きい値は無視します。キーオブジェクト側は詰めません。", en: "Space left between the end of the connector and the object. Values longer than the final segment are ignored; the key-object end is not inset." },
-            arrowTip:       { ja: "矢印の先端をパスの終点に配置するか、パスの終点から配置するかを選びます。", en: "Place the arrow tip at the end of the path, or extend it beyond the end." },
-            arrowPosition:  { ja: "終点はキーオブジェクトと反対側、両端は起点にも付けます。", en: "End = the far side from the key object; Both ends also marks the start." }
+            strokeJoin: {
+                ja: "カギ・分岐の折れ角の見え方です（［線］パネルの角の形状）。",
+                en: "How the elbow corners look (the Stroke panel's corner setting)."
+            },
+            strokeCap: {
+                ja: "線の端の見え方です（［線］パネルの線端）。ドットは丸形にしないと点が出ません。",
+                en: "How the line ends look (the Stroke panel's cap). Dots need the round cap to show up."
+            },
+            dashSegments: {
+                ja: "線分の数です。両端が線分で終わるように線分の長さを計算します。",
+                en: "Number of dashes; the dash length is solved so both ends finish with a dash."
+            },
+            dashGap: {
+                ja: "線分（ドット）どうしのすき間です。ドットでは両端がドットで乗るよう、指定に近い間隔へそろえます。",
+                en: "Gap between dashes (dots). For dots it is nudged to the nearest value that lands a dot on both ends."
+            },
+            keyObject: {
+                ja: "キーオブジェクトが未設定のため、起点にするオブジェクトを位置で選びます。選択範囲の左上〜中央〜右下のうち、押した位置にいちばん近いオブジェクトが起点になります。",
+                en: "No key object was set, so pick the start object by position: the object nearest the corner or center you click becomes the start."
+            },
+            manualKey: {
+                ja: "ダイアログを閉じます。選択したうえで基準にしたいオブジェクトをもう一度クリックしてキーオブジェクトにしてから、スクリプトを実行し直してください。",
+                en: "Closes the dialog. With the objects selected, click the one you want as the key object, then run the script again."
+            },
+            unifyStart: {
+                ja: "すべてのコネクターをキーオブジェクトの同じ位置から出します。位置は右の9分割で選びます。",
+                en: "Runs every connector out of the same point on the key object; pick the point with the 3x3 grid on the right."
+            },
+            unifyAnchor: {
+                ja: "開始点をまとめるときの位置です。中央は本数のいちばん多い辺を自動で選びます。上下の中央は上辺・下辺、左右の中央は左辺・右辺、四隅はその高さの左辺・右辺から出します。",
+                en: "Where the shared start point sits. Center picks the edge used by the most connectors; the top and bottom cells use those edges, the left and right cells use theirs, and the corners leave from the left or right edge at that height."
+            },
+            startPoint: {
+                ja: "等分は、同じ辺から出るコネクターの本数＋1でその辺を等分し、起点をずらします。中心は、キーオブジェクトの中心から相手へ向かう向きで、起点を辺の上に置きます。",
+                en: "Divided spreads the start points along the key object's edge, splitting it into (connectors + 1) parts; Center aims each connector from the key object's center and starts it where that line meets the edge."
+            },
+            lineShape: {
+                ja: "直線はまっすぐ結び、ワープは直線にワープ効果、カギは直角に折れる線、分岐は折れ位置をそろえて幹を共有し、カーブは弧を描いて結びます。",
+                en: "Straight connects directly, Warp adds a warp effect to the straight line, Elbow is a right-angled route, Branch shares a trunk with aligned bends, and Curve bows the line into an arc."
+            },
+            warpAmount: {
+                ja: "ワープの曲がり具合と、カーブのふくらみ（線の長さに対する割合）です。マイナス値で向きが逆になります。",
+                en: "How much Warp bends, and how far Curve bows out relative to the line length. A negative value flips the direction."
+            },
+            warpAxis: {
+                ja: "自動は全コネクターをまとめて水平／垂直を選びます（線ごとに変えるとアピアランスが混在するため）。線に沿った向きのワープは曲がりません。",
+                en: "Auto picks one axis for all the connectors together (a per-line axis would mix their appearances); warping along the line has no visible effect."
+            },
+            cornerRadius: {
+                ja: "カギ・分岐の角を丸めます（0で角丸なし）。",
+                en: "Round the corners of Elbow and Branch routes (0 = square corners)."
+            },
+            preset: {
+                ja: "現在の設定に名前を付けて保存できます。保存先はユーザーの設定フォルダーです。",
+                en: "Save the current settings under a name; presets are stored in your user settings folder."
+            },
+            savePreset: {
+                ja: "現在の設定に名前を付けて保存します。同じ名前があれば上書きします。",
+                en: "Save the current settings under a name; an existing preset with the same name is overwritten."
+            },
+            arrowShape: {
+                ja: "［線］パネルの矢印を使います。黒丸も矢印の一種です。",
+                en: "Uses the Stroke panel arrowheads; the dot is an arrowhead preset too."
+            },
+            arrowScale: {
+                ja: "矢印の大きさ（%）。線幅に対する比率です。",
+                en: "Arrowhead size in percent, relative to the stroke weight."
+            },
+            endGap: {
+                ja: "終点と相手の図形とのすき間です。最後の線分より大きい値は無視します。キーオブジェクト側は詰めません。",
+                en: "Space left between the end of the connector and the object. Values longer than the final segment are ignored; the key-object end is not inset."
+            },
+            arrowTip: {
+                ja: "矢印の先端をパスの終点に配置するか、パスの終点から配置するかを選びます（［線］パネルの先端位置）。",
+                en: "Place the arrow tip at the end of the path, or extend it beyond the end (the Stroke panel's tip alignment)."
+            },
+            arrowPosition: {
+                ja: "終点はキーオブジェクトと反対側、両端は起点にも付けます。",
+                en: "End = the far side from the key object; Both ends also marks the start."
+            }
         },
         alert: {
             presetName:    { ja: "プリセット名を入力してください。", en: "Enter a preset name." },
             presetRemove:  { ja: "このプリセットを削除しますか？", en: "Delete this preset?" },
             presetFailed:  { ja: "プリセットを保存できませんでした。", en: "Could not save the presets." },
             noDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            selectObjects: { ja: "2つ以上の図形を選択してください。", en: "Please select two or more objects." },
+            selectObjects: { ja: "2つ以上のオブジェクトを選択してください。", en: "Select two or more objects." },
             actionFailed:  { ja: "一時アクションファイルを開けませんでした。", en: "Failed to open the temporary action file." }
         }
     };
@@ -373,8 +436,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 矢印の先端位置 / Arrow tip alignment（ahal の enumerated 値） */
     var ARROW_TIP_OPTIONS = [
-        { label: LABELS.radio.tipAtEnd,     name: LABELS.arrow.tipAtEndName,     value: 0 },
-        { label: LABELS.radio.tipBeyondEnd, name: LABELS.arrow.tipBeyondEndName, value: 1 }
+        { label: LABELS.radio.tipAtEnd,     name: LABELS.actionName.tipAtEnd,     value: 0 },
+        { label: LABELS.radio.tipBeyondEnd, name: LABELS.actionName.tipBeyondEnd, value: 1 }
     ];
 
     /* ダイアログで選べるワープの種類 / Warp styles offered in the dialog */
@@ -419,6 +482,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // Illustratorの座標系（visibleBounds）：
     // 左 = bounds[0] / 上 = bounds[1] / 右 = bounds[2] / 下 = bounds[3]
 
+    /**
+     * 外接矩形の中心を返す
+     * @param {Array<number>} bounds - [左, 上, 右, 下]
+     * @returns {Array<number>} [X, Y]
+     */
+    function getBoundsCenter(bounds) {
+        return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+    }
+
     // =========================================
     // キーオブジェクトの検出 / Key object detection
     // =========================================
@@ -428,15 +500,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function toggleSmartGuides() {
-        try {
-            app.executeMenuCommand("edge");
-        } catch (e) {
-            $.writeln(SCRIPT_NAME + ": スマートガイドの切り替えに失敗 / failed to toggle Smart Guides — " + e);
-        }
+        app.executeMenuCommand("edge");
     }
 
     /**
-     * 控えておいた位置へ戻す（1つ失敗しても残りは戻す）
+     * 控えておいた位置へ戻す（例外の後始末でも呼ぶので、1つ失敗しても残りは戻す）
      * @param {Array<object>} items - 対象のオブジェクト配列
      * @param {Array<Array<number>>} positions - [[left, top], ...] の配列
      * @returns {void}
@@ -472,10 +540,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         try {
-            for (var c = 0; c < alignCommands.length; c++) {
+            for (var commandIndex = 0; commandIndex < alignCommands.length; commandIndex++) {
                 // 2回目以降だけ元の位置へ戻す（1回目はまだ動かしていない）
-                if (c > 0) restorePositions(items, originPositions);
-                app.executeMenuCommand(alignCommands[c]);
+                if (commandIndex > 0) restorePositions(items, originPositions);
+                app.executeMenuCommand(alignCommands[commandIndex]);
                 for (i = 0; i < items.length; i++) {
                     if (!stayedPut[i]) continue;
                     if (Math.abs(items[i].left - originPositions[i][0]) > KEY_DETECT_TOLERANCE_PT ||
@@ -507,8 +575,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leftmostIndex = 0;
         var minCenterX = null;
         for (var i = 0; i < items.length; i++) {
-            var bounds = items[i].visibleBounds;
-            var centerX = (bounds[0] + bounds[2]) / 2;
+            var centerX = getBoundsCenter(items[i].visibleBounds)[0];
             if (minCenterX === null || centerX < minCenterX) {
                 minCenterX = centerX;
                 leftmostIndex = i;
@@ -523,7 +590,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Array<number>} [左, 上, 右, 下]
      */
     function getSelectionBounds(items) {
-        var union = [items[0].visibleBounds[0], items[0].visibleBounds[1], items[0].visibleBounds[2], items[0].visibleBounds[3]];
+        var firstBounds = items[0].visibleBounds;
+        var union = [firstBounds[0], firstBounds[1], firstBounds[2], firstBounds[3]];
         for (var i = 1; i < items.length; i++) {
             var bounds = items[i].visibleBounds;
             if (bounds[0] < union[0]) union[0] = bounds[0];
@@ -548,9 +616,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var nearestIndex = 0;
         var minDistance = null;
         for (var i = 0; i < items.length; i++) {
-            var bounds = items[i].visibleBounds;
-            var dx = (bounds[0] + bounds[2]) / 2 - targetX;
-            var dy = (bounds[1] + bounds[3]) / 2 - targetY;
+            var center = getBoundsCenter(items[i].visibleBounds);
+            var dx = center[0] - targetX;
+            var dy = center[1] - targetY;
             var distance = dx * dx + dy * dy;
             if (minDistance === null || distance < minDistance) {
                 minDistance = distance;
@@ -571,13 +639,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {object} points（始点・終点）と horizontal（左右の辺どうしか）
      */
     function getConnectionPoints(fromBounds, toBounds) {
-        var fromCenterX = (fromBounds[0] + fromBounds[2]) / 2;
-        var fromCenterY = (fromBounds[1] + fromBounds[3]) / 2;
-        var toCenterX = (toBounds[0] + toBounds[2]) / 2;
-        var toCenterY = (toBounds[1] + toBounds[3]) / 2;
-
-        var dx = toCenterX - fromCenterX;
-        var dy = toCenterY - fromCenterY;
+        var fromCenter = getBoundsCenter(fromBounds);
+        var toCenter = getBoundsCenter(toBounds);
+        var dx = toCenter[0] - fromCenter[0];
+        var dy = toCenter[1] - fromCenter[1];
 
         // 横のずれが大きければ左右の辺、そうでなければ上下の辺でつなぐ
         var side;
@@ -597,10 +662,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {object} points（始点・終点）と horizontal（左右の辺どうしか）
      */
     function getConnectionPointsOnSide(fromBounds, toBounds, side) {
-        var fromCenterX = (fromBounds[0] + fromBounds[2]) / 2;
-        var fromCenterY = (fromBounds[1] + fromBounds[3]) / 2;
-        var toCenterX = (toBounds[0] + toBounds[2]) / 2;
-        var toCenterY = (toBounds[1] + toBounds[3]) / 2;
+        var fromCenter = getBoundsCenter(fromBounds);
+        var toCenter = getBoundsCenter(toBounds);
+        var fromCenterX = fromCenter[0];
+        var fromCenterY = fromCenter[1];
+        var toCenterX = toCenter[0];
+        var toCenterY = toCenter[1];
 
         var route;
         if (side === "right") {
@@ -640,8 +707,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Array<number>} 辺の上の座標 [X, Y]
      */
     function getEdgePoint(bounds, toPoint) {
-        var centerX = (bounds[0] + bounds[2]) / 2;
-        var centerY = (bounds[1] + bounds[3]) / 2;
+        var center = getBoundsCenter(bounds);
+        var centerX = center[0];
+        var centerY = center[1];
         var halfWidth = (bounds[2] - bounds[0]) / 2;
         var halfHeight = (bounds[1] - bounds[3]) / 2;
         var dx = toPoint[0] - centerX;
@@ -694,13 +762,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 開始ポイントの指定を反映した経路の複製を返す
-     * @param {number} startPoint - 0=各辺の中心 1=等分 2=中心
+     * 経路を、出ていく辺ごとにまとめる
+     * @param {Array<object>} routes - 経路の配列
+     * @returns {object} 辺の名前をキーにした経路の配列
+     */
+    function groupRoutesBySide(routes) {
+        var routesBySide = {};
+        for (var i = 0; i < routes.length; i++) {
+            var side = routes[i].side;
+            if (!routesBySide[side]) routesBySide[side] = [];
+            routesBySide[side].push(routes[i]);
+        }
+        return routesBySide;
+    }
+
+    /**
+     * 開始点の指定を反映した経路の複製を返す
+     * @param {number} startPoint - 開始点（0=各辺の中心 1=等分 2=中心）
      * @param {boolean} unifyStart - すべてを同じ位置から出すか
      * @param {number} unifyAnchor - まとめるときの位置（0〜8）
      * @returns {Array<object>} points（座標）と horizontal（左右接続か）の配列
      */
-    function getRoutes(startPoint, unifyStart, unifyAnchor) {
+    function getConnectorRoutes(startPoint, unifyStart, unifyAnchor) {
         var routes = [];
         var i;
         var paths = unifyStart ? getUnifiedPaths(unifyAnchor) : connectorPaths;
@@ -725,24 +808,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (startPoint !== 1) return routes;
 
         // 同じ辺から出るコネクターごとに、その辺を（本数＋1）等分して起点をずらす
-        var groups = {};
-        for (i = 0; i < routes.length; i++) {
-            if (!groups[routes[i].side]) groups[routes[i].side] = [];
-            groups[routes[i].side].push(routes[i]);
-        }
-        for (var side in groups) {
-            if (!groups.hasOwnProperty(side)) continue;
-            var group = groups[side];
+        var routesBySide = groupRoutesBySide(routes);
+        for (var side in routesBySide) {
+            if (!routesBySide.hasOwnProperty(side)) continue;
+            var sideRoutes = routesBySide[side];
             // 線が交差しないよう、相手の位置順に辺へ割り当てる
-            group.sort(function (a, b) {
+            sideRoutes.sort(function (a, b) {
                 return a.order - b.order;
             });
-            for (var k = 0; k < group.length; k++) {
-                var ratio = (k + 1) / (group.length + 1);
-                if (group[k].horizontal) {
-                    group[k].points[0][1] = keyBounds[3] + (keyBounds[1] - keyBounds[3]) * ratio;
+            for (var k = 0; k < sideRoutes.length; k++) {
+                var ratio = (k + 1) / (sideRoutes.length + 1);
+                if (sideRoutes[k].horizontal) {
+                    sideRoutes[k].points[0][1] = keyBounds[3] + (keyBounds[1] - keyBounds[3]) * ratio;
                 } else {
-                    group[k].points[0][0] = keyBounds[0] + (keyBounds[2] - keyBounds[0]) * ratio;
+                    sideRoutes[k].points[0][0] = keyBounds[0] + (keyBounds[2] - keyBounds[0]) * ratio;
                 }
             }
         }
@@ -791,32 +870,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * カギ線（直角に折れる経路）の座標列を作る
      * @param {Array<Array<number>>} points - [[始点X, 始点Y], [終点X, 終点Y]]
      * @param {boolean} horizontal - 左右の辺どうしをつなぐか
-     * @param {number} bendPosition - 折れ位置の座標。省略時はすき間の中央
      * @returns {Array<Array<number>>} 座標の配列
      */
-    function getElbowPoints(points, horizontal, bendPosition) {
+    function getElbowPoints(points, horizontal) {
         var start = points[0];
         var end = points[1];
-        var hasBend = (typeof bendPosition === "number");
-        if (horizontal) {
-            // 折れ位置は2つの図形のすき間の中央
-            if (Math.abs(end[1] - start[1]) < COORD_TOLERANCE_PT) return [start, end];
-            var bendX = hasBend ? bendPosition : getClearBendPosition((start[0] + end[0]) / 2, true,
-                Math.min(start[0], end[0]), Math.max(start[0], end[0]),
-                Math.min(start[1], end[1]), Math.max(start[1], end[1]));
-            return [start, [bendX, start[1]], [bendX, end[1]], end];
-        }
-        if (Math.abs(end[0] - start[0]) < COORD_TOLERANCE_PT) return [start, end];
-        var bendY = hasBend ? bendPosition : getClearBendPosition((start[1] + end[1]) / 2, false,
-            Math.min(start[1], end[1]), Math.max(start[1], end[1]),
-            Math.min(start[0], end[0]), Math.max(start[0], end[0]));
-        return [start, [start[0], bendY], [end[0], bendY], end];
+        var axis = horizontal ? 0 : 1;   /* 折れ位置を決める軸 / axis of the bend position */
+        var perpAxis = 1 - axis;         /* 折れ線が伸びる軸 / axis the bend segment runs along */
+        if (Math.abs(end[perpAxis] - start[perpAxis]) < COORD_TOLERANCE_PT) return [start, end];
+
+        // 折れ位置は2つの図形のすき間の中央
+        var bendPosition = getClearBendPosition((start[axis] + end[axis]) / 2, horizontal,
+            Math.min(start[axis], end[axis]), Math.max(start[axis], end[axis]),
+            Math.min(start[perpAxis], end[perpAxis]), Math.max(start[perpAxis], end[perpAxis]));
+        var bendStart = [start[0], start[1]];
+        var bendEnd = [end[0], end[1]];
+        bendStart[axis] = bendPosition;
+        bendEnd[axis] = bendPosition;
+        return [start, bendStart, bendEnd, end];
     }
 
     /**
      * 分岐用に、同じ辺から出る経路で共有する折れ位置を求める
      * いちばん近い図形とのすき間の中央にそろえ、幹を1本にまとめる
-     * @param {Array<object>} routes - getRoutes() の戻り値
+     * @param {Array<object>} routes - getConnectorRoutes() の戻り値
      * @returns {object} 辺をキーにした折れ位置
      */
     function getSharedBendPositions(routes) {
@@ -1132,11 +1209,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 矢印番号から、アクションに渡す矢印名を作る
-     * @param {number} number - ［線］パネルの矢印番号
+     * @param {number} arrowNumber - ［線］パネルの矢印番号
      * @returns {string} 矢印名
      */
-    function getArrowName(number) {
-        return getLabel(LABELS.arrow.prefix) + number;
+    function getArrowName(arrowNumber) {
+        return getLabel(LABELS.actionName.arrowPrefix) + arrowNumber;
     }
 
     /**
@@ -1343,6 +1420,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var isActionLoaded = false;
         var isActionFileOpen = false;
 
+        /* 前回の異常終了で残ったセットを外す（読み込まれていなければ例外になる） */
         try { app.unloadAction(ACTION_SET_NAME, ""); } catch (e) {}
 
         try {
@@ -1358,15 +1436,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             isActionLoaded = true;
             app.doScript(ACTION_NAME, ACTION_SET_NAME, false);
         } finally {
-            if (isActionFileOpen) {
-                try { actionFile.close(); } catch (e) {}
-            }
-            if (actionFile.exists) {
-                try { actionFile.remove(); } catch (e) {}
-            }
-            if (isActionLoaded) {
-                try { app.unloadAction(ACTION_SET_NAME, ""); } catch (e) {}
-            }
+            if (isActionFileOpen) actionFile.close();
+            if (actionFile.exists) actionFile.remove();
+            if (isActionLoaded) app.unloadAction(ACTION_SET_NAME, "");
         }
     }
 
@@ -1387,12 +1459,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             playTemporaryAction(buildStrokeActionSource(settings));
         } catch (e) {
+            // 矢印が付かなくても線は残す / keep the lines even if the arrowheads fail
             $.writeln(SCRIPT_NAME + ": 矢印の設定に失敗 / failed to set arrowheads — " + e);
         }
         doc.selection = null;
 
         // アクションは角の形状・線端・破線も上書きするので、線種を戻す
-        for (var i = 0; i < connectorLines.length; i++) {
+        for (i = 0; i < connectorLines.length; i++) {
             applyStrokeStyle(connectorLines[i], settings);
         }
     }
@@ -1407,14 +1480,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     try {
         keyIndex = detectKeyObjectIndex(selectedItems);
     } catch (e) {
-        // 検出できなくてもスクリプトは続行する
+        // 検出できなくても起点ダイアログで選べるので続行する
         $.writeln(SCRIPT_NAME + ": キーオブジェクトの検出に失敗 / key object detection failed — " + e);
-        keyIndex = -1;
     }
 
     if (keyIndex === -1) {
         if (selectedItems.length > 2) {
             // キーオブジェクトが無いときは、起点を別ダイアログで選んでもらう
+            initThemeColors();
             keyIndex = chooseKeyIndex(selectedItems);
             if (keyIndex === -1) {
                 toggleSmartGuides();
@@ -1447,24 +1520,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var connectorLayerState = getOrCreateLayer(getLabel(CONNECTOR_LAYER_NAME));
     var connectorLayer = connectorLayerState.layer;
-    var connectors = [];
+    var createdConnectors = [];
 
     /**
      * 作成済みのコネクターを削除する
      * @returns {void}
      */
     function removeConnectors() {
-        for (var i = 0; i < connectors.length; i++) {
-            try {
-                connectors[i].remove();
-            } catch (e) {}
+        for (var i = 0; i < createdConnectors.length; i++) {
+            createdConnectors[i].remove();
         }
-        connectors = [];
+        createdConnectors = [];
     }
 
     /**
      * 1本ぶんの座標列を、形状の指定に合わせて作る（分岐は getBranchLines() で作る）
-     * @param {object} route - getRoutes() の要素
+     * @param {object} route - getConnectorRoutes() の要素
      * @param {object} settings - ダイアログの設定
      * @returns {Array<Array<number>>} 座標の配列
      */
@@ -1475,41 +1546,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 幹の片側にある枝を、幹に近い順に並べて返す
-     * @param {Array<object>} group - 同じ辺から出る経路
+     * @param {Array<object>} sideRoutes - 同じ辺から出る経路
      * @param {number} trunkPosition - 幹の位置
      * @param {boolean} horizontal - 左右の辺どうしをつなぐか
      * @param {number} direction - 1=幹より先、-1=幹より手前（同じ位置は手前に含める）
      * @returns {Array<object>} 並べ替えた経路
      */
-    function getBranchOrder(group, trunkPosition, horizontal, direction) {
+    function getBranchOrder(sideRoutes, trunkPosition, horizontal, direction) {
         var axis = horizontal ? 1 : 0;
-        var picked = [];
-        for (var i = 0; i < group.length; i++) {
-            var delta = group[i].points[1][axis] - trunkPosition;
-            if ((direction > 0) ? (delta > 0) : (delta <= 0)) picked.push(group[i]);
+        var branchRoutes = [];
+        for (var i = 0; i < sideRoutes.length; i++) {
+            var delta = sideRoutes[i].points[1][axis] - trunkPosition;
+            if ((direction > 0) ? (delta > 0) : (delta <= 0)) branchRoutes.push(sideRoutes[i]);
         }
-        picked.sort(function (a, b) {
+        branchRoutes.sort(function (a, b) {
             return Math.abs(a.points[1][axis] - trunkPosition) - Math.abs(b.points[1][axis] - trunkPosition);
         });
-        return picked;
+        return branchRoutes;
     }
 
     /**
      * 幹の片側の枝の座標列を作る。幹からいちばん遠い枝だけが幹から折れる長いパスになり、
      * 手前の枝はその背骨から横に出すだけにして重なりをなくす
-     * @param {Array<object>} ordered - 幹に近い順に並べた経路
+     * @param {Array<object>} orderedRoutes - 幹に近い順に並べた経路
      * @param {number} trunkPosition - 幹の位置
      * @param {number} bendPosition - 折れ位置
      * @param {boolean} horizontal - 左右の辺どうしをつなぐか
      * @returns {Array<Array<Array<number>>>} 枝の座標列
      */
-    function getSideBranches(ordered, trunkPosition, bendPosition, horizontal) {
+    function getSideBranches(orderedRoutes, trunkPosition, bendPosition, horizontal) {
         var branches = [];
-        var farthest = ordered.length - 1;
-        for (var i = 0; i < ordered.length; i++) {
-            var end = ordered[i].points[1];
+        var farthestIndex = orderedRoutes.length - 1;
+        for (var i = 0; i < orderedRoutes.length; i++) {
+            var end = orderedRoutes[i].points[1];
             var position = horizontal ? end[1] : end[0];
-            var isFarthest = (i === farthest);
+            var isFarthest = (i === farthestIndex);
             var startPosition = isFarthest ? trunkPosition : position;
             var start = horizontal ? [bendPosition, startPosition] : [startPosition, bendPosition];
             if (isFarthest && Math.abs(position - trunkPosition) >= COORD_TOLERANCE_PT) {
@@ -1523,33 +1594,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 分岐の経路を、幹（キーから折れ位置まで）と枝（折れ位置から相手まで）に分ける
-     * @param {Array<object>} routes - getRoutes() の結果
-     * @param {object} sharedBends - 辺ごとの折れ位置
+     * @param {Array<object>} routes - getConnectorRoutes() の結果
      * @returns {object} trunks（幹の座標列）と branches（枝の座標列）
      */
-    function getBranchLines(routes, sharedBends) {
-        var groups = {};
-        var i;
-        for (i = 0; i < routes.length; i++) {
-            if (!groups[routes[i].side]) groups[routes[i].side] = [];
-            groups[routes[i].side].push(routes[i]);
-        }
-
+    function getBranchLines(routes) {
+        var sharedBends = getSharedBendPositions(routes);
+        var routesBySide = groupRoutesBySide(routes);
         var trunks = [];
         var branches = [];
-        for (var side in groups) {
-            if (!groups.hasOwnProperty(side)) continue;
-            var group = groups[side];
-            var horizontal = group[0].horizontal;
+        for (var side in routesBySide) {
+            if (!routesBySide.hasOwnProperty(side)) continue;
+            var sideRoutes = routesBySide[side];
+            var horizontal = sideRoutes[0].horizontal;
             var bendPosition = sharedBends[side];
 
             // 幹は各起点の平均の位置（左右の辺なら高さ、上下の辺なら左右）に置く
-            var total = 0;
-            for (i = 0; i < group.length; i++) {
-                total += group[i].points[0][horizontal ? 1 : 0];
+            var startSum = 0;
+            for (var i = 0; i < sideRoutes.length; i++) {
+                startSum += sideRoutes[i].points[0][horizontal ? 1 : 0];
             }
-            var trunkPosition = total / group.length;
-            var edgePosition = group[0].points[0][horizontal ? 0 : 1];
+            var trunkPosition = startSum / sideRoutes.length;
+            var edgePosition = sideRoutes[0].points[0][horizontal ? 0 : 1];
 
             // 矢印がキーオブジェクト側の端に付くよう、幹は折れ位置からキーへ向けて引く
             trunks.push(horizontal
@@ -1557,8 +1622,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 : [[trunkPosition, bendPosition], [trunkPosition, edgePosition]]);
 
             // 幹の前後それぞれで、いちばん遠い枝が背骨を兼ねる（手前の枝は横だけなので重ならない）
-            branches = branches.concat(getSideBranches(getBranchOrder(group, trunkPosition, horizontal, 1), trunkPosition, bendPosition, horizontal));
-            branches = branches.concat(getSideBranches(getBranchOrder(group, trunkPosition, horizontal, -1), trunkPosition, bendPosition, horizontal));
+            branches = branches.concat(getSideBranches(getBranchOrder(sideRoutes, trunkPosition, horizontal, 1), trunkPosition, bendPosition, horizontal));
+            branches = branches.concat(getSideBranches(getBranchOrder(sideRoutes, trunkPosition, horizontal, -1), trunkPosition, bendPosition, horizontal));
         }
         return { trunks: trunks, branches: branches };
     }
@@ -1572,16 +1637,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function applyEndGap(points, gap) {
         if (!(gap > 0) || points.length < 2) return points;
 
-        var last = points.length - 1;
-        var from = points[last - 1];
-        var to = points[last];
+        var lastIndex = points.length - 1;
+        var from = points[lastIndex - 1];
+        var to = points[lastIndex];
         var dx = to[0] - from[0];
         var dy = to[1] - from[1];
         var length = Math.sqrt(dx * dx + dy * dy);
         if (length <= gap) return points; // 最後の線分より大きいすき間は詰めない
 
         var shortened = [];
-        for (var i = 0; i < last; i++) {
+        for (var i = 0; i < lastIndex; i++) {
             shortened.push([points[i][0], points[i][1]]);
         }
         shortened.push([to[0] - dx / length * gap, to[1] - dy / length * gap]);
@@ -1594,12 +1659,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {object} 複製した設定
      */
     function getEndArrowOnlySettings(settings) {
-        var copy = {};
+        var endOnlySettings = {};
         for (var key in settings) {
-            if (settings.hasOwnProperty(key)) copy[key] = settings[key];
+            if (settings.hasOwnProperty(key)) endOnlySettings[key] = settings[key];
         }
-        copy.startArrow = getLabel(LABELS.arrow.none);
-        return copy;
+        endOnlySettings.startArrow = getLabel(LABELS.actionName.arrowNone);
+        return endOnlySettings;
     }
 
     /**
@@ -1618,9 +1683,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var minHeight = null;
         for (var i = 0; i < allLinePoints.length; i++) {
             var points = allLinePoints[i];
-            var last = points.length - 1;
-            var width = Math.abs(points[last][0] - points[0][0]);
-            var height = Math.abs(points[last][1] - points[0][1]);
+            var lastIndex = points.length - 1;
+            var width = Math.abs(points[lastIndex][0] - points[0][0]);
+            var height = Math.abs(points[lastIndex][1] - points[0][1]);
             if (minWidth === null || width < minWidth) minWidth = width;
             if (minHeight === null || height < minHeight) minHeight = height;
         }
@@ -1636,19 +1701,63 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function groupWithInnerDots(line, dotPoints, settings) {
-        var group = connectorLayer.groupItems.add();
-        line.move(group, ElementPlacement.PLACEATEND);
+        var dotGroup = connectorLayer.groupItems.add();
+        line.move(dotGroup, ElementPlacement.PLACEATEND);
         // グループへ追加した順に前面へ入るので、白丸は線より後に作る
         for (var i = 0; i < dotPoints.length; i++) {
-            drawInnerDot(group, dotPoints[i], settings);
+            drawInnerDot(dotGroup, dotPoints[i], settings);
         }
-        for (var k = 0; k < connectors.length; k++) {
-            if (connectors[k] === line) {
-                connectors[k] = group;
+        for (var k = 0; k < createdConnectors.length; k++) {
+            if (createdConnectors[k] === line) {
+                createdConnectors[k] = dotGroup;
                 return;
             }
         }
-        connectors.push(group);
+        createdConnectors.push(dotGroup);
+    }
+
+    /**
+     * 経路から、描く線の座標列を作る（分岐は幹と枝に分ける）
+     * @param {Array<object>} routes - getConnectorRoutes() の結果
+     * @param {object} settings - ダイアログの設定
+     * @returns {object} trunks（幹の座標列。分岐以外は空）と lines（相手側で終わる線の座標列）
+     */
+    function getConnectorLinePoints(routes, settings) {
+        var trunks = [];
+        var lines = [];
+        var i;
+        if (settings.lineShape === 3) {
+            // 分岐は幹（キーから折れ位置まで）と枝（折れ位置から相手まで）に分けて作る
+            var branchLines = getBranchLines(routes);
+            trunks = branchLines.trunks;
+            lines = branchLines.branches;
+        } else {
+            for (i = 0; i < routes.length; i++) {
+                lines.push(getLinePoints(routes[i], settings));
+            }
+        }
+        // 幹はキーオブジェクト側で終わるので、すき間は相手側で終わる線だけに入れる
+        for (i = 0; i < lines.length; i++) {
+            lines[i] = applyEndGap(lines[i], settings.endGap);
+        }
+        return { trunks: trunks, lines: lines };
+    }
+
+    /**
+     * 座標列ごとに線を作り、作成済みリストに加える
+     * @param {Array<Array<Array<number>>>} linePointsList - 座標列の配列
+     * @param {object} settings - ダイアログの設定
+     * @param {boolean} isVerticalWarp - ワープを垂直方向にするか
+     * @returns {Array<PathItem>} 作成したパス
+     */
+    function drawConnectorLines(linePointsList, settings, isVerticalWarp) {
+        var drawnLines = [];
+        for (var i = 0; i < linePointsList.length; i++) {
+            var line = drawConnectorLine(connectorLayer, linePointsList[i], settings, isVerticalWarp);
+            createdConnectors.push(line);
+            drawnLines.push(line);
+        }
+        return drawnLines;
     }
 
     /**
@@ -1658,70 +1767,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildConnectors(settings) {
         removeConnectors();
-        var routes = getRoutes(settings.startPoint, settings.unifyStart, settings.unifyAnchor);
-        var sharedBends = (settings.lineShape === 3) ? getSharedBendPositions(routes) : null;
-        var connectorLines = [];
-        var lineJobs = [];
-
-        // 分岐は幹（キーから折れ位置まで）と枝（折れ位置から相手まで）に分けて作る
+        var routes = getConnectorRoutes(settings.startPoint, settings.unifyStart, settings.unifyAnchor);
         var isBranch = (settings.lineShape === 3);
-        var trunkLinePoints = [];
-        var allLinePoints = [];
-        var i;
-        if (isBranch) {
-            var branchLines = getBranchLines(routes, sharedBends);
-            trunkLinePoints = branchLines.trunks;
-            allLinePoints = branchLines.branches;
-        } else {
-            for (i = 0; i < routes.length; i++) {
-                allLinePoints.push(getLinePoints(routes[i], settings));
-            }
-        }
-
-        // 幹はキーオブジェクト側で終わるので、すき間は相手側で終わる線だけに入れる
-        for (i = 0; i < allLinePoints.length; i++) {
-            allLinePoints[i] = applyEndGap(allLinePoints[i], settings.endGap);
-        }
+        var isBothEnds = (settings.arrowPosition === 1);
+        var linePoints = getConnectorLinePoints(routes, settings);
 
         // ワープの軸は全線で同じにする（線ごとに変えるとアピアランスが混在する）
-        var isVerticalWarp = getWarpAxis(allLinePoints, settings.warpAxis);
-
-        var trunkLines = [];
-        for (i = 0; i < trunkLinePoints.length; i++) {
-            var trunkLine = drawConnectorLine(connectorLayer, trunkLinePoints[i], settings, isVerticalWarp);
-            connectors.push(trunkLine);
-            trunkLines.push(trunkLine);
-            // 両端のときは幹のキー側にも印を付ける
-            if (settings.arrowInnerDot && settings.arrowPosition === 1) {
-                lineJobs.push({ line: trunkLine, dotPoints: [trunkLinePoints[i][trunkLinePoints[i].length - 1]] });
-            }
-        }
-
-        for (i = 0; i < allLinePoints.length; i++) {
-            var linePoints = allLinePoints[i];
-            var connectorLine = drawConnectorLine(connectorLayer, linePoints, settings, isVerticalWarp);
-            connectors.push(connectorLine);
-            connectorLines.push(connectorLine);
-            if (settings.arrowInnerDot) {
-                var dotPoints = [linePoints[linePoints.length - 1]];
-                if (!isBranch && settings.arrowPosition === 1) dotPoints.push(linePoints[0]);
-                lineJobs.push({ line: connectorLine, dotPoints: dotPoints });
-            }
-        }
+        var isVerticalWarp = getWarpAxis(linePoints.lines, settings.warpAxis);
+        var trunkLines = drawConnectorLines(linePoints.trunks, settings, isVerticalWarp);
+        var connectorLines = drawConnectorLines(linePoints.lines, settings, isVerticalWarp);
 
         if (settings.hasArrow) {
             if (isBranch) {
                 // 枝は終点だけ。両端のときは幹のキー側の端が始点側の矢印になる
-                var arrowLines = (settings.arrowPosition === 1) ? connectorLines.concat(trunkLines) : connectorLines;
+                var arrowLines = isBothEnds ? connectorLines.concat(trunkLines) : connectorLines;
                 applyArrowheads(arrowLines, getEndArrowOnlySettings(settings));
             } else {
                 applyArrowheads(connectorLines, settings);
             }
         }
 
+        if (!settings.arrowInnerDot) return;
+
         // 白丸は矢印の丸の上に重ねるので、線より後に作り、その線とグループ化する
-        for (i = 0; i < lineJobs.length; i++) {
-            groupWithInnerDots(lineJobs[i].line, lineJobs[i].dotPoints, settings);
+        var i;
+        var points;
+        if (isBothEnds) {
+            // 両端のときは幹のキー側にも印を付ける
+            for (i = 0; i < trunkLines.length; i++) {
+                points = linePoints.trunks[i];
+                groupWithInnerDots(trunkLines[i], [points[points.length - 1]], settings);
+            }
+        }
+        for (i = 0; i < connectorLines.length; i++) {
+            points = linePoints.lines[i];
+            var dotPoints = [points[points.length - 1]];
+            if (!isBranch && isBothEnds) dotPoints.push(points[0]);
+            groupWithInnerDots(connectorLines[i], dotPoints, settings);
         }
     }
 
@@ -1735,7 +1817,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {number} fallback - 既定値
      * @returns {number} 数値
      */
-    function toNumber(inputText, fallback) {
+    function parseNumberInput(inputText, fallback) {
         // Number("") は 0 になるため、空欄は既定値に落とす
         var trimmedText = String(inputText).replace(/^\s+|\s+$/g, "");
         if (trimmedText === "") return fallback;
@@ -1748,7 +1830,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Array<object>} radios - ラジオボタンの配列
      * @returns {number} インデックス
      */
-    function getSelectedIndex(radios) {
+    function getSelectedRadioIndex(radios) {
         for (var i = 0; i < radios.length; i++) {
             if (radios[i].value) return i;
         }
@@ -1785,19 +1867,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addRadioRow(parent, labelSet, optionSets, defaultIndex, tipSet, vertical) {
         var row = addFieldRow(parent, labelSet);
-        var container = row;
+        var radioParent = row;
         if (vertical) {
             // ラベルは1つ目のラジオに合わせて上揃えにする
             row.alignChildren = ["left", "top"];
             row.label.alignment = ["left", "top"];
-            container = row.add("group");
-            container.orientation = "column";
-            container.alignChildren = ["left", "center"];
-            container.spacing = RADIO_COLUMN_SPACING;
+            radioParent = row.add("group");
+            radioParent.orientation = "column";
+            radioParent.alignChildren = ["left", "center"];
+            radioParent.spacing = RADIO_COLUMN_SPACING;
         }
         var radios = [];
         for (var i = 0; i < optionSets.length; i++) {
-            var radio = container.add("radiobutton", undefined, getLabel(optionSets[i]));
+            var radio = radioParent.add("radiobutton", undefined, getLabel(optionSets[i]));
             if (tipSet) radio.helpTip = getLabel(tipSet);
             radios.push(radio);
         }
@@ -1807,14 +1889,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * UIが明るいテーマかを判定する
-     * @returns {boolean} 明るいテーマなら true（取得できないときは暗い側）
+     * @returns {boolean} 明るいテーマなら true
      */
     function isLightUI() {
-        try {
-            return app.preferences.getRealPreference("uiBrightness") > 0.5;
-        } catch (e) {
-            return false;
-        }
+        return app.preferences.getRealPreference("uiBrightness") > 0.5;
+    }
+
+    /**
+     * 表示中のコントロールを描き直す（表示前は notify が例外になるので無視する）
+     * @param {object} control - 描き直すコントロール
+     * @returns {void}
+     */
+    function redrawControl(control) {
+        try { control.notify("onDraw"); } catch (e) {}
+    }
+
+    /**
+     * ダイアログ下端に［キャンセル］［OK］のボタン行を追加する
+     * @param {Window} win - 追加先のダイアログ
+     * @returns {object} 左側のボタンを入れるグループ
+     */
+    function addDialogButtonRow(win) {
+        /* ボタンエリア / Button row */
+        var btnRowGroup = win.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        /* 左側グループ / Left-side button group */
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var buttonSpacer = btnRowGroup.add("group");
+        buttonSpacer.alignment = ["fill", "fill"];
+        buttonSpacer.minimumSize.width = 0;
+
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnCancel.onClick = function () {
+            win.close(DIALOG_RESULT_CANCEL);
+        };
+
+        var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
+        btnOK.onClick = function () {
+            win.close(DIALOG_RESULT_OK);
+        };
+        return btnLeftGroup;
     }
 
     /**
@@ -1861,11 +1985,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function drawAnchorWidget(widget) {
         var graphics = widget.graphics;
 
-        // 背景はコントロールの地色で塗って、パネルに溶け込ませる
-        try {
+        // 背景はコントロールの地色で塗って、パネルに溶け込ませる（地色が無い環境では塗らない）
+        if (graphics.backgroundColor) {
+            graphics.newPath();
             graphics.rectPath(0, 0, widget.size[0], widget.size[1]);
             graphics.fillPath(graphics.backgroundColor);
-        } catch (e) {}
+        }
 
         var cellStep = ANCHOR_CELL_SIZE + ANCHOR_CELL_GAP;
         var gridSize = ANCHOR_CELL_SIZE * 3 + ANCHOR_CELL_GAP * 2;
@@ -1919,29 +2044,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             drawAnchorWidget(this);
         };
         // クリック位置の判定は mousedown で行う（座標はコントロール基準）
-        try {
-            widget.addEventListener("mousedown", function (event) {
-                if (widget.enabled === false) return;
-                var col = Math.floor(event.clientX / (widget.size[0] / 3));
-                var row = Math.floor(event.clientY / (widget.size[1] / 3));
-                if (col < 0) col = 0;
-                if (col > 2) col = 2;
-                if (row < 0) row = 0;
-                if (row > 2) row = 2;
-                widget.selectedAnchorIndex = row * 3 + col;
-                try { widget.notify("onDraw"); } catch (e) {}
-                onSelect(widget.selectedAnchorIndex);
-            });
-        } catch (e) {}
+        widget.addEventListener("mousedown", function (event) {
+            if (widget.enabled === false) return;
+            var columnIndex = Math.min(2, Math.max(0, Math.floor(event.clientX / (widget.size[0] / 3))));
+            var rowIndex = Math.min(2, Math.max(0, Math.floor(event.clientY / (widget.size[1] / 3))));
+            widget.selectedAnchorIndex = rowIndex * 3 + columnIndex;
+            redrawControl(widget);
+            onSelect(widget.selectedAnchorIndex);
+        });
         return widget;
     }
 
     /**
-     * UIの明暗に合わせて矢印アイコンの配色を決める
+     * UIの明暗に合わせて、矢印アイコンと起点ウィジェットの配色を決める
      * @returns {void}
      */
-    function initIconColors() {
+    function initThemeColors() {
         var lightUI = isLightUI();
+        ANCHOR_SELECTED_FILL = lightUI ? [0.4, 0.4, 0.4, 1]   : [0.8, 0.8, 0.8, 1];
         ICON_COLOR          = lightUI ? [0.25, 0.25, 0.25, 1] : [0.85, 0.85, 0.85, 1];
         ICON_SELECTED_COLOR = lightUI ? [1, 1, 1, 1]          : [0.15, 0.15, 0.15, 1];
         ICON_BG             = lightUI ? [1, 1, 1, 1]          : [0.22, 0.22, 0.22, 1];
@@ -1951,14 +2071,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 矢印の形状アイコンを描く（線・実線矢印・線矢印・黒丸・白丸）
-     * @param {object} button - 描画対象のボタン
+     * @param {object} iconButton - 描画対象のボタン
      * @returns {void}
      */
-    function drawArrowShapeIcon(button) {
-        var graphics = button.graphics;
-        var width = button.size[0];
-        var height = button.size[1];
-        var selected = button.isSelected;
+    function drawArrowShapeIcon(iconButton) {
+        var graphics = iconButton.graphics;
+        var width = iconButton.size[0];
+        var height = iconButton.size[1];
+        var selected = iconButton.isSelected;
 
         var backColor = selected ? ICON_SELECTED_BG : ICON_BG;
         graphics.rectPath(0, 0, width, height);
@@ -1991,11 +2111,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             graphics.strokePath(pen);
         }
 
-        if (button.arrowIndex === 0) {
+        if (iconButton.arrowIndex === 0) {
             drawShaft(right, thickPen);
             return;
         }
-        if (button.arrowIndex === 1) {
+        if (iconButton.arrowIndex === 1) {
             // 実線の矢印：軸は太く、先端は塗りの三角
             drawShaft(right - headSize - 1, thickPen);
             graphics.newPath();
@@ -2006,7 +2126,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             graphics.fillPath(iconBrush);
             return;
         }
-        if (button.arrowIndex === 2) {
+        if (iconButton.arrowIndex === 2) {
             // 線の矢印：軸も先端も細い線
             drawShaft(right, thinPen);
             graphics.newPath();
@@ -2020,8 +2140,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 黒丸・白丸：軸の先に円を置く
         drawShaft(right - dotRadius * 2 + 1, thickPen);
         graphics.ellipsePath(right - dotRadius * 2, centerY - dotRadius, dotRadius * 2, dotRadius * 2);
-        graphics.fillPath(button.arrowIndex === 3 ? iconBrush : backBrush);
-        if (button.arrowIndex === 4) {
+        graphics.fillPath(iconButton.arrowIndex === 3 ? iconBrush : backBrush);
+        if (iconButton.arrowIndex === 4) {
             graphics.ellipsePath(right - dotRadius * 2, centerY - dotRadius, dotRadius * 2, dotRadius * 2);
             graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, color, 2));
         }
@@ -2045,11 +2165,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {number} index - 選択するインデックス
      * @returns {void}
      */
-    function selectIcon(buttons, index) {
+    function selectIconButton(buttons, index) {
         if (!(index >= 0) || index >= buttons.length) return;
         for (var i = 0; i < buttons.length; i++) {
             buttons[i].isSelected = (i === index);
-            try { buttons[i].notify("onDraw"); } catch (e) {}
+            redrawControl(buttons[i]);
         }
     }
 
@@ -2070,23 +2190,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttons = [];
         for (var i = 0; i < ARROW_CHOICES.length; i++) {
-            var button = row.add("button", undefined, "");
-            button.minimumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
-            button.preferredSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
-            button.maximumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
-            button.arrowIndex = i;
-            button.isSelected = false;
-            button.helpTip = getLabel(ARROW_CHOICES[i].label) + "  —  " + getLabel(LABELS.tooltip.arrowShape);
-            button.onDraw = function () {
+            var iconButton = row.add("button", undefined, "");
+            iconButton.minimumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+            iconButton.preferredSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+            iconButton.maximumSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+            iconButton.arrowIndex = i;
+            iconButton.isSelected = false;
+            iconButton.helpTip = getLabel(ARROW_CHOICES[i].label) + "  —  " + getLabel(LABELS.tooltip.arrowShape);
+            iconButton.onDraw = function () {
                 drawArrowShapeIcon(this);
             };
-            button.onClick = function () {
-                selectIcon(buttons, this.arrowIndex);
+            iconButton.onClick = function () {
+                selectIconButton(buttons, this.arrowIndex);
                 onSelect();
             };
-            buttons.push(button);
+            buttons.push(iconButton);
         }
-        selectIcon(buttons, defaultIndex);
+        selectIconButton(buttons, defaultIndex);
         return { row: row, buttons: buttons };
     }
 
@@ -2097,13 +2217,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function chooseKeyIndex(items) {
         var anchorIndex = ANCHOR_DEFAULT_INDEX;
-        ANCHOR_SELECTED_FILL = isLightUI() ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
 
         var keyDialog = new Window("dialog", getLabel(LABELS.dialog.keyObject));
-        keyDialog.orientation = "column";
-        keyDialog.alignChildren = ["fill", "top"];
-        keyDialog.margins = WINDOW_MARGINS;
-        keyDialog.spacing = WINDOW_SPACING;
+        setupWindow(keyDialog);
 
         var messageText = keyDialog.add("statictext", undefined, getLabel(LABELS.message.noKeyObject), { multiline: true });
         messageText.preferredSize.width = KEY_DIALOG_TEXT_WIDTH;
@@ -2115,36 +2231,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
         anchorWidget.helpTip = getLabel(LABELS.tooltip.keyObject);
 
-        var manualKeyCheck = keyDialog.add("checkbox", undefined, getLabel(LABELS.check.manualKey));
-        manualKeyCheck.helpTip = getLabel(LABELS.tooltip.manualKey);
-        manualKeyCheck.onClick = function () {
+        var btnLeftGroup = addDialogButtonRow(keyDialog);
+        var btnManualKey = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.manualKey));
+        btnManualKey.helpTip = getLabel(LABELS.tooltip.manualKey);
+        btnManualKey.onClick = function () {
             // 手動で設定してもらうため、そのまま閉じる
             keyDialog.close(DIALOG_RESULT_CANCEL);
-        };
-
-        /* ボタンエリア / Button row */
-        var btnRowGroup = keyDialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        /* スペーサー（伸縮）/ Spacer (stretchable) */
-        var buttonSpacer = btnRowGroup.add("group");
-        buttonSpacer.alignment = ["fill", "fill"];
-        buttonSpacer.minimumSize.width = 0;
-
-        /* 右側グループ / Right-side button group */
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        btnCancel.onClick = function () {
-            keyDialog.close(DIALOG_RESULT_CANCEL);
-        };
-
-        var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
-        btnOK.onClick = function () {
-            keyDialog.close(DIALOG_RESULT_OK);
         };
 
         if (keyDialog.show() !== DIALOG_RESULT_OK) return -1;
@@ -2207,29 +2299,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (isNaN(value)) return;
 
             var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
+            var direction = (event.keyName === "Up") ? 1 : -1;
 
             if (keyboard.shiftKey) {
-                delta = 10;
                 // Shiftキー押下時は10の倍数にスナップ
-                if (event.keyName === "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                } else {
-                    value = Math.floor((value - 1) / delta) * delta;
-                }
+                value = (direction > 0) ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
             } else if (keyboard.altKey) {
-                delta = 0.1;
-                if (event.keyName === "Up") value += delta;
-                else value -= delta;
+                value = Math.round((value + direction * 0.1) * 10) / 10;
             } else {
-                if (event.keyName === "Up") value += delta;
-                else value -= delta;
-            }
-
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10;
-            } else {
-                value = Math.round(value);
+                value = Math.round(value + direction);
             }
             if (!allowNegative && value < 0) value = 0;
 
@@ -2307,19 +2385,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return -1;
     }
 
-    var presets = loadPresets();
+    var savedPresets = loadPresets();
 
-    var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-    setupWindow(dialog);
+    // =========================================
+    // メインダイアログ / Main dialog
+    // =========================================
+
+    initThemeColors();
+
+    var connectorDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    setupWindow(connectorDialog);
 
     /* プリセット / Presets */
-    var presetRow = dialog.add("group");
-    presetRow.orientation = "row";
-    presetRow.alignment = ["fill", "top"];
-    presetRow.alignChildren = ["left", "center"];
-    var presetLabel = presetRow.add("statictext", undefined, labelText(LABELS.fieldLabel.preset));
-    presetLabel.preferredSize.width = LABEL_WIDTH;
-    presetLabel.justify = "right";
+    var presetRow = addFieldRow(connectorDialog, LABELS.fieldLabel.preset);
     var presetDropdown = presetRow.add("dropdownlist", undefined, []);
     presetDropdown.preferredSize.width = PRESET_LIST_WIDTH;
     presetDropdown.helpTip = getLabel(LABELS.tooltip.preset);
@@ -2328,15 +2406,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var presetSpacer = presetRow.add("group");
     presetSpacer.alignment = ["fill", "fill"];
     presetSpacer.minimumSize.width = 0;
-    var btnSavePreset = presetRow.add("button", undefined, getLabel(LABELS.button.save));
+    var btnSavePreset = presetRow.add("button", undefined, getLabel(LABELS.button.savePreset));
     btnSavePreset.preferredSize.width = PRESET_BUTTON_WIDTH;
     btnSavePreset.alignment = ["right", "center"];
-    var btnRemovePreset = presetRow.add("button", undefined, getLabel(LABELS.button.remove));
+    btnSavePreset.helpTip = getLabel(LABELS.tooltip.savePreset);
+    var btnRemovePreset = presetRow.add("button", undefined, getLabel(LABELS.button.removePreset));
     btnRemovePreset.preferredSize.width = PRESET_BUTTON_WIDTH;
     btnRemovePreset.alignment = ["right", "center"];
 
     /* コネクター / Connector */
-    var connectorPanel = addPanel(dialog, getLabel(LABELS.panel.connector));
+    var connectorPanel = addPanel(connectorDialog, getLabel(LABELS.panel.connector));
 
     var lineShapeField = addRadioRow(connectorPanel, LABELS.fieldLabel.lineShape, [LABELS.radio.shapeStraight, LABELS.radio.shapeWarp, LABELS.radio.shapeElbow, LABELS.radio.shapeBranch, LABELS.radio.shapeCurve], DEFAULT_LINE_SHAPE, LABELS.tooltip.lineShape);
 
@@ -2354,7 +2433,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var anchorSpacer = startPointField.row.add("group");
     anchorSpacer.alignment = ["fill", "fill"];
     anchorSpacer.minimumSize.width = 0;
-    ANCHOR_SELECTED_FILL = isLightUI() ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
     var unifyAnchorWidget = addAnchorWidget(startPointField.row, DEFAULT_UNIFY_ANCHOR, function () {
         updatePreview();
     });
@@ -2366,22 +2444,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     unifyStartRow.orientation = "row";
     unifyStartRow.alignment = ["fill", "top"];
     unifyStartRow.alignChildren = ["left", "center"];
-    var unifyStartSpacer = unifyStartRow.add("statictext", undefined, "");
-    unifyStartSpacer.preferredSize.width = LABEL_WIDTH;
-    var unifyStartCheck = unifyStartRow.add("checkbox", undefined, getLabel(LABELS.check.unifyStart));
+    /* 行ラベルぶん字下げしてチェックボックスを他の欄にそろえる / Indent by the label width */
+    var unifyStartIndent = unifyStartRow.add("statictext", undefined, "");
+    unifyStartIndent.preferredSize.width = LABEL_WIDTH;
+    var unifyStartCheck = unifyStartRow.add("checkbox", undefined, getLabel(LABELS.checkbox.unifyStart));
     unifyStartCheck.helpTip = getLabel(LABELS.tooltip.unifyStart);
 
     /* 線・矢印は2カラム。ラベル幅はコネクターパネルより狭くし、矢印はさらに狭くする */
     setLabelWidth(COLUMN_LABEL_WIDTH);
 
-    var panelColumnsGroup = dialog.add("group");
-    panelColumnsGroup.orientation = "row";
-    panelColumnsGroup.alignChildren = ["fill", "fill"];
-    panelColumnsGroup.alignment = ["fill", "top"];
-    panelColumnsGroup.spacing = COLUMN_SPACING;
+    var lineArrowColumnsGroup = connectorDialog.add("group");
+    lineArrowColumnsGroup.orientation = "row";
+    lineArrowColumnsGroup.alignChildren = ["fill", "fill"];
+    lineArrowColumnsGroup.alignment = ["fill", "top"];
+    lineArrowColumnsGroup.spacing = COLUMN_SPACING;
 
     /* 線 / Line */
-    var linePanel = addPanel(panelColumnsGroup, getLabel(LABELS.panel.line));
+    var linePanel = addPanel(lineArrowColumnsGroup, getLabel(LABELS.panel.line));
     var strokeWidthField = addNumberRow(linePanel, LABELS.fieldLabel.strokeWidth, DEFAULT_STROKE_WIDTH, LABELS.unit.pt);
     var strokeJoinField = addRadioRow(linePanel, LABELS.fieldLabel.strokeJoin, [STROKE_JOIN_OPTIONS[0].label, STROKE_JOIN_OPTIONS[1].label, STROKE_JOIN_OPTIONS[2].label], DEFAULT_STROKE_JOIN, LABELS.tooltip.strokeJoin, true);
     var dashStyleField = addRadioRow(linePanel, LABELS.fieldLabel.dashStyle, [LABELS.radio.dashNone, LABELS.radio.dashDashed, LABELS.radio.dashDotted], DEFAULT_DASH_STYLE, null, true);
@@ -2390,8 +2469,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 矢印 / Arrowheads */
     setLabelWidth(ARROW_LABEL_WIDTH);
-    var arrowPanel = addPanel(panelColumnsGroup, getLabel(LABELS.panel.arrow));
-    initIconColors();
+    var arrowPanel = addPanel(lineArrowColumnsGroup, getLabel(LABELS.panel.arrow));
     var arrowShapeField = addArrowShapeRow(arrowPanel, DEFAULT_ARROW_INDEX, function () {
         // 矢印ごとに見え方が違うので、選び直したらその矢印の既定値（倍率・位置・線端）を入れる
         var selectedArrow = ARROW_CHOICES[getSelectedIconIndex(arrowShapeField.buttons)];
@@ -2416,46 +2494,68 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function getSettings() {
         var warpType = WARP_TYPE_CHOICES[warpTypeList.selection ? warpTypeList.selection.index : DEFAULT_WARP_TYPE];
-        var strokeWidth = toNumber(strokeWidthField.input.text, DEFAULT_STROKE_WIDTH);
+        var strokeWidth = parseNumberInput(strokeWidthField.input.text, DEFAULT_STROKE_WIDTH);
         if (strokeWidth <= 0) strokeWidth = DEFAULT_STROKE_WIDTH;
 
         // 矢印はパスの始点＝キーオブジェクト側、終点＝相手の図形側
-        var noneName = getLabel(LABELS.arrow.none);
+        var noneName = getLabel(LABELS.actionName.arrowNone);
         var arrowChoice = ARROW_CHOICES[getSelectedIconIndex(arrowShapeField.buttons)];
         var arrowName = (arrowChoice.number === 0) ? noneName : getArrowName(arrowChoice.number);
-        var arrowPosition = getSelectedIndex(arrowPositionField.radios);
-        var lineShape = getSelectedIndex(lineShapeField.radios);
+        var arrowPosition = getSelectedRadioIndex(arrowPositionField.radios);
+        var lineShape = getSelectedRadioIndex(lineShapeField.radios);
 
         return {
             strokeWidth: strokeWidth,
-            strokeJoin: getSelectedIndex(strokeJoinField.radios),
-            strokeCap: getSelectedIndex(strokeCapField.radios),
-            dashStyle: getSelectedIndex(dashStyleField.radios),
-            dashSegments: Math.round(toNumber(dashSegmentsField.input.text, DEFAULT_DASH_SEGMENTS)),
-            dashGap: toNumber(dashGapField.input.text, DEFAULT_DASH_GAP),
-            startPoint: getSelectedIndex(startPointField.radios),
+            strokeJoin: getSelectedRadioIndex(strokeJoinField.radios),
+            strokeCap: getSelectedRadioIndex(strokeCapField.radios),
+            dashStyle: getSelectedRadioIndex(dashStyleField.radios),
+            dashSegments: Math.round(parseNumberInput(dashSegmentsField.input.text, DEFAULT_DASH_SEGMENTS)),
+            dashGap: parseNumberInput(dashGapField.input.text, DEFAULT_DASH_GAP),
+            startPoint: getSelectedRadioIndex(startPointField.radios),
             unifyStart: unifyStartCheck.value,
             unifyAnchor: unifyAnchorWidget.selectedAnchorIndex,
             lineShape: lineShape,
             warpName: warpType.name,
             warpStyle: warpType.style,
-            warpAmount: toNumber(warpAmountField.input.text, DEFAULT_WARP_AMOUNT),
-            warpAxis: getSelectedIndex(warpAxisField.radios),
-            // 角丸はカギのときだけ。分岐は角を丸めない / elbow only; Branch keeps square corners
-            cornerRadius: (lineShape === 2 || lineShape === 3) ? toNumber(cornerField.input.text, DEFAULT_CORNER_RADIUS) : 0,
+            warpAmount: parseNumberInput(warpAmountField.input.text, DEFAULT_WARP_AMOUNT),
+            warpAxis: getSelectedRadioIndex(warpAxisField.radios),
+            // 角丸はカギ・分岐のときだけ / Elbow and Branch only
+            cornerRadius: (lineShape === 2 || lineShape === 3) ? parseNumberInput(cornerField.input.text, DEFAULT_CORNER_RADIUS) : 0,
             hasArrow: (arrowChoice.number !== 0),
             arrowInnerDot: (arrowChoice.innerDot === true),
             startArrow: (arrowPosition === 1) ? arrowName : noneName,
             endArrow: arrowName,
-            arrowScale: toNumber(arrowScaleField.input.text, DEFAULT_ARROW_SCALE),
-            endGap: toNumber(endGapField.input.text, DEFAULT_END_GAP),
-            arrowTip: ARROW_TIP_OPTIONS[getSelectedIndex(arrowTipField.radios)],
+            arrowScale: parseNumberInput(arrowScaleField.input.text, DEFAULT_ARROW_SCALE),
+            endGap: parseNumberInput(endGapField.input.text, DEFAULT_END_GAP),
+            arrowTip: ARROW_TIP_OPTIONS[getSelectedRadioIndex(arrowTipField.radios)],
             arrowPosition: arrowPosition
         };
     }
 
     /* プリセット適用中は「（カスタム）」へ戻さない */
     var isApplyingPreset = false;
+
+    /**
+     * 設定に合わせて、使わない項目をディム表示にする
+     * @param {object} settings - ダイアログの設定
+     * @returns {void}
+     */
+    function updateControlStates(settings) {
+        warpTypeRow.enabled = (settings.lineShape === 1);
+        // カーブのふくらみもこの欄で決める / Curve reuses this field for its bow
+        warpAmountField.row.enabled = (settings.lineShape === 1 || settings.lineShape === 4);
+        warpAxisField.row.enabled = (settings.lineShape === 1);
+        cornerField.row.enabled = (settings.lineShape === 2 || settings.lineShape === 3);
+        if (unifyAnchorWidget.enabled !== settings.unifyStart) {
+            unifyAnchorWidget.enabled = settings.unifyStart;
+            redrawControl(unifyAnchorWidget);
+        }
+        dashSegmentsField.row.enabled = (settings.dashStyle === 1);
+        dashGapField.row.enabled = (settings.dashStyle !== 0);
+        arrowScaleField.row.enabled = settings.hasArrow;
+        arrowPositionField.row.enabled = settings.hasArrow;
+        arrowTipField.row.enabled = settings.hasArrow;
+    }
 
     /**
      * 現在の設定でプレビューを更新する
@@ -2467,20 +2567,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             presetDropdown.selection = 0;
         }
         var settings = getSettings();
-        warpTypeRow.enabled = (settings.lineShape === 1);
-        // カーブのふくらみもこの欄で決める / Curve reuses this field for its bow
-        warpAmountField.row.enabled = (settings.lineShape === 1 || settings.lineShape === 4);
-        warpAxisField.row.enabled = (settings.lineShape === 1);
-        cornerField.row.enabled = (settings.lineShape === 2 || settings.lineShape === 3);
-        if (unifyAnchorWidget.enabled !== settings.unifyStart) {
-            unifyAnchorWidget.enabled = settings.unifyStart;
-            try { unifyAnchorWidget.notify("onDraw"); } catch (e) {}
-        }
-        dashSegmentsField.row.enabled = (settings.dashStyle === 1);
-        dashGapField.row.enabled = (settings.dashStyle !== 0);
-        arrowScaleField.row.enabled = settings.hasArrow;
-        arrowPositionField.row.enabled = settings.hasArrow;
-        arrowTipField.row.enabled = settings.hasArrow;
+        updateControlStates(settings);
         buildConnectors(settings);
         app.redraw();
 
@@ -2543,7 +2630,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (entry.field) {
                 preset[entry.key] = entry.field.input.text;
             } else if (entry.radios) {
-                preset[entry.key] = getSelectedIndex(entry.radios);
+                preset[entry.key] = getSelectedRadioIndex(entry.radios);
             } else if (entry.icons) {
                 preset[entry.key] = getSelectedIconIndex(entry.icons);
             } else if (entry.check) {
@@ -2577,12 +2664,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } else if (entry.radios) {
                 selectRadio(entry.radios, value);
             } else if (entry.icons) {
-                selectIcon(entry.icons, value);
+                selectIconButton(entry.icons, value);
             } else if (entry.check) {
                 entry.check.value = (value === true || value === "true");
             } else if (entry.widget) {
                 entry.widget.selectedAnchorIndex = value;
-                try { entry.widget.notify("onDraw"); } catch (e) {}
+                redrawControl(entry.widget);
             } else if (value >= 0 && value < entry.list.items.length) {
                 entry.list.selection = value;
             }
@@ -2591,18 +2678,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * プリセットのドロップダウンを作り直す
-     * @param {string} selectName - 選択状態にするプリセット名（省略時は（カスタム））
+     * @param {string} selectName - 選択状態にするプリセット名（null のときは（カスタム））
      * @returns {void}
      */
     function refreshPresetDropdown(selectName) {
         isApplyingPreset = true;
         presetDropdown.removeAll();
-        presetDropdown.add("item", getLabel(LABELS.preset.custom));
-        for (var i = 0; i < presets.length; i++) {
-            presetDropdown.add("item", presets[i].name);
+        presetDropdown.add("item", getLabel(LABELS.dropdown.customPreset));
+        for (var i = 0; i < savedPresets.length; i++) {
+            presetDropdown.add("item", savedPresets[i].name);
         }
-        var index = selectName ? (findPresetIndex(presets, selectName) + 1) : 0;
-        presetDropdown.selection = (index > 0) ? index : 0;
+        var itemIndex = selectName ? (findPresetIndex(savedPresets, selectName) + 1) : 0;
+        presetDropdown.selection = (itemIndex > 0) ? itemIndex : 0;
         isApplyingPreset = false;
     }
 
@@ -2636,7 +2723,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             field.input.text = Math.round(field.slider.value);
         };
         field.slider.onChange = function () {
-            field.input.text = Math.round(field.slider.value);
+            field.slider.onChanging();
             updatePreview();
         };
     }
@@ -2645,10 +2732,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     bindPreviewToRadios(startPointField.radios);
     unifyStartCheck.onClick = updatePreview;
     bindPreviewToRadios(strokeJoinField.radios);
-    for (var i = 0; i < dashStyleField.radios.length; i++) {
+    for (i = 0; i < dashStyleField.radios.length; i++) {
         dashStyleField.radios[i].onClick = function () {
             // ドットは丸形の線端でないと点が出ないので、選んだときに丸形へそろえる
-            if (getSelectedIndex(dashStyleField.radios) === 2) selectRadio(strokeCapField.radios, 1);
+            if (getSelectedRadioIndex(dashStyleField.radios) === 2) selectRadio(strokeCapField.radios, 1);
             updatePreview();
         };
     }
@@ -2664,37 +2751,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     bindPreviewToField(arrowScaleField, false);
     bindPreviewToField(endGapField, false);
     warpTypeList.onChange = updatePreview;
-    /* ボタンエリア / Button row */
-    var btnRowGroup = dialog.add("group");
-    btnRowGroup.orientation = "row";
-    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-    btnRowGroup.alignment = ["fill", "bottom"];
 
-    /* スペーサー（伸縮）/ Spacer (stretchable) */
-    var buttonSpacer = btnRowGroup.add("group");
-    buttonSpacer.alignment = ["fill", "fill"];
-    buttonSpacer.minimumSize.width = 0;
-
-    /* 右側グループ / Right-side button group */
-    var btnRightGroup = btnRowGroup.add("group");
-    btnRightGroup.alignChildren = ["right", "center"];
-
-    var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-    btnCancel.onClick = function () {
-        dialog.close(DIALOG_RESULT_CANCEL);
-    };
-
-    var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
-    btnOK.onClick = function () {
-        dialog.close(DIALOG_RESULT_OK);
-    };
+    addDialogButtonRow(connectorDialog);
 
     presetDropdown.onChange = function () {
         if (isApplyingPreset) return;
         if (!presetDropdown.selection || presetDropdown.selection.index === 0) return;
 
         isApplyingPreset = true;
-        applyPresetToDialog(presets[presetDropdown.selection.index - 1]);
+        applyPresetToDialog(savedPresets[presetDropdown.selection.index - 1]);
         isApplyingPreset = false;
         updatePreview();
     };
@@ -2707,13 +2772,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (presetName === "") return;
 
         var preset = getPresetFromDialog(presetName);
-        var existingIndex = findPresetIndex(presets, presetName);
+        var existingIndex = findPresetIndex(savedPresets, presetName);
         if (existingIndex === -1) {
-            presets.push(preset);
+            savedPresets.push(preset);
         } else {
-            presets[existingIndex] = preset; // 同名は上書き / overwrite when the name exists
+            savedPresets[existingIndex] = preset; // 同名は上書き / overwrite when the name exists
         }
-        if (!writePresets(presets)) {
+        if (!writePresets(savedPresets)) {
             alert(getLabel(LABELS.alert.presetFailed));
             return;
         }
@@ -2724,8 +2789,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!presetDropdown.selection || presetDropdown.selection.index === 0) return;
         if (!confirm(getLabel(LABELS.alert.presetRemove))) return;
 
-        presets.splice(presetDropdown.selection.index - 1, 1);
-        if (!writePresets(presets)) {
+        savedPresets.splice(presetDropdown.selection.index - 1, 1);
+        if (!writePresets(savedPresets)) {
             alert(getLabel(LABELS.alert.presetFailed));
             return;
         }
@@ -2741,13 +2806,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     refreshPresetDropdown(null);
     updatePreview();
 
-    if (dialog.show() !== DIALOG_RESULT_OK) {
+    if (connectorDialog.show() !== DIALOG_RESULT_OK) {
         // キャンセル／ESC／ウィンドウを閉じる: プレビューを破棄
         removeConnectors();
         if (!connectorLayerState.existed) {
-            try {
-                connectorLayer.remove();
-            } catch (e) {}
+            connectorLayer.remove();
         } else {
             // 作成のために開いたロック・表示状態を元に戻す
             connectorLayer.locked = connectorLayerState.locked;
@@ -2760,8 +2823,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // コネクターを選択状態にする
     doc.selection = null;
-    for (var i = 0; i < connectors.length; i++) {
-        connectors[i].selected = true;
+    for (i = 0; i < createdConnectors.length; i++) {
+        createdConnectors[i].selected = true;
     }
 
     toggleSmartGuides();

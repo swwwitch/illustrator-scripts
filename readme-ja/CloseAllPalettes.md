@@ -45,9 +45,10 @@ AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelRein
 
 ### スクリプト情報
 
-- バージョン: v1.0.2
+- バージョン: v1.0.3
 
 ### 更新履歴
 
+- v1.0.3（2026-09-26）開いているパレットが無いときのアラートを表示しないように変更。
 - v1.0.2（2026-09-25）AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented を対象に追加。
 - v1.0.1（2026-09-25）ArtboardDisplayPresetManager のエンジン名・参照名が本体と食い違っていて閉じられなかったのを修正。常駐パレット13本（AiAlignToArtboard ほか）を対象に追加。

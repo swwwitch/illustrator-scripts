@@ -34,7 +34,7 @@ Draws a connector from the key object to each of the other selected objects. You
 2. Run the script.
 3. Choose the shape, stroke and arrowheads, check the preview, and click OK.
 
-If no key object is set, the Start object dialog opens first. Click any cell of the 3x3 grid and the object nearest that position in the selection becomes the start. "Close and pick it manually" closes the dialog so you can set a key object and run the script again. With exactly two objects selected, the left one is used as the start even without a key object.
+If no key object is set, the "Choose the Start Object" dialog opens first. Click any cell of the 3x3 grid and the object nearest that position in the selection becomes the start. "Set Manually" closes the dialog so you can set a key object and run the script again. With exactly two objects selected, the left one is used as the start even without a key object.
 
 ### Options
 
@@ -46,7 +46,7 @@ If no key object is set, the Start object dialog opens first. Click any cell of 
 | Style | Warp style (Bulge / Squeeze) |
 | Bend | How much Warp bends and how far Curve bows out (-100 to 100%); a negative value flips the direction |
 | Axis | Warp axis. Auto picks one axis for all the connectors together |
-| Round corners | Corner radius for Elbow and Branch routes (pt); 0 = square corners |
+| Corner radius | Corner radius for Elbow and Branch routes (pt); 0 = square corners |
 | Start point | Edge centers / Divided / Center |
 | Share one start point | Runs every connector out of the same point on the key object |
 | 3x3 widget | Where that shared start point sits; active only while "Share one start point" is on |
@@ -72,7 +72,7 @@ With "Share one start point" on, every connector leaves from the same point on t
 
 | Item | What it does |
 | --- | --- |
-| Stroke width | Line weight (pt) |
+| Weight | Line weight (pt) |
 | Corner | Miter / Round / Bevel; applies to the bends of Elbow and Branch routes |
 | Dashes | None / Dashed / Dotted |
 | Divisions | Number of dashes (dashed only); the dash length is solved so both ends finish with a dash |
@@ -85,8 +85,8 @@ With "Share one start point" on, every connector leaves from the same point on t
 | Shape | Five icons: none / Arrow 8 / Arrow 11 / dot / circle |
 | Scale | Arrowhead size in percent, relative to the stroke width |
 | Ends | End (the far side from the key object) / Both ends |
-| Position | At the end of the path / Beyond the end |
-| Gap | Space left between the end of the connector and the object (pt) |
+| Tip | At the end of the path / Beyond the end |
+| Offset | Space left between the end of the connector and the object (pt) |
 | Cap | Butt / Round / Projecting |
 
 Picking an arrowhead switches the scale, position and cap to that arrowhead's defaults (round cap for the dot and circle, butt for the arrows). Choosing dotted dashes also switches the cap to round, since dots need it to show up.
@@ -120,3 +120,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.3 (20260906): Bends are nudged clear of the selected objects; the white circle now follows the arrowhead scale and is grouped with its line; "Share one start point" gained a 3x3 position picker
 - v1.0.4 (20260908): Added the Curve shape
 - v1.0.5 (20260909): Key object detection no longer adds undo steps
+- v1.0.7 (20260926): Tidied the UI wording (dialog title "Build Connectors", "Weight", "Corner radius", "Tip", "Offset"); the start-object dialog's "Close and pick it manually" checkbox is now a "Set Manually" button; internal cleanup

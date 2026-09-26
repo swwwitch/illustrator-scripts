@@ -1,6 +1,6 @@
 # ［ぼかし］のライブエフェクトを適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-LEFeather.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/LEFeather.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-LEFeather.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/single-function/LEFeather.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEFeather.md)
 
