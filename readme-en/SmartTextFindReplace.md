@@ -11,15 +11,17 @@
 ### Overview
 
 - Removes the entered strings from text in one go. Fill in the replace field to replace them instead.
-- There are five fields, processed from top to bottom. Regular expressions are supported.
+- There are seven fields, processed from top to bottom. Regular expressions are supported.
 - Choose the scope: selected objects, the current artboard, or the entire document. Text inside symbols can be included.
 - Characters are removed one by one, so the formatting of the remaining text (color, font, size, etc.) is kept. Replaced text takes the formatting of the first character of the match.
+- The English tab changes letter case with a single button.
+- The Cleanup tab removes or converts tabs and spaces, swaps symbols, converts hiragana / katakana / halfwidth kana and fullwidth / halfwidth digits, and strips leading bullets and numbers with a single button.
 
-<img alt="The Remove or Replace Text dialog" src="../png/ss-998-1054-144-20260926-084803.png" width="50%" />
+<img alt="The Remove, Replace & Clean Up Text dialog" src="../png/ss-998-1054-144-20260926-084803.png" width="50%" />
 
 ### Features
 
-- Up to five strings to remove (empty fields are ignored)
+- Up to seven strings to remove (empty fields are ignored)
 - A replacement for each field (empty to remove; with regular expressions, `$1` / `\1`, `$&` / `\0` etc. refer to the match)
 - Shows the number of matches in the scope for each field (updated as you type or change the scope)
 - Regular expressions and case-sensitive or case-insensitive search
@@ -33,6 +35,8 @@
 - Processes text in symbols (by rewriting the symbol definition)
 - Reports the removed / replaced count per field, and the numbers of changed text, deleted text and rewritten symbols
 - Remembers the entries and settings for the next run
+- English: UPPERCASE / lowercase / Capitalize Words / Sentence case / Title Case. A sample of the result is shown next to each button
+- Cleanup: Remove Tabs / Tabs to Spaces, remove spaces (leading/trailing, between CJK and Latin, consecutive, all at once), add a space after . and ,, convert between space, underscore and hyphen, Hiragana / Katakana / Halfwidth Kana, Halfwidth Digits / Fullwidth Digits (kanji numerals become Arabic too), and remove leading bullets or numbers
 
 ### How to use
 
@@ -44,20 +48,22 @@
 
 | Item | Description |
 | --- | --- |
-| Text to Remove / Replace | Left: strings to search for (five fields). Empty fields are ignored; fields are processed from top to bottom. Right of "→": replacement text; leave empty to remove. The number at the right end is the match count in the scope; "!" means an invalid regular expression |
+| Text to Remove / Replace | Left: strings to search for (seven fields). Empty fields are ignored; fields are processed from top to bottom. Right of "→": replacement text; leave empty to remove. The number at the right end is the match count in the scope; "!" means an invalid regular expression |
 | Paragraph Break | Inserts `\n` (paragraph break) into the field with the cursor. Command (Ctrl) + Enter does the same |
 | Forced Line Break | Inserts `@#` (forced line break) into the field with the cursor. Shift + Enter does the same |
 | Whole Match | Inserts `\0` (the whole match) into the field with the cursor. Option (Alt) + 0 does the same. Available with regular expressions only |
 | Group 1 / Group 2 | Inserts `\1` / `\2` (the text matched by the first / second `( )`) into the field with the cursor. Option (Alt) + 1 / 2 does the same. Available with regular expressions only |
 | Regular expression | Treats the input as JavaScript regular expressions. `^` and `$` match the start and end of each paragraph. Replacements can use `$1`–`$99`, `$&` and `$$`, as well as `\0` (whole match), `\1`–`\9` (groups) and `\\` (a literal `\`) |
 | Match case | When on, upper- and lowercase letters are treated as different. When off, they are treated as the same |
+| Delete emptied text | Deletes text frames emptied by this run. Frames that were already empty and threaded text frames are kept |
 | Selected objects | Selected text (including inside groups). Unavailable when nothing is selected |
 | Current artboard | Text that overlaps the active artboard, even partly |
 | Entire document | All text in the document |
-| Delete emptied text | Deletes text frames emptied by this run. Frames that were already empty and threaded text frames are kept |
 | Check hidden layers | Includes text in hidden layers and objects. They are shown only while processing, then hidden again |
 | Check locked layers | Includes text in locked layers and objects. They are unlocked only while processing, then locked again |
 | Check symbols | Includes text inside symbols in the scope |
+| Cleanup tab buttons | Tidy the text in the scope right away, following options such as "Check hidden layers". For Spaces & Symbols, choose Before and After, then click Convert |
+| English tab buttons | Convert the text in the scope right away, following options such as "Check hidden layers". The sample on the right is the first text in the scope converted |
 | Reset | Clears the fields and restores the scope and options to their defaults. The preview setting is kept |
 | Preview | While on, shows the result without closing the dialog and updates it as the input, scope or options change |
 
@@ -72,6 +78,9 @@
 - Symbols are recreated and swapped, so symbol options such as the registration point and 9-slice scaling are reset.
 - With "Check symbols" on, symbols are expanded temporarily in the dialog to count matches. The dialog may open slowly in documents with many symbols.
 - Clicking OK saves the entries and settings for the next run.
+- The buttons on the English and Cleanup tabs convert as soon as they are clicked. Clicking Cancel afterwards does not revert them; close the dialog and use Undo instead.
+- When a conversion changes the number of characters (halfwidth kana voicing marks, kanji numerals, etc.), the changed part takes the formatting of its first character. Added spaces take the formatting of the preceding character.
+- Bullets and Numbers first run *Convert to Text* (the menu command) on Illustrator bullet and numbered lists, then remove the leading markers. Markers typed as text are removed as well. Text is selected temporarily for the conversion; the original selection is restored when the dialog closes.
 
 ### Article
 
@@ -82,4 +91,5 @@
 - v1.0.0 (20260926) : Initial release
 - v1.1.0 (20260926) : Added replace fields
 - v1.2.0 (20260926) : Added Preview. Added buttons and shortcuts for paragraph and forced line breaks, buttons for match references, and a Reset button. Replacements accept `\0`–`\9` and `\\`. Fixed an error when selected text was emptied and deleted
+- v1.3.0 (20260926) : Split the dialog into Remove / Replace, English and Cleanup tabs, and added English (letter case) and cleanup (tabs, spaces, symbols, kana, digits, list removal, etc.). Moved "Delete emptied text" into the Text to Remove / Replace panel. Increased the fields from five to seven. Renamed the dialog to "Remove, Replace & Clean Up Text" and added tooltips to the buttons
 - v1.2.1 (20260926) : Renamed options to match Illustrator's Find and Replace ("Ignore case" → "Match case" with saved settings converted; "Search …" → "Check …"). Fixed saved settings not being applied to the match counts when the dialog opens

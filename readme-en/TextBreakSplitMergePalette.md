@@ -254,5 +254,6 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.8.1 (2026-09-26) Fixed *All at Once* (Remove Spaces) removing every space between Latin words separated by more than one space (spaces are now collapsed before removing CJK/Latin spaces). The Convert tab buttons, Tabs to Spaces, the Remove Spaces buttons, Space After . and ,, symbol conversion, Fullwidth to Halfwidth, Halfwidth Kana to Fullwidth and Remove List now rewrite only the changed characters and keep per-character formatting (ported from SmartTextFindReplace).
 - v1.8.0 (2026-09-26) Added *Merge Area Text* to *Split by Character* (ported from SmartTextSplitter).
 - v1.7.9 (2026-09-26) Renamed the file from `TextBreakSplitMergePallete.jsx` to `TextBreakSplitMergePalette.jsx`.

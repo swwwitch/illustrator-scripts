@@ -75,9 +75,11 @@
 Leading middle dots (・ ･ ·) and a hyphen (-) followed by a tab or space are stripped on run.
 Hand-typed heads such as "1. " or "A) " are stripped too when a delimiter is present.
 When a digit follows the delimiter, as in "12.5", the text is treated as body text and left intact.
+Bullet and numbered lists made with Illustrator's Bullets and Numbering are turned into text markers (such as "•" plus a tab) with *Convert to Text* before the dialog opens. They therefore stay as text markers even if you cancel; use Illustrator's Undo to get the original list back.
 
 ### Update History
 
+- v1.3.0 (2026-09-26): Supports Illustrator bullet and numbered lists: before the dialog opens they are turned into text markers with *Convert to Text*, so the current state is detected and the markers can be replaced. Switching between bullets, numbers and None now clears every tab stop before adding the new ones
 - v1.2.2 (2026-09-21): Folded ColorPicker.jsx into the script, so it now runs on its own. Fixed the color picker not opening when the Marker/Number or Delimiter color swatch is clicked. CMYK swatches are now drawn in the same color as the picker shows
 - v1.2.1 (2026-09-19): Now loads ColorPicker.jsx from `jsx/stroke-table/` (the copy in `jsx/text/` was retired)
 - v1.2.0 (2026-08-18): Added justification buttons to Paragraph Settings (the default follows the text kind: left for point text, justify-last-line-left for area text). Leading is now applied as an auto-leading amount (%) instead of a fixed value. Fixed tab stops, indents and space-after not being restored when Cancel followed "Reset". Right-aligned the labels in Marker Format and Paragraph Settings. Added tooltips to "None", the bullet symbol panel and the circled number styles, and expanded the ones on "Start No." and "Reset". Dimming the Body position now dims its label and unit as well. Sped things up by no longer rebuilding the line list on every preview and by reusing the Japanese-font keyword table. Unified the dialog margins and spacing. Preview updates are now deferred while typing or stepping through tab stop / scale values, and applied once the input settles

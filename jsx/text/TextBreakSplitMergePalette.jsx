@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePalette";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -732,6 +732,117 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             }
         }
 
+        /* transformContents と同じだが、変わった文字だけを書き換えて文字ごとの書式を残す（SmartTextFindReplace.jsx と同じ方式）。
+           文字の置き換え・削除・追加で済む変換に使う。行の並べ替えのように文字の位置が入れ替わる変換には使わない */
+        function transformContentsKeepingFormat(objects, transformFunc) {
+            var frames = getTextFrames(objects);
+            for (var i = 0; i < frames.length; i++) {
+                rewriteFrameKeepingFormat(frames[i], transformFunc);
+            }
+        }
+
+        /* 長さが同じなら1文字ずつ、削るだけ・足すだけなら変わる文字だけ、語ごとに変換して同じ結果になるなら語ごとに書き換える。
+           どれにも当てはまらなければ、従来どおり contents をまとめて書き戻す */
+        function rewriteFrameKeepingFormat(frame, transformFunc) {
+            var originalText = frame.contents;
+            var convertedText = transformFunc(originalText);
+            if (convertedText === originalText) return;
+            if (originalText === "") { frame.contents = convertedText; return; }
+            var frameCharacters = frame.characters;
+            if (convertedText.length === originalText.length) {
+                replaceDifferingPart(frameCharacters, 0, originalText, convertedText);
+                return;
+            }
+            var isShortened = convertedText.length < originalText.length;
+            var matchedIndexes = isShortened ? matchSubsequence(convertedText, originalText) : matchSubsequence(originalText, convertedText);
+            if (matchedIndexes) {
+                if (isShortened) removeUnkeptCharacters(frameCharacters, originalText.length, matchedIndexes);
+                else insertAddedText(frameCharacters, originalText, convertedText, matchedIndexes);
+                return;
+            }
+            /* 語ごとの変換は前後の文字に左右されない変換でしか使えないので、全体の結果と一致するときだけ使う */
+            var wordPattern = /[^\s\x03]+/g;
+            var wordMatches = [];
+            var wordMatch;
+            var rebuiltText = "";
+            var lastEnd = 0;
+            while ((wordMatch = wordPattern.exec(originalText)) !== null) {
+                var convertedWord = transformFunc(wordMatch[0]);
+                wordMatches.push({ start: wordMatch.index, originalWord: wordMatch[0], convertedWord: convertedWord });
+                rebuiltText += originalText.substring(lastEnd, wordMatch.index) + convertedWord;
+                lastEnd = wordMatch.index + wordMatch[0].length;
+            }
+            rebuiltText += originalText.substring(lastEnd);
+            if (rebuiltText !== convertedText) { frame.contents = convertedText; return; }
+            for (var w = wordMatches.length - 1; w >= 0; w--) {
+                if (wordMatches[w].convertedWord !== wordMatches[w].originalWord) {
+                    replaceDifferingPart(frameCharacters, wordMatches[w].start, wordMatches[w].originalWord, wordMatches[w].convertedWord);
+                }
+            }
+        }
+
+        /* 短い文字列の各文字が長い文字列のどこに対応するかを左から探す。文字を抜くだけで作れなければ null */
+        function matchSubsequence(shortText, longText) {
+            var matchedIndexes = [];
+            var longIndex = 0;
+            for (var i = 0; i < shortText.length; i++) {
+                while (longIndex < longText.length && longText.charAt(longIndex) !== shortText.charAt(i)) longIndex++;
+                if (longIndex >= longText.length) return null;
+                matchedIndexes.push(longIndex);
+                longIndex++;
+            }
+            return matchedIndexes;
+        }
+
+        /* 残す文字以外を右から削除する */
+        function removeUnkeptCharacters(frameCharacters, originalLength, keptIndexes) {
+            var keptIndex = keptIndexes.length - 1;
+            for (var i = originalLength - 1; i >= 0; i--) {
+                if (keptIndex >= 0 && keptIndexes[keptIndex] === i) { keptIndex--; continue; }
+                frameCharacters[i].remove();
+            }
+        }
+
+        /* 増えた文字を右から隣の文字に足す（足した文字はその隣の文字の書式になる）*/
+        function insertAddedText(frameCharacters, originalText, convertedText, originalIndexes) {
+            for (var i = originalText.length - 1; i >= 0; i--) {
+                var nextIndex = (i + 1 < originalText.length) ? originalIndexes[i + 1] : convertedText.length;
+                var addedAfter = convertedText.substring(originalIndexes[i] + 1, nextIndex);
+                var addedBefore = (i === 0) ? convertedText.substring(0, originalIndexes[0]) : "";
+                if (addedAfter !== "" || addedBefore !== "") frameCharacters[i].contents = addedBefore + originalText.charAt(i) + addedAfter;
+            }
+        }
+
+        /* 変換前と変換後で異なる部分だけを書き換える。長さが同じなら1文字ずつ、違えば前後の一致部分を除いた範囲を差し替える */
+        function replaceDifferingPart(frameCharacters, offset, originalText, convertedText) {
+            var i;
+            if (convertedText.length === originalText.length) {
+                for (i = originalText.length - 1; i >= 0; i--) {
+                    if (convertedText.charAt(i) !== originalText.charAt(i)) frameCharacters[offset + i].contents = convertedText.charAt(i);
+                }
+                return;
+            }
+            var shorterLength = Math.min(originalText.length, convertedText.length);
+            var prefixLength = 0;
+            while (prefixLength < shorterLength && originalText.charAt(prefixLength) === convertedText.charAt(prefixLength)) prefixLength++;
+            var suffixLength = 0;
+            while (suffixLength < shorterLength - prefixLength &&
+                originalText.charAt(originalText.length - 1 - suffixLength) === convertedText.charAt(convertedText.length - 1 - suffixLength)) suffixLength++;
+            var replaceStart = offset + prefixLength;
+            var replaceEnd = offset + originalText.length - suffixLength;
+            var middleText = convertedText.substring(prefixLength, convertedText.length - suffixLength);
+            if (replaceStart === replaceEnd) {
+                if (prefixLength > 0) frameCharacters[replaceStart - 1].contents = originalText.charAt(prefixLength - 1) + middleText;
+                else frameCharacters[replaceStart].contents = middleText + originalText.charAt(prefixLength);
+                return;
+            }
+            var keptCount = (middleText === "") ? 0 : 1;
+            for (i = replaceEnd - 1; i >= replaceStart + keptCount; i--) {
+                frameCharacters[i].remove();
+            }
+            if (keptCount > 0) frameCharacters[replaceStart].contents = middleText;
+        }
+
         /* 各テキストフレームの文字を末尾から走査し、matchesCharCode が真の文字を処理する共通ヘルパー。
            replacement が null なら削除、文字列なら差し替える（末尾走査なので remove でも index がずれない）*/
         function mutateMatchingChars(objects, matchesCharCode, replacement) {
@@ -908,14 +1019,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
         /* タブをスペースに変換する関数 */
         function tabsToSpaces(objects) {
-            transformContents(objects, function (txt) {
+            transformContentsKeepingFormat(objects, function (txt) {
                 return txt.replace(/\t/g, " ");
             });
         }
 
         /* 行頭行末のスペースを削除する関数 */
         function trimSpaces(objects) {
-            transformContents(objects, function (txt) {
+            transformContentsKeepingFormat(objects, function (txt) {
                 var lines = splitParagraphLines(txt);
                 for (var i = 0; i < lines.length; i++) {
                     lines[i] = trimLineSpaces(lines[i]);
@@ -926,7 +1037,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
         /* 連続スペースを1つにまとめる関数 */
         function collapseSpaces(objects) {
-            transformContents(objects, function (txt) {
+            transformContentsKeepingFormat(objects, function (txt) {
                 /* 半角スペース連続 → 半角スペース1つ  */
                 var result = txt.replace(/ {2,}/g, " ");
                 /* 全角スペース連続 → 全角スペース1つ  */
@@ -938,7 +1049,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         /* 各行の行頭を正規表現で除去する共通処理。
            prefixPatterns は配列で渡し、行ごとに最初に一致したものだけを適用する */
         function removeLinePrefix(objects, prefixPatterns) {
-            transformContents(objects, function (txt) {
+            transformContentsKeepingFormat(objects, function (txt) {
                 var lines = splitParagraphLines(txt);
                 for (var i = 0; i < lines.length; i++) {
                     for (var j = 0; j < prefixPatterns.length; j++) {
@@ -1212,12 +1323,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
         /* 全角英数字を半角に変換する関数 */
         function fullToHalfAlnum(objects) {
-            transformContents(objects, toHalfWidthAlnumText);
+            transformContentsKeepingFormat(objects, toHalfWidthAlnumText);
         }
 
         /* 半角カナを全角カナに変換する関数 */
         function halfToFullKana(objects) {
-            transformContents(objects, toFullWidthKanaText);
+            transformContentsKeepingFormat(objects, toFullWidthKanaText);
         }
 
         /* 行頭の箇条書き記号を除去する関数。
@@ -1418,7 +1529,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
          * 欧文同士（英単語間）のスペースは残し、それ以外のスペースを削除する */
 
         function removeCjkLatinSpaces(objects) {
-            transformContents(objects, function (txt) {
+            transformContentsKeepingFormat(objects, function (txt) {
                 var result = "";
                 for (var i = 0; i < txt.length; i++) {
                     var c = txt.charAt(i);
@@ -2659,6 +2770,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             shouldInsertParagraphBreakBetweenLines, getCharCodeSafe, isParagraphBreak, isForcedBreak, isAnyBreak,
             isTabChar, findLastVisibleIndex, isNonSplittableChar, countSplittableChars,
             getTextFrames, countTextFrameTypes, detectTextFrameType, countBreakTypes, transformContents,
+            transformContentsKeepingFormat, rewriteFrameKeepingFormat, matchSubsequence, removeUnkeptCharacters, insertAddedText, replaceDifferingPart,
             hasMultipleLines, hasSpacesOrTabs, computeSelectionState, encodeSelectionState,
             mutateMatchingChars, removeForcedLineBreaks, removeItems, sortedCopy, sortByPosition, sortByY, sortByX,
             groupByLineY, getUnionBounds, groupTextFrames, applySplitGrouping,
@@ -2789,7 +2901,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         function runContentAction(actionName, targets, params) {
             /* ケース・かな・数字の変換は getTextConverter へ委譲する */
             var convertText = getTextConverter(actionName);
-            if (convertText) { transformContents(targets, convertText); return; }
+            if (convertText) { transformContentsKeepingFormat(targets, convertText); return; }
 
             switch (actionName) {
                 case "removeLineBreaks": if (params.forced) removeAllBreaks(targets); else removeLineBreaks(targets); return;
@@ -2803,8 +2915,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "trimSpaces": trimSpaces(targets); return;
                 case "removeCjkLatinSpaces": removeCjkLatinSpaces(targets); return;
                 case "collapseSpaces": collapseSpaces(targets); return;
-                case "cleanupSpaces": trimSpaces(targets); removeCjkLatinSpaces(targets); collapseSpaces(targets); return;
-                case "removeAllSpaces": transformContents(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
+                /* 先に連続を1つにまとめる（和欧間は前後の文字で判断するので、連続したままだと英単語間のスペースまで消える）*/
+                case "cleanupSpaces": trimSpaces(targets); collapseSpaces(targets); removeCjkLatinSpaces(targets); return;
+                case "removeAllSpaces": transformContentsKeepingFormat(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
                 case "fullToHalfAlnum": fullToHalfAlnum(targets); return;
                 case "halfToFullKana": halfToFullKana(targets); return;
                 /* Illustrator標準のリスト書式を先に外してから、本文に打たれた行頭マーカーを除去する */
@@ -2815,12 +2928,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "sortByCharCode": sortByCharCode(targets); return;
                 case "sortByLength": sortByLength(targets); return;
                 case "removeEmptyLines": removeEmptyLines(targets); return;
-                case "spaceAfterPunct": transformContents(targets, function (txt) { return txt.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return;
+                case "spaceAfterPunct": transformContentsKeepingFormat(targets, function (txt) { return txt.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return;
                 case "convertSymbol": {
                     /* ES の入れ子三項は左結合に誤評価されるため括弧で右結合を明示 */
                     var fromPattern = (params.from === "underscore") ? /_/g : ((params.from === "hyphen") ? /-/g : /[ 　]/g);
                     var toText = (params.to === "space") ? " " : ((params.to === "hyphen") ? "-" : "_");
-                    transformContents(targets, function (txt) { return txt.replace(fromPattern, toText); });
+                    transformContentsKeepingFormat(targets, function (txt) { return txt.replace(fromPattern, toText); });
                     return;
                 }
             }

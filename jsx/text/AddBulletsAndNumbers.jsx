@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBullets
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBulletsAndNumbers";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBulletsAndNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBulletsAndNumbers.md"; /* README (English) */
@@ -606,7 +606,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             return aLeft - bLeft;
         });
 
+        // Illustrator の箇条書き・番号付きリストは本文の記号にしてから扱う（現在の状態の推定と、記号の付け替えのため）
+        // Turn Illustrator bullet and numbered lists into text first, so the current state can be detected and the markers replaced
+        convertListStylesToText(targetSelection);
+
         showDialog(targetSelection);
+    }
+
+    /**
+     * Illustrator の箇条書き・番号付きリストを［テキストに変換］で本文の記号にする（行頭が「•＋タブ」などになる）
+     * listStyle はスクリプトから読めず「なし」も書けないので、フレームを1つずつ選択してメニューのコマンドを実行する。
+     * 終わったら元の選択に戻す
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function convertListStylesToText(textFrames) {
+        var doc = app.activeDocument;
+        var savedSelection = [];
+        for (var i = 0; i < doc.selection.length; i++) savedSelection.push(doc.selection[i]);
+        for (var j = 0; j < textFrames.length; j++) {
+            doc.selection = null;
+            textFrames[j].selected = true;
+            // 選択を変えた直後は古い選択のままコマンドが走ることがあるので、先に再描画する
+            // Redraw first, as a command right after changing the selection may still see the old one
+            app.redraw();
+            app.executeMenuCommand("convert list style to text");
+        }
+        doc.selection = savedSelection;
     }
 
     // =========================================
@@ -3704,13 +3730,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     }
 
     /**
-     * タブストップを指定内容だけに置き換える（前の種類の残存タブを消すため全消去してから設定）
+     * タブストップを指定内容だけに置き換える
+     * 前の種類や元のリストのタブが残らないよう、フレーム全体と段落ごとにいったんすべて削除してから付加する
      * @param {TextFrame} frame - 対象のテキストフレーム
      * @param {Array<{position: number, alignment: TabStopAlignment}>} tabSpecs - 設定するタブストップ
      * @returns {void}
      */
     function setTabStops(frame, tabSpecs) {
         try {
+            // すべて削除 / Clear every tab stop first
+            frame.textRange.paragraphAttributes.tabStops = [];
+            var paragraphs = frame.paragraphs;
+            for (var p = 0; p < paragraphs.length; p++) {
+                try { paragraphs[p].paragraphAttributes.tabStops = []; } catch (eClear) { }
+            }
+            if (tabSpecs.length === 0) return;
+
             var newTabs = [];
             for (var i = 0; i < tabSpecs.length; i++) {
                 newTabs.push(makeTabStop(tabSpecs[i].position, tabSpecs[i].alignment));
