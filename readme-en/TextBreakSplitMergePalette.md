@@ -81,6 +81,8 @@ Split results are left as separate frames. **Hold Option (Alt) while clicking to
 
 *Ignore Style* is not a full reset: **the font and size of the first character are kept.** Fill becomes black, baseline shift / rotation / tracking go to 0, and horizontal/vertical scale return to 100%.
 
+With *Merge Area Text* turned on under *Split by Character*, the one-character frames are converted to area type and threaded together in the original character order. Each character stays where it was, but the text flows as one story (each source frame gets its own thread).
+
 ### Concatenate
 
 | Button | Action |
@@ -252,4 +254,5 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.8.0 (2026-09-26) Added *Merge Area Text* to *Split by Character* (ported from SmartTextSplitter).
 - v1.7.9 (2026-09-26) Renamed the file from `TextBreakSplitMergePallete.jsx` to `TextBreakSplitMergePalette.jsx`.

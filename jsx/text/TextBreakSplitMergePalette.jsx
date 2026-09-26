@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakS
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePalette";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -250,7 +250,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         },
         checkbox: {
             includeForcedBreaks: { ja: "強制改行を含む", en: "Include Forced Breaks" },
-            forcedBreak: { ja: "強制改行", en: "Forced Break" }
+            forcedBreak: { ja: "強制改行", en: "Forced Break" },
+            mergeAreaText: { ja: "エリア内文字を連結", en: "Merge Area Text" }
         },
         tooltip: {
             concatV: { ja: "上→下に連結", en: "Merge top to bottom" },
@@ -294,6 +295,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             splitIgnoreStyle: {
                 ja: "1文字ずつ別フレームに分割し、書式をリセットします",
                 en: "Split into one frame per character, resetting formatting"
+            },
+            mergeAreaText: {
+                ja: "分割した文字をエリア内文字にして、元の文字順にスレッドでつなげます",
+                en: "Converts the split characters to area type and threads them in the original order"
             },
             trimSpaces: {
                 ja: "各行の行頭・行末のスペースを削除します",
@@ -1897,27 +1902,128 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         /* =========================================
          * 1文字ごとにテキストフレームを分割（書式保持）
          * ========================================= */
-        function splitByCharKeepStyle(objects) {
-            return splitByChar(objects, true);
+        function splitByCharKeepStyle(objects, mergeAreaText) {
+            return splitByChar(objects, true, mergeAreaText);
         }
 
         /* =========================================
          * 1文字ごとにテキストフレームを分割（書式無視）
          * =========================================  */
-        function splitByCharIgnoreStyle(objects) {
-            return splitByChar(objects, false);
+        function splitByCharIgnoreStyle(objects, mergeAreaText) {
+            return splitByChar(objects, false, mergeAreaText);
         }
 
-        /* 1文字分割の共通処理。keepStyle=false のときは先頭フォント以外の書式をリセットしてから分割 */
-        function splitByChar(objects, keepStyle) {
+        /* 1文字分割の共通処理。keepStyle=false のときは先頭フォント以外の書式をリセットしてから分割。
+           mergeAreaText=true のときは元のフレームごとにエリア内文字へ変換してスレッドでつなぐ */
+        function splitByChar(objects, keepStyle, mergeAreaText) {
             var frames = getTextFrames(objects);
             var resultFrames = [];
             for (var i = 0; i < frames.length; i++) {
                 if (!keepStyle) stripStyleKeepFirstFont(frames[i]);
                 var made = splitCharHighPrecision(frames[i], keepStyle);
+                if (mergeAreaText) made = threadAreaTextFrames(convertTextFramesToAreaText(made));
                 for (var j = 0; j < made.length; j++) resultFrames.push(made[j]);
             }
             return resultFrames;
+        }
+
+        /* エリア内文字かを返す（種類が読めなければ false）*/
+        function isAreaTextSafely(textFrame) {
+            try { return textFrame.kind === TextType.AREATEXT; } catch (e) { return false; }
+        }
+
+        /* ポイント文字の bounds を枠にしてエリア内文字を作り、内容と主な属性を移す（元は削除。作れなければ元を返す）*/
+        function rebuildAsAreaText(sourceFrame) {
+            try {
+                var frameBounds = sourceFrame.geometricBounds;
+                var frameWidth = frameBounds[2] - frameBounds[0];
+                var frameHeight = frameBounds[1] - frameBounds[3];
+                if (frameWidth <= 0 || frameHeight <= 0) return sourceFrame;
+
+                var sourceLayer = sourceFrame.layer;
+                var frameRect = sourceLayer.pathItems.rectangle(frameBounds[1], frameBounds[0], frameWidth, frameHeight);
+                frameRect.stroked = false;
+                frameRect.filled = false;
+
+                var areaFrame = null;
+                try { areaFrame = sourceLayer.textFrames.areaText(frameRect); } catch (e) { areaFrame = null; }
+                if (!areaFrame) {
+                    removeItems([frameRect]);
+                    return sourceFrame;
+                }
+
+                safeSet(areaFrame, "contents", sourceFrame.contents);
+                copyCharacterAttributes(areaFrame, sourceFrame.textRange);
+                removeItems([sourceFrame]);
+                return areaFrame;
+            } catch (e) {
+                debugLog("rebuildAsAreaText", e);
+                return sourceFrame;
+            }
+        }
+
+        /* テキストフレームをエリア内文字に変換する（ネイティブAPI → メニューコマンド → bounds から作り直し の順に試す）。
+           並び順は保ち、変換できなかったものは元のまま返す */
+        function convertTextFramesToAreaText(textFrames) {
+            if (!textFrames || textFrames.length === 0) return textFrames;
+
+            var doc = app.activeDocument;
+            var previousSelection = doc.selection;
+            var convertedFrames = [];
+
+            for (var i = 0; i < textFrames.length; i++) {
+                var textFrame = textFrames[i];
+                if (!textFrame || textFrame.typename !== "TextFrame") continue;
+
+                if (!isAreaTextSafely(textFrame)) {
+                    try {
+                        if (textFrame.kind === TextType.POINTTEXT && textFrame.convertPointObjectToAreaObject) {
+                            textFrame.convertPointObjectToAreaObject();
+                        }
+                    } catch (e) { }
+                }
+                if (isAreaTextSafely(textFrame)) {
+                    convertedFrames.push(textFrame);
+                    continue;
+                }
+
+                /* メニューコマンドは見た目を最も保てる（名前は環境によって違う）*/
+                var menuConvertedFrame = null;
+                try {
+                    doc.selection = [textFrame];
+                    try { app.executeMenuCommand("ConvertToAreaType"); } catch (e) {
+                        try { app.executeMenuCommand("ConvertToAreaText"); } catch (err) { }
+                    }
+                    if (doc.selection.length === 1 && doc.selection[0].typename === "TextFrame" && isAreaTextSafely(doc.selection[0])) {
+                        menuConvertedFrame = doc.selection[0];
+                    }
+                } catch (e) { debugLog("convertTextFramesToAreaText: menu command", e); }
+
+                convertedFrames.push(menuConvertedFrame || rebuildAsAreaText(textFrame));
+            }
+
+            try { doc.selection = previousSelection; } catch (e) { }
+            return convertedFrames;
+        }
+
+        /* エリア内文字を渡された順にスレッドでつなぐ（つないだ後も参照はそのまま使える）*/
+        function threadAreaTextFrames(textFrames) {
+            if (!textFrames || textFrames.length < 2) return textFrames;
+
+            var areaFrames = [];
+            for (var i = 0; i < textFrames.length; i++) {
+                if (textFrames[i] && textFrames[i].typename === "TextFrame" && isAreaTextSafely(textFrames[i])) areaFrames.push(textFrames[i]);
+            }
+            if (areaFrames.length < 2) return textFrames;
+
+            var doc = app.activeDocument;
+            var previousSelection = doc.selection;
+            try {
+                doc.selection = areaFrames;
+                app.executeMenuCommand("threadTextCreate");
+            } catch (e) { debugLog("threadAreaTextFrames", e); }
+            try { doc.selection = previousSelection; } catch (e) { }
+            return areaFrames;
         }
 
         /* 配列内のアイテムをまとめて削除（失敗は無視）*/
@@ -2572,6 +2678,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             collectVisualLines, splitByVisualLine,
             trimTrailingBreaks, getTailAxis, splitFrameKeepStyle, splitByLineBreakKeepStyle,
             splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
+            isAreaTextSafely, rebuildAsAreaText, convertTextFramesToAreaText, threadAreaTextFrames,
             buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharacterAttributes,
             copyBaseFontAttributes, moveFrameToMatchBounds, measureCharOffsetsX, splitCharFallback,
             groupFramesIntoRows, concatRowText, concatHorizontalOnly, concatVertical, concatHorizontal,
@@ -2668,8 +2775,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "splitByLineBreakKeepStyle": return applySplitGrouping(splitByLineBreakKeepStyle(targets), params.group);
                 case "splitByVisualLine": return applySplitGrouping(splitByVisualLine(targets), params.group);
                 case "splitByTab": return applySplitGrouping(splitByTab(targets), params.group);
-                case "splitByCharKeepStyle": return applySplitGrouping(splitByCharKeepStyle(targets), params.group);
-                case "splitByCharIgnoreStyle": return applySplitGrouping(splitByCharIgnoreStyle(targets), params.group);
+                case "splitByCharKeepStyle": return applySplitGrouping(splitByCharKeepStyle(targets, params.mergeAreaText), params.group);
+                case "splitByCharIgnoreStyle": return applySplitGrouping(splitByCharIgnoreStyle(targets, params.mergeAreaText), params.group);
                 case "concatVertical": return concatVertical(targets);
                 case "concatHorizontalOnly": return concatHorizontalOnly(targets);
                 case "concatH": return concatHorizontal(targets, detectTextFrameType(targets));
@@ -2801,7 +2908,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
         /**
          * アクションのパラメーターを、そのまま eval できる JS リテラル文字列へ変換する
-         * @param {Object} params - forced / turnOffHidden / group / count / chars / text / from / to を持つオブジェクト
+         * @param {Object} params - forced / turnOffHidden / group / mergeAreaText / count / chars / text / from / to を持つオブジェクト
          * @returns {string} "{ ... }" 形式のソース文字列
          */
         function paramsToSource(params) {
@@ -2811,6 +2918,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             if (params.forced !== undefined) parts.push("forced:" + (params.forced ? "true" : "false"));
             if (params.turnOffHidden !== undefined) parts.push("turnOffHidden:" + (params.turnOffHidden ? "true" : "false"));
             if (params.group !== undefined) parts.push("group:" + (params.group ? "true" : "false"));
+            if (params.mergeAreaText !== undefined) parts.push("mergeAreaText:" + (params.mergeAreaText ? "true" : "false"));
             if (params.count !== undefined) parts.push("count:" + parseInt(params.count, 10));
             if (params.chars !== undefined) parts.push('chars:decodeURIComponent("' + encodeURIComponent(params.chars) + '")');
             if (params.text !== undefined) parts.push('text:decodeURIComponent("' + encodeURIComponent(params.text) + '")');
@@ -3188,14 +3296,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             var btnSplitKeepStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
             btnSplitKeepStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitKeepStyle);
             btnSplitKeepStyle.onClick = function () {
-                executeAction("splitByCharKeepStyle", { group: isAltPressed() });
+                executeAction("splitByCharKeepStyle", { group: isAltPressed(), mergeAreaText: chkMergeAreaText.value });
             };
 
             var btnSplitIgnoreStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitIgnoreStyle));
             btnSplitIgnoreStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitIgnoreStyle);
             btnSplitIgnoreStyle.onClick = function () {
-                executeAction("splitByCharIgnoreStyle", { group: isAltPressed() });
+                executeAction("splitByCharIgnoreStyle", { group: isAltPressed(), mergeAreaText: chkMergeAreaText.value });
             };
+
+            var chkMergeAreaText = panelSplitByChar.add("checkbox", undefined, getLabel(LABELS.checkbox.mergeAreaText));
+            chkMergeAreaText.helpTip = getLabel(LABELS.tooltip.mergeAreaText);
 
             /* 連結 */
             var panelConcat = addPanel(splitConcatColumn, getLabel(LABELS.panel.concat), ["center", "center"]);
