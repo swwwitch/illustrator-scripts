@@ -165,6 +165,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Runs release compound path, unite, expand appearance a…](readme-en/PathUnite.md)
 - [Runs release compound path, unite, expand appearance, …](readme-en/PathUniteOffsetTool.md)
 - [Converts the selected rectangle into an arc through th…](readme-en/RectangleToArc.md)
+- [Edit the corner radius of rounded rectangles](readme-en/EditCornerRadius.md)
 
 
 ## Artwork and files
