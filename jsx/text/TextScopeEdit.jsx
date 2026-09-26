@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md"; /* README (English) */
@@ -119,6 +119,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         },
         checkbox: {
             mergeDuplicates: { ja: "同じ内容を一括編集", en: "Edit Identical Text Together" },
+            selectedOnly: { ja: "選択しているテキストのみ", en: "Selected Text Only" },
             wholeDocument: { ja: "アートボード外も対象", en: "Include Outside Artboards" },
             includeCommentLayers: { ja: "「//」ではじまるレイヤー", en: "Layers Starting with //" },
             includeLocked: { ja: "ロックされたテキスト", en: "Locked Text" },
@@ -162,6 +163,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             mergeDuplicates: {
                 ja: "同じ内容のテキストを一覧の1行にまとめ、\n編集をそのすべてに反映します",
                 en: "Lists identical text as one row and applies\nthe edit to every copy"
+            },
+            selectedOnly: {
+                ja: "編集を、起動時に選択していたテキストにだけ反映します\n（シンボル内のテキストは、インスタンスを選択していたときだけ）",
+                en: "Applies the edit only to the text selected when the script started\n(text in a symbol only when one of its instances was selected)"
             },
             sortPosition: {
                 ja: "上から下へ並べ、ほぼ同じ高さのものは\n左から右へ並べます",
@@ -1022,6 +1027,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
+     * 選択しているテキストフレームとシンボルインスタンスを集める（グループ内も含む。文字を選択中ならそのストーリーのフレーム）
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {{frames: TextFrame[], symbolItems: SymbolItem[]}} 選択中のテキストフレームとシンボルインスタンス
+     */
+    function collectSelectedTextItems(doc) {
+        var selectedItems = { frames: [], symbolItems: [] };
+        var selection = doc.selection;
+        if (!selection) return selectedItems;
+        if (selection.typename === "TextRange") {
+            var storyFrames = selection.story.textFrames;
+            for (var j = 0; j < storyFrames.length; j++) {
+                selectedItems.frames.push(storyFrames[j]);
+            }
+            return selectedItems;
+        }
+        var items = toItemArray(selection);
+        for (var i = 0; i < items.length; i++) {
+            collectItemsOfType(items[i], "TextFrame", selectedItems.frames);
+            collectItemsOfType(items[i], "SymbolItem", selectedItems.symbolItems);
+        }
+        return selectedItems;
+    }
+
+    /**
      * 作業レイヤーを作って処理を実行し、終わったら作業レイヤーを消して選択とアクティブレイヤーを戻す
      * @param {Document} doc - 対象のドキュメント
      * @param {Function} work - (workLayer) を受け取る処理
@@ -1492,8 +1521,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
         var updateButtonRow = textColumn.add("group");
         updateButtonRow.orientation = "row";
-        updateButtonRow.alignment = ["right", "top"];
-        updateButtonRow.alignChildren = ["right", "center"];
+        updateButtonRow.alignment = ["fill", "top"];
+        updateButtonRow.alignChildren = ["left", "center"];
+        dialogControls.cbSelectedOnly = addCheckbox(updateButtonRow, "selectedOnly", false);
+
+        var spacer = updateButtonRow.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
         dialogControls.btnUpdateText = updateButtonRow.add("button", undefined, getLabel("button.updateText"));
         dialogControls.btnUpdateText.helpTip = getLabel("tooltip.updateText");
     }
@@ -1863,6 +1898,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     // =========================================
 
     /**
+     * 選択していたテキストフレームだけを残す
+     * @param {TextFrame[]} textFrames - 編集対象のテキストフレーム
+     * @param {TextFrame[]} selectedFrames - 選択していたテキストフレーム
+     * @returns {TextFrame[]} 選択していたものだけの配列
+     */
+    function filterSelectedFrames(textFrames, selectedFrames) {
+        var filteredFrames = [];
+        for (var i = 0; i < textFrames.length; i++) {
+            if (indexOfItem(selectedFrames, textFrames[i]) >= 0) filteredFrames.push(textFrames[i]);
+        }
+        return filteredFrames;
+    }
+
+    /**
+     * シンボルのインスタンスを選択していたかを返す（書き換えでシンボルが差し替わるので、その都度インスタンスから引く）
+     * @param {Symbol} symbol - 調べるシンボル
+     * @param {SymbolItem[]} selectedSymbolItems - 選択していたシンボルインスタンス
+     * @returns {boolean} 選択していたインスタンスがあれば true
+     */
+    function isSymbolSelected(symbol, selectedSymbolItems) {
+        for (var i = 0; i < selectedSymbolItems.length; i++) {
+            try {
+                if (selectedSymbolItems[i].symbol === symbol) return true;
+            } catch (removedError) { }
+        }
+        return false;
+    }
+
+    /**
      * 編集の対象を切り替え、編集欄にその内容を出す
      * @param {Object} editSession - 編集の状態
      * @param {Object|null} listRow - editSession.listRows の要素（{ kind: "frame" | "symbol", index | entry, contents }）または null
@@ -1874,7 +1938,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * 選択中の行のテキストに編集を反映する（まとめているときは同じ内容の全フレームへ。変えていなければ何もしない）
+     * 選択中の行のテキストに編集を反映する（まとめているときは同じ内容の全フレームへ。
+     * ［選択しているテキストのみ］のときは選択していたものだけ。変えていなければ何もしない）
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
@@ -1885,8 +1950,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var newText = toFrameText(dialogControls.textEditBox.text);
         if (newText === editTarget.contents) return;
         var keepFormat = dialogControls.cbKeepFormat.value;
+        var selectedOnly = dialogControls.cbSelectedOnly.value;
 
         if (editTarget.kind === 'symbol') {
+            if (selectedOnly && !isSymbolSelected(editTarget.entry.symbol, editSession.selectedItems.symbolItems)) return;
             if (!replaceSymbolText(editSession.doc, editTarget.entry, newText, keepFormat)) {
                 alert(getLabel('alert.symbolUpdateFailed'));
             }
@@ -1894,6 +1961,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         }
 
         var targetFrames = editSession.duplicateMap[editTarget.index] || [editSession.textFrameList[editTarget.index]];
+        if (selectedOnly) targetFrames = filterSelectedFrames(targetFrames, editSession.selectedItems.frames);
         for (var i = 0; i < targetFrames.length; i++) {
             replaceTextContents(targetFrames[i], newText, keepFormat);
         }
@@ -2128,6 +2196,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var editSession = {
             doc: app.activeDocument,
             dialogControls: null,
+            selectedItems: null,      /* 起動時に選択していたテキストとシンボルインスタンス / Text and symbol instances selected at launch */
             textFrameList: [],        /* 一覧に並ぶテキストフレーム / Text frames listed */
             duplicateMap: [],         /* 行ごとの同じ内容の全フレーム / All frames with the same contents per row */
             symbolEntries: [],        /* シンボル内のテキスト / Text in symbols */
@@ -2136,7 +2205,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             allSymbolEntries: [],     /* フォント名タブ用の、ドキュメント全体のシンボル内テキスト / Symbol text across the document for the font tab */
             editTarget: null          /* 編集の対象（listRows の要素）/ Current edit target (an element of listRows) */
         };
+        editSession.selectedItems = collectSelectedTextItems(editSession.doc);
         editSession.dialogControls = buildDialog();
+        /* 選択が無ければ選べない。あれば最初からオン / Unavailable without a selection; on from the start when there is one */
+        var hasSelectedText = editSession.selectedItems.frames.length > 0 || editSession.selectedItems.symbolItems.length > 0;
+        editSession.dialogControls.cbSelectedOnly.value = hasSelectedText;
+        editSession.dialogControls.cbSelectedOnly.enabled = hasSelectedText;
         bindEditEvents(editSession);
         bindScopeEvents(editSession);
         bindInfoTabEvents(editSession);
