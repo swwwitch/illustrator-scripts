@@ -64,11 +64,13 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Keyboard
 
+The up/down buttons to the left of each number field work the same way as the arrow keys.
+
 | Key | Action |
 | --- | --- |
-| Up / Down | Change a number field by 1 |
-| Shift + Up / Down | Snap to multiples of ten |
-| Option + Up / Down | Change by 0.1 |
+| Up / Down (click) | Step to the next whole number (1.5 → 2, 2 → 3) |
+| Shift + Up / Down (Shift-click) | Snap to the next multiple of ten (232 → 240) |
+| Option + Up / Down (Option-click) | Change by 0.1 (by 1 for Ridges and Segments) |
 
 ### Notes
 
@@ -84,6 +86,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
+- v1.2.0 (20260927) : Added stepper buttons to the left of the number fields. The arrow keys now share the steppers' logic, Up / Down moves to the next whole number (1.5 → 2) and Shift + Up / Down to the next multiple of ten
 - v1.1.0 (20260927) : The cut-edge shape radio buttons are now icon buttons that show each shape
 - v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now laid out in two rows of two
 - v1.0.7 (20260923) : Added the size along the cut edge (width when cutting top and bottom, height when cutting left and right) to the Mask shape panel. Renamed the Rise (straight) style to Straight, dropped the Warp style label and put Flag, Rise and Straight in one row. Reviewed the UI wording: the title is now Trim with Break Lines, the Trim panel is now Cut edge and the cap option None is now Butt; tooltips were rewritten to match the actual behavior and added to the panels, the styles and the row labels

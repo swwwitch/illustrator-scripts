@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -154,6 +154,15 @@ var FIELD_CHARACTERS      = 4;   /* 数値入力欄の文字数 */
 var BUTTON_ROW_TOP_MARGIN = 8;   /* ボタンエリアの上余白 */
 var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
 
+// =========================================
+// ステップボタン / Stepper buttons
+// =========================================
+var STEPPER_BUTTON_WIDTH   = 20;  /* ∧∨ボタンの幅 / button width */
+var STEPPER_BUTTON_HEIGHT  = 11;  /* ∧∨ボタン1つの高さ（2つ重ねた全体の高さは22） / button height (22 for the pair) */
+var STEPPER_CORNER_RADIUS  = 2;   /* 枠の角丸の半径（ScriptUIは円弧を描けないため短い線分で近似） / corner radius, approximated with segments */
+var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリック・shift＋↑↓でそろえる倍数 / Shift snaps to multiples of this */
+var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の増減量 / Option step */
+
 (function () {
 
     /**
@@ -279,7 +288,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             breakLinePanel: {
                 ja: "切り口に沿って引く線を設定します。",
                 en: "Sets up the lines drawn along the cut edge."
-            }
+            },
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger:   { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -395,18 +414,235 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @param {string} defaultText - 初期値の表示
      * @param {string} [unitText] - 欄の右に置く単位の表記
      * @param {number} [labelWidth] - 項目名の幅（省略時は LABEL_WIDTH）
-     * @returns {{row: Group, field: EditText}} 追加した行と入力欄
+     * @returns {{row: Group, field: EditText}} 追加した行と入力欄（∧∨は field.stepperGroup で参照できる）
      */
     function addNumberFieldRow(parentGroup, labelPath, tooltipPath, defaultText, unitText, labelWidth) {
         var fieldRow = addFieldRow(parentGroup);
         addRowLabel(fieldRow, labelPath, labelWidth, tooltipPath);
 
-        var numberField = fieldRow.add("edittext", undefined, defaultText);
+        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        var stepperFieldGroup = fieldRow.add("group");
+        stepperFieldGroup.orientation = "row";
+        stepperFieldGroup.alignChildren = ["left", "center"];
+        stepperFieldGroup.spacing = 0;
+        stepperFieldGroup.margins = 0;
+
+        var stepperGroup = addStepper(stepperFieldGroup);
+        var numberField = stepperFieldGroup.add("edittext", undefined, defaultText);
         numberField.characters = FIELD_CHARACTERS;
         numberField.helpTip = getLabel(tooltipPath);
+        numberField.stepperGroup = stepperGroup;
 
         if (unitText) fieldRow.add("statictext", undefined, unitText);
         return { row: fieldRow, field: numberField };
+    }
+
+    /**
+     * 行の有効／無効を切り替え、行内の∧∨を描き直す（自作描画は自動でディムにならないため）
+     * @param {Group} fieldRow - addNumberFieldRow() などで作った行
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setRowEnabled(fieldRow, isEnabled) {
+        if (fieldRow.enabled === isEnabled) return;
+        fieldRow.enabled = isEnabled;
+        redrawSteppersIn(fieldRow);
+    }
+
+    /**
+     * コントロール以下にある∧∨ボタンをすべて描き直す
+     * @param {Object} container - 行やグループ
+     * @returns {void}
+     */
+    function redrawSteppersIn(container) {
+        if (!container.children) return;
+        for (var childIndex = 0; childIndex < container.children.length; childIndex++) {
+            var child = container.children[childIndex];
+            if (child.isStepperButton) redrawGroup(child);
+            else redrawSteppersIn(child);
+        }
+    }
+
+    // =========================================
+    // ステップボタン / Stepper buttons
+    // =========================================
+
+    /* UIがダークテーマかどうか（取得できなければ明るいUI扱い） / whether the UI is dark */
+    var STEPPER_UI_DARK = (function () {
+        try {
+            return app.preferences.getRealPreference("uiBrightness") <= 0.5;
+        } catch (e) {
+            return false;
+        }
+    })();
+    /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる
+       colors are translucent overlays so they follow every UI brightness level */
+    var STEPPER_FILL_COLOR        = STEPPER_UI_DARK ? [0, 0, 0, 0.10]  : [1, 1, 1, 0.50];  /* 地 / background */
+    var STEPPER_FRAME_COLOR       = STEPPER_UI_DARK ? [1, 1, 1, 0.07]  : [0, 0, 0, 0.10];  /* 枠線 / frame */
+    var STEPPER_PRESSED_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 0.12]  : [0, 0, 0, 0.13];  /* 押下中 / pressed */
+    var STEPPER_CHEVRON_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 1]     : [0, 0, 0, 0.70];  /* 山形の線 / chevron */
+    var STEPPER_DIM_FILL_COLOR    = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [1, 1, 1, 0.30];  /* 無効時の地 / background when disabled */
+    var STEPPER_DIM_FRAME_COLOR   = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [0, 0, 0, 0.05];  /* 無効時の枠線 / frame when disabled */
+    var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0.25];  /* 無効時の山形 / chevron when disabled */
+
+    /**
+     * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する。
+     * 増減の中身は wireNumberField() が stepperGroup.stepBy に入れる
+     * @param {Group} parentGroup - 追加先
+     * @returns {Group} ∧∨をまとめた group
+     */
+    function addStepper(parentGroup) {
+        var stepperGroup = parentGroup.add("group");
+        stepperGroup.orientation = "column";
+        stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
+        stepperGroup.margins = 0;
+        stepperGroup.alignment = ["left", "center"];
+        stepperGroup.stepBy = null;
+
+        stepperGroup.upButton = makeStepperChevronButton(stepperGroup, "up", function () {
+            if (stepperGroup.stepBy) stepperGroup.stepBy(1);
+        });
+        stepperGroup.downButton = makeStepperChevronButton(stepperGroup, "down", function () {
+            if (stepperGroup.stepBy) stepperGroup.stepBy(-1);
+        });
+        return stepperGroup;
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 山形（∧／∨）の極小ボタンを作成する。
+     * 上下2つを隙間なく積んで1つの枠に見えるよう、枠線は外側の辺だけ描き（上ボタンは上側、下ボタンは下側）、
+     * 継ぎ目に線は引かない
+     * @param {Group} parentGroup - 追加先
+     * @param {string} direction - "up" または "down"
+     * @param {Function} onClickFn - クリック時の処理
+     * @returns {Group} ボタンとして使う group
+     */
+    function makeStepperChevronButton(parentGroup, direction, onClickFn) {
+        var buttonWidth = STEPPER_BUTTON_WIDTH;
+        var buttonHeight = STEPPER_BUTTON_HEIGHT;
+        var isUp = (direction === "up");
+        var chevronBox = parentGroup.add("group");
+        chevronBox.margins = 0;
+        chevronBox.spacing = 0;
+        chevronBox.preferredSize = [buttonWidth, buttonHeight];
+        chevronBox.minimumSize = [buttonWidth, buttonHeight];
+        chevronBox.maximumSize = [buttonWidth, buttonHeight];
+        chevronBox.isPressed = false;
+        chevronBox.isStepperButton = true;
+
+        chevronBox.onDraw = function () {
+            var boxGraphics = chevronBox.graphics;
+            /* 自作描画は自動でディムにならないため、行ごと無効なら薄い色で描く / dim when the row is disabled */
+            var isDimmed = !isEnabledInTree(chevronBox);
+
+            /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
+            var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
+            boxGraphics.newPath();
+            boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
+            boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
+
+            drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
+            drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
+        };
+
+        /**
+         * 押下状態を変えて描き直す
+         * @param {boolean} isPressed - 押下中なら true
+         * @returns {void}
+         */
+        function repaint(isPressed) {
+            if (chevronBox.isPressed === isPressed) return;
+            chevronBox.isPressed = isPressed;
+            redrawGroup(chevronBox);
+        }
+        chevronBox.addEventListener("mousedown", function () {
+            if (!isEnabledInTree(chevronBox)) return;
+            repaint(true);
+            if (onClickFn) onClickFn();
+        });
+        chevronBox.addEventListener("mouseup", function () { repaint(false); });
+        /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
+        chevronBox.addEventListener("mouseout", function () { repaint(false); });
+        return chevronBox;
+    }
+
+    /**
+     * 外側の辺だけの枠を描く（角は丸める）。継ぎ目側は開けておき、上下2つで1つの枠に見せる。
+     * ScriptUI は円弧を描けないため、角丸は短い線分で近似する
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - 上のボタンなら true（上側に枠を描く）
+     * @param {number[]} frameColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
+        var frameLeft = 0.5;
+        var frameRight = boxWidth - 0.5;
+        var outerY = isUp ? 0.5 : boxHeight - 0.5;
+        var seamY = isUp ? boxHeight : 0;
+        var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
+        var radius = STEPPER_CORNER_RADIUS;
+        var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
+        var angle, k;
+
+        boxGraphics.newPath();
+        boxGraphics.moveTo(frameLeft, seamY);
+        /* 左の角丸 / left corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
+        }
+        /* 右の角丸 / right corner */
+        for (k = 0; k <= arcSteps; k++) {
+            angle = (Math.PI / 2) * k / arcSteps;
+            boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
+        }
+        boxGraphics.lineTo(frameRight, seamY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
+    }
+
+    /**
+     * 山形（∧／∨）を描く。文字グリフの▲▼は上下で大きさやベースラインが揃わないため、線で描く
+     * @param {ScriptUIGraphics} boxGraphics - 描画先
+     * @param {number} boxWidth - ボタンの幅
+     * @param {number} boxHeight - ボタンの高さ
+     * @param {boolean} isUp - ∧なら true、∨なら false
+     * @param {number[]} chevronColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
+        var centerX = boxWidth / 2;
+        var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
+        var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
+        var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
+        boxGraphics.newPath();
+        boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
+        boxGraphics.lineTo(centerX, centerY + tipOffsetY);
+        boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
+        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} targetGroup - 描き直す group
+     * @returns {void}
+     */
+    function redrawGroup(targetGroup) {
+        targetGroup.hide();
+        targetGroup.show();
     }
 
     /**
@@ -614,51 +850,67 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * ↑↓キーで数値を増減する（Shift：10の倍数、Option：0.1刻み）
-     * @param {EditText} inputField - 対象の入力欄
-     * @param {function} clampValue - 値を許容範囲に収める処理
-     * @param {function} onValueChanged - 値を変えたあとに呼ぶ処理
-     * @returns {void}
+     * 押された修飾キーに応じて、1回分増減した値を返す
+     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は次の整数へ（1.5→2、1.5→1）。
+     * 整数の欄では option を無視して次の整数へ）
+     * @param {number} fieldValue - 元の値
+     * @param {number} direction - 増やすなら 1、減らすなら -1
+     * @param {boolean} isInteger - 整数の欄なら true
+     * @returns {number} 増減した値（範囲は未適用）
      */
-    function changeValueByArrowKey(inputField, clampValue, onValueChanged) {
-        inputField.addEventListener("keydown", function (event) {
-            var direction = 0;
-            if (event.keyName === "Up") direction = 1;
-            else if (event.keyName === "Down") direction = -1;
-            else return;
-
-            var fieldValue = Number(inputField.text);
-            if (isNaN(fieldValue)) return;
-
-            var keyboardState = ScriptUI.environment.keyboardState;
-
-            if (keyboardState.shiftKey) {
-                /* 10の倍数に揃えながら増減 / snap to multiples of ten */
-                fieldValue = (direction > 0) ?
-                    Math.ceil((fieldValue + 1) / 10) * 10 :
-                    Math.floor((fieldValue - 1) / 10) * 10;
-            } else if (keyboardState.altKey) {
-                fieldValue = Math.round((fieldValue + 0.1 * direction) * 10) / 10;
-            } else {
-                fieldValue = Math.round(fieldValue) + direction;
-            }
-
-            inputField.text = String(clampValue(fieldValue));
-            event.preventDefault();
-            if (typeof onValueChanged === "function") onValueChanged();
-        });
+    function computeSteppedValue(fieldValue, direction, isInteger) {
+        var keyboardState = ScriptUI.environment.keyboardState;
+        if (keyboardState.shiftKey) return snapToNextMultiple(fieldValue, STEPPER_SHIFT_MULTIPLE, direction);
+        if (keyboardState.altKey && !isInteger) return fieldValue + direction * STEPPER_OPTION_STEP;
+        return snapToNextMultiple(fieldValue, 1, direction);
     }
 
     /**
-     * 数値欄に↑↓キーと入力確定をつなぐ
-     * @param {EditText} inputField - 対象の入力欄
+     * 値を、指定した方向にある次の倍数へ移す（232→240、下げるときは 232→230、230→220）
+     * @param {number} fieldValue - 元の値
+     * @param {number} multiple - 倍数の単位（例 10）
+     * @param {number} direction - 上げるなら 1、下げるなら -1
+     * @returns {number} 移した値
+     */
+    function snapToNextMultiple(fieldValue, multiple, direction) {
+        if (direction > 0) return Math.floor(fieldValue / multiple) * multiple + multiple;
+        return Math.ceil(fieldValue / multiple) * multiple - multiple;
+    }
+
+    /**
+     * 数値欄に∧∨・↑↓キー・入力確定をつなぐ。∧∨と↑↓キーは同じ増減処理を通す
+     * @param {EditText} inputField - addNumberFieldRow() で作った入力欄
      * @param {function} clampValue - 値を許容範囲に収める処理
      * @param {function} onValueChanged - 値を変えたあとに呼ぶ処理
+     * @param {boolean} [isInteger] - 整数の欄なら true（option の0.1刻みを使わない）
      * @returns {void}
      */
-    function wireNumberField(inputField, clampValue, onValueChanged) {
-        changeValueByArrowKey(inputField, clampValue, onValueChanged);
+    function wireNumberField(inputField, clampValue, onValueChanged, isInteger) {
+        var stepperGroup = inputField.stepperGroup;
+
+        /**
+         * 入力欄の値を1回分増減し、範囲に収めて書き戻す
+         * @param {number} direction - 増やすなら 1、減らすなら -1
+         * @returns {void}
+         */
+        stepperGroup.stepBy = function (direction) {
+            if (!isEnabledInTree(inputField)) return; /* 行が無効の間は動かさない */
+            var fieldValue = Number(inputField.text);
+            if (isNaN(fieldValue)) fieldValue = 0;
+            inputField.text = formatFieldNumber(clampValue(computeSteppedValue(fieldValue, direction, isInteger)));
+            onValueChanged();
+        };
+
+        inputField.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
+            event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+        });
         inputField.onChange = onValueChanged;
+
+        /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+        stepperGroup.upButton.helpTip = getLabel(isInteger ? "tooltip.stepUpInteger" : "tooltip.stepUp");
+        stepperGroup.downButton.helpTip = getLabel(isInteger ? "tooltip.stepDownInteger" : "tooltip.stepDown");
     }
 
     /**
@@ -1878,8 +2130,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         function updateRuleRows() {
             var addRule = ruleControls.addRuleCheckbox.value;
             ruleControls.styleRow.enabled = addRule;
-            ruleControls.segmentsRow.enabled = addRule && ruleControls.dashedRadio.value;
-            ruleControls.widthRow.enabled = addRule;
+            setRowEnabled(ruleControls.segmentsRow, addRule && ruleControls.dashedRadio.value);
+            setRowEnabled(ruleControls.widthRow, addRule);
             ruleControls.capRow.enabled = addRule;
             ruleControls.groupRulesCheckbox.enabled = addRule;
         }
@@ -1890,9 +2142,9 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
          */
         function updateCutEdgeRows() {
             var isJagged = getWarpStyle(cutEdgeControls.getStyleKey()).jagged === true;
-            cutEdgeControls.warpAmountRow.enabled = !isJagged;
-            cutEdgeControls.jaggedSizeRow.enabled = isJagged;
-            cutEdgeControls.jaggedRidgesRow.enabled = isJagged;
+            setRowEnabled(cutEdgeControls.warpAmountRow, !isJagged);
+            setRowEnabled(cutEdgeControls.jaggedSizeRow, isJagged);
+            setRowEnabled(cutEdgeControls.jaggedRidgesRow, isJagged);
         }
 
         /**
@@ -1934,9 +2186,9 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         wireNumberField(maskControls.offsetField, clampOffsetValue, onSettingChanged);
         wireNumberField(cutEdgeControls.warpAmountField, clampWarpPercent, onSettingChanged);
         wireNumberField(cutEdgeControls.jaggedSizeField, clampJaggedSize, onSettingChanged);
-        wireNumberField(cutEdgeControls.jaggedRidgesField, clampJaggedRidges, onSettingChanged);
+        wireNumberField(cutEdgeControls.jaggedRidgesField, clampJaggedRidges, onSettingChanged, true);
         wireNumberField(cutEdgeControls.gapField, clampGapValue, onSettingChanged);
-        wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged);
+        wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged, true);
         wireNumberField(ruleControls.widthField, clampRuleWidth, onSettingChanged);
         wireClickControls([ruleControls.addRuleCheckbox]
             .concat(ruleControls.styleRadios)

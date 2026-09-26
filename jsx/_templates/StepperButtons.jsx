@@ -6,13 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 数値入力欄の左に置く、∧∨を縦に並べたスピナーの再利用テンプレートです。
-クリックで増減、shift＋クリックで10の倍数へ移し（232→240）、option＋クリックで0.1ずつ増減します（↑↓キーも同様）。下限・上限と単位表記（「20 mm」など）にも対応します。
+クリックで次の step の倍数へ増減し（1.5→2）、shift＋クリックで10の倍数へ移し（232→240）、option＋クリックで0.1ずつ増減します（↑↓キーも同様）。下限・上限と単位表記（「20 mm」など）にも対応します。
 Illustrator・InDesign のどちらでも使えます。
 
 ### Overview
 
 A reusable template for a spinner with stacked up/down chevrons, placed to the left of a numeric field.
-Click to step, Shift-click to snap to the next multiple of 10 (232 → 240), Option-click to step by 0.1 (arrow keys work the same way); supports minimum/maximum values and unit suffixes such as "20 mm".
+Click to step to the next multiple of the step (1.5 → 2), Shift-click to snap to the next multiple of 10 (232 → 240), Option-click to step by 0.1 (arrow keys work the same way); supports minimum/maximum values and unit suffixes such as "20 mm".
 Works in both Illustrator and InDesign.
 
 */
@@ -21,7 +21,7 @@ Works in both Illustrator and InDesign.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "StepperButtons";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -55,7 +55,9 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
     //      整数・0以上（間隔の数など）  … integer: true, min: 0
     //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）
+    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
+    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
+    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
     // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
     // 6. この欄に changeValueByArrowKey() を付けない（↑↓キーが二重に効く）
     // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
@@ -195,7 +197,7 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
          */
         function stepBy(direction) {
             var numberInput = getNumberInput();
-            if (!numberInput.enabled) return; /* 入力欄が無効の間は動かさない */
+            if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
             var value = parseFloat(numberInput.text);
             if (isNaN(value)) value = 0;
             writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
@@ -230,8 +232,8 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     // -----------------------------------------
     /**
      * 押された修飾キーに応じて、1回分増減した値を返す
-     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step ずつ。
-     * 整数の欄では option を無視して step ずつ）
+     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step の倍数へ（1.5→2、1.5→1）。
+     * 整数の欄では option を無視して step の倍数へ）
      * @param {number} value - 元の値
      * @param {number} direction - 増やすなら 1、減らすなら -1
      * @param {Object} stepOptions - step（通常の増減量。省略時は 1）/ integer
@@ -241,7 +243,7 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
         var keyState = ScriptUI.environment.keyboardState;
         if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
         if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
-        return value + direction * (stepOptions.step || 1);
+        return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
     }
 
     /**
@@ -324,12 +326,13 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
         chevronBox.minimumSize = [buttonWidth, buttonHeight];
         chevronBox.maximumSize = [buttonWidth, buttonHeight];
         chevronBox.isPressed = false;
+        chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
 
         chevronBox.onDraw = function () {
             var boxGraphics = chevronBox.graphics;
             /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
                Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
-            var isDimmed = !chevronBox.enabled || !chevronBox.parent.enabled;
+            var isDimmed = !isStepperEnabledInTree(chevronBox);
 
             /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
             var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
@@ -352,6 +355,7 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
             redrawStepperGroup(chevronBox);
         }
         chevronBox.addEventListener("mousedown", function () {
+            if (!isStepperEnabledInTree(chevronBox)) return;
             repaint(true);
             if (onClickFn) onClickFn();
         });
@@ -416,6 +420,32 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
         boxGraphics.lineTo(centerX, centerY + tipOffsetY);
         boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
         boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isStepperEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コンテナ以下にある∧∨ボタンをすべて描き直す。行やパネルの enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - 行・グループ・パネルなど
+     * @returns {void}
+     */
+    function redrawSteppersIn(container) {
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            var child = container.children[i];
+            if (child.isStepperButton) redrawStepperGroup(child);
+            else redrawSteppersIn(child);
+        }
     }
 
     /**
