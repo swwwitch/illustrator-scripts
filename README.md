@@ -48,7 +48,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [入力したテキストを、インストールされているフォントで表示](readme-ja/FontSampler.md)
 - [和文・かな・欧文のフォントを指定して合成フォントを作成](readme-ja/CompositeFontMaker.md)
 - [合成フォントを構成フォントに置き換え](readme-ja/DeCompositeFontMaker.md)
-- [選択テキストのフォントを一つ上のウェイトに切り替え](readme-ja/FontWeightUp.md)
+- [選択テキストのフォントを一つ上／下のウェイトに切り替え](readme-ja/FontWeightUp.md)
 - [似ているフォントのウェイトを見本で見比べて適用](readme-ja/FontWeightPicker.md)
 
 

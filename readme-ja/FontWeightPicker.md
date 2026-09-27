@@ -11,7 +11,7 @@
 ### 概要
 
 - 選択しているテキストのフォントと、名前が似ているファミリーのウェイトを一覧表示し、見本を見比べながら選んだフォントを適用する Illustrator スクリプト
-- すぐに一つ上のウェイトにするときは [FontWeightUp](FontWeightUp.md) を使います
+- すぐに一つ上／下のウェイトにするときは [FontWeightUp / FontWeightDown](FontWeightUp.md) を使います
 
 <img alt="フォントとウェイトを選択ダイアログの外観" src="../png/ss-896-1072-144-20260928-062907.png" width="50%" />
 

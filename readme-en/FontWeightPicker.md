@@ -11,7 +11,7 @@
 ### Overview
 
 - An Illustrator script that lists the weights of the selected text's font and of families with similar names, and applies the font you choose while you compare samples
-- To step up one weight right away, use [FontWeightUp](FontWeightUp.md)
+- To step up or down one weight right away, use [FontWeightUp / FontWeightDown](FontWeightUp.md)
 
 <img alt="The font and weight dialog" src="../png/ss-896-1072-144-20260928-062907.png" width="50%" />
 
