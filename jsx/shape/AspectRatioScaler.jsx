@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "session"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -28,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRati
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -1223,6 +1224,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         orientationAnchorRow.alignment = ["center", "top"];
         orientationAnchorRow.spacing = ORIENT_ANCHOR_GAP;
         dialogControls.orientationGroup = addOrientationButtons(orientationAnchorRow, LABELS.tooltip.portrait, LABELS.tooltip.landscape);
+        /* addRowGroup() の top を上書きして、9軸と天地中央をそろえる / Override the top alignment to center vertically with the 9-axis widget */
+        dialogControls.orientationGroup.alignment = ["left", "center"];
         dialogControls.anchorWidget = addAnchorWidget(orientationAnchorRow, LABELS.tooltip.anchor);
     }
 
@@ -1808,34 +1811,121 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         dialogControls.heightRow.inputMode = null;
     }
 
+    /* #targetengine 下の $.global は Illustrator の起動中は残るので、OK したときの設定をここに控える
+       $.global survives while Illustrator runs under #targetengine; the settings at OK live here */
+    var SAVED_STATE_KEY = "__AspectRatioScaler_State";
+
     /**
-     * 各コントロールを初期値にする。開いたときと［リセット］の両方で使い、［元の比率］で元の大きさに戻す
-     * （幅・高さの欄はプレビューから書き直されるので触らない）
+     * 初期値の設定を返す（開いたとき前回の値が無ければ、および［リセット］で使う）
+     * @returns {Object} 設定（captureDialogState() と同じ形）
+     */
+    function getDefaultDialogState() {
+        return {
+            ratio: "original",
+            customWidth: DEFAULT_CUSTOM_RATIO_WIDTH,
+            customHeight: DEFAULT_CUSTOM_RATIO_HEIGHT,
+            alignToPixel: DEFAULT_ALIGN_TO_PIXEL_GRID,
+            addArtboard: false,
+            portrait: false,
+            anchorIndex: DEFAULT_ANCHOR_INDEX,
+            basis: "vertical"
+        };
+    }
+
+    /**
+     * 比率のラジオと、控えるときの名前の対応を返す
      * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {Object} 名前 → ラジオ
+     */
+    function getRatioRadioMap(dialogControls) {
+        return {
+            original: dialogControls.ratioOriginalRadio,
+            "16x9": dialogControls.ratio16x9Radio,
+            square: dialogControls.ratioSquareRadio,
+            a4: dialogControls.ratioA4Radio,
+            custom: dialogControls.ratioCustomRadio
+        };
+    }
+
+    /**
+     * 固定する辺のラジオと、控えるときの名前の対応を返す
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {Object} 名前 → ラジオ
+     */
+    function getBasisRadioMap(dialogControls) {
+        return {
+            none: dialogControls.basisNoneRadio,
+            horizontal: dialogControls.basisHorizontalRadio,
+            vertical: dialogControls.basisVerticalRadio
+        };
+    }
+
+    /**
+     * ラジオの組のうち選ばれている名前を返す
+     * @param {Object} radioMap - 名前 → ラジオ
+     * @returns {string|null} 名前。どれも選ばれていなければ null
+     */
+    function getSelectedRadioName(radioMap) {
+        for (var name in radioMap) {
+            if (radioMap.hasOwnProperty(name) && radioMap[name].value) return name;
+        }
+        return null;
+    }
+
+    /**
+     * ラジオの組を、名前のものだけ選んだ状態にする（知らない名前なら何もしない）
+     * @param {Object} radioMap - 名前 → ラジオ
+     * @param {string} selectedName - 選ぶラジオの名前
      * @returns {void}
      */
-    function resetDialogControls(dialogControls) {
-        dialogControls.ratioOriginalRadio.value = true;
-        dialogControls.ratio16x9Radio.value = false;
-        dialogControls.ratioSquareRadio.value = false;
-        dialogControls.ratioA4Radio.value = false;
-        dialogControls.ratioCustomRadio.value = false;
-        dialogControls.customWidthField.text = DEFAULT_CUSTOM_RATIO_WIDTH;
-        dialogControls.customHeightField.text = DEFAULT_CUSTOM_RATIO_HEIGHT;
-        dialogControls.alignToPixelCheckbox.value = DEFAULT_ALIGN_TO_PIXEL_GRID;
-        dialogControls.addArtboardCheckbox.value = false;
+    function selectRadioByName(radioMap, selectedName) {
+        if (!radioMap.hasOwnProperty(selectedName)) return;
+        for (var name in radioMap) {
+            if (radioMap.hasOwnProperty(name)) radioMap[name].value = (name === selectedName);
+        }
+    }
+
+    /**
+     * ダイアログの設定を控える形で読む（幅・高さの入力は対象ごとに違うので控えない）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {Object} 設定
+     */
+    function captureDialogState(dialogControls) {
+        return {
+            ratio: getSelectedRadioName(getRatioRadioMap(dialogControls)),
+            customWidth: dialogControls.customWidthField.text,
+            customHeight: dialogControls.customHeightField.text,
+            alignToPixel: dialogControls.alignToPixelCheckbox.value,
+            addArtboard: dialogControls.addArtboardCheckbox.value,
+            portrait: dialogControls.orientationGroup.portraitButton.isSelected,
+            anchorIndex: dialogControls.anchorWidget.anchorIndex,
+            basis: getSelectedRadioName(getBasisRadioMap(dialogControls))
+        };
+    }
+
+    /**
+     * 各コントロールに設定を書き込み、幅・高さの入力をやめる
+     * （幅・高さの欄はプレビューから書き直されるので触らない）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @param {Object} dialogState - getDefaultDialogState() か captureDialogState() の戻り値
+     * @returns {void}
+     */
+    function applyDialogState(dialogControls, dialogState) {
+        selectRadioByName(getRatioRadioMap(dialogControls), dialogState.ratio);
+        dialogControls.customWidthField.text = dialogState.customWidth;
+        dialogControls.customHeightField.text = dialogState.customHeight;
+        dialogControls.alignToPixelCheckbox.value = dialogState.alignToPixel;
+        dialogControls.addArtboardCheckbox.value = dialogState.addArtboard;
 
         var orientationGroup = dialogControls.orientationGroup;
-        orientationGroup.portraitButton.isSelected = false;
-        orientationGroup.landscapeButton.isSelected = true;
+        orientationGroup.portraitButton.isSelected = dialogState.portrait;
+        orientationGroup.landscapeButton.isSelected = !dialogState.portrait;
         redrawControl(orientationGroup.portraitButton);
         redrawControl(orientationGroup.landscapeButton);
-        dialogControls.anchorWidget.anchorIndex = DEFAULT_ANCHOR_INDEX;
+        dialogControls.anchorWidget.anchorIndex = dialogState.anchorIndex;
         redrawControl(dialogControls.anchorWidget);
 
-        dialogControls.basisNoneRadio.value = false;
-        dialogControls.basisHorizontalRadio.value = true;
-        dialogControls.basisVerticalRadio.value = false;
+        selectRadioByName(getBasisRadioMap(dialogControls), dialogState.basis);
         clearSizeInputs(dialogControls);
     }
 
@@ -1859,7 +1949,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
         var dialogControls = createDialog();
 
-        resetDialogControls(dialogControls);
+        /* 前回 OK したときの設定で開く / Open with the settings from the last OK */
+        applyDialogState(dialogControls, $.global[SAVED_STATE_KEY] || getDefaultDialogState());
 
         var preview = hasSelection
             ? createPreviewFromSelection(selectedItems)
@@ -1870,7 +1961,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         refreshPreview(dialogControls, preview);
 
         dialogControls.btnReset.onClick = function () {
-            resetDialogControls(dialogControls);
+            applyDialogState(dialogControls, getDefaultDialogState());
             refreshPreview(dialogControls, preview);
         };
 
@@ -1878,6 +1969,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             cancelPreview(selectedItems, preview);
             return;
         }
+        $.global[SAVED_STATE_KEY] = captureDialogState(dialogControls);
 
         if (hasSelection) {
             commitToOriginals(doc, selectedItems, preview, dialogControls);
