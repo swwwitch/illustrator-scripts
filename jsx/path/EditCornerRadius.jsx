@@ -13,7 +13,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCorner
 
 ### 注意
 
-水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。選択が対象のときは、グループの中身は直接選択してください。
+水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。辺に吹き出しの口などが付いた長方形と、複合パスの中の長方形も対象です。複合シェイプの中の長方形は、ダイレクト選択したときだけ対象です（いずれも「角を丸くする」効果の計測・変換は除く）。選択が対象のときは、グループの中身は直接選択してください。
 
 ### Overview
 
@@ -25,7 +25,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCorner
 
 ### Notes
 
-Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. When the target is the selection, select the contents of groups directly.
+Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. Rectangles with a callout tail or similar on a side, and rectangles inside compound paths, are included. Rectangles inside compound shapes are included only when selected directly (none of these get Round Corners effect measurement or conversion). When the target is the selection, select the contents of groups directly.
 
 */
 
@@ -33,10 +33,10 @@ Only rectangles (rounded or not) aligned to the horizontal and vertical axes are
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "EditCornerRadius";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCornerRadius.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCornerRadius.md"; /* README (English) */
@@ -71,6 +71,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 直線とみなす接線の角度（ラジアン）/ Tangent angle treated as straight (radians) */
     var MIN_ARC_ANGLE = 0.001;
+
+    /* 向きの比較の許容値（単位ベクトルの成分）/ Tolerance for comparing directions (unit vector components) */
+    var DIRECTION_TOLERANCE = 0.001;
+
+    /* 対象として調べるパスのアンカー数の上限 / Maximum anchor count of paths to examine */
+    var MAX_POINT_COUNT = 32;
 
     /* 90° の円弧をベジェで近似するときのハンドル長の係数 / Handle length ratio for a 90-degree Bezier arc */
     var ARC_HANDLE_RATIO = 0.5522847498;
@@ -610,28 +616,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             artboard: {
-                ja: "現在のアートボードに一部でも重なる長方形が対象です。グループの中も含みます（ロック・非表示は除く）",
-                en: "Rectangles that overlap the current artboard, including those inside groups (locked or hidden ones are skipped)"
+                ja: "現在のアートボードに一部でも重なる長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
+                en: "Rectangles (including callout shapes) that overlap the current artboard, including those inside groups and compound paths (locked or hidden ones are skipped)"
             },
             document: {
-                ja: "ドキュメント内のすべての長方形が対象です。グループの中も含みます（ロック・非表示は除く）",
-                en: "All rectangles in the document, including those inside groups (locked or hidden ones are skipped)"
+                ja: "ドキュメント内のすべての長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
+                en: "All rectangles (including callout shapes) in the document, including those inside groups and compound paths (locked or hidden ones are skipped)"
             },
             radiusField: {
-                ja: "短辺の半分を超える値は、短辺の半分に制限されます。↑↓で増減（Shift：10、Option：0.1）",
-                en: "Values over half the shorter side are limited to half of it. Up/Down to change (Shift: 10, Option: 0.1)"
+                ja: "短辺の半分（吹き出しは口の付け根まで）を超える値は、そこまでに制限されます。↑↓で増減（Shift：10、Option：0.1）",
+                en: "Values over half the shorter side (or the distance to a callout tail) are limited to it. Up/Down to change (Shift: 10, Option: 0.1)"
             },
             keepZeroRadii: {
                 ja: "オンのときは角丸の無い角を角のまま残します",
                 en: "When on, corners without rounding stay square"
             },
             includeEffect: {
-                ja: "オンのときは「角を丸くする」効果で角丸になった長方形も対象にし、効果を付け直します。付け直すとほかの効果は外れます（塗り・線・不透明度は残ります）",
-                en: "When on, rectangles rounded by the Round Corners effect are included and the effect is reapplied. Other effects are removed (fill, stroke and opacity are kept)"
+                ja: "オンのときは「角を丸くする」効果で角丸になった長方形も対象にし、効果を付け直します。付け直すとほかの効果は外れます（塗り・線・不透明度は残ります）。吹き出し形状・複合パス・複合シェイプの中は対象外",
+                en: "When on, rectangles rounded by the Round Corners effect are included and the effect is reapplied. Other effects are removed (fill, stroke and opacity are kept). Not for callout shapes or paths in compound paths or compound shapes"
             },
             convertToEffect: {
-                ja: "オンのときは、4つの角がすべて角丸の長方形を角のない長方形に戻し、「角を丸くする」効果で角丸を付けます",
-                en: "When on, rectangles with all four corners rounded are made square and rounded with the Round Corners effect"
+                ja: "オンのときは、4つの角がすべて角丸の長方形を角のない長方形に戻し、「角を丸くする」効果で角丸を付けます。吹き出し形状・複合パス・複合シェイプの中は対象外",
+                en: "When on, rectangles with all four corners rounded are made square and rounded with the Round Corners effect. Not for callout shapes or paths in compound paths or compound shapes"
+            },
+            skippedCount: {
+                ja: "水平・垂直の長方形（吹き出し形状・複合パスの中を含む）のみ変更します。複合シェイプの中はダイレクト選択してください",
+                en: "Only axis-aligned rectangles (including callout shapes and those in compound paths) are changed. Select rectangles in compound shapes directly"
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -646,8 +656,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         status: {
             skippedCount: {
-                ja: "対象外のオブジェクト：{count} 個（水平・垂直の長方形のみ変更します）",
-                en: "Skipped objects: {count} (only axis-aligned rectangles are changed)"
+                ja: "対象外のオブジェクト：{count} 個",
+                en: "Skipped objects: {count}"
             }
         },
         button: {
@@ -741,33 +751,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * パスの 4 隅の角丸半径を求める
-     * 弦の中点がバウンディングボックス中心のどちら側にあるかで隅を判定し、曲線の無い隅は 0 とする
-     * @param {PathItem} pathItem - 対象パス
-     * @returns {number[]} [左上, 右上, 右下, 左下] の半径（pt）
-     */
-    function getCornerRadii(pathItem) {
-        var bounds = pathItem.geometricBounds; /* [左, 上, 右, 下] / [left, top, right, bottom] */
-        var centerX = (bounds[0] + bounds[2]) / 2;
-        var centerY = (bounds[1] + bounds[3]) / 2;
-        var cornerRadii = [0, 0, 0, 0];
-        var pathPoints = pathItem.pathPoints;
-
-        for (var i = 0; i < pathPoints.length; i++) {
-            var startPoint = pathPoints[i];
-            var endPoint = pathPoints[(i + 1) % pathPoints.length];
-            var radius = getSegmentRadius(startPoint, endPoint);
-            if (radius === null) continue;
-
-            var isTop = (startPoint.anchor[1] + endPoint.anchor[1]) / 2 > centerY;
-            var isLeft = (startPoint.anchor[0] + endPoint.anchor[0]) / 2 < centerX;
-            var cornerIndex = isTop ? (isLeft ? 0 : 1) : (isLeft ? 3 : 2);
-            cornerRadii[cornerIndex] = radius;
-        }
-        return cornerRadii;
-    }
-
-    /**
      * 角丸のある角の半径の平均を返す（角丸が 1 つも無ければ 0）
      * @param {Object[]} measurements - measureCorners() の戻り値の配列
      * @returns {number} 平均の半径（pt）
@@ -809,43 +792,297 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ベクトルが水平または垂直か（長さ 0 も可）を返す
-     * @param {number[]} fromPoint - 始点 [x, y]
-     * @param {number[]} toPoint - 終点 [x, y]
-     * @returns {boolean} 軸に沿っていれば true
+     * パスのポイントを { anchor, leftDirection, rightDirection } の配列に読み出す（DOM の読み取りを 1 回で済ませる）
+     * @param {PathPoints} pathPoints - パスのポイント
+     * @returns {Object[]} ポイントの配列
      */
-    function isAxisAligned(fromPoint, toPoint) {
-        return Math.abs(toPoint[0] - fromPoint[0]) < GEOMETRY_TOLERANCE ||
-            Math.abs(toPoint[1] - fromPoint[1]) < GEOMETRY_TOLERANCE;
+    function readPointSpecs(pathPoints) {
+        var pointSpecs = [];
+        for (var i = 0; i < pathPoints.length; i++) {
+            pointSpecs.push({
+                anchor: pathPoints[i].anchor,
+                leftDirection: pathPoints[i].leftDirection,
+                rightDirection: pathPoints[i].rightDirection
+            });
+        }
+        return pointSpecs;
     }
 
     /**
-     * 水平・垂直に置かれた長方形（角丸を含む）のパスかを判定する
-     * すべてのアンカーがバウンディングボックスの辺上にあり、ハンドルと直線セグメントが軸に沿っていること
+     * 2 つのベクトルの内積を返す
+     * @param {number[]} vectorA - [x, y]
+     * @param {number[]} vectorB - [x, y]
+     * @returns {number} 内積
+     */
+    function dotProduct(vectorA, vectorB) {
+        return vectorA[0] * vectorB[0] + vectorA[1] * vectorB[1];
+    }
+
+    /**
+     * 2 つのベクトルの外積（z 成分）を返す
+     * @param {number[]} vectorA - [x, y]
+     * @param {number[]} vectorB - [x, y]
+     * @returns {number} 外積
+     */
+    function crossProduct(vectorA, vectorB) {
+        return vectorA[0] * vectorB[1] - vectorA[1] * vectorB[0];
+    }
+
+    /**
+     * 単位ベクトルが水平または垂直かを返す
+     * @param {number[]} direction - 単位ベクトル
+     * @returns {boolean} 軸に沿っていれば true
+     */
+    function isAxisDirection(direction) {
+        return Math.abs(direction[0]) < DIRECTION_TOLERANCE || Math.abs(direction[1]) < DIRECTION_TOLERANCE;
+    }
+
+    /**
+     * セグメントが指定の向きの直線か（終点とハンドルが、始点を通る向きの直線上にあるか）を返す
+     * 角度ではなく直線からの距離で判定する（長い辺でわずかに外れたアンカーを取りこぼさない）
+     * @param {Object} startSpec - 始点のポイント
+     * @param {Object} endSpec - 終点のポイント
+     * @param {number[]} direction - 向きの単位ベクトル
+     * @returns {boolean} 直線なら true
+     */
+    function isStraightAlong(startSpec, endSpec, direction) {
+        var startAnchor = startSpec.anchor;
+        var chord = [endSpec.anchor[0] - startAnchor[0], endSpec.anchor[1] - startAnchor[1]];
+        if (dotProduct(chord, direction) < GEOMETRY_TOLERANCE) return false;
+        var checkedPoints = [endSpec.anchor, startSpec.rightDirection, endSpec.leftDirection];
+        for (var i = 0; i < checkedPoints.length; i++) {
+            var offset = [checkedPoints[i][0] - startAnchor[0], checkedPoints[i][1] - startAnchor[1]];
+            if (Math.abs(crossProduct(offset, direction)) > GEOMETRY_TOLERANCE) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 曲線セグメントが水平・垂直の辺をつなぐ 90° の角丸かを調べる
+     * @param {Object} startSpec - 始点のポイント
+     * @param {Object} endSpec - 終点のポイント
+     * @returns {Object|null} 角の情報（角丸でなければ null）
+     */
+    function findArcCorner(startSpec, endSpec) {
+        var radius = getSegmentRadius(startSpec, endSpec);
+        if (radius === null) return null;
+        var startAnchor = startSpec.anchor;
+        var endAnchor = endSpec.anchor;
+        /* 接線の求め方は getSegmentRadius() と同じ / Tangents are taken as in getSegmentRadius() */
+        var inDirection = getUnitVector(startAnchor, startSpec.rightDirection) || getUnitVector(startAnchor, endSpec.leftDirection);
+        var outDirection = getUnitVector(endSpec.leftDirection, endAnchor) || getUnitVector(startSpec.rightDirection, endAnchor);
+        if (!isAxisDirection(inDirection) || !isAxisDirection(outDirection)) return null;
+        if (Math.abs(dotProduct(inDirection, outDirection)) > DIRECTION_TOLERANCE) return null;
+        /* 2 本の接線の交点が元の角 / The tangent intersection is the original corner */
+        var isHorizontalIn = Math.abs(inDirection[1]) < DIRECTION_TOLERANCE;
+        var vertex = isHorizontalIn ? [endAnchor[0], startAnchor[1]] : [startAnchor[0], endAnchor[1]];
+        return { vertex: vertex, inDirection: inDirection, outDirection: outDirection, radius: radius };
+    }
+
+    /**
+     * アンカーが水平・垂直の辺どうしの直角の角かを調べる
+     * @param {Object} previousSpec - 前のポイント
+     * @param {Object} pointSpec - 調べるポイント
+     * @param {Object} nextSpec - 次のポイント
+     * @returns {Object|null} 角の情報（直角の角でなければ null）
+     */
+    function findSquareCorner(previousSpec, pointSpec, nextSpec) {
+        var inDirection = getUnitVector(previousSpec.anchor, pointSpec.anchor);
+        var outDirection = getUnitVector(pointSpec.anchor, nextSpec.anchor);
+        if (!inDirection || !outDirection) return null;
+        if (!isAxisDirection(inDirection) || !isAxisDirection(outDirection)) return null;
+        if (Math.abs(dotProduct(inDirection, outDirection)) > DIRECTION_TOLERANCE) return null;
+        if (!isStraightAlong(previousSpec, pointSpec, inDirection) || !isStraightAlong(pointSpec, nextSpec, outDirection)) return null;
+        return { vertex: pointSpec.anchor, inDirection: inDirection, outDirection: outDirection, radius: 0 };
+    }
+
+    /**
+     * アンカーの並びが反時計回り（y 上向き）かを返す
+     * @param {Object[]} pointSpecs - readPointSpecs() の戻り値
+     * @returns {boolean} 反時計回りなら true
+     */
+    function isCounterClockwise(pointSpecs) {
+        var signedArea = 0;
+        for (var i = 0; i < pointSpecs.length; i++) {
+            signedArea += crossProduct(pointSpecs[i].anchor, pointSpecs[(i + 1) % pointSpecs.length].anchor);
+        }
+        return signedArea > 0;
+    }
+
+    /**
+     * パスの外向きの角（角丸と直角）をパスの並び順に集める
+     * 吹き出しの口の付け根のように内側へ曲がる角は含めない
+     * @param {Object[]} pointSpecs - readPointSpecs() の戻り値
+     * @returns {Object[]} 角の情報（startIndex・endIndex は角を作るアンカーの番号）
+     */
+    function findCorners(pointSpecs) {
+        var pointCount = pointSpecs.length;
+        var convexTurn = isCounterClockwise(pointSpecs);
+        var corners = [];
+        for (var i = 0; i < pointCount; i++) {
+            var previousSpec = pointSpecs[(i - 1 + pointCount) % pointCount];
+            var nextIndex = (i + 1) % pointCount;
+            var squareCorner = findSquareCorner(previousSpec, pointSpecs[i], pointSpecs[nextIndex]);
+            if (squareCorner && isConvexCorner(squareCorner, convexTurn)) {
+                squareCorner.startIndex = i;
+                squareCorner.endIndex = i;
+                corners.push(squareCorner);
+                continue;
+            }
+            var arcCorner = findArcCorner(pointSpecs[i], pointSpecs[nextIndex]);
+            if (arcCorner && isConvexCorner(arcCorner, convexTurn)) {
+                arcCorner.startIndex = i;
+                arcCorner.endIndex = nextIndex;
+                corners.push(arcCorner);
+            }
+        }
+        return corners;
+    }
+
+    /**
+     * 角がパスの回転と同じ向き（外向き）に曲がっているかを返す
+     * @param {Object} corner - 角の情報
+     * @param {boolean} convexTurn - パスが反時計回りなら true
+     * @returns {boolean} 外向きなら true
+     */
+    function isConvexCorner(corner, convexTurn) {
+        return (crossProduct(corner.inDirection, corner.outDirection) > 0) === convexTurn;
+    }
+
+    /**
+     * 4 つの角に位置（0：左上、1：右上、2：右下、3：左下）を割り当てる
+     * 角が長方形の頂点に並んでいなければ false
+     * @param {Object[]} corners - findCorners() の戻り値（4 つ）
+     * @returns {boolean} 割り当てられたら true
+     */
+    function assignCornerPositions(corners) {
+        var centerX = 0, centerY = 0;
+        for (var i = 0; i < corners.length; i++) {
+            centerX += corners[i].vertex[0] / corners.length;
+            centerY += corners[i].vertex[1] / corners.length;
+        }
+        var vertexByPosition = [];
+        for (var j = 0; j < corners.length; j++) {
+            var vertex = corners[j].vertex;
+            var isTop = vertex[1] > centerY;
+            var isLeft = vertex[0] < centerX;
+            var position = isTop ? (isLeft ? 0 : 1) : (isLeft ? 3 : 2);
+            if (vertexByPosition[position]) return false;
+            vertexByPosition[position] = vertex;
+            corners[j].position = position;
+        }
+        /* 左右の辺が縦に、上下の辺が横にそろうこと / Left and right sides vertical, top and bottom horizontal */
+        return Math.abs(vertexByPosition[0][0] - vertexByPosition[3][0]) < GEOMETRY_TOLERANCE &&
+            Math.abs(vertexByPosition[1][0] - vertexByPosition[2][0]) < GEOMETRY_TOLERANCE &&
+            Math.abs(vertexByPosition[0][1] - vertexByPosition[1][1]) < GEOMETRY_TOLERANCE &&
+            Math.abs(vertexByPosition[3][1] - vertexByPosition[2][1]) < GEOMETRY_TOLERANCE;
+    }
+
+    /**
+     * 隣り合う 2 つの角のあいだの辺を調べ、角丸の上限と残すポイントを求める
+     * 辺の上に一直線に並ぶだけのアンカーは作り直しで除き、吹き出しの口のように辺から外れる部分は残す
+     * @param {Object[]} pointSpecs - readPointSpecs() の戻り値
+     * @param {Object} fromCorner - 辺の始まりの角（outLimit を設定する）
+     * @param {Object} toCorner - 辺の終わりの角（inLimit を設定する）
+     * @returns {Object[]|null} 残すポイント（辺が直線でつながっていなければ null）
+     */
+    function measureEdge(pointSpecs, fromCorner, toCorner) {
+        var pointCount = pointSpecs.length;
+        var edgeDirection = fromCorner.outDirection;
+        if (dotProduct(edgeDirection, toCorner.inDirection) < 1 - DIRECTION_TOLERANCE) return null;
+        var edgeLength = dotProduct([toCorner.vertex[0] - fromCorner.vertex[0], toCorner.vertex[1] - fromCorner.vertex[1]], edgeDirection);
+
+        /* 隣の角丸とアンカーを共有している / Sharing an anchor with the next rounded corner */
+        if (fromCorner.endIndex === toCorner.startIndex) {
+            fromCorner.outLimit = edgeLength / 2;
+            toCorner.inLimit = edgeLength / 2;
+            return [];
+        }
+
+        /* 角から角までのアンカー（両端を含む）/ Anchors from corner to corner, both ends included */
+        var edgeSpecs = [];
+        for (var i = fromCorner.endIndex; ; i = (i + 1) % pointCount) {
+            edgeSpecs.push(pointSpecs[i]);
+            if (i === toCorner.startIndex) break;
+        }
+        /* 両端から辺に沿う直線を進め、外れる手前のアンカーまでを残す範囲にする
+           Walk the straight run from both ends; what lies between is kept */
+        var firstKept = 0;
+        while (firstKept < edgeSpecs.length - 1 && isStraightAlong(edgeSpecs[firstKept], edgeSpecs[firstKept + 1], edgeDirection)) firstKept++;
+        if (firstKept === edgeSpecs.length - 1) {
+            fromCorner.outLimit = edgeLength / 2;
+            toCorner.inLimit = edgeLength / 2;
+            return [];
+        }
+        var lastKept = edgeSpecs.length - 1;
+        while (lastKept > firstKept && isStraightAlong(edgeSpecs[lastKept - 1], edgeSpecs[lastKept], edgeDirection)) lastKept--;
+        /* 角のすぐ先で辺から外れるものは対象外 / Shapes leaving the edge right at a corner are not supported */
+        if (firstKept === 0 || lastKept === edgeSpecs.length - 1) return null;
+
+        var firstAnchor = edgeSpecs[firstKept].anchor;
+        var lastAnchor = edgeSpecs[lastKept].anchor;
+        fromCorner.outLimit = Math.max(0, dotProduct([firstAnchor[0] - fromCorner.vertex[0], firstAnchor[1] - fromCorner.vertex[1]], edgeDirection));
+        toCorner.inLimit = Math.max(0, dotProduct([toCorner.vertex[0] - lastAnchor[0], toCorner.vertex[1] - lastAnchor[1]], edgeDirection));
+        return edgeSpecs.slice(firstKept, lastKept + 1);
+    }
+
+    /**
+     * 角丸を変更できる形（水平・垂直の長方形、または辺に吹き出しの口などが付いた長方形）かを調べる
+     * @param {PageItem} pageItem - 調べるオブジェクト
+     * @returns {Object|null} { corners, keptSpecs, hasOffEdgePoints }（対象外なら null）
+     *   corners はパスの並び順、keptSpecs[i] は corners[i] と次の角のあいだに残すポイント
+     */
+    function analyzeCornerShape(pageItem) {
+        if (pageItem.typename !== "PathItem" || !pageItem.closed) return null;
+        var pathPoints = pageItem.pathPoints;
+        if (pathPoints.length < 4 || pathPoints.length > MAX_POINT_COUNT) return null;
+
+        /* 重なったアンカーは長さ 0 の辺になるので、先にまとめる / Merge overlapping anchors first (they make zero-length sides) */
+        var pointSpecs = mergeCoincidentPoints(readPointSpecs(pathPoints));
+        var corners = findCorners(pointSpecs);
+        if (corners.length !== 4 || !assignCornerPositions(corners)) return null;
+
+        var keptSpecs = [];
+        var hasOffEdgePoints = false;
+        for (var i = 0; i < corners.length; i++) {
+            var edgeSpecs = measureEdge(pointSpecs, corners[i], corners[(i + 1) % corners.length]);
+            if (!edgeSpecs) return null;
+            if (edgeSpecs.length > 0) hasOffEdgePoints = true;
+            keptSpecs.push(edgeSpecs);
+        }
+        return { corners: corners, keptSpecs: keptSpecs, hasOffEdgePoints: hasOffEdgePoints };
+    }
+
+    /**
+     * 角丸を変更できる形かを返す
      * @param {PageItem} pageItem - 判定するオブジェクト
      * @returns {boolean} 対象なら true
      */
-    function isAxisAlignedRectangle(pageItem) {
-        if (pageItem.typename !== "PathItem" || !pageItem.closed) return false;
-        var pathPoints = pageItem.pathPoints;
-        if (pathPoints.length < 4 || pathPoints.length > 8) return false;
+    function isRectangularShape(pageItem) {
+        return analyzeCornerShape(pageItem) !== null;
+    }
 
-        var bounds = pageItem.geometricBounds;
-        for (var i = 0; i < pathPoints.length; i++) {
-            var pathPoint = pathPoints[i];
-            var anchor = pathPoint.anchor;
-            var isOnEdge = Math.abs(anchor[0] - bounds[0]) < GEOMETRY_TOLERANCE ||
-                Math.abs(anchor[0] - bounds[2]) < GEOMETRY_TOLERANCE ||
-                Math.abs(anchor[1] - bounds[1]) < GEOMETRY_TOLERANCE ||
-                Math.abs(anchor[1] - bounds[3]) < GEOMETRY_TOLERANCE;
-            if (!isOnEdge) return false;
-            if (!isAxisAligned(anchor, pathPoint.leftDirection) || !isAxisAligned(anchor, pathPoint.rightDirection)) return false;
-
-            /* 回転した長方形は直線セグメントが斜めになる / Rotated rectangles have diagonal straight segments */
-            var nextPoint = pathPoints[(i + 1) % pathPoints.length];
-            if (getSegmentRadius(pathPoint, nextPoint) === null && !isAxisAligned(anchor, nextPoint.anchor)) return false;
+    /**
+     * 形の 4 隅の角丸半径を返す
+     * @param {Object} cornerShape - analyzeCornerShape() の戻り値
+     * @returns {number[]} [左上, 右上, 右下, 左下] の半径（pt）
+     */
+    function getShapeRadii(cornerShape) {
+        var cornerRadii = [0, 0, 0, 0];
+        for (var i = 0; i < cornerShape.corners.length; i++) {
+            cornerRadii[cornerShape.corners[i].position] = cornerShape.corners[i].radius;
         }
-        return true;
+        return cornerRadii;
+    }
+
+    /**
+     * パスの 4 隅の角丸半径を求める（曲線の無い隅は 0）
+     * @param {PathItem} pathItem - 対象パス（isRectangularShape() が true のもの）
+     * @returns {number[]} [左上, 右上, 右下, 左下] の半径（pt）
+     */
+    function getCornerRadii(pathItem) {
+        var cornerShape = analyzeCornerShape(pathItem);
+        return cornerShape ? getShapeRadii(cornerShape) : [0, 0, 0, 0];
     }
 
     // =========================================
@@ -882,7 +1119,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ドキュメント内の編集できる長方形を集める（グループの中も含む。複合パスの一部とガイドは除く）
+     * 複合パスの一部かを返す
+     * @param {PathItem} pathItem - 判定するパス
+     * @returns {boolean} 複合パスの一部なら true
+     */
+    function isCompoundMember(pathItem) {
+        return pathItem.parent.typename === "CompoundPathItem";
+    }
+
+    /**
+     * 複合シェイプの中のパスかを返す（ダイレクト選択したときだけ選択に入り、PluginItem の中のグループに属する）
+     * @param {PathItem} pathItem - 判定するパス
+     * @returns {boolean} 複合シェイプの中のパスなら true
+     */
+    function isCompoundShapeMember(pathItem) {
+        var parentItem = pathItem.parent;
+        return parentItem.typename === "GroupItem" && parentItem.parent.typename === "PluginItem";
+    }
+
+    /**
+     * 選択から対象の長方形を集める（複合パスは中の長方形を対象にする）
+     * @param {PageItem[]} selectedItems - 選択
+     * @returns {{targetPaths: PathItem[], skippedCount: number}} 対象パスと、対象を含まない選択の数
+     */
+    function collectSelectedRectangles(selectedItems) {
+        var targetPaths = [];
+        var skippedCount = 0;
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            var memberPaths = (selectedItem.typename === "CompoundPathItem") ? selectedItem.pathItems : [selectedItem];
+            var foundCount = 0;
+            for (var j = 0; j < memberPaths.length; j++) {
+                if (!isRectangularShape(memberPaths[j])) continue;
+                targetPaths.push(memberPaths[j]);
+                foundCount++;
+            }
+            if (foundCount === 0) skippedCount++;
+        }
+        return { targetPaths: targetPaths, skippedCount: skippedCount };
+    }
+
+    /**
+     * ドキュメント内の編集できる長方形を集める（グループ・複合パスの中も含む。ガイドは除く）
      * @param {Document} doc - 対象ドキュメント
      * @param {number[]} [areaBounds] - 指定したときは、この範囲に重なるものだけ
      * @returns {PathItem[]} 対象パス
@@ -892,8 +1170,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pathItems = doc.pathItems;
         for (var i = 0; i < pathItems.length; i++) {
             var pathItem = pathItems[i];
-            if (pathItem.guides || pathItem.parent.typename === "CompoundPathItem") continue;
-            if (!isAxisAlignedRectangle(pathItem) || !isEditable(pathItem)) continue;
+            if (pathItem.guides) continue;
+            if (!isRectangularShape(pathItem) || !isEditable(pathItem)) continue;
             if (areaBounds && !boundsOverlap(pathItem.geometricBounds, areaBounds)) continue;
             targetPaths.push(pathItem);
         }
@@ -905,88 +1183,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * アンカーの並びが反時計回り（y 上向き）かを返す
-     * @param {PathItem} pathItem - 対象パス
-     * @returns {boolean} 反時計回りなら true
+     * 角を指定の半径にしたポイントを返す（半径は隣の角・吹き出しの口までの距離で制限する）
+     * @param {Object} corner - analyzeCornerShape() の角
+     * @param {number} requestedRadius - 半径（pt）
+     * @returns {Object[]} { anchor, leftDirection, rightDirection } の配列（1 つか 2 つ）
      */
-    function isCounterClockwise(pathItem) {
-        var pathPoints = pathItem.pathPoints;
-        var signedArea = 0;
-        for (var i = 0; i < pathPoints.length; i++) {
-            var currentAnchor = pathPoints[i].anchor;
-            var nextAnchor = pathPoints[(i + 1) % pathPoints.length].anchor;
-            signedArea += currentAnchor[0] * nextAnchor[1] - nextAnchor[0] * currentAnchor[1];
+    function buildCornerPoints(corner, requestedRadius) {
+        var vertex = corner.vertex;
+        var incoming = corner.inDirection;
+        var outgoing = corner.outDirection;
+        var radius = Math.min(Math.max(requestedRadius, 0), corner.inLimit, corner.outLimit);
+        if (radius < GEOMETRY_TOLERANCE) {
+            return [{ anchor: vertex, leftDirection: vertex, rightDirection: vertex }];
         }
-        return signedArea > 0;
+        var handleLength = radius * ARC_HANDLE_RATIO;
+        var arcStart = [vertex[0] - incoming[0] * radius, vertex[1] - incoming[1] * radius];
+        var arcEnd = [vertex[0] + outgoing[0] * radius, vertex[1] + outgoing[1] * radius];
+        return [{
+            anchor: arcStart,
+            leftDirection: arcStart,
+            rightDirection: [arcStart[0] + incoming[0] * handleLength, arcStart[1] + incoming[1] * handleLength]
+        }, {
+            anchor: arcEnd,
+            leftDirection: [arcEnd[0] - outgoing[0] * handleLength, arcEnd[1] - outgoing[1] * handleLength],
+            rightDirection: arcEnd
+        }];
     }
 
     /**
-     * 角丸長方形のアンカーとハンドルを時計回りで生成する
-     * @param {number[]} bounds - [左, 上, 右, 下]
-     * @param {number[]} cornerRadii - [左上, 右上, 右下, 左下] の半径（pt）
-     * @returns {Object[]} { anchor, leftDirection, rightDirection } の配列
-     */
-    function buildRoundedRectPoints(bounds, cornerRadii) {
-        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
-        var maxRadius = getMaxRadius(bounds);
-        /* 各隅の角と、そこへ入る向き・出る向き（時計回り）/ Corner, incoming and outgoing directions (clockwise) */
-        var cornerSpecs = [
-            { corner: [left, top], incoming: [0, 1], outgoing: [1, 0] },
-            { corner: [right, top], incoming: [1, 0], outgoing: [0, -1] },
-            { corner: [right, bottom], incoming: [0, -1], outgoing: [-1, 0] },
-            { corner: [left, bottom], incoming: [-1, 0], outgoing: [0, 1] }
-        ];
-        var pointSpecs = [];
-
-        for (var i = 0; i < cornerSpecs.length; i++) {
-            var cornerPoint = cornerSpecs[i].corner;
-            var incoming = cornerSpecs[i].incoming;
-            var outgoing = cornerSpecs[i].outgoing;
-            /* 短辺の半分を超えないようにする / Limit to half the shorter side */
-            var radius = Math.min(Math.max(cornerRadii[i], 0), maxRadius);
-
-            if (radius < GEOMETRY_TOLERANCE) {
-                pointSpecs.push({ anchor: cornerPoint, leftDirection: cornerPoint, rightDirection: cornerPoint });
-                continue;
-            }
-            var handleLength = radius * ARC_HANDLE_RATIO;
-            var arcStart = [cornerPoint[0] - incoming[0] * radius, cornerPoint[1] - incoming[1] * radius];
-            var arcEnd = [cornerPoint[0] + outgoing[0] * radius, cornerPoint[1] + outgoing[1] * radius];
-            pointSpecs.push({
-                anchor: arcStart,
-                leftDirection: arcStart,
-                rightDirection: [arcStart[0] + incoming[0] * handleLength, arcStart[1] + incoming[1] * handleLength]
-            });
-            pointSpecs.push({
-                anchor: arcEnd,
-                leftDirection: [arcEnd[0] - outgoing[0] * handleLength, arcEnd[1] - outgoing[1] * handleLength],
-                rightDirection: arcEnd
-            });
-        }
-        return pointSpecs;
-    }
-
-    /**
-     * ポイントの並びを逆順にし、左右のハンドルを入れ替える
-     * @param {Object[]} pointSpecs - buildRoundedRectPoints() の戻り値
-     * @returns {Object[]} 逆順のポイント
-     */
-    function reversePointSpecs(pointSpecs) {
-        var reversedSpecs = [];
-        for (var i = pointSpecs.length - 1; i >= 0; i--) {
-            reversedSpecs.push({
-                anchor: pointSpecs[i].anchor,
-                leftDirection: pointSpecs[i].rightDirection,
-                rightDirection: pointSpecs[i].leftDirection
-            });
-        }
-        return reversedSpecs;
-    }
-
-    /**
-     * 同じ位置に重なった隣り合うアンカーを 1 つにまとめる（半径が短辺の半分に達したときに生じる）
+     * 同じ位置に重なった隣り合うアンカーを 1 つにまとめる（半径が上限に達したときに生じる）
      * まとめたアンカーは、前のポイントの左ハンドルと後ろのポイントの右ハンドルを持つ
-     * @param {Object[]} pointSpecs - buildRoundedRectPoints() の戻り値
+     * @param {Object[]} pointSpecs - { anchor, leftDirection, rightDirection } の配列
      * @returns {Object[]} 重なりを除いたポイント
      */
     function mergeCoincidentPoints(pointSpecs) {
@@ -1009,14 +1236,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * パスを指定の角丸半径の長方形に作り直す（元のアンカーの向きは保つ）
-     * @param {PathItem} pathItem - 対象パス
+     * パスの角を指定の半径に作り直す（アンカーの並びと、吹き出しの口など辺から外れる部分は元のまま）
+     * @param {PathItem} pathItem - 対象パス（isRectangularShape() が true のもの）
      * @param {number[]} cornerRadii - [左上, 右上, 右下, 左下] の半径（pt）
      * @returns {void}
      */
     function rebuildPath(pathItem, cornerRadii) {
-        var pointSpecs = mergeCoincidentPoints(buildRoundedRectPoints(pathItem.geometricBounds, cornerRadii));
-        if (isCounterClockwise(pathItem)) pointSpecs = reversePointSpecs(pointSpecs);
+        var cornerShape = analyzeCornerShape(pathItem);
+        if (!cornerShape) return;
+        var pointSpecs = [];
+        for (var c = 0; c < cornerShape.corners.length; c++) {
+            var corner = cornerShape.corners[c];
+            pointSpecs = pointSpecs.concat(buildCornerPoints(corner, cornerRadii[corner.position]), cornerShape.keptSpecs[c]);
+        }
+        pointSpecs = mergeCoincidentPoints(pointSpecs);
 
         var anchors = [];
         for (var i = 0; i < pointSpecs.length; i++) anchors.push(pointSpecs[i].anchor);
@@ -1033,7 +1266,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 角丸を指定の半径にする
      * - 効果で角丸になっている長方形：アピアランスを消去して効果を付け直す
      * - ［「効果」に変換］がオンで 4 つの角が角丸の長方形：角のない長方形に戻して効果を付ける
-     * - それ以外：パスを作り直す（［0の半径は0のままに］なら角丸の無い角は残す）
+     * - それ以外（複合パス・複合シェイプの一部、吹き出しなどは常にこちら）：パスを作り直す（［0の半径は0のままに］なら角丸の無い角は残す）
      * @param {PathItem} pathItem - 対象パス
      * @param {Object} measurement - measureCorners() の戻り値
      * @param {number} cornerRadius - 半径（pt）
@@ -1050,7 +1283,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         /* ［0の半径は0のままに］がオンのときは変換しない（ダイアログでもディム）
            No conversion while "keep zero radii" is on (dimmed in the dialog) */
-        if (cornerOptions.convertToEffect && !cornerOptions.keepZeroRadii &&
+        if (cornerOptions.convertToEffect && !cornerOptions.keepZeroRadii && measurement.canUseEffect &&
             countRoundedCorners(measurement.pathRadii) === measurement.pathRadii.length) {
             rebuildPath(pathItem, [0, 0, 0, 0]);
             applyRoundCornersEffect(pathItem, cornerRadius);
@@ -1313,7 +1546,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var measureCopy = pathItem.duplicate();
         var expandedItem = runMenuCommand(measureCopy, "expandStyle");
         var measuredPath = findFirstPathItem(expandedItem);
-        var cornerRadii = (measuredPath && isAxisAlignedRectangle(measuredPath))
+        var cornerRadii = (measuredPath && isRectangularShape(measuredPath))
             ? getCornerRadii(measuredPath) : getCornerRadii(pathItem);
         if (expandedItem) {
             expandedItem.remove();
@@ -1325,44 +1558,113 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * パスの角丸を計測する
-     * 効果を含めるときは、パスに角丸が無いものだけ複製を分割して効果の角丸を調べる
+     * 効果を含めるときは、パスに角丸が無いものだけ複製を分割して効果の角丸を調べる（複合パス・複合シェイプの一部、吹き出しなどは除く）
      * @param {PathItem} pathItem - 対象パス（非表示でないこと）
      * @param {boolean} includeEffect - true なら「角を丸くする」効果も調べる
-     * @returns {{pathRadii: number[], effectRadii: number[]|null}} パスの半径と、効果による半径（無ければ null）
+     * @returns {{pathRadii: number[], effectRadii: number[]|null, canUseEffect: boolean}}
+     *   パスの半径、効果による半径（無ければ null）、「角を丸くする」効果を扱えるか
      */
     function measureCorners(pathItem, includeEffect) {
-        var pathRadii = getCornerRadii(pathItem);
+        var cornerShape = analyzeCornerShape(pathItem);
+        var pathRadii = getShapeRadii(cornerShape);
+        /* 効果は複合パス・複合シェイプ全体に付き、吹き出しの口まで丸めるので、いずれも効果では扱わない
+           Effects apply to the whole compound path or shape and would round a callout tail too */
+        var canUseEffect = !isCompoundMember(pathItem) && !isCompoundShapeMember(pathItem) && !cornerShape.hasOffEdgePoints;
         var effectRadii = null;
-        if (includeEffect && countRoundedCorners(pathRadii) === 0) {
+        if (includeEffect && canUseEffect && countRoundedCorners(pathRadii) === 0) {
             var expandedRadii = getEffectiveCornerRadii(pathItem);
             if (countRoundedCorners(expandedRadii) > 0) effectRadii = expandedRadii;
         }
-        return { pathRadii: pathRadii, effectRadii: effectRadii };
+        return { pathRadii: pathRadii, effectRadii: effectRadii, canUseEffect: canUseEffect };
     }
 
     // =========================================
     // プレビュー / Preview
     // =========================================
 
-    /* プレビュー用の複製と、一時的に隠した元のパス / Preview copies and temporarily hidden originals */
+    /* プレビュー用の複製と、一時的に隠した元のパス（複合パスの一部は複合パスごと）
+       Preview copies and temporarily hidden originals (whole compound paths for their members) */
     var previewCopies = [];
     var hiddenOriginals = [];
 
+    /* 直接書き換えた複合シェイプの中のパスと、書き換え前のポイント
+       Compound-shape members edited in place, with their points before the edit */
+    var editedOriginals = [];
+
     /**
-     * プレビューを消して、隠した元のパスを表示に戻す
+     * パスのポイントを種類ごと控える
+     * @param {PathItem} pathItem - 対象パス
+     * @returns {Object[]} { anchor, leftDirection, rightDirection, pointType } の配列
+     */
+    function capturePathPoints(pathItem) {
+        var savedPoints = [];
+        for (var i = 0; i < pathItem.pathPoints.length; i++) {
+            var pathPoint = pathItem.pathPoints[i];
+            savedPoints.push({
+                anchor: pathPoint.anchor,
+                leftDirection: pathPoint.leftDirection,
+                rightDirection: pathPoint.rightDirection,
+                pointType: pathPoint.pointType
+            });
+        }
+        return savedPoints;
+    }
+
+    /**
+     * 控えたポイントをパスに書き戻す
+     * @param {PathItem} pathItem - 対象パス
+     * @param {Object[]} savedPoints - capturePathPoints() の戻り値
+     * @returns {void}
+     */
+    function restorePathPoints(pathItem, savedPoints) {
+        var anchors = [];
+        for (var i = 0; i < savedPoints.length; i++) anchors.push(savedPoints[i].anchor);
+        pathItem.setEntirePath(anchors);
+        for (var j = 0; j < savedPoints.length; j++) {
+            var pathPoint = pathItem.pathPoints[j];
+            /* 種類を先に入れる（後から入れるとハンドルが動くことがある）/ Set the type first; setting it later may move handles */
+            pathPoint.pointType = savedPoints[j].pointType;
+            pathPoint.leftDirection = savedPoints[j].leftDirection;
+            pathPoint.rightDirection = savedPoints[j].rightDirection;
+        }
+    }
+
+    /**
+     * プレビューを消して、隠した元のパスを表示に戻し、直接書き換えたパスを元に戻す
      * @returns {void}
      */
     function clearPreview() {
         /* 複製の削除より先に元を表示に戻す（途中で止まっても元が隠れたままにならない）
            Unhide the originals first so they never stay hidden if a removal fails */
         for (var j = 0; j < hiddenOriginals.length; j++) hiddenOriginals[j].hidden = false;
+        /* 同じパスを重ねて控えたときも最初の状態に戻るよう、後から順に戻す
+           Restore in reverse so a path captured twice ends at its first state */
+        for (var k = editedOriginals.length - 1; k >= 0; k--) {
+            restorePathPoints(editedOriginals[k].pathItem, editedOriginals[k].savedPoints);
+        }
         for (var i = 0; i < previewCopies.length; i++) previewCopies[i].remove();
         previewCopies = [];
         hiddenOriginals = [];
+        editedOriginals = [];
+    }
+
+    /**
+     * 複合パスの中でのパスの番号を返す
+     * @param {CompoundPathItem} compoundPath - 複合パス
+     * @param {PathItem} pathItem - 中のパス
+     * @returns {number} 番号（見つからなければ -1）
+     */
+    function getMemberIndex(compoundPath, pathItem) {
+        for (var i = 0; i < compoundPath.pathItems.length; i++) {
+            if (compoundPath.pathItems[i] === pathItem) return i;
+        }
+        return -1;
     }
 
     /**
      * 複製に半径を適用してプレビューを表示する（元のパスは一時的に隠す。前のプレビューは消してから呼ぶ）
+     * 複合パスの一部は、複合パスごと複製して中の同じ番号のパスに適用する
+     * 複合シェイプの中のパスは、複製すると形の一部になるので、元を控えて直接書き換える
      * @param {PathItem[]} targetPaths - 対象パス
      * @param {Object[]} measurements - パスごとの計測結果（targetPaths と同じ並び）
      * @param {number} cornerRadius - 半径（pt）
@@ -1370,12 +1672,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function showPreview(targetPaths, measurements, cornerRadius, cornerOptions) {
+        /* 複製済みの複合パスと、その複製 / Compound paths already copied, and their copies */
+        var copiedCompounds = [];
+        var compoundCopies = [];
         for (var i = 0; i < targetPaths.length; i++) {
-            /* duplicate() は hidden を引き継ぐので、隠す前に複製する / duplicate() inherits hidden, so copy first */
-            var previewCopy = targetPaths[i].duplicate();
-            targetPaths[i].hidden = true;
-            hiddenOriginals.push(targetPaths[i]);
-            previewCopies.push(applyCornerRadius(previewCopy, measurements[i], cornerRadius, cornerOptions));
+            var targetPath = targetPaths[i];
+            if (isCompoundShapeMember(targetPath)) {
+                editedOriginals.push({ pathItem: targetPath, savedPoints: capturePathPoints(targetPath) });
+                applyCornerRadius(targetPath, measurements[i], cornerRadius, cornerOptions);
+                continue;
+            }
+            if (!isCompoundMember(targetPath)) {
+                /* duplicate() は hidden を引き継ぐので、隠す前に複製する / duplicate() inherits hidden, so copy first */
+                var previewCopy = targetPath.duplicate();
+                targetPath.hidden = true;
+                hiddenOriginals.push(targetPath);
+                previewCopies.push(applyCornerRadius(previewCopy, measurements[i], cornerRadius, cornerOptions));
+                continue;
+            }
+            var compoundPath = targetPath.parent;
+            var compoundCopy = null;
+            for (var j = 0; j < copiedCompounds.length; j++) {
+                if (copiedCompounds[j] === compoundPath) compoundCopy = compoundCopies[j];
+            }
+            if (!compoundCopy) {
+                compoundCopy = compoundPath.duplicate();
+                compoundPath.hidden = true;
+                hiddenOriginals.push(compoundPath);
+                previewCopies.push(compoundCopy);
+                copiedCompounds.push(compoundPath);
+                compoundCopies.push(compoundCopy);
+            }
+            var memberIndex = getMemberIndex(compoundPath, targetPath);
+            if (memberIndex >= 0) {
+                applyCornerRadius(compoundCopy.pathItems[memberIndex], measurements[i], cornerRadius, cornerOptions);
+            }
         }
         app.redraw();
     }
@@ -1550,10 +1881,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ［0の半径は0のままに］がオンのあいだは変換できない / Conversion is unavailable while keeping zero radii */
         convertToEffectCheckbox.enabled = !KEEP_ZERO_RADII_DEFAULT;
 
-        /* 対象外の数は「選択したオブジェクトのみ」のときだけ表示 / Skipped count shows only for the selection scope */
+        /* 対象外の数は「選択したオブジェクトのみ」のときだけ表示。選べないときは行ごと作らない（空欄でも幅と高さが残る）
+           Skipped count shows only for the selection scope; omit the row when it is unavailable (an empty text keeps its size) */
         var skippedText = null;
         var skippedLabel = getLabel("status.skippedCount").replace("{count}", skippedCount);
-        if (skippedCount > 0) skippedText = radiusDialog.add("statictext", undefined, skippedLabel);
+        if (hasSelection && skippedCount > 0) {
+            skippedText = radiusDialog.add("statictext", undefined, skippedLabel);
+            skippedText.helpTip = getLabel("tooltip.skippedCount");
+        }
 
         var previewCheckbox = addOptionCheckbox(radiusDialog, "preview", PREVIEW_DEFAULT);
         previewCheckbox.alignment = ["center", "top"];
@@ -1666,10 +2001,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         var initialSelection = doc.selection || [];
 
-        var scopeTargets = { selection: [], artboard: null, document: null };
-        for (var i = 0; i < initialSelection.length; i++) {
-            if (isAxisAlignedRectangle(initialSelection[i])) scopeTargets.selection.push(initialSelection[i]);
-        }
+        var selectedRectangles = collectSelectedRectangles(initialSelection);
+        var scopeTargets = { selection: selectedRectangles.targetPaths, artboard: null, document: null };
 
         /**
          * 対象のパスを返す（アートボード・ドキュメントは初回だけ集める）
@@ -1687,8 +2020,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return scopeTargets[scopeKey];
         }
 
-        var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets,
-            initialSelection.length - scopeTargets.selection.length);
+        var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets, selectedRectangles.skippedCount);
         /* 効果の計測・付け直しで変わる選択を元に戻す / Restore the selection changed by measuring and reapplying */
         var restoredSelection = dialogValues ? applyDialogValues(dialogValues, initialSelection) : initialSelection;
         doc.selection = (restoredSelection.length > 0) ? restoredSelection : null;

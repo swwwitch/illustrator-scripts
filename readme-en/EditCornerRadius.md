@@ -19,7 +19,7 @@
 
 - Values use the ruler units
 - The target starts at "Selected objects only" when something is selected, otherwise at "Current artboard only" ("Selected objects only" is unavailable without a selection)
-- "Current artboard only" and "Entire document" include rectangles inside groups. A rectangle counts as on the artboard when it overlaps it
+- "Current artboard only" and "Entire document" include rectangles inside groups and compound paths. A rectangle counts as on the artboard when it overlaps it
 - "Keep zero radii at zero" (on by default): corners without rounding stay square and only rounded corners get the new radius. Turn it off to set all four corners to the radius
 - The stepper buttons left of the field and the Up/Down arrow keys step to the next whole number (1.5 → 2; Shift: next multiple of 10, Option: 0.1)
 - "Preview" shows the result while you adjust
@@ -37,20 +37,24 @@
 
 ### Notes
 
-- Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, locked or hidden objects, guides and parts of compound paths are left as they are
+- Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, locked or hidden objects, and guides are left as they are
+- Rectangles with a callout tail or similar on a side are included. The tail stays as it is and only the four corners change (the radius is limited to the base of the tail)
+- Rectangles inside compound paths are included (select the compound path to change them). Round Corners effect measurement and conversion are not applied to callout shapes or inside compound paths
+- Rectangles inside compound shapes are included only when selected directly with the Direct Selection tool (not when the whole compound shape is selected, nor with the artboard or document target). While previewing, the original path is edited in place and restored on close. Round Corners effect measurement and conversion are not applied
 - With "Selected objects only", select rectangles inside groups directly, for example with the Direct Selection tool
 - With "Selected objects only", the dialog shows how many selected objects are skipped
 - OK is unavailable when the target has no rectangles
 - The initial radius is the average of the rounded corners (zero radii excluded) in the target chosen when the dialog opens
-- Values over half the shorter side are limited to half of it
+- Values over half the shorter side are limited to half of it (for callout shapes, also to the distance to the base of the tail)
 - With "Include the Round Corners effect" on, each rectangle without rounded path corners is duplicated and expanded to measure it, so many targets take time
 
 ### Update History
 
+- v1.3.0 (2026-09-28): Added support for callout shapes (rectangles with a tail on a side), rectangles inside compound paths, and directly selected rectangles inside compound shapes. Fixed the dialog widening from the skipped-objects text when nothing selected was a target
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (2026-09-26): Merged the radius input into one field so the corners get the same radius; added "Keep zero radii at zero", "Include the Round Corners effect", "Convert to Round Corners effect" and a target switch (selection / current artboard / entire document); the initial radius is now the average of the targets
 - v1.0.0 (2026-09-26): Initial release
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.3.0
