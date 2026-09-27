@@ -1,5 +1,4 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
@@ -8,32 +7,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 内蔵の一覧から項目を選んで、app.executeMenuCommand() / app.selectTool() / app.preferences の get・set のコードを出力します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCommandPrefLookup.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/n0cf4826bf4a7
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMenuCommandsViewer.md
 
 ### Overview
 
 Outputs app.executeMenuCommand() / app.selectTool() / app.preferences get/set code for items selected from the built-in list.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandPrefLookup.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMenuCommandsViewer.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiCommandPrefLookup";          /* スクリプト名 / script name */
+var SCRIPT_NAME     = "AiMenuCommandsViewer";         /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCommandPrefLookup.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandPrefLookup.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹介記事 / article URL */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMenuCommandsViewer.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMenuCommandsViewer.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -41,46 +36,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 (function () {
 
     // =========================================
-    // ユーザー設定 / User Settings
+    // 基本設定 / Settings
     // =========================================
+
+    /* 一覧の1行の形式：タブ1つで「メニュー名」と「コマンド ID」/ Line format: menu name, one tab, command ID */
+    var LINE_PATTERN = /^(?:[^\t]*)\t([^\t]*)$/;
+
+    /* ID がこれに合えばツール（app.selectTool）/ IDs matching this are tools (app.selectTool) */
+    var TOOL_ID_PATTERN = / Tool$/;
+
+    /* 環境設定キーの行の形式：名前・キー・型・値の例・メモ（省略可、改行は \n）をタブで区切る
+       Preference line: name, key, type, sample value and optional memo ("\n" for line breaks) */
+    var PREF_LINE_PATTERN = /^([^\t]*)\t([^\t]+)\t(Boolean|Integer|Real|String)\t([^\t]*)(?:\t([^\t]*))?$/;
 
     /* 種類ラジオボタンの順と初期値 / Kind radio order and default */
     var KIND_KEYS = ["menu", "pref", "tool"];
     var DEFAULT_KIND_INDEX = 0;
 
+    /* 日本語のメニュー名の判定（かな・漢字を含む）/ Japanese menu names contain kana or kanji */
+    var JAPANESE_CHAR_PATTERN = /[\u3040-\u30FF\u3400-\u9FFF\uFF01-\uFF60]/;
+
     /* 言語ラジオボタンの順と初期値 / Language radio order and default */
     var MENU_LANG_KEYS = ["ja", "en"];
     var DEFAULT_MENU_LANG_INDEX = 0;
 
-    /* 名前をコメントで付ける（初期値）/ Add names as comments (default) */
-    var DEFAULT_ADD_COMMENT = false;
-
-    // =========================================
-    // 一覧の書式 / List format
-    // =========================================
-
-    /* メニューコマンド・ツールの行：名前・ID・メモ（省略可、改行は \n）をタブで区切る
-       Menu or tool line: name, ID and optional memo ("\n" for line breaks) */
-    var MENU_LINE_PATTERN = /^([^\t]*)\t([^\t]*)(?:\t([^\t]*))?$/;
-
-    /* 環境設定キーの行：名前・キー・型・値の例・メモ（省略可、改行は \n）をタブで区切る
-       Preference line: name, key, type, sample value and optional memo ("\n" for line breaks) */
-    var PREF_LINE_PATTERN = /^([^\t]*)\t([^\t]+)\t(Boolean|Integer|Real|String)\t([^\t]*)(?:\t([^\t]*))?$/;
-
-    /* ID がこれに合えばツール（app.selectTool）/ IDs matching this are tools (app.selectTool) */
-    var TOOL_ID_PATTERN = / Tool$/;
-
-    /* 日本語の名前の判定（かな・漢字を含む）/ Japanese names contain kana or kanji */
-    var JAPANESE_CHAR_PATTERN = /[\u3040-\u30FF\u3400-\u9FFF\uFF01-\uFF60]/;
-
     /* メニュー階層の区切り / Menu level separator */
     var MENU_LEVEL_SEPARATOR = " > ";
 
-    /* 出力コードの書式（%ID% は ID、%TYPE% は型名、%VALUE% は値の例）/ Output code templates */
+    /* 出力コードの書式（%ID% を置き換える）/ Output code templates (%ID% is replaced) */
     var MENU_COMMAND_TEMPLATE = "app.executeMenuCommand('%ID%');";
     var TOOL_TEMPLATE         = "app.selectTool('%ID%');";
-    var PREF_GET_TEMPLATE     = "app.preferences.get%TYPE%Preference('%ID%');";
-    var PREF_SET_TEMPLATE     = "app.preferences.set%TYPE%Preference('%ID%', %VALUE%);";
+
+    /* 環境設定キーの get / set（%TYPE% は型名、%VALUE% は値の例）/ Preference get/set templates */
+    var PREF_GET_TEMPLATE = "app.preferences.get%TYPE%Preference('%ID%');";
+    var PREF_SET_TEMPLATE = "app.preferences.set%TYPE%Preference('%ID%', %VALUE%);";
+
+    /* メニュー名をコメントで付ける（初期値）/ Add menu names as comments (default) */
+    var DEFAULT_ADD_COMMENT = true;
 
     // =========================================
     // 再調査 / Recheck
@@ -104,9 +96,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     /* 追加候補から外すキー（アクション・ダイアログ履歴・プラグインのファイル一覧など）/ Keys excluded from the candidates */
     var PREF_IGNORE_PATTERN = /^(?:plugin\/Action\/|artnewdialog\/|plugin\/(?:Mixed)?FileList\/|GenAI\/)/;
 
-    /* 再調査の段階（進行状況バー）：ファイルを探す・.kys・環境設定・照合 / Recheck steps for the progress bar */
-    var RECHECK_STEP_COUNT = 4;
-
     // =========================================
     // レイアウト / Layout
     // =========================================
@@ -117,20 +106,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     var NAME_COLUMN_MAX_CHARS = 20;              /* 1列目に出す項目名の最大文字数 / max characters shown in the item column */
     var FILTER_FIELD_WIDTH    = 300;             /* 絞り込み欄の幅 / width of the filter fields */
     var ROW_LABEL_WIDTH       = 90;              /* 行ラベルの幅 / row label width */
-    var CODE_FIELD_HEIGHT     = 56;              /* コード欄（1段ぶん）の高さ / height of each code field */
+    var OUTPUT_FIELD_HEIGHT   = 90;              /* 出力欄の高さ / output field height */
     var MEMO_FIELD_HEIGHT     = 70;              /* メモ欄の高さ / memo field height */
     var BUTTON_ROW_TOP_MARGIN = 10;              /* ボタン列の上余白 / top margin above the button row */
     var RECHECK_RESULT_SIZE   = [620, 420];      /* 再調査の結果欄の寸法 [幅,高さ] / recheck result field size */
-    var PROGRESS_BAR_WIDTH    = 320;             /* 進行状況バーの幅 / progress bar width */
-    var COPY_BUTTON_SIZE      = 22;              /* コピーボタンの一辺 / copy button size */
-
-    /* コピーアイコンの色 [r, g, b, a]（UI の明るさで切り替え）/ Copy icon colors by UI brightness */
-    var COPY_ICON_COLORS = isDarkUI()
-        ? { normal: [0.85, 0.85, 0.85, 1], pressed: [1, 1, 1, 1], dimmed: [0.85, 0.85, 0.85, 0.3] }
-        : { normal: [0.13, 0.19, 0.31, 1], pressed: [0.15, 0.5, 0.92, 1], dimmed: [0.13, 0.19, 0.31, 0.25] };
 
     // =========================================
-    // ローカライズ / Localization
+    // ラベル定義 / Labels
     // =========================================
 
     /**
@@ -145,23 +127,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     var LABELS = {
         dialog: {
-            title:         { ja: "ExtendScript コード辞典", en: "ExtendScript Code Reference" },
-            recheckResult: { ja: "再調査の結果", en: "Recheck Result" },
-            recheckProgress: { ja: "再調査", en: "Recheck" }
+            title: { ja: "ExtendScript コード辞典", en: "ExtendScript Code Reference" }
         },
         fieldLabel: {
-            kind:       { ja: "種類", en: "Kind" },
-            menuLang:   { ja: "言語", en: "Language" },
-            category:   { ja: "カテゴリ", en: "Category" },
-            keyword:    { ja: "キーワード", en: "Keyword" },
-            item:       { ja: "項目", en: "Item" },
-            idOrKey:    { ja: "ID・キー", en: "ID / Key" },
-            itemName:   { ja: "名前", en: "Name" },
-            code:       { ja: "コード", en: "Code" },
-            getCode:    { ja: "get", en: "get" },
-            setCode:    { ja: "set", en: "set" },
-            memo:       { ja: "メモ", en: "Memo" },
-            references: { ja: "照合元", en: "References" }
+            kind:     { ja: "種類", en: "Kind" },
+            menuLang: { ja: "言語", en: "Language" },
+            category: { ja: "カテゴリ", en: "Category" },
+            keyword:  { ja: "キーワード", en: "Keyword" },
+            item:     { ja: "項目", en: "Item" },
+            commandId:{ ja: "ID・キー", en: "ID / Key" },
+            menuPath: { ja: "名前", en: "Name" },
+            memo:     { ja: "メモ", en: "Memo" },
+            code:     { ja: "コード", en: "Code" }
         },
         dropdown: {
             allCategories: { ja: "［すべて］", en: "[All]" },
@@ -176,25 +153,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             en:   { ja: "英語", en: "English" }
         },
         checkbox: {
-            addComment: { ja: "名前をコメントで付ける", en: "Add names as comments" }
+            addComment: { ja: "メニュー名をコメントで付ける", en: "Add menu names as comments" }
         },
         button: {
             close:      { ja: "閉じる", en: "Close" },
-            recheck:    { ja: "再調査", en: "Recheck" },
+            recheck:    { ja: "再調査…", en: "Recheck…" },
             openUrl:    { ja: "開く", en: "Open" },
             openFolder: { ja: "設定フォルダーを開く", en: "Open Settings Folder" },
             saveReport: { ja: "書き出し…", en: "Save…" }
         },
+        recheck: {
+            title:        { ja: "再調査", en: "Recheck" },
+            references:   { ja: "照合元", en: "References" },
+            result:       { ja: "結果", en: "Result" },
+            checkedWith:  { ja: "一覧の照合：Ai ", en: "List checked with: Ai " },
+            running:      { ja: "実行中：Ai ", en: "Running: Ai " },
+            versionDiff:  { ja: "※ バージョンが変わっています。下の候補と照合元を確認し、一覧を更新してください。", en: "* The version has changed. Review the candidates and references below, then update the list." },
+            settingsDir:  { ja: "設定フォルダー：", en: "Settings folder: " },
+            noFolder:     { ja: "（見つかりません）", en: "(not found)" },
+            kysFiles:     { ja: "■ ショートカットファイル（.kys）", en: "■ Keyboard shortcut files (.kys)" },
+            prefFiles:    { ja: "■ 環境設定ファイル", en: "■ Preference files" },
+            noFiles:      { ja: "（ありません。［キーボードショートカット］でセットを保存すると作られます）", en: "(none; saving a set in Keyboard Shortcuts creates one)" },
+            menuMissing:  { ja: "■ 一覧にあるがショートカットファイルに無いメニューコマンド（改名・廃止の候補）", en: "■ Menu commands in the list but not in the shortcut files (renamed/removed?)" },
+            menuNew:      { ja: "■ ショートカットファイルにあって一覧に無いメニューコマンド（追加の候補）", en: "■ Menu commands in the shortcut files but not in the list (to add?)" },
+            toolMissing:  { ja: "■ 一覧にあるがショートカットファイルに無いツール", en: "■ Tools in the list but not in the shortcut files" },
+            toolNew:      { ja: "■ ショートカットファイルにあって一覧に無いツール", en: "■ Tools in the shortcut files but not in the list" },
+            prefNew:      { ja: "■ 環境設定ファイルにあって一覧に無いキー（追加の候補）", en: "■ Keys in the preference files but not in the list (to add?)" },
+            prefTypeDiff: { ja: "■ 型が一覧と食い違うキー", en: "■ Keys whose type differs from the list" },
+            none:         { ja: "（なし）", en: "(none)" },
+            itemUnit:     { ja: "件", en: " items" },
+            note: {
+                ja: "※ ショートカットファイル・環境設定ファイルに無いことは廃止の根拠になりません（ショートカット対象外のコマンドや、一度も変更していない設定は書かれないため）。",
+                en: "* Absence from these files does not prove removal (commands outside the shortcut list and never-changed settings are not written)."
+            }
+        },
         tooltip: {
-            kind: {
-                ja: "メニューコマンドは executeMenuCommand、ツールは selectTool、環境設定は app.preferences の get／set のコードを出します。",
-                en: "Menu commands give executeMenuCommand, tools give selectTool, and preferences give app.preferences get/set code."
-            },
-            menuLang: { ja: "リストに出す名前の言語です。", en: "Language of the names shown in the list." },
-            category: {
-                ja: "メニューの最上位（ファイル、編集…）や環境設定の区分で絞り込みます。",
-                en: "Filters by top-level menu (File, Edit…) or preference section."
-            },
             keyword: {
                 ja: "名前と ID・キーに含まれる文字で絞り込みます（大文字小文字を区別しません）。正規表現も使えます。入力するたびに絞り込みます。",
                 en: "Filters by text contained in the name or ID / key (case-insensitive). Regular expressions are allowed. The list is filtered as you type."
@@ -203,76 +196,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
                 ja: "複数選択すると、選んだ順ではなくリストの順にコードを並べます。",
                 en: "With multiple items selected, the code is listed in list order."
             },
-            code: {
-                ja: "選択した項目のコードです。右のボタンでコピーできます。環境設定では上が get、下が set です。",
-                en: "Code for the selected items. Copy it with the button on the right. For preferences, the upper field is get and the lower is set."
-            },
-            copyCode:   { ja: "この欄のコードをクリップボードにコピー", en: "Copy this code to the clipboard" },
-            addComment: { ja: "各行の末尾に「// 名前」を付けます。", en: "Appends \"// name\" to each line." },
-            memo:       { ja: "値の意味や、反映の条件などの注意点です。", en: "What the values mean and caveats such as when changes take effect." },
             recheck: {
-                ja: "実行中の Illustrator のショートカットファイルと環境設定ファイルを読み、一覧との差分を表示します。バージョンアップ後の一覧の更新に使います。",
-                en: "Reads the shortcut and preference files of the running Illustrator and shows how they differ from the list. Use it to update the list after an upgrade."
+                ja: "実行中の Illustrator のショートカットファイルと環境設定ファイルを読み、一覧との差分を表示します。照合元の URL も開けます。バージョンアップ後の一覧の更新に使います。",
+                en: "Reads the shortcut and preference files of the running Illustrator and shows how they differ from the list. Reference URLs can be opened too. Use it to update the list after an upgrade."
             },
-            references: { ja: "照合元の一覧をブラウザーで開きます。", en: "Opens the reference list in a browser." },
-            saveReport: {
-                ja: "結果と、追加の候補を一覧の書式にした行をテキストに書き出します。Claude Code に渡すと ExtendScript.txt の更新と埋め込み直しに使えます。",
-                en: "Saves the result plus the candidates as lines in the list format. Hand the file to Claude Code to update ExtendScript.txt and re-embed the list."
+            code: {
+                ja: "選択した項目のコードです。全選択してコピーしてください。",
+                en: "Code for the selected items. Select all and copy."
             }
-        },
-        report: {
-            checkedWith: { ja: "一覧の照合：Ai ", en: "List checked with: Ai " },
-            running:     { ja: "実行中：Ai ", en: "Running: Ai " },
-            versionDiff: {
-                ja: "※ バージョンが変わっています。下の候補と照合元を確認し、一覧を更新してください。",
-                en: "* The version has changed. Review the candidates and references below, then update the list."
-            },
-            settingsDir: { ja: "設定フォルダー：", en: "Settings folder: " },
-            noFolder:    { ja: "（見つかりません）", en: "(not found)" },
-            kysFiles:    { ja: "■ ショートカットファイル（.kys）", en: "■ Keyboard shortcut files (.kys)" },
-            prefFiles:   { ja: "■ 環境設定ファイル", en: "■ Preference files" },
-            noFiles: {
-                ja: "（ありません。［キーボードショートカット］でセットを保存すると作られます）",
-                en: "(none; saving a set in Keyboard Shortcuts creates one)"
-            },
-            menuMissing: {
-                ja: "■ 一覧にあるがショートカットファイルに無いメニューコマンド（改名・廃止の候補）",
-                en: "■ Menu commands in the list but not in the shortcut files (renamed/removed?)"
-            },
-            menuNew: {
-                ja: "■ ショートカットファイルにあって一覧に無いメニューコマンド（追加の候補）",
-                en: "■ Menu commands in the shortcut files but not in the list (to add?)"
-            },
-            toolMissing:  { ja: "■ 一覧にあるがショートカットファイルに無いツール", en: "■ Tools in the list but not in the shortcut files" },
-            toolNew:      { ja: "■ ショートカットファイルにあって一覧に無いツール", en: "■ Tools in the shortcut files but not in the list" },
-            prefNew: {
-                ja: "■ 環境設定ファイルにあって一覧に無いキー（追加の候補）",
-                en: "■ Keys in the preference files but not in the list (to add?)"
-            },
-            prefTypeDiff: { ja: "■ 型が一覧と食い違うキー", en: "■ Keys whose type differs from the list" },
-            candidateLines: {
-                ja: "■ 追加の候補（ExtendScript.txt の書式。名前は空）",
-                en: "■ Candidates in the ExtendScript.txt format (names empty)"
-            },
-            handoff: {
-                ja: "※ このファイルを Claude Code に渡し、照合元と突き合わせて ExtendScript.txt を更新・埋め込み直してもらう。",
-                en: "* Hand this file to Claude Code to check it against the references, update ExtendScript.txt and re-embed the list."
-            },
-            none:         { ja: "（なし）", en: "(none)" },
-            note: {
-                ja: "※ ショートカットファイル・環境設定ファイルに無いことは廃止の根拠になりません（ショートカット対象外のコマンドや、一度も変更していない設定は書かれないため）。",
-                en: "* Absence from these files does not prove removal (commands outside the shortcut list and never-changed settings are not written)."
-            }
-        },
-        progress: {
-            findFiles: { ja: "設定ファイルを探しています…", en: "Looking for settings files…" },
-            readKys:   { ja: "ショートカットファイルを読み込み中…", en: "Reading shortcut files…" },
-            readPrefs: { ja: "環境設定ファイルを読み込み中…", en: "Reading preference files…" },
-            comparing: { ja: "一覧と照合しています…", en: "Comparing with the list…" }
-        },
-        alert: {
-            copied:     { ja: "コピーしました。", en: "Copied." },
-            copyFailed: { ja: "クリップボードにコピーできませんでした。", en: "Could not copy to the clipboard." }
         },
         counter: {
             itemUnit: { ja: "件", en: " items" }
@@ -297,39 +228,125 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /**
-     * 文字列を言語別の括弧で囲む（日本語は全角「（）」、英語は半角「 ()」）
-     * @param {string} innerText - 括弧の中の文字列
-     * @returns {string} 括弧付きの文字列
-     */
-    function wrapInParentheses(innerText) {
-        return (uiLang === "ja") ? "（" + innerText + "）" : " (" + innerText + ")";
-    }
-
-    /**
-     * 件数を「1,234件」「1,234 items」の形にする
-     * @param {number} itemCount - 件数
-     * @returns {string} 件数の文字列
-     */
-    function formatItemCount(itemCount) {
-        return String(itemCount).replace(/(\d)(?=(\d\d\d)+$)/g, "$1,") + getLabel(LABELS.counter.itemUnit);
-    }
-
     // =========================================
     // データ / Data
     // =========================================
 
     /**
      * @typedef {Object} CommandEntry
-     * @property {string} itemName - 名前（「ファイル > 開く...」など。空のこともある）
-     * @property {string} commandId - コマンド ID・ツール ID・環境設定キー
+     * @property {string} menuPath - メニュー名（「ファイル > 開く...」など。空のこともある）
+     * @property {string} commandId - コマンド ID
      * @property {string} kind - 種類（"menu" / "pref" / "tool"）
      * @property {string} prefType - 環境設定キーの型（"Boolean" / "Integer" / "Real" / "String"。キー以外は ""）
      * @property {string} prefValue - 環境設定キーの値の例（キー以外は ""）
      * @property {string} memo - 値の説明や注意点（なければ ""）
-     * @property {string} nameLang - 名前の言語（"ja" / "en"。名前が空なら ""＝両方に出す）
+     * @property {string} menuLang - メニュー名の言語（"ja" / "en"。メニュー名が空なら ""＝両方に出す）
      * @property {string} category - 絞り込み用のカテゴリ
      */
+
+    /**
+     * 絞り込み用のカテゴリを決める（メニュー階層の先頭。階層がなければ「ツール」か「その他」）
+     * @param {string} menuPath - メニュー名
+     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
+     * @returns {string} カテゴリ名
+     */
+    function getCategoryName(menuPath, kind) {
+        if (menuPath.indexOf(MENU_LEVEL_SEPARATOR) > 0) {
+            return menuPath.split(MENU_LEVEL_SEPARATOR)[0];
+        }
+        return getLabel((kind === "tool") ? LABELS.dropdown.tools : LABELS.dropdown.others);
+    }
+
+    /**
+     * 一覧の行からコマンドと環境設定キーを取り出す（形式に合わない行・ID が空の行・重複は除く）
+     * @param {string[]} lines - 一覧の行
+     * @returns {CommandEntry[]} コマンドの一覧（元の順）
+     */
+    function parseCommandList(lines) {
+        var seen = {};
+        var entries = [];
+        for (var i = 0; i < lines.length; i++) {
+            var commandEntry = parsePrefLine(lines[i]) || parseMenuLine(lines[i]);
+            if (!commandEntry) {
+                continue;
+            }
+            var entryKey = commandEntry.menuPath + "\t" + commandEntry.commandId;
+            if (seen[entryKey]) {
+                continue;
+            }
+            seen[entryKey] = true;
+            commandEntry.menuLang = getMenuLang(commandEntry.menuPath);
+            commandEntry.category = getCategoryName(commandEntry.menuPath, commandEntry.kind);
+            entries.push(commandEntry);
+        }
+        return entries;
+    }
+
+    /**
+     * メニューコマンド・ツールの行（名前<タブ>ID）を読む
+     * @param {string} line - 一覧の1行
+     * @returns {CommandEntry|null} 読めなければ null（menuLang・category は呼び出し側で補う）
+     */
+    function parseMenuLine(line) {
+        var matched = LINE_PATTERN.exec(line);
+        /* 末尾の空白も ID の一部（'Live PSAdapter_plugin_Ct  ' など）なので削らない / Trailing spaces are part of some IDs */
+        if (!matched || trimText(matched[1]) === "") {
+            return null;
+        }
+        return {
+            menuPath: trimText(line.substring(0, line.indexOf("\t"))),
+            commandId: matched[1],
+            kind: TOOL_ID_PATTERN.test(matched[1]) ? "tool" : "menu",
+            prefType: "",
+            prefValue: "",
+            memo: ""
+        };
+    }
+
+    /**
+     * 環境設定キーの行（名前<タブ>キー<タブ>型<タブ>値の例）を読む
+     * @param {string} line - 一覧の1行
+     * @returns {CommandEntry|null} 読めなければ null（menuLang・category は呼び出し側で補う）
+     */
+    function parsePrefLine(line) {
+        var matched = PREF_LINE_PATTERN.exec(line);
+        if (!matched) {
+            return null;
+        }
+        return {
+            menuPath: trimText(matched[1]),
+            commandId: matched[2],
+            kind: "pref",
+            prefType: matched[3],
+            prefValue: matched[4],
+            /* 一覧では改行を「\n」の2文字で書いてある / Line breaks are written as the two characters "\n" */
+            memo: (matched[5] || "").split("\\n").join("\n")
+        };
+    }
+
+    /**
+     * メニュー名の言語を決める
+     * @param {string} menuPath - メニュー名
+     * @returns {string} "ja" / "en"。メニュー名が空なら ""
+     */
+    function getMenuLang(menuPath) {
+        if (menuPath === "") {
+            return "";
+        }
+        return JAPANESE_CHAR_PATTERN.test(menuPath) ? "ja" : "en";
+    }
+
+    /**
+     * 種類と言語が条件に合うか判定する（メニュー名が空のものはどちらの言語にも出す）
+     * @param {CommandEntry} commandEntry - 対象のコマンド
+     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
+     * @param {string} menuLang - 言語（"ja" / "en"）
+     * @returns {boolean} 合えば true
+     */
+    function matchesKindAndLang(commandEntry, kind, menuLang) {
+        return commandEntry.kind === kind
+            && (commandEntry.menuLang === "" || commandEntry.menuLang === menuLang);
+    }
 
     /**
      * 前後の空白を取り除く
@@ -341,138 +358,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 一覧の行からコマンドと環境設定キーを取り出す（形式に合わない行・ID が空の行・重複は除く）
-     * @param {string[]} lines - 一覧の行
-     * @returns {CommandEntry[]} コマンドの一覧（元の順）
-     */
-    function parseCommandList(lines) {
-        var seenKeys = {};
-        var entries = [];
-        for (var i = 0; i < lines.length; i++) {
-            var commandEntry = parsePrefLine(lines[i]) || parseMenuLine(lines[i]);
-            if (!commandEntry) {
-                continue;
-            }
-            var entryKey = commandEntry.itemName + "\t" + commandEntry.commandId;
-            if (seenKeys[entryKey]) {
-                continue;
-            }
-            seenKeys[entryKey] = true;
-            commandEntry.nameLang = getNameLang(commandEntry.itemName);
-            commandEntry.category = getCategoryName(commandEntry.itemName, commandEntry.kind);
-            entries.push(commandEntry);
-        }
-        return entries;
-    }
-
-    /**
-     * 一覧の1項目を作る（nameLang・category は呼び出し側で補う）
-     * @param {string} itemName - 名前
-     * @param {string} commandId - ID・キー
-     * @param {string} kind - 種類
-     * @param {string} [prefType] - 環境設定キーの型
-     * @param {string} [prefValue] - 環境設定キーの値の例
-     * @param {string} [memo] - メモ
-     * @returns {CommandEntry} 項目
-     */
-    function createEntry(itemName, commandId, kind, prefType, prefValue, memo) {
-        return {
-            itemName: trimText(itemName),
-            commandId: commandId,
-            kind: kind,
-            prefType: prefType || "",
-            prefValue: prefValue || "",
-            memo: memo || ""
-        };
-    }
-
-    /**
-     * 一覧のメモを読める形にする（一覧では改行を「\n」の2文字で書いてある）
-     * @param {string|undefined} memoText - 一覧のメモ欄
-     * @returns {string} 改行を戻したメモ（なければ ""）
-     */
-    function decodeMemo(memoText) {
-        return (memoText || "").split("\\n").join("\n");
-    }
-
-    /**
-     * メニューコマンド・ツールの行（名前<タブ>ID<タブ>メモ）を読む
-     * @param {string} line - 一覧の1行
-     * @returns {CommandEntry|null} 読めなければ null
-     */
-    function parseMenuLine(line) {
-        var matched = MENU_LINE_PATTERN.exec(line);
-        /* 末尾の空白も ID の一部（'Live PSAdapter_plugin_Ct  ' など）なので削らない / Trailing spaces are part of some IDs */
-        if (!matched || trimText(matched[2]) === "") {
-            return null;
-        }
-        var commandId = matched[2];
-        return createEntry(matched[1], commandId, TOOL_ID_PATTERN.test(commandId) ? "tool" : "menu", "", "", decodeMemo(matched[3]));
-    }
-
-    /**
-     * 環境設定キーの行（名前<タブ>キー<タブ>型<タブ>値の例<タブ>メモ）を読む
-     * @param {string} line - 一覧の1行
-     * @returns {CommandEntry|null} 読めなければ null
-     */
-    function parsePrefLine(line) {
-        var matched = PREF_LINE_PATTERN.exec(line);
-        if (!matched) {
-            return null;
-        }
-        return createEntry(matched[1], matched[2], "pref", matched[3], matched[4], decodeMemo(matched[5]));
-    }
-
-    /**
-     * 名前の言語を決める
-     * @param {string} itemName - 名前
-     * @returns {string} "ja" / "en"。名前が空なら ""
-     */
-    function getNameLang(itemName) {
-        if (itemName === "") {
-            return "";
-        }
-        return JAPANESE_CHAR_PATTERN.test(itemName) ? "ja" : "en";
-    }
-
-    /**
-     * 絞り込み用のカテゴリを決める（メニュー階層の先頭。階層がなければ「ツール」か「その他」）
-     * @param {string} itemName - 名前
-     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
-     * @returns {string} カテゴリ名
-     */
-    function getCategoryName(itemName, kind) {
-        if (itemName.indexOf(MENU_LEVEL_SEPARATOR) > 0) {
-            return itemName.split(MENU_LEVEL_SEPARATOR)[0];
-        }
-        return getLabel((kind === "tool") ? LABELS.dropdown.tools : LABELS.dropdown.others);
-    }
-
-    /**
-     * 種類と言語が条件に合うか判定する（名前が空のものはどちらの言語にも出す）
-     * @param {CommandEntry} commandEntry - 対象の項目
-     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
-     * @param {string} nameLang - 言語（"ja" / "en"）
-     * @returns {boolean} 合えば true
-     */
-    function matchesKindAndLang(commandEntry, kind, nameLang) {
-        return commandEntry.kind === kind
-            && (commandEntry.nameLang === "" || commandEntry.nameLang === nameLang);
-    }
-
-    /**
      * 指定した種類・言語のカテゴリ名を重複なく、一覧に出てきた順で返す
-     * @param {CommandEntry[]} entries - 一覧
+     * @param {CommandEntry[]} entries - コマンドの一覧
      * @param {string} kind - 種類（"menu" / "pref" / "tool"）
-     * @param {string} nameLang - 言語（"ja" / "en"）
+     * @param {string} menuLang - 言語（"ja" / "en"）
      * @returns {string[]} カテゴリ名の一覧
      */
-    function collectCategoryNames(entries, kind, nameLang) {
-        var seenNames = {};
+    function collectCategoryNames(entries, kind, menuLang) {
+        var seen = {};
         var categoryNames = [];
         for (var i = 0; i < entries.length; i++) {
-            if (matchesKindAndLang(entries[i], kind, nameLang) && !seenNames[entries[i].category]) {
-                seenNames[entries[i].category] = true;
+            if (matchesKindAndLang(entries[i], kind, menuLang) && !seen[entries[i].category]) {
+                seen[entries[i].category] = true;
                 categoryNames.push(entries[i].category);
             }
         }
@@ -499,46 +396,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     /**
      * 種類・言語・カテゴリ・キーワードで絞り込む
-     * @param {CommandEntry[]} entries - 一覧
-     * @param {Object} filterState - 絞り込み条件 { kind, nameLang, keywordText, categoryName（null ならすべて） }
-     * @returns {CommandEntry[]} 条件に合う項目
+     * @param {CommandEntry[]} entries - コマンドの一覧
+     * @param {string} kind - 種類（"menu" / "pref" / "tool"）
+     * @param {string} menuLang - 言語（"ja" / "en"）
+     * @param {string} keywordText - キーワード（メニュー名・コマンド ID と照合）
+     * @param {string|null} categoryName - カテゴリ名。null ならすべて
+     * @returns {CommandEntry[]} 条件に合うコマンド
      */
-    function filterCommands(entries, filterState) {
-        var keywordPattern = buildKeywordPattern(filterState.keywordText);
-        var matchedEntries = [];
+    function filterCommands(entries, kind, menuLang, keywordText, categoryName) {
+        var keywordPattern = buildKeywordPattern(keywordText);
+        var matched = [];
         for (var i = 0; i < entries.length; i++) {
-            var commandEntry = entries[i];
-            if (!matchesKindAndLang(commandEntry, filterState.kind, filterState.nameLang)) {
+            if (!matchesKindAndLang(entries[i], kind, menuLang)) {
                 continue;
             }
-            if (filterState.categoryName !== null && commandEntry.category !== filterState.categoryName) {
+            if (categoryName !== null && entries[i].category !== categoryName) {
                 continue;
             }
-            if (keywordPattern && !keywordPattern.test(commandEntry.itemName) && !keywordPattern.test(commandEntry.commandId)) {
+            if (keywordPattern && !keywordPattern.test(entries[i].menuPath) && !keywordPattern.test(entries[i].commandId)) {
                 continue;
             }
-            matchedEntries.push(commandEntry);
+            matched.push(entries[i]);
         }
-        return matchedEntries;
+        return matched;
     }
 
     /**
      * 1列目に出す項目名を作る（メニュー階層の末尾を切り詰める。名前がなければ ID）
      * Mac の ScriptUI は1列目の幅を中身の最も長い文字列まで広げ、columnWidths を無視するため
-     * @param {CommandEntry} commandEntry - 対象の項目
+     * @param {CommandEntry} commandEntry - 対象のコマンド
      * @returns {string} 項目名
      */
     function buildItemColumnText(commandEntry) {
-        var menuLevels = commandEntry.itemName.split(MENU_LEVEL_SEPARATOR);
-        var lastLevelName = menuLevels[menuLevels.length - 1] || commandEntry.commandId;
-        return (lastLevelName.length > NAME_COLUMN_MAX_CHARS)
-            ? lastLevelName.substring(0, NAME_COLUMN_MAX_CHARS - 1) + "…"
-            : lastLevelName;
+        var levels = commandEntry.menuPath.split(MENU_LEVEL_SEPARATOR);
+        var itemName = levels[levels.length - 1] || commandEntry.commandId;
+        return (itemName.length > NAME_COLUMN_MAX_CHARS)
+            ? itemName.substring(0, NAME_COLUMN_MAX_CHARS - 1) + "…"
+            : itemName;
     }
-
-    // =========================================
-    // コード生成 / Code generation
-    // =========================================
 
     /**
      * 文字列を単一引用符のリテラル用にエスケープする
@@ -585,24 +480,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 項目のコードを作る。環境設定キーは get を primaryCode、set を setCode に分け、それ以外は primaryCode だけ
+     * 項目のコードを作る（環境設定キーは get と set の2行）
      * @param {CommandEntry} commandEntry - 対象の項目
-     * @param {boolean} addComment - 名前を行末コメントで付けるなら true
-     * @returns {{primaryCode: string, setCode: string}} コード（setCode は環境設定キー以外では ""）
+     * @param {boolean} addComment - メニュー名を行末コメントで付けるなら true
+     * @returns {string} コード（複数行は \n 区切り）
      */
-    function buildCodeParts(commandEntry, addComment) {
-        var commentText = (addComment && commandEntry.itemName !== "") ? " // " + commandEntry.itemName : "";
-        var replacements = { "%ID%": escapeSingleQuoted(commandEntry.commandId) };
+    function buildCodeLine(commandEntry, addComment) {
+        var commentText = (addComment && commandEntry.menuPath !== "") ? " // " + commandEntry.menuPath : "";
+        var escapedId = escapeSingleQuoted(commandEntry.commandId);
         if (commandEntry.kind === "pref") {
-            replacements["%TYPE%"] = commandEntry.prefType;
-            replacements["%VALUE%"] = buildPrefValueLiteral(commandEntry);
-            return {
-                primaryCode: fillTemplate(PREF_GET_TEMPLATE, replacements) + commentText,
-                setCode: fillTemplate(PREF_SET_TEMPLATE, replacements) + commentText
+            var replacements = {
+                "%TYPE%": commandEntry.prefType,
+                "%ID%": escapedId,
+                "%VALUE%": buildPrefValueLiteral(commandEntry)
             };
+            return fillTemplate(PREF_GET_TEMPLATE, replacements) + commentText + "\n"
+                + fillTemplate(PREF_SET_TEMPLATE, replacements);
         }
         var codeTemplate = (commandEntry.kind === "tool") ? TOOL_TEMPLATE : MENU_COMMAND_TEMPLATE;
-        return { primaryCode: fillTemplate(codeTemplate, replacements) + commentText, setCode: "" };
+        return fillTemplate(codeTemplate, { "%ID%": escapedId }) + commentText;
+    }
+
+    /**
+     * 数値を3桁区切りの文字列にする
+     * @param {number} value - 数値
+     * @returns {string} 3桁区切りの文字列
+     */
+    function formatThousands(value) {
+        return String(value).replace(/(\d)(?=(\d\d\d)+$)/g, "$1,");
+    }
+
+    /**
+     * 件数入りのダイアログタイトルを作る
+     * @param {number} itemCount - 表示中の件数
+     * @returns {string} ダイアログタイトル
+     */
+    function buildDialogTitle(itemCount) {
+        var countText = formatThousands(itemCount) + getLabel(LABELS.counter.itemUnit);
+        return getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION
+            + (uiLang === "ja" ? "（" + countText + "）" : " (" + countText + ")");
     }
 
     // =========================================
@@ -610,37 +526,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     // =========================================
 
     /**
-     * UIがダークテーマかどうかを判定する
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkUI() {
-        /* 未登録の環境設定キーは例外になることがある / An unregistered preference key can throw */
-        try {
-            return app.preferences.getRealPreference("uiBrightness") <= 0.5;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    /**
-     * ダイアログを作る（縦並び・共通の余白）
-     * @param {string} dialogTitle - タイトル
-     * @returns {Window} ダイアログ
-     */
-    function createDialogWindow(dialogTitle) {
-        var dialogWindow = new Window("dialog", dialogTitle);
-        dialogWindow.orientation = "column";
-        dialogWindow.alignChildren = ["fill", "top"];
-        dialogWindow.margins = WINDOW_MARGINS;
-        dialogWindow.spacing = WINDOW_SPACING;
-        return dialogWindow;
-    }
-
-    /**
      * ラベルと入力部品を1行に並べる
      * @param {Group} parent - 追加先
      * @param {Object} labelSet - 行ラベル
-     * @returns {Group} 行グループ（入力部品はここへ追加する。ラベルは children[0]）
+     * @returns {Group} 行グループ（入力部品はここへ追加する）
      */
     function addFieldRow(parent, labelSet) {
         var rowGroup = parent.add("group");
@@ -661,36 +550,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
      * @param {Object} labelSet - 行ラベル
      * @param {string[]} radioKeys - LABELS.radio のキー（並べる順）
      * @param {number} defaultIndex - 最初に選んでおく添字
-     * @param {Object} tooltipSet - ツールチップ
      * @returns {RadioButton[]} radioKeys の順のラジオボタン
      */
-    function addRadioRow(parent, labelSet, radioKeys, defaultIndex, tooltipSet) {
+    function buildRadioRow(parent, labelSet, radioKeys, defaultIndex) {
         var radioRowGroup = addFieldRow(parent, labelSet);
-        var radioButtons = [];
+        var radios = [];
         for (var i = 0; i < radioKeys.length; i++) {
-            var radioButton = radioRowGroup.add("radiobutton", undefined, getLabel(LABELS.radio[radioKeys[i]]));
-            radioButton.helpTip = getLabel(tooltipSet);
-            radioButtons.push(radioButton);
+            radios.push(radioRowGroup.add("radiobutton", undefined, getLabel(LABELS.radio[radioKeys[i]])));
         }
-        radioButtons[defaultIndex].value = true;
-        return radioButtons;
-    }
-
-    /**
-     * 複数行の欄を1行に置く（ラベル・欄）
-     * @param {Group} parent - 追加先
-     * @param {Object} labelSet - 行ラベル
-     * @param {number} fieldHeight - 欄の高さ
-     * @param {boolean} isReadOnly - 読み取り専用なら true
-     * @returns {{rowGroup: Group, textField: EditText}} 作成した部品
-     */
-    function addMultilineRow(parent, labelSet, fieldHeight, isReadOnly) {
-        var rowGroup = addFieldRow(parent, labelSet);
-        rowGroup.alignChildren = ["left", "top"];
-        var textField = rowGroup.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: isReadOnly });
-        textField.alignment = ["fill", "fill"];
-        textField.preferredSize.height = fieldHeight;
-        return { rowGroup: rowGroup, textField: textField };
+        radios[defaultIndex].value = true;
+        return radios;
     }
 
     /**
@@ -710,18 +579,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 項目・ID とキーの2列のリストを作る（複数選択可）
+     * 項目・コマンド ID の2列のリストを作る（複数選択可）
      * @param {Group} parent - 追加先
-     * @returns {ListBox} 一覧
+     * @returns {ListBox} コマンド一覧
      */
-    function addCommandList(parent) {
+    function buildCommandList(parent) {
         var commandList = parent.add("listbox", [0, 0, LIST_SIZE[0], LIST_SIZE[1]], "", {
             multiselect: true,
             numberOfColumns: 2,
             showHeaders: true,
             columnTitles: [
                 getLabel(LABELS.fieldLabel.item),
-                getLabel(LABELS.fieldLabel.idOrKey)
+                getLabel(LABELS.fieldLabel.commandId)
             ],
             columnWidths: COLUMN_WIDTHS
         });
@@ -731,11 +600,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 左右に分かれたボタンエリアを作る（右端に［閉じる］。デフォルトボタン兼キャンセルボタン）
+     * ボタンエリア（左端に［再調査…］、右端に［閉じる］）を作る。［閉じる］はデフォルトボタン兼キャンセルボタン
      * @param {Window} dialogWindow - 追加先のダイアログ
-     * @returns {{btnLeftGroup: Group, btnClose: Button}} 左側のグループ（ここにボタンを足す）と［閉じる］
+     * @returns {{btnRecheck: Button, btnClose: Button}} 作成したボタン
      */
-    function addButtonRow(dialogWindow) {
+    function buildButtonRow(dialogWindow) {
         var btnRowGroup = dialogWindow.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
@@ -743,277 +612,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
         var btnLeftGroup = btnRowGroup.add("group");
         btnLeftGroup.alignChildren = ["left", "center"];
+        var btnRecheck = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.recheck));
+        btnRecheck.helpTip = getLabel(LABELS.tooltip.recheck);
 
-        var buttonSpacer = btnRowGroup.add("group");
-        buttonSpacer.alignment = ["fill", "fill"];
-        buttonSpacer.minimumSize.width = 0;
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
         var btnClose = btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
         dialogWindow.defaultElement = btnClose;
         dialogWindow.cancelElement = btnClose;
-        return { btnLeftGroup: btnLeftGroup, btnClose: btnClose };
+        return { btnRecheck: btnRecheck, btnClose: btnClose };
     }
 
     // =========================================
-    // コピーボタン / Copy button
-    // =========================================
-
-    /**
-     * group の onDraw を呼び直す（group には notify() が無いため、隠して再表示する）
-     * @param {Group} drawnGroup - 描き直す group
-     * @returns {void}
-     */
-    function redrawGroup(drawnGroup) {
-        drawnGroup.hide();
-        drawnGroup.show();
-    }
-
-    /**
-     * 角丸の長方形を塗る。ScriptUI は多角形を塗れないため、十字の長方形2つと角の円4つを重ねる
-     * @param {ScriptUIGraphics} iconGraphics - 描画先
-     * @param {Object} iconBrush - 塗りのブラシ
-     * @param {number[]} rectBounds - [左, 上, 幅, 高さ]
-     * @param {number} cornerRadius - 角の半径
-     * @returns {void}
-     */
-    function fillRoundedRect(iconGraphics, iconBrush, rectBounds, cornerRadius) {
-        var left = rectBounds[0];
-        var top = rectBounds[1];
-        var width = rectBounds[2];
-        var height = rectBounds[3];
-        var diameter = cornerRadius * 2;
-        var crossRects = [
-            [left + cornerRadius, top, width - diameter, height],
-            [left, top + cornerRadius, width, height - diameter]
-        ];
-        for (var i = 0; i < crossRects.length; i++) {
-            iconGraphics.newPath();
-            iconGraphics.rectPath(crossRects[i][0], crossRects[i][1], crossRects[i][2], crossRects[i][3]);
-            iconGraphics.fillPath(iconBrush);
-        }
-        var cornerOrigins = [
-            [left, top], [left + width - diameter, top],
-            [left, top + height - diameter], [left + width - diameter, top + height - diameter]
-        ];
-        for (var j = 0; j < cornerOrigins.length; j++) {
-            iconGraphics.newPath();
-            iconGraphics.ellipsePath(cornerOrigins[j][0], cornerOrigins[j][1], diameter, diameter);
-            iconGraphics.fillPath(iconBrush);
-        }
-    }
-
-    /**
-     * コピーのアイコン（右上に塗りの角丸四角、左下に L 字の背面）を描く。寸法は一辺 22 を基準に拡大縮小する
-     * @param {ScriptUIGraphics} iconGraphics - 描画先
-     * @param {number} iconSize - 描画域の一辺
-     * @param {number[]} iconColor - [r, g, b, a]
-     * @returns {void}
-     */
-    function drawCopyIcon(iconGraphics, iconSize, iconColor) {
-        var iconBrush = iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor);
-        var scaleUnit = iconSize / 22;
-
-        /**
-         * 基準寸法を描画域の寸法にする / Scale a base measurement
-         * @param {number} baseValue - 一辺 22 のときの寸法
-         * @returns {number} 描画域での寸法（1以上）
-         */
-        function scaled(baseValue) {
-            return Math.max(1, Math.round(baseValue * scaleUnit));
-        }
-
-        /* 背面の L 字（左の縦棒と下の横棒）/ Back sheet: left and bottom bars */
-        var backBars = [[4, 7, 2, 11], [4, 16, 11, 2]];
-        for (var i = 0; i < backBars.length; i++) {
-            iconGraphics.newPath();
-            iconGraphics.rectPath(scaled(backBars[i][0]), scaled(backBars[i][1]), scaled(backBars[i][2]), scaled(backBars[i][3]));
-            iconGraphics.fillPath(iconBrush);
-        }
-        /* 前面の角丸四角 / Front sheet */
-        fillRoundedRect(iconGraphics, iconBrush, [scaled(8), scaled(3), scaled(11), scaled(11)], scaled(2));
-    }
-
-    /**
-     * onDraw で描くコピーボタンを追加する（押している間は色を変え、無効なら薄く描く）
-     * @param {Group} parent - 追加先
-     * @returns {Group} ボタンとして使う group（onClick を設定して使う）
-     */
-    function addCopyIconButton(parent) {
-        var copyButton = parent.add("group");
-        copyButton.preferredSize = [COPY_BUTTON_SIZE, COPY_BUTTON_SIZE];
-        copyButton.minimumSize = [COPY_BUTTON_SIZE, COPY_BUTTON_SIZE];
-        copyButton.maximumSize = [COPY_BUTTON_SIZE, COPY_BUTTON_SIZE];
-        copyButton.isPressed = false;
-        /* group の enabled は描画に反映されないので自前の状態で持つ / Own flag; group.enabled does not affect drawing */
-        copyButton.isEnabled = true;
-        copyButton.onClick = null;
-
-        copyButton.onDraw = function () {
-            var iconColor = !copyButton.isEnabled ? COPY_ICON_COLORS.dimmed
-                : (copyButton.isPressed ? COPY_ICON_COLORS.pressed : COPY_ICON_COLORS.normal);
-            drawCopyIcon(copyButton.graphics, COPY_BUTTON_SIZE, iconColor);
-        };
-
-        /**
-         * 押下状態を変えて描き直す
-         * @param {boolean} isPressed - 押下中なら true
-         * @returns {void}
-         */
-        function setPressed(isPressed) {
-            if (copyButton.isPressed !== isPressed) {
-                copyButton.isPressed = isPressed;
-                redrawGroup(copyButton);
-            }
-        }
-        copyButton.addEventListener("mousedown", function () {
-            if (copyButton.isEnabled) {
-                setPressed(true);
-            }
-        });
-        /* ボタンの上で離したときだけ実行する / Fire only when released over the button */
-        copyButton.addEventListener("mouseup", function () {
-            var wasPressed = copyButton.isPressed;
-            setPressed(false);
-            if (wasPressed && copyButton.onClick) {
-                copyButton.onClick();
-            }
-        });
-        copyButton.addEventListener("mouseout", function () {
-            setPressed(false);
-        });
-        return copyButton;
-    }
-
-    /**
-     * コピーボタンの有効／無効を切り替えて描き直す（自作描画は自動で薄くならないため）
-     * @param {Group} copyButton - addCopyIconButton() の戻り値
-     * @param {boolean} isEnabled - 有効なら true
-     * @returns {void}
-     */
-    function setCopyButtonEnabled(copyButton, isEnabled) {
-        if (copyButton.isEnabled !== isEnabled) {
-            copyButton.isEnabled = isEnabled;
-            redrawGroup(copyButton);
-        }
-    }
-
-    /**
-     * コード欄の1段（ラベル・複数行の欄・右端のコピーボタン）を作る。ボタンを押すとその欄をコピーする
-     * @param {Window} parent - 追加先
-     * @param {Object} labelSet - 行ラベル
-     * @returns {{rowLabel: StaticText, codeField: EditText, btnCopy: Group}} 作成した部品
-     */
-    function addCodeRow(parent, labelSet) {
-        var codeRow = addMultilineRow(parent, labelSet, CODE_FIELD_HEIGHT, false);
-        codeRow.textField.helpTip = getLabel(LABELS.tooltip.code);
-        var btnCopy = addCopyIconButton(codeRow.rowGroup);
-        btnCopy.alignment = ["right", "top"];
-        btnCopy.helpTip = getLabel(LABELS.tooltip.copyCode);
-        btnCopy.onClick = function () {
-            copyCodeField(codeRow.textField);
-        };
-        return { rowLabel: codeRow.rowGroup.children[0], codeField: codeRow.textField, btnCopy: btnCopy };
-    }
-
-    /**
-     * コード欄の内容をコピーし、コピーした内容を添えて知らせる
-     * @param {EditText} codeField - コピーする欄
-     * @returns {void}
-     */
-    function copyCodeField(codeField) {
-        if (codeField.text === "") {
-            return;
-        }
-        if (copyTextToClipboard(codeField.text)) {
-            alert(getLabel(LABELS.alert.copied) + "\n\n" + codeField.text);
-        } else {
-            alert(getLabel(LABELS.alert.copyFailed));
-        }
-    }
-
-    // =========================================
-    // クリップボード / Clipboard
-    // =========================================
-
-    /**
-     * 文字列をクリップボードにコピーする
-     * Illustrator には文字列を直接クリップボードへ送る API が無いため、一時テキストフレームを作ってコピーし、すぐ削除する
-     * （ドキュメントが無ければ一時ドキュメントを作って閉じる）
-     * @param {string} copyText - コピーする文字列（改行は \n）
-     * @returns {boolean} コピーできたら true
-     */
-    function copyTextToClipboard(copyText) {
-        var usingTempDoc = (app.documents.length === 0);
-        var targetDoc = usingTempDoc ? app.documents.add() : app.activeDocument;
-        /* 文字編集中の選択は TextRange なので控えない / A text selection is a TextRange; do not save it */
-        var savedSelection = (!usingTempDoc && targetDoc.selection instanceof Array) ? targetDoc.selection : [];
-        /* ロック・非表示のレイヤーでは textFrames.add() が失敗するため一時的に解除する / Unlock and show the layer temporarily */
-        var editLayer = targetDoc.activeLayer;
-        var layerWasLocked = editLayer.locked;
-        var layerWasVisible = editLayer.visible;
-        var tempFrame = null;
-        var copySucceeded = false;
-        /* 親レイヤーのロックなどで textFrames.add() が失敗しうる / textFrames.add() can fail, e.g. under a locked parent layer */
-        try {
-            editLayer.locked = false;
-            editLayer.visible = true;
-            tempFrame = editLayer.textFrames.add();
-            /* テキストフレームの改行は \r / Text frames use \r for line breaks */
-            tempFrame.contents = copyText.split("\n").join("\r");
-            /* app.copy() は黙って無視されることがあるため、再描画を挟んでメニューコマンドでコピーする */
-            app.redraw();
-            app.executeMenuCommand("deselectall");
-            tempFrame.selected = true;
-            app.redraw();
-            app.executeMenuCommand("copy");
-            /* コピー確定前に削除すると空になる / Deleting before the copy settles leaves it empty */
-            app.redraw();
-            copySucceeded = true;
-        } catch (e) {
-            copySucceeded = false;
-        }
-        if (tempFrame) {
-            tempFrame.remove();
-        }
-        editLayer.locked = layerWasLocked;
-        editLayer.visible = layerWasVisible;
-        if (usingTempDoc) {
-            targetDoc.close(SaveOptions.DONOTSAVECHANGES);
-        } else {
-            restoreSelection(savedSelection);
-        }
-        return copySucceeded;
-    }
-
-    /**
-     * 選択を元に戻す（ロック・非表示などで選べない項目は飛ばす）
-     * @param {PageItem[]} savedSelection - 元の選択
-     * @returns {void}
-     */
-    function restoreSelection(savedSelection) {
-        app.executeMenuCommand("deselectall");
-        for (var i = 0; i < savedSelection.length; i++) {
-            /* ロック・非表示の項目は選択の代入で例外になる / Locked or hidden items throw on selection */
-            try {
-                savedSelection[i].selected = true;
-            } catch (e) {
-                // 選べない項目は飛ばす / skip items that cannot be selected
-            }
-        }
-        app.redraw();
-    }
-
-    // =========================================
-    // 設定ファイルの読み込み / Settings files
+    // 再調査 / Recheck
     // =========================================
 
     /**
      * @typedef {Object} SettingsEntry
      * @property {string[]} path - キーの階層（例 ["Menus", "new", "Key"]）
      * @property {string} valueType - 値の型（"Integer" / "Real" / "String" / "Array" / "Other"）
-     * @property {string} valueText - 値の文字列（ファイルに書かれたまま）
      */
 
     /**
@@ -1027,9 +648,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         if (File.fs === "Macintosh") {
             return new Folder("~/Library/Preferences/" + settingsName);
         }
-        var windowsBasePath = Folder.userData.fsName + "/Adobe/" + settingsName;
-        var windowsFolder = new Folder(windowsBasePath + "/x64");
-        return windowsFolder.exists ? windowsFolder : new Folder(windowsBasePath);
+        var windowsFolder = new Folder(Folder.userData.fsName + "/Adobe/" + settingsName + "/x64");
+        return windowsFolder.exists ? windowsFolder : new Folder(Folder.userData.fsName + "/Adobe/" + settingsName);
     }
 
     /**
@@ -1045,12 +665,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         var fileText = settingsFile.read();
         settingsFile.close();
 
-        var fileLines = fileText.split(/\r\n|\r|\n/);
+        var lines = fileText.split(/\r\n|\r|\n/);
         var keyStack = [];
         var entries = [];
         var inArray = false;
-        for (var i = 0; i < fileLines.length; i++) {
-            var line = fileLines[i].replace(/^\s+/, "");
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].replace(/^\s+/, "");
             if (inArray) {
                 /* 配列は「]」の行まで読み飛ばす / Skip array data up to the "]" line */
                 inArray = !/\]\s*$/.test(line);
@@ -1074,7 +694,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             if (/^\[/.test(valueText)) {
                 inArray = !/\]\s*$/.test(valueText);
             }
-            entries.push({ path: keyStack.concat([keyName]), valueType: getSettingsValueType(valueText), valueText: valueText });
+            entries.push({ path: keyStack.concat([keyName]), valueType: getSettingsValueType(valueText) });
         }
         return entries;
     }
@@ -1098,19 +718,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 設定フォルダー内のファイルを名前の条件で集める
+     * 設定フォルダー内のファイルを条件で集める
      * @param {Folder} settingsFolder - 設定フォルダー
-     * @param {RegExp} namePattern - 対象にするファイル名（デコード後の名前で判定）
+     * @param {function(File): boolean} fileFilter - 対象にするなら true を返す関数
      * @returns {File[]} 対象のファイル
      */
-    function collectSettingsFiles(settingsFolder, namePattern) {
+    function collectSettingsFiles(settingsFolder, fileFilter) {
         if (!settingsFolder.exists) {
             return [];
         }
         var matchedFiles = [];
         var folderItems = settingsFolder.getFiles();
         for (var i = 0; i < folderItems.length; i++) {
-            if (folderItems[i] instanceof File && namePattern.test(File.decode(folderItems[i].name))) {
+            if (folderItems[i] instanceof File && fileFilter(folderItems[i])) {
                 matchedFiles.push(folderItems[i]);
             }
         }
@@ -1129,12 +749,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             for (var j = 0; j < entries.length; j++) {
                 var keyPath = entries[j].path;
                 /* 「/Menus { /ID { /Key … } }」の2段目が ID / The ID is the second level */
-                if (keyPath.length !== 3 || keyPath[1] === "") {
-                    continue;
-                }
-                if (keyPath[0] === "Menus") {
+                if (keyPath.length === 3 && keyPath[0] === "Menus" && keyPath[1] !== "") {
                     shortcutIds.menu[keyPath[1]] = true;
-                } else if (keyPath[0] === "Tools" && TOOL_ID_PATTERN.test(keyPath[1])) {
+                } else if (keyPath.length === 3 && keyPath[0] === "Tools" && TOOL_ID_PATTERN.test(keyPath[1])) {
                     shortcutIds.tool[keyPath[1]] = true;
                 }
             }
@@ -1143,9 +760,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 環境設定ファイルからキー・型・値を集める（配列・その他の型は除く）
+     * 環境設定ファイルからキーと型を集める（配列・その他の型は除く）
      * @param {File[]} prefFiles - 環境設定ファイル
-     * @returns {Object} 「階層/キー」をキー、{ valueType, valueText } を値にした表
+     * @returns {Object} 「階層/キー」をキー、型を値にした表
      */
     function collectPrefKeys(prefFiles) {
         var prefKeys = {};
@@ -1154,16 +771,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             for (var j = 0; j < entries.length; j++) {
                 var valueType = entries[j].valueType;
                 if (valueType === "Integer" || valueType === "Real" || valueType === "String") {
-                    prefKeys[entries[j].path.join("/")] = { valueType: valueType, valueText: entries[j].valueText };
+                    prefKeys[entries[j].path.join("/")] = valueType;
                 }
             }
         }
         return prefKeys;
     }
-
-    // =========================================
-    // 再調査の照合 / Recheck comparison
-    // =========================================
 
     /**
      * 一覧の ID を種類ごとの表にする
@@ -1180,16 +793,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 元の表にあって比べる表に無いキーを並べる
-     * @param {Object} sourceTable - 元の表
-     * @param {Object} compareTable - 比べる表
+     * 表 a にあって表 b に無いキーを並べる
+     * @param {Object} tableA - 比べる元
+     * @param {Object} tableB - 比べる先
      * @param {RegExp} [ignorePattern] - 除外するキー
      * @returns {string[]} 差分のキー（昇順）
      */
-    function listKeysNotIn(sourceTable, compareTable, ignorePattern) {
+    function listKeysNotIn(tableA, tableB, ignorePattern) {
         var missingKeys = [];
-        for (var keyName in sourceTable) {
-            if (sourceTable.hasOwnProperty(keyName) && !compareTable.hasOwnProperty(keyName)
+        for (var keyName in tableA) {
+            if (tableA.hasOwnProperty(keyName) && !tableB.hasOwnProperty(keyName)
                 && !(ignorePattern && ignorePattern.test(keyName))) {
                 missingKeys.push(keyName);
             }
@@ -1200,7 +813,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     /**
      * 環境設定ファイルと一覧で型が食い違うキーを並べる（Boolean と Integer、Real と Integer は同じとみなす）
      * @param {Object} listPrefs - 一覧のキーと型
-     * @param {Object} filePrefs - collectPrefKeys() の戻り値
+     * @param {Object} filePrefs - 環境設定ファイルのキーと型
      * @returns {string[]} 「キー（一覧の型 → ファイルの型）」の一覧
      */
     function listPrefTypeDiffs(listPrefs, filePrefs) {
@@ -1210,11 +823,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
                 continue;
             }
             var listType = listPrefs[keyName];
-            var fileType = filePrefs[keyName].valueType;
+            var fileType = filePrefs[keyName];
             var isCompatible = (listType === fileType)
                 || (fileType === "Integer" && (listType === "Boolean" || listType === "Real"));
             if (!isCompatible) {
-                typeDiffs.push(keyName + wrapInParentheses(listType + " → " + fileType));
+                typeDiffs.push(keyName + "（" + listType + " → " + fileType + "）");
             }
         }
         return typeDiffs.sort();
@@ -1223,184 +836,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     /**
      * 見出しと項目の一覧を報告用の文字列にする
      * @param {Object} headingSet - 見出しのラベル
-     * @param {string[]} reportItems - 項目
+     * @param {string[]} items - 項目
      * @returns {string} 見出し・件数・項目（1行1件）
      */
-    function formatReportSection(headingSet, reportItems) {
-        /* 英語は「: 24 items」とコロンの後に空白を入れる / English puts a space after the colon */
-        var sectionLines = [labelText(headingSet) + (uiLang === "ja" ? "" : " ") + formatItemCount(reportItems.length)];
-        if (reportItems.length === 0) {
-            sectionLines.push(getLabel(LABELS.report.none));
+    function formatReportSection(headingSet, items) {
+        var sectionLines = [getLabel(headingSet) + "：" + items.length + getLabel(LABELS.recheck.itemUnit)];
+        if (items.length === 0) {
+            sectionLines.push(getLabel(LABELS.recheck.none));
         }
-        return sectionLines.concat(reportItems).join("\n");
-    }
-
-    /**
-     * 見出しとファイル名の一覧を報告用の文字列にする
-     * @param {Object} headingSet - 見出しのラベル
-     * @param {File[]} files - ファイル
-     * @returns {string} 見出しとファイル名（ない場合は案内文）
-     */
-    function formatFileSection(headingSet, files) {
-        var sectionLines = [getLabel(headingSet)];
-        for (var i = 0; i < files.length; i++) {
-            sectionLines.push(File.decode(files[i].name));
-        }
-        if (files.length === 0) {
-            sectionLines.push(getLabel(LABELS.report.noFiles));
+        for (var i = 0; i < items.length; i++) {
+            sectionLines.push(items[i]);
         }
         return sectionLines.join("\n");
     }
 
     /**
-     * 報告の冒頭（照合したバージョン・実行中のバージョン・設定フォルダー）を作る
-     * @param {Folder} settingsFolder - 設定フォルダー
-     * @returns {string[]} 冒頭の段落
+     * ファイル名の一覧を作る
+     * @param {File[]} files - ファイル
+     * @returns {string[]} ファイル名（ない場合は案内文1行）
      */
-    function buildReportHeader(settingsFolder) {
+    function listFileNames(files) {
+        var fileNames = [];
+        for (var i = 0; i < files.length; i++) {
+            fileNames.push(File.decode(files[i].name));
+        }
+        return fileNames.length > 0 ? fileNames : [getLabel(LABELS.recheck.noFiles)];
+    }
+
+    /**
+     * 実行中の Illustrator の設定ファイルと一覧を照合した報告を作る
+     * @param {CommandEntry[]} allCommands - すべての項目
+     * @param {Folder} settingsFolder - 設定フォルダー
+     * @returns {string} 報告（\n 区切り）
+     */
+    function buildRecheckReport(allCommands, settingsFolder) {
         var runningVersion = String(app.version);
-        var headerParts = [
-            getLabel(LABELS.report.checkedWith) + DATA_CHECKED_VERSION + wrapInParentheses(DATA_CHECKED_DATE)
-                + (uiLang === "ja" ? "／" : " / ") + getLabel(LABELS.report.running) + runningVersion
+        var reportParts = [
+            getLabel(LABELS.recheck.checkedWith) + DATA_CHECKED_VERSION + "（" + DATA_CHECKED_DATE + "）／"
+                + getLabel(LABELS.recheck.running) + runningVersion
         ];
         if (runningVersion.split(".")[0] !== DATA_CHECKED_VERSION) {
-            headerParts.push(getLabel(LABELS.report.versionDiff));
+            reportParts.push(getLabel(LABELS.recheck.versionDiff));
         }
-        headerParts.push(getLabel(LABELS.report.settingsDir)
-            + (settingsFolder.exists ? settingsFolder.fsName : getLabel(LABELS.report.noFolder)));
-        return headerParts;
-    }
+        reportParts.push(getLabel(LABELS.recheck.settingsDir)
+            + (settingsFolder.exists ? settingsFolder.fsName : getLabel(LABELS.recheck.noFolder)));
 
-    /**
-     * 追加の候補を一覧の行（ExtendScript.txt と同じ書式、名前は空）にする
-     * @param {string[]} menuIds - メニューコマンドの ID
-     * @param {string[]} toolIds - ツールの ID
-     * @param {string[]} prefKeyNames - 環境設定キー
-     * @param {Object} filePrefs - collectPrefKeys() の戻り値（型と値の例に使う）
-     * @returns {string[]} 一覧の行
-     */
-    function buildCandidateLines(menuIds, toolIds, prefKeyNames, filePrefs) {
-        var candidateLines = [];
-        var idLists = [menuIds, toolIds];
-        for (var i = 0; i < idLists.length; i++) {
-            for (var j = 0; j < idLists[i].length; j++) {
-                candidateLines.push("\t" + idLists[i][j]);
-            }
-        }
-        var addedNote = "Ai " + app.version + " の再調査で追加";
-        for (var k = 0; k < prefKeyNames.length; k++) {
-            var filePref = filePrefs[prefKeyNames[k]];
-            /* 文字列の値は ( ) や " " で囲まれている / String values are wrapped in ( ) or " " */
-            var sampleValue = (filePref.valueType === "String")
-                ? filePref.valueText.replace(/^[("]([\s\S]*)[)"]$/, "$1")
-                : filePref.valueText;
-            candidateLines.push(["", prefKeyNames[k], filePref.valueType, sampleValue.replace(/\t/g, " "), addedNote].join("\t"));
-        }
-        return candidateLines;
-    }
-
-    /**
-     * @typedef {Object} RecheckResult
-     * @property {string} reportText - 報告（\n 区切り）
-     * @property {string[]} candidateLines - 一覧に加えられる追加の候補（一覧の行の書式）
-     */
-
-    /**
-     * 実行中の Illustrator の設定ファイルと一覧を照合した報告と、追加の候補を作る
-     * @param {CommandEntry[]} allCommands - すべての項目
-     * @param {Folder} settingsFolder - 設定フォルダー
-     * @param {Object} progressWindow - createProgressWindow() の戻り値
-     * @returns {RecheckResult} 照合の結果
-     */
-    function buildRecheckReport(allCommands, settingsFolder, progressWindow) {
-        progressWindow.step(LABELS.progress.findFiles);
-        var kysFiles = collectSettingsFiles(settingsFolder, /\.kys$/i);
-        var prefFiles = collectSettingsFiles(settingsFolder, PREF_FILE_PATTERN);
-        progressWindow.step(LABELS.progress.readKys);
-        var shortcutIds = collectShortcutIds(kysFiles);
-        progressWindow.step(LABELS.progress.readPrefs);
-        var filePrefs = collectPrefKeys(prefFiles);
-        progressWindow.step(LABELS.progress.comparing);
+        var kysFiles = collectSettingsFiles(settingsFolder, function (fileItem) {
+            return /\.kys$/i.test(fileItem.name);
+        });
+        var prefFiles = collectSettingsFiles(settingsFolder, function (fileItem) {
+            return PREF_FILE_PATTERN.test(File.decode(fileItem.name));
+        });
         var listIds = collectListIds(allCommands);
+        var shortcutIds = collectShortcutIds(kysFiles);
+        var filePrefs = collectPrefKeys(prefFiles);
 
-        var newMenuIds = listKeysNotIn(shortcutIds.menu, listIds.menu);
-        var newToolIds = listKeysNotIn(shortcutIds.tool, listIds.tool);
-        var newPrefKeys = listKeysNotIn(filePrefs, listIds.pref, PREF_IGNORE_PATTERN);
-
-        var reportParts = buildReportHeader(settingsFolder);
-        reportParts.push(formatFileSection(LABELS.report.kysFiles, kysFiles));
+        reportParts.push(getLabel(LABELS.recheck.kysFiles) + "\n" + listFileNames(kysFiles).join("\n"));
         if (kysFiles.length > 0) {
-            reportParts.push(formatReportSection(LABELS.report.menuMissing, listKeysNotIn(listIds.menu, shortcutIds.menu)));
-            reportParts.push(formatReportSection(LABELS.report.menuNew, newMenuIds));
-            reportParts.push(formatReportSection(LABELS.report.toolMissing, listKeysNotIn(listIds.tool, shortcutIds.tool)));
-            reportParts.push(formatReportSection(LABELS.report.toolNew, newToolIds));
+            reportParts.push(formatReportSection(LABELS.recheck.menuMissing, listKeysNotIn(listIds.menu, shortcutIds.menu)));
+            reportParts.push(formatReportSection(LABELS.recheck.menuNew, listKeysNotIn(shortcutIds.menu, listIds.menu)));
+            reportParts.push(formatReportSection(LABELS.recheck.toolMissing, listKeysNotIn(listIds.tool, shortcutIds.tool)));
+            reportParts.push(formatReportSection(LABELS.recheck.toolNew, listKeysNotIn(shortcutIds.tool, listIds.tool)));
         }
-        reportParts.push(formatFileSection(LABELS.report.prefFiles, prefFiles));
+        reportParts.push(getLabel(LABELS.recheck.prefFiles) + "\n" + listFileNames(prefFiles).join("\n"));
         if (prefFiles.length > 0) {
-            reportParts.push(formatReportSection(LABELS.report.prefNew, newPrefKeys));
-            reportParts.push(formatReportSection(LABELS.report.prefTypeDiff, listPrefTypeDiffs(listIds.pref, filePrefs)));
+            reportParts.push(formatReportSection(LABELS.recheck.prefNew, listKeysNotIn(filePrefs, listIds.pref, PREF_IGNORE_PATTERN)));
+            reportParts.push(formatReportSection(LABELS.recheck.prefTypeDiff, listPrefTypeDiffs(listIds.pref, filePrefs)));
         }
-        reportParts.push(getLabel(LABELS.report.note));
-        return {
-            reportText: reportParts.join("\n\n"),
-            candidateLines: buildCandidateLines(newMenuIds, newToolIds, newPrefKeys, filePrefs)
-        };
-    }
-
-    // =========================================
-    // 再調査の表示 / Recheck display
-    // =========================================
-
-    /**
-     * 進行状況バーの小さなパレットを表示する
-     * @param {number} stepCount - 段階の数（バーの最大値）
-     * @returns {{step: function(Object): void, close: function(): void}} 操作用の関数（close は2回呼んでもよい）
-     */
-    function createProgressWindow(stepCount) {
-        var progressPalette = new Window("palette", getLabel(LABELS.dialog.recheckProgress));
-        progressPalette.orientation = "column";
-        progressPalette.alignChildren = ["fill", "top"];
-        progressPalette.margins = WINDOW_MARGINS;
-
-        var messageText = progressPalette.add("statictext", undefined, getLabel(LABELS.progress.findFiles));
-        /* 文言が入れ替わっても切れないよう幅を確保 / Reserve width so longer messages are not cut off */
-        messageText.preferredSize.width = PROGRESS_BAR_WIDTH;
-        var progressBar = progressPalette.add("progressbar", undefined, 0, stepCount);
-        progressBar.preferredSize.width = PROGRESS_BAR_WIDTH;
-
-        progressPalette.show();
-        progressPalette.update();
-        var isClosed = false;
-
-        return {
-            step: function (messageSet) {
-                messageText.text = getLabel(messageSet);
-                progressBar.value = Math.min(progressBar.value + 1, stepCount);
-                progressPalette.update();
-            },
-            close: function () {
-                if (!isClosed) {
-                    isClosed = true;
-                    progressPalette.close();
-                }
-            }
-        };
-    }
-
-    /**
-     * 進行状況バーを出しながら照合し、報告を返す
-     * @param {CommandEntry[]} allCommands - すべての項目
-     * @param {Folder} settingsFolder - 設定フォルダー
-     * @returns {RecheckResult} 照合の結果
-     */
-    function runRecheck(allCommands, settingsFolder) {
-        var progressWindow = createProgressWindow(RECHECK_STEP_COUNT);
-        /* 途中で例外が起きても進行状況ウィンドウを残さない / Never leave the progress window open on error */
-        try {
-            return buildRecheckReport(allCommands, settingsFolder, progressWindow);
-        } finally {
-            progressWindow.close();
-        }
+        reportParts.push(getLabel(LABELS.recheck.note));
+        return reportParts.join("\n\n");
     }
 
     /**
@@ -1426,20 +930,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 書き出す内容を作る（報告・追加の候補の行・Claude Code への引き継ぎの案内）
-     * @param {RecheckResult} recheckResult - 照合の結果
-     * @returns {string} 書き出す文字列
-     */
-    function buildExportText(recheckResult) {
-        return [
-            recheckResult.reportText,
-            labelText(LABELS.report.candidateLines) + (uiLang === "ja" ? "" : " ")
-                + formatItemCount(recheckResult.candidateLines.length) + "\n" + recheckResult.candidateLines.join("\n"),
-            getLabel(LABELS.report.handoff)
-        ].join("\n\n");
-    }
-
-    /**
      * 報告をテキストファイルに書き出す（保存先はダイアログで選ぶ）
      * @param {string} reportText - 報告
      * @returns {void}
@@ -1458,15 +948,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
     }
 
     /**
-     * 照合元の URL を選んで開く行を作る
-     * @param {Window} parent - 追加先
+     * 再調査のダイアログ（照合元の URL・設定フォルダー・照合結果）を表示する
+     * @param {CommandEntry[]} allCommands - すべての項目
      * @returns {void}
      */
-    function addReferenceRow(parent) {
-        var referenceRow = parent.add("group");
-        referenceRow.orientation = "row";
-        referenceRow.alignChildren = ["left", "center"];
-        referenceRow.add("statictext", undefined, labelText(LABELS.fieldLabel.references));
+    function showRecheckDialog(allCommands) {
+        var settingsFolder = getSettingsFolder();
+        var reportText = buildRecheckReport(allCommands, settingsFolder);
+
+        var recheckDialog = new Window("dialog", getLabel(LABELS.recheck.title) + " " + SCRIPT_VERSION);
+        recheckDialog.orientation = "column";
+        recheckDialog.alignChildren = ["fill", "top"];
+        recheckDialog.margins = WINDOW_MARGINS;
+        recheckDialog.spacing = WINDOW_SPACING;
+
+        /* 照合元の URL を選んで開く / Pick a reference URL and open it */
+        var referenceRow = addFieldRow(recheckDialog, LABELS.recheck.references);
         var referenceDropdown = referenceRow.add("dropdownlist", undefined, []);
         for (var i = 0; i < REFERENCE_URLS.length; i++) {
             referenceDropdown.add("item", REFERENCE_URLS[i].name);
@@ -1474,168 +971,122 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         referenceDropdown.selection = 0;
         referenceDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
         var btnOpenUrl = referenceRow.add("button", undefined, getLabel(LABELS.button.openUrl));
-        btnOpenUrl.helpTip = getLabel(LABELS.tooltip.references);
-        btnOpenUrl.onClick = function () {
-            openUrlInBrowser(REFERENCE_URLS[referenceDropdown.selection.index].url);
-        };
-    }
 
-    /**
-     * 再調査を実行し、結果のダイアログ（結果・照合元の URL・設定フォルダー・書き出し）を表示する
-     * @param {CommandEntry[]} allCommands - すべての項目
-     * @returns {void}
-     */
-    function showRecheckDialog(allCommands) {
-        var settingsFolder = getSettingsFolder();
-        var recheckResult = runRecheck(allCommands, settingsFolder);
-        var reportText = recheckResult.reportText;
-
-        var recheckDialog = createDialogWindow(getLabel(LABELS.dialog.recheckResult) + " " + SCRIPT_VERSION);
-
-        /* 結果を最初に大きく出す / Show the result first, large */
-        var resultField = recheckDialog.add("edittext", undefined, reportText, { multiline: true, scrolling: true, readonly: true });
+        var resultRow = addFieldRow(recheckDialog, LABELS.recheck.result);
+        resultRow.alignChildren = ["left", "top"];
+        var resultField = resultRow.add("edittext", undefined, reportText, { multiline: true, scrolling: true });
         resultField.alignment = ["fill", "fill"];
         resultField.preferredSize = RECHECK_RESULT_SIZE;
 
-        /* 照合元の URL は補助として下に置く / Reference URLs sit below as a secondary tool */
-        addReferenceRow(recheckDialog);
-
-        var buttonRow = addButtonRow(recheckDialog);
-        var btnOpenFolder = buttonRow.btnLeftGroup.add("button", undefined, getLabel(LABELS.button.openFolder));
+        var btnRowGroup = recheckDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnOpenFolder = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.openFolder));
         btnOpenFolder.enabled = settingsFolder.exists;
+        var btnSaveReport = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.saveReport));
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnClose = btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
+        recheckDialog.defaultElement = btnClose;
+        recheckDialog.cancelElement = btnClose;
+
+        btnOpenUrl.onClick = function () {
+            openUrlInBrowser(REFERENCE_URLS[referenceDropdown.selection.index].url);
+        };
         btnOpenFolder.onClick = function () {
             settingsFolder.execute();
         };
-        var btnSaveReport = buttonRow.btnLeftGroup.add("button", undefined, getLabel(LABELS.button.saveReport));
-        btnSaveReport.helpTip = getLabel(LABELS.tooltip.saveReport);
         btnSaveReport.onClick = function () {
-            saveReportFile(buildExportText(recheckResult));
+            saveReportFile(reportText);
         };
 
         recheckDialog.show();
     }
 
     // =========================================
-    // メイン処理 / Main
+    // 表示 / Display
     // =========================================
 
     /**
-     * メインダイアログの部品を作る（上から絞り込み条件・リスト・名前・コード・メモ・ボタン）
-     * @param {Window} mainDialog - 追加先のダイアログ
-     * @param {Object} viewState - 表示の状態 { selectedKind, selectedNameLang, addComment }
-     * @param {CommandEntry[]} allCommands - すべての項目
-     * @returns {Object} 作成した部品
-     */
-    function buildMainControls(mainDialog, viewState, allCommands) {
-        var mainControls = {};
-        mainControls.kindRadios = addRadioRow(mainDialog, LABELS.fieldLabel.kind, KIND_KEYS, DEFAULT_KIND_INDEX, LABELS.tooltip.kind);
-        mainControls.nameLangRadios = addRadioRow(mainDialog, LABELS.fieldLabel.menuLang, MENU_LANG_KEYS, DEFAULT_MENU_LANG_INDEX, LABELS.tooltip.menuLang);
-
-        mainControls.categoryDropdown = addFieldRow(mainDialog, LABELS.fieldLabel.category).add("dropdownlist", undefined, []);
-        mainControls.categoryDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
-        mainControls.categoryDropdown.helpTip = getLabel(LABELS.tooltip.category);
-        fillCategoryDropdown(mainControls.categoryDropdown,
-            collectCategoryNames(allCommands, viewState.selectedKind, viewState.selectedNameLang));
-
-        mainControls.keywordInput = addFieldRow(mainDialog, LABELS.fieldLabel.keyword).add("edittext", undefined, "");
-        mainControls.keywordInput.preferredSize.width = FILTER_FIELD_WIDTH;
-        mainControls.keywordInput.helpTip = getLabel(LABELS.tooltip.keyword);
-        mainControls.keywordInput.active = true;
-
-        mainControls.commandList = addCommandList(mainDialog);
-
-        mainControls.nameField = addFieldRow(mainDialog, LABELS.fieldLabel.itemName).add("edittext", undefined, "", { readonly: true });
-        mainControls.nameField.alignment = ["fill", "center"];
-
-        /* コード欄は2段。環境設定キーでは上が get・下が set、それ以外は上だけ使う
-           Two code rows: get / set for preference keys, only the first one otherwise */
-        mainControls.primaryCodeRow = addCodeRow(mainDialog, LABELS.fieldLabel.code);
-        mainControls.setCodeRow = addCodeRow(mainDialog, LABELS.fieldLabel.setCode);
-
-        /* ラベル幅ぶん字下げしてコードの欄にそろえる / Indent by the label width to line up with the code field */
-        var optionGroup = mainDialog.add("group");
-        optionGroup.margins = [ROW_LABEL_WIDTH + 10, 0, 0, 0];
-        optionGroup.alignChildren = ["left", "center"];
-        mainControls.addCommentCheckbox = optionGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.addComment));
-        mainControls.addCommentCheckbox.value = viewState.addComment;
-        mainControls.addCommentCheckbox.helpTip = getLabel(LABELS.tooltip.addComment);
-
-        mainControls.memoField = addMultilineRow(mainDialog, LABELS.fieldLabel.memo, MEMO_FIELD_HEIGHT, true).textField;
-        mainControls.memoField.helpTip = getLabel(LABELS.tooltip.memo);
-
-        var buttonRow = addButtonRow(mainDialog);
-        mainControls.btnRecheck = buttonRow.btnLeftGroup.add("button", undefined, getLabel(LABELS.button.recheck));
-        mainControls.btnRecheck.helpTip = getLabel(LABELS.tooltip.recheck);
-        return mainControls;
-    }
-
-    /**
-     * 選択中の項目から、名前・コード（get / set）・メモの表示内容を作る
-     * @param {CommandEntry[]} selectedCommands - 選択中の項目（リストの順）
-     * @param {boolean} addComment - 名前をコメントで付けるなら true
-     * @returns {{nameText: string, primaryCodeText: string, setCodeText: string, memoText: string}} 表示内容
-     */
-    function buildOutputTexts(selectedCommands, addComment) {
-        var itemNames = [];
-        var primaryCodeLines = [];
-        var setCodeLines = [];
-        var memoTexts = [];
-        for (var i = 0; i < selectedCommands.length; i++) {
-            var commandEntry = selectedCommands[i];
-            var codeParts = buildCodeParts(commandEntry, addComment);
-            itemNames.push(commandEntry.itemName);
-            primaryCodeLines.push(codeParts.primaryCode);
-            if (codeParts.setCode !== "") {
-                setCodeLines.push(codeParts.setCode);
-            }
-            if (commandEntry.memo !== "") {
-                /* 複数選択ではどの項目のメモか分かるよう ID を添える / Prefix the ID when several are selected */
-                memoTexts.push((selectedCommands.length > 1 ? "[" + commandEntry.commandId + "]\n" : "") + commandEntry.memo);
-            }
-        }
-        /* 複数行 edittext の改行は \n / Multiline edittext uses \n */
-        return {
-            nameText: itemNames.join(" / "),
-            primaryCodeText: primaryCodeLines.join("\n"),
-            setCodeText: setCodeLines.join("\n"),
-            memoText: memoTexts.join("\n\n")
-        };
-    }
-
-    /**
      * メインダイアログを作って表示する
-     * @param {CommandEntry[]} allCommands - すべての項目
+     * @param {CommandEntry[]} allCommands - すべてのコマンド
      * @returns {void}
      */
     function showMainDialog(allCommands) {
         var visibleCommands = [];
         var lastKeywordText = "";
-        /* show() 前の checkbox・radiobutton の value は読み戻せないので変数で持つ / Values cannot be read back before show() */
-        var viewState = {
-            selectedKind: KIND_KEYS[DEFAULT_KIND_INDEX],
-            selectedNameLang: MENU_LANG_KEYS[DEFAULT_MENU_LANG_INDEX],
-            addComment: DEFAULT_ADD_COMMENT
-        };
+        /* show() 前の checkbox.value は読み戻せないので変数で持つ / checkbox.value cannot be read back before show() */
+        var addComment = DEFAULT_ADD_COMMENT;
+        /* show() 前の radiobutton.value も読み戻せないので変数で持つ / Same for radiobutton.value */
+        var selectedKind = KIND_KEYS[DEFAULT_KIND_INDEX];
+        var selectedMenuLang = MENU_LANG_KEYS[DEFAULT_MENU_LANG_INDEX];
 
-        var mainDialog = createDialogWindow(getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        var mainControls = buildMainControls(mainDialog, viewState, allCommands);
+        var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        mainDialog.orientation = "column";
+        mainDialog.alignChildren = ["fill", "top"];
+        mainDialog.margins = WINDOW_MARGINS;
+        mainDialog.spacing = WINDOW_SPACING;
+
+        /* 上から絞り込み条件・リスト・メニュー名・コード / Filters, list, menu name and code from top to bottom */
+        var kindRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.kind, KIND_KEYS, DEFAULT_KIND_INDEX);
+        var menuLangRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.menuLang, MENU_LANG_KEYS, DEFAULT_MENU_LANG_INDEX);
+
+        var categoryDropdown = addFieldRow(mainDialog, LABELS.fieldLabel.category).add("dropdownlist", undefined, []);
+        categoryDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
+        fillCategoryDropdown(categoryDropdown, collectCategoryNames(allCommands, selectedKind, selectedMenuLang));
+
+        var keywordInput = addFieldRow(mainDialog, LABELS.fieldLabel.keyword).add("edittext", undefined, "");
+        keywordInput.preferredSize.width = FILTER_FIELD_WIDTH;
+        keywordInput.helpTip = getLabel(LABELS.tooltip.keyword);
+        keywordInput.active = true;
+
+        var commandList = buildCommandList(mainDialog);
+
+        var menuPathField = addFieldRow(mainDialog, LABELS.fieldLabel.menuPath).add("edittext", undefined, "", { readonly: true });
+        menuPathField.alignment = ["fill", "center"];
+
+        var memoRowGroup = addFieldRow(mainDialog, LABELS.fieldLabel.memo);
+        memoRowGroup.alignChildren = ["left", "top"];
+        var memoField = memoRowGroup.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
+        memoField.alignment = ["fill", "fill"];
+        memoField.preferredSize.height = MEMO_FIELD_HEIGHT;
+
+        var codeRowGroup = addFieldRow(mainDialog, LABELS.fieldLabel.code);
+        codeRowGroup.alignChildren = ["left", "top"];
+        var codeField = codeRowGroup.add("edittext", undefined, "", { multiline: true, scrolling: true });
+        codeField.alignment = ["fill", "fill"];
+        codeField.preferredSize.height = OUTPUT_FIELD_HEIGHT;
+        codeField.helpTip = getLabel(LABELS.tooltip.code);
+
+        /* ラベル幅ぶん字下げしてコードの欄にそろえる / Indent by the label width to line up with the code field */
+        var optionGroup = mainDialog.add("group");
+        optionGroup.margins = [ROW_LABEL_WIDTH + 10, 0, 0, 0];
+        var addCommentCheckbox = optionGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.addComment));
+        addCommentCheckbox.value = addComment;
+
+        var buttonRow = buildButtonRow(mainDialog);
 
         /**
-         * 選択中の項目をリストの順で返す
-         * @returns {CommandEntry[]} 選択中の項目
+         * 選択中のコマンドをリストの順で返す
+         * @returns {CommandEntry[]} 選択中のコマンド
          */
         function getSelectedCommands() {
-            var listSelection = mainControls.commandList.selection;
-            if (!listSelection) {
-                return [];
+            var selectedCommands = [];
+            if (!commandList.selection) {
+                return selectedCommands;
             }
             /* selection は選んだ順なので添字で並べ直す / selection is in click order; reorder by index */
             var selectedIndexes = [];
-            for (var i = 0; i < listSelection.length; i++) {
-                selectedIndexes.push(listSelection[i].index);
+            for (var i = 0; i < commandList.selection.length; i++) {
+                selectedIndexes.push(commandList.selection[i].index);
             }
             selectedIndexes.sort(function (a, b) { return a - b; });
-            var selectedCommands = [];
             for (var j = 0; j < selectedIndexes.length; j++) {
                 selectedCommands.push(visibleCommands[selectedIndexes[j]]);
             }
@@ -1643,21 +1094,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         }
 
         /**
-         * 選択中の項目の名前・コード・メモを欄に出し、コード欄のラベルと有効／無効を種類に合わせる
+         * 選択中のコマンドのメニュー名とコードを欄に出す
          * @returns {void}
          */
         function updateOutput() {
-            var outputTexts = buildOutputTexts(getSelectedCommands(), viewState.addComment);
-            var isPref = (viewState.selectedKind === "pref");
-            mainControls.nameField.text = outputTexts.nameText;
-            mainControls.memoField.text = outputTexts.memoText;
-            mainControls.primaryCodeRow.codeField.text = outputTexts.primaryCodeText;
-            mainControls.setCodeRow.codeField.text = outputTexts.setCodeText;
-            /* 環境設定キーは上が get・下が set、それ以外は下の欄を無効 / get / set for preferences; the set row is disabled otherwise */
-            mainControls.primaryCodeRow.rowLabel.text = labelText(isPref ? LABELS.fieldLabel.getCode : LABELS.fieldLabel.code);
-            mainControls.setCodeRow.codeField.enabled = isPref;
-            setCopyButtonEnabled(mainControls.primaryCodeRow.btnCopy, outputTexts.primaryCodeText !== "");
-            setCopyButtonEnabled(mainControls.setCodeRow.btnCopy, isPref && outputTexts.setCodeText !== "");
+            var selectedCommands = getSelectedCommands();
+            var menuPaths = [];
+            var memoTexts = [];
+            var codeLines = [];
+            for (var i = 0; i < selectedCommands.length; i++) {
+                menuPaths.push(selectedCommands[i].menuPath);
+                codeLines.push(buildCodeLine(selectedCommands[i], addComment));
+                if (selectedCommands[i].memo !== "") {
+                    /* 複数選択ではどの項目のメモか分かるよう ID を添える / Prefix the ID when several are selected */
+                    memoTexts.push((selectedCommands.length > 1 ? "[" + selectedCommands[i].commandId + "]\n" : "")
+                        + selectedCommands[i].memo);
+                }
+            }
+            menuPathField.text = menuPaths.join(" / ");
+            memoField.text = memoTexts.join("\n\n");
+            /* 複数行 edittext の改行は \n / Multiline edittext uses \n */
+            codeField.text = codeLines.join("\n");
         }
 
         /**
@@ -1665,23 +1122,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
          * @returns {void}
          */
         function refreshList() {
-            var categoryDropdown = mainControls.categoryDropdown;
-            lastKeywordText = mainControls.keywordInput.text;
-            visibleCommands = filterCommands(allCommands, {
-                kind: viewState.selectedKind,
-                nameLang: viewState.selectedNameLang,
-                keywordText: lastKeywordText,
-                categoryName: (categoryDropdown.selection.index === 0) ? null : categoryDropdown.selection.text
-            });
+            lastKeywordText = keywordInput.text;
+            var categoryName = (categoryDropdown.selection.index === 0) ? null : categoryDropdown.selection.text;
+            visibleCommands = filterCommands(allCommands, selectedKind, selectedMenuLang, keywordInput.text, categoryName);
 
-            var commandList = mainControls.commandList;
             commandList.removeAll();
             for (var i = 0; i < visibleCommands.length; i++) {
                 var listItem = commandList.add("item", buildItemColumnText(visibleCommands[i]));
                 listItem.subItems[0].text = visibleCommands[i].commandId;
             }
-            mainDialog.text = getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION + wrapInParentheses(formatItemCount(visibleCommands.length));
-            /* 1件に絞れたら選択してコードを出す / Select it when only one item is left */
+            mainDialog.text = buildDialogTitle(visibleCommands.length);
+            /* 1件に絞れたら選択してコードを出す / Select it when only one command is left */
             if (visibleCommands.length === 1) {
                 commandList.selection = 0;
             }
@@ -1689,53 +1140,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         }
 
         /**
+         * キーワードが前回の絞り込みから変わっていれば一覧を作り直す
+         * （onChanging と onChange の両方から呼ばれても1回で済ませる）
+         * @returns {void}
+         */
+        function applyKeywordText() {
+            if (keywordInput.text !== lastKeywordText) {
+                refreshList();
+            }
+        }
+
+        /**
          * 種類・言語を切り替えたら、カテゴリの候補を入れ替えて一覧を作り直す
          * @returns {void}
          */
         function refreshCategories() {
-            var categoryDropdown = mainControls.categoryDropdown;
             /* 項目の入れ替えで onChange が走らないよう外しておく / Detach so refilling does not fire onChange */
             categoryDropdown.onChange = null;
-            fillCategoryDropdown(categoryDropdown, collectCategoryNames(allCommands, viewState.selectedKind, viewState.selectedNameLang));
+            fillCategoryDropdown(categoryDropdown, collectCategoryNames(allCommands, selectedKind, selectedMenuLang));
             categoryDropdown.onChange = refreshList;
             refreshList();
         }
 
         /**
-         * ラジオボタンのクリックで viewState の値を変える処理を作る
-         * @param {string} stateName - viewState のプロパティ名
-         * @param {string} stateValue - 設定する値
+         * 種類ラジオボタンのクリック処理を作る
+         * @param {number} kindIndex - KIND_KEYS の添字
          * @returns {function(): void} クリック処理
          */
-        function createStateClickHandler(stateName, stateValue) {
+        function createKindClickHandler(kindIndex) {
             return function () {
-                viewState[stateName] = stateValue;
+                selectedKind = KIND_KEYS[kindIndex];
                 refreshCategories();
             };
         }
 
-        for (var i = 0; i < mainControls.kindRadios.length; i++) {
-            mainControls.kindRadios[i].onClick = createStateClickHandler("selectedKind", KIND_KEYS[i]);
-        }
-        for (var j = 0; j < mainControls.nameLangRadios.length; j++) {
-            mainControls.nameLangRadios[j].onClick = createStateClickHandler("selectedNameLang", MENU_LANG_KEYS[j]);
+        /**
+         * 言語ラジオボタンのクリック処理を作る
+         * @param {number} langIndex - MENU_LANG_KEYS の添字
+         * @returns {function(): void} クリック処理
+         */
+        function createMenuLangClickHandler(langIndex) {
+            return function () {
+                selectedMenuLang = MENU_LANG_KEYS[langIndex];
+                refreshCategories();
+            };
         }
 
-        /* 入力するたびに絞り込む。onChanging と onChange の両方から呼ばれても1回で済ませる（Enter は［閉じる］に使う）
-           Filter as you type; run once even when both events fire (Enter is for Close) */
-        mainControls.keywordInput.onChanging = mainControls.keywordInput.onChange = function () {
-            if (mainControls.keywordInput.text !== lastKeywordText) {
-                refreshList();
-            }
-        };
-        mainControls.categoryDropdown.onChange = refreshList;
-        mainControls.commandList.onChange = updateOutput;
-        mainControls.addCommentCheckbox.onClick = function () {
-            viewState.addComment = mainControls.addCommentCheckbox.value;
-            updateOutput();
-        };
-        mainControls.btnRecheck.onClick = function () {
+        for (var i = 0; i < kindRadios.length; i++) {
+            kindRadios[i].onClick = createKindClickHandler(i);
+        }
+        for (var j = 0; j < menuLangRadios.length; j++) {
+            menuLangRadios[j].onClick = createMenuLangClickHandler(j);
+        }
+
+        /* 入力するたびに絞り込む（Enter は［閉じる］に使う）/ Filter as you type (Enter is for Close) */
+        keywordInput.onChanging = applyKeywordText;
+        keywordInput.onChange = applyKeywordText;
+        categoryDropdown.onChange = refreshList;
+        commandList.onChange = updateOutput;
+        buttonRow.btnRecheck.onClick = function () {
             showRecheckDialog(allCommands);
+        };
+        addCommentCheckbox.onClick = function () {
+            addComment = addCommentCheckbox.value;
+            updateOutput();
         };
 
         refreshList();
@@ -1750,7 +1218,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     /**
      * メニューコマンド・ツール・環境設定キーの一覧を返す
-     * （1行＝「名前<タブ>ID<タブ>メモ」、環境設定キーは「名前<タブ>キー<タブ>型<タブ>値の例<タブ>メモ」。メモは省略可）
+     * （1行＝「名前<タブ>ID」、環境設定キーは「名前<タブ>キー<タブ>型<タブ>値の例<タブ>メモ」）
      * 元データ：AT-doc/ExtendScript.txt
      * 照合元（2026-09-27 照合）:
      * - Adobe Community のスレッド: https://community.adobe.com/questions-652/executemenucommand-command-list-797322
@@ -1769,13 +1237,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "ファイル > 保存\tsave",
             "ファイル > 別名で保存...\tsaveas",
             "ファイル > 複製を保存...\tsaveacopy",
-            "ファイル > テンプレートとして保存...\tsaveastemplate\tAi 30 のショートカットファイルでは saveasTemplate（旧 ID が動くかは未確認）",
-            "ファイル > 書き出し > Web 用に保存 (従来)...\tAdobe AI Save For Web\t廃止：Ai 19.9 まで（Ai 16 から）",
+            "ファイル > テンプレートとして保存...\tsaveastemplate",
+            "ファイル > 書き出し > Web 用に保存 (従来)...\tAdobe AI Save For Web",
             "ファイル > 選択したスライスを保存...\tAdobe AI Save Selected Slices",
             "ファイル > 復帰\trevert",
             "ファイル > Adobe Stock を検索...\tSearch Adobe Stock",
             "ファイル > 配置...\tAI Place",
-            "ファイル > 書き出し > 書き出し形式...\texport\t廃止：Ai 19.9 まで（Ai 16 から）",
+            "ファイル > 書き出し > 書き出し形式...\texport",
             "ファイル > 選択範囲を書き出し...\texportSelection",
             "ファイル > パッケージ...\tPackage Menu Item",
             "ファイル > 書き出し > スクリーン用に書き出し...\texportForScreens",
@@ -1800,7 +1268,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "編集 > 消去\tclear",
             "編集 > 検索と置換...\tFind and Replace",
             "編集 > 次を検索\tFind Next",
-            "編集 > スペルチェック\tCheck Spelling\t廃止：Ai 24.9 まで（Ai 16 から）",
+            "編集 > スペルチェック\tCheck Spelling",
             "編集 > カスタム辞書を編集...\tEdit Custom Dictionary...",
             "編集 > カラーを編集 > オブジェクトを再配色...\tRecolor Art Dialog",
             "編集 > カラーを編集 > カラーバランス調整...\tAdjust3",
@@ -1822,7 +1290,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "編集 > プロファイルの指定...\tassignprofile",
             "編集 > キーボードショートカット...\tKBSC Menu Item",
             "編集 > 環境設定 > 一般...\tpreference",
-            "編集 > 環境設定 > 選択範囲・アンカー表示...\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
+            "編集 > 環境設定 > 選択範囲・アンカー表示...\tselectPref",
             "編集 > 環境設定 > テキスト...\tkeyboardPref",
             "編集 > 環境設定 > 単位...\tunitundoPref",
             "編集 > 環境設定 > ガイド・グリッド...\tguidegridPref",
@@ -1830,11 +1298,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "編集 > 環境設定 > スライス...\tslicePref",
             "編集 > 環境設定 > ハイフネーション...\thyphenPref",
             "編集 > 環境設定 > プラグイン・仮想記憶ディスク...\tpluginPref",
-            "編集 > 環境設定 > ユーザーインターフェイス...\tUIPref\tAi 30 のショートカットファイルでは userInterfacePref（旧 ID が動くかは未確認）",
+            "編集 > 環境設定 > ユーザーインターフェイス...\tUIPref",
             "編集 > 環境設定 > パフォーマンス...\tGPUPerformancePref",
             "編集 > 環境設定 > ブラックのアピアランス...\tBlackPref",
             "Illustrator > 環境設定 > 一般...\tpreference",
-            "Illustrator > 環境設定 > 選択範囲・アンカー表示...\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
+            "Illustrator > 環境設定 > 選択範囲・アンカー表示...\tselectPref",
             "Illustrator > 環境設定 > テキスト...\tkeyboardPref",
             "Illustrator > 環境設定 > 単位...\tunitundoPref",
             "Illustrator > 環境設定 > ガイド・グリッド...\tguidegridPref",
@@ -1842,7 +1310,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "Illustrator > 環境設定 > スライス...\tslicePref",
             "Illustrator > 環境設定 > ハイフネーション...\thyphenPref",
             "Illustrator > 環境設定 > プラグイン・仮想記憶ディスク...\tpluginPref",
-            "Illustrator > 環境設定 > ユーザーインターフェイス...\tUIPref\tAi 30 のショートカットファイルでは userInterfacePref（旧 ID が動くかは未確認）",
+            "Illustrator > 環境設定 > ユーザーインターフェイス...\tUIPref",
             "Illustrator > 環境設定 > パフォーマンス...\tGPUPerformancePref",
             "Illustrator > 環境設定 > ファイル管理...\tFilePref",
             "Illustrator > 環境設定 > クリップボード...\tClipboardPref",
@@ -1954,7 +1422,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "オブジェクト > 複合パス > 作成\tcompoundPath",
             "オブジェクト > 複合パス > 解除\tnoCompoundPath",
             "オブジェクト > アートボード > アートボードに変換\tsetCropMarks",
-            "オブジェクト > アートボード > すべてのアートボードを再配置\tReArrange Artboards\t廃止：Ai 29.5 まで（Ai 16 から）",
+            "オブジェクト > アートボード > すべてのアートボードを再配置\tReArrange Artboards",
             "オブジェクト > アートボード > オブジェクト全体に合わせる\tFit Artboard to artwork bounds",
             "オブジェクト > アートボード > 選択オブジェクトに合わせる\tFit Artboard to selected Art",
             "オブジェクト > グラフ > 設定...\tsetGraphStyle",
@@ -1964,13 +1432,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "オブジェクト > グラフ > マーカー...\tsetIconDesign",
             "書式 > Adobe Fonts のその他のフォント...\tBrowse Typekit Fonts Menu IllustratorUI",
             "書式 > 字形\talternate glyph palette plugin",
-            "書式 > エリア内文字オプション...\tarea-type-options\tAi 30 のショートカットファイルでは areatextoptions（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > 虹\tRainbow\tAi 30 のショートカットファイルでは textpathtypeRainbow（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > 歪み\tSkew\tAi 30 のショートカットファイルでは textpathtypeSkew（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > 3D リボン\t3D ribbon\tAi 30 のショートカットファイルでは textpathtype3d（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > 階段状\tStair Step\tAi 30 のショートカットファイルでは textpathtypestairs（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > 引力\tGravity\tAi 30 のショートカットファイルでは textpathtypeGravity（旧 ID が動くかは未確認）",
-            "書式 > パス上文字オプション > パス上文字オプション...\ttypeOnPathOptions\tAi 30 のショートカットファイルでは textpathtypeOptions（旧 ID が動くかは未確認）",
+            "書式 > エリア内文字オプション...\tarea-type-options",
+            "書式 > パス上文字オプション > 虹\tRainbow",
+            "書式 > パス上文字オプション > 歪み\tSkew",
+            "書式 > パス上文字オプション > 3D リボン\t3D ribbon",
+            "書式 > パス上文字オプション > 階段状\tStair Step",
+            "書式 > パス上文字オプション > 引力\tGravity",
+            "書式 > パス上文字オプション > パス上文字オプション...\ttypeOnPathOptions",
             "書式 > パス上文字オプション > パス上文字を更新\tupdateLegacyTOP",
             "書式 > 合成フォント...\tAdobe internal composite font plugin",
             "書式 > 禁則処理設定...\tAdobe Kinsoku Settings",
@@ -1981,7 +1449,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "書式 > 箇条書き > テキストに変換\tconvert list style to text",
             "書式 > ヘッドラインを合わせる\tfitHeadline",
             "書式 > アウトラインを作成\toutline",
-            "書式 > フォント検索...\tAdobe Illustrator Find Font Menu Item\t廃止：Ai 25.9 まで（Ai 16 から）",
+            "書式 > フォント検索...\tAdobe Illustrator Find Font Menu Item",
             "書式 > 環境に無いフォントを解決する...\tAdobe IllustratorUI Resolve Missing Font",
             "書式 > 大文字と小文字の変更 > すべて大文字\tUpperCase Change Case Item",
             "書式 > 大文字と小文字の変更 > すべて小文字\tLowerCase Change Case Item",
@@ -1999,18 +1467,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "選択 > 選択範囲を反転\tInverse menu item",
             "選択 > 前面のオブジェクト\tSelection Hat 8",
             "選択 > 背面のオブジェクト\tSelection Hat 9",
-            "選択 > 共通 > アピアランス\tFind Appearance menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > アピアランス属性\tFind Appearance Attributes menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > 描画モード\tFind Blending Mode menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > 塗りと線\tFind Fill & Stroke menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > カラー (塗り)\tFind Fill Color menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > 不透明度\tFind Opacity menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > カラー (線)\tFind Stroke Color menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > 線幅\tFind Stroke Weight menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > グラフィックスタイル\tFind Style menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプ\tFind Live Shape menu item\t廃止：Ai 25.9 まで（Ai 17 から）",
-            "選択 > 共通 > シンボルインスタンス\tFind Symbol Instance menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > 一連のリンクブロック\tFind Link Block Series menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
+            "選択 > 共通 > アピアランス\tFind Appearance menu item",
+            "選択 > 共通 > アピアランス属性\tFind Appearance Attributes menu item",
+            "選択 > 共通 > 描画モード\tFind Blending Mode menu item",
+            "選択 > 共通 > 塗りと線\tFind Fill & Stroke menu item",
+            "選択 > 共通 > カラー (塗り)\tFind Fill Color menu item",
+            "選択 > 共通 > 不透明度\tFind Opacity menu item",
+            "選択 > 共通 > カラー (線)\tFind Stroke Color menu item",
+            "選択 > 共通 > 線幅\tFind Stroke Weight menu item",
+            "選択 > 共通 > グラフィックスタイル\tFind Style menu item",
+            "選択 > 共通 > シェイプ\tFind Live Shape menu item",
+            "選択 > 共通 > シンボルインスタンス\tFind Symbol Instance menu item",
+            "選択 > 共通 > 一連のリンクブロック\tFind Link Block Series menu item",
             "選択 > 共通 > テキスト > フォントファミリー\tFind Text Font Family menu item",
             "選択 > 共通 > テキスト > フォントファミリー (スタイル)\tFind Text Font Family Style menu item",
             "選択 > 共通 > テキスト > フォントファミリー (スタイルとサイズ)\tFind Text Font Family Style Size menu item",
@@ -2038,9 +1506,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "効果 > 3D とマテリアル > 膨張\tLive Adobe Geometry3D Inflate",
             "効果 > 3D とマテリアル > 回転\tLive Adobe Geometry3D Rotate",
             "効果 > 3D とマテリアル > マテリアル\tLive Adobe Geometry3D Materials",
-            "効果 > 3D > 押し出し・ベベル...\tLive 3DExtrude\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "効果 > 3D > 回転体...\tLive 3DRevolve\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "効果 > 3D > 回転...\tLive 3DRotate\t廃止：Ai 25.9 まで（Ai 16 から）",
+            "効果 > 3D > 押し出し・ベベル...\tLive 3DExtrude",
+            "効果 > 3D > 回転体...\tLive 3DRevolve",
+            "効果 > 3D > 回転...\tLive 3DRotate",
             "効果 > SVG フィルター > SVG フィルターを適用...\tLive SVG Filters",
             "効果 > SVG フィルター > SVG フィルターの読み込み...\tSVG Filter Import",
             "効果 > スタイライズ > ぼかし...\tLive Feather",
@@ -2060,8 +1528,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "効果 > パスの変形 > ランダム・ひねり...\tLive Scribble and Tweak",
             "効果 > パスの変形 > 変形...\tLive Transform",
             "効果 > パスの変形 > 旋回...\tLive Twist",
-            "効果 > パスファインダー > 追加\tLive Pathfinder Add\t廃止：Ai 28.9 まで（Ai 16 から）",
-            "効果 > パスファインダー > 合体\tLive Pathfinder Add\t廃止：Ai 28.9 まで（Ai 16 から）",
+            "効果 > パスファインダー > 追加\tLive Pathfinder Add",
+            "効果 > パスファインダー > 合体\tLive Pathfinder Add",
             "効果 > パスファインダー > 交差\tLive Pathfinder Intersect",
             "効果 > パスファインダー > 中マド\tLive Pathfinder Exclude",
             "効果 > パスファインダー > 前面オブジェクトで型抜き\tLive Pathfinder Subtract",
@@ -2262,7 +1730,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "ヘルプ > Illustrator ヘルプ...\thelpcontent",
             "ヘルプ > Illustrator について...\tabout",
             "Illustrator > Illustrator について...\tabout",
-            "ヘルプ > システム情報...\tSystem Info\tAi 30 のショートカットファイルでは systemInfo（旧 ID が動くかは未確認）",
+            "ヘルプ > システム情報...\tSystem Info",
             "その他のパネル > 新規シンボル\tAdobe New Symbol Shortcut",
             "その他のパネル > カラーパネルを表示 (2)\tAdobe Color Palette Secondary",
             "その他のパネル > アクションバッチ\tAdobe Actions Batch",
@@ -2273,21 +1741,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "その他のパネル > 新規レイヤー (オプション表示)\tAdobeLayerPalette3",
             "その他のパネル > リンクを更新\tAdobe Update Link Shortcut",
             "その他のパネル > 新規スウォッチ\tAdobe New Swatch Shortcut Menu",
-            "その他のパネル > 新規スウォッチ\tFind Appearance menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > アピアランス属性\tFind Appearance Attributes menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > 描画モード\tFind Blending Mode menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > 塗りと線\tFind Fill & Stroke menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > カラー (塗り)\tFind Fill Color menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > 不透明度\tFind Opacity menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > カラー (線)\tFind Stroke Color menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > 線幅\tFind Stroke Weight menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > グラフィックスタイル\tFind Style menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > シェイプ\tFind Live Shape menu item\t廃止：Ai 25.9 まで（Ai 17 から）",
-            "選択 > 共通 > シェイプとテキスト > シンボルインスタンス\tFind Symbol Instance menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "選択 > 共通 > シェイプとテキスト > 一連のリンクブロック\tFind Link Block Series menu item\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "効果 > 3D とマテリアル > 3D (クラシック) > 押し出し・ベベル...\tLive 3DExtrude\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "効果 > 3D とマテリアル > 3D (クラシック) > 回転体...\tLive 3DRevolve\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "効果 > 3D とマテリアル > 3D (クラシック) > 回転...\tLive 3DRotate\t廃止：Ai 25.9 まで（Ai 16 から）",
+            "その他のパネル > 新規スウォッチ\tFind Appearance menu item",
+            "選択 > 共通 > シェイプとテキスト > アピアランス属性\tFind Appearance Attributes menu item",
+            "選択 > 共通 > シェイプとテキスト > 描画モード\tFind Blending Mode menu item",
+            "選択 > 共通 > シェイプとテキスト > 塗りと線\tFind Fill & Stroke menu item",
+            "選択 > 共通 > シェイプとテキスト > カラー (塗り)\tFind Fill Color menu item",
+            "選択 > 共通 > シェイプとテキスト > 不透明度\tFind Opacity menu item",
+            "選択 > 共通 > シェイプとテキスト > カラー (線)\tFind Stroke Color menu item",
+            "選択 > 共通 > シェイプとテキスト > 線幅\tFind Stroke Weight menu item",
+            "選択 > 共通 > シェイプとテキスト > グラフィックスタイル\tFind Style menu item",
+            "選択 > 共通 > シェイプとテキスト > シェイプ\tFind Live Shape menu item",
+            "選択 > 共通 > シェイプとテキスト > シンボルインスタンス\tFind Symbol Instance menu item",
+            "選択 > 共通 > シェイプとテキスト > 一連のリンクブロック\tFind Link Block Series menu item",
+            "効果 > 3D とマテリアル > 3D (クラシック) > 押し出し・ベベル...\tLive 3DExtrude",
+            "効果 > 3D とマテリアル > 3D (クラシック) > 回転体...\tLive 3DRevolve",
+            "効果 > 3D とマテリアル > 3D (クラシック) > 回転...\tLive 3DRotate",
             "表示 > トリミング表示\tTrimView",
             "文字ツール\tAdobe Type Tool",
             "エリア内文字ツール\tAdobe Area Type Tool",
@@ -2389,16 +1857,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "クロスと重なりを選択ツール\tAdobe Intertwine Zone Marker Tool",
             "寸法ツール\tAdobe Dimension Tool",
             "パス上オブジェクトツール\tAdobe Constraints Tool",
-            "Object > Objects on Path > Attach\tAttach Objects on Path\t廃止：Ai 29.1 まで（Ai 29 から）",
+            "Object > Objects on Path > Attach\tAttach Objects on Path",
             "Object > Objects on Path > Options\tOptions Objects on Path",
             "Object > Objects on Path > Expand\tExpand Objects on Path",
             "Window > Type > Reflow Viewer\tReflowWindowMenu",
             "Window > Contextual Task Bar\t_GenericPluginMenuItem 25",
             "Object > Path > Smooth\tsmooth menu item",
-            "Object > Mockup (Beta) > Make\tMake Vector Edge\t廃止：Ai 28.9 まで（Ai 28.6 から）",
-            "Object > Mockup (Beta) > Edit\tEdit Vector Edge\t廃止：Ai 28.9 まで（Ai 28 から）",
-            "Window > Mockup (Beta)\tAdobe Vector Edge Panel\t廃止：Ai 28.9 まで（Ai 28 から）",
-            "Window > Text to Vector Graphic (Beta)\tGenerate\t廃止：Ai 28.5 まで（Ai 28 から）",
+            "Object > Mockup (Beta) > Make\tMake Vector Edge",
+            "Object > Mockup (Beta) > Edit\tEdit Vector Edge",
+            "Window > Mockup (Beta)\tAdobe Vector Edge Panel",
+            "Window > Text to Vector Graphic (Beta)\tGenerate",
             "Edit > Preferences > Touch Workspace\tTouchPref",
             "Select > Update Selection\tSelection Hat 14",
             "Object > Ungroup All\tungroup all",
@@ -2407,11 +1875,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "Type > Kinsoku Shori Settings\tAdobe Kinsoku Settings",
             "Type > Mojikumi Settings\tAdobe MojiKumi Settings",
             "Type > Bullets and Numbering > Convert to text\tconvert list style to text",
-            "Window > Retype (Beta)\tReTypeWindowMenu\t廃止：Ai 29.2 まで（Ai 27.6 から）",
+            "Window > Retype (Beta)\tReTypeWindowMenu",
             "Edit > Edit Colors > Generative Recolor (Beta)\tGenerative Recolor Art Dialog",
-            "Object > Mockup (Beta) > Release\tRelease Vector Edge\t廃止：Ai 28.9 まで（Ai 28 から）",
+            "Object > Mockup (Beta) > Release\tRelease Vector Edge",
             "一般\tpreference",
-            "選択範囲・アンカー表示\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
+            "選択範囲・アンカー表示\tselectPref",
             "テキスト\tkeyboardPref",
             "単位\tunitundoPref",
             "ガイド・グリッド\tguidegridPref",
@@ -2419,14 +1887,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "スライス\tslicePref",
             "ハイフネーション\thyphenPref",
             "プラグイン・仮想記憶ディスク\tpluginPref",
-            "ユーザーインターフェイス\tUIPref\tAi 30 のショートカットファイルでは userInterfacePref（旧 ID が動くかは未確認）",
+            "ユーザーインターフェイス\tUIPref",
             "パフォーマンス\tGPUPerformancePref",
             "ファイル管理\tFilePref",
             "クリップボードの処理\tClipboardPref",
             "ブラックのアピアランス\tBlackPref",
             "デバイス\tDevicesPref",
             "General\tpreference",
-            "Selection & Anchor Display\tselectPref\tAi 30 のショートカットファイルでは selectionPref（旧 ID が動くかは未確認）",
+            "Selection & Anchor Display\tselectPref",
             "Type\tkeyboardPref",
             "Units\tunitundoPref",
             "Guides & Grid\tguidegridPref",
@@ -2434,7 +1902,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "Slices\tslicePref",
             "Hyphenation\thyphenPref",
             "Plug-ins & Scratch Disks\tpluginPref",
-            "User Interface\tUIPref\tAi 30 のショートカットファイルでは userInterfacePref（旧 ID が動くかは未確認）",
+            "User Interface\tUIPref",
             "Performance\tGPUPerformancePref",
             "File Handling\tFilePref",
             "Clipboard Handling\tClipboardPref",
@@ -2481,18 +1949,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "オブジェクト > 分布 > 垂直方向等間隔に分布\tVertical Distribute Space",
             "オブジェクト > 分布 > 水平方向等間隔に分布\tHorizontal Distribute Space",
             "オブジェクト > 生成 > 書き直し > テキストを生成...\tGenAIConsolidatedGenerateTextGenerate",
-            "オブジェクト > 生成 > 書き直し > 翻訳...\tGenAIConsolidatedGenerateTextTranslate\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "オブジェクト > 生成 > 書き直し > 校正\tGenAIConsolidatedGenerateTextProofread\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "オブジェクト > 生成 > 書き直し > テキストを調整\tGenAIConsolidatedGenerateTextRephraseToFit\t廃止：Ai 30.5 まで（Ai 30.5 から）",
+            "オブジェクト > 生成 > 書き直し > 翻訳...\tGenAIConsolidatedGenerateTextTranslate",
+            "オブジェクト > 生成 > 書き直し > 校正\tGenAIConsolidatedGenerateTextProofread",
+            "オブジェクト > 生成 > 書き直し > テキストを調整\tGenAIConsolidatedGenerateTextRephraseToFit",
             "オブジェクト > 整列 > 選択範囲に揃える\tAlign To Selection",
-            "オブジェクト > 生成 > ターンテーブル (20 クレジット)\tGenAIConsolidatedTurntable\t廃止：Ai 30.4 まで（Ai 30.3 から）",
+            "オブジェクト > 生成 > ターンテーブル (20 クレジット)\tGenAIConsolidatedTurntable",
             "ウィンドウ > コンセプトからベクター生成\tSketchToVectorUnified",
-            "書式 > 書き直し...\tGenerateTextTypeMenu\t廃止：Ai 30.5 まで（Ai 30.5 から）",
+            "書式 > 書き直し...\tGenerateTextTypeMenu",
             "書式 > Retype\tReTypeTypeMenu",
             "オブジェクト > 生成 > コンセプトからベクター生成\tGenAIConsolidatedTrace",
             "オブジェクト > 整列 > 水平・垂直方向中央に整列\tHorizontal && Vertical Align Center",
             "編集 > プロンプトで編集\tEditGeneratedObjectEditMenu",
-            "書式 > 文字を切り換え | エリア内文字に切り換え | ポイント文字に切り換え\tpoint-area\t廃止：Ai 30.4 まで（Ai 30.4 から）",
+            "書式 > 文字を切り換え | エリア内文字に切り換え | ポイント文字に切り換え\tpoint-area",
             "オブジェクト > 背景を削除\tRemove Background Object Menu",
             "その他 > 前のドキュメントグループに移動\tnavigateToPreviousDocumentGroup",
             "その他 > 次のドキュメントグループに移動\tnavigateToNextDocumentGroup",
@@ -2553,8 +2021,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "書式 > 特殊文字を挿入 > 記号 > ビュレット\t~bullet",
             "ファイル > すべてを閉じる\tcloseAll",
             "オブジェクト > 生成 > 生成塗りつぶし (シェイプ)...\tGenAIConsolidatedShapeFill",
-            "オブジェクト > 生成 > 生成拡張 > 作成\tGen Expand Object Make\t廃止：Ai 29.8 まで（Ai 29.6 から）",
-            "オブジェクト > 生成 > 生成拡張 > 結合\tGen Expand Object Combine\t廃止：Ai 29.8 まで（Ai 29.6 から）",
+            "オブジェクト > 生成 > 生成拡張 > 作成\tGen Expand Object Make",
+            "オブジェクト > 生成 > 生成拡張 > 結合\tGen Expand Object Combine",
             "オブジェクト > 生成 > 裁ち落としを印刷\tGenAIConsolidatedBleed",
             "オブジェクト > 生成 > 生成再配色\tGenAIConsolidatedRecolor",
             "オブジェクト > 生成 > パターンを生成\tGenAIConsolidatedPatterns",
@@ -2562,25 +2030,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "オブジェクト > アートボード > 方向切り替え\tSwitch Orientation",
             "オブジェクト > 生成 > ベクターを生成...\tGenAIConsolidatedGenerateVectors",
             "ヘルプ > 新機能...\twhatsNewContent",
-            "ファイル > レビュー用に共有...\tShare For Review\t廃止：Ai 27.3 まで（Ai 27 から）",
+            "ファイル > レビュー用に共有...\tShare For Review",
             "ファイル > 編集に招待...\tInvite People",
             "Object > Align > Align To Key Object\tAlign To Key Object",
             "Object > Align > Align To Artboard\tAlign To Artboard",
             "Object > Distribute > Vertical Distribute Space\tVertical Distribute Space",
             "Object > Distribute > Horizontal Distribute Space\tHorizontal Distribute Space",
             "Object > Generative > Rewrite > Generate Text...\tGenAIConsolidatedGenerateTextGenerate",
-            "Object > Generative > Rewrite > Translate...\tGenAIConsolidatedGenerateTextTranslate\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "Object > Generative > Rewrite > Proofread\tGenAIConsolidatedGenerateTextProofread\t廃止：Ai 30.5 まで（Ai 30.5 から）",
-            "Object > Generative > Rewrite > Fit text\tGenAIConsolidatedGenerateTextRephraseToFit\t廃止：Ai 30.5 まで（Ai 30.5 から）",
+            "Object > Generative > Rewrite > Translate...\tGenAIConsolidatedGenerateTextTranslate",
+            "Object > Generative > Rewrite > Proofread\tGenAIConsolidatedGenerateTextProofread",
+            "Object > Generative > Rewrite > Fit text\tGenAIConsolidatedGenerateTextRephraseToFit",
             "Object > Align > Align To Selection\tAlign To Selection",
-            "Object > Generative > Turntable (20 credits)\tGenAIConsolidatedTurntable\t廃止：Ai 30.4 まで（Ai 30.3 から）",
+            "Object > Generative > Turntable (20 credits)\tGenAIConsolidatedTurntable",
             "Window > Concept to Vector\tSketchToVectorUnified",
-            "Type > Rewrite...\tGenerateTextTypeMenu\t廃止：Ai 30.5 まで（Ai 30.5 から）",
+            "Type > Rewrite...\tGenerateTextTypeMenu",
             "Type > Retype\tReTypeTypeMenu",
             "Object > Generative > Concept to Vector\tGenAIConsolidatedTrace",
             "Object > Align > Horizontal & Vertical Align Center\tHorizontal && Vertical Align Center",
             "Edit > Prompt to edit\tEditGeneratedObjectEditMenu",
-            "Type > Text Type Conversion | Convert To Area Type | Convert To Point Type\tpoint-area\t廃止：Ai 30.4 まで（Ai 30.4 から）",
+            "Type > Text Type Conversion | Convert To Area Type | Convert To Point Type\tpoint-area",
             "Object > Remove Background\tRemove Background Object Menu",
             "Other Misc > Navigate to Previous Document Group\tnavigateToPreviousDocumentGroup",
             "Other Misc > Navigate to Next Document Group\tnavigateToNextDocumentGroup",
@@ -2641,8 +2109,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "Type > Insert Special Character > Symbols > Bullet\t~bullet",
             "File > Close All\tcloseAll",
             "Object > Generative > Gen Shape Fill...\tGenAIConsolidatedShapeFill",
-            "Object > Generative > Generative Expand > Make\tGen Expand Object Make\t廃止：Ai 29.8 まで（Ai 29.6 から）",
-            "Object > Generative > Generative Expand > Combine\tGen Expand Object Combine\t廃止：Ai 29.8 まで（Ai 29.6 から）",
+            "Object > Generative > Generative Expand > Make\tGen Expand Object Make",
+            "Object > Generative > Generative Expand > Combine\tGen Expand Object Combine",
             "Object > Generative > Print Bleed\tGenAIConsolidatedBleed",
             "Object > Generative > Generative Recolor\tGenAIConsolidatedRecolor",
             "Object > Generative > Generate Patterns\tGenAIConsolidatedPatterns",
@@ -2650,20 +2118,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "Object > Artboards > Switch Orientation\tSwitch Orientation",
             "Object > Generative > Generate Vectors...\tGenAIConsolidatedGenerateVectors",
             "Help > What's New...\twhatsNewContent",
-            "File > Share for Review...\tShare For Review\t廃止：Ai 27.3 まで（Ai 27 から）",
+            "File > Share for Review...\tShare For Review",
             "File > Invite to Edit…\tInvite People",
-            "編集 > SWF プリセット...\tSWFPresets\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "編集 > 環境設定 > ファイル管理・クリップボード...\tFileClipboardPref\t廃止：Ai 24.9 まで（Ai 16 から）。FilePref / ClipboardPref に分割",
-            "ウィンドウ > ツールバー > 初期設定\tDefault ToolBar\t廃止：Ai 22.9 まで（Ai 17 から）",
-            "ウィンドウ > Adobe Color テーマ\tAdobe Illustrator Kuler Panel\t廃止：Ai 25.9 まで（Ai 16 から）",
-            "ウィンドウ > ライブラリ\tAdobe CSXS Extension com.adobe.DesignLibraries.angularライブラリ\t廃止：Ai 22.9 まで（Ai 18.1 から）",
-            "ウィンドウ > ラーニング\tAdobe Learn Panel Menu Item\t廃止：Ai 25.9 まで（Ai 17 から）",
-            "Object > Pattern > Text to Pattern (Beta)\tText To Pattern\t廃止：Ai 28.5 まで（Ai 28 から）。Beta",
-            "File > Generate Vectors (Beta)\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Beta、GenAIConsolidatedGenerateVectors に移行）。Beta。GenAIConsolidatedGenerateVectors に移行",
-            "Object > Gen Shape Fill (Beta)\tShape Fill Object Menu\t廃止：Ai 29.8 まで（Ai 29.5 から）。Beta",
-            "Window > Generate Patterns (Beta)\tAdobe Generative Patterns Panel\t廃止：Ai 29.8 まで（Ai 29.5 から）。Beta",
-            "Illustrator > Preferences > File Handling & Clipboard\tFileClipboardPref\t廃止：Ai 24.9 まで（Ai 16 から）。FilePref / ClipboardPref に分割",
-            "Window > History\tAdobe HistoryPanel Menu Item\t廃止：Ai 26.9 まで（Ai 26.4 から）。Adobe History Panel Menu Item に改名",
             "一般 > キー入力\tcursorKeyLength\tReal\t0.2835",
             "General > Keyboard Increment\tcursorKeyLength\tReal\t0.2835",
             "一般 > 角度の制限\tconstrain/angle\tReal\t0.0\tconstrain/sin・constrain/cos も合わせて書かないと拘束に反映されない",
@@ -4397,140 +3853,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "\tplugin/Adobe Measure Tool/MeasureTool_CustomScale_Count\tInteger\t0",
             "\tplugin/Adobe Measure Tool/MeasureTool_CustomScale_ReplacementIndex\tInteger\t0",
             "\tplugin/Adobe Measure Tool/MeasureTool_Scale\tInteger\t0",
-            "\tplugin/Adobe Measure Tool/MeasureTool_Units\tInteger\t0",
-            "書式 > エリア内文字オプション...\tareatextoptions\t旧 ID：area-type-options",
-            "その他 > コピー (2)\tcopy2",
-            "その他 > カット (2)\tcut2",
-            "その他 > ヘルプ (2)\thelpcontent2",
-            "その他 > ペースト (2)\tpaste2",
-            "ファイル > テンプレートとして保存...\tsaveasTemplate\t旧 ID：saveastemplate",
-            "編集 > 環境設定 > 選択範囲・アンカー表示...\tselectionPref\t旧 ID：selectPref",
-            "Illustrator > 環境設定 > 選択範囲・アンカー表示...\tselectionPref\t旧 ID：selectPref",
-            "選択範囲・アンカー表示\tselectionPref\t旧 ID：selectPref",
-            "ヘルプ > システム情報...\tsystemInfo\t旧 ID：System Info",
-            "書式 > パス上文字オプション > 3D リボン\ttextpathtype3d\t旧 ID：3D ribbon",
-            "書式 > パス上文字オプション > 引力\ttextpathtypeGravity\t旧 ID：Gravity",
-            "書式 > パス上文字オプション > パス上文字オプション...\ttextpathtypeOptions\t旧 ID：typeOnPathOptions",
-            "書式 > パス上文字オプション > 虹\ttextpathtypeRainbow\t旧 ID：Rainbow",
-            "書式 > パス上文字オプション > 歪み\ttextpathtypeSkew\t旧 ID：Skew",
-            "書式 > パス上文字オプション > 階段状\ttextpathtypestairs\t旧 ID：Stair Step",
-            "その他 > 取り消し (2)\tundo2",
-            "編集 > 環境設定 > ユーザーインターフェイス...\tuserInterfacePref\t旧 ID：UIPref",
-            "Illustrator > 環境設定 > ユーザーインターフェイス...\tuserInterfacePref\t旧 ID：UIPref",
-            "ユーザーインターフェイス\tuserInterfacePref\t旧 ID：UIPref",
-            "その他 > ズームイン (2)\tzoomin2",
-            "その他 > 下付き文字 (2)\t~subscript2",
-            "その他 > 上付き文字 (2)\t~superScript2",
-            "Other Misc > Copy (Secondary)\tcopy2",
-            "Other Misc > Cut (Secondary)\tcut2",
-            "Other Misc > Help (Secondary)\thelpcontent2",
-            "Other Misc > Paste (Secondary)\tpaste2",
-            "Selection & Anchor Display\tselectionPref\t旧 ID：selectPref",
-            "Other Misc > Undo (Secondary)\tundo2",
-            "User Interface\tuserInterfacePref\t旧 ID：UIPref",
-            "Other Misc > Zoom In (Secondary)\tzoomin2",
-            "Other Misc > Subscript (Secondary)\t~subscript2",
-            "Other Misc > Superscript (Secondary)\t~superScript2",
-            "\tAdobe Presentation Mode",
-            "\tAdobeAlignHorizVertCenterToArtboardOther",
-            "\tApply Last Filter",
-            "\tExportSettings",
-            "\tImportSettings",
-            "\tLast Filter",
-            "\tOpenGLCompositorPreview",
-            "\tRotateView120",
-            "\tRotateView135",
-            "\tRotateView15",
-            "\tRotateView150",
-            "\tRotateView180",
-            "\tRotateView30",
-            "\tRotateView45",
-            "\tRotateView60",
-            "\tRotateView90",
-            "\tRotateViewNegative120",
-            "\tRotateViewNegative135",
-            "\tRotateViewNegative15",
-            "\tRotateViewNegative150",
-            "\tRotateViewNegative180",
-            "\tRotateViewNegative30",
-            "\tRotateViewNegative45",
-            "\tRotateViewNegative60",
-            "\tRotateViewNegative90",
-            "\tRotateViewZero",
-            "\tappframe",
-            "\tapplicationbar",
-            "\tbringAllToFront",
-            "\tcloseAll2",
-            "\tcollectForExportMultipleAsset",
-            "\tcollectForExportSingleAsset",
-            "\tconvertlegacyText",
-            "\tconvertlegacyText1",
-            "\tconvertlegacyText2",
-            "\tconvertlegacyText3",
-            "\tconvertlegacyText4",
-            "\tdebugPalette",
-            "\tglyphSnapping",
-            "\thideApp",
-            "\thideOthers",
-            "\tminimizeWindow",
-            "\topenInFFBoards",
-            "\tpixelconstraints",
-            "\tresetRotationView",
-            "\trotateViewToSelection",
-            "\tshowAllWindows",
-            "\tsupportContent",
-            "\tswitchUnits",
-            "\tview1",
-            "\tview10",
-            "\tview2",
-            "\tview3",
-            "\tview4",
-            "\tview5",
-            "\tview6",
-            "\tview7",
-            "\tview8",
-            "\tview9",
-            "\t~nonBreakingSpace",
-            "\t~placeHolderText",
-            "\tAdobe Ignore Color Tool",
-            "\tRearrange Artboard Tool",
-            "\tAutoInstantSave/IdleLoopTimeInterval\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tDisableHoverScrollOnUnfocused\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tforceSnapToGrid\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\thighContrastEnabled\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tShow/HideRecentFonts\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tShapeCoreUI/LiveShape/NumStarPoints\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/Adobe Freehand Tool/round_caps\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/AdobePaintStyle/gradientPresetPopupViewType\tInteger\t3\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/AdobePaintStyle/gradientPresetViewType\tInteger\t3\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/AdobeSwatchPopup_Fill/ShowRecentColors\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/AdobeSwatchPopup_Stroke/ShowRecentColors\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/AdobeSwatch_/ShowRecentColors\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/ArtboardColor/Kind\tInteger\t6\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/ContextualTaskBar/Pinned\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/ContextualTaskBar/PositionH\tReal\t0.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/ContextualTaskBar/PositionV\tReal\t0.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SmartExport/AIFormatSmartExport\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/HideBackground\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/LinkDimension\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/ShowColorInfo\tInteger\t255\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/SwatchChipHeight\tReal\t100.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/SwatchChipMarginHorizontal\tReal\t10.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/SwatchChipMarginVertical\tReal\t10.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SwatchPalettePrefix/SwatchChipWidth\tReal\t100.0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/SymbolPalette/NewSymbol/SymbolType\tInteger\t2\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/svgOMGOptionDlg/O_RasterFormat\tInteger\t4\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tplugin/svgOMGOptionDlg/O_RasterResolution\tInteger\t72\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tshowHelpBar\tInteger\t0\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tshowSnapping\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tshowVisualGuidesForSnapToGrid\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\tsnapToTangentPerpendicularParallel\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\ttext/enableAutoFontDownloadForGenAI\tInteger\t1\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "\ttolerance\tInteger\t6\tAi 30.8.2 の再調査で追加（名前・値の意味は未確認）",
-            "オブジェクト > 裁ち落としを印刷...\tGen Bleed Object Menu\t廃止：Ai 29.8 まで（Ai 29.6 から）",
-            "Object > Print Bleed...\tGen Bleed Object Menu\t廃止：Ai 29.8 まで（Ai 29.6 から）",
-            "ファイル > ベクターを生成\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Ai 29.5 から）",
-            "File > Generate Vectors\tGenerate Modal File Menu \t廃止：Ai 29.8 まで（Ai 29.5 から）"
+            "\tplugin/Adobe Measure Tool/MeasureTool_Units\tInteger\t0"
         ];
     }
 
