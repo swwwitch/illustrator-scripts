@@ -46,6 +46,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したテキストをフォント情報に変換するIllustrator用スクリプトです](readme-ja/ConvertFontInfo.md)
 - [ドキュメント内で使用しているテキストの組み合わせ（フォント・サイズ・行送り・](readme-ja/DocumentFontListSelectorPalette.md)
 - [入力したテキストを、インストールされているフォントで表示](readme-ja/FontSampler.md)
+- [和文・かな・欧文のフォントを指定して合成フォントを作成](readme-ja/CompositeFontMaker.md)
 
 
 ## テキスト関連

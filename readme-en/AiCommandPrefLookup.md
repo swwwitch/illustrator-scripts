@@ -68,3 +68,4 @@ https://note.com/dtp_tranist/n/n0cf4826bf4a7
 ### Changelog
 
 - v1.0.0 (20260927) : Initial release
+- v1.0.1 (20260927) : Removed unnamed history preference keys (such as rulerType_1) from the list

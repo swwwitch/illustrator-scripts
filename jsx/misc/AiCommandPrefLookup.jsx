@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiCommandPrefLookup";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -3066,8 +3066,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "\tdefaultPath\tString\t/Users/«username»/Desktop",
             "\tPlacedObject/DisabledNetworkLinkedObject\tInteger\t0",
             "\tDesignLibraryFTUEShown\tInteger\t1",
-            "\trulerType_1\tInteger\t6\t19まである",
-            "\tcolorModel_1\tInteger\t1\t19まである",
             "\tisHexInUpperCase\tInteger\t1",
             "\tGlobalEdit/MaximumSimilarArtsToProcess\tInteger\t1000\t［オブジェクトを一括選択］で選択できる最大個数",
             "\tperspectivegrid/expandAnswer\tInteger\t0",
@@ -3094,8 +3092,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "\tenableHyperThreadedRendering\tInteger\t0",
             "\tRenderingTimerEnabled\tInteger\t0",
             "\tisRulerOriginTopLeft\tInteger\t1",
-            "\tartboard/height_1\tReal\t560.0\t19まである",
-            "\tartboard/width_1\tReal\t960.0\t19まである",
             "\tartboard/transform\tInteger\t0",
             "\tartboard/height\tReal\t1080.0",
             "\tartboard/width\tReal\t1920.0",
@@ -3129,7 +3125,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "\twarning/liveTrace\tInteger\t1",
             "\twarning/fontProblem\tInteger\t1",
             "\twarning/LegacyDictionaryChange\tInteger\t0",
-            "\tartnewdialog/recentPresetIndex_0\tInteger\t0",
             "\tartnewdialog/docppi\tReal\t72.0",
             "\tartnewdialog/pixelperfectobjects\tInteger\t0",
             "\tartnewdialog/rasterresolution\tInteger\t300",
@@ -3417,7 +3412,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "\tmemory/usePhysicalRAMSize\tInteger\t0",
             "\tlayout/0/ApplicationBarOption\tInteger\t0",
             "\tlayout/0/ApplicationBarVisible\tInteger\t0",
-            "\tlayout/0/FrameWindowVisible_19_2\tInteger\t0",
             "\tuseProcessorSpecificCode\tInteger\t1",
             "\tEnableInternalMemoryPool\tInteger\t0",
             "\teditableGuides\tInteger\t0",

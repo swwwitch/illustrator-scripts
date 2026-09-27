@@ -46,6 +46,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [An Illustrator script that converts selected text into…](readme-en/ConvertFontInfo.md)
 - [A docked palette that lists the text-composition combi…](readme-en/DocumentFontListSelectorPalette.md)
 - [Renders the text you type in every installed font](readme-en/FontSampler.md)
+- [Create a composite font from Japanese, Kana and Roman fonts](readme-en/CompositeFontMaker.md)
 
 
 ## Text
