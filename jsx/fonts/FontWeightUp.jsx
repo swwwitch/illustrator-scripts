@@ -10,6 +10,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontWeightUp.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n255437cfdba0
+
 ### 注意
 
 合成フォントと、ファミリー内で最も太いウェイトは変更しません。ウェイトの判定は TypefaceSampler.jsx と同じです。
@@ -31,18 +34,31 @@ Composite fonts and the heaviest weight of a family are left unchanged. Weights 
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontWeightUp";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontWeightUp.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontWeightUp.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontWeightUp.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontWeightUp.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 別々のファミリーとして並ぶフォントを一つのファミリーとして扱う。fonts は細い順に並べ、
+       ファミリー名・PostScript 名のどちらかと一致すれば該当する（大文字小文字は区別しない）
+       Fonts listed as separate families but treated as one; list fonts from thin to heavy.
+       A font matches by family name or PostScript name, case-insensitively */
+    var FAMILY_GROUPS = [
+        { family: "sw", fonts: ["sw-L", "sw-R", "sw-B", "sw-H"] }
+    ];
 
     // =========================================
     // ウェイト語句の定義 / Weight term definitions
@@ -313,11 +329,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * FAMILY_GROUPS に登録されたフォントなら、ファミリーと並び順を返す
+     * @param {TextFont} textFont - 対象フォント
+     * @returns {{family: string, order: number}|null} 登録されたファミリー名と細い順の番号。未登録は null
+     */
+    function findFamilyGroupMember(textFont) {
+        var familyName = (textFont.family || "").toLowerCase();
+        var postscriptName = (textFont.name || "").toLowerCase();
+        for (var i = 0; i < FAMILY_GROUPS.length; i++) {
+            var groupFonts = FAMILY_GROUPS[i].fonts;
+            for (var j = 0; j < groupFonts.length; j++) {
+                var memberName = groupFonts[j].toLowerCase();
+                if (memberName === familyName || memberName === postscriptName) {
+                    return { family: FAMILY_GROUPS[i].family, order: j };
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * ウェイトをそろえる単位となるファミリー名を返す（FAMILY_GROUPS に登録されたフォントはまとめた名前）
+     * @param {TextFont} textFont - 対象フォント
+     * @returns {string} ファミリー名
+     */
+    function getFamilyKey(textFont) {
+        var groupMember = findFamilyGroupMember(textFont);
+        return groupMember ? groupMember.family : textFont.family;
+    }
+
+    /**
      * フォントのウェイトと系列（装飾語の加点）を返す
      * @param {TextFont} textFont - 対象フォント
      * @returns {{weight: number, variant: number}|null} 判定結果。style が空（合成フォント・置換用の仮エントリ）は null
      */
     function getWeightInfo(textFont) {
+        /* FAMILY_GROUPS に登録されたフォントは並び順をウェイトとする / Registered fonts use their listed order */
+        var groupMember = findFamilyGroupMember(textFont);
+        if (groupMember) return { weight: groupMember.order, variant: 0 };
+
         if (!textFont.style) return null;
 
         var styleName = normalizeStyle(textFont.style);
@@ -386,7 +436,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var j = 0; j < characters.length; j++) {
                 var textFont = characters[j].characterAttributes.textFont;
                 characterEntries.push({ character: characters[j], font: textFont });
-                familyNames[textFont.family] = true;
+                familyNames[getFamilyKey(textFont)] = true;
             }
         }
         return { characterEntries: characterEntries, familyNames: familyNames };
@@ -406,7 +456,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var textFonts = app.textFonts;
         for (var i = 0; i < textFonts.length; i++) {
             var textFont = textFonts[i];
-            var family = textFont.family;
+            var family = getFamilyKey(textFont);
             if (!familyNames.hasOwnProperty(family)) continue;
 
             var weightInfo = getWeightInfo(textFont);
@@ -426,7 +476,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function findNextHeavierFont(currentFont, familyIndex) {
         var currentWeightInfo = getWeightInfo(currentFont);
-        var familyMembers = familyIndex[currentFont.family];
+        var familyMembers = familyIndex[getFamilyKey(currentFont)];
         if (!currentWeightInfo || !familyMembers) return null;
 
         var nextMember = null;

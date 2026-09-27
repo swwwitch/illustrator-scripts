@@ -13,6 +13,8 @@
 - An Illustrator script that lists the weights of the selected text's font and of families with similar names, and applies the font you choose while you compare samples
 - To step up one weight right away, use [FontWeightUp](FontWeightUp.md)
 
+<img alt="The font and weight dialog" src="../png/ss-896-1072-144-20260928-062907.png" width="50%" />
+
 ### Main Features
 
 - Font list on the left, weights on the right
@@ -46,6 +48,10 @@
 - The list is based on the font of the first character; the chosen font is applied to every selected character
 - Samples and the white rectangle are created on the temporary layer "// weight-preview" and removed when the dialog closes
 - Composite fonts are not listed
+
+### Article
+
+- [DTP Transit Annex on note (Japanese)](https://note.com/dtp_tranist/n/n255437cfdba0)
 
 ### Update History
 

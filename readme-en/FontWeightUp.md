@@ -29,13 +29,19 @@
 
 ### Notes
 
+- Fonts listed as separate families are treated as one family when registered, thin to heavy, in `FAMILY_GROUPS` at the top of the script (sw-L / sw-R / sw-B / sw-H are registered)
 - Composite fonts and the heaviest weight of a family are left unchanged; those fonts are listed at the end
 - Characters are rewritten one by one, so long text may take a while
+
+### Article
+
+- [DTP Transit Annex on note (Japanese)](https://note.com/dtp_tranist/n/n255437cfdba0)
 
 ### Update History
 
 - v1.0.0 (20260927): Initial version
+- v1.0.1 (20260928): sw-L / sw-R / sw-B / sw-H are treated as one family
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1
