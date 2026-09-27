@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypefaceSampler";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -958,7 +958,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
 
     /* ウェイト語句の並び（インデックスが大きいほど太い）/ Weight terms ordered from thin to bold */
     var WEIGHT_GROUPS = [
-        ["hairline"], // +0
+        ["hairline", "hair"], // +0
         ["ultra thin", "ultrathin", "ut"], // +1
         ["thin", "th"], // +2
         ["default"], // +3

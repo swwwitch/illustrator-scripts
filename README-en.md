@@ -47,6 +47,9 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [A docked palette that lists the text-composition combi…](readme-en/DocumentFontListSelectorPalette.md)
 - [Renders the text you type in every installed font](readme-en/FontSampler.md)
 - [Create a composite font from Japanese, Kana and Roman fonts](readme-en/CompositeFontMaker.md)
+- [Replace composite fonts with their component fonts](readme-en/DeCompositeFontMaker.md)
+- [Switch the selected text to the next heavier weight](readme-en/FontWeightUp.md)
+- [Compare weights of similar fonts with samples and apply one](readme-en/FontWeightPicker.md)
 
 
 ## Text

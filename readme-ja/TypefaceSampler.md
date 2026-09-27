@@ -73,7 +73,7 @@ Illustrator で使用可能なフォントを、ファミリー（`font.family`�
 
 | 分類 | 該当するスタイルの例 |
 | --- | --- |
-| 超極細・極細 | Hairline、Ultra Thin、Thin |
+| 超極細・極細 | Hairline、Hair、Ultra Thin、Thin |
 | 細め | Ultra Light、Extra Light、Light |
 | 標準 | Book、Normal、Regular、Roman |
 | 中太 | Medium、SemiBold、DemiBold |
@@ -112,3 +112,4 @@ Illustrator で使用可能なフォントを、ファミリー（`font.family`�
 - v1.3.2 (20260902) : ウェイト・種類による絞り込みを追加（TypefaceSampler-text.jsx を統合）
 - v1.3.4 (20260922) : 列幅・行の高さを内容に合わせて配置（重なりを解消）、Ultra Condensed などのウェイト判定・引用符検索・全角カンマの不具合を修正、環境にないフォントを除外
 - v1.4.0 (20260927) : 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
+- v1.4.1 (20260927) : 「Hair」（Aktiv Grotesk など）を最も細いウェイトとして判定するように修正

@@ -73,7 +73,7 @@ Classifies `font.style` into five ranks. Numeric styles such as `W3` / `W600` an
 
 | Rank | Example styles |
 | --- | --- |
-| Hairline / Thin | Hairline, Ultra Thin, Thin |
+| Hairline / Thin | Hairline, Hair, Ultra Thin, Thin |
 | Light | Ultra Light, Extra Light, Light |
 | Regular | Book, Normal, Regular, Roman |
 | Medium / SemiBold | Medium, SemiBold, DemiBold |
@@ -112,3 +112,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.3.2 (20260902): Added weight and style-category filters (merged TypefaceSampler-text.jsx)
 - v1.3.4 (20260922): Columns and rows now fit their contents (no more overlaps); fixed weight detection for styles such as Ultra Condensed, quoted keyword search and full-width commas; missing fonts are left out
 - v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.4.1 (20260927): "Hair" (as in Aktiv Grotesk) is now judged as the thinnest weight
