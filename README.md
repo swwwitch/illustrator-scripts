@@ -71,7 +71,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキスト内の数字・英字を増分しながら複製](readme-ja/SmartIncrementText.md)
 - [数字・英字・漢数字をソートして連番を振り直す](readme-ja/SmartRenumber.md)
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
-- [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
+- [クリップボードの内容で選択を置換（テキスト以外にも対応）](readme-ja/ReplaceWithPaste.md)
 - [クリップボードの複数行テキストを1行ずつ順に流し込む](readme-ja/ReplaceTextWithPasteSequential.md)
 - [テキストの削除・置換・整形](readme-ja/SmartTextFindReplace.md)
 - [フォントサイズと水平比率／垂直比率を調整](readme-ja/AdjustFontSize.md)

@@ -16,7 +16,7 @@ The applied line is removed from the clipboard, so running the script repeatedly
 
 With no text frame selected, the first line is pasted at the center of the window and the remaining lines stay on the clipboard, so running the script repeatedly places the entries one by one. It is a handy way to put the first frame on the canvas.
 
-It is derived from `ReplaceTextWithPaste.jsx`. That script applies the same text everywhere at once, while this one consumes a single line per run.
+It is derived from `ReplaceWithPaste.jsx`. That script applies the same text everywhere at once, while this one consumes a single line per run.
 
 ## Main features
 

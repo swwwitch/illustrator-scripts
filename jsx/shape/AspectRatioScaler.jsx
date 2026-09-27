@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したオブジェクトを、指定した縦横比に合わせてサイズ変更します。
-固定する辺の長さと基準点も指定でき、選択がないときはその比率の長方形を作ります。
+幅か高さを固定してもう一方を比率・長さ・％で決めるほか、幅・高さを別々に指定することもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AspectRatioScaler.md
@@ -17,7 +17,7 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 ### Overview
 
 Resizes the selected objects to a chosen aspect ratio.
-You can also set the fixed side's length and the reference point; with nothing selected, it draws a rectangle of that ratio.
+Fix the width or height and set the other side by ratio, length or percentage, or set width and height separately.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRatioScaler.md
@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRati
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -55,11 +55,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     var DEFAULT_CUSTOM_RATIO_WIDTH  = "3";
     var DEFAULT_CUSTOM_RATIO_HEIGHT = "2";
 
-    /* 選択なしで作る長方形の、固定する辺の欄が空のときの長さ（pt）/ Fixed-side length of the rectangle drawn with nothing selected, when the field is empty */
-    var FALLBACK_BASE_SIZE_PT = 200;
+    /* 結果の縦横比を整数比で出すときの分母の上限と許容誤差（相対）/ Max denominator and relative tolerance when showing the resulting ratio as integers */
+    var RATIO_PAIR_MAX_DENOMINATOR = 16;
+    var RATIO_PAIR_TOLERANCE       = 0.002;
 
-    /* 選択なしのとき幅の欄に入れる初期値（単位コード → 値）/ Width field default when nothing is selected (unit code -> value) */
-    var DEFAULT_SIZE_TEXT_BY_UNIT = { 1: "100", 6: "1000" };
+    /* 選択なしで作る長方形の幅（単位コード → 定規の単位での値）/ Width of the rectangle drawn with nothing selected (unit code -> value in ruler units) */
+    var DEFAULT_RECT_WIDTH_BY_UNIT = { 1: 100, 6: 1000 };
+
+    /* 上記にない単位のときの長方形の幅（pt）/ Rectangle width (pt) for other units */
+    var FALLBACK_RECT_WIDTH_PT = 200;
 
     /* 基準点の初期値（0..8 を行優先、0=左上・4=中央・8=右下）/ Initial reference point (row-major 0..8; 0=top-left, 4=center, 8=bottom-right) */
     var DEFAULT_ANCHOR_INDEX = 4;
@@ -72,6 +76,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     // =========================================
     var PANEL_MARGINS       = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] */
     var FIELD_CHARACTERS    = 5;                 /* 数値欄の幅（文字数）/ Numeric field width */
+    var CUSTOM_RATIO_CHARS  = 3;                 /* カスタム比の欄の幅（文字数）/ Custom ratio field width */
+    var PERCENT_CHARS       = 4;                 /* ％の欄の幅（文字数）/ Percent field width */
     var DIALOG_OFFSET_X     = 300;               /* ダイアログを右へずらす量 / Horizontal dialog offset */
     var DIALOG_OPACITY      = 0.97;              /* ダイアログの不透明度 / Dialog opacity */
     var ANCHOR_WIDGET_SIZE  = 66;                /* 9軸ウィジェット全体の大きさ / Overall size of the 9-axis widget */
@@ -81,6 +87,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     var ORIENT_BUTTON_SIZE  = 36;                /* 向きアイコンのボタンの大きさ / Size of an orientation icon button */
     var ORIENT_FRAME_LONG   = 30;                /* 向きアイコンの枠の長辺 / Long side of the orientation icon frame */
     var ORIENT_FRAME_SHORT  = 23;                /* 向きアイコンの枠の短辺 / Short side of the orientation icon frame */
+    var ORIENT_ANCHOR_GAP   = 24;                /* 向きアイコンと9軸の間隔 / Gap between the orientation icons and the 9-axis widget */
 
     /**
      * 見出し付きパネルを縦並びで追加する
@@ -568,8 +575,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     // 自作描画のウィジェット共通 / Custom-drawn widgets (shared)
     // =========================================
 
-    /* UI が明るいテーマか / Whether the UI uses a light theme */
-    var IS_LIGHT_UI = (app.preferences.getRealPreference("uiBrightness") > 0.5);
+    /* UI が明るいテーマか（ステップボタンの判定を流用）/ Whether the UI uses a light theme (reuses the stepper's check) */
+    var IS_LIGHT_UI = !STEPPER_UI_DARK;
 
     /**
      * 矩形を塗る（多角形は fillPath で塗れないので rectPath を使う）
@@ -669,15 +676,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      */
     function drawAnchorWidget(widget) {
         var graphics = widget.graphics;
-        var width = widget.size[0];
-        var height = widget.size[1];
+        var widgetWidth = widget.size[0];
+        var widgetHeight = widget.size[1];
 
         paintControlBackground(widget);
 
         var cellStep = ANCHOR_CELL_SIZE + ANCHOR_CELL_GAP;
         var gridSize = ANCHOR_CELL_SIZE * 3 + ANCHOR_CELL_GAP * 2;
-        var originX = Math.round((width - gridSize) / 2);
-        var originY = Math.round((height - gridSize) / 2);
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
 
         /* 9セルの左上座標を先に求める / Precompute the top-left corner of all nine cells */
         var cellPositions = [];
@@ -762,7 +769,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      */
     function drawPortraitFigure(graphics, frameRect, color) {
         var centerX = frameRect[0] + frameRect[2] / 2;
-        var bottom = frameRect[1] + frameRect[3] - 3;
+        var figureBottom = frameRect[1] + frameRect[3] - 3;
         var headSize = Math.round(frameRect[3] * 0.3);
         var headTop = frameRect[1] + Math.round(frameRect[3] * 0.18);
         var bodyWidth = Math.round(headSize * 1.9);
@@ -772,7 +779,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         fillEllipse(graphics, [centerX - headSize / 2, headTop, headSize, headSize], color);
         fillEllipse(graphics, [centerX - bodyWidth / 2, shoulderTop, bodyWidth, shoulderHeight], color);
         var torsoTop = shoulderTop + shoulderHeight / 2;
-        fillRect(graphics, [centerX - bodyWidth / 2, torsoTop, bodyWidth, bottom - torsoTop], color);
+        fillRect(graphics, [centerX - bodyWidth / 2, torsoTop, bodyWidth, figureBottom - torsoTop], color);
     }
 
     /**
@@ -792,9 +799,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             frameWidth,
             frameHeight
         ];
-        var color = button.isSelected ? ORIENT_SELECTED_COLOR : ORIENT_IDLE_COLOR;
-        strokeRect(graphics, frameRect, color, 2);
-        drawPortraitFigure(graphics, frameRect, color);
+        var iconColor = button.isSelected ? ORIENT_SELECTED_COLOR : ORIENT_IDLE_COLOR;
+        strokeRect(graphics, frameRect, iconColor, 2);
+        drawPortraitFigure(graphics, frameRect, iconColor);
     }
 
     /**
@@ -814,7 +821,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
          * @param {Object} tipSet - ツールチップ
          * @returns {Button} 追加したボタン
          */
-        function addButton(isPortrait, tipSet) {
+        function addOrientationButton(isPortrait, tipSet) {
             var button = orientationGroup.add("button", undefined, "");
             button.helpTip = getLabel(tipSet);
             button.minimumSize = button.preferredSize = button.maximumSize = [ORIENT_BUTTON_SIZE, ORIENT_BUTTON_SIZE];
@@ -832,8 +839,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         }
 
         /* 縦を左、横を右に並べる / Portrait on the left, landscape on the right */
-        orientationGroup.portraitButton = addButton(true, portraitTip);
-        orientationGroup.landscapeButton = addButton(false, landscapeTip);
+        orientationGroup.portraitButton = addOrientationButton(true, portraitTip);
+        orientationGroup.landscapeButton = addOrientationButton(false, landscapeTip);
         orientationGroup.landscapeButton.isSelected = true;
         return orientationGroup;
     }
@@ -919,10 +926,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             options: { ja: "オプション", en: "Options" }
         },
         radio: {
+            ratioOriginal: { ja: "元の比率", en: "Original Ratio" },
             ratio16x9: { ja: "16:9", en: "16:9" },
             ratioSquare: { ja: "1:1（スクエア）", en: "1:1 (Square)" },
             ratioA4: { ja: "A4（1:1.414）", en: "A4 (1:1.414)" },
             ratioCustom: { ja: "カスタム", en: "Custom" },
+            basisNone: { ja: "なし（自由）", en: "None (Free)" },
             basisHorizontal: { ja: "幅", en: "Width" },
             basisVertical: { ja: "高さ", en: "Height" }
         },
@@ -943,40 +952,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
                 ja: "大きさを変えても動かない点です。クリックで選びます。",
                 en: "The point that stays put when the size changes. Click to choose."
             },
-            ratioPreset: {
-                ja: "よく使う比率です。選ぶとカスタム欄は使いません。",
-                en: "Common ratios. Selecting one disables the custom fields."
+            ratioOriginal: {
+                ja: "各オブジェクトの元の縦横比を保ちます。向きの指定は使いません。",
+                en: "Keeps each object's original ratio. The orientation setting is ignored."
             },
+            ratioPreset: { ja: "よく使う比率です。", en: "Common ratios." },
             ratioCustom: { ja: "下の欄に任意の比率（横:縦）を入力します。", en: "Enter any ratio (width:height) in the fields below." },
             customWidth: { ja: "カスタム比の横の値です。", en: "The width part of the custom ratio." },
             customHeight: { ja: "カスタム比の縦の値です。", en: "The height part of the custom ratio." },
+            resultRatio: {
+                ja: "いまの結果の縦横比です。編集するには［カスタム］を選びます。",
+                en: "The current resulting ratio. Choose Custom to edit it."
+            },
             landscape: {
-                ja: "横（ランドスケープ）：長い辺を横にします（1:1 では変わりません）。",
-                en: "Landscape: puts the longer side horizontally (no effect on 1:1)."
+                ja: "横（ランドスケープ）：長い辺を横にします（1:1・［元の比率］・［固定：なし］では変わりません）。",
+                en: "Landscape: puts the longer side horizontally (no effect on 1:1, Original Ratio, or Fixed: None)."
             },
             portrait: {
-                ja: "縦（ポートレート）：長い辺を縦にします（1:1 では変わりません）。",
-                en: "Portrait: puts the longer side vertically (no effect on 1:1)."
+                ja: "縦（ポートレート）：長い辺を縦にします（1:1・［元の比率］・［固定：なし］では変わりません）。",
+                en: "Portrait: puts the longer side vertically (no effect on 1:1, Original Ratio, or Fixed: None)."
+            },
+            basisNone: {
+                ja: "比率を使わず、幅・高さをそれぞれ入力します（入力しない辺は元のまま）。",
+                en: "Ignores the ratio; enter width and height separately (untouched sides stay as they are)."
             },
             basisHorizontal: {
-                ja: "幅を保ったまま高さを比率に合わせます。",
-                en: "Keeps the width and fits the height to the ratio."
+                ja: "幅を元のまま固定し、高さを比率か入力した値で決めます。",
+                en: "Keeps the width and sets the height from the ratio or the value you enter."
             },
             basisVertical: {
-                ja: "高さを保ったまま幅を比率に合わせます。",
-                en: "Keeps the height and fits the width to the ratio."
+                ja: "高さを元のまま固定し、幅を比率か入力した値で決めます。",
+                en: "Keeps the height and sets the width from the ratio or the value you enter."
             },
             sizeValue: {
-                ja: "固定する辺の長さです。空欄なら各オブジェクトの今の長さを使います。",
-                en: "Length of the fixed side. Leave blank to keep each object's current length."
+                ja: "この辺の長さです。入力すると比率より優先し、結果の比率をカスタム欄に表示します。",
+                en: "Length of this side. Entering it overrides the ratio; the result shows in the custom fields."
             },
-            computedValue: {
-                ja: "比率から求めた長さです。入力するには［固定］をこちらに切り替えます。",
-                en: "Length from the ratio. Switch Fixed to this side to edit it."
+            sizePercent: {
+                ja: "この辺を、元の長さに対する％で指定します。入力すると比率より優先します。",
+                en: "Sets this side as a percentage of its original length. Entering it overrides the ratio."
+            },
+            fixedValue: {
+                ja: "固定している辺です。変えるには［固定］を切り替えます。",
+                en: "This side is fixed. Change Fixed to edit it."
             },
             alignToPixelGrid: {
-                ja: "結果をピクセルグリッドに合わせます（［ピクセルを最適化］を実行）。",
-                en: "Runs Make Pixel Perfect to align the result to the pixel grid."
+                ja: "確定時に［ピクセルグリッドに最適化］を実行し、結果をピクセルグリッドに合わせます。",
+                en: "On OK, runs Make Pixel Perfect to align the result to the pixel grid."
             },
             addArtboard: {
                 ja: "結果と同じ範囲にアートボードを追加します。オブジェクトは残ります。",
@@ -991,9 +1013,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
             },
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+            reset: {
+                ja: "［元の比率］を選び、ダイアログを開く前の大きさに戻します。",
+                en: "Selects Original Ratio and restores the size from before the dialog opened."
+            }
         },
         button: {
+            reset: { ja: "リセット", en: "Reset" },
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         }
@@ -1052,9 +1079,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @param {Group} parent - 追加先
      * @param {string} initialText - 初期値
      * @param {Object} tipSet - ツールチップ
+     * @param {number} [fieldCharacters] - 欄の幅（文字数）。省略時は FIELD_CHARACTERS
      * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup、∧∨と欄を束ねた group は .parent）
      */
-    function addNumberField(parent, initialText, tipSet) {
+    function addNumberField(parent, initialText, tipSet, fieldCharacters) {
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperFieldGroup = parent.add("group");
         stepperFieldGroup.orientation = "row";
@@ -1072,33 +1100,43 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         });
         numberField = stepperFieldGroup.add("edittext", undefined, initialText);
         numberField.helpTip = getLabel(tipSet);
-        numberField.characters = FIELD_CHARACTERS;
+        numberField.characters = fieldCharacters || FIELD_CHARACTERS;
         numberField.stepperGroup = stepperGroup;
         bindSteppedArrowKeys(numberField, stepperGroup);
         return numberField;
     }
 
     /**
-     * 入力欄の有効／無効を∧∨ごと切り替える（変わったときだけ∧∨を描き直す）
-     * @param {EditText} numberField - addNumberField() で作った入力欄
-     * @param {boolean} isEnabled - 有効にするなら true
-     * @returns {void}
+     * 入力欄と計算値の表示を同じ位置に重ねて追加する（setFieldValueEditable() で出し分ける。
+     * 無効にした入力欄は Mac で文字が薄く読めないため）
+     * @param {Group} parent - 追加先
+     * @param {Object} fieldTipSet - 入力欄のツールチップ
+     * @param {Object} valueTipSet - 計算値のツールチップ
+     * @param {number} fieldCharacters - 欄の幅（文字数）
+     * @param {string} [initialText] - 入力欄の初期値
+     * @returns {{field: EditText, valueText: StaticText}} 入力欄と計算値の表示
      */
-    function setNumberFieldEnabled(numberField, isEnabled) {
-        numberField.enabled = isEnabled;
-        if (numberField.stepperGroup.enabled === isEnabled) return;
-        numberField.stepperGroup.enabled = isEnabled;
-        redrawSteppersIn(numberField.stepperGroup);
+    function addFieldValueStack(parent, fieldTipSet, valueTipSet, fieldCharacters, initialText) {
+        var valueStack = parent.add("group");
+        valueStack.orientation = "stack";
+        valueStack.alignChildren = ["fill", "center"];
+        var inputField = addNumberField(valueStack, initialText || "", fieldTipSet, fieldCharacters);
+        /* 計算値は∧∨の幅だけ右へずらし、入力欄と同じ位置に出す / indent by the stepper width to line up with the field */
+        var valueTextGroup = valueStack.add("group");
+        valueTextGroup.margins = [STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, 0, 0, 0];
+        valueTextGroup.alignChildren = ["fill", "center"];
+        var valueText = valueTextGroup.add("statictext", undefined, "");
+        valueText.characters = fieldCharacters;
+        valueText.helpTip = getLabel(valueTipSet);
+        return { field: inputField, valueText: valueText };
     }
 
     /**
-     * 「項目名：［欄］単位」の行を追加する
-     * 入力欄と計算値の表示を同じ位置に重ね、setSizeRowEditable() で出し分ける
-     * （無効にした入力欄は Mac で文字が薄く読めないため）
+     * 「項目名：［長さ］ ［％］%」の行を追加する（長さの単位はパネル名に出す）（固定した辺は読めるだけの表示に切り替える）
      * @param {Object} parent - 追加先
      * @param {Object} labelSet - 項目名
      * @param {number} labelWidth - 項目名の幅（右揃えでそろえる）
-     * @returns {{field: EditText, valueText: StaticText}} 入力欄と計算値の表示
+     * @returns {{length: Object, percent: Object}} 長さと％の addFieldValueStack() の戻り値
      */
     function addSizeRow(parent, labelSet, labelWidth) {
         var sizeRow = addRowGroup(parent);
@@ -1106,32 +1144,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         rowLabel.preferredSize.width = labelWidth;
         rowLabel.justify = "right";
 
-        var valueStack = sizeRow.add("group");
-        valueStack.orientation = "stack";
-        valueStack.alignChildren = ["fill", "center"];
-        var sizeField = addNumberField(valueStack, "", LABELS.tooltip.sizeValue);
-        /* 計算値は∧∨の幅だけ右へずらし、入力欄と同じ位置に出す / indent by the stepper width to line up with the field */
-        var valueTextGroup = valueStack.add("group");
-        valueTextGroup.margins = [STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, 0, 0, 0];
-        valueTextGroup.alignChildren = ["fill", "center"];
-        var valueText = valueTextGroup.add("statictext", undefined, "");
-        valueText.characters = FIELD_CHARACTERS;
-        valueText.helpTip = getLabel(LABELS.tooltip.computedValue);
-
-        sizeRow.add("statictext", undefined, RULER_UNIT.label);
-        return { field: sizeField, valueText: valueText };
+        var lengthStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizeValue, LABELS.tooltip.fixedValue, FIELD_CHARACTERS);
+        var percentStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizePercent, LABELS.tooltip.fixedValue, PERCENT_CHARS);
+        sizeRow.add("statictext", undefined, "%");
+        return { length: lengthStack, percent: percentStack };
     }
 
     /**
-     * 行を入力欄（固定する辺）か計算値の表示（固定しない辺）に切り替える
+     * 行の長さと％を、入力欄（固定しない辺）か読めるだけの表示（固定した辺）に切り替える
      * @param {Object} sizeRow - addSizeRow() の戻り値
      * @param {boolean} editable - 入力欄を出すなら true
      * @returns {void}
      */
     function setSizeRowEditable(sizeRow, editable) {
+        setFieldValueEditable(sizeRow.length, editable);
+        setFieldValueEditable(sizeRow.percent, editable);
+    }
+
+    /**
+     * 入力欄と計算値の表示を切り替える
+     * @param {Object} fieldValue - addFieldValueStack() の戻り値
+     * @param {boolean} editable - 入力欄を出すなら true
+     * @returns {void}
+     */
+    function setFieldValueEditable(fieldValue, editable) {
         /* ∧∨ごと出し分ける / show or hide together with the stepper */
-        sizeRow.field.parent.visible = editable;
-        sizeRow.valueText.parent.visible = !editable;
+        fieldValue.field.parent.visible = editable;
+        fieldValue.valueText.parent.visible = !editable;
     }
 
     /**
@@ -1143,17 +1182,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     function buildRatioPanel(parent, dialogControls) {
         var ratioPanel = addPanel(parent, getLabel(LABELS.panel.aspectRatio));
         var ratioRadioGroup = addColumnGroup(ratioPanel);
+        dialogControls.ratioOriginalRadio = addRadio(ratioRadioGroup, LABELS.radio.ratioOriginal, LABELS.tooltip.ratioOriginal);
         dialogControls.ratio16x9Radio = addRadio(ratioRadioGroup, LABELS.radio.ratio16x9, LABELS.tooltip.ratioPreset);
         dialogControls.ratioSquareRadio = addRadio(ratioRadioGroup, LABELS.radio.ratioSquare, LABELS.tooltip.ratioPreset);
         dialogControls.ratioA4Radio = addRadio(ratioRadioGroup, LABELS.radio.ratioA4, LABELS.tooltip.ratioPreset);
         dialogControls.ratioCustomRadio = addRadio(ratioRadioGroup, LABELS.radio.ratioCustom, LABELS.tooltip.ratioCustom);
-        dialogControls.ratio16x9Radio.value = true;
 
         var customRatioGroup = addRowGroup(ratioPanel);
         customRatioGroup.margins = [CUSTOM_RATIO_INDENT, 0, 0, 0];
-        dialogControls.customWidthField = addNumberField(customRatioGroup, DEFAULT_CUSTOM_RATIO_WIDTH, LABELS.tooltip.customWidth);
+        /* ［カスタム］以外のときは、結果の縦横比を読める文字で出す / Outside Custom, show the resulting ratio as readable text */
+        dialogControls.customWidthStack = addFieldValueStack(customRatioGroup, LABELS.tooltip.customWidth, LABELS.tooltip.resultRatio, CUSTOM_RATIO_CHARS, DEFAULT_CUSTOM_RATIO_WIDTH);
         customRatioGroup.add("statictext", undefined, ":");
-        dialogControls.customHeightField = addNumberField(customRatioGroup, DEFAULT_CUSTOM_RATIO_HEIGHT, LABELS.tooltip.customHeight);
+        dialogControls.customHeightStack = addFieldValueStack(customRatioGroup, LABELS.tooltip.customHeight, LABELS.tooltip.resultRatio, CUSTOM_RATIO_CHARS, DEFAULT_CUSTOM_RATIO_HEIGHT);
+        dialogControls.customWidthField = dialogControls.customWidthStack.field;
+        dialogControls.customHeightField = dialogControls.customHeightStack.field;
     }
 
     /**
@@ -1165,7 +1207,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     function buildOptionPanel(parent, dialogControls) {
         var optionPanel = addPanel(parent, getLabel(LABELS.panel.options));
         dialogControls.alignToPixelCheckbox = addCheckbox(optionPanel, LABELS.checkbox.alignToPixelGrid, LABELS.tooltip.alignToPixelGrid);
-        dialogControls.alignToPixelCheckbox.value = DEFAULT_ALIGN_TO_PIXEL_GRID;
         dialogControls.addArtboardCheckbox = addCheckbox(optionPanel, LABELS.checkbox.addArtboard, LABELS.tooltip.addArtboard);
     }
 
@@ -1178,11 +1219,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     function buildOrientationAnchorPanel(parent, dialogControls) {
         var orientationAnchorPanel = addPanel(parent, getLabel(LABELS.panel.orientationAnchor));
         var orientationAnchorRow = addRowGroup(orientationAnchorPanel);
-        orientationAnchorRow.alignment = ["fill", "top"];
+        /* 左右に離さず、パネルの中央に寄せて並べる / Keep them together, centered in the panel */
+        orientationAnchorRow.alignment = ["center", "top"];
+        orientationAnchorRow.spacing = ORIENT_ANCHOR_GAP;
         dialogControls.orientationGroup = addOrientationButtons(orientationAnchorRow, LABELS.tooltip.portrait, LABELS.tooltip.landscape);
-        dialogControls.orientationGroup.alignment = ["left", "center"]; /* 9軸と天地中央でそろえる / Vertically center with the 9-axis widget */
         dialogControls.anchorWidget = addAnchorWidget(orientationAnchorRow, LABELS.tooltip.anchor);
-        dialogControls.anchorWidget.alignment = ["right", "center"];
     }
 
     /**
@@ -1192,15 +1233,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @returns {void}
      */
     function buildSizePanel(parent, dialogControls) {
-        var sizePanel = addPanel(parent, getLabel(LABELS.panel.size));
+        /* 単位はパネル名に出す（例：サイズ（mm））/ Show the unit in the panel title, e.g. Size (mm) */
+        var unitSuffix = (uiLang === "ja") ? "（" + RULER_UNIT.label + "）" : " (" + RULER_UNIT.label + ")";
+        var sizePanel = addPanel(parent, getLabel(LABELS.panel.size) + unitSuffix);
 
+        /* 項目名の右にラジオを横に並べる（排他にするため同じ親へ）/ Radios in a row right of the label, in one parent to stay exclusive */
         var basisRow = addRowGroup(sizePanel);
         basisRow.add("statictext", undefined, labelText(LABELS.fieldLabel.basis));
-        dialogControls.basisHorizontalRadio = addRadio(basisRow, LABELS.radio.basisHorizontal, LABELS.tooltip.basisHorizontal);
-        dialogControls.basisVerticalRadio = addRadio(basisRow, LABELS.radio.basisVertical, LABELS.tooltip.basisVertical);
-        dialogControls.basisHorizontalRadio.value = true;
+        var basisRadioGroup = addRowGroup(basisRow);
+        dialogControls.basisNoneRadio = addRadio(basisRadioGroup, LABELS.radio.basisNone, LABELS.tooltip.basisNone);
+        dialogControls.basisHorizontalRadio = addRadio(basisRadioGroup, LABELS.radio.basisHorizontal, LABELS.tooltip.basisHorizontal);
+        dialogControls.basisVerticalRadio = addRadio(basisRadioGroup, LABELS.radio.basisVertical, LABELS.tooltip.basisVertical);
 
-        /* 幅・高さの両方を表示し、固定する辺の欄だけ編集できる / Show both; only the fixed side is editable */
+        /* 幅・高さの両方を表示し、固定しない辺だけ編集できる / Show both; only the unfixed side is editable */
         var sizeLabelWidth = Math.max(
             sizePanel.graphics.measureString(labelText(LABELS.fieldLabel.width))[0],
             sizePanel.graphics.measureString(labelText(LABELS.fieldLabel.height))[0]
@@ -1210,17 +1255,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     }
 
     /**
-     * キャンセル・OK のボタン行を右寄せで追加する
+     * ボタン行を追加する（左：リセット / 中央：スペーサー / 右：キャンセル・OK）
      * @param {Window} dialog - 追加先のダイアログ
+     * @param {Object} dialogControls - コントロールの参照を書き込む先
      * @returns {void}
      */
-    function addButtonRow(dialog) {
+    function addButtonRow(dialog, dialogControls) {
         var btnRowGroup = dialog.add("group");
         btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["right", "bottom"];
-        btnRowGroup.alignChildren = ["center", "center"];
-        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnReset = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.reset));
+        btnReset.helpTip = getLabel(LABELS.tooltip.reset);
+        dialogControls.btnReset = btnReset;
+
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
     }
 
     /**
@@ -1246,16 +1305,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         buildOptionPanel(leftColumn, dialogControls);
         buildOrientationAnchorPanel(rightColumn, dialogControls);
         buildSizePanel(rightColumn, dialogControls);
-        addButtonRow(dialog);
+        addButtonRow(dialog, dialogControls);
         return dialogControls;
     }
 
     /**
      * ダイアログから選択中の比率（横 ÷ 縦）を読む
      * @param {Object} dialogControls - createDialog() の戻り値
-     * @returns {number} 比率。カスタムが数値でないか 0 以下なら 1
+     * @returns {number|null} 比率。［元の比率］なら null、カスタムが数値でないか 0 以下なら 1
      */
     function readRatio(dialogControls) {
+        if (dialogControls.ratioOriginalRadio.value) return null;
         if (dialogControls.ratio16x9Radio.value) return RATIO_16_9;
         if (dialogControls.ratioSquareRadio.value) return RATIO_SQUARE;
         if (dialogControls.ratioA4Radio.value) return RATIO_A4;
@@ -1266,29 +1326,70 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     }
 
     /**
-     * 固定する辺の欄の値を pt で返す
+     * 固定する辺の行を返す
      * @param {Object} dialogControls - createDialog() の戻り値
-     * @returns {number|null} 値（pt）。空欄・不正値・0以下なら null
+     * @returns {Object|null} addSizeRow() の戻り値。［なし］なら null
      */
-    function readTargetSizePt(dialogControls) {
-        var fixedField = dialogControls.basisVerticalRadio.value ? dialogControls.heightRow.field : dialogControls.widthRow.field;
-        var sizeValue = parseFloat(fixedField.text);
-        if (isNaN(sizeValue) || sizeValue <= 0) return null;
-        return sizeValue * RULER_UNIT.pointsPerUnit;
+    function getFixedRow(dialogControls) {
+        if (dialogControls.basisHorizontalRadio.value) return dialogControls.widthRow;
+        if (dialogControls.basisVerticalRadio.value) return dialogControls.heightRow;
+        return null;
     }
 
     /**
-     * ダイアログの設定をまとめて読む
+     * 欄の正の数値を読む
+     * @param {EditText} numberField - 入力欄
+     * @returns {number|null} 値。空欄・不正値・0以下なら null
+     */
+    function readPositiveNumber(numberField) {
+        var fieldValue = parseFloat(numberField.text);
+        return (isNaN(fieldValue) || fieldValue <= 0) ? null : fieldValue;
+    }
+
+    /**
+     * 行を入力できるか（固定しない辺。［なし］なら幅・高さとも）
      * @param {Object} dialogControls - createDialog() の戻り値
-     * @returns {{ratio: number, wantPortrait: boolean, fixByHeight: boolean, anchorIndex: number, targetSizePt: (number|null)}} 設定
+     * @param {Object} sizeRow - addSizeRow() の戻り値
+     * @returns {boolean} 入力できるなら true
+     */
+    function isSizeRowEditable(dialogControls, sizeRow) {
+        var fixedRow = getFixedRow(dialogControls);
+        return fixedRow === null || fixedRow !== sizeRow;
+    }
+
+    /**
+     * 行に入力された長さか％を読む（入力できない行や、まだ入力していない行は両方 null）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @param {Object} sizeRow - addSizeRow() の戻り値（inputMode に "length" / "percent" / null）
+     * @returns {{lengthPt: (number|null), percent: (number|null)}} 長さ（pt）と％
+     */
+    function readSizeRowInput(dialogControls, sizeRow) {
+        var rowInput = { lengthPt: null, percent: null };
+        if (!isSizeRowEditable(dialogControls, sizeRow)) return rowInput;
+        if (sizeRow.inputMode === "length") {
+            var lengthValue = readPositiveNumber(sizeRow.length.field);
+            if (lengthValue !== null) rowInput.lengthPt = lengthValue * RULER_UNIT.pointsPerUnit;
+        } else if (sizeRow.inputMode === "percent") {
+            rowInput.percent = readPositiveNumber(sizeRow.percent.field);
+        }
+        return rowInput;
+    }
+
+    /**
+     * ダイアログの設定をまとめて読む。入力した長さか％は比率より優先する
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {{ratio: (number|null), wantPortrait: boolean, keepSize: boolean, fixByHeight: boolean, anchorIndex: number, widthInput: Object, heightInput: Object}} 設定
      */
     function readScaleSettings(dialogControls) {
+        var fixedRow = getFixedRow(dialogControls);
         return {
             ratio: readRatio(dialogControls),
             wantPortrait: dialogControls.orientationGroup.portraitButton.isSelected,
-            fixByHeight: dialogControls.basisVerticalRadio.value,
+            keepSize: (fixedRow === null),
+            fixByHeight: (fixedRow === dialogControls.heightRow),
             anchorIndex: dialogControls.anchorWidget.anchorIndex,
-            targetSizePt: readTargetSizePt(dialogControls)
+            widthInput: readSizeRowInput(dialogControls, dialogControls.widthRow),
+            heightInput: readSizeRowInput(dialogControls, dialogControls.heightRow)
         };
     }
 
@@ -1324,19 +1425,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     }
 
     /**
+     * 入力した長さか％から辺の長さを求める
+     * @param {Object} rowInput - readSizeRowInput() の戻り値
+     * @param {number} originalLength - 元の長さ（pt）
+     * @returns {number|null} 長さ（pt）。入力がなければ null
+     */
+    function resolveInputLength(rowInput, originalLength) {
+        if (rowInput.lengthPt !== null) return rowInput.lengthPt;
+        if (rowInput.percent !== null) return originalLength * rowInput.percent / 100;
+        return null;
+    }
+
+    /**
+     * プレビューの i 番目のアイテムの仕上がり寸法を求める
+     * ［なし］は幅・高さを入力どおり（入力がなければ元のまま）。
+     * 固定したときは、固定する辺は元のまま、もう一方は入力があればそれ、なければ比率から求める
+     * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
+     * @param {number} itemIndex - アイテムの番号
+     * @param {Object} scaleSettings - readScaleSettings() の戻り値
+     * @returns {{width: number, height: number}} 幅と高さ（pt）
+     */
+    function computeItemTargetSize(preview, itemIndex, scaleSettings) {
+        var originalWidth = preview.originalWidths[itemIndex];
+        var originalHeight = preview.originalHeights[itemIndex];
+        var inputWidth = resolveInputLength(scaleSettings.widthInput, originalWidth);
+        var inputHeight = resolveInputLength(scaleSettings.heightInput, originalHeight);
+        if (scaleSettings.keepSize) {
+            return {
+                width: (inputWidth === null) ? originalWidth : inputWidth,
+                height: (inputHeight === null) ? originalHeight : inputHeight
+            };
+        }
+        if (scaleSettings.fixByHeight && inputWidth !== null) return { width: inputWidth, height: originalHeight };
+        if (!scaleSettings.fixByHeight && inputHeight !== null) return { width: originalWidth, height: inputHeight };
+
+        /* ［元の比率］はアイテムごとの元の比率（向きで反転しない）/ Original: each item's own ratio, not flipped */
+        var itemRatio;
+        if (scaleSettings.ratio === null) {
+            itemRatio = (originalWidth > 0 && originalHeight > 0) ? originalWidth / originalHeight : 1;
+        } else {
+            itemRatio = orientRatio(scaleSettings.ratio, scaleSettings.wantPortrait);
+        }
+        return computeTargetSize(itemRatio, scaleSettings.fixByHeight, scaleSettings.fixByHeight ? originalHeight : originalWidth);
+    }
+
+    /**
      * プレビューのアイテムに比率を当てる
      * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
      * @param {Object} scaleSettings - readScaleSettings() の戻り値
      * @returns {void}
      */
     function applyRatioToPreview(preview, scaleSettings) {
-        var orientedRatio = orientRatio(scaleSettings.ratio, scaleSettings.wantPortrait);
         for (var i = 0; i < preview.items.length; i++) {
-            var baseSizePt = scaleSettings.targetSizePt;
-            if (baseSizePt === null) {
-                baseSizePt = scaleSettings.fixByHeight ? preview.originalHeights[i] : preview.originalWidths[i];
-            }
-            var targetSize = computeTargetSize(orientedRatio, scaleSettings.fixByHeight, baseSizePt);
+            var targetSize = computeItemTargetSize(preview, i, scaleSettings);
             var previewItem = preview.items[i];
             previewItem.width = targetSize.width;
             previewItem.height = targetSize.height;
@@ -1375,8 +1516,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @returns {Object} { items, originalWidths, originalHeights, originalBounds }
      */
     function createPreviewRectangle(doc, scaleSettings) {
-        var baseSizePt = (scaleSettings.targetSizePt === null) ? FALLBACK_BASE_SIZE_PT : scaleSettings.targetSizePt;
-        var targetSize = computeTargetSize(orientRatio(scaleSettings.ratio, scaleSettings.wantPortrait), scaleSettings.fixByHeight, baseSizePt);
+        var defaultWidth = DEFAULT_RECT_WIDTH_BY_UNIT[RULER_UNIT.code];
+        var rectWidthPt = defaultWidth ? defaultWidth * RULER_UNIT.pointsPerUnit : FALLBACK_RECT_WIDTH_PT;
+        /* ［元の比率］は元が無いので 16:9 で作る / Original has no source here, so draw at 16:9 */
+        var rectRatio = (scaleSettings.ratio === null) ? RATIO_16_9 : scaleSettings.ratio;
+        var targetSize = computeTargetSize(orientRatio(rectRatio, scaleSettings.wantPortrait), false, rectWidthPt);
 
         var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; /* [L,T,R,B] */
         var centerX = (artboardRect[0] + artboardRect[2]) / 2;
@@ -1400,17 +1544,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     /**
      * 確定後の仕上げ（ピクセル最適化・アートボード追加）
      * @param {Document} doc - 対象ドキュメント
-     * @param {Object} item - 仕上げるアイテム
+     * @param {Object} resultItem - 仕上げるアイテム
      * @param {Object} dialogControls - createDialog() の戻り値
      * @returns {void}
      */
-    function applyFinishingOptions(doc, item, dialogControls) {
+    function applyFinishingOptions(doc, resultItem, dialogControls) {
         if (dialogControls.alignToPixelCheckbox.value) {
-            doc.selection = [item];
+            doc.selection = [resultItem];
             app.executeMenuCommand("Make Pixel Perfect");
         }
         if (dialogControls.addArtboardCheckbox.value) {
-            doc.artboards.add(item.visibleBounds);
+            doc.artboards.add(resultItem.visibleBounds);
         }
     }
 
@@ -1458,22 +1602,114 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     }
 
     /**
-     * 固定しない辺に、比率から求めた長さを表示する（対象が複数なら空欄）
-     * @param {Object} dialogControls - createDialog() の戻り値
+     * 数値を小数第2位までの文字列にする
+     * @param {number} value - 値
+     * @returns {string} 文字列
+     */
+    function formatSizeNumber(value) {
+        return String(Math.round(value * 100) / 100);
+    }
+
+    /**
+     * プレビューの長さの表示用文字列を返す（対象が複数なら空欄）
      * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
-     * @param {boolean} fixByHeight - 高さを固定するなら true
+     * @param {boolean} isWidth - 幅なら true
+     * @returns {string} 長さ（定規の単位）
+     */
+    function getPreviewLengthText(preview, isWidth) {
+        if (preview.items.length !== 1) return "";
+        var lengthPt = isWidth ? preview.items[0].width : preview.items[0].height;
+        return formatSizeNumber(lengthPt / RULER_UNIT.pointsPerUnit);
+    }
+
+    /**
+     * プレビューの元の長さに対する％の表示用文字列を返す（複数で値がそろわなければ空欄）
+     * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
+     * @param {boolean} isWidth - 幅なら true
+     * @returns {string} ％
+     */
+    function getPreviewPercentText(preview, isWidth) {
+        var percentText = "";
+        for (var i = 0; i < preview.items.length; i++) {
+            var originalLength = isWidth ? preview.originalWidths[i] : preview.originalHeights[i];
+            if (!(originalLength > 0)) return "";
+            var currentLength = isWidth ? preview.items[i].width : preview.items[i].height;
+            var itemPercentText = formatSizeNumber(currentLength / originalLength * 100);
+            if (i > 0 && itemPercentText !== percentText) return "";
+            percentText = itemPercentText;
+        }
+        return percentText;
+    }
+
+    /**
+     * 入力欄と表示の両方に同じ文字列を入れる
+     * @param {Object} fieldValue - addFieldValueStack() の戻り値
+     * @param {string} valueText - 入れる文字列
      * @returns {void}
      */
-    function showComputedSide(dialogControls, preview, fixByHeight) {
-        var computedRow = fixByHeight ? dialogControls.widthRow : dialogControls.heightRow;
-        var lengthText = "";
-        if (preview.items.length === 1) {
-            var lengthPt = fixByHeight ? preview.items[0].width : preview.items[0].height;
-            lengthText = String(Math.round(lengthPt / RULER_UNIT.pointsPerUnit * 100) / 100);
+    function writeFieldValue(fieldValue, valueText) {
+        fieldValue.field.text = valueText;
+        fieldValue.valueText.text = valueText;
+    }
+
+    /**
+     * 幅・高さの行に、プレビューの長さと％を表示する
+     * 入力できる行で入力中のほう（長さか％）は書き換えず、もう一方だけをそろえる
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
+     * @returns {void}
+     */
+    function showSizeValues(dialogControls, preview) {
+        var sizeSides = [
+            { row: dialogControls.widthRow, isWidth: true },
+            { row: dialogControls.heightRow, isWidth: false }
+        ];
+        for (var i = 0; i < sizeSides.length; i++) {
+            var sizeRow = sizeSides[i].row;
+            var editingInput = isSizeRowEditable(dialogControls, sizeRow) ? sizeRow.inputMode : null;
+            if (editingInput !== "length") writeFieldValue(sizeRow.length, getPreviewLengthText(preview, sizeSides[i].isWidth));
+            if (editingInput !== "percent") writeFieldValue(sizeRow.percent, getPreviewPercentText(preview, sizeSides[i].isWidth));
         }
-        /* 表示と、固定する辺に切り替えたときの初期値の両方に使う / Used for display and as the value when this side becomes fixed */
-        computedRow.valueText.text = lengthText;
-        computedRow.field.text = lengthText;
+    }
+
+    /**
+     * 比率を「横:縦」の数値の組にする（分母16までの整数比に近ければ整数、そうでなければ短い辺を1にした小数）
+     * @param {number} ratio - 比率（横 ÷ 縦）
+     * @returns {string[]} [横, 縦]
+     */
+    function toRatioPair(ratio) {
+        for (var denominator = 1; denominator <= RATIO_PAIR_MAX_DENOMINATOR; denominator++) {
+            var numerator = ratio * denominator;
+            var roundedNumerator = Math.round(numerator);
+            if (roundedNumerator > 0 && Math.abs(numerator - roundedNumerator) / numerator < RATIO_PAIR_TOLERANCE) {
+                return [String(roundedNumerator), String(denominator)];
+            }
+        }
+        return (ratio >= 1) ? [formatSizeNumber(ratio), "1"] : ["1", formatSizeNumber(1 / ratio)];
+    }
+
+    /**
+     * プレビューの縦横比をカスタム比の欄に表示する（複数で比率がそろわなければ空欄）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @param {Object} preview - { items, originalWidths, originalHeights, originalBounds }
+     * @returns {void}
+     */
+    function showResultRatio(dialogControls, preview) {
+        var ratioPair = null;
+        for (var i = 0; i < preview.items.length; i++) {
+            var itemHeight = preview.items[i].height;
+            var itemPair = (itemHeight > 0) ? toRatioPair(preview.items[i].width / itemHeight) : ["", ""];
+            if (ratioPair && (itemPair[0] !== ratioPair[0] || itemPair[1] !== ratioPair[1])) {
+                ratioPair = ["", ""];
+                break;
+            }
+            ratioPair = itemPair;
+        }
+        var ratioStacks = [dialogControls.customWidthStack, dialogControls.customHeightStack];
+        for (var j = 0; j < ratioStacks.length; j++) {
+            /* 表示と、［カスタム］に切り替えたときの初期値の両方に使う / Used for display and as the starting value for Custom */
+            writeFieldValue(ratioStacks[j], ratioPair[j]);
+        }
     }
 
     /**
@@ -1484,13 +1720,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      */
     function refreshPreview(dialogControls, preview) {
         var isCustomRatio = dialogControls.ratioCustomRadio.value;
-        setNumberFieldEnabled(dialogControls.customWidthField, isCustomRatio);
-        setNumberFieldEnabled(dialogControls.customHeightField, isCustomRatio);
-        var fixByHeight = dialogControls.basisVerticalRadio.value;
-        setSizeRowEditable(dialogControls.widthRow, !fixByHeight);
-        setSizeRowEditable(dialogControls.heightRow, fixByHeight);
-        applyRatioToPreview(preview, readScaleSettings(dialogControls));
-        showComputedSide(dialogControls, preview, fixByHeight);
+        setFieldValueEditable(dialogControls.customWidthStack, isCustomRatio);
+        setFieldValueEditable(dialogControls.customHeightStack, isCustomRatio);
+        setSizeRowEditable(dialogControls.widthRow, isSizeRowEditable(dialogControls, dialogControls.widthRow));
+        setSizeRowEditable(dialogControls.heightRow, isSizeRowEditable(dialogControls, dialogControls.heightRow));
+        var scaleSettings = readScaleSettings(dialogControls);
+        applyRatioToPreview(preview, scaleSettings);
+        showSizeValues(dialogControls, preview);
+        /* ［カスタム］の欄は比率の入力元なので、比率を使わなかったときだけ結果を書く / Custom fields feed the ratio; overwrite them only when the ratio was not used */
+        var hasSizeInput = scaleSettings.widthInput.lengthPt !== null || scaleSettings.widthInput.percent !== null
+            || scaleSettings.heightInput.lengthPt !== null || scaleSettings.heightInput.percent !== null;
+        if (!isCustomRatio || scaleSettings.keepSize || hasSizeInput) showResultRatio(dialogControls, preview);
+    }
+
+    /**
+     * ラジオの組に、押したもの以外を外してから onSelect を呼ぶハンドラーを付ける
+     * （クリック直後は前の選択が残って読めることがあるため、自分で排他にする）
+     * @param {RadioButton[]} radioSet - 排他にするラジオ
+     * @param {Function} onSelect - 選び直したときに呼ぶ関数
+     * @returns {void}
+     */
+    function bindExclusiveRadios(radioSet, onSelect) {
+        for (var i = 0; i < radioSet.length; i++) {
+            radioSet[i].onClick = function () {
+                for (var k = 0; k < radioSet.length; k++) radioSet[k].value = (radioSet[k] === this);
+                onSelect();
+            };
+        }
     }
 
     /**
@@ -1500,22 +1756,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @returns {void}
      */
     function bindSettingsHandlers(dialogControls, onSettingsChange) {
-        var clickableControls = [
-            dialogControls.ratio16x9Radio, dialogControls.ratioSquareRadio, dialogControls.ratioA4Radio, dialogControls.ratioCustomRadio,
-            dialogControls.basisHorizontalRadio, dialogControls.basisVerticalRadio
-        ];
-        for (var i = 0; i < clickableControls.length; i++) {
-            clickableControls[i].onClick = onSettingsChange;
-        }
-        var numberFields = [
-            dialogControls.customWidthField, dialogControls.customHeightField,
-            dialogControls.widthRow.field, dialogControls.heightRow.field
-        ];
-        for (var j = 0; j < numberFields.length; j++) {
-            numberFields[j].onChanging = onSettingsChange;
-        }
+        var sizeRows = [dialogControls.widthRow, dialogControls.heightRow];
+
+        /* 固定する辺を変えたら入力をやめて元に戻す / Changing the fixed side drops the typed sizes */
+        var onBasisChange = function () {
+            clearSizeInputs(dialogControls);
+            onSettingsChange();
+        };
+        /* 比率・向きを変えたら比率に戻す（［なし］は比率を使わないので入力を残す）/ Changing ratio or orientation returns to the ratio (None keeps the typed sizes) */
+        var onRatioChange = function () {
+            if (getFixedRow(dialogControls) !== null) clearSizeInputs(dialogControls);
+            onSettingsChange();
+        };
+        bindExclusiveRadios([dialogControls.ratioOriginalRadio, dialogControls.ratio16x9Radio, dialogControls.ratioSquareRadio, dialogControls.ratioA4Radio, dialogControls.ratioCustomRadio], onRatioChange);
+        bindExclusiveRadios([dialogControls.basisNoneRadio, dialogControls.basisHorizontalRadio, dialogControls.basisVerticalRadio], onBasisChange);
+        dialogControls.customWidthField.onChanging = onRatioChange;
+        dialogControls.customHeightField.onChanging = onRatioChange;
+        dialogControls.orientationGroup.onOrientationChange = onRatioChange;
         dialogControls.anchorWidget.onAnchorChange = onSettingsChange;
-        dialogControls.orientationGroup.onOrientationChange = onSettingsChange;
+
+        /* 行ごとに、最後に編集したほう（長さか％）で決める / Each row follows whichever field was edited last */
+        for (var i = 0; i < sizeRows.length; i++) {
+            bindSizeRowInput(sizeRows[i], onSettingsChange);
+        }
+    }
+
+    /**
+     * 行の長さ・％の欄に、編集したほうを inputMode に控えるハンドラーを付ける
+     * @param {Object} sizeRow - addSizeRow() の戻り値
+     * @param {Function} onSettingsChange - 呼び出す関数
+     * @returns {void}
+     */
+    function bindSizeRowInput(sizeRow, onSettingsChange) {
+        sizeRow.length.field.onChanging = function () {
+            sizeRow.inputMode = "length";
+            onSettingsChange();
+        };
+        sizeRow.percent.field.onChanging = function () {
+            sizeRow.inputMode = "percent";
+            onSettingsChange();
+        };
+    }
+
+    /**
+     * 幅・高さの入力をやめる（元の長さか比率に戻る）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {void}
+     */
+    function clearSizeInputs(dialogControls) {
+        dialogControls.widthRow.inputMode = null;
+        dialogControls.heightRow.inputMode = null;
+    }
+
+    /**
+     * 各コントロールを初期値にする。開いたときと［リセット］の両方で使い、［元の比率］で元の大きさに戻す
+     * （幅・高さの欄はプレビューから書き直されるので触らない）
+     * @param {Object} dialogControls - createDialog() の戻り値
+     * @returns {void}
+     */
+    function resetDialogControls(dialogControls) {
+        dialogControls.ratioOriginalRadio.value = true;
+        dialogControls.ratio16x9Radio.value = false;
+        dialogControls.ratioSquareRadio.value = false;
+        dialogControls.ratioA4Radio.value = false;
+        dialogControls.ratioCustomRadio.value = false;
+        dialogControls.customWidthField.text = DEFAULT_CUSTOM_RATIO_WIDTH;
+        dialogControls.customHeightField.text = DEFAULT_CUSTOM_RATIO_HEIGHT;
+        dialogControls.alignToPixelCheckbox.value = DEFAULT_ALIGN_TO_PIXEL_GRID;
+        dialogControls.addArtboardCheckbox.value = false;
+
+        var orientationGroup = dialogControls.orientationGroup;
+        orientationGroup.portraitButton.isSelected = false;
+        orientationGroup.landscapeButton.isSelected = true;
+        redrawControl(orientationGroup.portraitButton);
+        redrawControl(orientationGroup.landscapeButton);
+        dialogControls.anchorWidget.anchorIndex = DEFAULT_ANCHOR_INDEX;
+        redrawControl(dialogControls.anchorWidget);
+
+        dialogControls.basisNoneRadio.value = false;
+        dialogControls.basisHorizontalRadio.value = true;
+        dialogControls.basisVerticalRadio.value = false;
+        clearSizeInputs(dialogControls);
     }
 
     // =========================================
@@ -1538,18 +1859,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
         var dialogControls = createDialog();
 
-        var preview;
-        if (hasSelection) {
-            preview = createPreviewFromSelection(selectedItems);
-        } else {
-            /* 選択なしのときは幅の欄に既定値（px:1000 / mm:100）/ Default width when nothing is selected */
-            dialogControls.widthRow.field.text = DEFAULT_SIZE_TEXT_BY_UNIT[RULER_UNIT.code] || "";
-            preview = createPreviewRectangle(doc, readScaleSettings(dialogControls));
-        }
+        resetDialogControls(dialogControls);
+
+        var preview = hasSelection
+            ? createPreviewFromSelection(selectedItems)
+            : createPreviewRectangle(doc, readScaleSettings(dialogControls));
 
         /* 設定が変わるたびにプレビューを更新 / Refresh the preview on every change */
         bindSettingsHandlers(dialogControls, function () { refreshPreview(dialogControls, preview); });
         refreshPreview(dialogControls, preview);
+
+        dialogControls.btnReset.onClick = function () {
+            resetDialogControls(dialogControls);
+            refreshPreview(dialogControls, preview);
+        };
 
         if (dialogControls.dialog.show() !== 1) {
             cancelPreview(selectedItems, preview);

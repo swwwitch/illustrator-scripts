@@ -6,10 +6,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。
-選択がない場合は、画面の中央に既定の書式でテキストフレームを新規作成します。
+クリップボードがテキスト以外なら、選択したオブジェクトをその内容で置き換えます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceWithPaste.md
 
 note記事も参照してください。
 https://note.com/dtp_tranist/n/nf14ce08eb618
@@ -17,30 +17,54 @@ https://note.com/dtp_tranist/n/nf14ce08eb618
 ### Overview
 
 Replaces the contents of the selected text frames with the text on the clipboard.
-With nothing selected, it creates a new text frame at the center of the view using the default formatting.
+When the clipboard holds something other than text, it replaces the selected objects with it.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPaste.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceWithPaste.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ReplaceTextWithPaste";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_NAME     = "ReplaceWithPaste";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPaste.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceWithPaste.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceWithPaste.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* テキスト以外で置き換えるとき、大きさの扱いを選ぶダイアログを開くか
+       Whether to open a dialog to choose the sizing when replacing with non-text contents */
+    var SHOW_SIZE_DIALOG = true;
+
+    /* ダイアログを開かないときの大きさの扱い（開くときは初期選択）
+       "keep"：大きさ保持、"long"：長辺に合わせる、"short"：短辺に合わせる
+       Sizing used without the dialog (its initial choice otherwise)
+       "keep": keep the pasted size, "long": fit the long side, "short": fit the short side */
+    var DEFAULT_SIZE_MODE = "long";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS        = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING        = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS         = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING         = 6;                /* パネル内の要素間隔 / panel spacing */
+    var BUTTON_ROW_TOP_MARGIN = 10;               /* ボタンエリアの上余白 / top margin of the button row */
 
     // =========================================
     // ローカライズ / Localization
@@ -57,6 +81,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     var uiLang = detectUILanguage();
 
     var LABELS = {
+        dialog: {
+            title: { ja: "クリップボードで置き換え", en: "Replace with Clipboard" }
+        },
+        panel: {
+            size: { ja: "大きさ", en: "Size" }
+        },
+        radio: {
+            keepSize: { ja: "大きさ保持", en: "Keep Size" },
+            fitLongSide: { ja: "長辺に合わせる", en: "Fit Long Side" },
+            fitShortSide: { ja: "短辺に合わせる", en: "Fit Short Side" }
+        },
+        tooltip: {
+            keepSize: {
+                ja: "拡大・縮小せず、中心だけを元のオブジェクトにそろえます",
+                en: "Centers on the original object without scaling"
+            },
+            fitLongSide: {
+                ja: "長辺どうしが同じ長さになるよう、縦横比を保ったまま拡大・縮小します",
+                en: "Scales proportionally so the long sides match"
+            },
+            fitShortSide: {
+                ja: "短辺どうしが同じ長さになるよう、縦横比を保ったまま拡大・縮小します",
+                en: "Scales proportionally so the short sides match"
+            }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             emptyClipboard: {
@@ -78,6 +131,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
             replaceError: {
                 ja: "テキスト置換中にエラーが発生しました：\n",
                 en: "An error occurred while replacing text:\n"
+            },
+            objectReplaceError: {
+                ja: "オブジェクトの置き換え中にエラーが発生しました：\n",
+                en: "An error occurred while replacing objects:\n"
             }
         }
     };
@@ -295,15 +352,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * 一度ペーストして、貼り付けられたテキストフレームから内容と座標を読み取る。
+     * 一度ペーストして、クリップボードの中身がテキストかそれ以外かを調べる。
+     * テキストなら貼り付いたテキストフレームから内容と座標を読み取る。
      * 読み取り後は貼り付けたオブジェクトを削除し、元の選択へ戻す。
      * 貼り付け前に選択を解除するのは、ペーストが実行されなかったときに
      * 元の選択を「貼り付いたもの」と誤認して削除しないため。
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} originalSelection - 復元する元の選択
-     * @returns {{bounds: number[], contents: string}|null} 読み取り結果。テキストが無い、または失敗した場合は null
+     * @returns {{kind: string, bounds: number[], contents: string}|null} kind は "text" または "objects"（objects のときは bounds と contents を持たない）。貼り付けに失敗した場合は null
      */
-    function readClipboardTextFrame(doc, originalSelection) {
+    function readClipboard(doc, originalSelection) {
         var clipboardInfo = null;
         var pastedItems = null;
         var pasteError = null;
@@ -316,9 +374,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
             var pastedTextFrame = findFirstTextFrame(pastedItems);
             if (pastedTextFrame) {
                 clipboardInfo = {
+                    kind: "text",
                     bounds: pastedTextFrame.geometricBounds,
                     contents: pastedTextFrame.contents
                 };
+            } else if (pastedItems.length > 0) {
+                clipboardInfo = { kind: "objects" };
             }
         } catch (e) {
             pasteError = String(e);
@@ -331,12 +392,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         /* 画面を元に戻してから知らせる / Report only after the canvas is back to its original state */
         if (pasteError) {
             alert(getLabel("alert.clipboardError") + pasteError);
-        } else if (!pastedItems || pastedItems.length === 0) {
-            /* ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する / Tell an unusable clipboard apart from a paste without text */
-            alert(getLabel("alert.emptyClipboard"));
-        } else if (!clipboardInfo) {
-            alert(getLabel("alert.noTextInClipboard"));
+            return null;
         }
+        if (!clipboardInfo) alert(getLabel("alert.emptyClipboard"));
         return clipboardInfo;
     }
 
@@ -360,11 +418,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     /**
      * 置き換えで起きたエラーを1回の alert でまとめて知らせる（選択数だけダイアログが出ないように）
      * @param {string[]} errorMessages - 収集したエラーメッセージ
+     * @param {string} [labelPath] - 見出しに使うラベルのキー。省略時は "alert.replaceError"
      * @returns {void}
      */
-    function alertReplaceErrors(errorMessages) {
+    function alertReplaceErrors(errorMessages, labelPath) {
         if (errorMessages.length === 0) return;
-        alert(getLabel("alert.replaceError") + errorMessages.join("\n"));
+        alert(getLabel(labelPath || "alert.replaceError") + errorMessages.join("\n"));
     }
 
     /**
@@ -428,6 +487,191 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     // =========================================
+    // オブジェクトの置き換え / Object replacement
+    // =========================================
+
+    /**
+     * visibleBounds から中心と長辺・短辺を求める
+     * @param {number[]} bounds - [左, 上, 右, 下]
+     * @returns {{centerX: number, centerY: number, longSide: number, shortSide: number}} 中心座標と長辺・短辺の長さ
+     */
+    function measureBounds(bounds) {
+        var width = bounds[2] - bounds[0];
+        var height = bounds[1] - bounds[3];
+        return {
+            centerX: (bounds[0] + bounds[2]) / 2,
+            centerY: (bounds[1] + bounds[3]) / 2,
+            longSide: Math.max(width, height),
+            shortSide: Math.min(width, height)
+        };
+    }
+
+    /**
+     * 大きさの扱いに応じた拡大・縮小率を求める
+     * @param {{longSide: number, shortSide: number}} pastedMetrics - 貼り付けた内容の長辺・短辺
+     * @param {{longSide: number, shortSide: number}} targetMetrics - 置き換え先の長辺・短辺
+     * @param {string} sizeMode - "keep"・"long"・"short" のいずれか
+     * @returns {number} 拡大・縮小率（1 で等倍）
+     */
+    function getFitScale(pastedMetrics, targetMetrics, sizeMode) {
+        if (sizeMode === "long" && pastedMetrics.longSide > 0) return targetMetrics.longSide / pastedMetrics.longSide;
+        if (sizeMode === "short" && pastedMetrics.shortSide > 0) return targetMetrics.shortSide / pastedMetrics.shortSide;
+        return 1;
+    }
+
+    /**
+     * 複数オブジェクトの visibleBounds を合わせた外接矩形を返す
+     * @param {PageItem[]} pageItems - 対象オブジェクト
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getUnionBounds(pageItems) {
+        var unionBounds = pageItems[0].visibleBounds;
+        for (var i = 1; i < pageItems.length; i++) {
+            var itemBounds = pageItems[i].visibleBounds;
+            unionBounds = [
+                Math.min(unionBounds[0], itemBounds[0]),
+                Math.max(unionBounds[1], itemBounds[1]),
+                Math.max(unionBounds[2], itemBounds[2]),
+                Math.min(unionBounds[3], itemBounds[3])
+            ];
+        }
+        return unionBounds;
+    }
+
+    /**
+     * 貼り付けたオブジェクト全体の中心を置き換え先にそろえる。
+     * 長辺・短辺に合わせる場合は、置き換え先のその辺に合わせて縦横比を保ったまま拡大・縮小する。
+     * 複数ある場合は互いの配置を保ったまま、ひとまとまりとして扱う
+     * @param {PageItem[]} pastedItems - 貼り付けたオブジェクト
+     * @param {{centerX: number, centerY: number, longSide: number, shortSide: number}} targetMetrics - 置き換え先の中心と長辺・短辺
+     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
+     * @returns {void}
+     */
+    function fitPastedItems(pastedItems, targetMetrics, sizeMode) {
+        var pastedMetrics = measureBounds(getUnionBounds(pastedItems));
+        var scale = getFitScale(pastedMetrics, targetMetrics, sizeMode);
+
+        for (var i = 0; i < pastedItems.length; i++) {
+            var pastedItem = pastedItems[i];
+            var itemMetrics = measureBounds(pastedItem.visibleBounds);
+
+            /* 各オブジェクトの中心は、全体の中心からの距離を同じ比率で伸縮させた位置へ / Keep each item's offset from the group center, scaled */
+            var destX = targetMetrics.centerX + (itemMetrics.centerX - pastedMetrics.centerX) * scale;
+            var destY = targetMetrics.centerY + (itemMetrics.centerY - pastedMetrics.centerY) * scale;
+
+            if (scale !== 1) pastedItem.resize(scale * 100, scale * 100);
+
+            var scaledMetrics = measureBounds(pastedItem.visibleBounds);
+            pastedItem.translate(destX - scaledMetrics.centerX, destY - scaledMetrics.centerY);
+        }
+    }
+
+    /**
+     * 1つのオブジェクトをクリップボードの内容で置き換える。
+     * 貼り付けた内容は元のオブジェクトの直前（前面）へ移して重ね順を引き継ぎ、
+     * 貼り付けに成功したときだけ元のオブジェクトを削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} targetItem - 置き換えるオブジェクト
+     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
+     * @returns {PageItem[]} 貼り付けたオブジェクト。何も貼り付かなければ空配列
+     */
+    function replaceItemWithClipboard(doc, targetItem, sizeMode) {
+        var targetMetrics = measureBounds(targetItem.visibleBounds);
+
+        setSelection(doc, null);
+        app.paste();
+        /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
+        app.redraw();
+        var pastedItems = captureSelection(doc);
+        if (pastedItems.length === 0) return pastedItems;
+
+        fitPastedItems(pastedItems, targetMetrics, sizeMode);
+        for (var i = 0; i < pastedItems.length; i++) {
+            try {
+                pastedItems[i].move(targetItem, ElementPlacement.PLACEBEFORE);
+            } catch (e) {
+                /* 移せない場合はペースト先のレイヤーに残す / Leave it on the paste layer if it cannot be moved */
+            }
+        }
+        targetItem.remove();
+        return pastedItems;
+    }
+
+    /**
+     * 選択した各オブジェクトを、クリップボードの内容で置き換える
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} targetItems - 置き換えるオブジェクト
+     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
+     * @param {string[]} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
+     * @returns {PageItem[]} 貼り付けたオブジェクトすべて
+     */
+    function replaceItemsWithClipboard(doc, targetItems, sizeMode, errorMessages) {
+        var replacedItems = [];
+        for (var i = targetItems.length - 1; i >= 0; i--) {
+            try {
+                replacedItems = replacedItems.concat(replaceItemWithClipboard(doc, targetItems[i], sizeMode));
+            } catch (e) {
+                /* ロック中のオブジェクトなど、DOM が操作を拒む場合 / The DOM may refuse, e.g. for locked objects */
+                addUniqueError(errorMessages, String(e));
+            }
+        }
+        return replacedItems;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 大きさの扱いを選ぶダイアログを開く
+     * @param {string} initialMode - 初期選択。"keep"・"long"・"short" のいずれか
+     * @returns {string|null} 選んだ扱い（"keep"・"long"・"short"）。キャンセルなら null
+     */
+    function showSizeDialog(initialMode) {
+        var sizeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        sizeDialog.orientation = "column";
+        sizeDialog.alignChildren = ["fill", "top"];
+        sizeDialog.margins = WINDOW_MARGINS;
+        sizeDialog.spacing = WINDOW_SPACING;
+
+        var sizePanel = sizeDialog.add("panel", undefined, getLabel("panel.size"));
+        sizePanel.orientation = "column";
+        sizePanel.alignChildren = ["left", "top"];
+        sizePanel.margins = PANEL_MARGINS;
+        sizePanel.spacing = PANEL_SPACING;
+
+        var sizeRadios = {
+            keep: sizePanel.add("radiobutton", undefined, getLabel("radio.keepSize")),
+            "long": sizePanel.add("radiobutton", undefined, getLabel("radio.fitLongSide")),
+            "short": sizePanel.add("radiobutton", undefined, getLabel("radio.fitShortSide"))
+        };
+        sizeRadios.keep.helpTip = getLabel("tooltip.keepSize");
+        sizeRadios["long"].helpTip = getLabel("tooltip.fitLongSide");
+        sizeRadios["short"].helpTip = getLabel("tooltip.fitShortSide");
+        (sizeRadios[initialMode] || sizeRadios["long"]).value = true;
+
+        var btnRowGroup = sizeDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        if (sizeDialog.show() !== 1) return null;
+        for (var sizeMode in sizeRadios) {
+            if (sizeRadios[sizeMode].value) return sizeMode;
+        }
+        return initialMode;
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -449,8 +693,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         if (editingRange) {
             leaveTextEditing(doc);
 
-            var editingClipboard = readClipboardTextFrame(doc, []);
+            var editingClipboard = readClipboard(doc, []);
             if (!editingClipboard) return;
+            if (editingClipboard.kind !== "text") {
+                /* 文字の中にはテキスト以外を流し込めない / Only text can go into a character range */
+                setSelection(doc, [editingRange.frame]);
+                alert(getLabel("alert.noTextInClipboard"));
+                return;
+            }
 
             var editingErrors = [];
             replaceEditingRange(editingRange, editingClipboard.contents, editingErrors);
@@ -465,8 +715,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
         var targetFrames = collectTextFramesFrom(originalSelection);
 
-        var clipboardInfo = readClipboardTextFrame(doc, originalSelection);
+        var clipboardInfo = readClipboard(doc, originalSelection);
         if (!clipboardInfo) return;
+
+        /* テキスト以外なら、選択したオブジェクトそのものを置き換える / For non-text contents, replace the selected objects themselves */
+        if (clipboardInfo.kind === "objects") {
+            if (originalSelection.length === 0) {
+                /* 選択がなければ通常のペーストと同じく画面の中央へ貼り付ける / With nothing selected, paste as usual */
+                setSelection(doc, null);
+                app.paste();
+                app.redraw();
+                return;
+            }
+            var sizeMode = SHOW_SIZE_DIALOG ? showSizeDialog(DEFAULT_SIZE_MODE) : DEFAULT_SIZE_MODE;
+            if (!sizeMode) return;
+
+            var objectErrors = [];
+            var replacedItems = replaceItemsWithClipboard(doc, originalSelection, sizeMode, objectErrors);
+            alertReplaceErrors(objectErrors, "alert.objectReplaceError");
+            setSelection(doc, replacedItems);
+            app.redraw();
+            return;
+        }
 
         if (originalSelection.length === 0) {
             createNewTextFrame(doc.activeLayer, clipboardInfo.bounds, clipboardInfo.contents);

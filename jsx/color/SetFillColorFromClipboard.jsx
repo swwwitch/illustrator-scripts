@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 クリップボードにある「204,225,179」のようなRGB文字列を読み取り、塗り色に設定します。
-ReplaceTextWithPaste.jsx と同じ2回ペースト方式で、1回目は削除、2回目で値を読み取ってからカットします。
+ReplaceWithPaste.jsx と同じ2回ペースト方式で、1回目は削除、2回目で値を読み取ってからカットします。
 
 ### 注意
 
@@ -15,7 +15,7 @@ ReplaceTextWithPaste.jsx と同じ2回ペースト方式で、1回目は削除�
 ### Overview
 
 Reads an RGB string such as "204,225,179" from the clipboard and applies it as the fill color.
-As in ReplaceTextWithPaste.jsx it pastes twice: the first paste is discarded, the second is read and then cut.
+As in ReplaceWithPaste.jsx it pastes twice: the first paste is discarded, the second is read and then cut.
 
 ### Notes
 

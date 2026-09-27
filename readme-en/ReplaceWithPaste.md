@@ -1,8 +1,8 @@
-# Replace text frames with the clipboard contents
+# Replace the selection with the clipboard contents
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ReplaceTextWithPaste.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ReplaceTextWithPaste.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ReplaceWithPaste.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ReplaceWithPaste.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceWithPaste.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -14,6 +14,8 @@ This script replaces the contents of the selected text frames with the text on t
 
 With nothing selected, it creates a new text frame with the default formatting where the paste lands, which is the center of the view. When a group is selected, every text frame inside it is processed.
 
+When the clipboard holds something other than text (shapes, images, and so on), each selected object is replaced with it. The pasted contents are centered on the original object, and you choose the sizing: Keep Size, Fit Long Side, or Fit Short Side (fitting scales proportionally).
+
 To fill in the lines one at a time instead, use the derived [ReplaceTextWithPasteSequential.jsx](ReplaceTextWithPasteSequential.md). That one pastes the clipboard at the center of the artboard when nothing is selected.
 
 ## Main features
@@ -21,33 +23,49 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 - Replaces the contents of every selected text frame at once
 - Creates a new text frame with the default formatting where the paste lands — the center of the view — when nothing is selected
 - Walks into groups and clip groups, and processes the text frames inside them
+- When the clipboard holds something other than text, replaces the selected objects with it (keep size, fit the long side, or fit the short side; centered and kept in the same stacking position)
 - Supports point type, area type, and type on a path
 - Keeps the selection intact across the run
 - Japanese and English UI
 
 ## Usage
 
-1. Copy the replacement text in a text editor or elsewhere.
-2. Select the text frames to replace (leave nothing selected to create a new one).
-3. Run `ReplaceTextWithPaste.jsx`.
+1. Copy the replacement text or objects.
+2. Select the text frames or objects to replace (for text, leave nothing selected to create a new frame).
+3. Run `ReplaceWithPaste.jsx`.
 
 ## Workflow
 
 1. Save the current selection.
 2. Clear the selection, run a normal paste twice, then read the contents and bounds from the text frame pasted the second time. (The first paste only refreshes Illustrator's cached clipboard; whatever it pastes is removed right away.)
 3. Remove the pasted objects and restore the saved selection. When the paste arrives as a group, look for a text frame inside it.
-4. Replace the contents of the selected text frames, or create a new one when nothing was selected.
+4. When text is found, replace the contents of the selected text frames, or create a new one when nothing was selected.
+5. When no text is found, paste again for each selected object, size the paste as chosen, and remove the original. With nothing selected, paste at the center of the view as usual.
 
 ## Scope
 
 | | Objects |
 | --- | --- |
-| Handled | Text frames, and text frames inside groups and clip groups |
-| Not handled | Images, shapes, locked objects |
+| Handled (text copied) | Text frames, and text frames inside groups and clip groups |
+| Handled (non-text copied) | The selected objects, text frames included |
+| Not handled | Locked objects |
+
+## Settings
+
+Switch these in the User Settings block at the top of the script. Both apply only when replacing with non-text contents.
+
+| Variable | Values | Meaning |
+| --- | --- | --- |
+| `SHOW_SIZE_DIALOG` | `true` (default) / `false` | Whether to open a dialog to choose the sizing |
+| `DEFAULT_SIZE_MODE` | `"keep"` / `"long"` (default) / `"short"` | Keep size / fit the long side / fit the short side. Used as is when the dialog is off, and as the initial choice when it is on |
+
+To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `false`.
 
 ## Notes
 
-- The script performs a normal paste internally. It reports and stops when no text is found on the clipboard.
+- The script performs a normal paste internally. It reports and stops when nothing gets pasted.
+- While editing selected characters, it reports and stops without replacing anything if the clipboard holds something other than text.
+- When replacing with non-text contents, a selected group is replaced as a whole (only text copies reach the text frames inside groups).
 - Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard still brings back the old contents. To work around this, the script pastes twice and uses the result of the second paste.
 - A new text frame lands wherever Illustrator pastes (the center of the view), not at the coordinates it was copied from.
 - A new text frame uses the default formatting. The font and size of the copied text are not carried over.
@@ -57,6 +75,8 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 
 ## Changelog
 
+- v1.3.0 (20260927): Added a choice of sizing when replacing with non-text contents: Keep Size, Fit Long Side, or Fit Short Side. Choose it in a dialog, or fix it with the `SHOW_SIZE_DIALOG` and `DEFAULT_SIZE_MODE` user settings
+- v1.2.0 (20260927): Renamed from `ReplaceTextWithPaste.jsx` to `ReplaceWithPaste.jsx`. Added support for non-text clipboard contents. Each selected object is replaced with the pasted contents, fitted to its long side and matched in center and stacking position. With nothing selected, the contents are pasted as usual
 - v1.1.4 (20260825): Spelled out in the overview that a new text frame lands at the center of the view, and noted that the derived `ReplaceTextWithPasteSequential.jsx` now pastes the clipboard at the center of the artboard when nothing is selected (the behavior of this script is unchanged)
 - v1.1.3 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid, and the frames are all collected before any of them is rewritten
 - v1.1.1 (20260814): Fixed text copied in an application other than Illustrator not coming through. Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard brings back the old contents; the script now discards that first paste and uses the result of a second one. It also looks for a text frame inside a pasted group, and reports when nothing was pasted at all

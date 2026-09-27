@@ -62,7 +62,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Duplicate text while incrementing its digits or letters](readme-en/SmartIncrementText.md)
 - [Sort numbers, letters or Japanese numerals and renumber them in sequence](readme-en/SmartRenumber.md)
 - [Create and adjust area type in one flow](readme-en/AreaTypeToolkit.md)
-- [Replace the contents of selected text frames with the clipboard](readme-en/ReplaceTextWithPaste.md)
+- [Replace the selection with the clipboard contents (text or objects)](readme-en/ReplaceWithPaste.md)
 - [Remove, replace and clean up text](readme-en/SmartTextFindReplace.md)
 - [Unified type panel](readme-en/UnifiedTypePalette.md)
 - [Kerning settings palette](readme-en/AutoKerningPalette.md)

@@ -166,13 +166,15 @@ While *Preview* is on, the result is built on a dedicated layer named **プレ�
 
 Every value uses the **ruler unit** (Preferences → Units → General). The one exception is the divider line's *Weight*, which follows the **stroke** unit. The current unit is shown to the right of each field.
 
-Number fields respond to the arrow keys.
+Number fields have stepper buttons on their left and also respond to the arrow keys; both behave the same way.
 
-| Key | Step |
+| Action | Step |
 | --- | --- |
-| Up / Down | 1 |
-| Shift + Up / Down | 10 (snaps to multiples of 10) |
-| Option + Up / Down | 0.1 |
+| Stepper / Up / Down | To the next whole number (1.5 → 2) |
+| Shift + Stepper / Up / Down | To the next multiple of 10 (232 → 240) |
+| Option + Stepper / Up / Down | 0.1 (whole numbers only for *Repeat*) |
+
+*Inset Length* stops at 0 or below, *Repeat* at 1 or above, and the divider offset within the slider's range.
 
 ## Notes
 
@@ -193,3 +195,7 @@ While the dialog is open, anchor-point display and the bounding box are toggled 
 ### note
 
 - [Article (Japanese) | DTP Transit 別館](https://note.com/dtp_tranist/n/n2e949946228a)
+
+## Update History
+
+- v1.5.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
