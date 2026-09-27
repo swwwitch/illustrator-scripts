@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceWit
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceWithPaste";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -105,6 +105,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
                 ja: "短辺どうしが同じ長さになるよう、縦横比を保ったまま拡大・縮小します",
                 en: "Scales proportionally so the short sides match"
             }
+        },
+        checkbox: {
+            preview: { ja: "プレビューを表示", en: "Show Preview" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -539,17 +542,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * 貼り付けたオブジェクト全体の中心を置き換え先にそろえる。
-     * 長辺・短辺に合わせる場合は、置き換え先のその辺に合わせて縦横比を保ったまま拡大・縮小する。
+     * 貼り付けたオブジェクト全体を指定の倍率で拡大・縮小し、中心を置き換え先にそろえる。
      * 複数ある場合は互いの配置を保ったまま、ひとまとまりとして扱う
      * @param {PageItem[]} pastedItems - 貼り付けたオブジェクト
-     * @param {{centerX: number, centerY: number, longSide: number, shortSide: number}} targetMetrics - 置き換え先の中心と長辺・短辺
-     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
+     * @param {{centerX: number, centerY: number}} targetMetrics - 置き換え先の中心
+     * @param {number} scale - 今の大きさに対する倍率（1 で等倍）
      * @returns {void}
      */
-    function fitPastedItems(pastedItems, targetMetrics, sizeMode) {
+    function scalePastedItems(pastedItems, targetMetrics, scale) {
         var pastedMetrics = measureBounds(getUnionBounds(pastedItems));
-        var scale = getFitScale(pastedMetrics, targetMetrics, sizeMode);
 
         for (var i = 0; i < pastedItems.length; i++) {
             var pastedItem = pastedItems[i];
@@ -567,55 +568,110 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * 1つのオブジェクトをクリップボードの内容で置き換える。
-     * 貼り付けた内容は元のオブジェクトの直前（前面）へ移して重ね順を引き継ぎ、
-     * 貼り付けに成功したときだけ元のオブジェクトを削除する
-     * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} targetItem - 置き換えるオブジェクト
-     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
-     * @returns {PageItem[]} 貼り付けたオブジェクト。何も貼り付かなければ空配列
-     */
-    function replaceItemWithClipboard(doc, targetItem, sizeMode) {
-        var targetMetrics = measureBounds(targetItem.visibleBounds);
-
-        setSelection(doc, null);
-        app.paste();
-        /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
-        app.redraw();
-        var pastedItems = captureSelection(doc);
-        if (pastedItems.length === 0) return pastedItems;
-
-        fitPastedItems(pastedItems, targetMetrics, sizeMode);
-        for (var i = 0; i < pastedItems.length; i++) {
-            try {
-                pastedItems[i].move(targetItem, ElementPlacement.PLACEBEFORE);
-            } catch (e) {
-                /* 移せない場合はペースト先のレイヤーに残す / Leave it on the paste layer if it cannot be moved */
-            }
-        }
-        targetItem.remove();
-        return pastedItems;
-    }
-
-    /**
-     * 選択した各オブジェクトを、クリップボードの内容で置き換える
+     * 選択した各オブジェクトの直前（前面）に、クリップボードの内容を貼り付ける。
+     * 元のオブジェクトはまだ消さず、確定するかキャンセルするかをあとで決められるようにする
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} targetItems - 置き換えるオブジェクト
-     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
      * @param {string[]} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
-     * @returns {PageItem[]} 貼り付けたオブジェクトすべて
+     * @returns {Object[]} 置き換えの組（targetItem・pastedItems・targetMetrics・baseMetrics・currentScale）の配列
      */
-    function replaceItemsWithClipboard(doc, targetItems, sizeMode, errorMessages) {
-        var replacedItems = [];
+    function pasteOverTargets(doc, targetItems, errorMessages) {
+        var replacements = [];
         for (var i = targetItems.length - 1; i >= 0; i--) {
             try {
-                replacedItems = replacedItems.concat(replaceItemWithClipboard(doc, targetItems[i], sizeMode));
+                var targetItem = targetItems[i];
+                var targetMetrics = measureBounds(targetItem.visibleBounds);
+
+                setSelection(doc, null);
+                app.paste();
+                /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
+                app.redraw();
+                var pastedItems = captureSelection(doc);
+                if (pastedItems.length === 0) continue;
+
+                for (var j = 0; j < pastedItems.length; j++) {
+                    try {
+                        pastedItems[j].move(targetItem, ElementPlacement.PLACEBEFORE);
+                    } catch (e) {
+                        /* 移せない場合はペースト先のレイヤーに残す / Leave it on the paste layer if it cannot be moved */
+                    }
+                }
+
+                replacements.push({
+                    targetItem: targetItem,
+                    pastedItems: pastedItems,
+                    targetMetrics: targetMetrics,
+                    baseMetrics: measureBounds(getUnionBounds(pastedItems)),
+                    currentScale: 1
+                });
             } catch (e) {
                 /* ロック中のオブジェクトなど、DOM が操作を拒む場合 / The DOM may refuse, e.g. for locked objects */
                 addUniqueError(errorMessages, String(e));
             }
         }
+        setSelection(doc, null);
+        return replacements;
+    }
+
+    /**
+     * 貼り付けた内容を、指定の扱いの大きさにする。
+     * 倍率は貼り付けた時点の大きさから求め、今の倍率との差だけ拡大・縮小する（切り替えを繰り返しても誤差をためない）
+     * @param {Object[]} replacements - pasteOverTargets() が返した置き換えの組
+     * @param {string} sizeMode - "keep"（大きさ保持）・"long"（長辺に合わせる）・"short"（短辺に合わせる）
+     * @returns {void}
+     */
+    function applySizeMode(replacements, sizeMode) {
+        for (var i = 0; i < replacements.length; i++) {
+            var replacement = replacements[i];
+            var desiredScale = getFitScale(replacement.baseMetrics, replacement.targetMetrics, sizeMode);
+            scalePastedItems(replacement.pastedItems, replacement.targetMetrics, desiredScale / replacement.currentScale);
+            replacement.currentScale = desiredScale;
+        }
+    }
+
+    /**
+     * プレビューの表示を切り替える。表示中は元のオブジェクトを隠し、貼り付けた内容を見せる
+     * @param {Object[]} replacements - 置き換えの組
+     * @param {boolean} showResult - true で置き換え後、false で置き換え前を表示
+     * @returns {void}
+     */
+    function setPreviewVisible(replacements, showResult) {
+        for (var i = 0; i < replacements.length; i++) {
+            replacements[i].targetItem.hidden = showResult;
+            for (var j = 0; j < replacements[i].pastedItems.length; j++) {
+                replacements[i].pastedItems[j].hidden = !showResult;
+            }
+        }
+        app.redraw();
+    }
+
+    /**
+     * 置き換えを確定する。貼り付けた内容を表示し、元のオブジェクトを削除する
+     * @param {Object[]} replacements - 置き換えの組
+     * @returns {PageItem[]} 貼り付けたオブジェクトすべて
+     */
+    function commitReplacements(replacements) {
+        var replacedItems = [];
+        for (var i = 0; i < replacements.length; i++) {
+            for (var j = 0; j < replacements[i].pastedItems.length; j++) {
+                replacements[i].pastedItems[j].hidden = false;
+                replacedItems.push(replacements[i].pastedItems[j]);
+            }
+            replacements[i].targetItem.remove();
+        }
         return replacedItems;
+    }
+
+    /**
+     * 置き換えを取りやめる。貼り付けた内容を削除し、元のオブジェクトを表示に戻す
+     * @param {Object[]} replacements - 置き換えの組
+     * @returns {void}
+     */
+    function discardReplacements(replacements) {
+        for (var i = 0; i < replacements.length; i++) {
+            removeItems(replacements[i].pastedItems);
+            replacements[i].targetItem.hidden = false;
+        }
     }
 
     // =========================================
@@ -623,11 +679,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     // =========================================
 
     /**
-     * 大きさの扱いを選ぶダイアログを開く
+     * 大きさの扱いを選ぶダイアログを開く。選択を切り替えるたびにプレビューへ反映する
      * @param {string} initialMode - 初期選択。"keep"・"long"・"short" のいずれか
+     * @param {Object[]} replacements - プレビューに使う置き換えの組
      * @returns {string|null} 選んだ扱い（"keep"・"long"・"short"）。キャンセルなら null
      */
-    function showSizeDialog(initialMode) {
+    function showSizeDialog(initialMode, replacements) {
         var sizeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         sizeDialog.orientation = "column";
         sizeDialog.alignChildren = ["fill", "top"];
@@ -648,7 +705,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         sizeRadios.keep.helpTip = getLabel("tooltip.keepSize");
         sizeRadios["long"].helpTip = getLabel("tooltip.fitLongSide");
         sizeRadios["short"].helpTip = getLabel("tooltip.fitShortSide");
-        (sizeRadios[initialMode] || sizeRadios["long"]).value = true;
+
+        var selectedMode = sizeRadios[initialMode] ? initialMode : "long";
+        sizeRadios[selectedMode].value = true;
+
+        var previewCheckbox = sizeDialog.add("checkbox", undefined, getLabel("checkbox.preview"));
+        previewCheckbox.alignment = "center";
+        previewCheckbox.value = true;
 
         var btnRowGroup = sizeDialog.add("group");
         btnRowGroup.orientation = "row";
@@ -664,11 +727,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        if (sizeDialog.show() !== 1) return null;
-        for (var sizeMode in sizeRadios) {
-            if (sizeRadios[sizeMode].value) return sizeMode;
+        /**
+         * ラジオボタンのクリックで大きさを切り替える関数を作る
+         * @param {string} sizeMode - 切り替え先の扱い
+         * @returns {Function} onClick に渡す関数
+         */
+        function createSizeClickHandler(sizeMode) {
+            return function () {
+                selectedMode = sizeMode;
+                applySizeMode(replacements, sizeMode);
+                app.redraw();
+            };
         }
-        return initialMode;
+        for (var radioMode in sizeRadios) {
+            sizeRadios[radioMode].onClick = createSizeClickHandler(radioMode);
+        }
+        previewCheckbox.onClick = function () {
+            setPreviewVisible(replacements, previewCheckbox.value);
+        };
+
+        /* 表示前のチェックボックスは値を読み戻せないため、初期状態は直接渡す / A checkbox cannot be read back before show(), so pass the initial state directly */
+        applySizeMode(replacements, selectedMode);
+        setPreviewVisible(replacements, true);
+
+        return (sizeDialog.show() === 1) ? selectedMode : null;
     }
 
     // =========================================
@@ -727,11 +809,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
                 app.redraw();
                 return;
             }
-            var sizeMode = SHOW_SIZE_DIALOG ? showSizeDialog(DEFAULT_SIZE_MODE) : DEFAULT_SIZE_MODE;
-            if (!sizeMode) return;
-
             var objectErrors = [];
-            var replacedItems = replaceItemsWithClipboard(doc, originalSelection, sizeMode, objectErrors);
+            var replacements = pasteOverTargets(doc, originalSelection, objectErrors);
+
+            var sizeMode = DEFAULT_SIZE_MODE;
+            if (SHOW_SIZE_DIALOG && replacements.length > 0) {
+                sizeMode = showSizeDialog(DEFAULT_SIZE_MODE, replacements);
+                if (!sizeMode) {
+                    discardReplacements(replacements);
+                    setSelection(doc, originalSelection);
+                    app.redraw();
+                    return;
+                }
+            }
+            applySizeMode(replacements, sizeMode);
+
+            var replacedItems = commitReplacements(replacements);
             alertReplaceErrors(objectErrors, "alert.objectReplaceError");
             setSelection(doc, replacedItems);
             app.redraw();

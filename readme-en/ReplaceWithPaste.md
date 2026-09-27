@@ -56,7 +56,7 @@ Switch these in the User Settings block at the top of the script. Both apply onl
 
 | Variable | Values | Meaning |
 | --- | --- | --- |
-| `SHOW_SIZE_DIALOG` | `true` (default) / `false` | Whether to open a dialog to choose the sizing |
+| `SHOW_SIZE_DIALOG` | `true` (default) / `false` | Whether to open a dialog to choose the sizing. Its Show Preview checkbox (on by default) shows the result of the chosen sizing on the spot |
 | `DEFAULT_SIZE_MODE` | `"keep"` / `"long"` (default) / `"short"` | Keep size / fit the long side / fit the short side. Used as is when the dialog is off, and as the initial choice when it is on |
 
 To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `false`.
@@ -75,8 +75,7 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 
 ## Changelog
 
-- v1.3.0 (20260927): Added a choice of sizing when replacing with non-text contents: Keep Size, Fit Long Side, or Fit Short Side. Choose it in a dialog, or fix it with the `SHOW_SIZE_DIALOG` and `DEFAULT_SIZE_MODE` user settings
-- v1.2.0 (20260927): Renamed from `ReplaceTextWithPaste.jsx` to `ReplaceWithPaste.jsx`. Added support for non-text clipboard contents. Each selected object is replaced with the pasted contents, fitted to its long side and matched in center and stacking position. With nothing selected, the contents are pasted as usual
+- v2.0.0 (20260927): Renamed from `ReplaceTextWithPaste.jsx` to `ReplaceWithPaste.jsx`. Added support for non-text clipboard contents: each selected object is replaced with the pasted contents, matched in center and stacking position (with nothing selected, the contents are pasted as usual). Sizing is Keep Size, Fit Long Side, or Fit Short Side, chosen in a dialog with a live preview or fixed with the `SHOW_SIZE_DIALOG` and `DEFAULT_SIZE_MODE` user settings
 - v1.1.4 (20260825): Spelled out in the overview that a new text frame lands at the center of the view, and noted that the derived `ReplaceTextWithPasteSequential.jsx` now pastes the clipboard at the center of the artboard when nothing is selected (the behavior of this script is unchanged)
 - v1.1.3 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid, and the frames are all collected before any of them is rewritten
 - v1.1.1 (20260814): Fixed text copied in an application other than Illustrator not coming through. Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard brings back the old contents; the script now discards that first paste and uses the result of a second one. It also looks for a text frame inside a pasted group, and reports when nothing was pasted at all
