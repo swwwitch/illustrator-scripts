@@ -12,6 +12,8 @@
 
 Creates an Illustrator composite font from just three fonts: Japanese, Kana and Roman. Illustrator has no scripting command for composite fonts, so the script writes a file in the same format the Composite Fonts dialog saves, straight into the composite font folder. Restart Illustrator to use the new composite font.
 
+With Also create in InDesign on, the same composite font is created in the running InDesign as well (no restart needed there).
+
 <img alt="Create Composite Font dialog" src="../png/ss-1288-750-144-20260927-182810.png" width="50%" />
 
 ### Main Features
@@ -29,6 +31,7 @@ Creates an Illustrator composite font from just three fonts: Japanese, Kana and 
   - The name part fills in from the chosen fonts' PostScript names with the weight removed (-Bold, -W3, ...; e.g. PA1MinchoStdN-Bold → PA1MinchoStdN); Kana is omitted when same as Japanese
   - The weight fills in from the Japanese style name (spaces and non-ASCII removed; left empty, no weight is added)
 - Custom sets: load the custom sets from an existing composite font (such as sw-B) and set the font, size and baseline of each
+- Also create in InDesign: creates a composite font with the same name, fonts, size, baseline and custom sets in the running InDesign
 - Numeric fields step to the next integer with the ∧∨ buttons and the arrow keys (1.5 → 2); add Shift for the next multiple of 10, Option for ±0.1
 
 ### How to Use
@@ -37,8 +40,9 @@ Creates an Illustrator composite font from just three fonts: Japanese, Kana and 
 2. Check the Japanese, Kana and Roman fonts (family and style)
 3. Adjust the size and baseline of Kana and Roman if needed
 4. To use custom sets, choose the source composite font under Load from in the Custom Character Sets panel, then adjust each set
-5. Check the composite font name (name part and weight) and click Create
-6. Restart Illustrator; the composite font appears in the font menu
+5. To create it in InDesign as well, launch InDesign and turn on Also create in InDesign
+6. Check the composite font name (name part and weight) and click Create
+7. Restart Illustrator; the composite font appears in the font menu (InDesign can use it without restarting)
 
 ### Reading the Selected Text
 
@@ -94,6 +98,14 @@ Choose a composite font that has custom sets under Load from in the Custom Chara
 - Files are saved to `~/Library/Application Support/Adobe/Adobe Illustrator <version>/ja_JP/合成フォント/`; if that folder is not found, you choose one
 - If Illustrator ever fails to launch, move the composite font file you created out of that folder
 
+### InDesign Composite Fonts
+
+- InDesign manages its composite fonts itself. `~/Library/Preferences/Adobe InDesign/<version>/<locale>/CompositeFont/` is only where it exports them: files placed there are not imported and are deleted on launch. The script therefore writes no file and creates the font through InDesign scripting (`app.compositeFonts.add()`) via BridgeTalk
+- Nothing is created in InDesign when it is not running (the Illustrator font is still created). Launch InDesign first
+- The font goes into the application defaults (available to new documents) of the newest installed InDesign
+- If InDesign already has a composite font with the same name, the script asks before overwriting it; overwriting rewrites the six standard sets and recreates the custom sets
+- If InDesign lacks a font, nothing is created there and the missing PostScript names are reported
+
 ### Article (Japanese)
 
 https://note.com/dtp_tranist/n/ne0f78458ddd3
@@ -106,3 +118,7 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
   - When Kana or Roman has several settings, uses the one with the most characters
   - Kana is picked up only when its setting differs from Japanese
   - Baseline shift is used as an initial value too
+- v1.1.0 (20260928):
+  - Added Also create in InDesign, which creates the same composite font in the running InDesign
+- v1.2.0 (20260928):
+  - Code cleanup (dialog and initial values split into functions, shared range parsing, fewer try blocks); no change in behavior

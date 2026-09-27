@@ -7,6 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 和文・かな・欧文のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
 選択したテキスト（和文・かな・欧文が混じった1行でも可）から初期値を読み取ります。作った合成フォントは Illustrator の再起動後に使えます。
+［InDesign にも作成］をオンにすると、起動中の InDesign にも同じ合成フォントを作ります（InDesign は再起動不要）。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md
@@ -19,11 +20,13 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 - 合成フォント名は半角英数字と記号のみ、29文字まで（「/」「:」は不可。長すぎると Illustrator が起動しなくなるため）
 - 特例文字セットは、既存の合成フォントからセット（名前と文字）を読み込んで使います。対象文字は［文字…］で編集できますが、セットを新しく作ることはできません
 - バリアブルフォントは使えません（合成フォントに入れると、適用したときに Illustrator が落ちるため）。名前に「VF」「Var」が付くものは一覧に出さず、それ以外も［作成］時に判定して止めます
+- InDesign の合成フォントはファイルではなく InDesign のスクリプトで作るため、InDesign を起動しておく必要があります
 
 ### Overview
 
 Creates a composite font file from Japanese, Kana and Roman fonts and the size and baseline of Kana and Roman.
 Initial values are read from the selected text (even a single line mixing Japanese, Kana and Roman). Restart Illustrator to use the new composite font.
+With Also create in InDesign on, the same composite font is created in the running InDesign too (no restart needed there).
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md
@@ -33,6 +36,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeF
 - Composite font names are limited to 29 ASCII letters, digits and symbols (no "/" or ":"); longer names can keep Illustrator from launching
 - Custom sets are loaded (name and characters) from an existing composite font; characters can be edited with Chars…, but new sets cannot be created
 - Variable fonts cannot be used (a composite font containing one crashes Illustrator when applied). Names containing "VF" or "Var" are not listed; others are caught on Create
+- The InDesign composite font is created through InDesign scripting, not as a file, so InDesign must be running
 
 */
 
@@ -40,10 +44,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CompositeFontMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md"; /* README (English) */
@@ -73,6 +77,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     var NAME_ROW_LEFT_MARGIN  = 12;  /* 合成フォント名の行の左余白（1文字ほど） / left margin of the name row (about one character) */
     var CHAR_EDIT_SIZE        = [320, 120]; /* 対象文字の入力欄の大きさ / size of the character field */
     var BUTTON_ROW_TOP_MARGIN = 10;  /* ボタン行の上余白 / top margin of the button row */
+    var CUSTOM_TOOLTIP_CHARS  = 40;  /* 特例文字セット名のツールチップに出す文字数 / characters shown in a custom set's tooltip */
 
     // =========================================
     // 合成フォントのファイル形式 / Composite font file format
@@ -166,10 +171,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      */
     function getCharsetRanges(fontSpec, setIndex) {
         if (setIndex >= CHARSET_COUNT) return fontSpec.customSets[setIndex - CHARSET_COUNT].ranges;
+        return parseRangeText(CHARSET_RANGES[setIndex]);
+    }
+
+    /**
+     * 範囲文字列（"3041-3093,309d" の形）を [下限, 上限, 割り当て先] の配列にする
+     * @param {string} rangeText - 範囲文字列
+     * @returns {number[][]} 範囲の配列
+     */
+    function parseRangeText(rangeText) {
         var ranges = [];
-        var rangeTexts = CHARSET_RANGES[setIndex].split(",");
-        for (var k = 0; k < rangeTexts.length; k++) {
-            var bounds = rangeTexts[k].split("-");
+        var rangeTexts = rangeText.split(",");
+        for (var i = 0; i < rangeTexts.length; i++) {
+            var bounds = rangeTexts[i].split("-");
             var lowCode = parseInt(bounds[0], 16);
             ranges.push([lowCode, parseInt(bounds[1] || bounds[0], 16), lowCode]);
         }
@@ -354,6 +368,136 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     }
 
     // =========================================
+    // InDesign の合成フォント / InDesign composite font
+    // =========================================
+    /* InDesign の合成フォントは InDesign Defaults が持ち、CompositeFont フォルダーはその書き出し先。
+       フォルダーにファイルを置いても取り込まれず、起動時に削除される（2026-09-28 実測）ので、BridgeTalk で DOM から作る
+       InDesign keeps composite fonts in its defaults and only exports them to the CompositeFont folder;
+       files placed there are deleted on launch, so the font is created through the DOM via BridgeTalk */
+    /* 次の関数は toString() で InDesign に送る。JSDoc を付けると受け側の eval が失敗し、日本語は toString() で化けて
+       コメントの終わりを壊すので、中には ASCII しか書かない。改行も落ちるので // コメントも使わない。
+       直後にコメントがあると toString() がそこまで取り込むので、関数のすぐ後ろには文（INDESIGN_TIMEOUT）を置く。
+       InDesign 側で合成フォントを作る。同名があれば、上書き指定のときだけ標準6セットを書き換え、特例文字を作り直す。
+       標準6セットは add() の時点であるので書き換え、特例文字は足す。サイズ・ベースラインは％のまま渡す。漢字（0）は基準なので触らない。
+       戻り値は "OK" / "EXISTS" / "MISSING|PS名,…" / "ERROR|メッセージ"（改行・タブは転送で化けるので使わない）
+       The worker is sent with toString(): no JSDoc, and ASCII only inside (non-ASCII is garbled by toString()) */
+    function inDesignCompositeFontWorker(idSpec) {
+        try {
+            var psNames = app.fonts.everyItem().postscriptName;
+            var fontObjects = [];
+            var missingNames = [];
+            for (var i = 0; i < idSpec.fonts.length; i++) {
+                var foundFont = null;
+                for (var k = 0; k < psNames.length; k++) {
+                    if (psNames[k] === idSpec.fonts[i]) {
+                        foundFont = app.fonts[k];
+                        break;
+                    }
+                }
+                if (!foundFont) missingNames.push(idSpec.fonts[i]);
+                fontObjects.push(foundFont);
+            }
+            if (missingNames.length > 0) return "MISSING|" + missingNames.join(",");
+
+            var compositeFont = app.compositeFonts.itemByName(idSpec.name);
+            if (compositeFont.isValid) {
+                if (!idSpec.overwrite) return "EXISTS";
+                for (var entryIndex = compositeFont.compositeFontEntries.length - 1; entryIndex >= idSpec.standardCount; entryIndex--) {
+                    compositeFont.compositeFontEntries[entryIndex].remove();
+                }
+            } else {
+                compositeFont = app.compositeFonts.add({ name: idSpec.name });
+            }
+            var fontEntries = compositeFont.compositeFontEntries;
+            for (var setIndex = 0; setIndex < idSpec.fonts.length; setIndex++) {
+                var fontEntry;
+                if (setIndex < idSpec.standardCount) {
+                    fontEntry = fontEntries[setIndex];
+                } else {
+                    fontEntry = fontEntries.add({ name: idSpec.customSets[setIndex - idSpec.standardCount].name });
+                    fontEntry.customCharacters = idSpec.customSets[setIndex - idSpec.standardCount].chars;
+                }
+                fontEntry.appliedFont = fontObjects[setIndex];
+                if (setIndex === 0) continue;
+                fontEntry.relativeSize = idSpec.size[setIndex];
+                fontEntry.baselineShift = idSpec.baseline[setIndex];
+            }
+            return "OK";
+        } catch (e) {
+            return "ERROR|" + e.message;
+        }
+    }
+    var INDESIGN_TIMEOUT = 60; /* 応答を待つ秒数 / seconds to wait for InDesign */
+
+    /**
+     * InDesign がインストールされていれば BridgeTalk の宛先を返す
+     * @returns {string|null} 宛先（例 "indesign-21.064"）。無ければ null
+     */
+    function getInDesignSpecifier() {
+        return BridgeTalk.getSpecifier("indesign") || null;
+    }
+
+    /**
+     * InDesign に合成フォントを作らせ、結果を待つ
+     * @param {string} specifier - BridgeTalk の宛先
+     * @param {Object} idSpec - inDesignCompositeFontWorker() に渡す設定
+     * @returns {string} ワーカーの戻り値（応答が無ければ "ERROR|…"）
+     */
+    function sendToInDesign(specifier, idSpec) {
+        var bridgeMessage = new BridgeTalk();
+        bridgeMessage.target = specifier;
+        /* 転送で「\」が二重になり文字列が壊れるので、設定は URI エンコードして英数字と記号だけで渡す
+           The transfer doubles backslashes, so the settings travel URI-encoded */
+        bridgeMessage.body = "(" + inDesignCompositeFontWorker.toString() + ")(eval(decodeURIComponent(\"" +
+            encodeURIComponent(idSpec.toSource()) + "\")));";
+        var resultText = null;
+        bridgeMessage.onResult = function (reply) {
+            resultText = String(reply.body);
+        };
+        bridgeMessage.onError = function (reply) {
+            resultText = "ERROR|" + reply.body;
+        };
+        bridgeMessage.send(INDESIGN_TIMEOUT);
+        /* send() が待たずに戻った場合に備えて、応答が届くまで回す / pump in case send() returned before the reply */
+        var waitStart = new Date().getTime();
+        while (resultText === null && new Date().getTime() - waitStart < INDESIGN_TIMEOUT * 1000) {
+            BridgeTalk.pump();
+            $.sleep(100);
+        }
+        return (resultText === null) ? "ERROR|" + getLabel("alert.inDesignTimeout") : resultText;
+    }
+
+    /**
+     * InDesign に同じ設定の合成フォントを作る
+     * @param {Object} fontSpec - 合成フォントの設定
+     * @returns {string} 結果の説明（完了・取りやめ・失敗）
+     */
+    function createInDesignCompositeFont(fontSpec) {
+        var specifier = getInDesignSpecifier();
+        if (!specifier) return getLabel("alert.inDesignMissing");
+        if (!BridgeTalk.isRunning(specifier)) return getLabel("alert.inDesignNotRunning");
+
+        var customSets = [];
+        for (var i = 0; i < fontSpec.customSets.length; i++) {
+            customSets.push({ name: fontSpec.customSets[i].displayName, chars: rangesToText(fontSpec.customSets[i].ranges) });
+        }
+        var idSpec = {
+            name: fontSpec.name, fonts: fontSpec.fonts, size: fontSpec.size, baseline: fontSpec.baseline,
+            customSets: customSets, standardCount: CHARSET_COUNT, overwrite: false
+        };
+        var resultText = sendToInDesign(specifier, idSpec);
+        if (resultText === "EXISTS") {
+            if (!confirm(getLabel("alert.inDesignOverwrite").replace("%1", fontSpec.name))) return getLabel("alert.inDesignSkipped");
+            idSpec.overwrite = true;
+            resultText = sendToInDesign(specifier, idSpec);
+        }
+        if (resultText === "OK") return getLabel("alert.inDesignDone");
+        var resultParts = resultText.split("|");
+        if (resultParts[0] === "MISSING") return getLabel("alert.inDesignFontMissing") + resultParts.slice(1).join("|");
+        return getLabel("alert.inDesignFailed") + resultParts.slice(1).join("|");
+    }
+
+    // =========================================
     // 特例文字の読み込み / Loading custom sets
     // =========================================
     /**
@@ -406,42 +550,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      */
     function readCustomCharsets(fontFile) {
         var customSets = [];
-        var binary;
-        try {
-            fontFile.encoding = "BINARY";
-            if (!fontFile.open("r")) return customSets;
-            binary = fontFile.read();
-            fontFile.close();
-        } catch (e) {
-            return customSets;
-        }
-        if (binary.substr(0, 4) !== "typ1") return customSets;
+        fontFile.encoding = "BINARY";
+        if (!fontFile.open("r")) return customSets; /* 開けないときは例外ではなく false / open() returns false on failure */
+        var fontBinary = fontFile.read();
+        fontFile.close();
+        if (fontBinary.substr(0, 4) !== "typ1") return customSets;
 
         var rlblOffset = -1;
-        for (var t = 0; t < readUint16(binary, 4); t++) {
-            var entryOffset = 12 + 16 * t;
-            if (binary.substr(entryOffset, 4) === "RLBL") rlblOffset = readUint32(binary, entryOffset + 8);
+        for (var tableIndex = 0; tableIndex < readUint16(fontBinary, 4); tableIndex++) {
+            var entryOffset = 12 + 16 * tableIndex;
+            if (fontBinary.substr(entryOffset, 4) === "RLBL") rlblOffset = readUint32(fontBinary, entryOffset + 8);
         }
         if (rlblOffset < 0) return customSets;
 
         /* 見出し12バイト（1・0・0・0・セット数・名前の位置）のあと、セットごとに9語＋範囲×3語
            12-byte header (1, 0, 0, 0, set count, names offset), then 9 words plus 3 words per range for each set */
-        var setCount = readUint16(binary, rlblOffset + 8);
-        var namesStart = rlblOffset + readUint16(binary, rlblOffset + 10);
+        var setCount = readUint16(fontBinary, rlblOffset + 8);
+        var namesStart = rlblOffset + readUint16(fontBinary, rlblOffset + 10);
         var recordPos = rlblOffset + 12;
         for (var i = 0; i < setCount; i++) {
-            var isCustom = readUint16(binary, recordPos + 2) === 1;
-            var rangeCount = readUint16(binary, recordPos + 4);
-            var nameLength = readUint16(binary, recordPos + 14);
-            var nameOffset = readUint16(binary, recordPos + 16);
+            var isCustom = readUint16(fontBinary, recordPos + 2) === 1;
+            var rangeCount = readUint16(fontBinary, recordPos + 4);
+            var nameLength = readUint16(fontBinary, recordPos + 14);
+            var nameOffset = readUint16(fontBinary, recordPos + 16);
             recordPos += 18;
             var ranges = [];
             for (var k = 0; k < rangeCount; k++) {
-                ranges.push([readUint16(binary, recordPos), readUint16(binary, recordPos + 2), readUint16(binary, recordPos + 4)]);
+                ranges.push([readUint16(fontBinary, recordPos), readUint16(fontBinary, recordPos + 2), readUint16(fontBinary, recordPos + 4)]);
                 recordPos += 6;
             }
             if (!isCustom) continue;
-            var nameBinary = binary.substr(namesStart + nameOffset, nameLength);
+            var nameBinary = fontBinary.substr(namesStart + nameOffset, nameLength);
             customSets.push({
                 nameBinary: nameBinary,
                 displayName: decodeShiftJIS(nameBinary, getLabel("fallbackName.customSet") + (customSets.length + 1)),
@@ -457,8 +596,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      * @returns {Object[]} { label, customSets } の配列（名前順）
      */
     function collectCustomSetSources(fontFolder) {
-        var sources = [];
-        if (!fontFolder) return sources;
+        var customSetSources = [];
+        if (!fontFolder) return customSetSources;
         var fontFiles = fontFolder.getFiles(function (item) {
             return (item instanceof File) && item.name.charAt(0) !== ".";
         });
@@ -468,30 +607,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             /* displayName は空で返ることがあるので、name（URIエンコード）をデコードして使う
                displayName can come back empty, so decode the URI-encoded name instead */
             var fileLabel = "";
+            /* 不正なエスケープは URIError になる / malformed escapes raise URIError */
             try {
                 fileLabel = String(decodeURI(fontFiles[i].name));
             } catch (e) {
                 fileLabel = String(fontFiles[i].name);
             }
-            sources.push({ label: fileLabel || String(sources.length + 1), customSets: customSets });
+            customSetSources.push({ label: fileLabel || String(customSetSources.length + 1), customSets: customSets });
         }
-        sources.sort(function (sourceA, sourceB) {
-            return (sourceA.label < sourceB.label) ? -1 : (sourceA.label > sourceB.label) ? 1 : 0;
+        customSetSources.sort(function (firstSource, secondSource) {
+            return (firstSource.label < secondSource.label) ? -1 : (firstSource.label > secondSource.label) ? 1 : 0;
         });
-        return sources;
+        return customSetSources;
     }
 
     /**
-     * 文字コードが範囲文字列（"3041-3093,309d" の形）に含まれるか
+     * 文字コードが範囲の配列に含まれるか
      * @param {number} code - 文字コード
-     * @param {string} rangeText - 範囲文字列
+     * @param {number[][]} ranges - parseRangeText() の結果
      * @returns {boolean} 含まれれば true
      */
-    function isCodeInRangeText(code, rangeText) {
-        var rangeTexts = rangeText.split(",");
-        for (var i = 0; i < rangeTexts.length; i++) {
-            var bounds = rangeTexts[i].split("-");
-            if (code >= parseInt(bounds[0], 16) && code <= parseInt(bounds[1] || bounds[0], 16)) return true;
+    function isCodeInRanges(code, ranges) {
+        for (var i = 0; i < ranges.length; i++) {
+            if (code >= ranges[i][0] && code <= ranges[i][1]) return true;
         }
         return false;
     }
@@ -503,12 +641,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      * @returns {string} "kanji" / "kana" / "roman"
      */
     function classifyCustomSet(ranges) {
+        var romanRanges = parseRangeText(CHARSET_RANGES[4] + "," + CHARSET_RANGES[5]);
+        var kanaRanges = parseRangeText(CHARSET_RANGES[1]);
         var allRoman = true;
         var allKana = true;
         for (var i = 0; i < ranges.length; i++) {
             for (var code = ranges[i][0]; code <= ranges[i][1]; code++) {
-                if (!isCodeInRangeText(code, CHARSET_RANGES[4]) && !isCodeInRangeText(code, CHARSET_RANGES[5])) allRoman = false;
-                if (!isCodeInRangeText(code, CHARSET_RANGES[1])) allKana = false;
+                if (!isCodeInRanges(code, romanRanges)) allRoman = false;
+                if (!isCodeInRanges(code, kanaRanges)) allKana = false;
                 if (!allRoman && !allKana) return "kanji";
             }
         }
@@ -516,19 +656,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     }
 
     /**
-     * 特例文字のセットの文字を並べる（ツールチップ用、最大40文字）
+     * 特例文字のセットの文字を並べる（ツールチップ用、CUSTOM_TOOLTIP_CHARS 文字まで）
      * @param {number[][]} ranges - セットの範囲
      * @returns {string} 文字の並び
      */
     function describeCustomSet(ranges) {
-        var charList = "";
-        for (var i = 0; i < ranges.length; i++) {
-            for (var code = ranges[i][0]; code <= ranges[i][1]; code++) {
-                if (charList.length >= 40) return charList + "…";
-                charList += String.fromCharCode(code);
-            }
-        }
-        return charList;
+        var charList = rangesToText(ranges);
+        return (charList.length > CUSTOM_TOOLTIP_CHARS) ? charList.substr(0, CUSTOM_TOOLTIP_CHARS) + "…" : charList;
     }
 
     /**
@@ -676,6 +810,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      * @returns {{psName: string, size: number, baselineShift: number}|null} 書式。見つからなければ null
      */
     function getFirstCharacterFormat(textRange) {
+        /* 環境に無いフォントの文字は textFont の読み取りで例外になることがある / textFont can throw for missing fonts */
         try {
             var textCharacters = textRange.characters;
             for (var i = 0; i < textCharacters.length; i++) {
@@ -711,6 +846,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     function getFormatsByCharacterClass(textRange) {
         var firstFormats = { ideograph: null, kanji: null };
         var formatTallies = { kana: {}, roman: {} };
+        /* 環境に無いフォントの文字は textFont の読み取りで例外になることがある / textFont can throw for missing fonts */
         try {
             var textCharacters = textRange.characters;
             for (var i = 0; i < textCharacters.length; i++) {
@@ -769,26 +905,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     function getSelectedTextsTopDown() {
         var textFrames = [];
         var singleRange = null;
-        try {
-            if (app.documents.length === 0) return [];
-            var docSelection = app.activeDocument.selection;
-            if (docSelection.typename === "TextRange") {
-                singleRange = docSelection;
-            } else {
-                for (var i = 0; i < docSelection.length; i++) {
-                    if (docSelection[i].typename === "TextFrame") textFrames.push(docSelection[i]);
-                }
-                if (textFrames.length === 1) singleRange = textFrames[0].textRange;
+        if (app.documents.length === 0) return [];
+        var docSelection = app.activeDocument.selection;
+        if (docSelection.typename === "TextRange") {
+            singleRange = docSelection;
+        } else {
+            for (var i = 0; i < docSelection.length; i++) {
+                if (docSelection[i].typename === "TextFrame") textFrames.push(docSelection[i]);
             }
-        } catch (e) {
-            return [];
+            if (textFrames.length === 1) singleRange = textFrames[0].textRange;
         }
 
         var orderedTexts = [];
         if (singleRange) {
             var textParagraphs = singleRange.paragraphs;
-            for (var p = 0; p < textParagraphs.length; p++) {
-                if (textParagraphs[p].characters.length > 0) orderedTexts.push(textParagraphs[p]);
+            for (var j = 0; j < textParagraphs.length; j++) {
+                if (textParagraphs[j].characters.length > 0) orderedTexts.push(textParagraphs[j]);
             }
             return orderedTexts;
         }
@@ -1319,7 +1451,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             roman: { ja: "欧文", en: "Roman" }
         },
         tooltip: {
-            fontName: { ja: "合成フォント名のフォント名の部分です。選んだフォントから「和文のPS名-かなのPS名-欧文のPS名」（ウエイトの部分は除く。かなが和文と同じなら省く）を自動で入れ、ウエイトと合わせて29文字に収まるよう切り詰めます。手で書き換えたら自動入力は止まり、空にすると再開します。半角英数字と記号のみ（「/」「:」は不可）。", en: "The font-name part of the composite font name. It fills in as \"JapanesePS-KanaPS-RomanPS\" (weights removed; Kana omitted when same as Japanese), cut so that it fits in 29 characters with the weight, until you edit it; clear it to resume. ASCII letters, digits and symbols only (no \"/\" or \":\")." },
+            fontName: {
+                ja: "合成フォント名のフォント名の部分です。選んだフォントから「和文のPS名-かなのPS名-欧文のPS名」（ウエイトの部分は除く。かなが和文と同じなら省く）を自動で入れ、ウエイトと合わせて29文字に収まるよう切り詰めます。手で書き換えたら自動入力は止まり、空にすると再開します。半角英数字と記号のみ（「/」「:」は不可）。",
+                en: "The font-name part of the composite font name. It fills in as \"JapanesePS-KanaPS-RomanPS\" (weights removed; Kana omitted when same as Japanese), cut so that it fits in 29 characters with the weight, until you edit it; clear it to resume. ASCII letters, digits and symbols only (no \"/\" or \":\")."
+            },
             size: { ja: "和文（漢字）に対する大きさ（％）", en: "Size relative to the Japanese font (Kanji) (%)" },
             baseline: { ja: "ベースラインの移動量（％）。正の値で上がります。", en: "Baseline shift (%). Positive values move up." },
             kanji: { ja: "漢字・全角約物・全角記号のフォント", en: "Font for Kanji, punctuation and symbols" },
@@ -1347,8 +1482,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
                 ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
             },
+            inDesign: {
+                ja: "起動中の InDesign にも同じ設定の合成フォントを作ります（InDesign はインストールされていないと選べません）。",
+                en: "Also creates the same composite font in InDesign, which must be running (unavailable when InDesign is not installed)."
+            },
             stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        },
+        checkbox: {
+            inDesign: { ja: "InDesign にも作成", en: "Also create in InDesign" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -1371,7 +1513,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             done: {
                 ja: "合成フォント「%1」を作成しました。\nIllustrator を再起動すると使えるようになります。\n\n%2",
                 en: "Created the composite font \"%1\".\nRestart Illustrator to use it.\n\n%2"
-            }
+            },
+            inDesignDone: { ja: "InDesign：作成しました（再起動は不要です）。", en: "InDesign: created (no restart needed)." },
+            inDesignSkipped: { ja: "InDesign：作成を取りやめました。", en: "InDesign: skipped." },
+            inDesignMissing: { ja: "InDesign：見つからないため作成しませんでした。", en: "InDesign: not found, so nothing was created." },
+            inDesignNotRunning: {
+                ja: "InDesign：起動していないため作成しませんでした。InDesign を起動してから実行してください。",
+                en: "InDesign: not running, so nothing was created. Launch InDesign and run the script again."
+            },
+            inDesignOverwrite: {
+                ja: "InDesign に合成フォント「%1」は既にあります。上書きしますか？",
+                en: "InDesign already has the composite font \"%1\". Overwrite it?"
+            },
+            inDesignFontMissing: {
+                ja: "InDesign：フォントが見つからないため作成しませんでした：",
+                en: "InDesign: fonts not found, so nothing was created: "
+            },
+            inDesignFailed: { ja: "InDesign：作成できませんでした：", en: "InDesign: could not create: " },
+            inDesignTimeout: { ja: "応答がありません", en: "no response" }
         }
     };
 
@@ -1396,7 +1555,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      * @returns {string} コロン付きの項目名
      */
     function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+        return appendColon(getLabel(labelPath));
+    }
+
+    /**
+     * 文字列にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} itemName - 項目名
+     * @returns {string} コロン付きの項目名
+     */
+    function appendColon(itemName) {
+        return itemName + (uiLang === "ja" ? "：" : ": ");
     }
 
     // =========================================
@@ -1470,7 +1638,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         /* 項目は1件ずつ足す。選択テキストの DOM を読んだあとで大きな配列をまとめて渡すと Illustrator が落ちた
            Add items one by one: passing the large array at creation crashed Illustrator after reading the selection's DOM */
         var familyDropdown = fontRowGroup.add("dropdownlist", undefined, []);
-        for (var f = 0; f < fontCatalog.families.length; f++) familyDropdown.add("item", fontCatalog.families[f]);
+        for (var i = 0; i < fontCatalog.families.length; i++) familyDropdown.add("item", fontCatalog.families[i]);
         familyDropdown.preferredSize.width = FAMILY_DROPDOWN_WIDTH;
         var styleDropdown = fontRowGroup.add("dropdownlist", undefined, []);
         styleDropdown.preferredSize.width = STYLE_DROPDOWN_WIDTH;
@@ -1582,19 +1750,169 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
     }
 
     /**
+     * 特例文字セット1つ分の行（フォント・サイズ・ベースライン・［文字…］）を追加する
+     * 初期フォントは文字に応じて和文・かな・欧文から選び、サイズ・ベースラインもそのまとまりに合わせる
+     * @param {Panel} customPanel - 追加先
+     * @param {Object} customSet - 特例文字セット（［文字…］で ranges を書き換える）
+     * @param {Object} dialogState - ダイアログの状態（fonts・sizes・baselines を初期値に使う）
+     * @param {Object} fontCatalog - collectFontFamilies() の結果
+     * @param {number} rowLabelWidth - 項目名の幅
+     * @returns {{picker: Object, adjust: Object, label: string}} フォント選択・数値欄・行の名前
+     */
+    function addCustomSetRow(customPanel, customSet, dialogState, fontCatalog, rowLabelWidth) {
+        var nearestGroup = classifyCustomSet(customSet.ranges);
+        var customPicker = addFontPickerRow(customPanel, appendColon(customSet.displayName), describeCustomSet(customSet.ranges),
+            rowLabelWidth, fontCatalog, dialogState.fonts[nearestGroup], function () {});
+        var customAdjust = addSizeBaselineRow(customPicker.rowGroup,
+            (nearestGroup === "kanji") ? 100 : dialogState.sizes[nearestGroup],
+            (nearestGroup === "kanji") ? 0 : dialogState.baselines[nearestGroup], false);
+        /* 対象文字の表示・編集ボタン。書き換えたら項目名のツールチップも更新 / show and edit the characters, then refresh the tooltip */
+        var btnChars = customPicker.rowGroup.add("button", undefined, getLabel("button.customChars"));
+        btnChars.helpTip = getLabel("tooltip.customCharsButton");
+        btnChars.onClick = function () {
+            if (editCustomSetCharacters(customSet)) customPicker.rowGroup.children[0].helpTip = describeCustomSet(customSet.ranges);
+        };
+        return { picker: customPicker, adjust: customAdjust, label: customSet.displayName };
+    }
+
+    /**
+     * ［特例文字セット］パネル（読み込み元と、セットごとの行）を追加する。読み込み元の候補が無ければ何も足さない
+     * @param {Window} fontDialog - 追加先のダイアログ
+     * @param {Object} dialogState - ダイアログの状態（sourceIndex で読み込み元を選ぶ）
+     * @param {Object[]} customSetSources - collectCustomSetSources() の結果
+     * @param {Object} fontCatalog - collectFontFamilies() の結果
+     * @param {number} rowLabelWidth - 項目名の幅
+     * @returns {{sourceDropdown: DropDownList|null, customSets: Object[], customRows: Object[]}} 読み込み元の選択・セット・行
+     */
+    function addCustomSetsPanel(fontDialog, dialogState, customSetSources, fontCatalog, rowLabelWidth) {
+        var customSets = (dialogState.sourceIndex > 0) ? customSetSources[dialogState.sourceIndex - 1].customSets : [];
+        var customRows = [];
+        if (customSetSources.length === 0) return { sourceDropdown: null, customSets: customSets, customRows: customRows };
+
+        var customPanel = fontDialog.add("panel", undefined, getLabel("panel.customSets"));
+        customPanel.orientation = "column";
+        customPanel.alignChildren = ["left", "center"];
+        customPanel.margins = [15, 20, 15, 10];
+
+        var sourceRowGroup = customPanel.add("group");
+        sourceRowGroup.orientation = "row";
+        sourceRowGroup.alignChildren = ["left", "center"];
+        var sourceLabel = sourceRowGroup.add("statictext", undefined, labelText("fieldLabel.customSource"));
+        sourceLabel.preferredSize.width = rowLabelWidth;
+        sourceLabel.justify = "right";
+        var sourceDropdown = sourceRowGroup.add("dropdownlist", undefined, []);
+        sourceDropdown.add("item", getLabel("dropdown.noSource"));
+        for (var i = 0; i < customSetSources.length; i++) sourceDropdown.add("item", customSetSources[i].label);
+        sourceDropdown.preferredSize.width = FAMILY_DROPDOWN_WIDTH;
+        sourceDropdown.helpTip = getLabel("tooltip.customSource");
+        sourceDropdown.selection = dialogState.sourceIndex;
+
+        if (customSets.length > 0) addColumnHeaderRow(customPanel, rowLabelWidth);
+        for (var k = 0; k < customSets.length; k++) {
+            customRows.push(addCustomSetRow(customPanel, customSets[k], dialogState, fontCatalog, rowLabelWidth));
+        }
+        return { sourceDropdown: sourceDropdown, customSets: customSets, customRows: customRows };
+    }
+
+    /**
+     * 合成フォント名が使えるかを確かめる
+     * @param {string} fontName - ハイフンでつないだ合成フォント名
+     * @returns {string} 使えなければ警告文、使えれば空文字
+     */
+    function validateFontName(fontName) {
+        if (!/^[\x20-\x7e]+$/.test(fontName) || /[\/:]/.test(fontName) || /^\s|\s$/.test(fontName)) return getLabel("alert.invalidName");
+        if (fontName.length > MAX_NAME_LENGTH) {
+            return getLabel("alert.nameTooLong").replace("%1", MAX_NAME_LENGTH).replace("%2", fontName.length);
+        }
+        return "";
+    }
+
+    /**
+     * 数値欄からサイズとベースラインを読む
+     * @param {Object} adjust - addSizeBaselineRow() の戻り値
+     * @param {string} rowName - エラー表示用の行の名前
+     * @returns {{size: number, baseline: number}|null} 値。数値でなければ null（知らせる）
+     */
+    function readAdjustValues(adjust, rowName) {
+        var sizeValue = parseFloat(adjust.sizeInput.text);
+        var baselineValue = parseFloat(adjust.baselineInput.text);
+        if (isNaN(sizeValue) || sizeValue <= 0 || isNaN(baselineValue)) {
+            alert(getLabel("alert.invalidNumber") + rowName);
+            return null;
+        }
+        return { size: sizeValue, baseline: baselineValue };
+    }
+
+    /**
+     * ダイアログの入力から合成フォントの設定を組み立てる。和文は100％・0％、比率はすべて100％で固定
+     * 数値が正しくないとき・バリアブルフォントが入っているときは知らせて null を返す
+     * @param {string} fontName - 合成フォント名
+     * @param {Object} dialogInputs - fontPickers / adjustInputs / customRows / customSets / isKanaLinked
+     * @returns {Object|null} 合成フォントの設定
+     */
+    function buildFontSpecFromDialog(fontName, dialogInputs) {
+        var fontSpec = { name: fontName, fonts: [], size: [], baseline: [], hScale: [], vScale: [], customSets: dialogInputs.customSets };
+        var fontPickers = dialogInputs.fontPickers;
+
+        /**
+         * 文字セット1つ分の値を書き込む
+         * @param {number} charsetIndex - 文字セットの番号
+         * @param {string} psName - PostScript名
+         * @param {{size: number, baseline: number}} setValues - サイズとベースライン（％）
+         * @returns {void}
+         */
+        function setCharsetValues(charsetIndex, psName, setValues) {
+            fontSpec.fonts[charsetIndex] = psName;
+            fontSpec.size[charsetIndex] = setValues.size;
+            fontSpec.baseline[charsetIndex] = setValues.baseline;
+            fontSpec.hScale[charsetIndex] = 100;
+            fontSpec.vScale[charsetIndex] = 100;
+        }
+
+        for (var i = 0; i < FONT_GROUPS.length; i++) {
+            var isLinkedKana = dialogInputs.isKanaLinked && FONT_GROUPS[i].key === "kana";
+            var psName = fontPickers[isLinkedKana ? 0 : i].getPsName();
+            if (!psName) return null;
+            var groupValues = { size: 100, baseline: 0 }; /* ディムのかなは和文と同じ100％・0％ / dimmed Kana matches Japanese */
+            if (dialogInputs.adjustInputs[i] && !isLinkedKana) {
+                groupValues = readAdjustValues(dialogInputs.adjustInputs[i], getLabel("fontGroup." + FONT_GROUPS[i].key));
+                if (!groupValues) return null;
+            }
+            for (var j = 0; j < FONT_GROUPS[i].charsets.length; j++) setCharsetValues(FONT_GROUPS[i].charsets[j], psName, groupValues);
+        }
+        /* 特例文字は標準6セットの後ろに並べる / custom sets follow the six standard sets */
+        var customRows = dialogInputs.customRows;
+        for (var k = 0; k < customRows.length; k++) {
+            var customPsName = customRows[k].picker.getPsName();
+            if (!customPsName) return null;
+            var customValues = readAdjustValues(customRows[k].adjust, customRows[k].label);
+            if (!customValues) return null;
+            setCharsetValues(CHARSET_COUNT + k, customPsName, customValues);
+        }
+        /* バリアブルフォントを入れた合成フォントは、適用すると Illustrator が落ちる / variable fonts crash Illustrator when applied */
+        for (var fontIndex = 0; fontIndex < fontSpec.fonts.length; fontIndex++) {
+            if (hasVariableAxes(fontSpec.fonts[fontIndex])) {
+                alert(getLabel("alert.variableFont").replace("%1", fontSpec.fonts[fontIndex]));
+                return null;
+            }
+        }
+        return fontSpec;
+    }
+
+    /**
      * ダイアログを表示して設定を受け取る
      * 特例文字の読み込み元を選び直したときは、入力中の値を dialogState に控えて { reload: true } を返す
      * @param {Object} fontCatalog - collectFontFamilies() の結果
-     * @param {Object} dialogState - name / isAutoName / weight / isAutoWeight / isKanaLinked / fonts・sizes・baselines（kanji・kana・roman）/ sourceIndex
+     * @param {Object} dialogState - name / isAutoName / weight / isAutoWeight / isKanaLinked / fonts・sizes・baselines（kanji・kana・roman）/ sourceIndex / hasInDesign / forInDesign
      * @param {Object[]} customSetSources - collectCustomSetSources() の結果
      * @returns {Object|null} 合成フォントの設定、{ reload: true }、キャンセルなら null
      */
     function showCompositeFontDialog(fontCatalog, dialogState, customSetSources) {
-        var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+        var fontDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        fontDialog.orientation = "column";
+        fontDialog.alignChildren = ["fill", "top"];
 
-        var nameRowGroup = dlg.add("group");
+        var nameRowGroup = fontDialog.add("group");
         nameRowGroup.orientation = "row";
         nameRowGroup.alignment = ["fill", "center"];
         nameRowGroup.alignChildren = ["left", "center"];
@@ -1623,7 +1941,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         var nameLengthOverPen = nameLengthText.graphics.newPen(nameLengthText.graphics.PenType.SOLID_COLOR, [0.9, 0.2, 0.2, 1], 1);
 
         /* フォント：和文・かな・欧文の3行 / fonts: one row each for Japanese, Kana and Roman */
-        var fontsPanel = dlg.add("panel", undefined, getLabel("panel.fonts"));
+        var fontsPanel = fontDialog.add("panel", undefined, getLabel("panel.fonts"));
         fontsPanel.orientation = "column";
         fontsPanel.alignChildren = ["left", "center"];
         fontsPanel.margins = [15, 20, 15, 10];
@@ -1651,9 +1969,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         function updateNameLength() {
             var nameLength = getCombinedName().length;
             nameLengthText.text = nameLength + " / " + MAX_NAME_LENGTH;
-            try {
-                nameLengthText.graphics.foregroundColor = (nameLength > MAX_NAME_LENGTH) ? nameLengthOverPen : nameLengthDefaultPen;
-            } catch (e) {} /* 色を変えられなくても文字数は出す / the count still shows if the color cannot change */
+            nameLengthText.graphics.foregroundColor = (nameLength > MAX_NAME_LENGTH) ? nameLengthOverPen : nameLengthDefaultPen;
         }
 
         /**
@@ -1671,9 +1987,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             }
             if (nameInput.text !== "" && nameInput.text !== lastAutoName) return;
             /* ウエイトは別の欄に入るので、PS名からウエイト（スタイル）の部分を外す / the weight has its own field, so drop it from the PS names */
-            var kanjiBase = stripWeightFromPsName(fontPickers[0].getPsName() || "", fontPickers[0].getStyle());
-            var kanaBase = stripWeightFromPsName(fontPickers[1].getPsName() || "", fontPickers[1].getStyle());
-            var romanBase = stripWeightFromPsName(fontPickers[ROMAN_GROUP_INDEX].getPsName() || "", fontPickers[ROMAN_GROUP_INDEX].getStyle());
+            var baseNames = [];
+            for (var i = 0; i < fontPickers.length; i++) {
+                baseNames.push(stripWeightFromPsName(fontPickers[i].getPsName() || "", fontPickers[i].getStyle()));
+            }
+            var kanjiBase = baseNames[0];
+            var kanaBase = baseNames[1];
+            var romanBase = baseNames[ROMAN_GROUP_INDEX];
             lastAutoName = (kanaBase === kanjiBase) ? kanjiBase + "-" + romanBase : kanjiBase + "-" + kanaBase + "-" + romanBase;
             /* ウエイトと合わせて上限に収まるよう切り詰め、末尾の区切りを落とす / truncate so the name fits with the weight */
             var weightLength = weightInput.text ? weightInput.text.length + 1 : 0;
@@ -1703,14 +2023,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
            Column headers on top; each row lays out font, style, size and baseline. The Japanese size/baseline stay fixed */
         addColumnHeaderRow(fontsPanel, rowLabelWidth);
         var adjustInputs = [];
-        for (var g = 0; g < FONT_GROUPS.length; g++) {
-            var groupKey = FONT_GROUPS[g].key;
+        for (var i = 0; i < FONT_GROUPS.length; i++) {
+            var groupKey = FONT_GROUPS[i].key;
             var groupPicker = addFontPickerRow(fontsPanel, labelText("fontGroup." + groupKey), getLabel("tooltip." + groupKey),
                 rowLabelWidth, fontCatalog, dialogState.fonts[groupKey], updateAutoName);
             fontPickers.push(groupPicker);
             var groupAdjust = addSizeBaselineRow(groupPicker.rowGroup, dialogState.sizes[groupKey], dialogState.baselines[groupKey],
-                !FONT_GROUPS[g].adjustable);
-            adjustInputs.push(FONT_GROUPS[g].adjustable ? groupAdjust : null);
+                !FONT_GROUPS[i].adjustable);
+            adjustInputs.push(FONT_GROUPS[i].adjustable ? groupAdjust : null);
         }
         /* 選択したテキストが2つ（和文・欧文）のときは、かなは和文と同じにして行をディムにする
            With two selected texts (Japanese, Roman), Kana uses the Japanese font and its row is dimmed */
@@ -1724,60 +2044,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
 
         /* 特例文字：読み込み元の合成フォントと、セットごとのフォント・サイズ・ベースライン
            Custom sets: the source composite font, then font, size and baseline per set */
-        var customSets = (dialogState.sourceIndex > 0) ? customSetSources[dialogState.sourceIndex - 1].customSets : [];
-        var customRows = [];
-        var sourceDropdown = null;
-        if (customSetSources.length > 0) {
-            var customPanel = dlg.add("panel", undefined, getLabel("panel.customSets"));
-            customPanel.orientation = "column";
-            customPanel.alignChildren = ["left", "center"];
-            customPanel.margins = [15, 20, 15, 10];
+        var customSetsUI = addCustomSetsPanel(fontDialog, dialogState, customSetSources, fontCatalog, rowLabelWidth);
+        var sourceDropdown = customSetsUI.sourceDropdown;
 
-            var sourceRowGroup = customPanel.add("group");
-            sourceRowGroup.orientation = "row";
-            sourceRowGroup.alignChildren = ["left", "center"];
-            var sourceLabel = sourceRowGroup.add("statictext", undefined, labelText("fieldLabel.customSource"));
-            sourceLabel.preferredSize.width = rowLabelWidth;
-            sourceLabel.justify = "right";
-            sourceDropdown = sourceRowGroup.add("dropdownlist", undefined, []);
-            sourceDropdown.add("item", getLabel("dropdown.noSource"));
-            for (var s = 0; s < customSetSources.length; s++) sourceDropdown.add("item", customSetSources[s].label);
-            sourceDropdown.preferredSize.width = FAMILY_DROPDOWN_WIDTH;
-            sourceDropdown.helpTip = getLabel("tooltip.customSource");
-            sourceDropdown.selection = dialogState.sourceIndex;
-            if (customSets.length > 0) addColumnHeaderRow(customPanel, rowLabelWidth);
-
-            for (var c = 0; c < customSets.length; c++) {
-                /* 初期フォントは文字に応じて和文・かな・欧文から。サイズ・ベースラインもそのまとまりに合わせる
-                   Initial font follows the set's characters (Japanese / Kana / Roman), and so do size and baseline */
-                var nearestGroup = classifyCustomSet(customSets[c].ranges);
-                var customPicker = addFontPickerRow(customPanel, customSets[c].displayName + (uiLang === "ja" ? "：" : ": "),
-                    describeCustomSet(customSets[c].ranges), rowLabelWidth, fontCatalog, dialogState.fonts[nearestGroup], function () {});
-                var customAdjust = addSizeBaselineRow(customPicker.rowGroup,
-                    (nearestGroup === "kanji") ? 100 : dialogState.sizes[nearestGroup],
-                    (nearestGroup === "kanji") ? 0 : dialogState.baselines[nearestGroup], false);
-                /* 対象文字の表示・編集ボタン / button to show and edit the set's characters */
-                (function (customSet, customRowGroup) {
-                    var btnChars = customRowGroup.add("button", undefined, getLabel("button.customChars"));
-                    btnChars.helpTip = getLabel("tooltip.customCharsButton");
-                    btnChars.onClick = function () {
-                        if (editCustomSetCharacters(customSet)) customRowGroup.children[0].helpTip = describeCustomSet(customSet.ranges);
-                    };
-                })(customSets[c], customPicker.rowGroup);
-                customRows.push({ picker: customPicker, adjust: customAdjust, label: customSets[c].displayName });
-            }
-        }
-
-        var btnRowGroup = dlg.add("group");
+        var btnRowGroup = fontDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.alignChildren = ["left", "center"];
+        /* InDesign が無ければ無効 / disabled when InDesign is not installed */
+        var inDesignCheckbox = btnRowGroup.add("checkbox", undefined, getLabel("checkbox.inDesign"));
+        inDesignCheckbox.helpTip = getLabel("tooltip.inDesign");
+        inDesignCheckbox.enabled = dialogState.hasInDesign;
+        inDesignCheckbox.value = dialogState.hasInDesign && dialogState.forInDesign;
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = btnRightGroup.add("button", undefined, getLabel("button.create"), { name: "ok" });
 
         var dialogResult = null;
@@ -1790,103 +2075,98 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
                 dialogState.name = nameInput.text;
                 dialogState.isAutoWeight = (weightInput.text === "" || weightInput.text === lastAutoWeight);
                 dialogState.weight = weightInput.text;
-                for (var g = 0; g < FONT_GROUPS.length; g++) {
-                    var groupKey = FONT_GROUPS[g].key;
-                    dialogState.fonts[groupKey] = fontPickers[g].getPsName() || dialogState.fonts[groupKey];
-                    if (adjustInputs[g]) {
-                        var sizeValue = parseFloat(adjustInputs[g].sizeInput.text);
-                        var baselineValue = parseFloat(adjustInputs[g].baselineInput.text);
-                        if (!isNaN(sizeValue)) dialogState.sizes[groupKey] = sizeValue;
-                        if (!isNaN(baselineValue)) dialogState.baselines[groupKey] = baselineValue;
-                    }
+                for (var i = 0; i < FONT_GROUPS.length; i++) {
+                    var groupKey = FONT_GROUPS[i].key;
+                    dialogState.fonts[groupKey] = fontPickers[i].getPsName() || dialogState.fonts[groupKey];
+                    if (!adjustInputs[i]) continue;
+                    var sizeValue = parseFloat(adjustInputs[i].sizeInput.text);
+                    var baselineValue = parseFloat(adjustInputs[i].baselineInput.text);
+                    if (!isNaN(sizeValue)) dialogState.sizes[groupKey] = sizeValue;
+                    if (!isNaN(baselineValue)) dialogState.baselines[groupKey] = baselineValue;
                 }
                 dialogState.sourceIndex = sourceDropdown.selection.index;
+                dialogState.forInDesign = inDesignCheckbox.value;
                 dialogResult = { reload: true };
-                dlg.close(3);
+                fontDialog.close(3);
             };
-        }
-
-        /**
-         * 数値欄からサイズとベースラインを読む
-         * @param {Object} adjust - addSizeBaselineRow() の戻り値
-         * @param {string} rowName - エラー表示用の行の名前
-         * @returns {{size: number, baseline: number}|null} 値。数値でなければ null（知らせる）
-         */
-        function readAdjustValues(adjust, rowName) {
-            var sizeValue = parseFloat(adjust.sizeInput.text);
-            var baselineValue = parseFloat(adjust.baselineInput.text);
-            if (isNaN(sizeValue) || sizeValue <= 0 || isNaN(baselineValue)) {
-                alert(getLabel("alert.invalidNumber") + rowName);
-                return null;
-            }
-            return { size: sizeValue, baseline: baselineValue };
         }
 
         btnOK.onClick = function () {
             var fontName = getCombinedName();
-            if (!/^[\x20-\x7e]+$/.test(fontName) || /[\/:]/.test(fontName) || /^\s|\s$/.test(fontName)) {
-                alert(getLabel("alert.invalidName"));
+            var nameProblem = validateFontName(fontName);
+            if (nameProblem) {
+                alert(nameProblem);
                 return;
             }
-            if (fontName.length > MAX_NAME_LENGTH) {
-                alert(getLabel("alert.nameTooLong").replace("%1", MAX_NAME_LENGTH).replace("%2", fontName.length));
-                return;
-            }
-            /* 和文は100％・0％、比率はすべて100％で固定 / Japanese sets stay at 100% / 0%, scales at 100% */
-            var collected = { name: fontName, fonts: [], size: [], baseline: [], hScale: [], vScale: [], customSets: customSets };
-            for (var g = 0; g < FONT_GROUPS.length; g++) {
-                var isLinkedKana = dialogState.isKanaLinked && FONT_GROUPS[g].key === "kana";
-                var psName = isLinkedKana ? fontPickers[0].getPsName() : fontPickers[g].getPsName();
-                if (!psName) return;
-                var groupValues = { size: 100, baseline: 0 }; /* ディムのかなは和文と同じ100％・0％ / dimmed Kana matches Japanese */
-                if (adjustInputs[g] && !isLinkedKana) {
-                    groupValues = readAdjustValues(adjustInputs[g], getLabel("fontGroup." + FONT_GROUPS[g].key));
-                    if (!groupValues) return;
-                }
-                for (var c = 0; c < FONT_GROUPS[g].charsets.length; c++) {
-                    var charsetIndex = FONT_GROUPS[g].charsets[c];
-                    collected.fonts[charsetIndex] = psName;
-                    collected.size[charsetIndex] = groupValues.size;
-                    collected.baseline[charsetIndex] = groupValues.baseline;
-                    collected.hScale[charsetIndex] = 100;
-                    collected.vScale[charsetIndex] = 100;
-                }
-            }
-            /* 特例文字は標準6セットの後ろに並べる / custom sets follow the six standard sets */
-            for (var r = 0; r < customRows.length; r++) {
-                var customPsName = customRows[r].picker.getPsName();
-                if (!customPsName) return;
-                var customValues = readAdjustValues(customRows[r].adjust, customRows[r].label);
-                if (!customValues) return;
-                collected.fonts.push(customPsName);
-                collected.size.push(customValues.size);
-                collected.baseline.push(customValues.baseline);
-                collected.hScale.push(100);
-                collected.vScale.push(100);
-            }
-            /* バリアブルフォントを入れた合成フォントは、適用すると Illustrator が落ちる / variable fonts crash Illustrator when applied */
-            for (var f = 0; f < collected.fonts.length; f++) {
-                if (hasVariableAxes(collected.fonts[f])) {
-                    alert(getLabel("alert.variableFont").replace("%1", collected.fonts[f]));
-                    return;
-                }
-            }
-            dialogResult = collected;
-            dlg.close(1);
+            var fontSpec = buildFontSpecFromDialog(fontName, {
+                fontPickers: fontPickers, adjustInputs: adjustInputs, isKanaLinked: dialogState.isKanaLinked,
+                customRows: customSetsUI.customRows, customSets: customSetsUI.customSets
+            });
+            if (!fontSpec) return;
+            fontSpec.forInDesign = inDesignCheckbox.enabled && inDesignCheckbox.value;
+            dialogResult = fontSpec;
+            fontDialog.close(1);
         };
 
-        dlg.onShow = function () {
+        fontDialog.onShow = function () {
             nameInput.active = true;
         };
 
-        var closeCode = dlg.show();
-        if (closeCode === 1 || closeCode === 3) return dialogResult;
-        return null;
+        var closeCode = fontDialog.show();
+        return (closeCode === 1 || closeCode === 3) ? dialogResult : null;
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
+    /**
+     * ダイアログの初期フォントを決める。選択中のテキストのフォントを優先し、一覧に無ければ（合成・バリアブル）初期フォント
+     * @param {Object} selectedFonts - getSelectedTextFonts() の fonts（kanji / kana / roman の PostScript名か null）
+     * @param {Object} fontCatalog - collectFontFamilies() の結果
+     * @returns {{kanji: string, kana: string, roman: string}} PostScript名
+     */
+    function getInitialFonts(selectedFonts, fontCatalog) {
+        var listedFonts = {};
+        for (var fontKey in selectedFonts) {
+            var selectedPsName = selectedFonts[fontKey];
+            listedFonts[fontKey] = (selectedPsName && fontCatalog.familyByPsName[selectedPsName]) ? selectedPsName : null;
+        }
+        var kanjiPsName = listedFonts.kanji || DEFAULT_KANJI_FONT;
+        if (!fontCatalog.familyByPsName[kanjiPsName]) kanjiPsName = fontCatalog.stylesByFamily[fontCatalog.families[0]][0].psName;
+        var romanPsName = listedFonts.roman || DEFAULT_ROMAN_FONT;
+        if (!fontCatalog.familyByPsName[romanPsName]) romanPsName = kanjiPsName;
+        return {
+            kanji: kanjiPsName,
+            kana: listedFonts.kana || kanjiPsName, /* かなが見つからなければ漢字と同じ / falls back to the Kanji font */
+            roman: romanPsName
+        };
+    }
+
+    /**
+     * かな・欧文のサイズとベースラインの初期値（％）を、選択中のテキストの和文との差から求める
+     * 文字サイズが違えばその比率（例 10pt と 10.8pt → 108%）、ベースラインシフトが違えばその差を和文のサイズに対する比率に
+     * （例 10pt で 1pt 上 → 10%）する。小数1桁に丸める
+     * @param {Object} selectedText - getSelectedTextFonts() の結果
+     * @returns {{sizes: Object, baselines: Object}} kanji / kana / roman ごとの値
+     */
+    function getInitialAdjustments(selectedText) {
+        var sizes = { kanji: 100, kana: 100, roman: 100 };
+        var baselines = { kanji: 0, kana: 0, roman: 0 };
+        var kanjiSize = selectedText.sizes.kanji;
+        if (!(kanjiSize > 0)) return { sizes: sizes, baselines: baselines };
+        var kanjiShift = selectedText.baselineShifts.kanji || 0;
+        var adjustKeys = ["kana", "roman"];
+        for (var i = 0; i < adjustKeys.length; i++) {
+            var groupSize = selectedText.sizes[adjustKeys[i]];
+            if (groupSize > 0 && groupSize !== kanjiSize) sizes[adjustKeys[i]] = Math.round(groupSize / kanjiSize * 1000) / 10;
+            var groupShift = selectedText.baselineShifts[adjustKeys[i]];
+            if (groupShift !== null && groupShift !== kanjiShift) {
+                baselines[adjustKeys[i]] = Math.round((groupShift - kanjiShift) / kanjiSize * 1000) / 10;
+            }
+        }
+        return { sizes: sizes, baselines: baselines };
+    }
+
     /**
      * 合成フォントを作成する
      * @returns {void}
@@ -1895,46 +2175,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         /* 選択の読み取りはフォント一覧を作る前に済ませる（DOM を読むと一覧の文字列が壊れて落ちたため）
            Read the selection before building the font list; reading the DOM afterwards corrupted the list and crashed */
         var selectedText = getSelectedTextFonts();
-        var selectedFonts = selectedText.fonts;
-
         var fontCatalog = collectFontFamilies();
         if (fontCatalog.families.length === 0) return;
 
-        /* 選択中のテキストのフォントを優先し、一覧に無ければ（合成・バリアブル）初期フォント / prefer the selection's fonts when listed */
-        var fontKeys = ["kanji", "kana", "roman"];
-        for (var k = 0; k < fontKeys.length; k++) {
-            var selectedPsName = selectedFonts[fontKeys[k]];
-            if (selectedPsName && !fontCatalog.familyByPsName[selectedPsName]) selectedFonts[fontKeys[k]] = null;
-        }
-        var kanjiPsName = selectedFonts.kanji || DEFAULT_KANJI_FONT;
-        if (!fontCatalog.familyByPsName[kanjiPsName]) kanjiPsName = fontCatalog.stylesByFamily[fontCatalog.families[0]][0].psName;
-        var romanPsName = selectedFonts.roman || DEFAULT_ROMAN_FONT;
-        if (!fontCatalog.familyByPsName[romanPsName]) romanPsName = kanjiPsName;
-        var initialFonts = {
-            kanji: kanjiPsName,
-            kana: selectedFonts.kana || kanjiPsName, /* かなが見つからなければ漢字と同じ / falls back to the Kanji font */
-            roman: romanPsName
-        };
-
-        /* かな・欧文の文字サイズが和文と違えば、その比率をサイズの初期値にする（例 10pt と 10.8pt → 108%）
-           When Kana / Roman differ in size from the Japanese text, use the ratio as the initial size */
-        /* ベースラインシフトが和文と違えば、その差を和文のサイズに対する比率にしてベースラインの初期値にする（例 10pt で 1pt 上 → 10%）
-           When the baseline shift differs from the Japanese text, use the difference relative to its size as the initial baseline */
-        var initialSizes = { kana: 100, roman: 100 };
-        var initialBaselines = { kana: 0, roman: 0 };
-        var kanjiSize = selectedText.sizes.kanji;
-        var kanjiShift = selectedText.baselineShifts.kanji || 0;
-        for (var sizeKey in initialSizes) {
-            var groupSize = selectedText.sizes[sizeKey];
-            if (kanjiSize > 0 && groupSize > 0 && groupSize !== kanjiSize) {
-                initialSizes[sizeKey] = Math.round(groupSize / kanjiSize * 1000) / 10; /* 小数1桁 / one decimal place */
-            }
-            var groupShift = selectedText.baselineShifts[sizeKey];
-            if (kanjiSize > 0 && groupShift !== null && groupShift !== kanjiShift) {
-                initialBaselines[sizeKey] = Math.round((groupShift - kanjiShift) / kanjiSize * 1000) / 10;
-            }
-        }
-
+        var initialAdjustments = getInitialAdjustments(selectedText);
         /* 特例文字の読み込み元（特例文字を持つ合成フォント）/ composite fonts that carry custom sets */
         var targetFolder = findCompositeFontFolder();
         var customSetSources = collectCustomSetSources(targetFolder);
@@ -1944,11 +2188,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             isAutoName: true,
             weight: "",
             isAutoWeight: true,
-            fonts: initialFonts,
-            sizes: { kanji: 100, kana: initialSizes.kana, roman: initialSizes.roman },
-            baselines: { kanji: 0, kana: initialBaselines.kana, roman: initialBaselines.roman },
+            fonts: getInitialFonts(selectedText.fonts, fontCatalog),
+            sizes: initialAdjustments.sizes,
+            baselines: initialAdjustments.baselines,
             sourceIndex: 0,
-            isKanaLinked: selectedText.isKanaLinked
+            isKanaLinked: selectedText.isKanaLinked,
+            hasInDesign: getInDesignSpecifier() !== null,
+            forInDesign: true /* InDesign があれば初期オン / on by default when InDesign is installed */
         };
         var fontSpec;
         do {
@@ -1961,13 +2207,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
             targetFolder = Folder.selectDialog(getLabel("alert.chooseFolder"));
             if (!targetFolder) return;
         }
+        /* 書き出しの失敗（権限など）は File が例外で返すので、ここで受けて知らせる / file errors surface as exceptions */
         try {
             if (!writeCompositeFontFile(targetFolder, fontSpec)) return;
         } catch (e) {
             alert(e.message);
             return;
         }
-        alert(getLabel("alert.done").replace("%1", fontSpec.name).replace("%2", targetFolder.fsName));
+        var doneMessage = getLabel("alert.done").replace("%1", fontSpec.name).replace("%2", targetFolder.fsName);
+        if (fontSpec.forInDesign) doneMessage += "\n\n" + createInDesignCompositeFont(fontSpec);
+        alert(doneMessage);
     }
 
     main();
