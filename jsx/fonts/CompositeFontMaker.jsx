@@ -67,6 +67,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var CUSTOM_LABEL_WIDTH    = 70;  /* 特例文字のパネルがあるときの項目名の幅（セット名・「読み込み：」が入る幅） / label width with the Custom Sets panel */
     var VALUE_COLUMN_WIDTH    = 95;  /* サイズ・ベースラインの列幅（∧∨＋入力欄） / size and baseline column width (stepper + field) */
     var NAME_FIELD_CHARACTERS = 26;  /* 合成フォント名（フォント名の部分）の最低幅（文字数） / minimum width of the name part, in characters */
+    var NAME_LENGTH_WIDTH     = 50;  /* 名前の文字数表示の幅（「29 / 29」が入る幅） / width of the name length display */
     var NAME_ROW_LEFT_MARGIN  = 12;  /* 合成フォント名の行の左余白（1文字ほど） / left margin of the name row (about one character) */
     var CHAR_EDIT_SIZE        = [320, 120]; /* 対象文字の入力欄の大きさ / size of the character field */
     var BUTTON_ROW_TOP_MARGIN = 10;  /* ボタン行の上余白 / top margin of the button row */
@@ -1216,6 +1217,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             kanji: { ja: "漢字・全角約物・全角記号のフォント", en: "Font for Kanji, punctuation and symbols" },
             kana: { ja: "ひらがな・カタカナのフォント", en: "Font for hiragana and katakana" },
             roman: { ja: "半角欧文・半角数字のフォント", en: "Font for alphabetic characters and numerals" },
+            nameLength: { ja: "合成フォント名（ハイフンとウエイトを含む）の文字数と上限", en: "Length of the composite font name (including the hyphen and weight) and the limit" },
             customCharsButton: { ja: "対象文字を表示・編集します", en: "Show and edit the characters in this set" },
             customChars: {
                 ja: "このセットに含める文字です。1文字ずつ入力します（重複・空白・改行は無視）。",
@@ -1502,6 +1504,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var weightInput = nameRowGroup.add("edittext", undefined, dialogState.isAutoWeight ? "" : dialogState.weight);
         weightInput.characters = 6;
         weightInput.helpTip = getLabel("tooltip.weight");
+        /* つないだ名前の文字数（上限を超えたら赤） / length of the joined name, red when over the limit */
+        var nameLengthText = nameRowGroup.add("statictext", undefined, "");
+        nameLengthText.preferredSize.width = NAME_LENGTH_WIDTH;
+        nameLengthText.helpTip = getLabel("tooltip.nameLength");
+        var nameLengthDefaultPen = nameLengthText.graphics.foregroundColor;
+        var nameLengthOverPen = nameLengthText.graphics.newPen(nameLengthText.graphics.PenType.SOLID_COLOR, [0.9, 0.2, 0.2, 1], 1);
 
         /* フォント：和文・かな・欧文の3行 / fonts: one row each for Japanese, Kana and Roman */
         var fontsPanel = dlg.add("panel", undefined, getLabel("panel.fonts"));
@@ -1517,10 +1525,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var lastAutoName = "";
         var lastAutoWeight = "";
         /**
-         * 選ばれているフォントから、フォント名の部分とウエイトを作って入れる
+         * 名前の自動入力と文字数表示を更新する
          * @returns {void}
          */
         function updateAutoName() {
+            fillAutoName();
+            updateNameLength();
+        }
+
+        /**
+         * つないだ名前の文字数を「24 / 29」の形で表示する
+         * @returns {void}
+         */
+        function updateNameLength() {
+            var nameLength = getCombinedName().length;
+            nameLengthText.text = nameLength + " / " + MAX_NAME_LENGTH;
+            nameLengthText.graphics.foregroundColor = (nameLength > MAX_NAME_LENGTH) ? nameLengthOverPen : nameLengthDefaultPen;
+        }
+
+        /**
+         * 選ばれているフォントから、フォント名の部分とウエイトを作って入れる（手で書き換えた欄はそのまま）
+         * @returns {void}
+         */
+        function fillAutoName() {
             if (fontPickers.length < FONT_GROUPS.length) return; /* 行を作っている途中 / rows still being built */
             /* かなの行がディムの間は、和文と同じフォントを表示しておく / while Kana is dimmed, show the Japanese font there */
             if (dialogState.isKanaLinked && fontPickers[0].getPsName()) fontPickers[1].selectPsName(fontPickers[0].getPsName());
@@ -1550,6 +1577,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         weightInput.onChanging = function () {
             updateAutoName(); /* ウエイトの長さに合わせてフォント名の部分を詰め直す / refit the name part to the weight */
+        };
+        nameInput.onChanging = function () {
+            updateNameLength();
         };
 
         /* ［フォント］と［特例文字］で項目名の幅をそろえる。特例文字のパネルがあるときはセット名の入る幅に広げる
