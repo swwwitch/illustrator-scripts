@@ -23,7 +23,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 - Background: transparent, black, white, transparency grid or a color code. The grid tile size is given as a percentage, where 100% is an 8pt square
 - Color codes accept three formats: `#RRGGBB`, `R255G255B255` and `C0M100Y100K0`
 - Margin: top, bottom, left and right set individually, in the current ruler unit. Same Value applies the top value to all four sides
-- Rounding picks how the export area is rounded: Optimize to pixel grid, Round values in current unit, or Do nothing
+- Round Export Area picks how the export area is rounded: Align to pixel grid, Whole ruler units, or Don't round
 - Border: enabled by the Width checkbox, with a width plus color (black, white or a color code), drawn inside the export area with a minimum of 1px
 - Export size: 1x to 4x, a custom scale (%) or a target width (px). The 1x–4x labels show the resulting pixel size including the margin, and follow the margin as it changes
 - Filename built from the document name (used or ignored), a delimiter (none, `-`, `_`) and a suffix, with a live preview (the delimiter is dropped when the document name is ignored)
@@ -47,7 +47,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 | --- | --- |
 | Preset | Recalls a built-in setting. Save Preset writes the current settings to the desktop as text |
 | Background | Transparent / Black / White / Transparency grid (%) / Color code |
-| Margin | Top / Bottom / Left / Right, in the current ruler unit; Linked keeps all four equal; Rounding picks how the area is rounded |
+| Margin | Top / Bottom / Left / Right, in the current ruler unit; Linked keeps all four equal; Round Export Area picks how the area is rounded |
 | Border | Width checkbox plus a width in the current ruler unit, and black, white or a color code |
 | Export Size (px) | 1x–4x / custom scale (%) / target width (px) |
 | Export Filename | Whether to use the document name, the delimiter, and the Suffix checkbox with its value |
@@ -55,9 +55,9 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Notes
 
-- The export area is grown outward according to Rounding, so the artwork is never clipped. The default, Optimize to pixel grid, rounds to whole points, and at 100% one pt equals one px.
+- The export area is grown outward according to Round Export Area, so the artwork is never clipped. The default, Align to pixel grid, rounds to whole points, and at 100% one pt equals one px.
 - The border is drawn inside the export area, so add a margin as well when you need clearance around the artwork.
-- For an unsaved document, "Same as File" falls back to the desktop.
+- For an unsaved document, "Same Folder as Document" falls back to the desktop.
 - "Show Folder After Export" is macOS only.
 - Preset margins and border widths are kept in mm; when the ruler unit is something else, the converted value is filled in. Save Preset converts back to mm.
 - A background or border color code that cannot be read is simply not drawn: the background stays transparent and the border is omitted.
@@ -72,6 +72,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.1.1 (2026-09-27): Revised UI wording (Document Name: Include / Exclude; location: Same Folder as Document; rounding: Round Export Area with Align to pixel grid / Whole ruler units / Don't round). Added colons to the Transparency Grid and Color Code labels, and tooltips to the transparency grid, document name and delimiter
 - v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.2 (2026-09-11): Fixed stacking order across layers, the working layer left behind when something failed mid-run, deletion of same-named user artwork, the crash on a text-tool selection, the destination folder for an unsaved document, the delimiter with no document name, how an unreadable color code is handled for the background and border, and the transparency grid spilling past the export area. Preset margins and border widths are now kept in mm, the UI wording was revised, and tooltips were added throughout
 - v1.0.1 (2026-09-11): Margins are now set per side with a Linked option, Rounding picks how the export area is rounded, the border and the suffix are toggled with checkboxes, text is measured from an outlined copy, the transparency grid tile no longer depends on the ruler unit (an 8pt square at 100%), and the export size labels are no longer clipped

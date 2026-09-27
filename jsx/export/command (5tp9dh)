@@ -1,0 +1,66 @@
+cd /Users/takano/Git/ai-scripts; F=jsx/export/SmartObjectExporter.jsx; python3 - "$F" <<'EOF'
+import sys,re
+p=sys.argv[1]; s=open(p,encoding='utf-8').read()
+start=s.index('    /**\n     * ドキュメントのカラースペースに合わせた白を生成する')
+end=s.index('    /**\n     * カラーコード文字列からカラーを生成する')
+new='''    /**
+     * ドキュメントのカラースペースに合わせた無彩色を生成する
+     * @param {number} rgbLevel - RGBドキュメントでのR・G・Bの値（0〜255）
+     * @param {number} cmykBlack - CMYKドキュメントでのKの値（0〜100、C・M・Yは0）
+     * @returns {RGBColor|CMYKColor} 無彩色
+     */
+    function createNeutralColor(rgbLevel, cmykBlack) {
+        if (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB) {
+            var rgbColor = new RGBColor();
+            rgbColor.red = rgbLevel;
+            rgbColor.green = rgbLevel;
+            rgbColor.blue = rgbLevel;
+            return rgbColor;
+        }
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = 0;
+        cmykColor.magenta = 0;
+        cmykColor.yellow = 0;
+        cmykColor.black = cmykBlack;
+        return cmykColor;
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた白を生成する
+     * @returns {RGBColor|CMYKColor} 白
+     */
+    function createWhiteColor() {
+        return createNeutralColor(255, 0);
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた黒を生成する
+     * @returns {RGBColor|CMYKColor} 黒
+     */
+    function createBlackColor() {
+        return createNeutralColor(0, 100);
+    }
+
+'''
+s=s[:start]+new+s[end:]
+old='''        var isRgbDocument = (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB);
+        var grayColor = isRgbDocument ? new RGBColor() : new CMYKColor();
+        var whiteColor = createWhiteColor();
+
+        if (isRgbDocument) {
+            grayColor.red = 204;
+            grayColor.green = 204;
+            grayColor.blue = 204;
+        } else {
+            grayColor.cyan = 0;
+            grayColor.magenta = 0;
+            grayColor.yellow = 0;
+            grayColor.black = 30;
+        }
+'''
+new2='''        var grayColor = createNeutralColor(204, 30);
+        var whiteColor = createWhiteColor();
+'''
+assert old in s; s=s.replace(old,new2)
+open(p,'w',encoding='utf-8').write(s)
+EOF
