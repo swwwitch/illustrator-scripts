@@ -12,6 +12,8 @@
 
 Creates an Illustrator composite font from just three fonts: Japanese, Kana and Roman. Illustrator has no scripting command for composite fonts, so the script writes a file in the same format the Composite Fonts dialog saves, straight into the composite font folder. Restart Illustrator to use the new composite font.
 
+<img alt="Create Composite Font dialog" src="../png/ss-1288-750-144-20260927-182810.png" width="50%" />
+
 ### Main Features
 
 - Only three fonts to choose
@@ -21,6 +23,8 @@ Creates an Illustrator composite font from just three fonts: Japanese, Kana and 
 - Set the size and baseline of Kana and Roman relative to the Japanese font (Kanji)
 - Picks up fonts from the selected text as the initial values
 - When Kana or Roman in the selected text differs in size from the Japanese text, uses the ratio as the initial size (e.g. 10 pt Japanese and 10.8 pt Roman → 108%)
+- When the baseline shift differs from the Japanese text, uses the difference relative to the Japanese size as the initial baseline (e.g. 10 pt Japanese, Roman raised 1 pt → 10%)
+- Even a single line mixing Japanese, Kana and Roman is read by character type: font (weight), size and baseline shift. When Kana or Roman has several settings, the one used by the most characters wins
 - The composite font name has two fields joined with a hyphen: [JapanesePS-KanaPS-RomanPS]-[weight]
   - The name part fills in from the chosen fonts' PostScript names with the weight removed (-Bold, -W3, ...; e.g. PA1MinchoStdN-Bold → PA1MinchoStdN); Kana is omitted when same as Japanese
   - The weight fills in from the Japanese style name (spaces and non-ASCII removed; left empty, no weight is added)
@@ -38,16 +42,35 @@ Creates an Illustrator composite font from just three fonts: Japanese, Kana and 
 
 ### Reading the Selected Text
 
-The selected texts are ordered top to bottom, and the font of each one's first character is picked up.
+The font, size and baseline shift are read from the selected text as initial values.
+
+#### Two or more lines
+
+The texts are ordered top to bottom, and each one's first character is read.
 
 | Texts from the top | Assigned to |
 |---|---|
-| 1 | Japanese |
 | 2 | Japanese, Roman (Kana uses the Japanese font at 100% / 0%, and its row is dimmed) |
 | 3 | Japanese, Kana, Roman |
 
 - With several text objects selected, they are ordered by their top edge (left to right at the same height)
 - With one text object, or characters selected, paragraphs are used in order
+
+#### A single line (one paragraph)
+
+Each character type is read separately.
+
+| Type | Characters | Read from |
+|---|---|---|
+| Japanese | Kanji (full-width punctuation or symbols if no Kanji) | The first character |
+| Kana | Hiragana, katakana | The setting used by the most characters |
+| Roman | Half-width letters, digits and symbols | The setting used by the most characters |
+
+- A "setting" is the combination of font, size and baseline shift; on a tie, the earlier one wins
+- Kana is picked up only when it differs from Japanese in font (or size / baseline shift). Without Kana, or when it matches Japanese, Kana follows the Japanese font and its row is dimmed
+
+#### Both cases
+
 - Anything not picked up falls back to Kozuka Gothic Pr6N R (Japanese) and Myriad Pro Regular (Roman)
 
 ### Custom Character Sets
@@ -71,6 +94,15 @@ Choose a composite font that has custom sets under Load from in the Custom Chara
 - Files are saved to `~/Library/Application Support/Adobe/Adobe Illustrator <version>/ja_JP/合成フォント/`; if that folder is not found, you choose one
 - If Illustrator ever fails to launch, move the composite font file you created out of that folder
 
+### Article (Japanese)
+
+https://note.com/dtp_tranist/n/ne0f78458ddd3
+
 ### Update History
 
 - v1.0.0 (20260927): Initial release
+- v1.0.1 (20260927):
+  - Reads a single line by character type (Japanese, Kana, Roman)
+  - When Kana or Roman has several settings, uses the one with the most characters
+  - Kana is picked up only when its setting differs from Japanese
+  - Baseline shift is used as an initial value too

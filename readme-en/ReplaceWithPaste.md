@@ -65,6 +65,7 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 
 - The script performs a normal paste internally. It reports and stops when nothing gets pasted.
 - While editing selected characters, it reports and stops without replacing anything if the clipboard holds something other than text.
+- With only a caret placed in text (no characters selected), the clipboard is inserted at the caret with Paste without Formatting (nothing is replaced).
 - When replacing with non-text contents, a selected group is replaced as a whole (only text copies reach the text frames inside groups).
 - Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard still brings back the old contents. To work around this, the script pastes twice and uses the result of the second paste.
 - A new text frame lands wherever Illustrator pastes (the center of the view), not at the coordinates it was copied from.
@@ -75,6 +76,7 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 
 ## Changelog
 
+- v2.0.1 (20260927): With only a caret placed in text (no characters selected), the clipboard is now inserted at the caret with Paste without Formatting instead of replacing the whole text frame
 - v2.0.0 (20260927): Renamed from `ReplaceTextWithPaste.jsx` to `ReplaceWithPaste.jsx`. Added support for non-text clipboard contents: each selected object is replaced with the pasted contents, matched in center and stacking position (with nothing selected, the contents are pasted as usual). Sizing is Keep Size, Fit Long Side, or Fit Short Side, chosen in a dialog with a live preview or fixed with the `SHOW_SIZE_DIALOG` and `DEFAULT_SIZE_MODE` user settings
 - v1.1.4 (20260825): Spelled out in the overview that a new text frame lands at the center of the view, and noted that the derived `ReplaceTextWithPasteSequential.jsx` now pastes the clipboard at the center of the artboard when nothing is selected (the behavior of this script is unchanged)
 - v1.1.3 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid, and the frames are all collected before any of them is rewritten

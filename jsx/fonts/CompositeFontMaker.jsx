@@ -5,12 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-和文（漢字・全角約物・全角記号）・かな・欧文（半角欧文・半角数字）のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
-テキストを選んで実行すると、上から「和文・欧文」または「和文・かな・欧文」の順にフォントを読み取ります。
-作った合成フォントは Illustrator を再起動すると使えるようになります。
+和文・かな・欧文のフォントと、かな・欧文のサイズ・ベースラインを指定して、合成フォントのファイルを作ります。
+選択したテキスト（和文・かな・欧文が混じった1行でも可）から初期値を読み取ります。作った合成フォントは Illustrator の再起動後に使えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne0f78458ddd3
 
 ### 注意
 
@@ -20,9 +22,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeF
 
 ### Overview
 
-Creates a composite font file from a Japanese font (Kanji, punctuation, symbols), a Kana font, a Roman font (alphabetic, numerals), and the size and baseline of the Kana and Roman fonts.
-Run it with text selected to pick up fonts from top to bottom as Japanese / Roman, or Japanese / Kana / Roman.
-Restart Illustrator to use the new composite font.
+Creates a composite font file from Japanese, Kana and Roman fonts and the size and baseline of Kana and Roman.
+Initial values are read from the selected text (even a single line mixing Japanese, Kana and Roman). Restart Illustrator to use the new composite font.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md
@@ -39,13 +40,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CompositeFontMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CompositeFontMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CompositeFontMaker.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -655,20 +657,108 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * テキストの最初の空白でない文字のフォントと文字サイズを返す
-     * @param {TextRange} textRange - 対象のテキスト
-     * @returns {{psName: string, size: number}|null} PostScript名と文字サイズ（pt）。見つからなければ null
+     * 文字のフォント・文字サイズ・ベースラインシフトを返す
+     * @param {TextRange} textCharacter - 対象の文字
+     * @returns {{psName: string, size: number, baselineShift: number}} PostScript名・文字サイズ（pt）・ベースラインシフト（pt）
      */
-    function getFirstCharacterFont(textRange) {
+    function getCharacterFormat(textCharacter) {
+        var charAttributes = textCharacter.characterAttributes;
+        return {
+            psName: String(charAttributes.textFont.name),
+            size: Number(charAttributes.size),
+            baselineShift: Number(charAttributes.baselineShift) || 0
+        };
+    }
+
+    /**
+     * テキストの最初の空白でない文字の書式を返す
+     * @param {TextRange} textRange - 対象のテキスト
+     * @returns {{psName: string, size: number, baselineShift: number}|null} 書式。見つからなければ null
+     */
+    function getFirstCharacterFormat(textRange) {
         try {
             var textCharacters = textRange.characters;
             for (var i = 0; i < textCharacters.length; i++) {
                 if (/\s/.test(textCharacters[i].contents)) continue;
-                var charAttributes = textCharacters[i].characterAttributes;
-                return { psName: String(charAttributes.textFont.name), size: Number(charAttributes.size) };
+                return getCharacterFormat(textCharacters[i]);
             }
         } catch (e) {}
         return null;
+    }
+
+    /**
+     * 文字が和文・かな・欧文のどれにあたるかを返す
+     * @param {string} charText - 1文字
+     * @returns {string|null} "ideograph"（漢字）/ "kanji"（その他の全角）/ "kana" / "roman"。空白なら null
+     */
+    function classifyCharacter(charText) {
+        if (!charText || /\s/.test(charText)) return null;
+        var code = charText.charCodeAt(0);
+        if (code <= 0x7E) return "roman";
+        if (code >= 0x3041 && code <= 0x30FF && code !== 0x30FB) return "kana"; /* 中黒は約物 / middle dot is punctuation */
+        if ((code >= 0x4E00 && code <= 0x9FFF) || (code >= 0x3400 && code <= 0x4DBF) || (code >= 0xF900 && code <= 0xFAFF) ||
+            (code >= 0xD840 && code <= 0xD87F) || code === 0x3005) return "ideograph";
+        return "kanji";
+    }
+
+    /**
+     * 1行のテキストから、和文・かな・欧文の書式を拾う
+     * 和文は最初の文字（漢字を優先し、漢字が無ければ全角約物・記号）、
+     * かな・欧文は文字数が一番多い書式（同数なら先に出てきたもの）
+     * @param {TextRange} textRange - 対象のテキスト
+     * @returns {{kanji: Object, kana: Object, roman: Object}} 書式（見つからなければ null）
+     */
+    function getFormatsByCharacterClass(textRange) {
+        var firstFormats = { ideograph: null, kanji: null };
+        var formatTallies = { kana: {}, roman: {} };
+        try {
+            var textCharacters = textRange.characters;
+            for (var i = 0; i < textCharacters.length; i++) {
+                var charClass = classifyCharacter(textCharacters[i].contents);
+                if (!charClass) continue;
+                if (formatTallies[charClass]) {
+                    tallyFormat(formatTallies[charClass], getCharacterFormat(textCharacters[i]));
+                } else if (!firstFormats[charClass]) {
+                    firstFormats[charClass] = getCharacterFormat(textCharacters[i]);
+                }
+            }
+        } catch (e) {}
+        return {
+            kanji: firstFormats.ideograph || firstFormats.kanji,
+            kana: getMostFrequentFormat(formatTallies.kana),
+            roman: getMostFrequentFormat(formatTallies.roman)
+        };
+    }
+
+    /**
+     * 書式ごとの文字数を数える
+     * @param {Object} formatTally - 書式のキーごとの { format, count, order }
+     * @param {Object} charFormat - 文字の書式（psName / size / baselineShift）
+     * @returns {void}
+     */
+    function tallyFormat(formatTally, charFormat) {
+        var formatKey = charFormat.psName + "|" + charFormat.size + "|" + charFormat.baselineShift;
+        if (!formatTally[formatKey]) {
+            var entryCount = 0;
+            for (var existingKey in formatTally) entryCount++;
+            formatTally[formatKey] = { format: charFormat, count: 0, order: entryCount };
+        }
+        formatTally[formatKey].count++;
+    }
+
+    /**
+     * 文字数が一番多い書式を返す（同数なら先に出てきたもの）
+     * @param {Object} formatTally - tallyFormat() で数えた結果
+     * @returns {Object|null} 書式。1文字も無ければ null
+     */
+    function getMostFrequentFormat(formatTally) {
+        var bestEntry = null;
+        for (var formatKey in formatTally) {
+            var tallyEntry = formatTally[formatKey];
+            if (!bestEntry || tallyEntry.count > bestEntry.count ||
+                (tallyEntry.count === bestEntry.count && tallyEntry.order < bestEntry.order)) bestEntry = tallyEntry;
+        }
+        return bestEntry ? bestEntry.format : null;
     }
 
     /**
@@ -716,25 +806,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 選択中のテキストから和文・かな・欧文のフォントを拾う
-     * 上から「和文・欧文」の2つ、または「和文・かな・欧文」の3つとして読む
+     * 上から「和文・欧文」の2つ、または「和文・かな・欧文」の3つとして読む。
+     * 1行（1段落）だけなら、文字の種類ごとに読む（和文・かな・欧文が混じった1行に対応）
      * （一覧にあるかの確認は呼び出し側で行う）
-     * @returns {{fonts: Object, sizes: Object, textCount: number}} kanji / kana / roman ごとの PostScript名と文字サイズ（pt。無ければ null）と、読んだテキストの数
+     * @returns {{fonts: Object, sizes: Object, baselineShifts: Object, isKanaLinked: boolean}} kanji / kana / roman ごとの PostScript名・文字サイズ（pt）・ベースラインシフト（pt）（無ければ null）と、かなを和文にそろえるか
      */
     function getSelectedTextFonts() {
         var foundFonts = { kanji: null, kana: null, roman: null };
         var foundSizes = { kanji: null, kana: null, roman: null };
+        var foundShifts = { kanji: null, kana: null, roman: null };
         var orderedTexts = getSelectedTextsTopDown();
-        var fontKeys;
-        if (orderedTexts.length >= 3) fontKeys = ["kanji", "kana", "roman"];
-        else if (orderedTexts.length === 2) fontKeys = ["kanji", "roman"];
-        else fontKeys = ["kanji"];
-        for (var i = 0; i < fontKeys.length && i < orderedTexts.length; i++) {
-            var fontInfo = getFirstCharacterFont(orderedTexts[i]);
-            if (!fontInfo) continue;
-            foundFonts[fontKeys[i]] = fontInfo.psName;
-            foundSizes[fontKeys[i]] = fontInfo.size;
+        var foundFormats = {};
+        var isKanaLinked = false;
+        if (orderedTexts.length === 1) {
+            foundFormats = getFormatsByCharacterClass(orderedTexts[0]);
+            /* かなが無いか、和文と同じ書式なら、かなは和文と同じ / no kana, or formatted like Japanese: same as Japanese */
+            var kanaFormat = foundFormats.kana;
+            var kanjiFormat = foundFormats.kanji;
+            if (kanaFormat && kanjiFormat && kanaFormat.psName === kanjiFormat.psName &&
+                kanaFormat.size === kanjiFormat.size && kanaFormat.baselineShift === kanjiFormat.baselineShift) {
+                foundFormats.kana = null;
+            }
+            isKanaLinked = !foundFormats.kana;
+        } else {
+            var fontKeys = (orderedTexts.length >= 3) ? ["kanji", "kana", "roman"] : ["kanji", "roman"];
+            for (var i = 0; i < fontKeys.length && i < orderedTexts.length; i++) {
+                foundFormats[fontKeys[i]] = getFirstCharacterFormat(orderedTexts[i]);
+            }
+            isKanaLinked = orderedTexts.length === 2; /* 2つなら「和文・欧文」 / two texts: Japanese and Roman */
         }
-        return { fonts: foundFonts, sizes: foundSizes, textCount: orderedTexts.length };
+        for (var fontKey in foundFonts) {
+            var charFormat = foundFormats[fontKey];
+            if (!charFormat) continue;
+            foundFonts[fontKey] = charFormat.psName;
+            foundSizes[fontKey] = charFormat.size;
+            foundShifts[fontKey] = charFormat.baselineShift;
+        }
+        return { fonts: foundFonts, sizes: foundSizes, baselineShifts: foundShifts, isKanaLinked: isKanaLinked };
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
@@ -1508,7 +1616,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var nameLengthText = nameRowGroup.add("statictext", undefined, "");
         nameLengthText.preferredSize.width = NAME_LENGTH_WIDTH;
         nameLengthText.helpTip = getLabel("tooltip.nameLength");
-        var nameLengthDefaultPen = nameLengthText.graphics.foregroundColor;
+        /* 既定の foregroundColor は未設定（代入すると Error 47）なので、通常色のペンも明暗に合わせて作る
+           The default foregroundColor is unset (assigning it back raises Error 47), so build the normal pen too */
+        var nameLengthDefaultPen = nameLengthText.graphics.newPen(nameLengthText.graphics.PenType.SOLID_COLOR,
+            STEPPER_UI_DARK ? [0.85, 0.85, 0.85, 1] : [0.1, 0.1, 0.1, 1], 1);
         var nameLengthOverPen = nameLengthText.graphics.newPen(nameLengthText.graphics.PenType.SOLID_COLOR, [0.9, 0.2, 0.2, 1], 1);
 
         /* フォント：和文・かな・欧文の3行 / fonts: one row each for Japanese, Kana and Roman */
@@ -1540,7 +1651,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function updateNameLength() {
             var nameLength = getCombinedName().length;
             nameLengthText.text = nameLength + " / " + MAX_NAME_LENGTH;
-            nameLengthText.graphics.foregroundColor = (nameLength > MAX_NAME_LENGTH) ? nameLengthOverPen : nameLengthDefaultPen;
+            try {
+                nameLengthText.graphics.foregroundColor = (nameLength > MAX_NAME_LENGTH) ? nameLengthOverPen : nameLengthDefaultPen;
+            } catch (e) {} /* 色を変えられなくても文字数は出す / the count still shows if the color cannot change */
         }
 
         /**
@@ -1805,12 +1918,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* かな・欧文の文字サイズが和文と違えば、その比率をサイズの初期値にする（例 10pt と 10.8pt → 108%）
            When Kana / Roman differ in size from the Japanese text, use the ratio as the initial size */
+        /* ベースラインシフトが和文と違えば、その差を和文のサイズに対する比率にしてベースラインの初期値にする（例 10pt で 1pt 上 → 10%）
+           When the baseline shift differs from the Japanese text, use the difference relative to its size as the initial baseline */
         var initialSizes = { kana: 100, roman: 100 };
+        var initialBaselines = { kana: 0, roman: 0 };
         var kanjiSize = selectedText.sizes.kanji;
+        var kanjiShift = selectedText.baselineShifts.kanji || 0;
         for (var sizeKey in initialSizes) {
             var groupSize = selectedText.sizes[sizeKey];
             if (kanjiSize > 0 && groupSize > 0 && groupSize !== kanjiSize) {
                 initialSizes[sizeKey] = Math.round(groupSize / kanjiSize * 1000) / 10; /* 小数1桁 / one decimal place */
+            }
+            var groupShift = selectedText.baselineShifts[sizeKey];
+            if (kanjiSize > 0 && groupShift !== null && groupShift !== kanjiShift) {
+                initialBaselines[sizeKey] = Math.round((groupShift - kanjiShift) / kanjiSize * 1000) / 10;
             }
         }
 
@@ -1825,9 +1946,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             isAutoWeight: true,
             fonts: initialFonts,
             sizes: { kanji: 100, kana: initialSizes.kana, roman: initialSizes.roman },
-            baselines: { kanji: 0, kana: 0, roman: 0 },
+            baselines: { kanji: 0, kana: initialBaselines.kana, roman: initialBaselines.roman },
             sourceIndex: 0,
-            isKanaLinked: selectedText.textCount === 2 /* 選択が2つなら「和文・欧文」でかなは和文と同じ / two texts: Japanese and Roman */
+            isKanaLinked: selectedText.isKanaLinked
         };
         var fontSpec;
         do {

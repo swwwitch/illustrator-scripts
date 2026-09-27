@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceWit
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceWithPaste";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
@@ -329,6 +329,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     // =========================================
 
     /**
+     * 選択を解除してからペーストし、貼り付いたオブジェクトを返す。
+     * 先に解除するのは、ペーストが実行されなかったときに元の選択を
+     * 「貼り付いたもの」と取り違えないため。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object[]} 貼り付いたオブジェクトの配列。貼り付かなかった場合は空配列
+     */
+    function pasteAndCapture(doc) {
+        setSelection(doc, null);
+        app.paste();
+        /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
+        app.redraw();
+        return captureSelection(doc);
+    }
+
+    /**
      * クリップボードの内容をドキュメントへ貼り付け、貼り付いたオブジェクトを返す。
      * Illustrator は自分がコピーした内容を内部に保持していて、他アプリがクリップボードを
      * 書き換えたあとの1回目のペーストでは古い内容が貼り付く。その1回目が内部の更新を促すため、
@@ -339,27 +354,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     function pasteClipboardItems(doc) {
         try {
             /* 1回目は内部クリップボードを最新にするためだけのペースト / The first paste only refreshes Illustrator's cached clipboard */
-            setSelection(doc, null);
-            app.paste();
-            app.redraw();
+            removeItems(pasteAndCapture(doc));
         } catch (e) {
             /* 更新目的なので、失敗しても2回目の結果で判断する / Judge by the second paste even if this one fails */
         }
-        removeItems(captureSelection(doc));
-
-        setSelection(doc, null);
-        app.paste();
-        /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
-        app.redraw();
-        return captureSelection(doc);
+        return pasteAndCapture(doc);
     }
 
     /**
      * 一度ペーストして、クリップボードの中身がテキストかそれ以外かを調べる。
      * テキストなら貼り付いたテキストフレームから内容と座標を読み取る。
      * 読み取り後は貼り付けたオブジェクトを削除し、元の選択へ戻す。
-     * 貼り付け前に選択を解除するのは、ペーストが実行されなかったときに
-     * 元の選択を「貼り付いたもの」と誤認して削除しないため。
      * @param {Document} doc - 対象ドキュメント
      * @param {Object[]} originalSelection - 復元する元の選択
      * @returns {{kind: string, bounds: number[], contents: string}|null} kind は "text" または "objects"（objects のときは bounds と contents を持たない）。貼り付けに失敗した場合は null
@@ -370,8 +375,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         var pasteError = null;
 
         try {
-            /* 貼り付いたものだけを確実に拾うため、先に選択を空にする / Clear the selection first so only the pasted items are captured */
-            setSelection(doc, null);
             pastedItems = pasteClipboardItems(doc);
 
             var pastedTextFrame = findFirstTextFrame(pastedItems);
@@ -449,27 +452,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * 控えた文字範囲だけをクリップボードのテキストで置き換える。
-     * カーソルがあるだけで文字が選ばれていない場合は、そのテキストフレーム全体を対象にする。
+     * 編集中に選択していた文字範囲だけを、クリップボードのテキストで置き換える。
+     * 編集モードを抜けてから読み取り、終わったら対象のテキストフレームを選択しておく。
+     * @param {Document} doc - 対象ドキュメント
      * @param {{frame: TextFrame, start: number, end: number}} rangeInfo - 置き換える範囲
-     * @param {string} textContent - 適用するテキスト
-     * @param {string[]} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
      * @returns {void}
      */
-    function replaceEditingRange(rangeInfo, textContent, errorMessages) {
-        if (rangeInfo.start === rangeInfo.end) {
-            applyTextToFrames([rangeInfo.frame], textContent, errorMessages);
-            return;
+    function replaceSelectedCharacters(doc, rangeInfo) {
+        leaveTextEditing(doc);
+
+        var clipboardInfo = readClipboard(doc, []);
+        if (!clipboardInfo) return;
+
+        var alertMessage = null;
+        if (clipboardInfo.kind !== "text") {
+            /* 文字の中にはテキスト以外を流し込めない / Only text can go into a character range */
+            alertMessage = getLabel("alert.noTextInClipboard");
+        } else {
+            try {
+                var targetRange = rangeInfo.frame.textRange;
+                targetRange.start = rangeInfo.start;
+                targetRange.end = rangeInfo.end;
+                targetRange.contents = clipboardInfo.contents;
+            } catch (e) {
+                alertMessage = getLabel("alert.replaceError") + e;
+            }
         }
 
-        try {
-            var targetRange = rangeInfo.frame.textRange;
-            targetRange.start = rangeInfo.start;
-            targetRange.end = rangeInfo.end;
-            targetRange.contents = textContent;
-        } catch (e) {
-            addUniqueError(errorMessages, String(e));
-        }
+        /* 編集モードは抜けているので、対象のテキストフレームを選択して終える / Editing is over, so leave the frame itself selected */
+        setSelection(doc, [rangeInfo.frame]);
+        app.redraw();
+        if (alertMessage) alert(alertMessage);
     }
 
     /**
@@ -582,11 +595,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
                 var targetItem = targetItems[i];
                 var targetMetrics = measureBounds(targetItem.visibleBounds);
 
-                setSelection(doc, null);
-                app.paste();
-                /* 貼り付け直後は selection に反映されないことがあるため、描画を確定させてから読む / Flush the paste before reading the selection */
-                app.redraw();
-                var pastedItems = captureSelection(doc);
+                var pastedItems = pasteAndCapture(doc);
                 if (pastedItems.length === 0) continue;
 
                 for (var j = 0; j < pastedItems.length; j++) {
@@ -758,79 +767,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     // =========================================
 
     /**
-     * 選択の退避、クリップボードの取得、テキストの適用までを通して行う
+     * 選択した各オブジェクトを、クリップボードの内容（テキスト以外）で置き換える。
+     * 選択がなければ通常のペーストと同じく画面の中央へ貼り付ける。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} originalSelection - 置き換えるオブジェクト
      * @returns {void}
      */
-    function main() {
-        if (app.documents.length === 0) {
-            alert(getLabel("alert.noDocument"));
+    function replaceObjects(doc, originalSelection) {
+        if (originalSelection.length === 0) {
+            pasteAndCapture(doc);
             return;
         }
 
-        var doc = app.activeDocument;
-        var originalSelection = captureSelection(doc);
+        var errorMessages = [];
+        var replacements = pasteOverTargets(doc, originalSelection, errorMessages);
 
-        /* 文字を選択して編集中なら、その範囲だけを置き換える / When characters are selected, replace just that range */
-        var editingRange = captureEditingRange(originalSelection);
-        if (editingRange) {
-            leaveTextEditing(doc);
-
-            var editingClipboard = readClipboard(doc, []);
-            if (!editingClipboard) return;
-            if (editingClipboard.kind !== "text") {
-                /* 文字の中にはテキスト以外を流し込めない / Only text can go into a character range */
-                setSelection(doc, [editingRange.frame]);
-                alert(getLabel("alert.noTextInClipboard"));
-                return;
-            }
-
-            var editingErrors = [];
-            replaceEditingRange(editingRange, editingClipboard.contents, editingErrors);
-            alertReplaceErrors(editingErrors);
-
-            /* 編集モードは抜けているので、対象のテキストフレームを選択して終える / Editing is over, so leave the frame itself selected */
-            setSelection(doc, [editingRange.frame]);
-            app.redraw();
-            return;
-        }
-
-        /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
-        var targetFrames = collectTextFramesFrom(originalSelection);
-
-        var clipboardInfo = readClipboard(doc, originalSelection);
-        if (!clipboardInfo) return;
-
-        /* テキスト以外なら、選択したオブジェクトそのものを置き換える / For non-text contents, replace the selected objects themselves */
-        if (clipboardInfo.kind === "objects") {
-            if (originalSelection.length === 0) {
-                /* 選択がなければ通常のペーストと同じく画面の中央へ貼り付ける / With nothing selected, paste as usual */
-                setSelection(doc, null);
-                app.paste();
+        var sizeMode = DEFAULT_SIZE_MODE;
+        if (SHOW_SIZE_DIALOG && replacements.length > 0) {
+            sizeMode = showSizeDialog(DEFAULT_SIZE_MODE, replacements);
+            if (!sizeMode) {
+                discardReplacements(replacements);
+                setSelection(doc, originalSelection);
                 app.redraw();
                 return;
             }
-            var objectErrors = [];
-            var replacements = pasteOverTargets(doc, originalSelection, objectErrors);
-
-            var sizeMode = DEFAULT_SIZE_MODE;
-            if (SHOW_SIZE_DIALOG && replacements.length > 0) {
-                sizeMode = showSizeDialog(DEFAULT_SIZE_MODE, replacements);
-                if (!sizeMode) {
-                    discardReplacements(replacements);
-                    setSelection(doc, originalSelection);
-                    app.redraw();
-                    return;
-                }
-            }
-            applySizeMode(replacements, sizeMode);
-
-            var replacedItems = commitReplacements(replacements);
-            alertReplaceErrors(objectErrors, "alert.objectReplaceError");
-            setSelection(doc, replacedItems);
-            app.redraw();
-            return;
         }
+        applySizeMode(replacements, sizeMode);
 
+        var replacedItems = commitReplacements(replacements);
+        alertReplaceErrors(errorMessages, "alert.objectReplaceError");
+        setSelection(doc, replacedItems);
+        app.redraw();
+    }
+
+    /**
+     * クリップボードのテキストで、集めたテキストフレームの内容を置き換える。
+     * 選択がなければ、貼り付いた位置に新規テキストフレームを作成する。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object[]} originalSelection - 元の選択（終わったら選択し直す）
+     * @param {TextFrame[]} targetFrames - 置き換えるテキストフレーム
+     * @param {{bounds: number[], contents: string}} clipboardInfo - readClipboard() が返したテキストの情報
+     * @returns {void}
+     */
+    function replaceTexts(doc, originalSelection, targetFrames, clipboardInfo) {
         if (originalSelection.length === 0) {
             createNewTextFrame(doc.activeLayer, clipboardInfo.bounds, clipboardInfo.contents);
         } else {
@@ -844,6 +823,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         setSelection(doc, null);
         app.redraw();
         setSelection(doc, originalSelection);
+    }
+
+    /**
+     * 選択の状態とクリップボードの中身に応じて、挿入・置き換えの処理を振り分ける
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var originalSelection = captureSelection(doc);
+
+        var editingRange = captureEditingRange(originalSelection);
+        if (editingRange) {
+            if (editingRange.start === editingRange.end) {
+                /* カーソルを立てただけ（文字の選択なし）なら、書式なしでカーソル位置へ挿入する / With only a caret, insert at it without formatting */
+                app.executeMenuCommand("pasteWithoutFormatting");
+            } else {
+                /* 文字を選択して編集中なら、その範囲だけを置き換える / When characters are selected, replace just that range */
+                replaceSelectedCharacters(doc, editingRange);
+            }
+            return;
+        }
+
+        /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
+        var targetFrames = collectTextFramesFrom(originalSelection);
+
+        var clipboardInfo = readClipboard(doc, originalSelection);
+        if (!clipboardInfo) return;
+
+        /* テキスト以外なら、選択したオブジェクトそのものを置き換える / For non-text contents, replace the selected objects themselves */
+        if (clipboardInfo.kind === "objects") {
+            replaceObjects(doc, originalSelection);
+        } else {
+            replaceTexts(doc, originalSelection, targetFrames, clipboardInfo);
+        }
     }
 
     main();
