@@ -54,6 +54,7 @@
 
 ### 更新履歴
 
+- v1.4.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）。
 - v1.3.2（2026-09-26）ファイル名を `ImportAndApplyGraphicStyle.jsx` から `ImportAndApplyGraphicStylePalette.jsx` に変更。
 - v1.3.0 (2026-07-01): モーダルダイアログを常駐パレット化（#targetengine ＋ $.global 単一インスタンスガード）。DOM 処理は BridgeTalk でメインエンジンへ委譲し、パレットは開いたまま実行。「変換」ボタンはエリア内文字オプションパネル内に配置。グラフィックスタイルの listbox はクリックした時点で選択オブジェクトへ即適用（「適用」ボタンなし）。閉じるボタンは廃止し、パレットをアクティブにして Esc キーで閉じる。worker と重複していた旧・非worker実装を一掃／ Converted the modal dialog into a resident palette (#targetengine + a $.global single-instance guard); DOM work is delegated to the main engine via BridgeTalk and runs while the palette stays open; the "Convert" button now sits inside the Area Type Options panel; clicking a graphic style in the listbox live-applies it to the current selection (no Apply button); the Close button was dropped in favor of pressing Esc while the palette is active; removed the legacy non-worker code duplicated by the workers
 - v1.2.0 (2026-07-01): 固定パス（TARGET_FILE_PATH）と固定スタイル名（文字白抜き／枠のみ）を撤去。ダイアログに「スタイルの読み込み」ボタンを追加し、選んだ AI ファイルとスタイル名を Folder.userData に記憶。取り込んだスタイル名からラジオを自動生成する構成へ変更（ImportGraphicStyles v1.7.0 より移植）／ Removed the hardcoded path (TARGET_FILE_PATH) and fixed style names (white text / frame only); added a "Load Styles" button that remembers the picked AI file and style names in Folder.userData; radios are now generated automatically from the imported style names (ported from ImportGraphicStyles v1.7.0)

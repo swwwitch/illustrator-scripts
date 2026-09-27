@@ -36,3 +36,4 @@
 - v1.0.1 (20250529): Changed folder import behavior, moved labels to "_label" layer
 - v1.0.2 (20250529): Added file count display, progress bar, and cancel option
 - v1.0.3 (20250529): Added progress count display (n/N)
+- v1.4.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

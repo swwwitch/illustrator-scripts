@@ -26,7 +26,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - Shuffle button to randomize the order in which objects fill the cells
 - Objects beyond the number of cells are parked clear of other objects and artboards
 - Transparency grid toggle, restored to its original state on exit
-- Arrow-key stepping (Shift: by 10, Option: by 0.1)
+- Stepper buttons and arrow-key stepping (to the next whole number; Shift: to the next multiple of 10; Option: by 0.1)
 - Live preview updated as values change
 - Values are entered in Illustrator's ruler unit
 - Japanese and English UI
@@ -74,6 +74,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v1.10.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.9.7 (2026-09-23): Fixed Cancel leaving the "cell-background" layer deleted (it is now removed only on OK). A "_target" rectangle that was already hidden is no longer revealed. Fixed OK closing silently when the settings cannot form a grid; the dialog now stays open and explains why. Field values are clamped on commit (no negative margins, no opacity above 100%). Fixed re-clicking the selected color radio resetting a typed opacity. The "_target" layer now prefers a rectangle and never uses open lines or paths with no area. Unit code 5 is labelled H for distances and Q for type sizes. The live preview is throttled while typing on large grids. The default division no longer exceeds the cell cap
 - v1.9.6 (2026-09-19): Unified unit handling into one table covering every ruler unit (m, yd, ft, pica, and so on). Split out the layout constants and tidied naming and JSDoc
 - v1.9.5 (2026-07-27): Preview rollback now uses app.undo(), so the edit history no longer grows on every change; whatever Undo cannot revert is cleaned up by restoring the centers and dropping the preview layer. Added cleanup on Esc and window close. Fixed Undo reverting the "_target" rectangle's visibility toggle instead of the preview when switching the placement area

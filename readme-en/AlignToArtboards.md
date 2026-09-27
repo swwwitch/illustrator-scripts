@@ -28,7 +28,7 @@
 - Keyboard shortcuts
   - Target: q=Top-Left / w=Top-Center / e=Top-Right / a=Middle-Left / s=Center / d=Middle-Right / z=Bottom-Left / x=Bottom-Center / c=Bottom-Right
   - Alignment base: 1=All Artboards / 2=Based on Active Artboard
-  - Arrow keys step the margin fields (Shift=±10, Option=±0.1); Enter/Return triggers OK
+  - Stepper buttons and arrow keys step the margin fields (to the next whole number; Shift=next multiple of ten, Option=±0.1); Enter/Return triggers OK
 - Automatic Japanese / English UI, with tooltips on every option
 
 ### Workflow
@@ -53,3 +53,4 @@
 ### Update History
 
 - v1.1.2 (20260515): Current version
+- v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

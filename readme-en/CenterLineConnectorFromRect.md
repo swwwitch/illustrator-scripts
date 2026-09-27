@@ -22,6 +22,13 @@
 - Unstable Illustrator DOM operations (move, remove, selection, and so on) go through safe helpers
 - Results are built on a dedicated working layer, avoiding dependence on locked layers
 
+### Update History
+
+- v1.0.0 (2025-06-12): Initial release
+- v1.6.0 (2026-04-27): Separated the UI structure, reorganized unit handling, added safe-operation helpers, cleaned up naming, and added a dedicated output layer
+- v1.6.5 (2026-04-27): Improved the UI structure (added a post-processing panel, reorganized options, improved labels) and refined the output layer design
+- v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+
 ### Script info
 
-- Version: v1.6.5
+- Version: v1.7.0

@@ -16,9 +16,10 @@ See the README for details.
 
 ### Script info
 
-- Version: v1.0.3
+- Version: v1.1.0
 
 ### Update History
 
+- v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.3 (2026-09-26) Renamed the file from `DirectPrefs.jsx` to `DirectPrefsPalette.jsx`.
 - v1.0.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

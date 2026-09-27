@@ -43,6 +43,7 @@
 
 ### 更新履歴
 
+- v1.4.0 (2026-09-27): 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.3.0 (2026-07-02): 「スタイルの読み込み」機能（読み込み／再読み込みボタン、外部 AI ファイルからのスタイル取り込み、参照ファイルの記憶）、グラフィックスタイルの選択 UI（元の見た目／読み込んだスタイルのラジオ）、テキスト＋長方形の合体ロジック（長方形をフレーム化してテキストを流し込む処理）を撤去。ポイント文字・パス上文字を実寸計測でエリア内文字へ変換する処理に単純化。アピアランスの引き継ぎ（選択テキストの見た目を一時グラフィックスタイルとして登録・適用し、適用後に削除）は従来どおり維持 ／ Removed the "Load Styles" feature (Load/Reload buttons, importing styles from an external AI file, remembering the source file), the graphic-style selection UI (original/loaded-style radios), and the text + rectangle merge logic (turning a rectangle into the frame and flowing the text in). Simplified to converting point/path text into area type at the measured real size, while keeping the appearance inheritance as before (register the source text's look as a temp graphic style, apply it, then remove it)
 - v1.2.0 (2026-07-02 追記): グラフィックスタイルのラジオ（元の見た目／読み込んだスタイル）を排他選択に修正（別コンテナのため自動排他が効いていなかった）。ダイアログで読み込み／再読み込みした後に変換すると選択が復帰されず無言で何も起きない問題を修正（選択復帰を変換直前に常時実行）。再読み込み後にどのラジオも未選択になる問題を修正（同名復元／なければ元の見た目へ）。変換が0件のとき無言終了せず、握り潰していた例外理由を添えて警告を表示 ／ Made the graphic-style radios (original appearance / loaded styles) mutually exclusive (they lived in separate containers, so ScriptUI's auto-exclusion didn't apply); fixed a silent no-op when converting after a Load/Reload (selection is now always restored right before converting); fixed a no-selection state after Reload (restore by name, else fall back to original); a 0-result conversion now alerts with the previously swallowed error instead of exiting silently
 - v1.2.0 (2026-07-01): 固定パス（TARGET_FILE_PATH）と固定スタイル名（文字白抜き／枠のみ）を撤去。ダイアログに「スタイルの読み込み」ボタンを追加し、選んだ AI ファイルとスタイル名を Folder.userData に記憶。取り込んだスタイル名からラジオを自動生成する構成へ変更（ImportGraphicStyles v1.7.0 より移植）／ Removed the hardcoded path (TARGET_FILE_PATH) and fixed style names (white text / frame only); added a "Load Styles" button that remembers the picked AI file and style names in Folder.userData; radios are now generated automatically from the imported style names (ported from ImportGraphicStyles v1.7.0)
@@ -51,4 +52,4 @@
 
 ### スクリプト情報
 
-- バージョン: v1.3.0
+- バージョン: v1.4.0

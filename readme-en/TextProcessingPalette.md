@@ -254,6 +254,7 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.9.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.8.3 (2026-09-27) Renamed the file from `TextBreakSplitMergePalette.jsx` to `TextProcessingPalette.jsx`.
 - v1.8.2 (2026-09-27) Reordered the tabs to Basic, Line Edit, Cleanup, Convert.
 - v1.8.1 (2026-09-26) Fixed *All at Once* (Remove Spaces) removing every space between Latin words separated by more than one space (spaces are now collapsed before removing CJK/Latin spaces). The Convert tab buttons, Tabs to Spaces, the Remove Spaces buttons, Space After . and ,, symbol conversion, Fullwidth to Halfwidth, Halfwidth Kana to Fullwidth and Remove List now rewrite only the changed characters and keep per-character formatting (ported from SmartTextFindReplace).

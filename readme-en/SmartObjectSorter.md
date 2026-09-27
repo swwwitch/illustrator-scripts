@@ -44,3 +44,4 @@ Full license: http://www.wundes.com/js4ai/copyright.txt
 - v0.0.2 (20240604): Adjusted alignment feature
 - v0.0.3 (20240604): Fixed vertical center alignment, disabled auto preview
 - v0.0.4 (20240604): Added width/height unification and UI improvements
+- v0.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

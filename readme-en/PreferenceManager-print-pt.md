@@ -30,3 +30,4 @@ Sets the units and the numeric increment from a dialog.
 ### Update History
 
 - v1.0 (2025-08-06)
+- v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
