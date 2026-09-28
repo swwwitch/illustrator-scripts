@@ -875,7 +875,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       zOrderRadio.value = (initialMode === "zorder");
 
       var buttonGroup = dialog.add("group");
-      buttonGroup.alignment = "right";
+      buttonGroup.alignment = "center";
       var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"));
       var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"));
 

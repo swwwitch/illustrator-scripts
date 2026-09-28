@@ -12,6 +12,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6203a03662d8
+
 ### Overview
 
 Reselects only the text frames and paths in the current selection that match the conditions you set.
@@ -26,13 +29,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSelectionFilter";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6203a03662d8"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -330,6 +334,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "塗りのみ",
             en: "Fill Only"
         },
+        scopePanel: { ja: "対象スコープ", en: "Selection Scope" },
+        scopeSelectedOnly: { ja: "選択直下のみ", en: "Selected objects only" },
+        scopeIncludeGroupItems: { ja: "グループ内も対象に含める", en: "Include objects inside groups" },
+        tipScope: { ja: "グループ内のオブジェクトを対象に含めるかを指定します。", en: "Choose whether to include objects inside groups." },
         noDocumentError: {
             ja: "ドキュメントが開かれていません。",
             en: "No document is open."
@@ -557,8 +565,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return "none";
     }
 
+    /**
+     * クリップグループのマスク用パスかどうかを判定する
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {boolean} マスク用パスなら true
+     */
+    function isClippingPathItem(item) {
+        try {
+            return item.typename === "PathItem" && item.clipping === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     /* 選択内の各種オブジェクト数をカウント / Count object types in selection */
-    function countSelectionItems(selection) {
+    function countSelectionItems(selection, includeGroupItems) {
         var counts = {
             text: 0,
             areaText: 0,
@@ -575,14 +596,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             closedPathFillAndStroke: 0
         };
 
-        countItemsRecursive(selection, counts);
+        countItemsRecursive(selection, counts, includeGroupItems);
         return counts;
     }
 
     /* 選択内の子要素も含めて再帰的にカウント / Count selected items recursively including children */
-    function countItemsRecursive(items, counts) {
+    function countItemsRecursive(items, counts, includeGroupItems) {
         for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
             var item = items[itemIndex];
+
+            if (isClippingPathItem(item)) {
+                continue;
+            }
 
             if (item.typename === "TextFrame") {
                 if (isPointTextFrame(item)) {
@@ -622,8 +647,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         counts.verticalLine++;
                     }
                 }
-            } else if (item.typename === "GroupItem") {
-                countItemsRecursive(item.pageItems, counts);
+            } else if (item.typename === "GroupItem" && includeGroupItems) {
+                countItemsRecursive(item.pageItems, counts, includeGroupItems);
             }
         }
     }
@@ -643,7 +668,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             keepVerticalLine: dialogUi.cbVerticalLine.value,
             keepClosedPathFillOnly: dialogUi.cbClosedPathFillOnly.value,
             keepClosedPathStrokeOnly: dialogUi.cbClosedPathStrokeOnly.value,
-            keepClosedPathFillAndStroke: dialogUi.cbClosedPathFillAndStroke.value
+            keepClosedPathFillAndStroke: dialogUi.cbClosedPathFillAndStroke.value,
+            includeGroupItems: dialogUi.rbScopeIncludeGroupItems.value
         };
     }
 
@@ -660,6 +686,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 1項目が残す対象かどうかを判定 / Check whether an item should remain selected */
     function shouldKeepItem(item, filterOptions) {
+        /* マスク用パス自体は選択対象から除外 / Exclude the clipping mask path itself */
+        if (isClippingPathItem(item)) {
+            return false;
+        }
+
         if (item.typename === "TextFrame") {
             var keepByTextType = false;
             if (isPointTextFrame(item)) {
@@ -749,7 +780,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 item.selected = shouldKeepItem(item, filterOptions);
             } catch (e1) { }
 
-            if (item.typename === "GroupItem") {
+            if (item.typename === "GroupItem" && filterOptions.includeGroupItems) {
                 try {
                     applyFilterToItemsRecursive(item.pageItems, filterOptions);
                 } catch (e2) { }
@@ -971,7 +1002,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
-        var counts = countSelectionItems(originalSelection);
+        /* フォント一覧はグループ内も含めて作り、件数だけスコープに合わせて書き換える
+           Build the font list including group contents; only the counts follow the scope */
+        var counts = countSelectionItems(originalSelection, true);
 
         /* 元の表示状態スナップショット / Snapshot original visual state */
         var visualSnapshot = [];
@@ -1036,6 +1069,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbSimpleStrokeOnly.helpTip = getLabel("tipSimpleStrokeOnly");
         var cbSimpleFillOnlyPath = simplePanel.add("checkbox", undefined, getLabel("simpleFillOnlyPath"));
         cbSimpleFillOnlyPath.helpTip = getLabel("tipSimpleFillOnlyPath");
+
+        /* 対象スコープ / Selection scope */
+        var scopePanel = dialog.add("panel", undefined, getLabel("scopePanel"));
+        scopePanel.orientation = "row";
+        scopePanel.alignChildren = ["left", "center"];
+        scopePanel.margins = PANEL_MARGINS;
+        scopePanel.spacing = 12;
+        var rbScopeSelectedOnly = scopePanel.add("radiobutton", undefined, getLabel("scopeSelectedOnly"));
+        rbScopeSelectedOnly.helpTip = getLabel("tipScope");
+        var rbScopeIncludeGroupItems = scopePanel.add("radiobutton", undefined, getLabel("scopeIncludeGroupItems"));
+        rbScopeIncludeGroupItems.helpTip = getLabel("tipScope");
+        rbScopeIncludeGroupItems.value = true;
 
         var columnGroup = dialog.add("group");
         columnGroup.orientation = "row";
@@ -1106,7 +1151,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbVerticalLine: cbVerticalLine,
             cbClosedPathFillOnly: cbClosedPathFillOnly,
             cbClosedPathStrokeOnly: cbClosedPathStrokeOnly,
-            cbClosedPathFillAndStroke: cbClosedPathFillAndStroke
+            cbClosedPathFillAndStroke: cbClosedPathFillAndStroke,
+            rbScopeIncludeGroupItems: rbScopeIncludeGroupItems
         };
 
         var filterCheckboxes = [
@@ -1138,6 +1184,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbText.value = true;
         cbAreaText.value = true;
         cbPathText.value = true;
+
+        /* スコープに合わせて件数表示を更新 / Update the count labels for the current scope */
+        function updateCountLabels() {
+            var scopeCounts = countSelectionItems(originalSelection, rbScopeIncludeGroupItems.value);
+            cbText.text = labelWithCount("textObject", scopeCounts.text);
+            cbAreaText.text = labelWithCount("areaText", scopeCounts.areaText);
+            cbPathText.text = labelWithCount("pathText", scopeCounts.pathText);
+            cbAlignLeft.text = labelWithCount("alignLeft", scopeCounts.alignLeft);
+            cbAlignCenter.text = labelWithCount("alignCenter", scopeCounts.alignCenter);
+            cbAlignRight.text = labelWithCount("alignRight", scopeCounts.alignRight);
+            cbOpenPath.text = labelWithCount("openPath", scopeCounts.openPath);
+            cbHorizontalLine.text = labelWithCount("horizontalLine", scopeCounts.horizontalLine);
+            cbVerticalLine.text = labelWithCount("verticalLine", scopeCounts.verticalLine);
+            cbClosedPathFillOnly.text = labelWithCount("closedPathFillOnly", scopeCounts.closedPathFillOnly);
+            cbClosedPathStrokeOnly.text = labelWithCount("closedPathStrokeOnly", scopeCounts.closedPathStrokeOnly);
+            cbClosedPathFillAndStroke.text = labelWithCount("closedPathFillAndStroke", scopeCounts.closedPathFillAndStroke);
+            for (var fontLabelIndex = 0; fontLabelIndex < fontCheckboxes.length; fontLabelIndex++) {
+                var fontEntry = fontCheckboxes[fontLabelIndex];
+                fontEntry.checkbox.text = appendValueText(fontEntry.fontName, scopeCounts.fonts[fontEntry.fontName] || 0);
+            }
+        }
 
         function updateSimpleCheckboxesFromDetailedSelection() {
             cbSimpleText.value = cbText.value === true && cbAreaText.value === true && cbPathText.value === true;
@@ -1176,6 +1243,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rbNonSelOpacity.value = true;
             updateNonSelectedOpacityDisplay();
             updateNonSelectedOpacitySliderEnabled();
+            updateCanvasSelection();
+        };
+
+        rbScopeSelectedOnly.onClick = function () {
+            updateCountLabels();
+            updateCanvasSelection();
+        };
+        rbScopeIncludeGroupItems.onClick = function () {
+            updateCountLabels();
             updateCanvasSelection();
         };
 
