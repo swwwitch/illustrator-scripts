@@ -6,26 +6,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択・現在のアートボード・ドキュメント全体のいずれかにある角丸長方形の角の半径を、ダイアログで変更します。
-ダイアログには現在の半径を計測して表示し、OK で角を指定の半径にそろえてパスを作り直します（半径 0 の角は、既定では角のまま残します）。
+吹き出し形状と、グループ・複合パス・複合シェイプの中の長方形も対象です。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCornerRadius.md
 
 ### 注意
 
-水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。辺に吹き出しの口などが付いた長方形と、複合パスの中の長方形も対象です。複合シェイプは「グループ＋［パスファインダー：合体］」に変換して中の長方形を変更します（各パスのモードは合体になります）。ダイレクト選択した複合シェイプの中の長方形は、変換せずに直接変更します（いずれも「角を丸くする」効果の計測・変換は除く）。選択が対象のときは、選択したグループの中の長方形も対象です（ロック・非表示は除く）。
+水平・垂直に置かれた長方形だけが対象です。回転した長方形、ロック・非表示のオブジェクトは変更しません。
+複合シェイプは「グループ＋［パスファインダー：合体］」に変換するため、各パスのモードは合体になります。
 
 ### Overview
 
 Edits the corner radius of rounded rectangles in the selection, on the current artboard, or in the entire document, using a dialog.
-The dialog shows the measured radius, and OK rebuilds each path with the corners set to that radius (corners with zero radius stay square by default).
+Callout shapes and rectangles inside groups, compound paths and compound shapes are included.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCornerRadius.md
 
 ### Notes
 
-Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. Rectangles with a callout tail or similar on a side, and rectangles inside compound paths, are included. Compound shapes are converted to a group with the Pathfinder Add effect and the rectangles inside are changed (every shape mode becomes Add). Rectangles selected directly inside a compound shape are changed in place without conversion (none of these get Round Corners effect measurement or conversion). When the target is the selection, rectangles inside selected groups are included (except locked or hidden ones).
+Only rectangles aligned to the horizontal and vertical axes are changed. Rotated rectangles and locked or hidden objects are left as they are.
+Compound shapes are converted to a group with the Pathfinder Add effect, so every shape mode becomes Add.
 
 */
 
