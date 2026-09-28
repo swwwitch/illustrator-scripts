@@ -1,4 +1,4 @@
-# Import PDF/AI pages as artboards in a new document
+# Import PDF/AI pages as artboards, splitting spreads
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PDFAISpreadImporter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/PDFAISpreadImporter.jsx)
 
@@ -10,7 +10,7 @@
 
 ### Overview
 
-Imports a PDF/AI file over a given page range and places each page on its own artboard in a new document.
+Imports a PDF/AI file over a given page range and places each page on its own artboard in a new or the current document.
 
 Landscape pages are detected as spreads and split into two artboards, left and right.
 
@@ -22,14 +22,15 @@ Landscape pages are detected as spreads and split into two artboards, left and r
 - Automatic spread detection for landscape pages, split left and right
 - Even-page position selectable as right or left
 - PDF crop box selection (Art / Crop / Trim / Bleed)
+- Destination selectable as a new document or the current document
 - Color mode of the new document selectable as CMYK or RGB
 
 ### Usage
 
 1. Run the script.
 2. Choose the PDF/AI file to import (a selected placed image is used if there is one).
-3. Set the page range, the even-page position, the crop box and the color mode.
-4. Run it, and the artboards are laid out in a new document.
+3. Set the page range, the even-page position, the crop box and the destination (plus the color mode for a new document).
+4. Run it, and the artboards are laid out in the destination document.
 
 ### Options
 
@@ -52,7 +53,8 @@ For print-ready PDFs with crop marks or bleed, use Trim so each spread splits at
 
 - The page count is estimated from the selected placed image or the chosen file and applied to the page range.
 - The artboard spacing is fixed at 100 pt.
-- The raster effects resolution is fixed at 300 ppi.
+- The raster effects resolution is fixed at 300 ppi (new document only).
+- When placing into the current document, the active artboard is reused (and resized) as the first one and the rest follow to the right. Rows do not wrap.
 - Use PDFAIImporter.jsx when you do not want the pages split.
 
 ### Article
@@ -61,6 +63,7 @@ For print-ready PDFs with crop marks or bleed, use Trim so each spread splits at
 
 ### Update History
 
+- v1.2.0 (2026-09-29): Added Current document as a destination, and merged in SlideCollage-mihiraki.jsx, which did the same job, and removed it
 - v1.1.4 (2026-09-28): The button row is now built with the shared part
 - v1.1.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.2 (2026-09-25): Added colons to field labels, a label and tooltip for the crop box and color mode, renamed the button to “Choose File...” and the panel to “Pages”, fixed the crop box values so Trim, Bleed and Art place the box you choose, wrapped artboards onto a new row at the canvas edge to fix an error with many pages, and removed internal duplication
