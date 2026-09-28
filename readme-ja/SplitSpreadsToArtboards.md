@@ -1,8 +1,8 @@
-# PDF/AIの各ページを見開きでアートボードに展開
+# 見開きを分割してアートボードに展開
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SlideCollage--mihiraki.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SlideCollage-mihiraki.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SplitSpreadsToArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SplitSpreadsToArtboards.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadsToArtboards.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -34,6 +34,7 @@ PDF/AIファイルを指定したページ範囲で配置し、各ページを�
 
 ### 更新履歴
 
+- v1.0.5 (2026-09-29): ファイル名を SlideCollage-mihiraki.jsx から SplitSpreadsToArtboards.jsx に変え、ダイアログのタイトルを処理内容に合わせた
 - v1.0.4 (2026-09-28): ボタン行を共通の部品で組むようにした
 - v1.0.3 (2026-09-28): ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.0.2 (2026-09-25): トリミング指定の値の誤りを修正し、「仕上がり」「裁ち落とし」「アート」が選んだとおりのボックスで配置されるように

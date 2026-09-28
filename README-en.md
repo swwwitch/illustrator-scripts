@@ -310,6 +310,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Select two objects (text, paths, groups, and so on) an…](readme-en/SmartTableMaker.md)
 - [Select two objects (text, paths, groups, and so on) an…](readme-en/SplitBackgroundForTwo.md)
 - [Select a single object (text, a path, a group, and so…](readme-en/SplitForTwo.md)
+- [Lays PDF/AI pages out on artboards, splitting spreads in two](readme-en/SplitSpreadsToArtboards.md)
 - [Evenly redistributes the internal vertical and horizon…](readme-en/TableRuleAverager.md)
 - [Visualize statistics of selected or all text objects i…](readme-en/TextCountStatsPalette.md)
 - [Zooms and centers the active view on the selection](readme-en/ZoomToSelection.md)

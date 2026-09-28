@@ -1,8 +1,8 @@
-# Lay PDF/AI pages out as spreads on artboards
+# Split spreads onto separate artboards
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SlideCollage--mihiraki.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SlideCollage-mihiraki.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SplitSpreadsToArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SplitSpreadsToArtboards.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadsToArtboards.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -34,6 +34,7 @@ Landscape pages are treated as spreads, split left and right, and ordered accord
 
 ### Update History
 
+- v1.0.5 (2026-09-29): Renamed from SlideCollage-mihiraki.jsx to SplitSpreadsToArtboards.jsx and retitled the dialog to match what it does
 - v1.0.4 (2026-09-28): The button row is now built with the shared part
 - v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-25): Fixed the crop box values so Trim, Bleed and Art place the box you choose, and corrected the English names of Crop and Trim

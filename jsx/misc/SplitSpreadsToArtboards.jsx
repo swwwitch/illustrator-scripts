@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "SlideCollage-mihirakiEngine"
+#targetengine "SplitSpreadsToArtboardsEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -10,7 +10,7 @@ PDF/AIファイルを指定したページ範囲で配置し、各ページを�
 横長ページは見開きとみなして左右に分割し、綴じ方向に応じた順序で配置できます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadsToArtboards.md
 
 ### Overview
 
@@ -18,21 +18,21 @@ Places a PDF/AI file over a given page range and lays each page out on its own a
 Landscape pages are treated as spreads, split left and right, and ordered according to the binding direction.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadsToArtboards.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SlideCollage-mihiraki";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                         /* バージョン / version */
+var SCRIPT_NAME     = "SplitSpreadsToArtboards";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadsToArtboards.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadsToArtboards.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -157,7 +157,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "スライドコラージュ（見開き対応）", en: "Slide Collage (Spread Support)" }
+            title: { ja: "見開きを分割してアートボードに展開", en: "Split Spreads to Artboards" }
         },
         panel: {
             artboards: { ja: "アートボード", en: "Artboards" },

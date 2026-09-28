@@ -86,7 +86,7 @@
 
 ### 更新履歴
 
-- v1.2.2 (20260928) : ボタン行を共通の部品で組むようにした。設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`。旧版の `TrimWithBreakLine/settings.txt` は最初の1回だけ読み継ぐ）
+- v1.2.2 (20260928) : ボタン行を共通の部品で組むようにした。設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`。旧版の `TrimWithBreakLine/settings.txt` は最初の1回だけ読み継ぐ）。対象がクリップグループのときは、切る向きと位置をマスクの範囲で決めるようにした
 - v1.2.1 (20260928) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.2.0 (20260927) : 数値欄の左にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減し、↑↓は次の整数へ（1.5→2）、shift＋↑↓は次の10の倍数へ移るように変更
 - v1.1.0 (20260927) : 切り口の形のラジオボタンを、形を描いたアイコンボタンに変更

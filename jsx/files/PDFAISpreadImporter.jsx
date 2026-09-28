@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-PDF/AI ファイルを指定したページ範囲で読み込み、新規ドキュメント上に各ページを個別のアートボードとして配置します。
+PDF/AI ファイルを指定したページ範囲で読み込み、新規ドキュメントまたは現在のドキュメント上に各ページを個別のアートボードとして配置します。
 横長ページは見開きとして自動判定し、左右2つのアートボードに分割します。
 
 詳細は README を参照してください。
@@ -17,7 +17,7 @@ https://note.com/dtp_tranist/n/n5514d9f2c5f8
 
 ### Overview
 
-Imports a PDF/AI file over a given page range and places each page on its own artboard in a new document.
+Imports a PDF/AI file over a given page range and places each page on its own artboard in a new or the current document.
 Landscape pages are detected as spreads and split into two artboards, left and right.
 
 See the README for details.
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISprea
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAISpreadImporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAISpreadImporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISpreadImporter.md"; /* README (English) */
@@ -381,7 +381,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             source: { ja: "読み込みファイル", en: "Source File" },
             pages: { ja: "ページ", en: "Pages" },
             placement: { ja: "配置方法", en: "Placement" },
-            newDocument: { ja: "新規ドキュメント", en: "New Document" }
+            destination: { ja: "配置先", en: "Destination" }
         },
 
         fieldLabel: {
@@ -395,7 +395,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             evenPageRight: { ja: "右", en: "Right" },
             evenPageLeft: { ja: "左", en: "Left" },
             colorModeCMYK: { ja: "CMYK", en: "CMYK" },
-            colorModeRGB: { ja: "RGB", en: "RGB" }
+            colorModeRGB: { ja: "RGB", en: "RGB" },
+            destinationNew: { ja: "新規ドキュメント", en: "New document" },
+            destinationCurrent: { ja: "現在のドキュメント", en: "Current document" }
         },
 
         dropdown: {
@@ -431,6 +433,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             colorMode: {
                 ja: "作成する新規ドキュメントのカラーモードです。初期値は現在のドキュメントに合わせます。",
                 en: "Color mode of the new document. Defaults to that of the current document."
+            },
+            destinationNew: {
+                ja: "新規ドキュメントを作り、そこにアートボードを並べます",
+                en: "Creates a new document and lays the artboards out there"
+            },
+            destinationCurrent: {
+                ja: "現在のドキュメントに配置します。1枚目はアクティブなアートボードを使い、右へ並べます",
+                en: "Places into the current document, reusing the active artboard first and continuing to the right"
             }
         },
 
@@ -923,7 +933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
     }
 
     // =========================================
-    // 新規ドキュメントへの読み込み / Import into a new document
+    // 読み込み / Import
     // =========================================
 
     /**
@@ -932,6 +942,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
      * @property {File} sourceFile - 読み込むPDF/AIファイル
      * @property {number[]} pageNumbers - 配置するページ番号の配列（1件以上）
      * @property {number} cropMode - トリミング指定値
+     * @property {boolean} placeInCurrentDoc - 現在のドキュメントに配置するなら true
      * @property {DocumentColorSpace} colorSpace - 新規ドキュメントのカラーモード
      * @property {boolean} evenPageOnRight - 偶数ページを右に置くなら true
      */
@@ -966,13 +977,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
     }
 
     /**
-     * 新規ドキュメントを作成し、指定ページを個別のアートボードに配置します。
+     * 配置先のドキュメント（新規または現在）に、指定ページを個別のアートボードとして配置します。
      * @param {Document} sourceDoc - 実行時のアクティブドキュメント
      * @param {ImportSettings} importSettings - 読み込み条件
      * @returns {void}
      */
     function importPages(sourceDoc, importSettings) {
-        var outputDoc = createOutputDoc(sourceDoc, importSettings);
+        var placeInCurrentDoc = importSettings.placeInCurrentDoc;
+        var outputDoc = placeInCurrentDoc ? sourceDoc : createOutputDoc(sourceDoc, importSettings);
         var activeArtboardIndex = outputDoc.artboards.getActiveArtboardIndex();
         var baseRect = outputDoc.artboards[activeArtboardIndex].artboardRect;
 
@@ -986,9 +998,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             top: baseRect[1],
             rowLeft: baseRect[0],
             rowHeight: 0,
-            /* 新規ドキュメントの最初のアートボードはキャンバスの中央にある / The first artboard sits at the canvas center */
-            canvasRight: (baseRect[0] + baseRect[2]) / 2 + CANVAS_HALF_SIZE,
-            canvasBottom: (baseRect[1] + baseRect[3]) / 2 - CANVAS_HALF_SIZE,
+            /* 新規ドキュメントの最初のアートボードはキャンバスの中央にある。現在のドキュメントではキャンバスの位置が分からないので折り返さない
+               The first artboard of a new document sits at the canvas center; in the current document the canvas position is unknown, so rows never wrap */
+            canvasRight: placeInCurrentDoc ? Infinity : (baseRect[0] + baseRect[2]) / 2 + CANVAS_HALF_SIZE,
+            canvasBottom: placeInCurrentDoc ? -Infinity : (baseRect[1] + baseRect[3]) / 2 - CANVAS_HALF_SIZE,
             artboardCount: 0
         };
 
@@ -1028,16 +1041,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
     }
 
     /**
-     * ［新規ドキュメント］パネルを作成します。
+     * ［配置先］パネルを作成します。カラーモードは新規ドキュメントのときだけ選べます。
      * @param {Group} parentGroup - 追加先のグループ
      * @param {Document} sourceDoc - 実行時のアクティブドキュメント
-     * @returns {{rbColorRGB: RadioButton}} パネル内のコントロール
+     * @returns {{rbDestinationCurrent: RadioButton, rbColorRGB: RadioButton}} パネル内のコントロール
      */
-    function buildNewDocumentPanel(parentGroup, sourceDoc) {
-        var newDocumentPanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.newDocument)));
-        var colorModeLabel = newDocumentPanel.add("statictext", undefined, labelText(LABELS.fieldLabel.colorMode));
+    function buildDestinationPanel(parentGroup, sourceDoc) {
+        var destinationPanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.destination)));
 
-        var colorModeGroup = setupRowGroup(newDocumentPanel.add("group"));
+        var rbDestinationNew = destinationPanel.add("radiobutton", undefined, getLabel(LABELS.radio.destinationNew));
+        var rbDestinationCurrent = destinationPanel.add("radiobutton", undefined, getLabel(LABELS.radio.destinationCurrent));
+        rbDestinationNew.helpTip = getLabel(LABELS.tooltip.destinationNew);
+        rbDestinationCurrent.helpTip = getLabel(LABELS.tooltip.destinationCurrent);
+        rbDestinationNew.value = true;
+
+        /* ラベルとラジオをまとめて無効にできるよう1つのグループに入れる / Grouped so the label and radios disable together */
+        var colorModeBlock = destinationPanel.add("group");
+        colorModeBlock.orientation = "column";
+        colorModeBlock.alignChildren = ["left", "top"];
+        colorModeBlock.margins = [0, 5, 0, 0];
+        var colorModeLabel = colorModeBlock.add("statictext", undefined, labelText(LABELS.fieldLabel.colorMode));
+
+        var colorModeGroup = setupRowGroup(colorModeBlock.add("group"));
         var rbColorCMYK = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeCMYK));
         var rbColorRGB = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeRGB));
         colorModeLabel.helpTip = rbColorCMYK.helpTip = rbColorRGB.helpTip = getLabel(LABELS.tooltip.colorMode);
@@ -1046,7 +1071,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
         if (sourceDoc.documentColorSpace === DocumentColorSpace.RGB) rbColorRGB.value = true;
         else rbColorCMYK.value = true;
 
-        return { rbColorRGB: rbColorRGB };
+        rbDestinationNew.onClick = rbDestinationCurrent.onClick = function () {
+            colorModeBlock.enabled = rbDestinationNew.value;
+        };
+
+        return { rbDestinationCurrent: rbDestinationCurrent, rbColorRGB: rbColorRGB };
     }
 
     /**
@@ -1191,7 +1220,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
         var rightColumnGroup = addColumnGroup(columnsGroup);
 
         var sourceControls = buildSourcePanel(leftColumnGroup);
-        var newDocumentControls = buildNewDocumentPanel(rightColumnGroup, sourceDoc);
+        var destinationControls = buildDestinationPanel(rightColumnGroup, sourceDoc);
         var pagesControls = buildPagesPanel(leftColumnGroup);
         var placementControls = buildPlacementPanel(rightColumnGroup);
         /* OK／キャンセルはScriptUIの標準動作でダイアログを閉じる / OK and Cancel close the dialog through ScriptUI's default behavior */
@@ -1203,7 +1232,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             dialogWindow: dialogWindow,
             btnSelectFile: sourceControls.btnSelectFile,
             sourceNameText: sourceControls.sourceNameText,
-            rbColorRGB: newDocumentControls.rbColorRGB,
+            rbDestinationCurrent: destinationControls.rbDestinationCurrent,
+            rbColorRGB: destinationControls.rbColorRGB,
             etPageRange: pagesControls.etPageRange,
             ddCropMode: placementControls.ddCropMode,
             rbEvenPageRight: placementControls.rbEvenPageRight,
@@ -1227,6 +1257,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             sourceFile: sourceFile,
             pageNumbers: pageNumbers,
             cropMode: CROP_OPTIONS[cropIndex].value,
+            placeInCurrentDoc: dialogControls.rbDestinationCurrent.value,
             colorSpace: dialogControls.rbColorRGB.value ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK,
             evenPageOnRight: dialogControls.rbEvenPageRight.value
         };

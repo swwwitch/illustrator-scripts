@@ -330,6 +330,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背…](readme-ja/SmartTableMaker.md)
 - [2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を…](readme-ja/SplitBackgroundForTwo.md)
 - [1つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、そのオブジェクトの外接矩形を左右また…](readme-ja/SplitForTwo.md)
+- [PDF/AIのページをアートボードに展開し、見開きは左右に分割](readme-ja/SplitSpreadsToArtboards.md)
 - [選択した外枠の長方形を基準に、内部の縦罫／横罫を等間隔に再配置します](readme-ja/TableRuleAverager.md)
 - [Illustrator の選択テキストや全体の文字情報を統計的に可視化](readme-ja/TextCountStatsPalette.md)
 - [選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします](readme-ja/ZoomToSelection.md)
