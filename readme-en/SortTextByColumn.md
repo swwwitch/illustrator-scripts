@@ -39,3 +39,4 @@
 - v1.0.6 (20250617): Allow incomplete tabs in header
 - v1.0.8 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.9 (20260928): The button row is now built with the shared part
+- v1.0.10 (20260929): Dialog opacity changed to 98%

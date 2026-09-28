@@ -51,10 +51,11 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Script info
 
-- Version: v1.7.2
+- Version: v1.7.3
 
 ### Update History
 
+- v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.2 (2026-09-29): The dialog now reopens where it was last closed and moves aside when it would cover the selected objects; its opacity is now 97%
 - v1.7.2 (2026-09-29): Added stepper buttons to Total. Moved Margin to the right of Mask and lined up Round Mask Corners with it. Checkboxes followed by a value (Round Corners, Shift, Rotate, Background, Offset, Round Mask Corners) now end with a colon too
 - v1.7.2 (2026-09-29): Fixed the source document being closed without saving when it was already open and its page count could not be read from the file. Fixed the script stopping when run with text selected, and the background sometimes coming to the front

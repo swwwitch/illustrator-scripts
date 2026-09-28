@@ -56,6 +56,7 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Update History
 
+- v1.5.4 (2026-09-29)Dialog opacity changed to 98%
 - v1.5.3 (2026-09-28)
   - The button row is now built with the shared part
 - v1.5.2 (2026-09-28)

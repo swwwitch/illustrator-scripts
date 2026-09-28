@@ -44,6 +44,7 @@ Converts the selected area type to point text. Frames whose text is overset get 
 
 ### Change Log
 
+- v1.0.3 (20260929) : Dialog opacity changed to 98%
 - v1.0.2 (20260928) : Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. If the action cannot be loaded, nothing is converted and an alert is shown. The button row is now built with the shared part
 - v1.0.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.0 (20260820) : Initial release (with the "Remove forced line breaks" option in the dialog)

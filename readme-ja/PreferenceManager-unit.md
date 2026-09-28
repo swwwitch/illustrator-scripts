@@ -39,7 +39,8 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.3.0 (2026-09-27): 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ） / Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.1 (2026-09-28): ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた / The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.2 (2026-09-28): ボタン行を共通の部品で組むようにした / The button row is now built with the shared part
+- v1.3.3 (2026-09-29): ダイアログの不透明度を98%に変更
 
 ### スクリプト情報
 
-- バージョン: v1.3.2
+- バージョン: v1.3.3

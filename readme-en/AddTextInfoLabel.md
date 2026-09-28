@@ -35,3 +35,4 @@
 - v1.0.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.5 (20260928): Font size and leading are now converted to the units set in Preferences (the pt value used to be shown with the mm/Q label). Inches and picas now shown as "in" and "pica"
 - v1.0.5 (20260928): The button row is now built with the shared part
+- v1.0.6 (20260929): Dialog opacity changed to 98%

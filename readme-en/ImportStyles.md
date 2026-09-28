@@ -59,3 +59,4 @@
 - v1.5.1 (2026-08-02): Moved the styles folder from a hard-coded path to a stored preference (picked on first launch, changeable with [Folder…]), added Paste into radios (current layer / dedicated layer, current layer by default), added an All category, Cmd+F focuses the search field, blocked pasting stale clipboard contents when the artboard is empty, moved the open-document check to launch time, listed the folder's AI files when no TSV exists, and stopped early when the current layer is locked or hidden
 - v1.5.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.4 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/ImportStyles.json). Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.5.5 (2026-09-29): Dialog opacity changed to 98%

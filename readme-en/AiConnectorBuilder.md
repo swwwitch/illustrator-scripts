@@ -136,3 +136,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.1.2 (20260928): The button row is now built with the shared part
 - v1.1.2 (20260928): The 3×3 reference point picker now uses the shared part
 - v1.1.2 (20260928): Clip groups are now measured by their mask
+- v1.1.3 (20260929): Dialog opacity changed to 98%

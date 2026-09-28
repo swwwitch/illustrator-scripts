@@ -58,6 +58,7 @@ https://note.com/dtp_tranist/n/n8c2e2568a6b7 (Japanese)
 
 ### Update History
 
+- v2.3.5 (2026-09-29) Dialog opacity changed to 98%
 - v2.3.4 (2026-09-28) The button row is now built with the shared part
 - v2.3.3 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.3.2 (2026-09-17) Adjust Area Text Height with Auto size is now the default when the selection contains area type. Added tooltips to every option, moved the height options inside the panel (now "Adjustment Method"), revised the UI wording, and applied the house rules (user-settings / layout blocks, nested LABELS, JSDoc, shared helpers and dead-code removal)

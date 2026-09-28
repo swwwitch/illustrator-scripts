@@ -62,6 +62,7 @@ https://note.com/dtp_tranist/n/nce9ec30232a0 (Japanese)
 
 ### Update History
 
+- v1.0.5 (2026-09-29) Dialog opacity changed to 98%
 - v1.0.4 (2026-09-28) Clip groups are now measured by their mask
 - v1.0.4 (2026-09-28) The 3×3 reference point picker now uses the shared part
 - v1.0.4 (2026-09-28) The button row is now built with the shared part

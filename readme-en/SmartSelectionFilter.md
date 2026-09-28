@@ -46,3 +46,4 @@
 - v1.0.0: Initial release
 - v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.3 (2026-09-28): The button row is now built with the shared part
+- v1.0.4 (2026-09-29): Dialog opacity changed to 98%

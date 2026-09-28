@@ -35,7 +35,8 @@
 - v1.1.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.5 (20260928): Fixed px font sizes being scaled as 96 dpi (1 px equals 1 pt in Illustrator). Feet, meters and yards are now converted too; inches shown as "in". The button row is now built with the shared part
 - v1.1.5 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.1.6 (20260929): Dialog opacity changed to 98%
 
 ### Script info
 
-- Version: v1.1.5
+- Version: v1.1.6

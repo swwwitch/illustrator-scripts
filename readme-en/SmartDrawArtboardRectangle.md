@@ -92,6 +92,7 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Update History
 
+- v1.7.1 (2026-09-29) Dialog opacity changed to 98%
 - v1.7.0 (2026-09-29) Merged the HEX and CMYK color options into Custom; clicking its swatch opens Illustrator's standard color picker
 - v1.6.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.6.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

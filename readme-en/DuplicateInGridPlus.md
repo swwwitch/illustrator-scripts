@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v2.1.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v2.1.2 (2026-09-28): The button row is now built with the shared part
 - v2.1.2 (2026-09-28): Clip groups are now measured by their mask (compound-path and text masks included)

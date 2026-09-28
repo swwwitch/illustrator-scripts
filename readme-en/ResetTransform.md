@@ -45,6 +45,7 @@ Noriaki Fujita
 
 ### Update History
 
+- v1.7.3 (20260929): Dialog opacity changed to 98%
 - v1.7.2 (20260928): The button row is now built with the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.7.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
@@ -59,5 +60,5 @@ https://note.com/dtp_tranist/n/n52f6b645bc70
 
 ### Script info
 
-- Version: v1.7.2
+- Version: v1.7.3
 - Last updated: 2026-09-28

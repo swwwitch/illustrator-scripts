@@ -60,3 +60,4 @@
 - v1.2.2 (20260928): The 3×3 reference point picker now uses the shared part
 - v1.2.2 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.2.2 (20260928): Clip groups are measured by their masks (hidden parts no longer count when aligning)
+- v1.2.3 (20260929): Dialog opacity changed to 98%

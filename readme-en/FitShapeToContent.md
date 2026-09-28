@@ -61,6 +61,7 @@ https://note.com/dtp_tranist/n/n6e4a6a2b175f
 
 ### Update History
 
+- v2.1.3 (2026-09-29) Dialog opacity changed to 98%
 - v2.1.2 (2026-09-28) The button row is now built with the shared part
 - v2.1.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v2.1.1 (2026-09-28) Replaced the Link checkbox with a link icon

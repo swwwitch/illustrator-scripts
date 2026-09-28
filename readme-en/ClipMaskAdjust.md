@@ -48,6 +48,7 @@
 
 ### Update History
 
+- v3.1.3 (20260929): Dialog opacity changed to 98%
 - v3.1.2 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v3.1.2 (20260928): The nine reference point radio buttons were replaced with the shared 3×3 picker
 - v3.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure

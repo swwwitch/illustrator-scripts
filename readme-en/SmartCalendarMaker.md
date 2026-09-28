@@ -16,12 +16,13 @@
 
 ### Script info
 
-- Version: v1.4.2
+- Version: v1.4.3
 - First release: 2026-02-15
 - Last updated: 2026-09-28
 
 ### Update history
 
+- v1.4.3 (20260929) : Dialog opacity changed to 98%
 - v1.4.2 (20260928) : Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.4.2 (20260928) : The button row is now built with the shared part
 - v1.4.2 (20260928) : In English, removed the extra space after field-label colons

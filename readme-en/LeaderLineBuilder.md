@@ -65,6 +65,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Changelog
 
+- v1.6.3 (2026-09-29) : Dialog opacity changed to 98%
 - v1.6.2 (2026-09-28) : Clip groups are now measured by their mask
 - v1.6.2 (2026-09-28) : The button row is now built with the shared part
 - v1.6.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
@@ -73,7 +74,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Script info
 
-- Version: v1.6.2
+- Version: v1.6.3
 - First release: 2026-03-06
 - Last updated: 2026-08-12
 - Article: https://note.com/dtp_tranist/n/n506df641d5c5

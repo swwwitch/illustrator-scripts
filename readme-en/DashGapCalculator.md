@@ -139,10 +139,11 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.1.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.1.2 (2026-09-28) : The button row is now built with the shared part
+- v2.1.3 (2026-09-29) : Dialog opacity changed to 98%
 
 ### Script info
 
-- Version: v2.1.2
+- Version: v2.1.3
 - First release: 2026-02-25
 - Last updated: 2026-09-27
 - Article: https://note.com/dtp_tranist/n/n868bedb96542

@@ -53,6 +53,7 @@
 - v1.7.4 (20260415) : 除外レイヤー内のガイドをガイドレイヤーへ移動するオプションを追加（「別レイヤーに移動」選択時、デフォルトON）
 - v1.7.6 (20260928) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.7.7 (20260928) : ボタン行を共通の部品で組むようにした
+- v1.7.8 (20260929) : ダイアログの不透明度を98%に変更
 
 Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally
@@ -63,4 +64,4 @@ or move to another layer.
 
 ### スクリプト情報
 
-- バージョン: v1.7.7
+- バージョン: v1.7.8

@@ -39,7 +39,8 @@
 - v1.0 (20250820): Initial version
 - v1.0.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.3 (20260928): The button row is now built with the shared part; Cancel moved to the right
+- v1.0.4 (20260929): Dialog opacity changed to 98%
 
 ### Script info
 
-- Version: v1.0.3
+- Version: v1.0.4

@@ -36,3 +36,4 @@ Selects text frames across the document by a combination of conditions.
 - v1.2.7 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.8 (2026-09-28): The button row is now built with the shared part
 - v1.2.8 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.2.9 (2026-09-29): Dialog opacity changed to 98%

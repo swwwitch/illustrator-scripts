@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.8 (2026-09-29): Dialog opacity changed to 98%
 - v1.5.7 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in English, the status line now uses a half-width colon followed by a space instead of a full-width colon; temporary actions on the BridgeTalk side now use the shared part
 - v1.5.6 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.5 (2026-09-26) Renamed the file from `LinkedImageManager.jsx` to `LinkedImageManagerPalette.jsx`.

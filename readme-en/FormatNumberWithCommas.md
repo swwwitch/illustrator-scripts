@@ -64,6 +64,7 @@ Numbers that should not get commas, such as years, postal codes and phone number
 
 ### Update History
 
+- v1.0.5 (20260929) : Dialog opacity changed to 98%
 - v1.0.4 (20260928) : The button row is now built with the shared part
 - v1.0.3 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%.
 - v1.0.2 (20260921) : Commas in running text are kept, and only the numbers chosen in the preview are rewritten, preserving character formatting. Full-width digits get full-width commas. Numbers with a leading zero (such as 00123456), numbers following letters or # (SKU12345, #112233) and parts of version numbers are excluded. Years in dates such as 2024.12.31 and phone numbers after a space (TEL 03-1234-5678) are now excluded, and runs of numbers such as 12000 15000 are no longer treated as phone numbers. Credit card numbers are excluded only when they pass the Luhn check. Removed the license plate exclusion, since 12-34 never gets commas. In the preview, clicking a row now toggles its ✓. Revised UI wording and added tooltips and alerts.
@@ -71,4 +72,4 @@ Numbers that should not get commas, such as years, postal codes and phone number
 
 ### Script info
 
-- Version: v1.0.4
+- Version: v1.0.5

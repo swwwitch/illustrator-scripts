@@ -134,6 +134,7 @@ The dialog position is remembered only while Illustrator is running (position on
 
 ## Change log
 
+- v1.7.3 (2026-09-29) Dialog opacity changed to 98%
 - v1.7.2 (2026-09-28) The button row is now built with the shared part. Target collection now uses the shared part
 - v1.7.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (2026-09-27) Added stepper buttons to the tolerance fields. The arrow keys now share the steppers' logic (to the next 0.01; Shift to the next multiple of 0.1)

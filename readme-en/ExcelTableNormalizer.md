@@ -39,3 +39,4 @@ Normalizes Illustrator artwork that came from Excel so that it is easier to work
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.2 (2026-09-28): Fixed the stroke width being applied unconverted, as if in pt, when the stroke unit was H, picas, feet and the like. The button row is now built with the shared part
+- v1.2.3 (2026-09-29): Dialog opacity changed to 98%

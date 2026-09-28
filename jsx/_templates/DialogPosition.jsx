@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ダイアログを前回閉じた位置で開き、不透明度を97%にする再利用テンプレートです。
+ダイアログを前回閉じた位置で開き、不透明度を98%にする再利用テンプレートです。
 選択中のオブジェクトに重なりそうなときは、左右の反対側へずらして開きます（Illustrator のみ）。
 位置は $.global に置くので、Illustrator を終了するまで覚えています。
 Illustrator・InDesign のどちらでも使えます。
 
 ### Overview
 
-A reusable template that reopens a dialog where it was last closed and sets its opacity to 97%.
+A reusable template that reopens a dialog where it was last closed and sets its opacity to 98%.
 When it would cover the selected objects, it opens on the opposite side instead (Illustrator only).
 The position lives in $.global, so it is kept until Illustrator quits.
 Works in both Illustrator and InDesign.
@@ -24,10 +24,10 @@ Works in both Illustrator and InDesign.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DialogPosition";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -53,7 +53,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    var DIALOG_OPACITY = 0.97;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
     var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
     var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
 

@@ -46,6 +46,7 @@
 
 ### Update History
 
+- v1.0.4 (20260929): Dialog opacity changed to 98%
 - v1.0.3 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
 - v1.0.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.0 (20260702): Initial release. Converts point / path text ⇔ area type depending on the selection. A shared "Convert Text" dialog shows the current selection and a Keep / Don't-keep style choice. Forward: area type at the appearance-expanded measured size. Reverse: point text (Don't keep adds two fills plus an absolute-size rectangle background). Vertical centering and graphic-style registration use temporary dynamic actions

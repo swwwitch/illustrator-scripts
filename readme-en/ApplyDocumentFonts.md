@@ -38,3 +38,4 @@
 - v1.1.5 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.6 (20260928): The button row is now built with the shared part
 - v1.1.6 (20260928): Target collection now uses the shared part
+- v1.1.7 (20260929): Dialog opacity changed to 98%

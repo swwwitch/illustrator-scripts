@@ -62,6 +62,7 @@
 
 ### Update History
 
+- v1.5.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.5.2 (2026-09-28): The button row is now built with the shared part
 - v1.5.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
@@ -74,4 +75,4 @@
 
 ### Script info
 
-- Version: v1.5.2
+- Version: v1.5.3

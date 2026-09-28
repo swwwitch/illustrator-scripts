@@ -7,6 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択オブジェクトの塗り／線カラーを配置順（左→右、上→下）で抽出し、スウォッチグループに登録してグラデーションを自動生成します。
+複製でブレンドを作ることもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection.md
@@ -14,6 +15,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGrad
 ### Overview
 
 Extracts the fill and stroke colors of the selection in layout order (left to right, top to bottom), registers them as a swatch group, and builds a gradient from them.
+It can also blend duplicates of the selection.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection.md
@@ -24,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGrad
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CreateGradientFromSelection";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection.md"; /* README (English) */
@@ -63,7 +65,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         makeRect: true,
         useSelectionSize: true,
         registerGraphicStyle: true,
-        separateGradient: false
+        separateGradient: false,
+        makeBlend: false
     };
 
     // =========================================
@@ -187,7 +190,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             createGradient: { ja: "グラデーションを作成", en: "Create gradient" },
             createRect: { ja: "長方形を作成してグラデーションを適用", en: "Create rectangle and apply gradient" },
             useSelectionSize: { ja: "選択オブジェクトのサイズに合わせる", en: "Match selection size" },
-            registerGraphicStyle: { ja: "グラフィックスタイルとして登録", en: "Save as Graphic Style" }
+            registerGraphicStyle: { ja: "グラフィックスタイルとして登録", en: "Save as Graphic Style" },
+            makeBlend: { ja: "複製でブレンドを作成", en: "Blend duplicates" }
         },
         radio: {
             normal: { ja: "通常", en: "Smooth" },
@@ -225,6 +229,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             registerGraphicStyle: {
                 ja: "作成した長方形の見た目をグラフィックスタイルに登録します。長方形作成 OFF のときは一時長方形で登録します。",
                 en: "Register the rectangle's appearance as a Graphic Style. When rectangle output is off, a temporary rectangle is used."
+            },
+            makeBlend: {
+                ja: "選択オブジェクトを複製し、複製でブレンドを作ります（元のオブジェクトはそのまま）。スウォッチから色を集めたときと、選択が1つのときは使えません。",
+                en: "Duplicates the selected objects and blends the duplicates, leaving the originals as they are. Unavailable when colors come from swatches or only one object is selected."
             }
         }
     };
@@ -772,13 +780,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    /* CreateGradientFromSelection と -Blend で共有する（同じ #targetengine・同じ保存名）
-       Shared by CreateGradientFromSelection and its -Blend variant (same #targetengine and store name) */
     var settingsStore = createSettingsStore("CreateGradientFromSelection", "session");
 
     /**
      * ダイアログの値を保持するオブジェクトを返す（targetengine 内だけで保持し、Illustrator の再起動で消える）
-     * 2本のスクリプトで項目が違うので、既定値は {}（中身を問わず受け取る）
+     * 既定値は {}（項目ごとに loadBool で既定値を補う）
      * @returns {Object} 保存してある設定（毎回新しいオブジェクト）
      */
     function getSessionSettings() {
@@ -804,7 +810,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function saveBool(settingKey, value) {
-        /* もう1本のスクリプトの項目を消さないよう、読み込んで書き足す / Read, add and write back so the other script's keys survive */
+        /* ほかの項目を消さないよう、読み込んで書き足す / Read, add and write back so the other keys survive */
         var sessionSettings = getSessionSettings();
         sessionSettings[settingKey] = !!value;
         settingsStore.save(sessionSettings);
@@ -1316,6 +1322,68 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (dx > dy) return "horizontal";
         if (dy > dx) return "vertical";
         return "mixed";
+    }
+
+    // =========================================
+    // ブレンド / Blend
+    // =========================================
+
+    /**
+     * 選択を指定したオブジェクトに戻す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} selectedItems - 選択し直すオブジェクト
+     * @returns {void}
+     */
+    function restoreSelection(doc, selectedItems) {
+        try {
+            doc.selection = null;
+            if (selectedItems && selectedItems.length) doc.selection = selectedItems;
+        } catch (e) { /* 削除済み・ロック中のオブジェクトは選択できない / Removed or locked items cannot be selected */ }
+    }
+
+    /**
+     * 選択オブジェクトを複製し、複製側でブレンドを作る（元の選択はそのまま残す）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function duplicateSelectionAndBlend(doc) {
+        try {
+            if (!doc.selection || doc.selection.length < 2) return;
+
+            var originalItems = snapshotSelection(doc);
+
+            /* 複製する / Duplicate the items */
+            var duplicatedItems = [];
+            for (var i = 0; i < originalItems.length; i++) {
+                try { duplicatedItems.push(originalItems[i].duplicate()); } catch (eD) { }
+            }
+            if (duplicatedItems.length < 2) {
+                restoreSelection(doc, originalItems);
+                return;
+            }
+
+            /* 複製だけを選択する / Select only the duplicates */
+            doc.selection = null;
+            for (var j = 0; j < duplicatedItems.length; j++) {
+                /* 非表示・ロックを引き継いだ複製は選択できない / Duplicates that inherit hidden or locked cannot be selected */
+                try { duplicatedItems[j].selected = true; } catch (eS) { }
+            }
+
+            /* ブレンドのメニューコマンド名は環境で異なるため順に試す / Try known Blend menu commands (varies by locale/version) */
+            try {
+                app.executeMenuCommand('Make Blend');
+            } catch (e1) {
+                try {
+                    app.executeMenuCommand('Blend Make');
+                } catch (e2) {
+                    try { app.executeMenuCommand('blend'); } catch (e3) { }
+                }
+            }
+
+            restoreSelection(doc, originalItems);
+        } catch (e) {
+            /* ブレンドを作れなくても無言で続行 / Continue silently when the blend fails */
+        }
     }
 
     // =========================================
@@ -1873,7 +1941,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    var DIALOG_OPACITY = 0.97;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
     var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
     var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
 
@@ -2071,7 +2139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 前回の値（無ければ既定値）からダイアログの初期値を作る
      * @param {boolean} disallowSeparate - セパレートを選べないとき true（常に OFF にする）
-     * @returns {Object} makeGlobal / makeGradient / makeRect / useSelectionSize / registerGraphicStyle / separateGradient
+     * @returns {Object} makeGlobal / makeGradient / makeRect / useSelectionSize / registerGraphicStyle / separateGradient / makeBlend
      */
     function loadDialogOptions(disallowSeparate) {
         return {
@@ -2080,7 +2148,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             makeRect: loadBool('makeRect', DEFAULT_OPTIONS.makeRect),
             useSelectionSize: loadBool('useSelectionSize', DEFAULT_OPTIONS.useSelectionSize),
             registerGraphicStyle: loadBool('registerGraphicStyle', DEFAULT_OPTIONS.registerGraphicStyle),
-            separateGradient: (disallowSeparate ? false : loadBool('separateGradient', DEFAULT_OPTIONS.separateGradient))
+            separateGradient: (disallowSeparate ? false : loadBool('separateGradient', DEFAULT_OPTIONS.separateGradient)),
+            makeBlend: loadBool('makeBlend', DEFAULT_OPTIONS.makeBlend)
         };
     }
 
@@ -2102,9 +2171,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * オプションダイアログを表示し、確定値を返す
      * @param {boolean} disallowSeparate - セパレートを選べないとき true
      * @param {boolean} fromSwatches - 色をスウォッチから集めたとき true（［選択オブジェクトのサイズに合わせる］を使えない）
+     * @param {boolean} canBlend - ブレンドを作れるとき true（選択オブジェクトが2つ以上）
      * @returns {Object|null} 確定したオプション（キャンセル時は null）
      */
-    function showOptionsDialog(disallowSeparate, fromSwatches) {
+    function showOptionsDialog(disallowSeparate, fromSwatches, canBlend) {
         var initialOptions = loadDialogOptions(disallowSeparate);
 
         var optionsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
@@ -2132,6 +2202,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         separateRadio.helpTip = getLabel('tooltip.separate');
         separateRadio.value = !!initialOptions.separateGradient;
         normalRadio.value = !separateRadio.value;
+
+        var blendCheckbox = colorPanel.add('checkbox', undefined, getLabel('checkbox.makeBlend'));
+        blendCheckbox.value = canBlend && initialOptions.makeBlend;
+        blendCheckbox.enabled = canBlend;
+        blendCheckbox.helpTip = getLabel('tooltip.makeBlend');
 
         /* 長方形パネル / Rectangle panel */
         var rectPanel = addOptionPanel(optionsDialog, 'panel.rect');
@@ -2192,6 +2267,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             saveBool('useSelectionSize', selectionSizeCheckbox.value);
             saveBool('registerGraphicStyle', graphicStyleCheckbox.value);
             saveBool('separateGradient', (disallowSeparate ? false : separateRadio.value));
+            /* 使えないときの OFF は記録しない / Do not record the forced OFF when blending is unavailable */
+            if (canBlend) saveBool('makeBlend', blendCheckbox.value);
         }
         optionsDialog.onClose = persistFromUI;
 
@@ -2204,7 +2281,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             makeRect: !!rectCheckbox.value,
             useSelectionSize: !!selectionSizeCheckbox.value,
             registerGraphicStyle: !!graphicStyleCheckbox.value,
-            separateGradient: (disallowSeparate ? false : !!separateRadio.value)
+            separateGradient: (disallowSeparate ? false : !!separateRadio.value),
+            makeBlend: canBlend && !!blendCheckbox.value
         };
     }
 
@@ -2429,7 +2507,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 全体フロー: 入力 → ダイアログ → スウォッチ登録 → グラデーション → 長方形・スタイル
+     * 全体フロー: 入力 → ダイアログ → ブレンド → スウォッチ登録 → グラデーション → 長方形・スタイル
      * @returns {void}
      */
     function main() {
@@ -2440,10 +2518,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (colorInput.colors.length < 2) return;
 
         var disallowSeparate = (colorInput.itemCount >= 7);
-        var gradientOptions = showOptionsDialog(disallowSeparate, colorInput.fromSwatches);
+        var canBlend = !colorInput.fromSwatches && colorInput.itemCount >= 2;
+        var gradientOptions = showOptionsDialog(disallowSeparate, colorInput.fromSwatches, canBlend);
         if (!gradientOptions) return;
 
         try {
+            /* 複製したオブジェクトでブレンドを作る（元の選択は維持） / Blend the duplicates, keeping the original selection */
+            if (gradientOptions.makeBlend) duplicateSelectionAndBlend(doc);
+
             /* 新規スウォッチグループに抽出色を登録 / Register extracted colors in a new swatch group */
             var createdSwatches = registerColorSwatches(doc, colorInput.colors, gradientOptions.makeGlobal);
 

@@ -33,6 +33,7 @@ https://note.com/dtp_tranist/n/nd4afdd8315f0
 
 ### Update History
 
+- v1.4.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.4.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.4.2 (2026-09-28): The button row is now built with the shared part
 - v1.4.2 (2026-09-28): Removed the space after the colon in English field labels, matching the Japanese labels. Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure

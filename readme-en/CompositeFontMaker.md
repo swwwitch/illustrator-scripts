@@ -127,3 +127,4 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 - v1.2.2 (20260928):
   - English field labels now end in ":" without a trailing space
   - The button row is now built with the shared part
+- v1.2.3 (20260929): Dialog opacity changed to 98%

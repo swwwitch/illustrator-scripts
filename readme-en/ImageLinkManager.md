@@ -35,6 +35,7 @@ The mode selector at the top switches the operation, and only the matching panel
 
 ### Update History
 
+- v1.3.3 (2026-09-29) : Dialog opacity changed to 98%
 - v1.3.2 (2026-09-28) : Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.3.2 (2026-09-28) : The button row is now built with the shared part
 - v1.3.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

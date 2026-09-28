@@ -115,3 +115,4 @@ When on, red frames (no fill, 10 pt stroke, 50% opacity) show where the groups w
 - v1.0.8 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.9 (20260928): The button row is now built with the shared part
 - v1.0.9 (20260928): Clip groups are now measured by their mask (affects clustering and the preview frames)
+- v1.0.10 (20260929): Dialog opacity changed to 98%

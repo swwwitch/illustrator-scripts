@@ -42,6 +42,7 @@ Quickly switches to another Illustrator document when several are open.
 
 ### Update History
 
+- v0.5.8 (20260929): Dialog opacity changed to 98%
 - v1.0.0 (20250325): Initial version
 - v1.1.0 (20250403): Returned focus to the dialog after arrow-key selection so documents can be switched in a row, switched to the first candidate when the dialog opens, and moved the layout to preferredSize (improvements by Yusuke Saegusa)
 - v0.5.1 (20250525): Added Cancel button and adjusted UI

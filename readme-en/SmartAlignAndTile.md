@@ -69,6 +69,7 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Update History
 
+- v2.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v2.1.2 (2026-09-28): The button row is now built with the shared part
 - v2.1.2 (2026-09-28): Clip groups are measured by their masks (hidden parts no longer count when tiling)
 - v2.1.1 (2026-09-28): Replaced the Link checkbox with a link icon
@@ -80,4 +81,4 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v2.1.2
+- Version: v2.1.3

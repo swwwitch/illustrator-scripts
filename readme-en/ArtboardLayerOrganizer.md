@@ -60,6 +60,7 @@
 
 ### Update History
 
+- v1.4.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.4.2 (2026-09-28): The button row is now built with the shared part
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.0 (2026-09-25): Added "Guides" to the Locked / Hidden exclusions. Fixed individually locked guides failing to move and being counted as failures (when off, they are unlocked for the move). Removed the separator checkbox; use "None" in the dropdown instead. Revised UI wording and tooltips

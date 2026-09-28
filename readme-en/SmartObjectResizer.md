@@ -172,6 +172,7 @@ The key-object detection is based on the idea published in this article.
 
 ## Update history
 
+- v1.5.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.5.2 (2026-09-28): The Fixed size field now follows the ruler unit in Preferences (fixed H, feet, meters and yards being treated as points; inches now shown as "in"). The bleed allowance is given in mm. The button row is now built with the shared part. Clip groups are measured by their masks (hidden parts no longer count when matching sizes)
 - v1.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

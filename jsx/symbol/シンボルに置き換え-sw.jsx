@@ -24,11 +24,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/シンボ�
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "シンボルに置き換え-sw";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.5.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Toshiyuki Takahashi";          /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/シンボルに置き換え-sw.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/シンボルに置き換え-sw.md"; /* README (English) */
@@ -74,7 +74,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 	//    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
 	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-	var DIALOG_OPACITY = 0.97;       /* ダイアログの不透明度 / dialog opacity */
+	var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
 	var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
 	var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
 

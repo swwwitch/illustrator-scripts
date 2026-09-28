@@ -37,6 +37,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/SymbolListBuilder.json)
+- v1.3.3 (2026-09-29): Dialog opacity changed to 98%
 
 ### Article
 
@@ -44,4 +45,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.3.2
+- Version: v1.3.3

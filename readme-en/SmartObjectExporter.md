@@ -72,6 +72,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.1.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.3 (2026-09-28): The button row is now built with the shared part
 - v1.1.3 (2026-09-28): Clip groups are now measured by their mask (affects the export area)
 - v1.1.2 (2026-09-28): Replaced the Link checkbox with a link icon

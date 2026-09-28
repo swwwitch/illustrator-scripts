@@ -202,3 +202,4 @@ While the dialog is open, anchor-point display and the bounding box are toggled 
 - v1.5.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.2 (20260928): Removed the space after the colon in English field labels, matching the Japanese labels. Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.5.2 (20260928): The button row is now built with the shared part
+- v1.5.3 (20260929): Dialog opacity changed to 98%

@@ -210,6 +210,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 
 - v1.3.9 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.10 (2026-09-28) The button row is now built with the shared part. Settings are now saved through the shared part (stored in `Folder.userData/illustrator-scripts/Ai-FileNameManager.json`)
+- v1.3.11 (2026-09-29) Dialog opacity changed to 98%
 
 ### Article
 

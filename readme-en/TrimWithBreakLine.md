@@ -86,6 +86,7 @@ The up/down buttons to the left of each number field work the same way as the ar
 
 ### Update history
 
+- v1.2.3 (20260929) : Dialog opacity changed to 98%
 - v1.2.2 (20260928) : The button row is now built with the shared part. Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`; the old `TrimWithBreakLine/settings.txt` is carried over once). When the artwork is a clip group, the cut direction and position are now based on the mask
 - v1.2.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927) : Added stepper buttons to the left of the number fields. The arrow keys now share the steppers' logic, Up / Down moves to the next whole number (1.5 → 2) and Shift + Up / Down to the next multiple of ten

@@ -32,3 +32,4 @@ Scales artboards relative to their current size, with a live preview while the d
 - v1.1.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.2 (2026-09-28) The button row is now built with the shared part
 - v1.1.2 (2026-09-28) The 3×3 reference point picker now uses the shared part
+- v1.1.3 (2026-09-29) Dialog opacity changed to 98%

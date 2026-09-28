@@ -79,6 +79,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.2 (2026-09-28): Fixed tab stops, leading and other values being left unconverted, as if in pt, when the type unit was feet, yards or meters; inches now show as "in". The button row is now built with the shared part
 - v1.4.3 (2026-09-29): The swatches now open Illustrator's standard color picker instead of the script's own dialog (the common-color presets are gone)
