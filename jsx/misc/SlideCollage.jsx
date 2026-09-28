@@ -1761,6 +1761,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) { }
         }
 
+        /**
+         * 確定時にプレビューを並べ直すかどうかを返す（ランダムは並びを保つため並べ直さない）
+         * @returns {boolean} ランダム以外なら true
+         */
+        function shouldRelayoutOnFinalize() {
+            return getFlowMode() !== 2;
+        }
+
         function bakePreviewRandomOrderForFinalize() {
             try {
                 if (getFlowMode() !== 2) return;
@@ -3120,7 +3128,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 } else {
                     // 背景OFF：bgItemを消す
                     if (__previewCache.bgItem) {
-                        removeItemSafe(__previewCache.bgItem);
+                        __SC_removeItemSafe(__previewCache.bgItem);
                         __previewCache.bgItem = null;
                     }
                 }
@@ -3767,9 +3775,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var pages = parsePageNumbers(editPages.text);
             // Repeat pages/artboards when requested count exceeds source count
             try {
-                var srcCount = getSourcePageCount(fileA);
+                var srcCount = __SC_getSourcePageCount(fileA);
                 if (srcCount > 0) {
-                    pages = repeatPagesWithinCount(pages, srcCount);
+                    pages = __SC_repeatPagesWithinCount(pages, srcCount);
                 }
             } catch (e) { }
             if (!pages || pages.length === 0) return;
@@ -3839,7 +3847,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             __SC_clearPreviewCache(__previewCache);
 
             try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (eZ) { }
-            __SC_saveDialogBounds(win.bounds);
             win.close(2);
         };
 
@@ -3864,7 +3871,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 app.redraw();
             }
 
-            __SC_saveDialogBounds(win.bounds);
             win.close(1);
         };
 
@@ -3881,9 +3887,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var finalPages = parsePageNumbers(editPages.text);
             // Repeat pages/artboards when requested count exceeds source count
             try {
-                var srcCount2 = getSourcePageCount(fileA);
+                var srcCount2 = __SC_getSourcePageCount(fileA);
                 if (srcCount2 > 0) {
-                    finalPages = repeatPagesWithinCount(finalPages, srcCount2);
+                    finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
                 }
             } catch (e) { }
             var finalCols = parseInt(editCols.text, 10) || 5;

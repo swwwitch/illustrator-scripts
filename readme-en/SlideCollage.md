@@ -38,5 +38,6 @@ https://slide-collage.vercel.app/
 
 - v1.6.1 (2026-09-28): The button row is now built with the shared part
 - v1.6.1 (2026-09-28): In English, removed the extra space after field-label colons
+- v1.6.1 (2026-09-28): Fixed an error when closing with OK or Cancel, and pages not repeating when there are fewer source pages than requested
 - v1.6.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.2 (2026-09-25): Fixed the crop box values so Trim, Bleed and Art place the box you choose, and corrected the English names of Crop and Trim

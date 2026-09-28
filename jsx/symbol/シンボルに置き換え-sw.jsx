@@ -44,7 +44,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
 	var SCRIPT_TITLE = 'シンボルに置き換え';
-	var SCRIPT_VERSION = '0.5.0';
 
 	var MAX_VISIBLE_SYMBOLS = 20;
 	var RADIO_ROW_HEIGHT = 20;
@@ -209,19 +208,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 	// ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-	var activeDoc = app.activeDocument;
-	var activeLayer = activeDoc.activeLayer;
-	var selectedItems = activeDoc.selection;
-	var documentSymbols = activeDoc.symbols;
-	var symbolEntries = getSortedSymbolEntries(documentSymbols);
-	if (symbolEntries.length > 0) {
-		settings.symbolIndex = symbolEntries[0].index;
-	}
-
-	if (canRun()) {
-		createDialog().show();
-	}
 
 	// UI dialog
 	// =========================================
@@ -403,7 +389,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 	function createDialog() {
-		var window = new Window('dialog', SCRIPT_TITLE + ' - ver.' + SCRIPT_VERSION);
+		var window = new Window('dialog', SCRIPT_TITLE + ' ' + SCRIPT_VERSION);
 
 		var symbolPanel = window.add('panel', undefined, labelText('panel.symbol'));
 		symbolPanel.alignment = 'left';
@@ -566,5 +552,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 			return 0;
 		});
 		return entries;
+	}
+	// =========================================
+	// メイン処理 / Main
+	// =========================================
+	/* LABELS と部品の定数がそろってから実行する / Run after LABELS and the parts' constants are set */
+	var activeDoc = app.activeDocument;
+	var activeLayer = activeDoc.activeLayer;
+	var selectedItems = activeDoc.selection;
+	var documentSymbols = activeDoc.symbols;
+	var symbolEntries = getSortedSymbolEntries(documentSymbols);
+	if (symbolEntries.length > 0) {
+		settings.symbolIndex = symbolEntries[0].index;
+	}
+
+	if (canRun()) {
+		createDialog().show();
 	}
 }());
