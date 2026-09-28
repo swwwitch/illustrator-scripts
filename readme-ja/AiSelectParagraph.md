@@ -80,3 +80,7 @@ Illustrator の `paragraphs` コレクションは、**強制改行（Shift + Re
 ### note
 
 - [記事URL]
+
+### 更新履歴
+
+- v1.0.2 (2026-09-19) : ラベル取得の関数名を getLabel() にそろえた（動作は変わらない）

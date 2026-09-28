@@ -45,4 +45,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### スクリプト情報
 
-- バージョン: v1.3.1
+- バージョン: v1.3.2

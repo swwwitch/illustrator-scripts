@@ -25,7 +25,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNa
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ArtboardNavigatorPalette";            /* スクリプト名 / script name */
+var SCRIPT_NAME     = "ArtboardNavigatorPalette";     /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.2.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */

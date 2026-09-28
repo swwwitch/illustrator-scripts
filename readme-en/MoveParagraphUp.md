@@ -40,3 +40,4 @@ Assigning the script to an action with a function key makes reordering paragraph
 
 - v1.0.0 (2026-08-27) : Initial release
 - v1.0.1 (2026-09-02) : Fixed "Error 21: undefined is not an object" raised while restoring the cursor after the swap (it read `contents` from the Story, which has no such property; the text now comes from the paragraph)
+- v1.0.2 (2026-09-19) : Removed extra blank lines (no change in behavior)

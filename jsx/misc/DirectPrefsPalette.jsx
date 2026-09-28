@@ -23,7 +23,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPref
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "DirectPrefsPalette";                  /* スクリプト名 / script name */
+var SCRIPT_NAME     = "DirectPrefsPalette";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */

@@ -34,4 +34,4 @@
 
 ### Script info
 
-- Version: v1.1.2
+- Version: v1.1.3

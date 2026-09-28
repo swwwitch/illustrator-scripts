@@ -511,7 +511,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-
     // =========================================
     // ローカライズ / Localization
     // =========================================

@@ -32,3 +32,4 @@
 
 - v1.0.0 (20231226): Initial release
 - v1.0.1 (20250702): Minor adjustments
+- v1.0.2 (20260919): Tidied up internal names (no change in behavior)

@@ -18,6 +18,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   でも解放されるが保険）
 - 対象は PALETTES テーブルで管理。パレットを増やしたら 1 行追加するだけで対象にできる
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloseAllPalettes.md
+
 ### 実行時の要点 / Runtime notes
 
 - BridgeTalk のクロスエンジン往復は「ファイル＞スクリプト」実行でも同期的に効く。ただし
@@ -38,6 +41,13 @@ LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPa
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
 AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
 
+### Overview
+
+Closes the floating palettes that run in persistent engines, all at once.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPalettes.md
+
 */
 
 // =========================================
@@ -48,6 +58,9 @@ var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloseAllPalettes.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPalettes.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

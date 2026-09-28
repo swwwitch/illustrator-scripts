@@ -60,7 +60,7 @@ Illustrator stores the actual constraint direction in `constrain/sin` and `const
 
 ## Script info
 
-- Version: v1.0.2
+- Version: v1.1.0
 - First release: 2026-06-05
 - Last updated: 2026-09-27
 

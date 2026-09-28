@@ -52,4 +52,4 @@ The style names have to match the names registered in the source AI file.
 
 ### Script info
 
-- Version: v1.6.2
+- Version: v1.6.3

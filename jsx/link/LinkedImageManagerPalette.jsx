@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "LinkedImageManagerPalette";           /* スクリプト名 / script name */
+var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.5.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */

@@ -12,6 +12,9 @@ Excelなどからコピー＆ペーストした長方形から、罫線（グリ
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n0a1c70def387
+
 ### Overview
 
 Generates table rules — a grid and a border — from rectangles pasted in from Excel or similar.
@@ -31,8 +34,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

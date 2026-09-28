@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustText
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustTextScaleBaseline";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */

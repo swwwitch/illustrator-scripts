@@ -38,3 +38,4 @@
 - v1.0.2 (20250613): Refactored with getCenter() and getSize()
 - v1.0.3 (20250614): Added temporary group handling for multiple selection
 - v1.0.4 (20250615): Removed temporary grouping, cleaned up logic
+- v1.0.5 (20260919): Reorganized the internals (the search direction is now set with SEARCH_DIRECTION under User Settings, swappable types are listed in one table, names revised; no change in behavior)

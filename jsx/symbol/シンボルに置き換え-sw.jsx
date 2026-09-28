@@ -23,7 +23,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/シンボ�
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "シンボルに置き換え-sw";        /* スクリプト名 / script name */
+var SCRIPT_NAME     = "シンボルに置き換え-sw";                 /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v0.5.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Toshiyuki Takahashi";          /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */

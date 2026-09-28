@@ -23,7 +23,7 @@ original positions and sizes.
 
 ### スクリプト情報
 
-- バージョン: v1.0.2
+- バージョン: v1.0.3
 
 ### 更新履歴
 

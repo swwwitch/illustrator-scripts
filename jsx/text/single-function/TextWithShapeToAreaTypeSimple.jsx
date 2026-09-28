@@ -23,7 +23,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextWithSh
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "TextWithShapeToAreaTypeSimple"; /* スクリプト名 / script name */
+var SCRIPT_NAME     = "TextWithShapeToAreaTypeSimple";  /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
@@ -1416,7 +1416,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
 
     // =========================================
     // ダイアログ / Dialog

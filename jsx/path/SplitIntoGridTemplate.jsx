@@ -17,7 +17,7 @@ Splits the selected paths into an equal grid of rows and columns across their bo
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SplitIntoGridTemplate";       /* スクリプト名 / script name */
+var SCRIPT_NAME     = "SplitIntoGridTemplate";        /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */

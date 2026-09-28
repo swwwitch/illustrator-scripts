@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLine
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExtendLines";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */

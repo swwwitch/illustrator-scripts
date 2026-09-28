@@ -42,4 +42,4 @@ https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Script info
 
-- Version: v1.7.1
+- Version: v1.7.2

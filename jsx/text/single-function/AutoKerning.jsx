@@ -411,7 +411,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-
     // =========================================
     // UI構築 / Build UI
     // =========================================

@@ -26,6 +26,10 @@
 3. Expand appearance
 4. Ungroup
 
+### Change history
+
+- v1.0.1 (2026-09-19): Tidied up internal names (no change in behavior)
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1

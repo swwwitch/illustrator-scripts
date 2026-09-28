@@ -862,7 +862,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var doc = app.activeDocument;
 
-
         var currentSelection = doc.selection;
 
         // 2つのオブジェクトが選択されているか確認

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontCatalogGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontCatalogGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalogGenerator.md"; /* README (English) */
@@ -348,29 +348,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
      * 単位ユーティリティ（文字単位対応） / Unit utilities for text
      * -------------------------------------------------- */
 
-    // 単位コード → ラベル（簡易）
-    var unitLabelMap = {
-      0: "in",
-      1: "mm",
-      2: "pt",
-      3: "pica",
-      4: "cm",
-      5: "Q/H",
-      6: "px",
-      7: "ft/in",
-      8: "m",
-      9: "yd",
-      10: "ft"
-    };
-
     /**
      * 環境設定の文字単位のラベルを返す
      * @returns {string} 単位ラベル（取得できない場合は "pt"）
      */
     function getCurrentTextUnitLabel() {
       try {
-        var unitCode = app.preferences.getIntegerPreference("text/units");
-        return unitLabelMap[unitCode] || "pt";
+        return getUnitInfo("text/units").label;
       } catch (e) {
         return "pt";
       }

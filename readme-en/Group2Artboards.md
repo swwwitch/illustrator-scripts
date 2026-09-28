@@ -41,4 +41,4 @@ Last Updated: 2025-08-22 (v1.3)
 
 ### Script info
 
-- Version: v1.4.1
+- Version: v1.4.2

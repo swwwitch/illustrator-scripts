@@ -437,7 +437,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-
     // =========================================
     // ダイアログ / Dialog
     // =========================================

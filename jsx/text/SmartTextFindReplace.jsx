@@ -25,23 +25,23 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
-
-    var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
-    var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     // =========================================
     // ユーザー設定 / User Settings

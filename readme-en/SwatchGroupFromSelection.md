@@ -30,3 +30,4 @@ Extracts the fill colors of the selected objects in layout order (left to right,
 ### Update History
 
 - v1.3 (2026-01-28)
+- v1.3.1 (2026-09-19): Removed an unused function (no change in behavior)

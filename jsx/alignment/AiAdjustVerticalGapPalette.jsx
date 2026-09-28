@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVe
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiAdjustVerticalGapPalette";          /* スクリプト名 / script name */
+var SCRIPT_NAME     = "AiAdjustVerticalGapPalette";   /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */

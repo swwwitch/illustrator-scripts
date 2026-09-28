@@ -521,7 +521,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             return app.documents.length > 0;
         }
 
-
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // UI の明暗（再利用パーツ） / UI theme (reusable)
         //

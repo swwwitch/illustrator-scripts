@@ -32,3 +32,4 @@
 ### Update History
 
 - v1.0.0 (20240624): Initial version
+- v1.1 (20240625): Added localization support, improved error handling

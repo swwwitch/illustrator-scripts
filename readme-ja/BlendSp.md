@@ -1,6 +1,6 @@
 # ブレンドの作成と調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-%20BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/%20BlendSp.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/BlendSp.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md)
 

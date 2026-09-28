@@ -142,7 +142,7 @@ The length and the results shown in the dialog belong to the **first** path, but
 
 ### Script info
 
-- Version: v2.1.1
+- Version: v2.1.2
 - First release: 2026-02-25
 - Last updated: 2026-09-27
 - Article: https://note.com/dtp_tranist/n/n868bedb96542

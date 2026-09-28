@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "SelectAlternateItems";         /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md"; /* README (English) */
@@ -411,7 +411,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         debugPrefix: { ja: "デバッグ：", en: "Debug: " }
       }
     };
-
 
     function getErrorMessage(key, detail) {
       var message = getLabel("alert." + key);

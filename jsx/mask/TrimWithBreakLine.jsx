@@ -3035,7 +3035,6 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリック・option＋↑↓の�
         return 0;
     }
 
-
     /**
      * IllustratorのUIが明るいテーマか判定する
      * @returns {boolean} 明るいテーマなら true

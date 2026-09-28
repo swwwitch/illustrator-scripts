@@ -17,7 +17,7 @@ Cancel restores the original positions and sizes.
 
 ### Script info
 
-- Version: v1.0.2
+- Version: v1.0.3
 
 ### Update History
 

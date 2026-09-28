@@ -44,4 +44,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.3.1
+- Version: v1.3.2

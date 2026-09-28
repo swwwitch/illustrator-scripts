@@ -80,4 +80,4 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v2.1.1
+- Version: v2.1.2

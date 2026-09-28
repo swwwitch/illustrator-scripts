@@ -1,6 +1,6 @@
 # Create and adjust a blend
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-%20BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/%20BlendSp.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/BlendSp.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendSp.md)
 

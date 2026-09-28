@@ -16,7 +16,7 @@
 
 ### Script info
 
-- Version: v1.4.1
+- Version: v1.4.2
 - First release: 2026-02-15
 - Last updated: 2026-09-28
 

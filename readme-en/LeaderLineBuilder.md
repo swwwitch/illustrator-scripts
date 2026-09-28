@@ -73,7 +73,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Script info
 
-- Version: v1.6.1
+- Version: v1.6.2
 - First release: 2026-03-06
 - Last updated: 2026-08-12
 - Article: https://note.com/dtp_tranist/n/n506df641d5c5
