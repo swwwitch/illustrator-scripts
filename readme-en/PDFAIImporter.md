@@ -10,7 +10,7 @@
 
 ### Overview
 
-Imports a PDF or AI file over a given page range and places the pages on the current document. The pages can be laid out as one artboard each, or placed as objects without adding artboards.
+Imports a PDF or AI file over a given page range and places the pages on the current or a new document. The pages can be laid out as one artboard each, or placed as objects without adding artboards. Landscape spreads can be split left and right.
 
 It is meant for arranging multiple pages in a grid or building a contact-sheet style overview. Placed pages can also be given a stroke.
 
@@ -27,6 +27,9 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 - Shows the number of rows the given column count needs
 - Adjustable gap between pages, whose meaning follows the placement method
 - Scale can be set when ignoring artboards
+- PDF crop box selection (Art / Crop / Trim / Bleed)
+- Landscape pages can be treated as spreads and split left and right; the even-page side is set from the PDF binding direction
+- Destination: the current document or a new one (with its color mode)
 - Adds a stroke to the placed pages, with optional rounded corners
 - Centers the whole layout on the canvas
 - Fits the view to the result once placement finishes
@@ -39,7 +42,7 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 1. Open the document you want to place into.
 2. Run `PDFAIImporter.jsx`.
 3. Choose a PDF or AI file with the file button. (If you ran the script with a placed image selected, its linked file is used as the default.)
-4. Set the pages, placement method, layout, options and stroke.
+4. Set the pages, placement method, destination, layout, options, spreads and stroke.
 5. Click OK. The dialog closes first, then placement begins.
 
 ### Options
@@ -48,10 +51,14 @@ It is meant for arranging multiple pages in a grid or building a contact-sheet s
 | --- | --- | --- |
 | Pages | All Pages | All pages / first page only / custom pages. Custom pages accept formats such as `1-10` or `1,3,5` |
 | Placement Method | Per Artboard | Per Artboard creates an artboard matching each page size and places it at 100%. Place as Objects adds no artboards |
+| Destination | Current document | Current document or new document. A new document also takes a color mode (CMYK / RGB, defaulting to the current document's) |
 | Columns | Auto | Columns per row. Auto wraps once a row exceeds about 7,920 pt (about 2,794 mm). Entering 0 or less resets the field to Auto |
-| Rows | - | Rows needed for the given column count. Dimmed while Columns is Auto, because the wrap position is not fixed |
+| Rows | - | Rows needed for the given column count. Dimmed while Columns is Auto or spreads are split, because the count is not fixed |
 | Gap | 100 pt | Gap between artboards, or between placed objects when ignoring artboards |
 | Scale | 100% | Placement scale. Active only when Place as Objects is selected |
+| Crop to | Crop | Which PDF box the pages are placed from. Not used for AI files |
+| Split left and right | Off | Treats pages wider than 1.2 times their height as spreads and lays them out as two halves. With Place as Objects, each half becomes an object cut out with a clipping mask |
+| Even pages | Right | Which side the even pages go to when a spread is split. Set from the PDF binding direction when a file is chosen |
 | Stroke | None | None, or Add stroke: builds a clipping mask from the page's bounding rectangle and strokes it |
 | Round corners | Off (3) | Available only when a stroke is added. Uses the current ruler unit |
 
@@ -64,7 +71,9 @@ Numeric fields step with the stepper buttons and arrow keys, to the next whole n
 - Per Artboard reuses the active artboard for the first page. Running the script on an existing working document moves that artboard to the layout position.
 - The total page count is estimated by scanning the file, so some PDF structures cannot be read. When the count is unavailable, only the first page is placed.
 - Pages that cannot be placed are skipped, and a single notice is shown at the end.
-- The PDF crop box is fixed to Crop. The preference in effect before the run is restored when placement finishes.
+- AI files always use the Crop box. The preference in effect before the run is restored when placement finishes.
+- For print-ready PDFs with crop marks or bleed, use Trim so each spread splits at the finished page edge.
+- A new document's raster effects resolution is fixed at 300 ppi.
 - Progress appears in its own palette after the dialog closes. Some environments may not show the palette, but placement still runs.
 
 ### Article
@@ -73,6 +82,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.3.0 (2026-09-29): Merged in PDFAISpreadImporter.jsx: spread splitting (with the even-page side set from the binding direction), crop box selection and placing into a new document
 - v1.2.2 (2026-09-28): The button row is now built with the shared part
 - v1.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

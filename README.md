@@ -197,7 +197,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードにコピーするIllu…](readme-ja/CopyAsPngLikeFigmaWithDialog.md)
 - [登録されているアクションセットを、デスクトップの `Illustrator_Actions` フォルダーへ…](readme-ja/ExportActions.md)
 - [PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメント上にページを配置します](readme-ja/PDFAIImporter.md)
-- [PDF/AIの各ページを見開き分割してアートボードに配置](readme-ja/PDFAISpreadImporter.md)
 - [同じリンクファイルを参照する配置画像を一括で差し替え](readme-ja/RelinkSameImages.md)
 - [現在選択中のリンク画像（PlacedItem）と同じリンクファイルを参照する](readme-ja/SelectSameLinks.md)
 - [Illustrator ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動…](readme-ja/SymbolListBuilder.md)
