@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -74,8 +74,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     var STACK_SPACING = 10;               /* カラム内のパネル間隔・広めの行間 */
     var TIGHT_SPACING = 6;                /* 詰めた行間 */
 
-    /* CMYK入力欄の固定幅（ラベルと桁を揃える）/ Fixed width that aligns CMYK labels and fields */
-    var CMYK_FIELD_WIDTH = 40;
+    /* カスタムの色見本の大きさ / size of the Custom swatch */
+    var CUSTOM_SWATCH_SIZE = [36, 18];
 
     /**
      * パネルの共通設定
@@ -115,8 +115,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     var ColorMode = {
         NONE: 'none',
         K100: 'k100',
-        HEX: 'hex',
-        CMYK: 'cmyk'
+        CUSTOM: 'custom'
     };
 
     // =========================================
@@ -471,8 +470,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         radio: {
             colorNone: { ja: "なし", en: "None" },
             colorK100: { ja: "K100、不透明度15%", en: "K100, Opacity 15%" },
-            colorHex: { ja: "HEX", en: "HEX" },
-            colorCmyk: { ja: "CMYK", en: "CMYK" },
+            colorCustom: { ja: "カスタム", en: "Custom" },
             placeFront: { ja: "最前面", en: "Front" },
             placeBack: { ja: "最背面", en: "Back" },
             placeBgLayer: { ja: "bgレイヤー", en: "bg Layer" },
@@ -500,17 +498,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 en: "Automatically fills a bleed-equivalent offset based on the current unit."
             },
             colorNone: { ja: "塗りも線もない長方形を描画します。", en: "Draws the rectangle with no fill and no stroke." },
-            hexInput: {
-                ja: "#RRGGBB（#RGB 短縮・red などの色名・gray50 も可）で塗りカラーを指定します。",
-                en: "Enter a fill color: #RRGGBB (also #RGB shorthand, color names like red, or gray50)."
-            },
-            colorCmyk: {
-                ja: "CMYK値で塗りを指定します。RGBドキュメントではRGBに換算して塗ります。",
-                en: "Sets the fill from CMYK values. In an RGB document the values are converted to RGB."
-            },
-            cmykInput: {
-                ja: "0〜100の範囲でCMYK値を指定します。未入力は0として扱います。",
-                en: "Enter CMYK values from 0 to 100. Empty fields are treated as 0."
+            colorCustom: {
+                ja: "色見本をクリックすると、Illustrator 標準のカラーピッカーで塗りの色を選べます。",
+                en: "Click the swatch to choose the fill color in Illustrator's standard color picker."
             },
             placeFront: { ja: "現在のレイヤー内で最前面に配置します。", en: "Places the rectangle at the front of the current layer." },
             placeBack: { ja: "現在のレイヤー内で最背面に配置します。", en: "Places the rectangle at the back of the current layer." },
@@ -539,12 +529,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         warning: {
-            hexInvalid: { ja: "正しい #RRGGBB を入力してください", en: "Enter a valid #RRGGBB value" },
-            hexEmpty: { ja: "HEX未入力（# のみ）", en: "HEX not entered (# only)" },
-            cmykRange: {
-                ja: "0–100 の範囲にしてください（未入力は 0 として扱います）",
-                en: "Enter a value from 0 to 100 (empty fields are treated as 0)"
-            },
             singleArtboard: { ja: "アートボードが1つのため選択できません", en: "Disabled: only one artboard exists" }
         },
         objectName: {
@@ -712,36 +696,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-    /**
-     * 入力欄を淡黄色でハイライト表示する（選択中のカラーモードを示す）
-     * @param {EditText} fieldControl - 対象の入力欄
-     * @param {boolean} highlighted - true でハイライト、false で通常表示
-     * @returns {void}
-     */
-    function setFieldHighlight(fieldControl, highlighted) {
-        try {
-            var graphics = fieldControl.graphics;
-            var backgroundRgb = highlighted ? [1, 1, 0.85] : [1, 1, 1];
-            var foregroundRgb = highlighted ? [0.2, 0.2, 0] : [0, 0, 0];
-            graphics.backgroundColor = graphics.newBrush(graphics.BrushType.SOLID_COLOR, backgroundRgb);
-            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, foregroundRgb, 1);
-            fieldControl.notify('onDraw');
-        } catch (e) { }
-    }
-
-    /**
-     * 入力欄の文字色を警告(赤)／通常(黒)に切り替える
-     * @param {EditText} fieldControl - 対象の入力欄
-     * @param {boolean} isWarning - true で赤、false で黒
-     * @returns {void}
-     */
-    function setFieldWarnColor(fieldControl, isWarning) {
-        try {
-            var graphics = fieldControl.graphics;
-            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, isWarning ? [1, 0, 0] : [0, 0, 0], 1);
-        } catch (e) { }
-    }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -1270,19 +1224,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // カラー / Color
     // =========================================
 
-    /* 色名テーブル（RGB/CMYK 両方を持つ）/ Named colors, with both an RGB and a CMYK value */
-    var NAMED_COLOR_TABLE = {
-        black: { rgb: [0, 0, 0], cmyk: [0, 0, 0, 100] },
-        white: { rgb: [255, 255, 255], cmyk: [0, 0, 0, 0] },
-        red: { rgb: [255, 0, 0], cmyk: [0, 100, 100, 0] },
-        green: { rgb: [0, 128, 0], cmyk: [100, 0, 100, 50] },
-        blue: { rgb: [0, 0, 255], cmyk: [100, 100, 0, 0] },
-        cyan: { rgb: [0, 255, 255], cmyk: [100, 0, 0, 0] },
-        magenta: { rgb: [255, 0, 255], cmyk: [0, 100, 0, 0] },
-        yellow: { rgb: [255, 255, 0], cmyk: [0, 0, 100, 0] },
-        orange: { rgb: [255, 165, 0], cmyk: [0, 35, 100, 0] }
-    };
-
     /**
      * 数値を指定範囲に収める
      * @param {number} value - 対象の値
@@ -1357,84 +1298,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * カラー入力欄の文字列を色として解釈する
-     * #RRGGBB／#RGB・#RG・#R の短縮形／色名（red など）／grayNN（0–100）を受け付ける
-     * @param {Document} doc - 対象ドキュメント（カラースペース判定に使う）
-     * @param {string} colorText - 入力文字列
-     * @returns {RGBColor|CMYKColor|null} 解釈できた色。できなければ null
-     */
-    function parseColorText(doc, colorText) {
-        if (!colorText) return null;
-        var normalizedText = String(colorText).replace(/^\s+|\s+$/g, '').toLowerCase();
-        if (!normalizedText) return null;
-
-        /* 全角の空白・読点・数字・記号をASCIIへ正規化 / Normalize full-width characters to ASCII */
-        normalizedText = normalizedText.replace(/　/g, ' ').replace(/[，、]/g, ',');
-        normalizedText = normalizedText.replace(/[０-９]/g, function (fullWidthDigit) {
-            return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFF10 + 0x30);
-        });
-        normalizedText = normalizedText.replace(/．/g, '.').replace(/／/g, '/');
-
-        /* 短縮HEXを #RRGGBB へ展開 / Expand shorthand hex notations */
-        if (normalizedText.charAt(0) === '#') {
-            var digits = normalizedText.substr(1);
-            if (digits.length === 1) {          /* #R → #RRRRRR */
-                normalizedText = '#' + digits + digits + digits + digits + digits + digits;
-            } else if (digits.length === 2) {   /* #RG → #RGRGRG */
-                normalizedText = '#' + digits + digits + digits;
-            } else if (digits.length === 3) {   /* #RGB → #RRGGBB */
-                normalizedText = '#' + digits.charAt(0) + digits.charAt(0) +
-                    digits.charAt(1) + digits.charAt(1) +
-                    digits.charAt(2) + digits.charAt(2);
-            }
-        }
-
-        /* #RRGGBB */
-        if (/^#[0-9a-f]{6}$/.test(normalizedText)) {
-            return makeRgbColor(parseInt(normalizedText.substr(1, 2), 16), parseInt(normalizedText.substr(3, 2), 16), parseInt(normalizedText.substr(5, 2), 16));
-        }
-
-        /* 色名 / Named colors — ドキュメントのカラースペースを優先 */
-        var namedColor = NAMED_COLOR_TABLE[normalizedText];
-        if (namedColor) {
-            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) {
-                return makeCmykColor(namedColor.cmyk[0], namedColor.cmyk[1], namedColor.cmyk[2], namedColor.cmyk[3]);
-            }
-            return makeRgbColor(namedColor.rgb[0], namedColor.rgb[1], namedColor.rgb[2]);
-        }
-
-        /* grayNN（0–100）/ grayNN (0-100) */
-        var grayMatch = normalizedText.match(/^gray\s*(\d{1,3})$/);
-        if (grayMatch) {
-            var grayLevel = clampValue(parseInt(grayMatch[1], 10), 0, 100);
-            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) return makeCmykColor(0, 0, 0, grayLevel);
-            var grayByte = Math.round(255 * (100 - grayLevel) / 100);
-            return makeRgbColor(grayByte, grayByte, grayByte);
-        }
-
-        return null;
-    }
-
-    /**
-     * CMYK入力値からドキュメントのカラースペースに合う色を作る
-     * @param {Document} doc - 対象ドキュメント
-     * @param {object} cmykValues - { c, m, y, k }（0–100）
-     * @returns {RGBColor|CMYKColor|null} 4値が揃っていなければ null
-     */
-    function buildCmykFillColor(doc, cmykValues) {
-        if (!cmykValues) return null;
-        var channels = [cmykValues.c, cmykValues.m, cmykValues.y, cmykValues.k];
-        for (var i = 0; i < channels.length; i++) {
-            if (typeof channels[i] !== 'number' || isNaN(channels[i])) return null;
-        }
-        if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-            var rgbValues = cmykToRgb(channels[0], channels[1], channels[2], channels[3]);
-            return makeRgbColor(rgbValues[0], rgbValues[1], rgbValues[2]);
-        }
-        return makeCmykColor(channels[0], channels[1], channels[2], channels[3]);
-    }
-
-    /**
      * カラーモードに応じた塗りを適用する（プレビューと本描画で共通）
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} targetRectangle - 塗りを適用する長方形
@@ -1448,13 +1311,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         if (drawSettings.colorMode === ColorMode.K100) {
             fillColor = createBlackColor(doc);
             fillOpacity = K100_OPACITY;
-        } else if (drawSettings.colorMode === ColorMode.HEX) {
-            fillColor = parseColorText(doc, drawSettings.customValue);
-        } else if (drawSettings.colorMode === ColorMode.CMYK) {
-            fillColor = buildCmykFillColor(doc, drawSettings.customCMYK);
+        } else if (drawSettings.colorMode === ColorMode.CUSTOM) {
+            fillColor = drawSettings.customColor;
         }
 
-        /* 解釈できない値・「なし」は塗りなし。線は呼び出し側（プレビュー）で付け直す
+        /* 「なし」は塗りなし。線は呼び出し側（プレビュー）で付け直す
            Unparsable values and "None" mean no fill; the caller re-applies any stroke */
         targetRectangle.stroked = false;
         targetRectangle.filled = !!fillColor;
@@ -1754,107 +1615,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     // =========================================
-    // 入力欄の検証 / Field validation
-    // =========================================
-
-    /**
-     * HEX入力欄の警告表示を切り替える
-     * @param {EditText} hexField - HEX入力欄
-     * @param {boolean} isWarning - true で警告表示
-     * @param {string} [warningKey] - 警告時のヘルプチップのラベルキー
-     * @returns {void}
-     */
-    function setHexWarning(hexField, isWarning, warningKey) {
-        setFieldWarnColor(hexField, isWarning);
-        hexField.helpTip = isWarning ? getLabel(warningKey || 'warning.hexInvalid') : getLabel('tooltip.hexInput');
-        try { hexField.notify('onDraw'); } catch (e) { }
-    }
-
-    /**
-     * CMYK入力欄の警告表示を切り替える
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @param {boolean} isWarning - true で警告表示
-     * @returns {void}
-     */
-    function setCmykWarning(channelInput, isWarning) {
-        setFieldWarnColor(channelInput, isWarning);
-        channelInput.helpTip = isWarning ? getLabel('warning.cmykRange') : getLabel('tooltip.cmykInput');
-    }
-
-    /**
-     * CMYK入力欄の値が0–100の範囲かを判定して警告表示に反映する（入力途中は警告しない）
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @returns {void}
-     */
-    function validateCmykField(channelInput) {
-        var fieldText = String(channelInput.text || '');
-        if (fieldText === '') {
-            setCmykWarning(channelInput, false);
-            return;
-        }
-        var channelValue = parseFloat(fieldText);
-        setCmykWarning(channelInput, isNaN(channelValue) || channelValue < 0 || channelValue > 100);
-    }
-
-    /**
-     * CMYK入力欄の値を0–100へ丸める（未入力は空のまま。計算時に0として扱う）
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @returns {void}
-     */
-    function clampCmykField(channelInput) {
-        var fieldText = String(channelInput.text || '').replace(/^\s+|\s+$/g, '');
-        if (fieldText !== '') {
-            var channelValue = parseFloat(fieldText);
-            if (isNaN(channelValue)) channelValue = 0;
-            channelInput.text = String(clampValue(channelValue, 0, 100));
-        }
-        setCmykWarning(channelInput, false);
-    }
-
-    /**
-     * CMYK入力欄へ共通のハンドラをまとめて登録する
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄（∧∨付き）
-     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
-     * @returns {void}
-     */
-    function bindCmykField(channelInput, previewHooks) {
-        channelInput.addEventListener('focus', function () {
-            /* ちょうど "0" のときは入力しやすいようクリア / Clear a lone "0" so typing replaces it */
-            if (String(channelInput.text) === '0') channelInput.text = '';
-        });
-
-        channelInput.addEventListener('keydown', function (event) {
-            /* 先頭ゼロ（"03"）を作らせない。小数 "0.5" は触らない
-               Prevent leading-zero integers; leave decimals like "0.5" alone */
-            var typedKey = String(event.keyName || '');
-            if (!/^[0-9]$/.test(typedKey)) return;
-            var fieldText = String(channelInput.text || '');
-            if (/\./.test(fieldText)) return;
-            if (/^0+$/.test(fieldText)) channelInput.text = '';
-            else if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
-        });
-
-        channelInput.onChanging = function () {
-            var fieldText = String(channelInput.text || '');
-            if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
-            validateCmykField(channelInput);
-            previewHooks.deferred();
-        };
-
-        channelInput.onChange = function () {
-            clampCmykField(channelInput);
-            previewHooks.immediate();
-        };
-
-        /* ∧∨と↑↓キーは同じ処理で増減する（0〜100に収める） / steppers and arrow keys share one path (0-100) */
-        channelInput.stepperOptions.onStep = function () {
-            clampCmykField(channelInput);
-            previewHooks.deferred();
-        };
-        bindSteppedArrowKeys(channelInput, channelInput.stepperGroup);
-    }
-
-    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -1942,20 +1702,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * 配列の指定番目の入力欄を返す関数を作る（ループ内で∧∨に渡すため、添字を閉じ込める）
-     * @param {EditText[]} inputList - 入力欄の配列（あとから push されてもよい）
-     * @param {number} inputIndex - 添字
-     * @returns {Function} 入力欄を返す関数
+     * 色を色見本に描くための RGB（0〜1）にする
+     * @param {RGBColor|CMYKColor|GrayColor} fillColor - 色
+     * @returns {number[]} [r, g, b]（0〜1）
      */
-    function makeInputGetter(inputList, inputIndex) {
-        return function () { return inputList[inputIndex]; };
+    function colorToScreenRgb(fillColor) {
+        if (fillColor.typename === "RGBColor") return [fillColor.red / 255, fillColor.green / 255, fillColor.blue / 255];
+        if (fillColor.typename === "GrayColor") return [1 - fillColor.gray / 100, 1 - fillColor.gray / 100, 1 - fillColor.gray / 100];
+        var rgbValues = cmykToRgb(fillColor.cyan, fillColor.magenta, fillColor.yellow, fillColor.black);
+        return [rgbValues[0] / 255, rgbValues[1] / 255, rgbValues[2] / 255];
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた中間のグレーを作る（カスタムの初期色）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {RGBColor|CMYKColor} グレー
+     */
+    function createDefaultCustomColor(doc) {
+        if (doc.documentColorSpace == DocumentColorSpace.RGB) return makeRgbColor(128, 128, 128);
+        return makeCmykColor(0, 0, 0, 50);
     }
 
     /**
      * カラーパネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
      * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
-     * @returns {object} 各ラジオ・入力欄をまとめたオブジェクト
+     * @returns {object} 各ラジオと、カスタムの色を返す getCustomColor をまとめたオブジェクト
      */
     function buildColorPanel(parentGroup, previewHooks) {
         var colorPanel = parentGroup.add('panel', undefined, getLabel('panel.color'));
@@ -1965,115 +1737,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         noneRadio.helpTip = getLabel('tooltip.colorNone');
         var k100Radio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorK100'));
 
-        /* HEXはラジオと入力欄を同じ行に / HEX radio and its field share one row */
-        var hexRow = colorPanel.add('group');
-        setupGroup(hexRow, 'row', TIGHT_SPACING);
-        var hexRadio = hexRow.add('radiobutton', undefined, getLabel('radio.colorHex'));
-        var hexInput = hexRow.add('edittext', undefined, '#');
-        hexInput.characters = 14; /* カラム幅が伸びないよう控えめに / narrow enough to keep the column width */
-        hexInput.helpTip = getLabel('tooltip.hexInput');
+        /* カスタムはラジオと色見本を同じ行に / the Custom radio and its swatch share one row */
+        var customRow = colorPanel.add('group');
+        setupGroup(customRow, 'row', TIGHT_SPACING);
+        var customRadio = customRow.add('radiobutton', undefined, getLabel('radio.colorCustom'));
+        customRadio.helpTip = getLabel('tooltip.colorCustom');
+        var customSwatch = customRow.add('group');
+        customSwatch.preferredSize = CUSTOM_SWATCH_SIZE;
+        customSwatch.helpTip = getLabel('tooltip.colorCustom');
 
-        var cmykRadio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorCmyk'));
-        cmykRadio.helpTip = getLabel('tooltip.colorCmyk');
-
-        /* ラベル行とフィールド行の2段グリッド / Two-row grid: labels on top, fields below */
-        var cmykGrid = colorPanel.add('group');
-        setupGroup(cmykGrid, 'column', 4);
-        var cmykLabelRow = cmykGrid.add('group');
-        setupGroup(cmykLabelRow, 'row', STACK_SPACING);
-        var cmykFieldRow = cmykGrid.add('group');
-        setupGroup(cmykFieldRow, 'row', STACK_SPACING);
-
-        var cmykChannelTexts = ['  C', '  M', '  Y', '  K'];
-        var cmykLabels = [];
-        var cmykInputs = [];
-        for (var i = 0; i < cmykChannelTexts.length; i++) {
-            /* 項目名は入力欄の真上に来るよう、∧∨の幅だけ左をあける / indent the label by the stepper width to sit above the field */
-            var channelLabelCell = cmykLabelRow.add('group');
-            channelLabelCell.margins = [STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, 0, 0, 0];
-            channelLabelCell.spacing = 0;
-            var channelLabel = channelLabelCell.add('statictext', undefined, cmykChannelTexts[i]);
-            channelLabel.preferredSize.width = CMYK_FIELD_WIDTH;
-
-            /* ∧∨と入力欄は隙間0で突き合わせる。onStep は bindCmykField() で入れる / onStep is set in bindCmykField() */
-            var channelFieldGroup = cmykFieldRow.add('group');
-            channelFieldGroup.orientation = 'row';
-            channelFieldGroup.alignChildren = ['left', 'center'];
-            channelFieldGroup.spacing = 0;
-            channelFieldGroup.margins = 0;
-            var channelStepperOptions = { min: 0, max: 100 };
-            var channelStepper = addStepper(channelFieldGroup, makeInputGetter(cmykInputs, i), channelStepperOptions);
-            var channelInput = channelFieldGroup.add('edittext', undefined, '');
-            channelInput.characters = 3;
-            channelInput.preferredSize.width = CMYK_FIELD_WIDTH;
-            channelInput.helpTip = getLabel('tooltip.cmykInput');
-            channelInput.stepperGroup = channelStepper;
-            channelInput.stepperOptions = channelStepperOptions;
-            cmykLabels.push(channelLabel);
-            cmykInputs.push(channelInput);
-            bindCmykField(channelInput, previewHooks);
-        }
-
-        hexInput.onChanging = function () {
-            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
-            if (hexText === '') setHexWarning(hexInput, false);
-            else if (hexText === '#') setHexWarning(hexInput, true, 'warning.hexEmpty');
-            /* parseColorText が解釈できる入力（#RRGGBB／短縮HEX／色名／grayNN）はすべて有効
-               Anything parseColorText can resolve is valid */
-            else setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
-            previewHooks.deferred();
+        var customColor = createDefaultCustomColor(app.activeDocument);
+        customSwatch.onDraw = function () {
+            var swatchGraphics = customSwatch.graphics;
+            var swatchWidth = customSwatch.size[0];
+            var swatchHeight = customSwatch.size[1];
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(customColor)));
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
         };
 
-        hexInput.onChange = function () {
-            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
-            if (/^#?[0-9a-fA-F]{6}$/.test(hexText)) {
-                /* 6桁HEXは # 付き・大文字へ正規化 / Normalize 6-digit hex to "#" + uppercase */
-                hexInput.text = '#' + hexText.replace(/^#/, '').toUpperCase();
-                setHexWarning(hexInput, false);
-            } else if (hexText === '#') {
-                setHexWarning(hexInput, true, 'warning.hexEmpty');
-            } else {
-                /* 色名・短縮HEX・grayNN は整形せずそのまま受理 / Names, shorthand hex and grayNN pass through */
-                setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
-            }
-            previewHooks.immediate();
-        };
+        /* 色見本をクリックしたら標準のカラーピッカーを開き、カスタムを選ぶ。
+           OK なら選んだ色（ドキュメントのカラーモードの型）、キャンセルなら渡した色がそのまま返る
+           Clicking the swatch opens the standard color picker and selects Custom */
+        customSwatch.addEventListener('click', function () {
+            customColor = app.showColorPicker(customColor);
+            customSwatch.hide(); /* group には notify() が無いので、隠して再表示して描き直す / redraw the group */
+            customSwatch.show();
+            selectColorMode(ColorMode.CUSTOM);
+        });
 
-        /* ラジオ選択に応じて入力欄の有効・無効を反映 / Sync field enable state with the radios */
-        function updateColorFieldStates() {
-            hexInput.enabled = !!hexRadio.value;
-            var cmykEnabled = !!cmykRadio.value;
-            for (var i = 0; i < cmykInputs.length; i++) {
-                cmykInputs[i].enabled = cmykEnabled;
-                cmykInputs[i].stepperGroup.enabled = cmykEnabled;
-                redrawSteppersIn(cmykInputs[i].stepperGroup);
-                cmykLabels[i].enabled = cmykEnabled;
-                if (!cmykEnabled) setCmykWarning(cmykInputs[i], false);
-            }
-        }
-
-        /* カラーモードを排他選択し、ハイライト・フォーカス・プレビューを更新
-           Select a color mode exclusively, then sync highlight, focus and preview */
+        /* カラーモードを排他選択してプレビューを更新 / Select a color mode exclusively, then refresh the preview */
         function selectColorMode(colorMode) {
             noneRadio.value = (colorMode === ColorMode.NONE);
             k100Radio.value = (colorMode === ColorMode.K100);
-            hexRadio.value = (colorMode === ColorMode.HEX);
-            cmykRadio.value = (colorMode === ColorMode.CMYK);
-            updateColorFieldStates();
-            setFieldHighlight(hexInput, colorMode === ColorMode.HEX);
-            setFieldHighlight(cmykInputs[0], colorMode === ColorMode.CMYK);
-            try {
-                if (colorMode === ColorMode.HEX) hexInput.active = true;
-                else if (colorMode === ColorMode.CMYK) cmykInputs[0].active = true;
-            } catch (e) { }
+            customRadio.value = (colorMode === ColorMode.CUSTOM);
             previewHooks.immediate();
         }
 
         var colorRadioModes = [
             [noneRadio, ColorMode.NONE],
             [k100Radio, ColorMode.K100],
-            [hexRadio, ColorMode.HEX],
-            [cmykRadio, ColorMode.CMYK]
+            [customRadio, ColorMode.CUSTOM]
         ];
         for (var j = 0; j < colorRadioModes.length; j++) {
             (function (radio, colorMode) {
@@ -2082,15 +1789,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
 
         k100Radio.value = true; /* デフォルトはK100 / default to K100 */
-        updateColorFieldStates();
 
         return {
             noneRadio: noneRadio,
             k100Radio: k100Radio,
-            hexRadio: hexRadio,
-            cmykRadio: cmykRadio,
-            hexInput: hexInput,
-            cmykInputs: cmykInputs
+            customRadio: customRadio,
+            getCustomColor: function () { return customColor; }
         };
     }
 
@@ -2175,16 +1879,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
     /**
      * ダイアログのショートカットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
-     * HEX の欄（色名も入る）では文字入力を優先し、数値の欄では効かせる
+     * 数値の欄でも効かせる
      * @param {Window} settingsDialog - 対象ダイアログ
      * @param {object} dialogControls - 各パネルのコントロール
      * @returns {void}
      */
     function addDialogShortcutKeys(settingsDialog, dialogControls) {
         var numericFields = [dialogControls.offset.offsetInput];
-        for (var i = 0; i < dialogControls.color.cmykInputs.length; i++) {
-            numericFields.push(dialogControls.color.cmykInputs[i]);
-        }
         addKeyShortcuts(settingsDialog, {
             /* ガイド化は描画後の処理なのでプレビューには反映しない / Make-guides is a post-draw option and is not previewed */
             "G": dialogControls.options.makeGuideCheckbox,
@@ -2208,8 +1909,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
         var colorMode = ColorMode.NONE;
         if (colorControls.k100Radio.value) colorMode = ColorMode.K100;
-        else if (colorControls.hexRadio.value) colorMode = ColorMode.HEX;
-        else if (colorControls.cmykRadio.value) colorMode = ColorMode.CMYK;
+        else if (colorControls.customRadio.value) colorMode = ColorMode.CUSTOM;
 
         var zOrder = placementControls.frontRadio.value ? 'front' :
             (placementControls.bgLayerRadio.value ? 'bg' : 'back');
@@ -2217,19 +1917,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         /* オフセット計算は resolveOffsetToPt に一元化 / All offset math lives in resolveOffsetToPt */
         var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getUnitInfo().code, !!offsetControls.bleedCheckbox.value);
 
-        /* 各欄を0–100にクランプ（空欄・不正は0）/ Clamp each field to 0-100 (empty or invalid becomes 0) */
-        var cmykChannelKeys = ['c', 'm', 'y', 'k'];
-        var cmykValues = { c: 0, m: 0, y: 0, k: 0 };
-        for (var i = 0; i < colorControls.cmykInputs.length; i++) {
-            var channelValue = parseFloat(colorControls.cmykInputs[i].text);
-            if (isNaN(channelValue)) channelValue = 0;
-            cmykValues[cmykChannelKeys[i]] = clampValue(channelValue, 0, 100);
-        }
-
         return {
             colorMode: colorMode,
-            customValue: String(colorControls.hexInput.text || '').replace(/^\s+|\s+$/g, ''), /* HEX文字列 */
-            customCMYK: cmykValues,
+            customColor: colorControls.getCustomColor(),
             offset: resolvedOffset.pt,
             zOrder: zOrder,
             target: dialogControls.target.allArtboardsRadio.value ? 'all' : 'current',

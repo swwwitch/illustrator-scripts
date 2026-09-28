@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n9f8c7370f4e5
+
 ### Overview
 
 Lays out the .ai and .pdf files you choose in a grid to build a portfolio-style thumbnail sheet.
@@ -25,35 +28,77 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* ダイアログを開いたときの値。距離は pt、角丸の半径は定規の単位で持つ
+       Values the dialog opens with. Distances in pt; corner radii in ruler units */
+    var DEFAULT_SETTINGS = {
+        cropIndex: 2,              /* 配置範囲（0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし） / crop box */
+        roundEnabled: false,       /* 角丸 / round corners */
+        roundRadius: 10,           /* 角丸の半径（定規の単位） / corner radius (ruler units) */
+        splitSpreads: false,       /* 見開きを左右に分割 / split spreads */
+        flowMode: 1,               /* 方向（0 横 / 1 縦 / 2 ランダム） / flow */
+        columns: 5,                /* 列数 / columns */
+        spacingPt: 20,             /* 間隔 / gap */
+        evenPlusSlot: false,       /* 偶数列に＋1スロット / one extra slot in even columns */
+        evenShiftEnabled: true,    /* 偶数列のずらし / offset even columns */
+        evenShift: 0,              /* ずらし量（定規の単位） / offset (ruler units) */
+        scale: 100,                /* スケール（%） / scale */
+        rotateEnabled: true,       /* 回転 / rotate */
+        rotate: -12,               /* 回転角（°） / angle */
+        backgroundEnabled: true,   /* 背景色 / background */
+        backgroundHex: "#000000",  /* 背景色の HEX / background HEX */
+        maskEnabled: true,         /* マスク / mask */
+        marginPt: 20,              /* マージン / margin */
+        maskRoundEnabled: false,   /* マスクの角丸 / round mask corners */
+        maskRoundRadius: 20        /* マスクの角丸の半径（定規の単位） / mask corner radius (ruler units) */
+    };
+
+    /* ［リセット］で DEFAULT_SETTINGS から変える値。横方向の位置は左右の余白がそろうよう計算し直す
+       Values [Reset] changes from DEFAULT_SETTINGS; the horizontal offset is recomputed to center the grid */
+    var RESET_OVERRIDES = {
+        columns: 4,
+        evenShiftEnabled: false,
+        rotateEnabled: false
+    };
+
+    /* 列数の上限（入力欄・スライダー共通） / maximum number of columns */
+    var MAX_COLUMNS = 30;
+
+    /* 見開きとみなす横長比（幅 > 高さ × この値） / aspect ratio that marks a page as a spread (width > height x this) */
+    var SPREAD_ASPECT_RATIO = 1.2;
+
+    /* 綴じ方向の判定で読む PDF の行数 / number of PDF lines scanned for the binding direction */
+    var BINDING_SCAN_LINE_LIMIT = 200;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var PANEL_MARGINS      = [15, 20, 15, 10]; /* パネルの余白 / panel margins */
+    var OFFSET_LABEL_WIDTH = 140;              /* 位置調整の項目名の幅 / offset label width */
+    var UNIT_LABEL_WIDTH   = 24;               /* 単位の幅 / unit label width */
+    var SLIDER_WIDTH       = 140;              /* スライダーの幅 / slider width */
+    var SWATCH_SIZE        = 24;               /* 背景色の色見本の大きさ / swatch size */
+    var MASK_ROW_SPACING   = 10;               /* マスクとマージンの間隔 / spacing between Mask and Margin */
+
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -137,94 +182,130 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "Slide Collage for Illustrator",
-            en: "Slide Collage for Illustrator"
+        dialog: {
+            title: { ja: "Slide Collage for Illustrator", en: "Slide Collage for Illustrator" },
+            chooseFile: { ja: "PDF/AIを選択してください", en: "Select a PDF or AI file" }
         },
-
-        // Panels
-        panelLoad: { ja: "アートボードの読み込み", en: "Load Artboards" },
-        panelSource: { ja: "読み込みファイル", en: "Source File" },
-        panelItem: { ja: "アイテム", en: "Items" },
-        panelGrid: { ja: "グリッド", en: "Grid" },
-        panelLayout: { ja: "レイアウト", en: "Layout" },
-        panelArtboard: { ja: "アートボードとマスク", en: "Artboard & Mask" },
-
-        // Load panel
-        labelArtboards: { ja: "アートボード", en: "Artboards" },
-        btnLoad: { ja: "ファイル指定", en: "Select File" },
-        btnImport: { ja: "読み込み", en: "Load" },
-        range: { ja: "指定", en: "Range" },
-        total: { ja: "総数", en: "Total" },
-        dlgPickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
-        filterPick: { ja: "PDF/AI:*.pdf;*.ai", en: "PDF/AI:*.pdf;*.ai" },
-        alertLinkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
-        alertPageCountFail: { ja: "リンク画像のページ数を取得できませんでした。", en: "Could not get the page length of PlacedItem." },
-        alertPickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
-        notSelected: { ja: "未指定", en: "Not selected" },
-
-        // Item panel
-        cropArt: { ja: "アート", en: "Art" },
-        cropCrop: { ja: "トリミング", en: "Crop" },
-        cropTrim: { ja: "仕上がり", en: "Trim" },
-        cropBleed: { ja: "裁ち落とし", en: "Bleed" },
-        round: { ja: "角丸", en: "Round" },
-
-        // Grid panel
-        direction: { ja: "方向", en: "Flow" },
-        dirH: { ja: "横", en: "Horizontal" },
-        dirV: { ja: "縦", en: "Vertical" },
-        dirRandom: { ja: "ランダム", en: "Random" },
-        dist: { ja: "配分", en: "Distribution" },
-        evenPlus: { ja: "＋1スロット", en: "+1 slot" },
-        cols: { ja: "列数", en: "Cols" },
-        spacing: { ja: "間隔", en: "Gap" },
-        shift: { ja: "ずらし", en: "Shift" },
-
-        panelEven: { ja: "偶数列", en: "Even Columns" },
-
-        // Layout panel
-        scale: { ja: "スケール", en: "Scale" },
-        rotate: { ja: "回転", en: "Rotate" },
-        offsetX: { ja: "横方向の位置調整", en: "Offset X" },
-        offsetY: { ja: "縦方向の位置調整", en: "Offset Y" },
-
-        // Artboard panel
-        margin: { ja: "マージン", en: "Margin" },
-        mask: { ja: "マスク", en: "Mask" },
-        maskRound: { ja: "マスク角丸", en: "Mask Round" },
-        bg: { ja: "背景色", en: "Background" },
-
-        // Buttons
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        ok: { ja: "OK", en: "OK" },
-
-        // Zoom
-        zoom: { ja: "画面ズーム", en: "Zoom" },
-        lightMode: { ja: "軽量モード", en: "Light mode" },
-
-        // File / Alerts
-        fileDialogTitle: { ja: "配置するファイル（.ai または .pdf）を選択してください", en: "Select a file to place (.ai or .pdf)" },
-        alertNeedDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
-        alertPlaceError: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing items." },
-        alertNeedFile: { ja: "先に［ファイル指定］で読み込みファイルを選択してください。", en: "Please select a source file first." },
-
-        // Units / Defaults
-        unitPercent: { ja: "%", en: "%" },
-        unitDegree: { ja: "°", en: "°" },
-        gapSpace: { ja: " ", en: " " },
-
-        defaultPages: { ja: "1-20", en: "1-20" },
-        defaultHex: { ja: "#000000", en: "#000000" },
-        defaultCols: { ja: "5", en: "5" },
-        defaultSpacing: { ja: "0", en: "0" },
-        defaultShift: { ja: "0", en: "0" },
-        defaultScale: { ja: "100", en: "100" },
-        defaultRotate: { ja: "-12", en: "-12" },
-        defaultRound: { ja: "10", en: "10" },
-
-        // Stepper buttons
+        panel: {
+            source: { ja: "読み込みファイル", en: "Source File" },
+            artboards: { ja: "アートボードの読み込み", en: "Load Artboards" },
+            item: { ja: "アイテム", en: "Items" },
+            grid: { ja: "グリッド", en: "Grid" },
+            evenColumns: { ja: "偶数列", en: "Even Columns" },
+            layout: { ja: "レイアウト", en: "Layout" },
+            artboardMask: { ja: "アートボードとマスク", en: "Artboard & Mask" }
+        },
+        fieldLabel: {
+            range: { ja: "範囲", en: "Range" },
+            count: { ja: "総数", en: "Total" },
+            evenPage: { ja: "偶数ページ", en: "Even Pages" },
+            direction: { ja: "方向", en: "Flow" },
+            columns: { ja: "列数", en: "Columns" },
+            spacing: { ja: "間隔", en: "Gap" },
+            scale: { ja: "スケール", en: "Scale" },
+            margin: { ja: "マージン", en: "Margin" }
+        },
+        radio: {
+            horizontal: { ja: "横", en: "Horizontal" },
+            vertical: { ja: "縦", en: "Vertical" },
+            random: { ja: "ランダム", en: "Random" },
+            evenPageRight: { ja: "右", en: "Right" },
+            evenPageLeft: { ja: "左", en: "Left" }
+        },
+        checkbox: {
+            roundCorners: { ja: "角丸", en: "Round Corners" },
+            splitSpreads: { ja: "見開きを左右に分割", en: "Split Spreads" },
+            evenPlusSlot: { ja: "＋1スロット", en: "+1 Slot" },
+            evenShift: { ja: "ずらし", en: "Shift" },
+            rotate: { ja: "回転", en: "Rotate" },
+            offsetX: { ja: "横方向の位置調整", en: "Offset X" },
+            offsetY: { ja: "縦方向の位置調整", en: "Offset Y" },
+            background: { ja: "背景色", en: "Background" },
+            mask: { ja: "マスク", en: "Mask" },
+            maskRound: { ja: "マスク角丸", en: "Round Mask Corners" }
+        },
+        dropdown: {
+            cropArt: { ja: "アート", en: "Art" },
+            cropCrop: { ja: "トリミング", en: "Crop" },
+            cropTrim: { ja: "仕上がり", en: "Trim" },
+            cropBleed: { ja: "裁ち落とし", en: "Bleed" }
+        },
+        button: {
+            chooseFile: { ja: "ファイルを選択...", en: "Choose File..." },
+            load: { ja: "読み込み", en: "Load" },
+            reset: { ja: "リセット", en: "Reset" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        fallbackName: {
+            noFile: { ja: "未指定", en: "Not selected" }
+        },
+        alert: {
+            needDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Open a document before running this script." },
+            needFile: { ja: "先に［ファイルを選択...］で読み込みファイルを選んでください。", en: "Choose a source file first with [Choose File...]." },
+            pickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Select a PDF or AI file." },
+            pageCountFailed: { ja: "ファイルのページ数を取得できませんでした。", en: "Could not read the page count of the file." }
+        },
         tooltip: {
+            range: {
+                ja: "読み込むアートボード（PDFはページ）の番号。例：1-20、1,3,5",
+                en: "Artboard (or PDF page) numbers to load, e.g. 1-20 or 1,3,5"
+            },
+            count: {
+                ja: "配置する個数。範囲より多いときは範囲を繰り返します",
+                en: "Number of items to place; the range repeats when this is larger"
+            },
+            load: {
+                ja: "範囲のアートボードを配置してプレビューします",
+                en: "Place the artboards in the range and preview the layout"
+            },
+            crop: {
+                ja: "PDFを配置するときの範囲（AIファイルでは選べません）",
+                en: "Box used when placing a PDF (not available for AI files)"
+            },
+            roundCorners: {
+                ja: "各アイテムの角を丸めます。プレビューされず、OKのときに適用します",
+                en: "Rounds the corners of each item. Not shown in the preview; applied on OK"
+            },
+            maskRound: {
+                ja: "マスクの角を丸めます。プレビューされず、OKのときに適用します",
+                en: "Rounds the corners of the mask. Not shown in the preview; applied on OK"
+            },
+            splitSpreads: {
+                ja: "横長のページを見開きとみなし、左右2つに切り分けて並べます",
+                en: "Treats landscape pages as spreads and lays them out as two halves"
+            },
+            evenPage: {
+                ja: "見開きを分割したとき、偶数ページを置く側です。PDF の綴じ方向から自動で設定します",
+                en: "Which side the even pages go to when a spread is split. Detected from the PDF binding direction"
+            },
+            evenPlusSlot: {
+                ja: "偶数列にスロットを1つ追加します。空きが出ることがあります",
+                en: "Adds one extra slot to even columns. Empty spaces may appear"
+            },
+            evenShift: { ja: "偶数列だけを上下にずらします（＋で下へ）", en: "Moves even columns only (positive values move down)" },
+            scale: {
+                ja: "アートボードに収まるよう自動で合わせた大きさに対する倍率",
+                en: "Multiplier on top of the size fitted to the artboard"
+            },
+            rotate: {
+                ja: "配置したアイテム全体を回転し、アートボードの中央に合わせます",
+                en: "Rotates the whole layout and centers it on the artboard"
+            },
+            offsetX: { ja: "全体を左右に動かします（＋で右へ）", en: "Moves the whole layout sideways (positive values move right)" },
+            offsetY: { ja: "全体を上下に動かします（＋で下へ）", en: "Moves the whole layout up or down (positive values move down)" },
+            backgroundHex: {
+                ja: "背景色のHEX（例 #000000）。左の色見本をクリックするとカラーピッカーが開きます",
+                en: "Background color as HEX (e.g. #000000). Click the swatch to open the color picker"
+            },
+            mask: {
+                ja: "OKのとき、マージンの内側でクリッピングします（背景は含めません）",
+                en: "On OK, clips the items inside the margin (the background is not clipped)"
+            },
+            reset: {
+                ja: "ファイルと範囲以外の設定を初期値に戻します",
+                en: "Restores the settings other than the file and range"
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -238,20 +319,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    // Safe alert helper (used by __TMKPageCount_ module)
-    if (typeof safeAlertKey === "undefined") {
-        var safeAlertKey = function (key) {
-            try { alert(getLabel(key)); } catch (e) { }
-        };
-    }
-
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
-    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
-    //      var MY_UI_DARK = isDarkUI();
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -275,31 +344,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
@@ -721,14 +765,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function setStepperEditEnabled(numberInput, isEnabled) {
         numberInput.enabled = isEnabled;
         numberInput.stepperGroup.enabled = isEnabled;
-        redrawSteppersIn(numberInput.stepperGroup); /* ∧∨は自作描画なので描き直す */
+        redrawSteppersIn(numberInput.stepperGroup); /* ∧∨は自作描画なので描き直す / redraw the custom-drawn buttons */
     }
 
     // =========================================
-    // Unit utilities (rulerType)
+    // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -748,467 +793,637 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    function __SC_round(n, digits) {
-        var p = Math.pow(10, digits);
-        return Math.round(n * p) / p;
-    }
-
-    function __SC_ptToUnit(pt, factor) {
-        if (!(factor > 0)) factor = 1;
-        return pt / factor;
-    }
-
-    function __SC_unitToPt(val, factor) {
-        if (!(factor > 0)) factor = 1;
-        return val * factor;
+    /**
+     * 小数第2位で丸める
+     * @param {number} value - 数値
+     * @returns {number} 丸めた値
+     */
+    function roundTo2(value) {
+        return Math.round(value * 100) / 100;
     }
 
     // =========================================
-    // PDF Import crop (trim / bleed / art)
+    // ページ番号 / Page numbers
     // =========================================
-
-    // UI mode constants
-    // plugin/PDFImport/CropTo の値（実測）/ Values of plugin/PDFImport/CropTo (measured)
-    var __SC_CROP_ART = 0;
-    var __SC_CROP_CROP = 1;
-    var __SC_CROP_TRIM = 2;
-    var __SC_CROP_BLEED = 3;
-    var __SC_CROP_MEDIA = 4;
-
-    // ============================================================
-    // TMK Page Count Module (collision-safe)
-    // - Estimate total pages (last page number) of linked PDF/AI
-    // - No relink / no placedItems.add
-    // ============================================================
-
-    var PC = (function () {
-
-        function PC_getLastPageFromSelection(selectionItems) {
-            var placed = PC_findFirstPlacedItem(selectionItems);
-            if (!placed) return null;
-
-            var f = placed.file;
-            if (!f) {
-                safeAlertKey('alertLinkUnknown');
-                return null;
-            }
-
-            var name = decodeURIComponent(f.name);
-            if (!/\.(?:pdf|ai)$/i.test(name)) return null;
-
-            var last = PC_getPageLengthFromFile(f);
-            if (!last || isNaN(Number(last)) || Number(last) <= 0) {
-                safeAlertKey('alertPageCountFail');
-                return null;
-            }
-
-            return Number(last);
-        }
-
-        function PC_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
-            var placedTemp = null;
-
-            try {
-                // If a file is provided, place it temporarily to reuse existing selection-based logic
-                if (fileObjOrNull) {
-                    var name = decodeURIComponent(fileObjOrNull.name);
-                    if (!/\.(?:pdf|ai)$/i.test(name)) {
-                        safeAlertKey('alertPickPdfAi');
-                        if (setResultTextFn) setResultTextFn(null);
-                        return;
-                    }
-
-                    try {
-                        placedTemp = doc.placedItems.add();
-                        placedTemp.file = fileObjOrNull;
-
-                        // Place near the visible top-left so it can be seen (briefly)
-                        try {
-                            var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null; // [left, top, right, bottom]
-                            if (vb && vb.length === 4) {
-                                placedTemp.position = [vb[0], vb[1]];
-                            }
-                        } catch (e) { }
-
-                        // Use the existing logic without modifying it
-                        var lastFromFile = PC_getLastPageFromSelection([placedTemp]);
-                        if (setPathTextFn) setPathTextFn(fileObjOrNull);
-                        if (setResultTextFn) setResultTextFn(lastFromFile);
-                    } finally {
-                        if (placedTemp) {
-                            try { placedTemp.remove(); } catch (e) { }
-                        }
-                    }
-                    return;
-                }
-
-                // No file provided: use current selection (PlacedItem must be selected)
-                var last = PC_getLastPageFromSelection(doc.selection);
-
-                // Attempt to show the currently selected placed file path
-                try {
-                    var placedSel = PC_findFirstPlacedItem(doc.selection);
-                    if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-                } catch (e) { }
-
-                if (setResultTextFn) setResultTextFn(last);
-            } catch (e) {
-                alert(e);
-                try { if (setResultTextFn) setResultTextFn(null); } catch (e) { }
-            }
-        }
-
-        function PC_findFirstPlacedItem(items) {
-            if (!items || items.length <= 0) return null;
-            for (var i = 0; i < items.length; i++) {
-                var it = items[i];
-                if (!it) continue;
-                var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
-                if (n === 'PlacedItem') return it;
-                if (n === 'GroupItem') {
-                    var hit = PC_findFirstPlacedItem(it.pageItems);
-                    if (hit) return hit;
-                }
-            }
-            return null;
-        }
-
-        // pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
-        function PC_getPageLengthFromFile(file) {
-            var tg = /<<\/Count\s(\d+)/;
-            var c1 = /<<\/Type\/Page\/Parent/;
-            var c2 = /\/Type\s\/Page\s/;
-            var c3 = /\/StructParents\s\d+.*\/Type\/Page>>/;
-            var tg2 = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
-            var tg3 = /\/Type\/Pages/;
-            var tg4 = /\/Count\s(\d+)/;
-
-            var res, wd, len = 0, num = 0;
-            try {
-                file.open('r');
-                while (!file.eof) {
-                    wd = file.readln();
-                    if (tg.test(wd) || tg2.test(wd)) { res = Number(RegExp.$1); break; }
-                    if (c1.test(wd) || c2.test(wd) || c3.test(wd)) len++;
-                    if (tg3.test(wd)) {
-                        wd = file.readln();
-                        if (tg4.test(wd)) { num = Number(RegExp.$1); if (len < num) len = num; }
-                    }
-                }
-                if (len > 0) res = len;
-            } catch (e) {
-                alert(e);
-            } finally {
-                try { file.close(); } catch (e) { }
-            }
-            return res;
-        }
-        function PC_countFromRangeText(s) {
-            if (!s) return 0;
-            s = String(s).replace(/\s+/g, '');
-            s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-            if (!s) return 0;
-
-            var parts = s.split(/[,\u3001]/);
-            var seen = {};
-            var count = 0;
-
-            for (var i = 0; i < parts.length; i++) {
-                var p = parts[i];
-                if (!p) continue;
-
-                var m = p.match(/^(\d+)-(\d+)$/);
-                if (m) {
-                    var a = parseInt(m[1], 10);
-                    var b = parseInt(m[2], 10);
-                    if (isNaN(a) || isNaN(b)) continue;
-                    var step = (a <= b) ? 1 : -1;
-                    for (var n = a; step > 0 ? n <= b : n >= b; n += step) {
-                        var key = String(n);
-                        if (!seen[key]) { seen[key] = true; count++; }
-                    }
-                    continue;
-                }
-
-                var v = parseInt(p, 10);
-                if (!isNaN(v)) {
-                    var k = String(v);
-                    if (!seen[k]) { seen[k] = true; count++; }
-                }
-            }
-
-            return count;
-        }
-
-        function PC_updateTotalFromRange(rangeText, currentTotalText) {
-            try {
-                var c = PC_countFromRangeText(rangeText);
-                var cur = String(currentTotalText || '');
-                if (!cur) {
-                    return c ? String(c) : '';
-                }
-                return cur;
-            } catch (e) { }
-            return String(currentTotalText || '');
-        }
-
-        return {
-            getLastPageFromSelection: PC_getLastPageFromSelection,
-            updateResultFromPlacedOrFile: PC_updateResultFromPlacedOrFile,
-            findFirstPlacedItem: PC_findFirstPlacedItem,
-            getPageLengthFromFile: PC_getPageLengthFromFile,
-            countFromRangeText: PC_countFromRangeText,
-            updateTotalFromRange: PC_updateTotalFromRange
-        };
-    })();
 
     /**
-     * Set PDF import crop box preference.
-     * 値は 0=アート / 1=トリミング（CropBox）/ 2=仕上がり（TrimBox）/ 3=裁ち落とし / 4=メディア（実測）
+     * 全角数字を半角にする
+     * @param {string} text - 文字列
+     * @returns {string} 半角数字にした文字列
      */
-    function __SC_setPdfCropPreference(cropVal) {
-        app.preferences.setIntegerPreference("plugin/PDFImport/CropTo", cropVal);
+    function toHalfWidthDigits(text) {
+        return String(text || "").replace(/[０-９]/g, function (ch) {
+            return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+        });
     }
 
-    // Placing .ai in Illustrator uses the PDF import pipeline as well (AI is PDF-compatible),
-    // so we treat .ai as "PDF-like" for page/artboard selection.
-    function __SC_isPdfLikeFile(f) {
-        try {
-            if (!f) return false;
-            var n = (f.name || "").toLowerCase();
-            return (n.indexOf(".pdf") > -1) || (n.indexOf(".ai") > -1);
-        } catch (e) {
-            return false;
-        }
+    /**
+     * 文字列の最初の正の整数を返す（全角数字・前後の空白・単位などの後ろの文字は許す）
+     * @param {string} text - 文字列
+     * @returns {number} 正の整数。見つからなければ 0
+     */
+    function parsePositiveInt(text) {
+        var digitMatch = toHalfWidthDigits(text).match(/(\d+)/);
+        if (!digitMatch) return 0;
+        var value = parseInt(digitMatch[1], 10);
+        return (value > 0) ? value : 0;
     }
 
-    // UI-only: crop box options are meaningful for PDF; keep disabled for AI.
-    function __SC_isPdfFile(f) {
-        try {
-            if (!f) return false;
-            var n = (f.name || "").toLowerCase();
-            return (n.indexOf(".pdf") > -1);
-        } catch (e) {
-            return false;
+    /**
+     * 範囲の文字列（例 "1-20"、"1,3,5"）をページ番号の配列にする。全角数字・読点・前後の括弧も受け付ける
+     * @param {string} rangeText - 範囲の文字列
+     * @returns {number[]} ページ番号の配列（書かれた順、重複はそのまま）
+     */
+    function parsePageNumbers(rangeText) {
+        var pageNumbers = [];
+        var normalized = toHalfWidthDigits(rangeText).replace(/\s+/g, "");
+        normalized = normalized.replace(/^[\[\(\{【［]/, "").replace(/[\]\)\}】］]$/, "");
+        var rangeParts = normalized.split(/[,、]/);
+
+        for (var i = 0; i < rangeParts.length; i++) {
+            var bounds = rangeParts[i].split("-");
+            var startPage = parseInt(bounds[0], 10);
+            if (isNaN(startPage)) continue;
+            var endPage = (bounds.length > 1) ? parseInt(bounds[1], 10) : startPage;
+            if (isNaN(endPage)) endPage = startPage;
+            for (var j = Math.min(startPage, endPage); j <= Math.max(startPage, endPage); j++) {
+                pageNumbers.push(j);
+            }
         }
+        return pageNumbers;
+    }
+
+    /**
+     * 配置するページ番号の並びを作る。ファイルにないページは除き、総数に届くまで範囲を繰り返す
+     * @param {string} rangeText - 範囲の文字列
+     * @param {number} totalCount - 総数（0 なら範囲のまま）
+     * @param {number} sourcePageCount - ファイルのページ数（0 なら除外しない）
+     * @returns {number[]} ページ番号の配列（最低1つ）
+     */
+    function buildTargetPages(rangeText, totalCount, sourcePageCount) {
+        var rangePages = parsePageNumbers(rangeText);
+        var validPages = [];
+        for (var i = 0; i < rangePages.length; i++) {
+            if (rangePages[i] < 1) continue;
+            if (sourcePageCount > 0 && rangePages[i] > sourcePageCount) continue;
+            validPages.push(rangePages[i]);
+        }
+        if (validPages.length === 0) validPages = [1];
+        if (!(totalCount > 0)) return validPages;
+
+        var targetPages = [];
+        for (var j = 0; j < totalCount; j++) targetPages.push(validPages[j % validPages.length]);
+        return targetPages;
     }
 
     // =========================================
-    // Auto-fit measurement cache (session only)
-    // key: fileFsName|cropMode|page
-    // value: { w:Number, h:Number }
+    // 読み込みファイル / Source file
     // =========================================
 
-    function __SC_getAutoFitMeasureCache() {
-        if (!$.global.__SC_autoFitMeasureCache) $.global.__SC_autoFitMeasureCache = {};
-        return $.global.__SC_autoFitMeasureCache;
+    /**
+     * 拡張子が .pdf / .ai かどうか
+     * @param {File} sourceFile - ファイル
+     * @returns {boolean} PDF または AI なら true
+     */
+    function isPdfOrAiFile(sourceFile) {
+        return /\.(?:pdf|ai)$/i.test(decodeURIComponent(sourceFile.name));
     }
 
-    function __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum) {
-        var p = "";
-        try { p = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA); } catch (e) { p = String(fileA); }
-        return p + "|" + String(cropMode) + "|" + String(pageNum);
+    /**
+     * 拡張子が .pdf かどうか（配置範囲を選べるのは PDF だけ）
+     * @param {File} sourceFile - ファイル（null 可）
+     * @returns {boolean} PDF なら true
+     */
+    function isPdfFile(sourceFile) {
+        return !!sourceFile && /\.pdf$/i.test(decodeURIComponent(sourceFile.name));
     }
 
-    function __SC_getAutoFitMeasure(fileA, cropMode, pageNum) {
+    /**
+     * 綴じ方向を判定する。先頭の BINDING_SCAN_LINE_LIMIT 行に /Direction /R2L があれば右綴じとみなす
+     * @param {File} sourceFile - ファイル
+     * @returns {boolean} 右綴じ（偶数ページが右）なら true。読めないときは false
+     */
+    function isRightBoundFile(sourceFile) {
+        if (!sourceFile.open("r")) return false;
         try {
-            var box = __SC_getAutoFitMeasureCache();
-            var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
-            var v = box[k];
-            if (v && v.w > 0 && v.h > 0) return v;
-        } catch (e) { }
+            for (var i = 0; i < BINDING_SCAN_LINE_LIMIT && !sourceFile.eof; i++) {
+                if (/\/Direction\s*\/R2L/.test(sourceFile.readln())) return true;
+            }
+        } catch (e) {
+            return false; /* 読めないファイルは左綴じとみなす / treat unreadable files as left-bound */
+        } finally {
+            sourceFile.close();
+        }
+        return false;
+    }
+
+    /**
+     * 選択の中から最初の配置画像を探す（グループの中もたどる）
+     * @param {Object} pageItems - 選択やグループの pageItems
+     * @returns {PlacedItem|null} 見つかった配置画像
+     */
+    function findFirstPlacedItem(pageItems) {
+        /* 文字の選択中は selection が TextRange になり、配列ではない / a text selection is a TextRange, not an array */
+        if (!pageItems || pageItems.typename === "TextRange") return null;
+        for (var i = 0; i < pageItems.length; i++) {
+            if (!pageItems[i]) continue;
+            if (pageItems[i].typename === "PlacedItem") return pageItems[i];
+            if (pageItems[i].typename === "GroupItem") {
+                var nestedItem = findFirstPlacedItem(pageItems[i].pageItems);
+                if (nestedItem) return nestedItem;
+            }
+        }
         return null;
     }
 
-    function __SC_setAutoFitMeasure(fileA, cropMode, pageNum, w, h) {
+    /**
+     * PDF / AI ファイルの中身を読んで総ページ数を推定する（ドキュメントとして開かない）
+     * @param {File} sourceFile - ファイル
+     * @returns {number} ページ数。読めなければ 0
+     */
+    function readPageCountFromFile(sourceFile) {
+        var countPattern = /<<\/Count\s(\d+)/;
+        var linearizedPattern = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
+        var pagePatterns = [/<<\/Type\/Page\/Parent/, /\/Type\s\/Page\s/, /\/StructParents\s\d+.*\/Type\/Page>>/];
+        var pagesTreePattern = /\/Type\/Pages/;
+        var pagesCountPattern = /\/Count\s(\d+)/;
+
+        var pageCount = 0;
+        var countedPages = 0;
+        if (!sourceFile.open("r")) return 0;
         try {
-            if (!(w > 0 && h > 0)) return;
-            var box = __SC_getAutoFitMeasureCache();
-            var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
-            box[k] = { w: w, h: h };
-        } catch (e) { }
-    }
-
-    // 入力された文字列（例："1-20", "1,3,5"）を数字の配列に変換する関数
-    function parsePageNumbers(inputStr) {
-        var result = [];
-        var parts = inputStr.split(',');
-
-        for (var i = 0; i < parts.length; i++) {
-            var part = parts[i].replace(/^\s+|\s+$/g, '');
-
-            if (part.indexOf('-') > -1) {
-                var bounds = part.split('-');
-                var start = parseInt(bounds[0], 10);
-                var end = parseInt(bounds[1], 10);
-
-                if (!isNaN(start) && !isNaN(end)) {
-                    var min = Math.min(start, end);
-                    var max = Math.max(start, end);
-                    for (var j = min; j <= max; j++) {
-                        result.push(j);
-                    }
+            while (!sourceFile.eof) {
+                var line = sourceFile.readln();
+                if (countPattern.test(line) || linearizedPattern.test(line)) {
+                    pageCount = Number(RegExp.$1);
+                    break;
                 }
-            } else {
-                var num = parseInt(part, 10);
-                if (!isNaN(num)) {
-                    result.push(num);
+                for (var i = 0; i < pagePatterns.length; i++) {
+                    if (pagePatterns[i].test(line)) { countedPages++; break; }
+                }
+                if (pagesTreePattern.test(line)) {
+                    line = sourceFile.readln();
+                    if (pagesCountPattern.test(line)) countedPages = Math.max(countedPages, Number(RegExp.$1));
                 }
             }
+        } catch (e) {
+            return 0; /* 読めないファイルはページ数不明として扱う / treat unreadable files as unknown */
+        } finally {
+            sourceFile.close();
         }
-        return result;
+        if (countedPages > 0) pageCount = countedPages;
+        return (pageCount > 0) ? pageCount : 0;
+    }
+
+    /**
+     * ファイルをドキュメントとして開いてアートボード数を数える（中身から読めなかったときの予備。セッション中は覚えておく）。
+     * すでに開いているファイルは閉じない。数え終えたら元のドキュメントを前面に戻す
+     * @param {File} sourceFile - ファイル
+     * @param {Document} returnDoc - 数え終えたら前面に戻すドキュメント
+     * @returns {number} アートボード数。開けなければ 0
+     */
+    function countArtboardsByOpening(sourceFile, returnDoc) {
+        if (!$.global.SlideCollage_artboardCountCache) $.global.SlideCollage_artboardCountCache = {};
+        var countCache = $.global.SlideCollage_artboardCountCache;
+        if (countCache[sourceFile.fsName] > 0) return countCache[sourceFile.fsName];
+
+        var artboardCount = 0;
+        var openedDoc = null;
+        /* 開いているかはパスでなく枚数の増減で判定する（日本語パスの比較は外れる） / detect by the document count, not the path */
+        var documentCountBefore = app.documents.length;
+        try {
+            openedDoc = app.open(sourceFile);
+            artboardCount = openedDoc.artboards.length;
+        } catch (e) {
+            /* 開けないファイルは 0 のまま / leave 0 when the file cannot be opened */
+        } finally {
+            /* 新しく開いたときだけ閉じる。すでに開いていたドキュメントは未保存の編集ごと残す / close only what this opened */
+            if (openedDoc && app.documents.length > documentCountBefore) openedDoc.close(SaveOptions.DONOTSAVECHANGES);
+            returnDoc.activate();
+        }
+        if (artboardCount > 0) countCache[sourceFile.fsName] = artboardCount;
+        return artboardCount;
     }
 
     // =========================================
-    // Global updatePreview wrapper (for scheduleTask / global callbacks)
+    // 配置 / Placement
     // =========================================
-    // `updatePreview` itself is defined inside main(). When something calls `updatePreview()`
-    // from the global scope, route it to the latest function stored in $.global.
-    function updatePreview() {
+
+    /* plugin/PDFImport/CropTo の値（実測）。ドロップダウンの並び（アート／トリミング／仕上がり／裁ち落とし）と同じ
+       Values of plugin/PDFImport/CropTo (measured), in the dropdown's order; 4 is the media box */
+    var CROP_TO_VALUES = [0, 1, 2, 3];
+
+    /* AI も PDF と同じ読み込み経路で配置されるので、ページ番号・配置範囲は PDFImport の設定で指定する
+       AI files go through the PDF import pipeline too, so both use the PDFImport preferences */
+    var PDF_PAGE_NUMBER_PREF = "plugin/PDFImport/PageNumber";
+    var PDF_CROP_TO_PREF = "plugin/PDFImport/CropTo";
+
+    /* プレビュー用グループの名前（前回の残りを見つけて消すための目印） / name marking the preview group */
+    var PREVIEW_GROUP_NAME = "__SlideCollage_preview__";
+
+    /**
+     * ファイルの指定ページを配置する。ページ番号の設定は配置後に1へ戻す
+     * @param {Document} doc - 配置先のドキュメント
+     * @param {File} sourceFile - 配置するファイル
+     * @param {number} pageNumber - ページ（アートボード）番号
+     * @param {number} cropToValue - 配置範囲（CROP_TO_VALUES の値）
+     * @returns {PlacedItem|null} 配置した画像。失敗したら null
+     */
+    function placeSourcePage(doc, sourceFile, pageNumber, cropToValue) {
+        var placedItem = null;
+        app.preferences.setIntegerPreference(PDF_CROP_TO_PREF, cropToValue);
+        app.preferences.setIntegerPreference(PDF_PAGE_NUMBER_PREF, pageNumber);
         try {
-            if ($.global.__SC_updatePreview) {
-                $.global.__SC_updatePreview();
+            placedItem = doc.placedItems.add();
+            placedItem.file = sourceFile;
+        } catch (e) {
+            /* 配置できないページは飛ばす / skip pages that cannot be placed */
+            if (placedItem) placedItem.remove();
+            placedItem = null;
+        } finally {
+            app.preferences.setIntegerPreference(PDF_PAGE_NUMBER_PREF, 1);
+        }
+        return placedItem;
+    }
+
+    /**
+     * ページを配置したときの大きさを測る（一時的に配置して消す。セッション中は覚えておく）
+     * @param {Document} doc - ドキュメント
+     * @param {File} sourceFile - ファイル
+     * @param {number} pageNumber - ページ番号
+     * @param {number} cropToValue - 配置範囲
+     * @returns {{width: number, height: number}|null} 大きさ（pt）。測れなければ null
+     */
+    function measureSourcePage(doc, sourceFile, pageNumber, cropToValue) {
+        if (!$.global.SlideCollage_pageSizeCache) $.global.SlideCollage_pageSizeCache = {};
+        var sizeCache = $.global.SlideCollage_pageSizeCache;
+        var cacheKey = sourceFile.fsName + "|" + cropToValue + "|" + pageNumber;
+        if (sizeCache[cacheKey]) return sizeCache[cacheKey];
+
+        var tempItem = placeSourcePage(doc, sourceFile, pageNumber, cropToValue);
+        if (!tempItem) return null;
+        var pageSize = { width: tempItem.width, height: tempItem.height };
+        tempItem.remove();
+        if (!(pageSize.width > 0 && pageSize.height > 0)) return null;
+        sizeCache[cacheKey] = pageSize;
+        return pageSize;
+    }
+
+    /**
+     * 前回のプレビューが残っていたら消す（途中で止まったときの後始末）
+     * @param {Document} doc - ドキュメント
+     * @returns {void}
+     */
+    function removeLeftoverPreviewGroups(doc) {
+        for (var i = doc.groupItems.length - 1; i >= 0; i--) {
+            if (doc.groupItems[i].name === PREVIEW_GROUP_NAME) doc.groupItems[i].remove();
+        }
+    }
+
+    // =========================================
+    // グリッド計算 / Grid math
+    // =========================================
+
+    /* 方向 / Flow modes */
+    var FLOW_HORIZONTAL = 0;
+    var FLOW_VERTICAL = 1;
+    var FLOW_RANDOM = 2;
+
+    /**
+     * ［＋1スロット］のときの列ごとのスロット数を返す（余りを左の列から配り、偶数列に1つ足す。合計が個数を超えた分は空きになる）
+     * @param {number} itemCount - アイテム数
+     * @param {number} columnCount - 列数
+     * @returns {number[]|null} 列ごとのスロット数。1列なら null（通常の配置）
+     */
+    function getEvenPlusSlotCounts(itemCount, columnCount) {
+        if (columnCount < 2) return null;
+        var baseCount = Math.floor(itemCount / columnCount);
+        var remainder = itemCount - baseCount * columnCount;
+        var slotCounts = [];
+        for (var i = 0; i < columnCount; i++) {
+            /* 0始まりの奇数番目が、見た目の偶数列（2, 4, 6…） / 0-based odd indexes are the visible even columns */
+            slotCounts.push(baseCount + (i < remainder ? 1 : 0) + (i % 2 === 1 ? 1 : 0));
+        }
+        return slotCounts;
+    }
+
+    /**
+     * 並び順の番号から、グリッドの列・行を求める
+     * @param {number} index - 並び順の番号
+     * @param {number} itemCount - アイテム数
+     * @param {number} columnCount - 列数
+     * @param {number} flowMode - FLOW_HORIZONTAL は行優先、それ以外は列優先
+     * @param {number[]|null} slotCounts - ［＋1スロット］の列ごとのスロット数（方向より優先）
+     * @returns {{col: number, row: number}} 列と行（0始まり）
+     */
+    function getGridCell(index, itemCount, columnCount, flowMode, slotCounts) {
+        if (slotCounts) {
+            var columnStart = 0;
+            for (var i = 0; i < slotCounts.length; i++) {
+                if (index < columnStart + slotCounts[i]) return { col: i, row: index - columnStart };
+                columnStart += slotCounts[i];
             }
-        } catch (e) { }
+            return { col: slotCounts.length - 1, row: 0 };
+        }
+        if (flowMode === FLOW_HORIZONTAL) {
+            return { col: index % columnCount, row: Math.floor(index / columnCount) };
+        }
+        var rowCount = Math.ceil(itemCount / columnCount);
+        return { col: Math.floor(index / rowCount), row: index % rowCount };
+    }
+
+    /**
+     * グリッド全体がアートボードの内側に収まる倍率（%）を求める
+     * @param {Object} fitParams - itemWidth / itemHeight（1つ分の大きさ）/ itemCount / columnCount / gapPt /
+     *     innerWidth / innerHeight（マージンを除いた大きさ）/ slotCounts / evenShiftPt / rotateDeg
+     * @returns {number} 倍率（整数の%）。求められなければ 100
+     */
+    function calcAutoFitPercent(fitParams) {
+        if (!(fitParams.itemWidth > 0 && fitParams.itemHeight > 0)) return 100;
+        var rowCount = Math.ceil(fitParams.itemCount / fitParams.columnCount);
+        if (fitParams.slotCounts) rowCount = Math.max.apply(null, fitParams.slotCounts);
+
+        var gridWidth = fitParams.columnCount * fitParams.itemWidth + (fitParams.columnCount - 1) * fitParams.gapPt;
+        var gridHeight = rowCount * fitParams.itemHeight + (rowCount - 1) * fitParams.gapPt + Math.abs(fitParams.evenShiftPt);
+
+        /* 回転するときは、グリッド全体を回した外接サイズで見積もる / use the bounding box of the rotated grid */
+        if (fitParams.rotateDeg !== 0) {
+            var radians = Math.abs(fitParams.rotateDeg) * Math.PI / 180;
+            var sinValue = Math.sin(radians);
+            var cosValue = Math.cos(radians);
+            var rotatedWidth = gridWidth * cosValue + gridHeight * sinValue;
+            gridHeight = gridWidth * sinValue + gridHeight * cosValue;
+            gridWidth = rotatedWidth;
+        }
+        if (!(gridWidth > 0 && gridHeight > 0)) return 100;
+
+        var fitPercent = Math.round(Math.min(fitParams.innerWidth / gridWidth, fitParams.innerHeight / gridHeight) * 100);
+        return (fitPercent > 0) ? fitPercent : 100;
+    }
+
+    /**
+     * 0〜count-1 の番号をシャッフルした配列を返す
+     * @param {number} count - 個数
+     * @returns {number[]} シャッフルした番号
+     */
+    function shuffledIndexes(count) {
+        var indexes = [];
+        for (var i = 0; i < count; i++) indexes.push(i);
+        for (var j = indexes.length - 1; j > 0; j--) {
+            var k = Math.floor(Math.random() * (j + 1));
+            var swapValue = indexes[j];
+            indexes[j] = indexes[k];
+            indexes[k] = swapValue;
+        }
+        return indexes;
     }
 
     // =========================================
-    // TMK Zoom Module (collision-safe + Light mode)
-    // - Light mode: apply zoom only on slider release
+    // アートボードと図形 / Artboard and shapes
     // =========================================
 
-    function __TMKZoom_captureViewState(doc) {
-        var st = { view: null, zoom: null, center: null };
-        try {
-            st.view = doc.activeView;
-            st.zoom = st.view.zoom;
-            st.center = st.view.centerPoint;
-        } catch (e) { }
-        return st;
-    }
-
-    function __TMKZoom_restoreViewState(doc, state) {
-        if (!state) return;
-        try {
-            var v = state.view || doc.activeView;
-            if (v && state.zoom != null) v.zoom = state.zoom;
-            if (v && state.center != null) v.centerPoint = state.center;
-        } catch (e) { }
-    }
-
-    function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
-        options = options || {};
-        var minZoom = (typeof options.min === "number") ? options.min : 0.1;
-        var maxZoom = (typeof options.max === "number") ? options.max : 16;
-        var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 360;
-        var doRedraw = (options.redraw !== false);
-
-        // Light mode options
-        var showLightMode = (options.lightMode !== false);            // default: show
-        var lightModeLabel = options.lightModeLabel || "Light mode";
-        var lightModeDefault = (options.lightModeDefault === true);   // default: false
-
-        // UI group
-        var g = parent.add("group");
-        g.orientation = "row";
-        g.alignChildren = ["center", "center"];
-        g.alignment = "center";
-        try { if (options.margins) g.margins = options.margins; } catch (e) { }
-
-        var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
-
-        // Initial zoom
-        var initZoom = 1;
-        try {
-            if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
-            else initZoom = Number(doc.activeView.zoom);
-        } catch (e) { }
-        if (!initZoom || isNaN(initZoom)) initZoom = 1;
-
-        var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
-        try { sld.preferredSize.width = sliderWidth; } catch (e) { }
-
-        var chkLight = null;
-        if (showLightMode) {
-            chkLight = g.add("checkbox", undefined, String(lightModeLabel));
-            chkLight.value = lightModeDefault;
-        }
-
-        function isLightMode() {
-            return !!(chkLight && chkLight.value);
-        }
-
-        function applyZoom(z) {
-            try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                v.zoom = z;
-                if (doRedraw) { app.redraw(); }
-            } catch (e) { }
-        }
-
-        function syncFromView() {
-            try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                sld.value = v.zoom;
-            } catch (e) { }
-        }
-
-        // Live drag (disabled in light mode)
-        sld.onChanging = function () {
-            if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
-            applyZoom(Number(sld.value));
-        };
-
-        // Always apply once on release
-        sld.onChange = function () {
-            applyZoom(Number(sld.value));
-        };
-
-        if (chkLight) {
-            chkLight.onClick = function () {
-                // Toggle feels consistent: apply current value immediately
-                try { applyZoom(Number(sld.value)); } catch (e) { }
-            };
-        }
-
+    /**
+     * アクティブなアートボードから、マージンを除いた内側の矩形を返す
+     * @param {Document} doc - ドキュメント
+     * @param {number} marginPt - マージン（pt）
+     * @returns {{left: number, top: number, width: number, height: number}} 内側の矩形（幅・高さは最低1）
+     */
+    function getInnerArtboardRect(doc, marginPt) {
+        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; /* [left, top, right, bottom] */
         return {
-            group: g,
-            label: stLabel,
-            slider: sld,
-            lightModeCheckbox: chkLight,
-            applyZoom: applyZoom,
-            syncFromView: syncFromView,
-            restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+            left: artboardRect[0] + marginPt,
+            top: artboardRect[1] - marginPt,
+            width: Math.max(1, Math.abs(artboardRect[2] - artboardRect[0]) - marginPt * 2),
+            height: Math.max(1, Math.abs(artboardRect[1] - artboardRect[3]) - marginPt * 2)
         };
+    }
+
+    /**
+     * アートボードと同じ大きさの背景を最背面に描く
+     * @param {Document} doc - ドキュメント
+     * @param {RGBColor} fillColor - 塗り
+     * @returns {PathItem} 背景の長方形
+     */
+    function drawArtboardBackground(doc, fillColor) {
+        var artboardRect = getInnerArtboardRect(doc, 0);
+        var backgroundRect = doc.activeLayer.pathItems.rectangle(artboardRect.top, artboardRect.left, artboardRect.width, artboardRect.height);
+        backgroundRect.stroked = false;
+        backgroundRect.filled = true;
+        backgroundRect.fillColor = fillColor;
+        backgroundRect.zOrder(ZOrderMethod.SENDTOBACK);
+        return backgroundRect;
+    }
+
+    /**
+     * 矩形のマスクでアイテムをクリップグループにまとめる
+     * @param {Document} doc - ドキュメント
+     * @param {PageItem[]} itemsToClip - クリップするアイテム
+     * @param {{left: number, top: number, width: number, height: number}} clipRect - マスクの矩形
+     * @returns {GroupItem} クリップグループ
+     */
+    function clipItemsToRect(doc, itemsToClip, clipRect) {
+        var maskPath = doc.activeLayer.pathItems.rectangle(clipRect.top, clipRect.left, clipRect.width, clipRect.height);
+        maskPath.stroked = false;
+        maskPath.filled = false;
+
+        var clipGroup = doc.groupItems.add();
+        /* 見た目の重なり順を保つよう、背面から順に末尾へ入れる / keep the stacking order */
+        for (var i = itemsToClip.length - 1; i >= 0; i--) itemsToClip[i].moveToEnd(clipGroup);
+        maskPath.moveToBeginning(clipGroup); /* マスクは最前面 / the mask goes on top */
+        clipGroup.clipped = true;
+        return clipGroup;
+    }
+
+    /**
+     * アイテムを同じ大きさの矩形でクリップグループにする（角丸をクリップグループにかけるため）
+     * @param {Document} doc - ドキュメント
+     * @param {PageItem} item - アイテム
+     * @returns {GroupItem} クリップグループ
+     */
+    function wrapWithClipGroup(doc, item) {
+        var bounds = item.geometricBounds; /* [left, top, right, bottom] */
+        return clipItemsToRect(doc, [item], {
+            left: bounds[0],
+            top: bounds[1],
+            width: Math.max(1, Math.abs(bounds[2] - bounds[0])),
+            height: Math.max(1, Math.abs(bounds[1] - bounds[3]))
+        });
+    }
+
+    /**
+     * 大きさが見開き（横長）かどうか
+     * @param {number} width - 幅
+     * @param {number} height - 高さ
+     * @returns {boolean} 見開きなら true
+     */
+    function isSpreadSize(width, height) {
+        return width > height * SPREAD_ASPECT_RATIO;
+    }
+
+    /**
+     * 見開きの配置画像を左右の半ページ2つに分ける。複製した画像をそれぞれ半分の矩形でクリップする
+     * @param {Document} doc - ドキュメント
+     * @param {PlacedItem} spreadItem - 見開きの配置画像
+     * @param {boolean} evenPageOnRight - 偶数ページが右なら true（右半分を先に並べる）
+     * @returns {GroupItem[]} 並べる順の半ページ（クリップグループ）2つ
+     */
+    function splitSpreadItem(doc, spreadItem, evenPageOnRight) {
+        var bounds = spreadItem.geometricBounds; /* [left, top, right, bottom] */
+        var halfWidth = Math.abs(bounds[2] - bounds[0]) / 2;
+        var height = Math.abs(bounds[1] - bounds[3]);
+        var rightItem = spreadItem.duplicate();
+        var leftHalf = clipItemsToRect(doc, [spreadItem], { left: bounds[0], top: bounds[1], width: halfWidth, height: height });
+        var rightHalf = clipItemsToRect(doc, [rightItem], { left: bounds[0] + halfWidth, top: bounds[1], width: halfWidth, height: height });
+        return evenPageOnRight ? [rightHalf, leftHalf] : [leftHalf, rightHalf];
+    }
+
+    /**
+     * 角丸のライブエフェクトをかける
+     * @param {PageItem} item - アイテム
+     * @param {number} radiusPt - 半径（pt）
+     * @returns {void}
+     */
+    function applyRoundCorners(item, radiusPt) {
+        item.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radiusPt + ' "/></LiveEffect>');
+    }
+
+    /**
+     * 見えている範囲の境界を返す。クリップグループの width・geometricBounds はマスクの外に隠れた部分も含むので、
+     * クリップグループはマスク（pageItems[0]）の範囲、通常のグループは中身の見えている範囲を合わせた範囲にする
+     * A clip group's width and geometricBounds include the masked-out content, so measure its mask (pageItems[0])
+     * @param {PageItem} item - アイテム
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getVisibleBounds(item) {
+        if (item.typename !== "GroupItem") return item.geometricBounds;
+        if (item.clipped) return item.pageItems[0].geometricBounds;
+        var unionBounds = null;
+        for (var i = 0; i < item.pageItems.length; i++) {
+            var childBounds = getVisibleBounds(item.pageItems[i]);
+            if (!unionBounds) {
+                unionBounds = childBounds.slice(0);
+                continue;
+            }
+            unionBounds[0] = Math.min(unionBounds[0], childBounds[0]);
+            unionBounds[1] = Math.max(unionBounds[1], childBounds[1]);
+            unionBounds[2] = Math.max(unionBounds[2], childBounds[2]);
+            unionBounds[3] = Math.min(unionBounds[3], childBounds[3]);
+        }
+        return unionBounds || item.geometricBounds;
+    }
+
+    /**
+     * アイテムの見えている範囲が、指定した枠にぴったり収まるよう拡大縮小して移動する
+     * @param {PageItem} item - アイテム
+     * @param {number} frameLeft - 枠の左端（pt）
+     * @param {number} frameTop - 枠の上端（pt）
+     * @param {number} frameWidth - 枠の幅（pt）
+     * @param {number} frameHeight - 枠の高さ（pt）
+     * @returns {void}
+     */
+    function fitItemToFrame(item, frameLeft, frameTop, frameWidth, frameHeight) {
+        var currentBounds = getVisibleBounds(item);
+        item.resize(frameWidth / (currentBounds[2] - currentBounds[0]) * 100, frameHeight / (currentBounds[1] - currentBounds[3]) * 100);
+        var resizedBounds = getVisibleBounds(item);
+        item.translate(frameLeft - resizedBounds[0], frameTop - resizedBounds[1]);
+    }
+
+    /**
+     * アイテムの中心をアクティブなアートボードの中心に合わせる
+     * @param {Document} doc - ドキュメント
+     * @param {PageItem} item - アイテム
+     * @returns {void}
+     */
+    function moveCenterToArtboardCenter(doc, item) {
+        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        var itemBounds = getVisibleBounds(item);
+        var dx = (artboardRect[0] + artboardRect[2]) / 2 - (itemBounds[0] + itemBounds[2]) / 2;
+        var dy = (artboardRect[1] + artboardRect[3]) / 2 - (itemBounds[1] + itemBounds[3]) / 2;
+        item.translate(dx, dy);
+    }
+
+    // =========================================
+    // 色 / Color
+    // =========================================
+
+    /**
+     * RGB の値から RGBColor を作る
+     * @param {number} red - 0〜255
+     * @param {number} green - 0〜255
+     * @param {number} blue - 0〜255
+     * @returns {RGBColor} 色
+     */
+    function makeRGBColor(red, green, blue) {
+        var rgbColor = new RGBColor();
+        rgbColor.red = red;
+        rgbColor.green = green;
+        rgbColor.blue = blue;
+        return rgbColor;
+    }
+
+    /**
+     * HEX（#RRGGBB、# は省略可）を RGBColor にする
+     * @param {string} hexText - HEX
+     * @returns {RGBColor|null} 色。形式が違えば null
+     */
+    function parseHexColor(hexText) {
+        var hexMatch = String(hexText || "").replace(/^\s+|\s+$/g, "").match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+        if (!hexMatch) return null;
+        return makeRGBColor(parseInt(hexMatch[1], 16), parseInt(hexMatch[2], 16), parseInt(hexMatch[3], 16));
+    }
+
+    /**
+     * カラーピッカーが返した色を RGBColor にする（CMYK・グレーは RGB に変換）
+     * @param {Color} pickedColor - 色
+     * @returns {RGBColor|null} 色。変換できない種類なら null
+     */
+    function toRGBColor(pickedColor) {
+        if (pickedColor.typename === "RGBColor") return pickedColor;
+        var rgbValues;
+        if (pickedColor.typename === "CMYKColor") {
+            rgbValues = app.convertSampleColor(ImageColorSpace.CMYK,
+                [pickedColor.cyan, pickedColor.magenta, pickedColor.yellow, pickedColor.black],
+                ImageColorSpace.RGB, ColorConvertPurpose.defaultpurpose);
+        } else if (pickedColor.typename === "GrayColor") {
+            rgbValues = app.convertSampleColor(ImageColorSpace.GrayScale, [pickedColor.gray],
+                ImageColorSpace.RGB, ColorConvertPurpose.defaultpurpose);
+        } else {
+            return null;
+        }
+        return makeRGBColor(rgbValues[0], rgbValues[1], rgbValues[2]);
+    }
+
+    /**
+     * RGBColor を #RRGGBB にする
+     * @param {RGBColor} rgbColor - 色
+     * @returns {string} HEX
+     */
+    function toHexColor(rgbColor) {
+        var channels = [rgbColor.red, rgbColor.green, rgbColor.blue];
+        var hexText = "#";
+        for (var i = 0; i < channels.length; i++) {
+            var channelHex = Math.round(channels[i]).toString(16);
+            hexText += (channelHex.length === 1 ? "0" : "") + channelHex;
+        }
+        return hexText;
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ボタン行（再利用パーツ） / Button row (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
-    //    識別子は BUTTON_ROW_* / addButtonRow
-    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
-    //      var buttonRow = addButtonRow(dialog);
-    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
-    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
-    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
@@ -1257,2692 +1472,1266 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
-    // main() 分散化用ヘルパー
+    // ダイアログの部品 / Dialog parts
     // =========================================
 
-    function __SC_getSourceDocKey(fileObj) {
-        try { return (fileObj && fileObj.fsName) ? String(fileObj.fsName) : String(fileObj); }
-        catch (e) { return String(fileObj); }
+    /**
+     * パネルを追加して、余白と並びをそろえる
+     * @param {Group} parent - 追加先
+     * @param {string} title - パネル名
+     * @returns {Panel} パネル
+     */
+    function addPanel(parent, title) {
+        var newPanel = parent.add("panel", undefined, title);
+        newPanel.orientation = "column";
+        newPanel.alignChildren = ["left", "top"];
+        newPanel.margins = PANEL_MARGINS;
+        return newPanel;
     }
 
-    function __SC_getSourcePageCount(fileObj) {
-        try {
-            if (!fileObj) return 0;
-
-            if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
-            var cache = $.global.__SC_sourcePageCountCache;
-            var key = __SC_getSourceDocKey(fileObj);
-            if (cache[key] && cache[key] > 0) return cache[key];
-
-            var tempDoc = null;
-            var n = 0;
-            try {
-                tempDoc = app.open(fileObj);
-                try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (e) { n = 0; }
-            } catch (e) {
-                n = 0;
-            } finally {
-                try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
-            }
-
-            if (n > 0) cache[key] = n;
-            return n;
-        } catch (e) { }
-        return 0;
+    /**
+     * 横並びの行を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @returns {Group} 行
+     */
+    function addRow(parent) {
+        var rowGroup = parent.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
     }
 
-    function __SC_repeatPagesWithinCount(pages, maxCount) {
-        if (!pages || pages.length === 0) return pages;
-        if (!(maxCount > 0)) return pages;
-        var out = [];
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p) || p < 1) p = 1;
-            var m = ((p - 1) % maxCount) + 1;
-            out.push(m);
+    /**
+     * 余りの幅を吸うスペーサーを追加する（右端のスライダーの位置をそろえる）
+     * @param {Group} rowGroup - 行
+     * @returns {void}
+     */
+    function addRowSpacer(rowGroup) {
+        var spacer = rowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+    }
+
+    /**
+     * 「項目名またはチェックボックス・∧∨・入力欄・単位・（スライダー）」の数値行を追加する。
+     * 入力・∧∨・↑↓キー・スライダーの値を連動させ、値が変わったら onValueChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {Object} rowOptions - label（コロン込みの項目名）または checkboxLabel / tooltip /
+     *     characters / min / max / integer / unit / fallback（数値でないときの値）/ slider（{ min, max }）
+     * @returns {Object} 数値行（group / leadControl / checkbox / input / slider と getValue / setValue / isChecked / setChecked / onValueChange）
+     */
+    function addNumberRow(parent, rowOptions) {
+        var numberRow = { onValueChange: null, checkbox: null, slider: null };
+        var lastNotifiedState = null;
+        numberRow.group = addRow(parent);
+
+        var leadControl;
+        if (rowOptions.checkboxLabel) {
+            numberRow.checkbox = numberRow.group.add("checkbox", undefined, rowOptions.checkboxLabel);
+            leadControl = numberRow.checkbox;
+        } else {
+            leadControl = numberRow.group.add("statictext", undefined, rowOptions.label);
         }
-        return out;
-    }
+        numberRow.leadControl = leadControl;
+        if (rowOptions.tooltip) leadControl.helpTip = rowOptions.tooltip;
 
-    function __SC_filterPagesWithinCount(pages, maxCount) {
-        if (!pages || pages.length === 0) return pages;
-        if (!(maxCount > 0)) return pages;
-        var out = [];
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p)) continue;
-            if (p < 1 || p > maxCount) continue;
-            out.push(p);
-        }
-        return out;
-    }
-
-    function __SC_expandPagesToTotal(basePages, totalCount) {
-        if (!basePages || basePages.length === 0) return [];
-        var n = parseInt(totalCount, 10);
-        if (isNaN(n) || n <= 0) n = basePages.length;
-        var out = [];
-        for (var i = 0; i < n; i++) out.push(basePages[i % basePages.length]);
-        return out;
-    }
-
-    function __SC_buildTargetPages(specifiedStr, totalCount, sourceCount) {
-        var base = [];
-        try { base = parsePageNumbers(String(specifiedStr || '')); } catch (e) { base = []; }
-        if (!base || base.length === 0) base = [1];
-        if (sourceCount > 0) {
-            base = __SC_filterPagesWithinCount(base, sourceCount);
-        }
-        if (!base || base.length === 0) base = [1];
-        var t = parseInt(totalCount, 10);
-        if (isNaN(t) || t <= 0) return base;
-        return __SC_expandPagesToTotal(base, t);
-    }
-
-    function __SC_toHalfWidthDigits(s) {
-        s = String(s || '');
-        return s.replace(/[０-９]/g, function (ch) {
-            return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+        numberRow.input = addStepperEditText(numberRow.group, "", rowOptions.characters, {
+            min: rowOptions.min, max: rowOptions.max, integer: rowOptions.integer,
+            onStep: function () { writeValue(numberRow.getValue()); notifyChange(); }
         });
-    }
-    // -----------------------------------------
-    // Source file page/artboard count (session cache)
-    // - For .ai: artboards length
-    // - For .pdf: pages are represented as artboards when opened
-    // -----------------------------------------
-
-    // Parse first positive integer from text (accepts full-width digits, trims, ignores suffix)
-    function __SC_parsePositiveInt(s) {
-        try {
-            s = __SC_toHalfWidthDigits(String(s || '')).replace(/\s+/g, '');
-            if (!s) return 0;
-            // allow brackets like [13]
-            s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-            var m = s.match(/(\d+)/);
-            if (!m) return 0;
-            var v = parseInt(m[1], 10);
-            if (isNaN(v) || v <= 0) return 0;
-            return v;
-        } catch (e) {
-            return 0;
-        }
-    }
-
-    function __SC_removeItemSafe(it) {
-        try { if (it) it.remove(); } catch (e) { }
-    }
-
-    function __SC_clearPreviewCache(__previewCache) {
-        // remove group (removes its children automatically)
-        if (__previewCache.group) {
-            __SC_removeItemSafe(__previewCache.group);
-        }
-        __previewCache.group = null;
-        __previewCache.currentRot = 0;
-
-        // clear arrays (items already removed with group)
-        __previewCache.items = [];
-        __previewCache.baseW = [];
-        __previewCache.baseH = [];
-
-        // remove bg
-        __SC_removeItemSafe(__previewCache.bgItem);
-        __previewCache.bgItem = null;
-
-        __previewCache.pagesKey = "";
-        __previewCache.cropMode = null;
-        __previewCache.previewWrapped = false;
-        __previewCache.previewRoundRadiusPt = 0;
-        __previewCache.randOrder = null;
-        __previewCache.finalRandOrder = null;
-    }
-
-    // Remove any leftover preview group(s) by name (safety net)
-    function __SC_removePreviewGroupByName(doc) {
-        try {
-            if (!doc) return;
-            var name = '__SC_previewGroup__';
-            // Try multiple passes because removing changes indices
-            for (var pass = 0; pass < 3; pass++) {
-                var removed = false;
-                try {
-                    for (var i = doc.groupItems.length - 1; i >= 0; i--) {
-                        var g = doc.groupItems[i];
-                        if (g && g.name === name) {
-                            try { g.remove(); } catch (e) { }
-                            removed = true;
-                        }
-                    }
-                } catch (e) { }
-                if (!removed) break;
-            }
-        } catch (e) { }
-    }
-    function __SC_shuffleIndexArray(n) {
-        var a = [];
-        for (var i = 0; i < n; i++) a.push(i);
-        for (var j = a.length - 1; j > 0; j--) {
-            var k = Math.floor(Math.random() * (j + 1));
-            var t = a[j];
-            a[j] = a[k];
-            a[k] = t;
-        }
-        return a;
-    }
-
-    function __SC_ensureRandomOrder(__previewCache) {
-        var n = (__previewCache.items) ? __previewCache.items.length : 0;
-        if (n <= 1) { __previewCache.randOrder = null; return; }
-        if (!__previewCache.randOrder || __previewCache.randOrder.length !== n) {
-            __previewCache.randOrder = __SC_shuffleIndexArray(n);
-        }
-    }
-
-    function __SC_clearRandomOrder(__previewCache) {
-        __previewCache.randOrder = null;
-    }
-
-    function main() {
-
-        // Cached source page/artboard count
-        var __SC_sourceCount = 0;
-
-        if (app.documents.length === 0) {
-            alert(getLabel("alertNeedDoc"));
-            return;
-        }
-
-        var doc = app.activeDocument;
-        // Current source file selected by user (set via UI). If null, the user has not selected any file yet.
-        var fileA = null;
-
-        // =========================================
-        // Preview/cache state (main local)
-        // =========================================
-
-        // プレビュー用に配置したアイテムを保持する配列
-        var previewItems = [];
-
-        // Preview cache: placed items are created on [読み込み] and reused until next load
-        var __previewCache = {
-            items: [],
-            baseW: [],
-            baseH: [],
-            pagesKey: "",
-            cropMode: null,
-            bgItem: null,
-            group: null,
-            currentRot: 0,
-            randOrder: null,
-            finalRandOrder: null,
-            previewWrapped: false,
-            previewRoundRadiusPt: 0
-        };
-
-        // 現在の定規単位（rulerType）
-        var rulerUnit = getUnitInfo("rulerType");
-
-        // 既定値は pt ベースで保持し、表示時に定規単位へ変換
-        var DEFAULT_SPACING_PT = 20;
-        var DEFAULT_MARGIN_PT = 20;
-
-        // ラベル幅（列数/間隔/列ずらし/スケール/回転/横/縦 を揃える）
-        var LABEL_W = 60;
-        // 位置調整ラベル幅（横方向の位置調整/縦方向の位置調整）
-        var OFFSET_LABEL_W = 140;
-        // 単位・補助ラベル幅（空白/pt/%/° を揃える）
-        var UNIT_W = 24;
-
-        // スライダー幅（列数/列ずらし/スケール/回転/横/縦 を揃える）
-        var SLIDER_W = 140;
-
-        // 自動フィット（UIは非表示。ロジックは維持して常にON）
-        var AUTO_FIT_ENABLED = true;
-
-        // 2. ダイアログボックスの作成
-        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        win.alignChildren = "fill";
-        win.center();
-
-        // === 2カラム構成 ===
-        var mainRow = win.add("group");
-        mainRow.orientation = "row";
-        mainRow.alignChildren = ["fill", "fill"];
-
-        // 左カラム
-        var leftCol = mainRow.add("group");
-        leftCol.orientation = "column";
-        leftCol.alignChildren = "fill";
-
-        // 右カラム
-        var rightCol = mainRow.add("group");
-        rightCol.orientation = "column";
-        rightCol.alignChildren = "fill";
-
-        // Panel: 読み込みファイル / Source file
-        var pnlSource = leftCol.add('panel', undefined, getLabel('panelSource'));
-        pnlSource.orientation = 'column';
-        pnlSource.alignChildren = ['left', 'top'];
-        pnlSource.margins = [15, 20, 15, 10];
-
-        // ファイル指定ボタン（v5ロジックで fileA / ページ数推定を更新）
-        var btnBrowse = pnlSource.add('button', undefined, getLabel('btnLoad'));
-
-        // ファイル名表示
-        var etPath = pnlSource.add('statictext', undefined, getLabel('notSelected'));
-        etPath.characters = 20;
-
-        // Panel: アートボード
-        var pnlAB = leftCol.add('panel', undefined, getLabel('panelLoad'));
-        pnlAB.orientation = 'column';
-        pnlAB.alignChildren = ['left', 'top'];
-        pnlAB.margins = [15, 20, 15, 10];
-
-        // === 2カラム（左：指定/総数, 右：読み込み） ===
-        var rowTop = pnlAB.add('group');
-        rowTop.orientation = 'row';
-        rowTop.alignChildren = ['fill', 'center'];
-
-        // --- 左カラム ---
-        var colLeft = rowTop.add('group');
-        colLeft.orientation = 'column';
-        colLeft.alignChildren = ['left', 'center'];
-
-        // 範囲
-        var rowRange = colLeft.add('group');
-        rowRange.orientation = 'row';
-        rowRange.alignChildren = ['left', 'center'];
-        rowRange.add('statictext', undefined, getLabel('range'));
-        var etRange = rowRange.add('edittext', undefined, '');
-        etRange.characters = 10;
-        etRange.enabled = true;
-
-        // Backward-compatible alias: existing logic expects editPages
-        var editPages = etRange;
-
-        // 総数
-        var rowTotal = colLeft.add('group');
-        rowTotal.orientation = 'row';
-        rowTotal.alignChildren = ['left', 'center'];
-        rowTotal.add('statictext', undefined, getLabel('total'));
-        var etTotal = rowTotal.add('edittext', undefined, '');
-        etTotal.characters = 4;
-        etTotal.enabled = true;
-
-        // true: 指定から総数を自動更新 / false: ユーザーが総数を手入力
-        var __SC_autoTotal = true;
-
-        // --- 右カラム ---
-        var colRight = rowTop.add('group');
-        colRight.orientation = 'column';
-        colRight.alignChildren = ['right', 'center'];
-        colRight.alignment = ['fill', 'center'];
-
-        var rowLoadBtn = colRight.add('group');
-        rowLoadBtn.orientation = 'row';
-        rowLoadBtn.alignChildren = ['right', 'center'];
-        var btnPreview = rowLoadBtn.add('button', undefined, getLabel('btnImport'));
-
-        btnPreview.onClick = function () {
-            // Require file selection
-            if (!fileA) {
-                safeAlertKey('alertNeedFile');
-                return;
-            }
-
-            // Build target pages from 指定/総数/sourceCount
-            var pages = [];
-            try { pages = getTargetPagesFromUI(); } catch (e) { pages = []; }
-            if (!pages || pages.length === 0) pages = [1];
-
-            // If Total is empty, show the resolved count
-            try {
-                var curT = String(etTotal.text || '');
-                if (!curT) etTotal.text = String(pages.length);
-            } catch (e) { }
-
-            // Clear previous cache/items (and any leftovers)
-            __SC_clearPreviewCache(__previewCache);
-            __SC_removePreviewGroupByName(doc);
-            previewItems = [];
-
-            // Create a persistent group to keep rotation/cleanup stable
-            try {
-                __previewCache.group = doc.groupItems.add();
-                __previewCache.group.name = '__SC_previewGroup__';
-            } catch (e) {
-                __previewCache.group = null;
-            }
-
-            var cropMode = __SC_CROP_TRIM;
-            try { cropMode = getCropModeFromUI(); } catch (e) { cropMode = __SC_CROP_TRIM; }
-
-            __previewCache.items = [];
-            __previewCache.baseW = [];
-            __previewCache.baseH = [];
-            __previewCache.cropMode = cropMode;
-            __previewCache.pagesKey = String(etRange.text || '');
-            __previewCache.previewWrapped = false;
-            __previewCache.previewRoundRadiusPt = 0;
-
-            // Place each requested page/artboard
-            for (var i = 0; i < pages.length; i++) {
-                var p = parseInt(pages[i], 10);
-                if (isNaN(p) || p < 1) p = 1;
-
-                var it = null;
-                try {
-                    if (__SC_isPdfLikeFile(fileA)) {
-                        __SC_setPdfCropPreference(cropMode);
-                    }
-                    __SC_setImportPageNumber(fileA, p);
-
-                    it = doc.placedItems.add();
-                    it.file = fileA;
-
-                    // Move into the preview group so later rotation/layout acts on a single container
-                    try { if (__previewCache.group) it.moveToEnd(__previewCache.group); } catch (e) { }
-
-                    __previewCache.items.push(it);
-                    __previewCache.baseW.push(it.width);
-                    __previewCache.baseH.push(it.height);
-                } catch (ePlace) {
-                    // Clean up partially created item
-                    try { if (it) it.remove(); } catch (e) { }
-                } finally {
-                    try { __SC_resetImportPageNumber(fileA); } catch (e) { }
-                }
-            }
-
-            // Create / update background if enabled
-            try {
-                if (cbBg && cbBg.value) {
-                    __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                    try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
-                }
-            } catch (e) { }
-
-            // Apply current layout settings to the newly placed items
-            applyLayoutToCachedItems();
-            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-            app.redraw();
-        };
-
-        // Preserve intended import handler (legacy wiring later in the script may overwrite btnPreview.onClick)
-        var __SC_importHandler = btnPreview.onClick;
-
-        function setPathText(f) {
-            // Also update current source file reference (fileA)
-            fileA = f || null;
-            initSourceDependentUI();
-
-            try {
-                if (f) {
-                    etPath.text = decodeURIComponent(f.name);
-                    etPath.helpTip = decodeURIComponent(f.fsName);
-                } else {
-                    etPath.text = getLabel('notSelected');
-                    etPath.helpTip = '';
-                }
-            } catch (e) {
-                try {
-                    etPath.text = f ? String(f.name) : getLabel('notSelected');
-                    etPath.helpTip = f ? String(f.fsName) : '';
-                } catch (__) {
-                    etPath.text = getLabel('notSelected');
-                    etPath.helpTip = '';
-                }
-            }
-        }
-
-        function setResultText(last) {
-            if (!last) {
-                etRange.text = '';
-                etTotal.text = '';
-            } else {
-                etRange.text = '1-' + last;
-                try { __SC_sourceCount = parseInt(last, 10) || 0; } catch (e) { __SC_sourceCount = 0; }
-                // Do not override user's manual Total. Only auto-sync when we are already in auto mode,
-                // or when Total is empty (fresh state).
-                try {
-                    var cur = String(etTotal.text || '');
-                    if (__SC_autoTotal || cur === '' || cur === getLabel('notSelected')) {
-                        __SC_autoTotal = true;
-                    }
-                } catch (e) {
-                    // keep current __SC_autoTotal
-                }
-                etTotal.text = PC.updateTotalFromRange(etRange.text, etTotal.text);
-            }
-        }
-
-        function initSourceDependentUI() {
-            try {
-                if (typeof ddCrop !== "undefined" && ddCrop) {
-                    ddCrop.enabled = __SC_isPdfFile(fileA);
-                }
-            } catch (e) { }
-        }
-
-        function triggerPreviewUpdate() {
-            updatePreview();
-        }
-
-        function syncLayoutInputsBeforeFinalize() {
-            try { syncColsFromEdit(); } catch (e) { }
-            try { syncSpacingFromEdit(); } catch (e) { }
-            try { syncShiftFromEdit(); } catch (e) { }
-            try { syncScaleFromEdit(); } catch (e) { }
-            try { syncRotateFromEdit(); } catch (e) { }
-
-            try {
-                var m = parseFloat(editMargin.text);
-                if (isNaN(m) || m < 0) m = 0;
-                editMargin.text = String(__SC_round(m, 2));
-            } catch (e) { }
-
-            try {
-                var r = parseFloat(editRound.text);
-                if (isNaN(r) || r < 0) r = 0;
-                editRound.text = String(__SC_round(r, 2));
-            } catch (e) { }
-
-            try {
-                var mr = parseFloat(editMaskRound.text);
-                if (isNaN(mr) || mr < 0) mr = 0;
-                editMaskRound.text = String(__SC_round(mr, 2));
-            } catch (e) { }
-
-            try {
-                updateMaskUI();
-                updateBgControls();
-                initSourceDependentUI();
-            } catch (e) { }
+        var unitLabel = numberRow.group.add("statictext", undefined, rowOptions.unit || "");
+        if (rowOptions.slider) {
+            unitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
+            addRowSpacer(numberRow.group);
+            numberRow.slider = numberRow.group.add("slider", undefined, rowOptions.slider.min, rowOptions.slider.min, rowOptions.slider.max);
+            numberRow.slider.preferredSize.width = SLIDER_WIDTH;
         }
 
         /**
-         * 確定時にプレビューを並べ直すかどうかを返す（ランダムは並びを保つため並べ直さない）
-         * @returns {boolean} ランダム以外なら true
+         * 値を下限・上限に収め、整数または小数第2位に丸める
+         * @param {number} value - 数値
+         * @returns {number} そろえた値
          */
-        function shouldRelayoutOnFinalize() {
-            return getFlowMode() !== 2;
+        function normalizeValue(value) {
+            if (isNaN(value)) value = rowOptions.fallback || 0;
+            if (rowOptions.min !== undefined) value = Math.max(rowOptions.min, value);
+            if (rowOptions.max !== undefined) value = Math.min(rowOptions.max, value);
+            return rowOptions.integer ? Math.round(value) : roundTo2(value);
         }
 
-        function bakePreviewRandomOrderForFinalize() {
-            try {
-                if (getFlowMode() !== 2) return;
-                if (!__previewCache.items || __previewCache.items.length <= 1) return;
-                if (!__previewCache.randOrder || __previewCache.randOrder.length !== __previewCache.items.length) return;
+        /**
+         * 入力欄とスライダーに値を書き込む
+         * @param {number} value - 数値
+         * @returns {void}
+         */
+        function writeValue(value) {
+            value = normalizeValue(value);
+            numberRow.input.text = String(value);
+            if (numberRow.slider) numberRow.slider.value = value;
+        }
 
-                var orderedItems = [];
-                var orderedBaseW = [];
-                var orderedBaseH = [];
-                for (var i = 0; i < __previewCache.randOrder.length; i++) {
-                    var idx = __previewCache.randOrder[i];
-                    orderedItems.push(__previewCache.items[idx]);
-                    orderedBaseW.push(__previewCache.baseW[idx]);
-                    orderedBaseH.push(__previewCache.baseH[idx]);
+        /**
+         * 今の値とチェックの状態を1つの文字列にする
+         * @returns {string} 状態
+         */
+        function getRowState() {
+            return numberRow.isChecked() + "|" + numberRow.getValue();
+        }
+
+        /**
+         * 値かチェックの状態が前回から変わっていれば onValueChange を呼ぶ（同じ値での再描画を避ける）
+         * @returns {void}
+         */
+        function notifyChange() {
+            var currentState = getRowState();
+            if (currentState === lastNotifiedState) return;
+            lastNotifiedState = currentState;
+            if (numberRow.onValueChange) numberRow.onValueChange();
+        }
+
+        numberRow.getValue = function () {
+            return normalizeValue(parseFloat(numberRow.input.text));
+        };
+        numberRow.isChecked = function () {
+            return numberRow.checkbox ? numberRow.checkbox.value : true;
+        };
+        /* 外から値を入れるときは呼び出し側がプレビューを更新するので、今の状態を通知済みとして控える
+           Callers refresh the preview themselves, so record the state as already notified */
+        numberRow.setValue = function (value) {
+            writeValue(value);
+            lastNotifiedState = getRowState();
+        };
+        numberRow.setChecked = function (isChecked) {
+            numberRow.checkbox.value = isChecked;
+            updateEnabledState();
+            lastNotifiedState = getRowState();
+        };
+
+        /**
+         * チェックに合わせて入力欄とスライダーの有効／無効を切り替える
+         * @returns {void}
+         */
+        function updateEnabledState() {
+            var isEnabled = numberRow.isChecked();
+            setStepperEditEnabled(numberRow.input, isEnabled);
+            if (numberRow.slider) numberRow.slider.enabled = isEnabled;
+        }
+
+        /* 入力中はテキストを書き換えず、スライダーとプレビューだけ追従させる / follow while typing without rewriting the text */
+        numberRow.input.onChanging = function () {
+            var typedValue = parseFloat(numberRow.input.text);
+            if (isNaN(typedValue)) return;
+            if (numberRow.slider) numberRow.slider.value = normalizeValue(typedValue);
+            notifyChange();
+        };
+        numberRow.input.onChange = function () {
+            writeValue(numberRow.getValue());
+            notifyChange();
+        };
+        if (numberRow.slider) {
+            numberRow.slider.onChanging = numberRow.slider.onChange = function () {
+                writeValue(numberRow.slider.value);
+                notifyChange();
+            };
+        }
+        if (numberRow.checkbox) {
+            numberRow.checkbox.onClick = function () {
+                updateEnabledState();
+                notifyChange();
+            };
+        }
+        return numberRow;
+    }
+
+    /**
+     * 数値行の頭（項目名・チェックボックス）の幅を、実際の描画幅でいちばん広いものにそろえる。
+     * 固定幅だと「スケール：」のように長い項目名の末尾（コロン）が切れるため、実測してそろえる
+     * @param {Object[]} numberRows - addNumberRow() の戻り値の配列
+     * @returns {void}
+     */
+    function alignNumberRowLeads(numberRows) {
+        var maxLeadWidth = 0;
+        for (var i = 0; i < numberRows.length; i++) {
+            /* 作成時に文字列から決まる自然な幅 / natural width set from the text on creation */
+            maxLeadWidth = Math.max(maxLeadWidth, numberRows[i].leadControl.preferredSize.width || 0);
+        }
+        if (!(maxLeadWidth > 0)) return; /* 測れないときは自動の幅のまま / keep automatic widths if unmeasured */
+        for (var j = 0; j < numberRows.length; j++) numberRows[j].leadControl.preferredSize.width = maxLeadWidth;
+    }
+
+    /**
+     * 「チェックボックス・スライダー」の位置調整の行を追加する（数値は出さない）
+     * @param {Panel} parent - 追加先
+     * @param {string} checkboxLabel - チェックボックスの文言
+     * @param {string} tooltip - ヒント
+     * @param {number} range - スライダーの範囲（±、定規の単位）
+     * @returns {Object} 位置調整の行（checkbox / slider と setChecked / onValueChange）
+     */
+    function addOffsetRow(parent, checkboxLabel, tooltip, range) {
+        var offsetRow = { onValueChange: null };
+        var rowGroup = addRow(parent);
+        offsetRow.checkbox = rowGroup.add("checkbox", undefined, checkboxLabel);
+        offsetRow.checkbox.preferredSize.width = OFFSET_LABEL_WIDTH;
+        offsetRow.checkbox.helpTip = tooltip;
+        addRowSpacer(rowGroup);
+        offsetRow.slider = rowGroup.add("slider", undefined, 0, -range, range);
+        offsetRow.slider.preferredSize.width = SLIDER_WIDTH;
+
+        /**
+         * 値が変わったことを知らせる
+         * @returns {void}
+         */
+        function notifyChange() {
+            if (offsetRow.onValueChange) offsetRow.onValueChange();
+        }
+
+        offsetRow.setChecked = function (isChecked) {
+            offsetRow.checkbox.value = isChecked;
+            offsetRow.slider.enabled = isChecked;
+        };
+        offsetRow.checkbox.onClick = function () {
+            offsetRow.slider.enabled = offsetRow.checkbox.value;
+            notifyChange();
+        };
+        offsetRow.slider.onChanging = offsetRow.slider.onChange = notifyChange;
+        return offsetRow;
+    }
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var FitViewToItems = (function () {
+
+        // =========================================
+        // ユーザー設定 / User Settings
+        // =========================================
+
+        /* ウィンドウに対して対象が占める割合の既定値（%）と範囲。呼び出し側で上書きできる
+           Default share of the window the items fill, in percent, and its range; callers can override the default */
+        var DEFAULT_FIT_PERCENT = 65;
+        var FIT_PERCENT_RANGE = [10, 100];
+
+        /* Illustratorが受け付ける表示倍率の範囲（3.125%〜6400%） / Zoom range Illustrator accepts */
+        var VIEW_ZOOM_RANGE = [0.03125, 64];
+
+        // =========================================
+        // ローカライズ / Localization
+        // =========================================
+        var LABELS = {
+            checkbox: {
+                fitView: { ja: "画面にフィット", en: "Fit to Window" }
+            },
+            tooltip: {
+                fitView: {
+                    ja: "作成するオブジェクトが収まるよう表示倍率を合わせます。",
+                    en: "Refits the view to the objects being created."
+                },
+                fitViewPercent: {
+                    ja: "ウィンドウに対するオブジェクトの大きさ（100%でいっぱい）",
+                    en: "Size of the objects relative to the window; 100% fills it"
                 }
+            }
+        };
 
-                __previewCache.items = orderedItems;
-                __previewCache.baseW = orderedBaseW;
-                __previewCache.baseH = orderedBaseH;
-
-                var identity = [];
-                for (var j = 0; j < orderedItems.length; j++) identity.push(j);
-                __previewCache.randOrder = identity.slice(0);
-                __previewCache.finalRandOrder = identity.slice(0);
-            } catch (e) { }
+        /**
+         * UI言語を返す
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
 
-        btnBrowse.onClick = function () {
-            var f = File.openDialog(getLabel('dlgPickFile'), getLabel('filterPick'));
-            if (!f) return;
-            PC.updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
+        /**
+         * LABELS の組から指定言語の文言を返す
+         * @param {object} labelSet - { ja: string, en: string } の組
+         * @param {string} uiLang - "ja" または "en"
+         * @returns {string} 文言（無ければ英語）
+         */
+        function getLabel(labelSet, uiLang) {
+            return (labelSet[uiLang] != null) ? labelSet[uiLang] : labelSet.en;
+        }
+
+        // =========================================
+        // メイン処理 / Main
+        // =========================================
+
+        /**
+         * 数値を範囲に収める。数値として読めないときは既定値を返す
+         * @param {string|number} value - 入力値
+         * @param {number[]} range - [下限, 上限]
+         * @param {number} fallbackValue - 読めないときの既定値
+         * @returns {number} 範囲内の数値
+         */
+        function clampNumber(value, range, fallbackValue) {
+            var numberValue = Number(value);
+            if (isNaN(numberValue) || (typeof value === "string" && !/\S/.test(value))) numberValue = fallbackValue;
+            return Math.min(range[1], Math.max(range[0], numberValue));
+        }
+
+        /**
+         * 「□画面にフィット［65］%」の行を追加する（ラベルとツールチップは内蔵）
+         * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+         * @param {object} [rowOptions] - value: チェックの初期値（既定 false）／percent: 割合の初期値／lang: 表示言語
+         * @returns {{row: Group, checkbox: Checkbox, percentInput: EditText, getFillRatio: function, updateEnabled: function}} 作成したコントロール一式
+         */
+        function addControls(parentContainer, rowOptions) {
+            if (!rowOptions) rowOptions = {};
+            var uiLang = rowOptions.lang || getCurrentLang();
+
+            var fitViewRow = parentContainer.add("group");
+            fitViewRow.orientation = "row";
+            fitViewRow.alignChildren = ["left", "center"];
+            fitViewRow.spacing = 6;
+
+            var fitViewCheck = fitViewRow.add("checkbox", undefined, getLabel(LABELS.checkbox.fitView, uiLang));
+            fitViewCheck.helpTip = getLabel(LABELS.tooltip.fitView, uiLang);
+            /* 明示的に true を渡したときだけONで始める / only an explicit true starts it checked */
+            fitViewCheck.value = (rowOptions.value === true);
+
+            var fitPercent = (rowOptions.percent > 0) ? rowOptions.percent : DEFAULT_FIT_PERCENT;
+            var percentInput = fitViewRow.add("edittext", undefined, String(fitPercent));
+            percentInput.characters = 3;
+            percentInput.helpTip = getLabel(LABELS.tooltip.fitViewPercent, uiLang);
+            var percentUnitLabel = fitViewRow.add("statictext", undefined, "%");
+
+            var controls = {
+                row: fitViewRow,
+                checkbox: fitViewCheck,
+                percentInput: percentInput,
+
+                /**
+                 * 入力欄の割合を 0〜1 の比率で返す
+                 * @returns {number} ウィンドウに対して占める割合（1でいっぱい）
+                 */
+                getFillRatio: function () {
+                    return clampNumber(percentInput.text, FIT_PERCENT_RANGE, fitPercent) / 100;
+                },
+
+                /**
+                 * 割合の入力欄をチェックの状態に合わせて有効・無効にする
+                 * @returns {void}
+                 */
+                updateEnabled: function () {
+                    percentInput.enabled = fitViewCheck.value;
+                    percentUnitLabel.enabled = fitViewCheck.value;
+                }
+            };
+            controls.updateEnabled();
+            return controls;
+        }
+
+        /**
+         * 複数アイテムを囲む外接範囲を求める（効果を含まない geometricBounds）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @returns {number[]|null} [left, top, right, bottom]（求められない場合は null）
+         */
+        function getItemsBounds(targetItems) {
+            var unionBounds = null;
+            for (var i = 0; i < targetItems.length; i++) {
+                var itemBounds = targetItems[i].geometricBounds;
+                if (unionBounds === null) {
+                    unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                    continue;
+                }
+                if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+                if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+                if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+                if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+            }
+            return unionBounds;
+        }
+
+        /**
+         * 対象が指定の割合でウィンドウに収まるよう、中心を合わせて表示倍率を変える
+         * 拡大・縮小のどちらも行う（KeepInView と違い、常に同じ大きさに見せる）
+         * @param {PageItem[]} targetItems - 対象アイテム
+         * @param {object} [fitOptions] - doc: 対象ドキュメント（省略時は最前面）／fillRatio: 占める割合（1でいっぱい）
+         * @returns {boolean} 表示を動かしたら true
+         */
+        function fit(targetItems, fitOptions) {
+            if (!targetItems || targetItems.length === 0) return false;
+            if (!fitOptions) fitOptions = {};
+
+            var targetDoc = fitOptions.doc || app.activeDocument;
+            var bounds = getItemsBounds(targetItems);
+            if (bounds === null) return false;
+
+            var itemWidth = bounds[2] - bounds[0];
+            var itemHeight = bounds[1] - bounds[3];
+            var activeView = targetDoc.activeView;
+            activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+            if (itemWidth <= 0 || itemHeight <= 0) return true;
+
+            /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+            var fillRatio = (fitOptions.fillRatio > 0) ? fitOptions.fillRatio : DEFAULT_FIT_PERCENT / 100;
+            var viewBounds = activeView.bounds;
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) * fillRatio;
+            activeView.zoom = clampNumber(activeView.zoom * scale, VIEW_ZOOM_RANGE, 1);
+            return true;
+        }
+
+        /**
+         * 現在の表示位置と倍率を控える（キャンセル時に restoreView で戻す）
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {{centerPoint: number[], zoom: number}} 控えた表示状態
+         */
+        function captureView(targetDoc) {
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            return { centerPoint: activeView.centerPoint, zoom: activeView.zoom };
+        }
+
+        /**
+         * captureView で控えた表示位置と倍率に戻す
+         * @param {{centerPoint: number[], zoom: number}} viewState - 控えた表示状態
+         * @param {Document} [targetDoc] - 対象ドキュメント（省略時は最前面）
+         * @returns {void}
+         */
+        function restoreView(viewState, targetDoc) {
+            if (!viewState) return;
+            var activeView = (targetDoc || app.activeDocument).activeView;
+            activeView.centerPoint = viewState.centerPoint;
+            activeView.zoom = viewState.zoom;
+        }
+
+        return {
+            addControls: addControls,
+            fit: fit,
+            captureView: captureView,
+            restoreView: restoreView,
+            getItemsBounds: getItemsBounds
         };
 
-        etRange.onChanging = function () {
-            etTotal.text = PC.updateTotalFromRange(etRange.text, etTotal.text);
-        };
+    })();
 
-        etTotal.onChanging = function () {
-            __SC_autoTotal = false;
-            var v = __SC_parsePositiveInt(etTotal.text);
-            if (!v) return; // allow empty / in-progress
-            etTotal.text = String(v);
-        };
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
-        var panelCrop = leftCol.add("panel", undefined, getLabel("panelItem"));
-        panelCrop.alignChildren = "left";
-        panelCrop.margins = [15, 20, 15, 10];
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-        // panelCrop.add("statictext", undefined, "トリミング");
-        var ddCrop = panelCrop.add("dropdownlist", undefined, [getLabel("cropArt"), getLabel("cropCrop"), getLabel("cropTrim"), getLabel("cropBleed")]);
-        ddCrop.minimumSize.width = 160;
+    /**
+     * ダイアログを作る（イベントの配線は main 側）
+     * @param {Document} doc - ドキュメント
+     * @param {Object} rulerUnit - getUnitInfo() の戻り値
+     * @returns {Object} ダイアログとコントロール一式
+     */
+    function buildDialog(doc, rulerUnit) {
+        var ui = {};
+        ui.dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        ui.dialog.alignChildren = "fill";
 
-        /* 角丸 / Round corners */
-        var groupRound = panelCrop.add("group");
-        groupRound.orientation = "row";
-        groupRound.alignChildren = ["left", "center"];
+        var columnsGroup = ui.dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "fill"];
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = "fill";
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = "fill";
 
-        var cbRound = groupRound.add("checkbox", undefined, getLabel("round"));
-        cbRound.value = false;
+        /* 読み込みファイル / Source file */
+        var sourcePanel = addPanel(leftColumn, getLabel("panel.source"));
+        ui.btnChooseFile = sourcePanel.add("button", undefined, getLabel("button.chooseFile"));
+        ui.sourceNameText = sourcePanel.add("statictext", undefined, getLabel("fallbackName.noFile"));
+        ui.sourceNameText.characters = 20;
 
-        var editRound = addStepperEditText(groupRound, getLabel("defaultRound"), 3, {
-            min: 0,
-            onStep: function () { requestPreview(); }
+        /* アートボードの読み込み（範囲・総数・読み込み） / Load artboards */
+        var artboardsPanel = addPanel(leftColumn, getLabel("panel.artboards"));
+        var rangeRowGroup = addRow(artboardsPanel);
+        rangeRowGroup.add("statictext", undefined, labelText("fieldLabel.range")).helpTip = getLabel("tooltip.range");
+        ui.rangeInput = rangeRowGroup.add("edittext", undefined, "");
+        ui.rangeInput.characters = 10;
+        ui.rangeInput.helpTip = getLabel("tooltip.range");
+
+        var countRowGroup = addRow(artboardsPanel);
+        countRowGroup.add("statictext", undefined, labelText("fieldLabel.count")).helpTip = getLabel("tooltip.count");
+        /* onStep は main 側で入れる（手で増減したら範囲との連動を切る） / onStep is set in main */
+        ui.countStepOptions = { integer: true, min: 1 };
+        ui.countInput = addStepperEditText(countRowGroup, "", 4, ui.countStepOptions);
+        ui.countInput.helpTip = getLabel("tooltip.count");
+
+        ui.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
+        ui.btnLoad.helpTip = getLabel("tooltip.load");
+
+        /* アイテム / Items */
+        var itemPanel = addPanel(leftColumn, getLabel("panel.item"));
+        ui.cropDropdown = itemPanel.add("dropdownlist", undefined, [
+            getLabel("dropdown.cropArt"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropBleed")
+        ]);
+        ui.cropDropdown.minimumSize.width = 160;
+        ui.cropDropdown.helpTip = getLabel("tooltip.crop");
+        ui.roundRow = addNumberRow(itemPanel, {
+            checkboxLabel: labelText("checkbox.roundCorners"), tooltip: getLabel("tooltip.roundCorners"),
+            characters: 3, min: 0, unit: rulerUnit.label
         });
 
-        groupRound.add("statictext", undefined, rulerUnit.label);
-
-        // 初期状態
-        setStepperEditEnabled(editRound, cbRound.value);
-
-        cbRound.onClick = function () {
-            setStepperEditEnabled(editRound, cbRound.value);
-        };
-
-        // デフォルト：仕上がり
-        ddCrop.selection = 2;
-
-        initSourceDependentUI();
-
-        // Initial: try selection
-        PC.updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-        initSourceDependentUI();
-
-        function getTargetPagesFromUI() {
-            var specified = String(etRange.text || '');
-            var total = __SC_parsePositiveInt(etTotal.text);
-            var srcCount = 0;
-            try {
-                srcCount = (__SC_sourceCount > 0)
-                    ? __SC_sourceCount
-                    : __SC_getSourcePageCount(fileA);
-            } catch (e) {
-                srcCount = 0;
-            }
-            return __SC_buildTargetPages(specified, total, srcCount);
-        }
-
-        function getCropModeFromUI() {
-            var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
-            // 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし
-            if (idx === 0) return __SC_CROP_ART;
-            if (idx === 1) return __SC_CROP_CROP;
-            if (idx === 3) return __SC_CROP_BLEED;
-            return __SC_CROP_TRIM;
-        }
-
-        // -----------------------------------------
-        // Import page/artboard selection
-        // - PDF: uses PDFImport/PageNumber
-        // - AI: uses IllustratorImport/ArtboardNumber (+ PlaceArtboards)
-        // -----------------------------------------
-        function __SC_setImportPageNumber(fileObj, pageNum) {
-            var n = parseInt(pageNum, 10);
-            if (isNaN(n) || n < 1) n = 1;
-            try {
-                // Use PDFImport for both PDF and AI (AI is handled by the PDF import pipeline when placing)
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
-            } catch (e) { }
-        }
-
-        function __SC_resetImportPageNumber(fileObj) {
-            try {
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
-            } catch (e) { }
-        }
+        ui.splitSpreadsCheckbox = itemPanel.add("checkbox", undefined, getLabel("checkbox.splitSpreads"));
+        ui.splitSpreadsCheckbox.helpTip = getLabel("tooltip.splitSpreads");
+        ui.evenPageGroup = addRow(itemPanel);
+        ui.evenPageGroup.add("statictext", undefined, labelText("fieldLabel.evenPage")).helpTip = getLabel("tooltip.evenPage");
+        ui.evenPageRightRadio = ui.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageRight"));
+        ui.evenPageLeftRadio = ui.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageLeft"));
+        ui.evenPageRightRadio.helpTip = ui.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
+        ui.evenPageRightRadio.value = true;
 
         /* グリッド / Grid */
-        var panelLayout = rightCol.add("panel", undefined, getLabel("panelGrid"));
-        panelLayout.alignChildren = "left";
-        panelLayout.margins = [15, 20, 15, 10];
-
-        // 方向（配置順）
-        var groupDir = panelLayout.add("group");
-        groupDir.orientation = "row";
-        groupDir.alignChildren = ["left", "center"];
-
-        groupDir.add("statictext", undefined, labelText("direction"));
-
-        var rbDirH = groupDir.add("radiobutton", undefined, getLabel("dirH"));
-        var rbDirV = groupDir.add("radiobutton", undefined, getLabel("dirV"));
-        var rbDirR = groupDir.add("radiobutton", undefined, getLabel("dirRandom"));
-
-        // デフォルト：縦方向
-        rbDirV.value = true;
-
-        // 0=横方向, 1=縦方向, 2=ランダム
-        function getFlowMode() {
-            if (rbDirR.value) return 2;
-            if (rbDirV.value) return 1;
-            return 0;
-        }
-
-        rbDirH.onClick = triggerPreviewUpdate;
-        rbDirV.onClick = triggerPreviewUpdate;
-        rbDirR.onClick = triggerPreviewUpdate;
-
-        // 列数
-        var groupCols = panelLayout.add("group");
-        groupCols.orientation = "row";
-        groupCols.alignChildren = ["left", "center"];
-
-        var stCols = groupCols.add("statictext", undefined, getLabel("cols"));
-        stCols.preferredSize.width = LABEL_W;
-        var editCols = addStepperEditText(groupCols, getLabel("defaultCols"), 4, {
-            integer: true, min: 0, max: 10,
-            onStep: function () { syncColsFromEdit(); requestPreview(); } /* スライダーも追従 */
+        var gridPanel = addPanel(rightColumn, getLabel("panel.grid"));
+        var directionRowGroup = addRow(gridPanel);
+        directionRowGroup.add("statictext", undefined, labelText("fieldLabel.direction"));
+        ui.flowRadios = [
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.horizontal")), /* FLOW_HORIZONTAL */
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.vertical")),   /* FLOW_VERTICAL */
+            directionRowGroup.add("radiobutton", undefined, getLabel("radio.random"))      /* FLOW_RANDOM */
+        ];
+        ui.columnsRow = addNumberRow(gridPanel, {
+            label: labelText("fieldLabel.columns"), characters: 4,
+            min: 1, max: MAX_COLUMNS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_COLUMNS }
+        });
+        ui.spacingRow = addNumberRow(gridPanel, {
+            label: labelText("fieldLabel.spacing"), characters: 4,
+            min: 0, max: 100, unit: rulerUnit.label, slider: { min: 0, max: 100 }
         });
 
-        var gapCols = groupCols.add("statictext", undefined, getLabel("gapSpace"));
-        gapCols.preferredSize.width = UNIT_W;
-
-        var spacerCols = groupCols.add("group");
-        spacerCols.alignment = ["fill", "fill"];
-        spacerCols.minimumSize.width = 0;
-
-        var sldCols = groupCols.add("slider", undefined, 5, 0, 10);
-        sldCols.preferredSize.width = SLIDER_W;
-
-        function syncColsFromEdit() {
-            var v = parseInt(editCols.text, 10);
-            if (isNaN(v) || v < 0) v = 0;
-            if (v > 10) v = 10;
-            editCols.text = String(v);
-            sldCols.value = v;
-        }
-
-        function syncColsFromSlider() {
-            var v = Math.round(sldCols.value);
-            if (v < 0) v = 0;
-            if (v > 10) v = 10;
-            editCols.text = String(v);
-        }
-
-        syncColsFromEdit();
-        editCols.onChanging = function () {
-            syncColsFromEdit();
-            triggerPreviewUpdate();
-        };
-        sldCols.onChanging = function () {
-            syncColsFromSlider();
-            triggerPreviewUpdate();
-        };
-
-        // リアルタイムプレビュー（確定時）
-
-        var groupSpacing = panelLayout.add("group");
-        var stSpacing = groupSpacing.add("statictext", undefined, getLabel("spacing"));
-        stSpacing.preferredSize.width = LABEL_W;
-        var editSpacing = addStepperEditText(groupSpacing, String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.pointsPerUnit), 2)), 4, {
-            min: 0, max: 100,
-            onStep: function () { syncSpacingFromEdit(); requestPreview(); } /* スライダーも追従 */
+        /* 偶数列 / Even columns */
+        var evenColumnsPanel = addPanel(rightColumn, getLabel("panel.evenColumns"));
+        ui.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
+        ui.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
+        ui.evenShiftRow = addNumberRow(evenColumnsPanel, {
+            checkboxLabel: labelText("checkbox.evenShift"), tooltip: getLabel("tooltip.evenShift"),
+            characters: 4, min: -200, max: 200, unit: rulerUnit.label, slider: { min: -200, max: 200 }
         });
-        var stSpacingUnit = groupSpacing.add("statictext", undefined, rulerUnit.label);
-        stSpacingUnit.preferredSize.width = UNIT_W;
-
-        // 間隔スライダー（右側）
-        var spacerSpacing = groupSpacing.add("group");
-        spacerSpacing.alignment = ["fill", "fill"];
-        spacerSpacing.minimumSize.width = 0;
-
-        var sldSpacing = groupSpacing.add("slider", undefined, 0, 0, 100);
-        sldSpacing.preferredSize.width = SLIDER_W;
-
-        // 間隔
-
-        function syncSpacingFromEdit() {
-            var v = parseFloat(editSpacing.text);
-            if (isNaN(v) || v < 0) v = 0;
-            if (v > 100) v = 100;
-            v = __SC_round(v, 2);
-            editSpacing.text = String(v);
-            sldSpacing.value = v;
-        }
-
-        function syncSpacingFromSlider() {
-            var v = sldSpacing.value;
-            if (isNaN(v) || v < 0) v = 0;
-            if (v > 100) v = 100;
-            v = __SC_round(v, 2);
-            editSpacing.text = String(v);
-        }
-
-        // 初期同期
-        syncSpacingFromEdit();
-
-        // 連動
-        editSpacing.onChanging = function () {
-            syncSpacingFromEdit();
-            triggerPreviewUpdate();
-        };
-        sldSpacing.onChanging = function () {
-            syncSpacingFromSlider();
-            triggerPreviewUpdate();
-        };
-
-        // --- 偶数列パネル（配分/ずらし） ---
-        var panelEven = rightCol.add("panel", undefined, getLabel("panelEven"));
-        panelEven.alignChildren = "left";
-        panelEven.margins = [15, 20, 15, 10];
-
-        // 配分モード
-        var groupDist = panelEven.add("group");
-        groupDist.orientation = "row";
-        groupDist.alignChildren = ["left", "center"];
-
-        // var stDist = groupDist.add("statictext", undefined, labelText("dist"));
-        // stDist.preferredSize.width = LABEL_W;
-
-        var cbEvenPlus = groupDist.add("checkbox", undefined, getLabel("evenPlus"));
-
-        cbEvenPlus.helpTip = (uiLang === "ja")
-            ? "偶数列にスロットを1つ追加します。空きが出ることがあります。"
-            : "Adds one extra slot to even columns. Empty spaces may appear.";
-
-        cbEvenPlus.value = false;
-
-        cbEvenPlus.onClick = triggerPreviewUpdate;
-
-        // ずらし（Yオフセット）
-        var groupColShift = panelEven.add("group");
-        groupColShift.orientation = "row";
-        groupColShift.alignChildren = ["left", "center"];
-
-        var cbColShift = groupColShift.add("checkbox", undefined, getLabel("shift"));
-
-        cbColShift.helpTip = (uiLang === "ja")
-            ? "偶数列だけのYオフセット（上下方向のずらし）"
-            : "Y-offset applied to even columns only.";
-
-        cbColShift.preferredSize.width = LABEL_W;
-        cbColShift.value = true;
-
-        var editColShift = addStepperEditText(groupColShift, getLabel("defaultShift"), 4, {
-            min: -200, max: 200,
-            onStep: function () { syncShiftFromEdit(); requestPreview(); } /* スライダーも追従 */
-        });
-
-        var stShiftUnit = groupColShift.add("statictext", undefined, rulerUnit.label);
-        stShiftUnit.preferredSize.width = UNIT_W;
-
-        var spacerShift = groupColShift.add("group");
-        spacerShift.alignment = ["fill", "fill"];
-        spacerShift.minimumSize.width = 0;
-
-        var sldColShift = groupColShift.add("slider", undefined, 0, -200, 200);
-        sldColShift.preferredSize.width = SLIDER_W;
-
-        function syncShiftFromEdit() {
-            var v = parseFloat(editColShift.text);
-            if (isNaN(v)) v = 0;
-            if (v < -200) v = -200;
-            if (v > 200) v = 200;
-            editColShift.text = String(v);
-            sldColShift.value = v;
-        }
-
-        function syncShiftFromSlider() {
-            var v = sldColShift.value;
-            v = Math.round(v);
-            if (v < -200) v = -200;
-            if (v > 200) v = 200;
-            editColShift.text = String(v);
-        }
-
-        syncShiftFromEdit();
-
-        editColShift.onChanging = function () {
-            syncShiftFromEdit();
-            triggerPreviewUpdate();
-        };
-        sldColShift.onChanging = function () {
-            syncShiftFromSlider();
-            triggerPreviewUpdate();
-        };
-
-        // 初期状態
-        setStepperEditEnabled(editColShift, cbColShift.value);
-        sldColShift.enabled = cbColShift.value;
-
-        cbColShift.onClick = function () {
-            setStepperEditEnabled(editColShift, cbColShift.value);
-            sldColShift.enabled = cbColShift.value;
-            triggerPreviewUpdate();
-        };
 
         /* レイアウト / Layout */
-        var panelLayoutRight = rightCol.add("panel", undefined, getLabel("panelLayout"));
-        panelLayoutRight.alignChildren = "left";
-        panelLayoutRight.margins = [15, 20, 15, 10];
+        var layoutPanel = addPanel(rightColumn, getLabel("panel.layout"));
+        ui.scaleRow = addNumberRow(layoutPanel, {
+            label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.scale"),
+            characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250 }
+        });
+        ui.rotateRow = addNumberRow(layoutPanel, {
+            checkboxLabel: labelText("checkbox.rotate"), tooltip: getLabel("tooltip.rotate"),
+            characters: 4, min: -30, max: 30, integer: true, unit: "°", slider: { min: -30, max: 30 }
+        });
+        /* スライダーのある行は、頭の幅をそろえて入力欄の位置を合わせる / align the leads of the slider rows */
+        alignNumberRowLeads([ui.columnsRow, ui.spacingRow, ui.evenShiftRow, ui.scaleRow, ui.rotateRow]);
 
-        // --- アートボードとマスクパネル（左カラム） ---
-        var panelArtboard = leftCol.add("panel", undefined, getLabel("panelArtboard"));
-        panelArtboard.alignChildren = "left";
-        panelArtboard.margins = [15, 20, 15, 10];
+        /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
+        var artboardRect = getInnerArtboardRect(doc, 0);
+        ui.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
+        ui.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
 
-        // 背景色（アートボードと同じ大きさの図形を作成）
-        var groupBg = panelArtboard.add("group");
-        groupBg.orientation = "row";
-        groupBg.alignChildren = ["left", "center"];
+        /* アートボードとマスク / Artboard & mask */
+        var artboardMaskPanel = addPanel(rightColumn, getLabel("panel.artboardMask"));
+        var backgroundRowGroup = addRow(artboardMaskPanel);
+        ui.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
+        ui.backgroundSwatch = backgroundRowGroup.add("panel");
+        ui.backgroundSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
+        ui.backgroundSwatch.helpTip = getLabel("tooltip.backgroundHex");
+        ui.backgroundHexInput = backgroundRowGroup.add("edittext", undefined, "");
+        ui.backgroundHexInput.characters = 7;
+        ui.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
 
-        var cbBg = groupBg.add("checkbox", undefined, getLabel("bg"));
-        cbBg.value = true;
+        /* マスクとマージンは同じ行、マスク角丸はマージンの左端にそろえて次の行 / mask and margin share a row; the mask corner row starts under the margin */
+        var maskRowGroup = addRow(artboardMaskPanel);
+        maskRowGroup.spacing = MASK_ROW_SPACING; /* 字下げの計算に使うので明示する / set explicitly for the indent below */
+        ui.maskCheckbox = maskRowGroup.add("checkbox", undefined, getLabel("checkbox.mask"));
+        ui.maskCheckbox.helpTip = getLabel("tooltip.mask");
+        ui.marginRow = addNumberRow(maskRowGroup, {
+            label: labelText("fieldLabel.margin"), characters: 5, min: 0, unit: rulerUnit.label
+        });
+        ui.marginRow.group.margins = 0;
+        ui.maskRoundRow = addNumberRow(artboardMaskPanel, {
+            checkboxLabel: labelText("checkbox.maskRound"), tooltip: getLabel("tooltip.maskRound"),
+            characters: 3, min: 0, unit: rulerUnit.label
+        });
+        ui.maskRoundRow.group.margins = [(ui.maskCheckbox.preferredSize.width || 0) + maskRowGroup.spacing, 0, 0, 0];
 
-        // カラーチップ（表示用）
-        var colorSwatch = groupBg.add("panel");
-        colorSwatch.preferredSize = [24, 24];
+        /* ボタン行（左：リセット・画面にフィット／右：キャンセル・OK） / Button row */
+        var buttonRow = addButtonRow(ui.dialog);
+        ui.btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
+        ui.btnReset.helpTip = getLabel("tooltip.reset");
+        ui.fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { lang: uiLang });
+        ui.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        ui.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        return ui;
+    }
 
-        // HEX 入力
-        var editBgHex = groupBg.add("edittext", undefined, getLabel("defaultHex"));
-        editBgHex.characters = 7;
-
-        function makeRGBColor(r, g, b) {
-            var c = new RGBColor();
-            c.red = r; c.green = g; c.blue = b;
-            return c;
+    /**
+     * ダイアログで設定し、選んだファイルのアートボードをグリッドに並べる
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.needDocument"));
+            return;
         }
+        var doc = app.activeDocument;
+        var rulerUnit = getUnitInfo("rulerType");
 
-        function parseHexToRGBColor(hexStr) {
-            var s = String(hexStr || "").replace(/^\s+|\s+$/g, "");
-            if (s.charAt(0) !== "#") s = "#" + s;
-            if (!/^#[0-9a-fA-F]{6}$/.test(s)) return null;
-            var r = parseInt(s.substr(1, 2), 16);
-            var g = parseInt(s.substr(3, 2), 16);
-            var b = parseInt(s.substr(5, 2), 16);
-            if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
-            return makeRGBColor(r, g, b);
-        }
+        var sourceFile = null;          /* 読み込みファイル / source file */
+        var sourcePageCount = 0;        /* ファイルのページ数（中身から読めたとき） / page count read from the file */
+        var isCountLinkedToRange = true; /* 総数を範囲に合わせるか（手入力したら切る） / whether Total follows the range */
+        var isApplyingSettings = false;  /* 設定をまとめて反映している最中か / true while applySettings() runs */
 
-        function setSwatchRGB(r, g, b) {
-            try {
-                var gg = colorSwatch.graphics;
-                gg.backgroundColor = gg.newBrush(gg.BrushType.SOLID_COLOR, [r / 255, g / 255, b / 255, 1]);
-                gg.foregroundColor = gg.newPen(gg.PenType.SOLID_COLOR, [0, 0, 0, 1], 1);
-            } catch (e) { }
-        }
-
-        function getBgRGBColorOrDefault() {
-            var c = parseHexToRGBColor(editBgHex.text);
-            if (c) return c;
-            return makeRGBColor(0, 0, 0);
-        }
-
-        function updateBgControls() {
-            var en = cbBg.value;
-            colorSwatch.enabled = en;
-            editBgHex.enabled = en;
-
-            var c = getBgRGBColorOrDefault();
-            setSwatchRGB(c.red, c.green, c.blue);
-        }
-
-        updateBgControls();
-
-        cbBg.onClick = function () {
-            updateBgControls();
+        /* 読み込んだプレビューの状態。items は並べる前の順で、baseWidths / baseHeights は配置したままの大きさ
+           Loaded preview state; items keep their load order, base sizes are as placed */
+        var preview = {
+            items: [], baseWidths: [], baseHeights: [],
+            group: null, background: null, rotation: 0, randomOrder: null, roundRadiusPt: 0,
+            cropIndex: -1, splitSpreads: false, evenPageOnRight: true
         };
 
-        // HEX は入力確定時だけでOK（重くしない）
-        editBgHex.onChange = function () {
-            updateBgControls();
-        };
+        var ui = buildDialog(doc, rulerUnit);
+        var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
 
-        // --- カラーピッカー（スウォッチクリック） ---
-        function openBgColorPicker() {
-            var init = getBgRGBColorOrDefault();
-            var c = new RGBColor();
-            c.red = init.red;
-            c.green = init.green;
-            c.blue = init.blue;
+        /**
+         * 定規の単位の値を pt にする
+         * @param {number} value - 定規の単位の値
+         * @returns {number} pt
+         */
+        function toPoints(value) {
+            return value * rulerUnit.pointsPerUnit;
+        }
 
-            if (app.showColorPicker(c)) {
-                function toHex(n) {
-                    var s = n.toString(16);
-                    return (s.length === 1) ? "0" + s : s;
-                }
-                var hex = "#" + toHex(c.red) + toHex(c.green) + toHex(c.blue);
-                editBgHex.text = hex;
-                updateBgControls();
-                try { updateBgOnly(); } catch (e) { }
+        /**
+         * pt を定規の単位の値にする
+         * @param {number} valuePt - pt
+         * @returns {number} 定規の単位の値
+         */
+        function fromPoints(valuePt) {
+            return valuePt / rulerUnit.pointsPerUnit;
+        }
+
+        // -----------------------------------------
+        // UI の値 / UI values
+        // -----------------------------------------
+
+        /**
+         * 選んでいる方向を返す
+         * @returns {number} FLOW_HORIZONTAL / FLOW_VERTICAL / FLOW_RANDOM
+         */
+        function getFlowMode() {
+            for (var i = 0; i < ui.flowRadios.length; i++) {
+                if (ui.flowRadios[i].value) return i;
             }
+            return FLOW_VERTICAL;
         }
 
-        colorSwatch.onClick = function () {
-            openBgColorPicker();
-        };
+        /**
+         * 選んでいる配置範囲の CropTo の値を返す
+         * @returns {number} CROP_TO_VALUES の値
+         */
+        function getCropToValue() {
+            return CROP_TO_VALUES[ui.cropDropdown.selection ? ui.cropDropdown.selection.index : DEFAULT_SETTINGS.cropIndex];
+        }
 
-        try {
-            colorSwatch.addEventListener("mousedown", function () {
-                openBgColorPicker();
+        /**
+         * マージンを pt で返す
+         * @returns {number} マージン（pt）
+         */
+        function getMarginPt() {
+            return toPoints(ui.marginRow.getValue());
+        }
+
+        /**
+         * ファイルのページ数を返す（中身から読めなければ、開いてアートボードを数える）
+         * @returns {number} ページ数。分からなければ 0
+         */
+        function getSourcePageCount() {
+            if (sourcePageCount > 0) return sourcePageCount;
+            return sourceFile ? countArtboardsByOpening(sourceFile, doc) : 0;
+        }
+
+        /**
+         * 範囲・総数・ファイルのページ数から、配置するページ番号の並びを返す
+         * @returns {number[]} ページ番号の配列
+         */
+        function getTargetPages() {
+            return buildTargetPages(ui.rangeInput.text, parsePositiveInt(ui.countInput.text), getSourcePageCount());
+        }
+
+        /**
+         * グリッドの1つ分の大きさ（pt、拡大縮小前）を返す。読み込み済みならその1つ目、未読み込みなら一時的に配置して測る
+         * @returns {{width: number, height: number}|null} 大きさ。測れなければ null
+         */
+        function getReferenceItemSize() {
+            if (preview.items.length > 0) return { width: preview.baseWidths[0], height: preview.baseHeights[0] };
+            if (!sourceFile) return null;
+            var pageSize = measureSourcePage(doc, sourceFile, getTargetPages()[0], getCropToValue());
+            if (pageSize && ui.splitSpreadsCheckbox.value && isSpreadSize(pageSize.width, pageSize.height)) {
+                return { width: pageSize.width / 2, height: pageSize.height };
+            }
+            return pageSize;
+        }
+
+        /**
+         * 今の設定でアートボードに収まる倍率（%）を返す（スケールの値は含まない）
+         * @param {number} itemCount - 並べる数
+         * @param {{width: number, height: number}} itemSize - 1つ分の大きさ（pt）
+         * @param {number} [evenShiftPtOverride] - ずらし量（pt）をこの値として見積もる（省略時は UI の値）
+         * @returns {number} 倍率（%）
+         */
+        function calcFitPercentForUI(itemCount, itemSize, evenShiftPtOverride) {
+            var columnCount = ui.columnsRow.getValue();
+            var innerRect = getInnerArtboardRect(doc, getMarginPt());
+            return calcAutoFitPercent({
+                itemWidth: itemSize.width, itemHeight: itemSize.height,
+                itemCount: itemCount, columnCount: columnCount,
+                gapPt: toPoints(ui.spacingRow.getValue()),
+                innerWidth: innerRect.width, innerHeight: innerRect.height,
+                slotCounts: ui.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null,
+                evenShiftPt: (evenShiftPtOverride !== undefined) ? evenShiftPtOverride :
+                    (ui.evenShiftRow.isChecked() ? toPoints(ui.evenShiftRow.getValue()) : 0),
+                rotateDeg: ui.rotateRow.isChecked() ? ui.rotateRow.getValue() : 0
             });
-        } catch (e) { }
-
-        // マスク（OK時に配置物をマージン内側でクリッピング）
-        var cbMask = panelArtboard.add("checkbox", undefined, getLabel("mask"));
-        cbMask.value = true;
-
-        // 外側余白
-        var groupMargin = panelArtboard.add("group");
-        var stMargin = groupMargin.add("statictext", undefined, getLabel("margin"));
-        var editMargin = addStepperEditText(groupMargin, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.pointsPerUnit), 2)), 5, {
-            min: 0,
-            onStep: function () { requestPreview(); }
-        });
-        groupMargin.add("statictext", undefined, rulerUnit.label);
-
-        // editMargin.onChange = function () { updatePreview(); };
-
-        // マスク角丸（マスクしたクリップグループに角丸を適用）
-        var groupMaskRound = panelArtboard.add("group");
-        groupMaskRound.orientation = "row";
-        groupMaskRound.alignChildren = ["left", "center"];
-
-        var cbMaskRound = groupMaskRound.add("checkbox", undefined, getLabel("maskRound"));
-        cbMaskRound.value = false;
-
-        var editMaskRound = addStepperEditText(groupMaskRound, "20", 3, { min: 0 }); /* マスクはOK時だけ適用するのでプレビュー不要 */
-
-        groupMaskRound.add("statictext", undefined, rulerUnit.label);
-
-        // 初期状態
-        setStepperEditEnabled(editMaskRound, cbMask.value && cbMaskRound.value);
-
-        // --- mask-round UI enable/disable helper and hook ---
-        function updateMaskRoundUI() {
-            var en = !!cbMask.value;
-            groupMaskRound.enabled = en;
-            redrawSteppersIn(groupMaskRound);
-            // Ensure inner input reflects both mask and checkbox
-            setStepperEditEnabled(editMaskRound, en && cbMaskRound.value);
         }
-
-        // --- mask & margin/mask-round UI helper ---
-        function updateMaskUI() {
-            var en = !!cbMask.value;
-            groupMargin.enabled = en;
-            redrawSteppersIn(groupMargin);
-            updateMaskRoundUI();
-        }
-
-        // 初期状態（マスクOFFならディム）
-        updateMaskUI();
-
-        // マスク切替で追従
-        cbMask.onClick = function () {
-            updateMaskUI();
-        };
-
-        cbMaskRound.onClick = function () {
-            // マスクOFFのときは常にディム
-            setStepperEditEnabled(editMaskRound, cbMask.value && cbMaskRound.value);
-        };
-
-        // スケール
-        var groupScale = panelLayoutRight.add("group");
-        groupScale.orientation = "row";
-        groupScale.alignChildren = ["left", "center"];
-
-        var stScale = groupScale.add("statictext", undefined, getLabel("scale"));
-        stScale.preferredSize.width = LABEL_W;
-        var editScale = addStepperEditText(groupScale, getLabel("defaultScale"), 4, {
-            min: 10, max: 250,
-            onStep: function () { syncScaleFromEdit(); requestPreview(); } /* スライダーも追従 */
-        });
-
-        var stScaleUnit = groupScale.add("statictext", undefined, getLabel("unitPercent"));
-        stScaleUnit.preferredSize.width = UNIT_W;
-
-        var spacerScale = groupScale.add("group");
-        spacerScale.alignment = ["fill", "fill"];
-        spacerScale.minimumSize.width = 0;
-
-        var sldScale = groupScale.add("slider", undefined, 100, 10, 250);
-        sldScale.preferredSize.width = SLIDER_W;
-
-        function syncScaleFromEdit() {
-            var v = parseFloat(editScale.text);
-            if (isNaN(v)) v = 100;
-            if (v < 10) v = 10;
-            if (v > 250) v = 250;
-            v = Math.round(v);
-            editScale.text = String(v);
-            sldScale.value = v;
-        }
-
-        function syncScaleFromSlider() {
-            var v = Math.round(sldScale.value);
-            if (v < 10) v = 10;
-            if (v > 250) v = 250;
-            editScale.text = String(v);
-        }
-
-        // 初期同期
-        syncScaleFromEdit();
-
-        // 連動
-        editScale.onChanging = function () {
-            syncScaleFromEdit();
-            updatePreview();
-        };
-        sldScale.onChanging = function () {
-            syncScaleFromSlider();
-            updatePreview();
-        };
-
-        // リアルタイムプレビュー
-
-        // スケールUIは常に操作可能（自動フィットのロジックは維持）
-        setStepperEditEnabled(editScale, true);
-        sldScale.enabled = true;
-
-        // 回転（全体を回転）
-        var groupRotate = panelLayoutRight.add("group");
-        groupRotate.orientation = "row";
-        groupRotate.alignChildren = ["left", "center"];
-
-        var cbRotate = groupRotate.add("checkbox", undefined, getLabel("rotate"));
-        cbRotate.helpTip = (uiLang === "ja")
-            ? "配置したアイテム全体を回転します（アートボード中心基準）。"
-            : "Rotate the entire placed layout (centered on the artboard).";
-        cbRotate.preferredSize.width = LABEL_W;
-        cbRotate.value = true;
-
-        var editRotate = addStepperEditText(groupRotate, getLabel("defaultRotate"), 4, {
-            min: -30, max: 30,
-            onStep: function () { syncRotateFromEdit(); requestPreview(); } /* スライダーも追従 */
-        });
-
-        var stRotateUnit = groupRotate.add("statictext", undefined, getLabel("unitDegree"));
-        stRotateUnit.preferredSize.width = UNIT_W;
-
-        var spacerRotate = groupRotate.add("group");
-        spacerRotate.alignment = ["fill", "fill"];
-        spacerRotate.minimumSize.width = 0;
-
-        var sldRotate = groupRotate.add("slider", undefined, -12, -30, 30);
-        sldRotate.preferredSize.width = SLIDER_W;
-
-        function syncRotateFromEdit() {
-            var v = parseFloat(editRotate.text);
-            if (isNaN(v)) v = 0;
-            if (v < -30) v = -30;
-            if (v > 30) v = 30;
-            v = Math.round(v);
-            editRotate.text = String(v);
-            sldRotate.value = v;
-        }
-
-        function syncRotateFromSlider() {
-            var v = sldRotate.value;
-            v = Math.round(v);
-            if (v < -30) v = -30;
-            if (v > 30) v = 30;
-            editRotate.text = String(v);
-        }
-
-        // 初期同期
-        syncRotateFromEdit();
-
-        // 連動
-        editRotate.onChanging = function () {
-            syncRotateFromEdit();
-            updatePreview();
-        };
-        sldRotate.onChanging = function () {
-            syncRotateFromSlider();
-            updatePreview();
-        };
-
-        // リアルタイムプレビュー
-
-        // 初期状態
-        setStepperEditEnabled(editRotate, cbRotate.value);
-        sldRotate.enabled = cbRotate.value;
-
-        cbRotate.onClick = function () {
-            setStepperEditEnabled(editRotate, cbRotate.value);
-            sldRotate.enabled = cbRotate.value;
-            updatePreview();
-        };
-
-        // 位置調整スライダー範囲（アートボードサイズに合わせる）
-        var __abSizeUnit = (function () {
-            try {
-                var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-                var r = ab.artboardRect; // [left, top, right, bottom]
-                var wPt = Math.abs(r[2] - r[0]);
-                var hPt = Math.abs(r[1] - r[3]);
-                var wU = __SC_ptToUnit(wPt, rulerUnit.pointsPerUnit);
-                var hU = __SC_ptToUnit(hPt, rulerUnit.pointsPerUnit);
-                if (!isFinite(wU) || wU <= 0) wU = 200;
-                if (!isFinite(hU) || hU <= 0) hU = 200;
-                return { x: wU, y: hU };
-            } catch (e) {
-                return { x: 200, y: 200 };
-            }
-        })();
-
-        // 全体位置（スライダー）
-        // ※数値表示は不要（スライダーのみ）
-
-        // 横位置
-        var groupOffsetX = panelLayoutRight.add("group");
-        var cbOffsetX = groupOffsetX.add("checkbox", undefined, getLabel("offsetX"));
-        cbOffsetX.preferredSize.width = OFFSET_LABEL_W;
-        cbOffsetX.value = false;
-
-        var spacerOffX = groupOffsetX.add("group");
-        spacerOffX.alignment = ["fill", "fill"];
-        spacerOffX.minimumSize.width = 0;
-
-        var sldOffsetX = groupOffsetX.add("slider", undefined, 0, -__abSizeUnit.x, __abSizeUnit.x);
-        sldOffsetX.preferredSize.width = SLIDER_W;
-        if (sldOffsetX.value < -__abSizeUnit.x) sldOffsetX.value = -__abSizeUnit.x;
-        if (sldOffsetX.value > __abSizeUnit.x) sldOffsetX.value = __abSizeUnit.x;
-        sldOffsetX.enabled = cbOffsetX.value;
-        cbOffsetX.onClick = function () {
-            sldOffsetX.enabled = cbOffsetX.value;
-            triggerPreviewUpdate();
-        };
-        sldOffsetX.onChanging = triggerPreviewUpdate;
-
-        // 縦位置（＋で下へ）
-        var groupOffsetY = panelLayoutRight.add("group");
-        var cbOffsetY = groupOffsetY.add("checkbox", undefined, getLabel("offsetY"));
-        cbOffsetY.preferredSize.width = OFFSET_LABEL_W;
-        cbOffsetY.value = false;
-
-        var spacerOffY = groupOffsetY.add("group");
-        spacerOffY.alignment = ["fill", "fill"];
-        spacerOffY.minimumSize.width = 0;
-
-        var sldOffsetY = groupOffsetY.add("slider", undefined, 0, -__abSizeUnit.y, __abSizeUnit.y);
-        sldOffsetY.preferredSize.width = SLIDER_W;
-        if (sldOffsetY.value < -__abSizeUnit.y) sldOffsetY.value = -__abSizeUnit.y;
-        if (sldOffsetY.value > __abSizeUnit.y) sldOffsetY.value = __abSizeUnit.y;
-        sldOffsetY.enabled = cbOffsetY.value;
-        cbOffsetY.onClick = function () {
-            sldOffsetY.enabled = cbOffsetY.value;
-            triggerPreviewUpdate();
-        };
-        sldOffsetY.onChanging = triggerPreviewUpdate;
 
         // -----------------------------------------
-        // 列ずらしデフォルト計算
-        // A: 各アイテムの高さ（現在のスケール/回転を反映）
-        // defaultShift = (A + 間隔) / 2
+        // 読み込みファイル / Source file
         // -----------------------------------------
 
-        function getArtboardInnerSizePt(marginPt) {
-            var activeAB = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var abRect = activeAB.artboardRect; // [left, top, right, bottom]
-            var abW = Math.abs(abRect[2] - abRect[0]);
-            var abH = Math.abs(abRect[1] - abRect[3]);
-            var m = (typeof marginPt === "number" && !isNaN(marginPt) && marginPt >= 0) ? marginPt : 0;
-            abW -= m * 2;
-            abH -= m * 2;
-            if (abW <= 0) abW = 1;
-            if (abH <= 0) abH = 1;
-            return { w: abW, h: abH };
-        }
+        /**
+         * 読み込みファイルを設定し、ファイル名・配置範囲・綴じ方向・範囲・総数を更新する
+         * @param {File} newSourceFile - ファイル
+         * @returns {void}
+         */
+        function setSourceFile(newSourceFile) {
+            sourceFile = newSourceFile;
+            ui.sourceNameText.text = decodeURIComponent(sourceFile.name);
+            ui.sourceNameText.helpTip = decodeURIComponent(sourceFile.fsName);
+            ui.cropDropdown.enabled = isPdfFile(sourceFile);
+            /* 綴じ方向から偶数ページの位置を設定する / set the even-page side from the binding direction */
+            ui.evenPageRightRadio.value = isRightBoundFile(sourceFile);
+            ui.evenPageLeftRadio.value = !ui.evenPageRightRadio.value;
 
-        function calcAutoScalePctForUI(pages, colsNum, gapPt, marginPt, rotateEnabled, rotateDeg) {
-            if (!pages || pages.length === 0) return 100;
-
-            var inner = getArtboardInnerSizePt(marginPt);
-            var abW = inner.w;
-            var abH = inner.h;
-
-            var w = 0, h = 0;
-            var pageNum0 = pages[0];
-            var cropMode0 = getCropModeFromUI();
-
-            var cached = __SC_getAutoFitMeasure(fileA, cropMode0, pageNum0);
-            if (cached) {
-                w = cached.w;
-                h = cached.h;
+            sourcePageCount = readPageCountFromFile(sourceFile);
+            if (sourcePageCount > 0) {
+                ui.rangeInput.text = "1-" + sourcePageCount;
+                isCountLinkedToRange = true;
+                syncCountToRange();
             } else {
-                var temp = null;
-                try {
-                    if (__SC_isPdfLikeFile(fileA)) {
-                        __SC_setPdfCropPreference(cropMode0);
-                    }
-                    __SC_setImportPageNumber(fileA, pageNum0);
-                    temp = doc.placedItems.add();
-                    temp.file = fileA;
-                    w = temp.width;
-                    h = temp.height;
-                } catch (e) {
-                    w = 0; h = 0;
-                } finally {
-                    try { if (temp) temp.remove(); } catch (e2) { }
-                    try { __SC_resetImportPageNumber(fileA); } catch (e3) { }
-                }
-                __SC_setAutoFitMeasure(fileA, cropMode0, pageNum0, w, h);
+                alert(getLabel("alert.pageCountFailed"));
+                ui.rangeInput.text = "";
+                ui.countInput.text = "";
             }
-
-            if (!(w > 0 && h > 0)) return 100;
-
-            var total = pages.length;
-            var rowsNum = Math.ceil(total / colsNum);
-
-            var needW = (colsNum * w) + ((colsNum - 1) * gapPt);
-            var needH = (rowsNum * h) + ((rowsNum - 1) * gapPt);
-
-            // 回転がある場合は「グリッド全体」を回転させた外接サイズで見積もる
-            if (rotateEnabled && rotateDeg !== 0) {
-                var rad = Math.abs(rotateDeg) * Math.PI / 180.0;
-                var s = Math.sin(rad);
-                var c = Math.cos(rad);
-                var rW = Math.abs(needW * c) + Math.abs(needH * s);
-                var rH = Math.abs(needW * s) + Math.abs(needH * c);
-                needW = rW;
-                needH = rH;
-            }
-
-            if (!(needW > 0 && needH > 0)) return 100;
-
-            var sW = (abW > 0) ? (abW / needW) : 1;
-            var sH = (abH > 0) ? (abH / needH) : 1;
-            var sMin = Math.min(sW, sH);
-            if (!(sMin > 0)) sMin = 1;
-
-            // 整数（%）に丸め
-            var pct = Math.round(sMin * 100);
-            if (!(pct > 0)) pct = 100;
-            return pct;
         }
 
-        function calcDefaultColShiftPt() {
-            var pages = parsePageNumbers(editPages.text);
+        /**
+         * 総数を範囲のページ数に合わせる（総数を手入力したあとは合わせない）
+         * @returns {void}
+         */
+        function syncCountToRange() {
+            if (!isCountLinkedToRange) return;
+            var pageCount = parsePageNumbers(ui.rangeInput.text).length;
+            ui.countInput.text = (pageCount > 0) ? String(pageCount) : "";
+        }
 
-            // Repeat pages/artboards when requested count exceeds source count
-
+        /**
+         * 選択している配置画像が PDF / AI なら、それを読み込みファイルにする
+         * @returns {void}
+         */
+        function useSelectedPlacedFile() {
+            var placedItem = findFirstPlacedItem(doc.selection);
+            if (!placedItem) return;
+            var linkedFile;
             try {
-                var srcCount = __SC_getSourcePageCount(fileA);
-                if (srcCount > 0) {
-                    pages = __SC_repeatPagesWithinCount(pages, srcCount);
-                }
-            } catch (e) { }
-
-            if (!pages || pages.length === 0) pages = [1];
-
-            var colsNum = parseInt(editCols.text, 10) || 5;
-
-            var spacingUnit = parseFloat(editSpacing.text);
-            if (isNaN(spacingUnit) || spacingUnit < 0) spacingUnit = 0;
-            var marginUnit = parseFloat(editMargin.text);
-            if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
-
-            var spacingPt = __SC_unitToPt(spacingUnit, rulerUnit.pointsPerUnit);
-            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.pointsPerUnit);
-
-            var rot = parseFloat(editRotate.text);
-            if (isNaN(rot)) rot = 0;
-            var rotateEnabled = cbRotate.value;
-
-            // scalePct は「追加倍率（%）」として扱う（自動フィットの結果に乗算）
-            var userScale = parseFloat(editScale.text);
-            if (isNaN(userScale) || userScale <= 0) userScale = 100;
-            if (userScale < 1) userScale = 1;
-
-            var baseScale = 100;
-            if (AUTO_FIT_ENABLED) {
-                baseScale = calcAutoScalePctForUI(pages, colsNum, spacingPt, marginPt, rotateEnabled, rot);
-            }
-
-            var scalePct = baseScale * (userScale / 100.0);
-            if (!(scalePct > 0)) scalePct = baseScale;
-
-            var temp = null;
-            var h = 0;
-            try {
-                if (__SC_isPdfLikeFile(fileA)) {
-                    __SC_setPdfCropPreference(getCropModeFromUI());
-                }
-                __SC_setImportPageNumber(fileA, pages[0]);
-                temp = doc.placedItems.add();
-                temp.file = fileA;
-
-                try { temp.resize(scalePct, scalePct); } catch (eResize) { }
-
-                h = temp.height;
+                linkedFile = placedItem.file;
             } catch (e) {
-                h = 0;
-            } finally {
-                try { if (temp) temp.remove(); } catch (e2) { }
-                try { __SC_resetImportPageNumber(fileA); } catch (e3) { }
+                return; /* リンク切れの画像は file の読み取りで例外になる / a missing link throws on .file */
             }
-
-            if (!(h > 0)) return 0;
-            return (h + spacingPt) / 2;
+            if (linkedFile && isPdfOrAiFile(linkedFile)) setSourceFile(linkedFile);
         }
 
-        // 初期値：列ずらしのデフォルトを計算して反映（チェックはOFFのまま）
-        // fileA 未選択の状態では計算できないため、選択後（読み込み時）に計算する
-        try {
-            if (fileA) {
-                var defShiftPt = calcDefaultColShiftPt();
-                var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.pointsPerUnit);
-                editColShift.text = String(__SC_round(defShiftUnit, 2));
-            }
-        } catch (e) {
-            // 失敗時は従来の 0
-        }
-
-        // =========================================
-        // Zoom controls (bottom)
-        // =========================================
-
-        var __zoomState = __TMKZoom_captureViewState(doc);
-
-        // Ensure import button uses the intended handler (supports Total)
-        if (__SC_importHandler) btnPreview.onClick = __SC_importHandler;
-
-        var zoomCtrl = __TMKZoom_addControls(win, doc, getLabel("zoom"), __zoomState, {
-            min: 0.1,
-            max: 4,
-            sliderWidth: 340,
-            margins: [0, 0, 0, 10],
-            redraw: true,
-
-            // ✅ lightweight mode
-            lightMode: true,
-            lightModeLabel: getLabel("lightMode"),
-            lightModeDefault: false
-        });
-
-        // ボタン類（左：リセット / 右：キャンセル・OK）
-        var buttonRow = addButtonRow(win);
-
-        // 左
-        var btnReset = buttonRow.leftGroup.add("button", undefined, "リセット");
-        var cbLightPreview = buttonRow.leftGroup.add("checkbox", undefined, "軽量プレビュー");
-        cbLightPreview.value = true;
-
-        // 右
-        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
-
-        // (Preview/cache declarations moved earlier in main)
-
-        function resetUIToDefaults() {
-            try {
-                // Load
-                // editPages.text = getLabel("defaultPages");
-                cbLightPreview.value = true;
-
-                // Item
-                ddCrop.selection = 2;
-                ddCrop.enabled = __SC_isPdfFile(fileA);
-
-                cbRound.value = false;
-                editRound.text = getLabel("defaultRound");
-                setStepperEditEnabled(editRound, cbRound.value);
-
-                // Grid
-                rbDirV.value = true;
-
-                // 列数: 4
-                editCols.text = "4";
-                syncColsFromEdit();
-
-                editSpacing.text = String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.pointsPerUnit), 2));
-                syncSpacingFromEdit();
-
-                // Even columns
-                cbEvenPlus.value = false;
-
-                // ずらし: OFF
-                cbColShift.value = false;
-                editColShift.text = getLabel("defaultShift");
-                syncShiftFromEdit();
-                setStepperEditEnabled(editColShift, cbColShift.value);
-                sldColShift.enabled = cbColShift.value;
-
-                // Layout
-                editScale.text = getLabel("defaultScale");
-                syncScaleFromEdit();
-
-                // 回転: OFF
-                cbRotate.value = false;
-                editRotate.text = getLabel("defaultRotate");
-                syncRotateFromEdit();
-                setStepperEditEnabled(editRotate, cbRotate.value);
-                sldRotate.enabled = cbRotate.value;
-
-                // 横方向の位置調整：左右余白が等しくなるよう自動計算
-                cbOffsetY.value = false;
-                sldOffsetY.value = 0;
-                sldOffsetY.enabled = false;
-
-                // default is OFF; we turn ON only if we can compute a sensible center offset
-                cbOffsetX.value = false;
-                sldOffsetX.value = 0;
-                sldOffsetX.enabled = false;
-
-                try {
-                    // Compute in pt
-                    var pagesForCenter = parsePageNumbers(editPages.text);
-                    if (!pagesForCenter || pagesForCenter.length === 0) pagesForCenter = [1];
-
-                    var colsForCenter = parseInt(editCols.text, 10);
-                    if (isNaN(colsForCenter) || colsForCenter < 1) colsForCenter = 1;
-
-                    var spacingU = parseFloat(editSpacing.text);
-                    if (isNaN(spacingU) || spacingU < 0) spacingU = 0;
-                    var marginU = parseFloat(editMargin.text);
-                    if (isNaN(marginU) || marginU < 0) marginU = 0;
-
-                    var spacingPt = __SC_unitToPt(spacingU, rulerUnit.pointsPerUnit);
-                    var marginPt = __SC_unitToPt(marginU, rulerUnit.pointsPerUnit);
-
-                    var cropMode = getCropModeFromUI();
-
-                    // Base auto-fit scale (rotation OFF for reset)
-                    var baseScale = calcAutoScalePctForUI(pagesForCenter, colsForCenter, spacingPt, marginPt, false, 0);
-                    var userScale = parseFloat(editScale.text);
-                    if (isNaN(userScale) || userScale <= 0) userScale = 100;
-                    var finalScale = baseScale * (userScale / 100.0);
-
-                    // Measure item width (cache-first)
-                    var itemW = 0;
-                    try {
-                        if (__previewCache.items && __previewCache.items.length > 0) {
-                            // Use cached base width
-                            var bw0 = __previewCache.baseW[0];
-                            if (!(bw0 > 0)) bw0 = __previewCache.items[0].width;
-                            itemW = bw0 * (finalScale / 100.0);
-                        } else {
-                            // Fallback: temp place once
-                            var temp = null;
-                            try {
-                                if (__SC_isPdfLikeFile(fileA)) {
-                                    __SC_setPdfCropPreference(cropMode);
-                                }
-                                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pagesForCenter[0]);
-                                temp = doc.placedItems.add();
-                                temp.file = fileA;
-                                try { temp.resize(finalScale, finalScale); } catch (e) { }
-                                itemW = temp.width;
-                            } catch (eTmp) {
-                                itemW = 0;
-                            } finally {
-                                try { if (temp) temp.remove(); } catch (e) { }
-                                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (e) { }
-                            }
-                        }
-                    } catch (e) {
-                        itemW = 0;
-                    }
-
-                    if (itemW > 0) {
-                        var gridW = (colsForCenter * itemW) + ((colsForCenter - 1) * spacingPt);
-
-                        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-                        var r = ab.artboardRect;
-                        var abWpt = Math.abs(r[2] - r[0]);
-                        var innerW = abWpt - (marginPt * 2);
-                        if (innerW < 1) innerW = 1;
-
-                        var oxPt = (innerW - gridW) / 2;
-                        // Convert to unit for slider value
-                        var oxU = __SC_ptToUnit(oxPt, rulerUnit.pointsPerUnit);
-
-                        if (isFinite(oxU)) {
-                            cbOffsetX.value = true;
-                            sldOffsetX.enabled = true;
-                            sldOffsetX.value = oxU;
-                        }
-                    }
-                } catch (eCenter) { }
-
-                // Artboard & Mask
-                cbBg.value = true;
-                editBgHex.text = getLabel("defaultHex");
-                updateBgControls();
-
-                cbMask.value = true;
-                // margin back to default
-                editMargin.text = String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.pointsPerUnit), 2));
-                // update mask UI states
-                updateMaskUI();
-
-                cbMaskRound.value = false;
-                editMaskRound.text = "20";
-                setStepperEditEnabled(editMaskRound, cbMask.value && cbMaskRound.value);
-
-            } catch (e) { }
-        }
-
-        btnReset.onClick = function () {
-            // Reset UI only; keep loaded items cached
-            resetUIToDefaults();
-
-            // If already loaded, re-apply layout immediately
-            if (__previewCache.items && __previewCache.items.length > 0) {
-                applyLayoutToCachedItems();
-                var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-                previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-                app.redraw();
-            }
-        };
-
-        function calcAutoFitPctFromWH(w, h, total, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rotDeg) {
-            if (!(w > 0 && h > 0)) return 100;
-            if (!(colsNum > 0)) colsNum = 1;
-
-            var rowsNum = Math.ceil(total / colsNum);
-
-            // 偶数列＋1（スロット追加）: 配置に使うスロット表から最大行数を算出
-            if (evenPlusEnabled && colsNum >= 2) {
-                var base = Math.floor(total / colsNum);
-                var rem = total - (base * colsNum);
-                var maxH = 0;
-                for (var c = 0; c < colsNum; c++) {
-                    var hC = base;
-                    if (c < rem) hC += 1;          // 標準の余り配分
-                    if ((c % 2) === 1) hC += 1;    // 偶数列（2,4,6...）= 0-based 1,3,5... に +1 スロット
-                    if (hC > maxH) maxH = hC;
-                }
-                if (maxH < 1) maxH = 1;
-                rowsNum = maxH;
-            }
-
-            var needW = (colsNum * w) + ((colsNum - 1) * gapPt);
-            var needH = (rowsNum * h) + ((rowsNum - 1) * gapPt);
-
-            if (doColShift && colShiftPt !== 0) {
-                needH += Math.abs(colShiftPt);
-            }
-
-            // 回転がある場合は「グリッド全体」を回転させた外接サイズで見積もる
-            if (doRotate && rotDeg !== 0) {
-                var rad = Math.abs(rotDeg) * Math.PI / 180.0;
-                var s = Math.sin(rad);
-                var c = Math.cos(rad);
-                var gW = needW;
-                var gH = needH;
-                needW = Math.abs(gW * c) + Math.abs(gH * s);
-                needH = Math.abs(gW * s) + Math.abs(gH * c);
-            }
-
-            if (!(needW > 0 && needH > 0)) return 100;
-            var sW = (abW > 0) ? (abW / needW) : 1;
-            var sH = (abH > 0) ? (abH / needH) : 1;
-            var sMin = Math.min(sW, sH);
-            if (!(sMin > 0)) sMin = 1;
-            var pct = Math.round(sMin * 100);
-            if (!(pct > 0)) pct = 100;
-            return pct;
-        }
-
-        function applyLayoutToCachedItems() {
-            if (!__previewCache.items || __previewCache.items.length === 0) return;
-
-            // Artboard inner rect (margin excluded)
-            var activeAB = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var abRect = activeAB.artboardRect;
-            var startX = abRect[0];
-            var startY = abRect[1];
-            var abW = Math.abs(abRect[2] - abRect[0]);
-            var abH = Math.abs(abRect[1] - abRect[3]);
-
-            var marginUnit = parseFloat(editMargin.text);
-            if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
-            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.pointsPerUnit);
-
-            startX += marginPt;
-            startY -= marginPt;
-            abW -= marginPt * 2;
-            abH -= marginPt * 2;
-            if (abW <= 0) abW = 1;
-            if (abH <= 0) abH = 1;
-
-            var colsNum = parseInt(editCols.text, 10);
-            if (isNaN(colsNum) || colsNum < 1) colsNum = 1;
-
-            var spacingUnit = parseFloat(editSpacing.text);
-            if (isNaN(spacingUnit) || spacingUnit < 0) spacingUnit = 0;
-            var gapPt = __SC_unitToPt(spacingUnit, rulerUnit.pointsPerUnit);
-
-            var doColShift = !!cbColShift.value;
-            var colShiftUnit = parseFloat(editColShift.text);
-            if (isNaN(colShiftUnit)) colShiftUnit = 0;
-            var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.pointsPerUnit);
-
-            var flowMode = getFlowMode();
-            // Random mode: prepare a persistent shuffle order
-            if (flowMode === 2) {
-                if (__previewCache.finalRandOrder && __previewCache.finalRandOrder.length === __previewCache.items.length) {
-                    __previewCache.randOrder = __previewCache.finalRandOrder.slice(0);
-                } else {
-                    __SC_ensureRandomOrder(__previewCache);
-                }
-            } else {
-                __SC_clearRandomOrder(__previewCache);
-            }
-            var evenPlusEnabled = !!cbEvenPlus.value;
-
-            var doRotate = !!cbRotate.value;
-            var rot = parseFloat(editRotate.text);
-            if (isNaN(rot)) rot = 0;
-
-            var userScale = parseFloat(editScale.text);
-            if (isNaN(userScale) || userScale <= 0) userScale = 100;
-            if (userScale < 1) userScale = 1;
-
-            // base size from the first loaded item (unscaled)
-            var w0 = __previewCache.baseW[0] || __previewCache.items[0].width;
-            var h0 = __previewCache.baseH[0] || __previewCache.items[0].height;
-
-            var baseScale = calcAutoFitPctFromWH(w0, h0, __previewCache.items.length, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rot);
-            var finalScale = baseScale * (userScale / 100.0);
-
-            // Even+1 slot heights (slot table) to compute col/row mapping
-            var colHeights = null;
-            var colStart = null;
-            if (evenPlusEnabled && colsNum >= 2) {
-                var totalN = __previewCache.items.length;
-                var base = Math.floor(totalN / colsNum);
-                var rem = totalN - (base * colsNum);
-                colHeights = [];
-                for (var c = 0; c < colsNum; c++) {
-                    var hh = base;
-                    if (c < rem) hh += 1;
-                    if ((c % 2) === 1) hh += 1; // +1 slot for even columns
-                    colHeights.push(hh);
-                }
-                colStart = [0];
-                for (var c2 = 0; c2 < colsNum; c2++) colStart[c2 + 1] = colStart[c2] + colHeights[c2];
-            }
-            function indexToColRow(iIndex) {
-                if (colHeights && colStart) {
-                    for (var c = 0; c < colHeights.length; c++) {
-                        if (iIndex >= colStart[c] && iIndex < colStart[c + 1]) {
-                            return { col: c, row: iIndex - colStart[c] };
-                        }
-                    }
-                    return { col: colHeights.length - 1, row: 0 };
-                }
-                var rowsN = Math.ceil(__previewCache.items.length / colsNum);
-                if (flowMode === 1 || flowMode === 2) {
-                    return { col: Math.floor(iIndex / rowsN), row: (iIndex % rowsN) };
-                }
-                return { col: (iIndex % colsNum), row: Math.floor(iIndex / colsNum) };
-            }
-
-            // Update background fill if enabled
-            try {
-                if (cbBg.value && __previewCache.bgItem) {
-                    __previewCache.bgItem.fillColor = getBgRGBColorOrDefault();
-                }
-            } catch (e) { }
-
-            // If we previously grouped for rotation, un-rotate back to 0 by delta
-            if (__previewCache.group && __previewCache.currentRot !== 0) {
-                try {
-                    __previewCache.group.rotate(-__previewCache.currentRot);
-                } catch (e) { }
-                __previewCache.currentRot = 0;
-            }
-
-            // Resize & position each item (absolute, using baseW/baseH)
-            for (var i = 0; i < __previewCache.items.length; i++) {
-                var idxItem = i;
-                if (flowMode === 2 && __previewCache.randOrder) {
-                    idxItem = __previewCache.randOrder[i];
-                }
-                var it = __previewCache.items[idxItem];
-                if (!it) continue;
-
-                var bw = __previewCache.baseW[idxItem];
-                var bh = __previewCache.baseH[idxItem];
-                if (!(bw > 0) || !(bh > 0)) {
-                    bw = it.width;
-                    bh = it.height;
-                }
-
-                // Apply size (avoid cumulative scaling)
-                try {
-                    it.width = bw * (finalScale / 100.0);
-                    it.height = bh * (finalScale / 100.0);
-                } catch (e) { }
-
-                // Map to grid position
-                var cr = indexToColRow(i);
-                var x = startX + (cr.col * (it.width + gapPt));
-                var y = startY - (cr.row * (it.height + gapPt));
-
-                // Even-column Y shift
-                if (doColShift && colShiftPt !== 0 && (cr.col % 2 === 1)) {
-                    if (colShiftPt > 0) y -= colShiftPt;
-                    else y += Math.abs(colShiftPt);
-                }
-
-                try { it.position = [x, y]; } catch (e) { }
-            }
-
-            // -------------------------------------------------
-            // Round Corners in preview (heavy mode only)
-            // - 軽量プレビューOFFのときだけ、各アイテムをクリップ化して角丸を適用
-            // -------------------------------------------------
-            try {
-                var isHeavyPreview = !cbLightPreview.value;
-                if (isHeavyPreview && cbRound.value) {
-                    var roundUnit = parseFloat(editRound.text);
-                    if (isNaN(roundUnit) || roundUnit < 0) roundUnit = 0;
-                    var roundPt = __SC_unitToPt(roundUnit, rulerUnit.pointsPerUnit);
-
-                    if (roundPt > 0) {
-                        // Ensure every item is a clip GroupItem (retry per-item; do NOT rely on one-shot flag)
-                        var allWrapped = true;
-                        for (var wi = 0; wi < __previewCache.items.length; wi++) {
-                            var it0 = __previewCache.items[wi];
-                            if (!it0) { allWrapped = false; continue; }
-
-                            if (it0.typename !== "GroupItem") {
-                                allWrapped = false;
-
-                                // Try to wrap this item now
-                                var clipGrp = null;
-                                try { clipGrp = __SC_wrapWithClipGroup(doc, it0); } catch (e) { clipGrp = null; }
-
-                                if (clipGrp) {
-                                    // Keep the index mapping stable (important for baseW/baseH and randOrder)
-                                    __previewCache.items[wi] = clipGrp;
-
-                                    // Move the new clip group into the persistent rotation group (if any)
-                                    try { if (__previewCache.group) clipGrp.moveToEnd(__previewCache.group); } catch (e) { }
-                                }
-                            }
-                        }
-
-                        // Mark as wrapped only if all items are groups
-                        __previewCache.previewWrapped = allWrapped;
-
-                        // Apply effect when radius changed OR when we just created groups
-                        if (__previewCache.previewRoundRadiusPt !== roundPt) {
-                            for (var ei = 0; ei < __previewCache.items.length; ei++) {
-                                try {
-                                    var itG = __previewCache.items[ei];
-                                    if (itG && itG.typename === "GroupItem") {
-                                        __SC_applyRoundCorners([itG], roundPt);
-                                    }
-                                } catch (e) { }
-                            }
-                            __previewCache.previewRoundRadiusPt = roundPt;
-                        }
-                    }
-                }
-            } catch (e) { }
-
-            // Rotation (group-based) and center to artboard center
-            if (doRotate && rot !== 0 && __previewCache.group) {
-                try {
-                    __previewCache.group.rotate(rot);
-                    __previewCache.currentRot = rot;
-                    __SC_moveItemCenterToArtboardCenter(doc, __previewCache.group);
-
-                    // Apply offsets after centering
-                    var oxPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.pointsPerUnit) : 0;
-                    var oyPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.pointsPerUnit) : 0;
-                    if (oxPt !== 0 || oyPt !== 0) {
-                        __previewCache.group.translate(oxPt, -oyPt);
-                    }
-                } catch (e) { }
-            } else {
-                // Non-rotate offsets: apply by shifting start already is done in non-rotate path; here we just apply nothing.
-            }
-
-            app.redraw();
-        }
-
-        function updateBgOnly() {
-            try {
-                // 読み込み前ならキャンバス更新不要（UI側は updateBgControls がやる）
-                if (!__previewCache.items || __previewCache.items.length === 0) {
-                    app.redraw();
-                    return;
-                }
-
-                if (cbBg.value) {
-                    // 背景ON：bgItemが無ければ作る
-                    if (!__previewCache.bgItem) {
-                        try {
-                            __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                        } catch (e) {
-                            __previewCache.bgItem = null;
-                        }
-                    }
-                    // 色だけ更新
-                    if (__previewCache.bgItem) {
-                        try { __previewCache.bgItem.fillColor = getBgRGBColorOrDefault(); } catch (e) { }
-                        try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
-                    }
-                } else {
-                    // 背景OFF：bgItemを消す
-                    if (__previewCache.bgItem) {
-                        __SC_removeItemSafe(__previewCache.bgItem);
-                        __previewCache.bgItem = null;
-                    }
-                }
-
-                // previewItems も同期
-                var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-                previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-
-                app.redraw();
-            } catch (e) { }
-        }
-
+        // -----------------------------------------
+        // プレビュー / Preview
+        // -----------------------------------------
+
+        /**
+         * プレビューのアイテムと背景を消して、状態を空に戻す
+         * @returns {void}
+         */
         function clearPreview() {
-            // If cache exists, do not remove its items here
-            if (__previewCache.items && __previewCache.items.length > 0) {
-                return;
+            if (preview.group) preview.group.remove(); /* 中のアイテムもまとめて消える / removes its children too */
+            if (preview.background) preview.background.remove();
+            preview.items = [];
+            preview.baseWidths = [];
+            preview.baseHeights = [];
+            preview.group = null;
+            preview.background = null;
+            preview.rotation = 0;
+            preview.randomOrder = null;
+            preview.roundRadiusPt = 0;
+        }
+
+        /**
+         * 読み込みファイルの対象ページを配置してプレビューを作り直す
+         * @returns {boolean} 読み込めたら true
+         */
+        function loadPreview() {
+            if (!sourceFile) {
+                alert(getLabel("alert.needFile"));
+                return false;
             }
-            for (var i = previewItems.length - 1; i >= 0; i--) {
-                try { previewItems[i].remove(); } catch (e) { }
+            clearPreview();
+            removeLeftoverPreviewGroups(doc);
+
+            var targetPages = getTargetPages();
+            if (!ui.countInput.text) ui.countInput.text = String(targetPages.length);
+            var cropToValue = getCropToValue();
+            preview.cropIndex = ui.cropDropdown.selection.index;
+            preview.splitSpreads = ui.splitSpreadsCheckbox.value;
+            preview.evenPageOnRight = ui.evenPageRightRadio.value;
+
+            /* 回転・後始末をまとめて扱えるよう、1つのグループに入れる / keep everything in one group for rotation and cleanup */
+            preview.group = doc.groupItems.add();
+            preview.group.name = PREVIEW_GROUP_NAME;
+            for (var i = 0; i < targetPages.length; i++) {
+                var placedItem = placeSourcePage(doc, sourceFile, targetPages[i], cropToValue);
+                if (!placedItem) continue;
+                var pieces = [placedItem];
+                if (preview.splitSpreads && isSpreadSize(placedItem.width, placedItem.height)) {
+                    pieces = splitSpreadItem(doc, placedItem, preview.evenPageOnRight);
+                }
+                for (var j = 0; j < pieces.length; j++) {
+                    pieces[j].moveToEnd(preview.group);
+                    preview.items.push(pieces[j]);
+                    var pieceBounds = getVisibleBounds(pieces[j]);
+                    preview.baseWidths.push(pieceBounds[2] - pieceBounds[0]);
+                    preview.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
+                }
             }
-            previewItems = [];
+            updateBackgroundPreview();
+            applyLayout(false);
+            fitViewToArtboard();
+            return true;
+        }
+
+        /**
+         * ランダムのときの並び順を返す（読み込み直すか方向を選び直すまで同じ順を保つ）
+         * @param {number} flowMode - 方向
+         * @returns {number[]|null} 並び順。ランダムでなければ null
+         */
+        function getPlacementOrder(flowMode) {
+            if (flowMode !== FLOW_RANDOM) {
+                preview.randomOrder = null;
+                return null;
+            }
+            if (!preview.randomOrder || preview.randomOrder.length !== preview.items.length) {
+                preview.randomOrder = shuffledIndexes(preview.items.length);
+            }
+            return preview.randomOrder;
+        }
+
+        /**
+         * 今の設定でプレビューのアイテムを並べ直す（大きさ・位置・角丸・回転・位置調整）
+         * @param {boolean} withRoundCorners - 角丸もかけるなら true（OK のとき。プレビューではかけない）
+         * @returns {void}
+         */
+        function applyLayout(withRoundCorners) {
+            var itemCount = preview.items.length;
+            if (itemCount === 0) return;
+
+            var innerRect = getInnerArtboardRect(doc, getMarginPt());
+            var columnCount = ui.columnsRow.getValue();
+            var gapPt = toPoints(ui.spacingRow.getValue());
+            var evenShiftPt = ui.evenShiftRow.isChecked() ? toPoints(ui.evenShiftRow.getValue()) : 0;
+            var rotateDeg = ui.rotateRow.isChecked() ? ui.rotateRow.getValue() : 0;
+            var offsetXPt = ui.offsetXRow.checkbox.value ? toPoints(ui.offsetXRow.slider.value) : 0;
+            var offsetYPt = ui.offsetYRow.checkbox.value ? toPoints(ui.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
+            var flowMode = getFlowMode();
+            var placementOrder = getPlacementOrder(flowMode);
+            var slotCounts = ui.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
+            var finalPercent = calcFitPercentForUI(itemCount, { width: preview.baseWidths[0], height: preview.baseHeights[0] }) * ui.scaleRow.getValue() / 100;
+
+            /* 前回の回転を戻してから並べる / undo the previous rotation before laying out */
+            if (preview.rotation !== 0) {
+                preview.group.rotate(-preview.rotation);
+                preview.rotation = 0;
+            }
+
+            /* 回転するときは回したあとで中央に合わせてから位置調整するので、ここでは足さない
+               When rotating, the offset is applied after centering, not here */
+            var startX = innerRect.left + (rotateDeg !== 0 ? 0 : offsetXPt);
+            var startY = innerRect.top - (rotateDeg !== 0 ? 0 : offsetYPt);
+            for (var i = 0; i < itemCount; i++) {
+                var itemIndex = placementOrder ? placementOrder[i] : i;
+                var item = preview.items[itemIndex];
+                /* 元の大きさから毎回計算し、拡大縮小が積み重ならないようにする / size from the base each time */
+                var cellWidth = preview.baseWidths[itemIndex] * finalPercent / 100;
+                var cellHeight = preview.baseHeights[itemIndex] * finalPercent / 100;
+                var gridCell = getGridCell(i, itemCount, columnCount, flowMode, slotCounts);
+                var cellTop = startY - gridCell.row * (cellHeight + gapPt);
+                if (gridCell.col % 2 === 1) cellTop -= evenShiftPt; /* 偶数列だけずらす / offset even columns */
+                fitItemToFrame(item, startX + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
+            }
+
+            if (withRoundCorners) applyItemRoundCorners();
+
+            if (rotateDeg !== 0) {
+                preview.group.rotate(rotateDeg);
+                preview.rotation = rotateDeg;
+                moveCenterToArtboardCenter(doc, preview.group);
+                if (offsetXPt !== 0 || offsetYPt !== 0) preview.group.translate(offsetXPt, -offsetYPt);
+            }
             app.redraw();
         }
 
-        function __SC_updatePreviewImpl() {
-            // 既存キャッシュがある場合は再配置せず更新
-            if (__previewCache.items && __previewCache.items.length > 0) {
-                applyLayoutToCachedItems();
-                // Keep previewItems for cancel/cleanup paths
-                var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-                previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-                return;
+        /**
+         * アイテムに角丸をかける。配置画像は同じ大きさのクリップグループに入れ、角丸はクリップグループにかける
+         * @returns {void}
+         */
+        function applyItemRoundCorners() {
+            if (!ui.roundRow.isChecked()) return;
+            var radiusPt = toPoints(ui.roundRow.getValue());
+            if (!(radiusPt > 0)) return;
+
+            for (var i = 0; i < preview.items.length; i++) {
+                if (preview.items[i].typename === "GroupItem") continue; /* 包み済み・見開きの半ページ / already a clip group */
+                var clipGroup = wrapWithClipGroup(doc, preview.items[i]);
+                clipGroup.moveToEnd(preview.group);
+                preview.items[i] = clipGroup; /* 番号を保ち、元の大きさ・並び順と対応させる / keep the index */
             }
-            // 未読み込みの場合は何もしない（ユーザーが[読み込み]を押す）
+            if (preview.roundRadiusPt === radiusPt) return;
+            for (var j = 0; j < preview.items.length; j++) applyRoundCorners(preview.items[j], radiusPt);
+            preview.roundRadiusPt = radiusPt;
         }
 
-        // =========================================
-        // Step2+Step3: Centralized realtime-preview wiring (debounced)
-        // - 読み込み＞アートボード（editPages）は対象外
-        // - debounce: 300ms
-        // =========================================
-
-        var PREVIEW_DEBOUNCE_MS = 300;
-        var __previewTaskId = null;
-
-        // Expose updatePreview for app.scheduleTask
-        $.global.__SC_updatePreview = __SC_updatePreviewImpl;
-
-        function requestPreview() {
-            try {
-                if (__previewTaskId) {
-                    app.cancelTask(__previewTaskId);
-                    __previewTaskId = null;
-                }
-            } catch (e) { }
-
-            try {
-                __previewTaskId = app.scheduleTask("$.global.__SC_updatePreview();", PREVIEW_DEBOUNCE_MS, false);
-            } catch (e2) {
-                // Fallback: run immediately
-                try { __SC_updatePreviewImpl(); } catch (e3) { }
-            }
+        /**
+         * 読み込み済みならプレビューを並べ直す
+         * @returns {void}
+         */
+        function refreshPreview() {
+            if (preview.items.length > 0) applyLayout(false);
         }
 
-        function wireRealtimePreview() {
-            cbLightPreview.onClick = function () { requestPreview(); };
-            // ✅ 読み込み＞アートボード（editPages）は対象外
-
-            // アイテム
-            ddCrop.onChange = function () { requestPreview(); };
-            editRound.onChange = function () { requestPreview(); };
-            var _oldRound = cbRound.onClick;
-            cbRound.onClick = function () { _oldRound(); requestPreview(); };
-
-            // グリッド：方向
-            rbDirH.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
-            rbDirV.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
-            rbDirR.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
-
-            // グリッド：偶数列＋1
-            cbEvenPlus.onClick = function () { requestPreview(); };
-
-            // グリッド：列数
-            editCols.onChange = function () { syncColsFromEdit(); requestPreview(); };
-            sldCols.onChange = function () { syncColsFromSlider(); requestPreview(); };
-
-            // グリッド：間隔
-            editSpacing.onChange = function () { syncSpacingFromEdit(); requestPreview(); };
-            sldSpacing.onChange = function () { syncSpacingFromSlider(); requestPreview(); };
-
-            // グリッド：ズレ
-            editColShift.onChange = function () { syncShiftFromEdit(); requestPreview(); };
-            sldColShift.onChange = function () { syncShiftFromSlider(); requestPreview(); };
-            var _oldShift = cbColShift.onClick;
-            cbColShift.onClick = function () { _oldShift(); requestPreview(); };
-
-            // アートボード
-            editMargin.onChange = function () { requestPreview(); };
-            var _oldBg = cbBg.onClick;
-            cbBg.onClick = function () {
-                if (_oldBg) _oldBg();        // updateBgControls()
-                updateBgOnly();         // レイアウト再計算しない
-            };
-
-            var _oldHex = editBgHex.onChange;
-            editBgHex.onChange = function () {
-                if (_oldHex) _oldHex();      // updateBgControls()
-                updateBgOnly();         // レイアウト再計算しない
-            };
-
-            // 右カラム：レイアウト
-            editScale.onChange = function () { syncScaleFromEdit(); requestPreview(); };
-            sldScale.onChange = function () { syncScaleFromSlider(); requestPreview(); };
-
-            editRotate.onChange = function () { syncRotateFromEdit(); requestPreview(); };
-            sldRotate.onChange = function () { syncRotateFromSlider(); requestPreview(); };
-            var _oldRot = cbRotate.onClick;
-            cbRotate.onClick = function () { _oldRot(); requestPreview(); };
-
-            var _oldOffX = cbOffsetX.onClick;
-            cbOffsetX.onClick = function () { _oldOffX(); requestPreview(); };
-            sldOffsetX.onChange = function () { requestPreview(); };
-
-            var _oldOffY = cbOffsetY.onClick;
-            cbOffsetY.onClick = function () { _oldOffY(); requestPreview(); };
-            sldOffsetY.onChange = function () { requestPreview(); };
+        /**
+         * 配置範囲や見開きの分割など、配置し直しが要る設定が変わっていたら読み込み直し、それ以外は並べ直す
+         * @returns {void}
+         */
+        function reloadOrRefreshPreview() {
+            if (isApplyingSettings || preview.items.length === 0) return;
+            if (previewNeedsReload()) loadPreview();
+            else applyLayout(false);
         }
 
-        // 初期配線
-        wireRealtimePreview();
-
-        // 角丸（ライブエフェクト）
-        function __SC_createRoundCornersEffectXML(radiusPt) {
-            var r = (typeof radiusPt === "number" && !isNaN(radiusPt)) ? radiusPt : 0;
-            if (r < 0) r = 0;
-            // NOTE: Illustrator LiveEffect XML expects pt
-            var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + r + ' "/></LiveEffect>';
-            return xml;
+        /**
+         * 読み込んだときから、配置し直しが要る設定（配置範囲・見開きの分割・偶数ページの側）が変わったかを返す
+         * @returns {boolean} 読み込み直しが要るなら true
+         */
+        function previewNeedsReload() {
+            return preview.cropIndex !== ui.cropDropdown.selection.index ||
+                preview.splitSpreads !== ui.splitSpreadsCheckbox.value ||
+                (preview.splitSpreads && preview.evenPageOnRight !== ui.evenPageRightRadio.value);
         }
 
-        function __SC_applyRoundCorners(items, radiusPt) {
-            if (!items || items.length === 0) return;
-            var xml = __SC_createRoundCornersEffectXML(radiusPt);
-            for (var i = 0; i < items.length; i++) {
-                try {
-                    items[i].applyEffect(xml);
-                } catch (e) {
-                    // ignore
-                }
-            }
+        /**
+         * ［画面にフィット］がオンなら、アクティブなアートボードが収まるよう表示を合わせる。
+         * 並べたアイテムはアートボードに合わせて配置され、半ページのクリップグループは隠れた部分も境界に含むため、アートボードを基準にする
+         * @returns {void}
+         */
+        function fitViewToArtboard() {
+            if (!ui.fitViewControls.checkbox.value) return;
+            var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            /* fit() は geometricBounds だけを読むので、アートボードの矩形を渡す / fit() only reads geometricBounds */
+            FitViewToItems.fit([{ geometricBounds: artboardRect }], { doc: doc, fillRatio: ui.fitViewControls.getFillRatio() });
+            app.redraw();
         }
 
-        // 各配置アイテムを同サイズのパスでクリップグループ化
-        function __SC_wrapWithClipGroup(doc, item) {
-            if (!item) return null;
-
-            var b;
-            try {
-                b = item.geometricBounds;
-            } catch (e) {
-                try { b = item.visibleBounds; } catch (e2) { return null; }
-            }
-            if (!b || b.length < 4) return null;
-
-            // bounds: [left, top, right, bottom]
-            var left = b[0];
-            var top = b[1];
-            var w = Math.abs(b[2] - b[0]);
-            var h = Math.abs(b[1] - b[3]);
-            if (w <= 0) w = 1;
-            if (h <= 0) h = 1;
-
-            // マスク用パス（塗りなし・線なし）
-            var maskPath = doc.activeLayer.pathItems.rectangle(top, left, w, h);
-            maskPath.stroked = false;
-            maskPath.filled = false;
-            maskPath.clipping = true;
-
-            var grp = doc.groupItems.add();
-
-            // まず中身（placed item）を末尾へ
-            try { item.moveToEnd(grp); } catch (e3) { }
-            // マスクは最前面（グループ先頭）
-            try { maskPath.moveToBeginning(grp); } catch (e4) { }
-
-            grp.clipped = true;
-            return grp;
+        /**
+         * 背景色の色見本を塗り直し、背景の有効／無効を切り替える
+         * @returns {void}
+         */
+        function updateBackgroundControls() {
+            var isEnabled = ui.backgroundCheckbox.value;
+            ui.backgroundSwatch.enabled = isEnabled;
+            ui.backgroundHexInput.enabled = isEnabled;
+            var swatchColor = getBackgroundColor();
+            var swatchGraphics = ui.backgroundSwatch.graphics;
+            swatchGraphics.backgroundColor = swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR,
+                [swatchColor.red / 255, swatchColor.green / 255, swatchColor.blue / 255, 1]);
         }
 
-        function __SC_drawArtboardBackground(doc, fillColor) {
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var r = ab.artboardRect; // [left, top, right, bottom]
-            var left = r[0];
-            var top = r[1];
-            var w = Math.abs(r[2] - r[0]);
-            var h = Math.abs(r[1] - r[3]);
-
-            // rectangle(top, left, width, height)
-            var bg = doc.activeLayer.pathItems.rectangle(top, left, w, h);
-            bg.stroked = false;
-            bg.filled = true;
-            bg.fillColor = fillColor || makeRGBColor(0, 0, 0);
-
-            try { bg.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
-            return bg;
+        /**
+         * 背景色を返す（HEX が正しくなければ黒）
+         * @returns {RGBColor} 背景色
+         */
+        function getBackgroundColor() {
+            return parseHexColor(ui.backgroundHexInput.text) || makeRGBColor(0, 0, 0);
         }
 
-        function __SC_applyArtboardMask(doc, itemsToClip, marginPt) {
-            if (!itemsToClip || itemsToClip.length === 0) return null;
-
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var r = ab.artboardRect; // [left, top, right, bottom]
-            var m = (typeof marginPt === "number" && !isNaN(marginPt) && marginPt >= 0) ? marginPt : 0;
-
-            var left = r[0] + m;
-            var top = r[1] - m;
-            var w = Math.abs(r[2] - r[0]) - (m * 2);
-            var h = Math.abs(r[1] - r[3]) - (m * 2);
-            if (w <= 0) w = 1;
-            if (h <= 0) h = 1;
-
-            // マスク用パス（塗りなし・線なし）
-            var maskPath = doc.activeLayer.pathItems.rectangle(top, left, w, h);
-            maskPath.stroked = false;
-            maskPath.filled = false;
-            maskPath.clipping = true;
-
-            var grp = doc.groupItems.add();
-
-            // まずクリップ対象をグループへ（末尾へ）
-            for (var i = itemsToClip.length - 1; i >= 0; i--) {
-                try {
-                    itemsToClip[i].moveToEnd(grp);
-                } catch (e1) { }
-            }
-
-            // マスクは最前面（グループ先頭）に
-            try { maskPath.moveToBeginning(grp); } catch (e0) { }
-
-            grp.clipped = true;
-            return grp;
-        }
-
-        function __SC_getBoundsCenter(bounds) {
-            // bounds: [left, top, right, bottom]
-            var cx = (bounds[0] + bounds[2]) / 2;
-            var cy = (bounds[1] + bounds[3]) / 2;
-            return { x: cx, y: cy };
-        }
-
-        function __SC_getArtboardCenter(doc) {
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var r = ab.artboardRect; // [left, top, right, bottom]
-            return { x: (r[0] + r[2]) / 2, y: (r[1] + r[3]) / 2 };
-        }
-
-        function __SC_moveItemCenterToArtboardCenter(doc, item) {
-            if (!item) return;
-            var b;
-            try {
-                b = item.geometricBounds;
-            } catch (e) {
-                try { b = item.visibleBounds; } catch (e2) { return; }
-            }
-            if (!b || b.length < 4) return;
-
-            var cItem = __SC_getBoundsCenter(b);
-            var cAb = __SC_getArtboardCenter(doc);
-
-            var dx = cAb.x - cItem.x;
-            var dy = cAb.y - cItem.y;
-
-            try {
-                item.translate(dx, dy);
-            } catch (e3) { }
-        }
-
-        function placeArtboards(targetPages, cols, spacing, scalePct, autoFit, outerMargin, colShiftEnabled, colShiftPt, rotateEnabled, rotateDeg, bgEnabled, bgFillColor, cropMode, offsetXPt, offsetYPt, flowMode, evenPlusEnabled, roundEnabled, roundRadiusPt, lightPreview) {
-            var placedItemsOnly = [];
-            var bgItem = null;
-            var __lightPreview = !!lightPreview;
-            if (bgEnabled) {
-                try {
-                    bgItem = __SC_drawArtboardBackground(doc, bgFillColor);
-                } catch (eBg) {
-                    bgItem = null;
-                }
-            }
-
-            // 現在のアクティブなアートボードの左上を基準点にする
-            var activeAB = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var abRect = activeAB.artboardRect; // [left, top, right, bottom]
-            var startX = abRect[0];
-            var startY = abRect[1];
-
-            var abW = Math.abs(abRect[2] - abRect[0]);
-            var abH = Math.abs(abRect[1] - abRect[3]);
-
-            var margin = (typeof outerMargin === "number" && !isNaN(outerMargin) && outerMargin >= 0) ? outerMargin : 0;
-
-            var doColShift = !!colShiftEnabled;
-            var colShift = (typeof colShiftPt === "number" && !isNaN(colShiftPt)) ? colShiftPt : 0;
-            var doRotate = !!rotateEnabled;
-            var rot = (typeof rotateDeg === "number" && !isNaN(rotateDeg)) ? rotateDeg : 0;
-
-            // 外側余白を適用
-            startX += margin;
-            startY -= margin;
-            abW -= margin * 2;
-            abH -= margin * 2;
-
-            if (abW <= 0) abW = 1;
-            if (abH <= 0) abH = 1;
-
-            // 全体位置オフセット（横：＋で右、縦：＋で下）
-            var ox = (typeof offsetXPt === "number" && !isNaN(offsetXPt)) ? offsetXPt : 0;
-            var oy = (typeof offsetYPt === "number" && !isNaN(offsetYPt)) ? offsetYPt : 0;
-
-            // 回転で全体をアートボード中心に合わせる場合は、ここでのオフセットは二重適用になるため保留し、回転後に適用する
-            var willCenterAfterRotate = (doRotate && rot !== 0);
-            if (!willCenterAfterRotate) {
-                startX += ox;
-                startY -= oy;
-            }
-
-            // scalePct は「追加倍率（%）」として扱う（自動フィットの結果に乗算）
-            function calcAutoScalePct(pages, colsNum, gapPt) {
-                if (!pages || pages.length === 0) return 100;
-                var w = 0, h = 0;
-                var pageNum0 = pages[0];
-
-                // cache hit
-                var cached = __SC_getAutoFitMeasure(fileA, cropMode, pageNum0);
-                if (cached) {
-                    w = cached.w;
-                    h = cached.h;
-                } else {
-                    var temp = null;
-                    try {
-                        if (__SC_isPdfLikeFile(fileA)) {
-                            __SC_setPdfCropPreference(cropMode);
-                        }
-                        app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pageNum0);
-                        temp = doc.placedItems.add();
-                        temp.file = fileA;
-                        w = temp.width;
-                        h = temp.height;
-                    } catch (e) {
-                        w = 0; h = 0;
-                    } finally {
-                        try { if (temp) temp.remove(); } catch (e2) { }
-                    }
-
-                    // store
-                    __SC_setAutoFitMeasure(fileA, cropMode, pageNum0, w, h);
-                }
-
-                if (!(w > 0 && h > 0)) return 100;
-
-                var total = pages.length;
-                var rowsNum = Math.ceil(total / colsNum);
-
-                // 偶数列＋1（スロット追加）: 配置に使うスロット表から最大行数を算出
-                if (evenPlusEnabled && colsNum >= 2) {
-                    var base = Math.floor(total / colsNum);
-                    var rem = total - (base * colsNum);
-                    var maxH = 0;
-                    for (var c = 0; c < colsNum; c++) {
-                        var hC = base;
-                        if (c < rem) hC += 1;
-                        if ((c % 2) === 1) hC += 1;
-                        if (hC > maxH) maxH = hC;
-                    }
-                    if (maxH < 1) maxH = 1;
-                    rowsNum = maxH;
-                }
-
-                var needW = (colsNum * w) + ((colsNum - 1) * gapPt);
-                var needH = (rowsNum * h) + ((rowsNum - 1) * gapPt);
-
-                if (doColShift && colShift !== 0) {
-                    needH += Math.abs(colShift);
-                }
-
-                // 回転がある場合は「グリッド全体」を回転させた外接サイズで見積もる
-                if (doRotate && rot !== 0) {
-                    var rad = Math.abs(rot) * Math.PI / 180.0;
-                    var s = Math.sin(rad);
-                    var c = Math.cos(rad);
-
-                    var gW = needW;
-                    var gH = needH;
-
-                    var rW = Math.abs(gW * c) + Math.abs(gH * s);
-                    var rH = Math.abs(gW * s) + Math.abs(gH * c);
-
-                    needW = rW;
-                    needH = rH;
-                }
-
-                if (!(needW > 0 && needH > 0)) return 100;
-
-                // Auto-fit uses artboard inner size (exclude outer margin)
-                var innerW = abW;
-                var innerH = abH;
-
-                if (margin > 0) {
-                    innerW = abW; // already margin-subtracted above in placeArtboards
-                    innerH = abH; // already margin-subtracted above in placeArtboards
-                }
-
-                var sW = (innerW > 0) ? (innerW / needW) : 1;
-                var sH = (innerH > 0) ? (innerH / needH) : 1;
-                var s = Math.min(sW, sH);
-                if (!(s > 0)) s = 1;
-
-                // 整数（%）に丸め
-                var pct = Math.round(s * 100);
-                if (!(pct > 0)) pct = 100;
-                return pct;
-            }
-
-            // scalePct は「追加倍率（%）」として扱う（自動フィットの結果に乗算）
-            var userScale = (typeof scalePct === "number" && !isNaN(scalePct) && scalePct > 0) ? scalePct : 100;
-            if (userScale < 1) userScale = 1;
-
-            var baseScale = 100;
-            if (autoFit) {
-                baseScale = calcAutoScalePct(targetPages, cols, spacing);
+        /**
+         * プレビューの背景だけを作る・塗り直す・消す（並べ直さない）
+         * @returns {void}
+         */
+        function updateBackgroundPreview() {
+            if (preview.items.length === 0) return;
+            if (!ui.backgroundCheckbox.value) {
+                if (preview.background) preview.background.remove();
+                preview.background = null;
+            } else if (!preview.background) {
+                preview.background = drawArtboardBackground(doc, getBackgroundColor());
             } else {
-                baseScale = 100;
+                preview.background.fillColor = getBackgroundColor();
             }
-
-            var finalScale = baseScale * (userScale / 100.0);
-            if (!(finalScale > 0)) finalScale = baseScale;
-
-            var refW = null;
-            var refH = null;
-
-            // 配置順（ランダム対応）
-            function __SC_shuffle(arr) {
-                for (var i = arr.length - 1; i > 0; i--) {
-                    var j = Math.floor(Math.random() * (i + 1));
-                    var t = arr[i];
-                    arr[i] = arr[j];
-                    arr[j] = t;
-                }
-                return arr;
-            }
-
-            var order = [];
-            for (var oi = 0; oi < targetPages.length; oi++) order.push(oi);
-            if (flowMode === 2) {
-                __SC_shuffle(order);
-            }
-
-            // 偶数列＋1 用の列高さテーブル（配分モード）を事前計算
-            var __evenColHeights = null;
-            var __evenColStart = null; // cumulative start index per column
-            if (evenPlusEnabled) {
-                var __colsN = cols;
-                if (!(__colsN > 0)) __colsN = 1;
-                if (__colsN >= 2) {
-                    var __totalN = targetPages.length;
-                    var __base = Math.floor(__totalN / __colsN);
-                    var __rem = __totalN - (__base * __colsN);
-
-                    __evenColHeights = [];
-
-                    // 配分：標準配分（rem） + 偶数列に追加スロット(+1)
-                    // ※合計スロット数は totalN を超える場合があり、その分は空きになる（4/5/4/5 など）
-                    for (var __c = 0; __c < __colsN; __c++) {
-                        var h = __base;
-                        if (__c < __rem) h += 1;        // 標準の余り配分
-                        if ((__c % 2) === 1) h += 1;    // 偶数列（2,4,6...）= 0-based 1,3,5... に +1 スロット
-                        __evenColHeights.push(h);
-                    }
-
-                    __evenColStart = [0];
-                    for (var __c4 = 0; __c4 < __colsN; __c4++) {
-                        __evenColStart[__c4 + 1] = __evenColStart[__c4] + __evenColHeights[__c4];
-                    }
-                }
-            }
-
-            function __SC_indexToColRowEven(iIndex) {
-                // returns {col,row}
-                if (!__evenColHeights || !__evenColStart) return null;
-                var colsN = __evenColHeights.length;
-                // linear search is fine for <=20 cols
-                for (var c = 0; c < colsN; c++) {
-                    var start = __evenColStart[c];
-                    var end = __evenColStart[c + 1];
-                    if (iIndex >= start && iIndex < end) {
-                        return { col: c, row: (iIndex - start) };
-                    }
-                }
-                // fallback
-                return { col: colsN - 1, row: 0 };
-            }
-
-            try {
-                for (var i = 0; i < targetPages.length; i++) {
-                    var abNumber = targetPages[order[i]];
-                    if (__SC_isPdfLikeFile(fileA)) {
-                        __SC_setPdfCropPreference(cropMode);
-                    }
-                    __SC_setImportPageNumber(fileA, abNumber);
-
-                    var placedItem = doc.placedItems.add();
-                    placedItem.file = fileA;
-
-                    // 先に縮尺（中心基準）
-                    try {
-                        placedItem.resize(finalScale, finalScale);
-                    } catch (eResize) {
-                        // resize 失敗時は無視して続行
-                    }
-
-                    // 1つ目のサイズを基準にグリッド計算（ページごとにサイズが違っても配置が崩れにくい）
-                    if (refW === null || refH === null) {
-                        refW = placedItem.width;
-                        refH = placedItem.height;
-                    }
-
-                    // 配置位置の計算（横方向=行優先 / 縦方向=列優先）
-
-                    var totalN = targetPages.length;
-                    var colsN = cols;
-                    if (!(colsN > 0)) colsN = 1;
-
-                    // 通常の行数
-                    var rowsN = Math.ceil(totalN / colsN);
-                    if (!(rowsN > 0)) rowsN = 1;
-
-                    var colIndex, rowIndex;
-
-                    // 偶数列＋1（配分モード）が有効な場合は、方向に関わらず列配分を優先
-                    if (__evenColHeights && __evenColStart) {
-                        var cr = __SC_indexToColRowEven(i);
-                        colIndex = cr.col;
-                        rowIndex = cr.row;
-                    } else if (flowMode === 1 || flowMode === 2) {
-                        // 縦方向（列優先）/ ランダム（縦配置）
-                        rowIndex = i % rowsN;
-                        colIndex = Math.floor(i / rowsN);
-                    } else {
-                        // 横方向（行優先）
-                        colIndex = i % colsN;
-                        rowIndex = Math.floor(i / colsN);
-                    }
-
-                    var posX = startX + (colIndex * (refW + spacing));
-                    var posY = startY - (rowIndex * (refH + spacing));
-
-                    // 偶数列（2列目,4列目...）の上下位置を調整
-                    // 正の値：下へずらす
-                    // 負の値：上へずらす
-                    if (doColShift && colShift !== 0 && (colIndex % 2 === 1)) {
-                        if (colShift > 0) {
-                            posY -= colShift;
-                        } else {
-                            posY += Math.abs(colShift);
-                        }
-                    }
-
-                    placedItem.position = [posX, posY];
-
-                    if (__lightPreview) {
-                        // 軽量プレビュー：クリップ/角丸は省略
-                        placedItemsOnly.push(placedItem);
-                    } else {
-                        // 配置したアイテムを同サイズのパスでクリップグループ化
-                        var clipGrp = null;
-                        try {
-                            clipGrp = __SC_wrapWithClipGroup(doc, placedItem);
-                        } catch (eClip) {
-                            clipGrp = null;
-                        }
-
-                        // 角丸（ライブエフェクト）：クリップグループに適用
-                        if (roundEnabled && (typeof roundRadiusPt === "number") && !isNaN(roundRadiusPt) && roundRadiusPt > 0) {
-                            if (clipGrp) {
-                                __SC_applyRoundCorners([clipGrp], roundRadiusPt);
-                            } else {
-                                // フォールバック：クリップ化に失敗した場合はアイテムに適用
-                                __SC_applyRoundCorners([placedItem], roundRadiusPt);
-                            }
-                        }
-
-                        placedItemsOnly.push(clipGrp ? clipGrp : placedItem);
-                    }
-                }
-
-                // 列ずらし適用後に「全体」を回転（背景は回転させない）
-                if (doRotate && rot !== 0 && placedItemsOnly.length > 0) {
-                    var grp = null;
-                    try {
-                        grp = doc.groupItems.add();
-
-                        // moveToBeginning は順序が反転しやすいので逆順で移動して見た目順を維持
-                        for (var gi = placedItemsOnly.length - 1; gi >= 0; gi--) {
-                            try { placedItemsOnly[gi].moveToBeginning(grp); } catch (eMove) { }
-                        }
-
-                        try { grp.rotate(rot); } catch (eGrpRot) { }
-
-                        // 回転後：アイテム全体の中心をアートボード中心に合わせる
-                        __SC_moveItemCenterToArtboardCenter(doc, grp);
-
-                        // 回転適用時も位置調整（横：＋で右、縦：＋で下）
-                        if (ox !== 0 || oy !== 0) {
-                            try { grp.translate(ox, -oy); } catch (ePos) { }
-                        }
-
-                        placedItemsOnly = [grp];
-                    } catch (eGrp) {
-                        // グループ化/回転に失敗しても配置済みアイテムは残す
-                    }
-                }
-
-            } catch (e) {
-                alert(getLabel("alertPlaceError"));
-            } finally {
-                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (e) { }
-                try { __SC_resetImportPageNumber(fileA); } catch (e) { }
-            }
-            var allItems = placedItemsOnly;
-            if (bgItem) {
-                allItems = [bgItem].concat(placedItemsOnly);
-            }
-            return {
-                items: allItems,
-                maskItems: placedItemsOnly,
-                scale: finalScale
-            };
+            placeBackgroundBehind(preview.group);
+            app.redraw();
         }
 
-        // プレビューボタン
-        btnPreview.onClick = function () {
-            // Rebuild cache on explicit load
-            __SC_clearPreviewCache(__previewCache);
+        /**
+         * 背景を、指定したアイテムのすぐ背面に置く（最背面送りだけでは、あとから作るグループとの前後が保証されない）
+         * @param {PageItem} frontItem - 背景より前に見せるアイテム
+         * @returns {void}
+         */
+        function placeBackgroundBehind(frontItem) {
+            if (preview.background && frontItem) preview.background.move(frontItem, ElementPlacement.PLACEAFTER);
+        }
 
-            var pages = parsePageNumbers(editPages.text);
-            // Repeat pages/artboards when requested count exceeds source count
-            try {
-                var srcCount = __SC_getSourcePageCount(fileA);
-                if (srcCount > 0) {
-                    pages = __SC_repeatPagesWithinCount(pages, srcCount);
-                }
-            } catch (e) { }
-            if (!pages || pages.length === 0) return;
+        /**
+         * カラーピッカーで背景色を選ぶ
+         * @returns {void}
+         */
+        function pickBackgroundColor() {
+            /* 選んだ色は戻り値で返り、型はドキュメントのカラーモードに従う（渡した色は書き換わらない）
+               The picked color is returned in the document's color model; the argument is left unchanged */
+            var pickedColor = toRGBColor(app.showColorPicker(getBackgroundColor()));
+            if (!pickedColor) return;
+            ui.backgroundHexInput.text = toHexColor(pickedColor);
+            updateBackgroundControls();
+            updateBackgroundPreview();
+        }
 
-            var cropMode = getCropModeFromUI();
+        /**
+         * マスクに合わせて、マージンとマスク角丸の有効／無効を切り替える
+         * @returns {void}
+         */
+        function updateMaskControls() {
+            var isMaskEnabled = ui.maskCheckbox.value;
+            ui.marginRow.group.enabled = isMaskEnabled;
+            ui.maskRoundRow.group.enabled = isMaskEnabled;
+            redrawSteppersIn(ui.marginRow.group);
+            redrawSteppersIn(ui.maskRoundRow.group);
+        }
 
-            // Background (always created on load if enabled)
-            if (cbBg.value) {
-                try {
-                    __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                } catch (e) {
-                    __previewCache.bgItem = null;
-                }
+        /**
+         * 見開きの分割に合わせて、偶数ページの位置の有効／無効を切り替える
+         * @returns {void}
+         */
+        function updateEvenPageControls() {
+            ui.evenPageGroup.enabled = ui.splitSpreadsCheckbox.value;
+        }
+
+        // -----------------------------------------
+        // 設定の反映・リセット / Settings and reset
+        // -----------------------------------------
+
+        /**
+         * 設定の値をダイアログに書き込む
+         * @param {Object} settings - DEFAULT_SETTINGS と同じ形
+         * @returns {void}
+         */
+        function applySettings(settings) {
+            /* selection の代入で onChange が走るので、反映し終えるまで読み込み直しを止める / assigning selection fires onChange */
+            isApplyingSettings = true;
+            ui.cropDropdown.selection = settings.cropIndex;
+            ui.roundRow.setChecked(settings.roundEnabled);
+            ui.roundRow.setValue(settings.roundRadius);
+            ui.splitSpreadsCheckbox.value = settings.splitSpreads;
+            updateEvenPageControls();
+
+            ui.flowRadios[settings.flowMode].value = true;
+            ui.columnsRow.setValue(settings.columns);
+            ui.spacingRow.setValue(roundTo2(fromPoints(settings.spacingPt)));
+            ui.evenPlusCheckbox.value = settings.evenPlusSlot;
+            ui.evenShiftRow.setChecked(settings.evenShiftEnabled);
+            ui.evenShiftRow.setValue(settings.evenShift);
+
+            ui.scaleRow.setValue(settings.scale);
+            ui.rotateRow.setChecked(settings.rotateEnabled);
+            ui.rotateRow.setValue(settings.rotate);
+            ui.offsetXRow.setChecked(false);
+            ui.offsetXRow.slider.value = 0;
+            ui.offsetYRow.setChecked(false);
+            ui.offsetYRow.slider.value = 0;
+
+            ui.backgroundCheckbox.value = settings.backgroundEnabled;
+            ui.backgroundHexInput.text = settings.backgroundHex;
+            updateBackgroundControls();
+            ui.maskCheckbox.value = settings.maskEnabled;
+            ui.marginRow.setValue(roundTo2(fromPoints(settings.marginPt)));
+            ui.maskRoundRow.setChecked(settings.maskRoundEnabled);
+            ui.maskRoundRow.setValue(settings.maskRoundRadius);
+            updateMaskControls();
+            isApplyingSettings = false;
+        }
+
+        /**
+         * 左右の余白がそろうよう、横方向の位置調整をオンにして値を入れる（回転なしのグリッドを前提に計算）
+         * @returns {void}
+         */
+        function centerGridHorizontally() {
+            var itemSize = getReferenceItemSize();
+            if (!itemSize) return;
+            var itemCount = (preview.items.length > 0) ? preview.items.length : getTargetPages().length;
+            var columnCount = ui.columnsRow.getValue();
+            var itemWidth = itemSize.width * calcFitPercentForUI(itemCount, itemSize) * ui.scaleRow.getValue() / 10000;
+            var gridWidth = columnCount * itemWidth + (columnCount - 1) * toPoints(ui.spacingRow.getValue());
+            var offsetValue = fromPoints((getInnerArtboardRect(doc, getMarginPt()).width - gridWidth) / 2);
+            if (!isFinite(offsetValue)) return;
+            ui.offsetXRow.setChecked(true);
+            ui.offsetXRow.slider.value = offsetValue;
+        }
+
+        /**
+         * ファイルと範囲以外の設定をリセットの値に戻し、プレビューに反映する
+         * @returns {void}
+         */
+        function resetSettings() {
+            var resetSettingsValues = {};
+            for (var settingKey in DEFAULT_SETTINGS) resetSettingsValues[settingKey] = DEFAULT_SETTINGS[settingKey];
+            for (var overrideKey in RESET_OVERRIDES) resetSettingsValues[overrideKey] = RESET_OVERRIDES[overrideKey];
+            applySettings(resetSettingsValues);
+            /* 中央寄せは読み込み直したあとのアイテムで測る / measure the centering on the reloaded items */
+            if (preview.items.length > 0 && previewNeedsReload()) loadPreview();
+            centerGridHorizontally();
+            refreshPreview();
+        }
+
+        /**
+         * 偶数列のずらし量を自動で入れる（1つ分の高さと間隔の和の半分で、半マスずれる）。
+         * ずらすと全体が縮んで1つ分の高さも変わるので、ずらし量と倍率が落ち着くまで数回計算し直す
+         * @returns {void}
+         */
+        function setDefaultEvenShift() {
+            var itemSize = getReferenceItemSize();
+            if (!itemSize) return;
+            var itemCount = (preview.items.length > 0) ? preview.items.length : getTargetPages().length;
+            var gapPt = toPoints(ui.spacingRow.getValue());
+            var evenShiftPt = 0;
+            for (var i = 0; i < 5; i++) {
+                var itemHeight = itemSize.height * calcFitPercentForUI(itemCount, itemSize, evenShiftPt) * ui.scaleRow.getValue() / 10000;
+                evenShiftPt = (itemHeight + gapPt) / 2;
             }
+            ui.evenShiftRow.setValue(fromPoints(evenShiftPt));
+        }
 
-            // Place items once
-            for (var i = 0; i < pages.length; i++) {
-                try {
-                    if (__SC_isPdfLikeFile(fileA)) {
-                        __SC_setPdfCropPreference(cropMode);
-                    }
-                    __SC_setImportPageNumber(fileA, pages[i]);
-                    var it = doc.placedItems.add();
-                    it.file = fileA;
-                    __previewCache.items.push(it);
-                    __previewCache.baseW.push(it.width);
-                    __previewCache.baseH.push(it.height);
-                } catch (e) {
-                    // ignore individual failures
-                }
-            }
-            try { __SC_resetImportPageNumber(fileA); } catch (e) { }
+        // -----------------------------------------
+        // 確定 / Finalize
+        // -----------------------------------------
 
-            __previewCache.cropMode = cropMode;
-            __previewCache.pagesKey = String(editPages.text);
-
-            // --- create persistent group for fast rotation ---
-            try {
-                var grp = doc.groupItems.add();
-                for (var gi = __previewCache.items.length - 1; gi >= 0; gi--) {
-                    try { __previewCache.items[gi].moveToBeginning(grp); } catch (e) { }
-                }
-                __previewCache.group = grp;
-                __previewCache.currentRot = 0;
-            } catch (eGrp) {
-                __previewCache.group = null;
-                __previewCache.currentRot = 0;
-            }
-
-            // Apply layout immediately
-            applyLayoutToCachedItems();
-            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-        };
-
-        // キャンセルボタン
-        btnCancel.onClick = function () {
-            // Stop any pending debounced preview task (prevents callbacks after close)
-            try {
-                if (__previewTaskId) {
-                    app.cancelTask(__previewTaskId);
-                    __previewTaskId = null;
-                }
-            } catch (e) { }
-
-            // Preview cache removal is enough (clearPreview() would early-return when cache exists)
-            __SC_clearPreviewCache(__previewCache);
-
-            try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (eZ) { }
-            win.close(2);
-        };
-
-        // OKボタン
-        btnOK.onClick = function () {
-
-            // Finalize should not destroy the current preview cache here.
-            // The success path after win.show() decides whether to reuse the visible preview
-            // or place fresh items. Clearing here causes duplication / mismatch bugs.
-
-            // Bake the exact preview random order into the cache so finalize cannot reshuffle.
-            bakePreviewRandomOrderForFinalize();
-
-            // Normalize current UI values so the success path reads the same state as the preview.
-            syncLayoutInputsBeforeFinalize();
-
-            // For non-random modes, refresh the visible preview once so the last preview matches current UI.
-            if (__previewCache.items && __previewCache.items.length > 0) {
-                if (shouldRelayoutOnFinalize()) {
-                    applyLayoutToCachedItems();
-                }
-                app.redraw();
-            }
-
-            win.close(1);
-        };
-
-        if (win.show() === 1) {
-
-            // If preview objects already exist, they are the final result.
-            // Do not place/duplicate a second set on OK.
-            if (__previewCache.items && __previewCache.items.length > 0) {
-                __previewCache.finalRandOrder = null;
-                __previewCache.randOrder = null;
+        /**
+         * プレビューを確定する。角丸をかけて並べ直し、マスクがオンならマージンの内側でクリップする
+         * @returns {void}
+         */
+        function finalizePreview() {
+            if (preview.items.length === 0) {
+                clearPreview(); /* 1つも配置できなかったときは空のグループを残さない / leave no empty group */
                 return;
             }
-
-            var finalPages = parsePageNumbers(editPages.text);
-            // Repeat pages/artboards when requested count exceeds source count
-            try {
-                var srcCount2 = __SC_getSourcePageCount(fileA);
-                if (srcCount2 > 0) {
-                    finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
-                }
-            } catch (e) { }
-            var finalCols = parseInt(editCols.text, 10) || 5;
-            var finalSpacingUnit = parseFloat(editSpacing.text);
-            if (isNaN(finalSpacingUnit) || finalSpacingUnit < 0) finalSpacingUnit = 0;
-            var finalMarginUnit = parseFloat(editMargin.text);
-            if (isNaN(finalMarginUnit) || finalMarginUnit < 0) finalMarginUnit = 0;
-
-            var finalSpacing = __SC_unitToPt(finalSpacingUnit, rulerUnit.pointsPerUnit);
-            var finalMargin = __SC_unitToPt(finalMarginUnit, rulerUnit.pointsPerUnit);
-
-            var finalScalePct = parseFloat(editScale.text);
-            if (isNaN(finalScalePct) || finalScalePct <= 0) finalScalePct = 100;
-
-            var finalColShiftUnit = parseFloat(editColShift.text);
-            if (isNaN(finalColShiftUnit)) finalColShiftUnit = 0;
-            var finalColShiftPt = __SC_unitToPt(finalColShiftUnit, rulerUnit.pointsPerUnit);
-
-            var finalRot = parseFloat(editRotate.text);
-            if (isNaN(finalRot)) finalRot = 0;
-
-            // 全体位置（スライダー値は定規単位とみなし pt に変換）
-            var finalOffsetXPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.pointsPerUnit) : 0;
-            var finalOffsetYPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.pointsPerUnit) : 0;
-
-            // 角丸設定
-            var finalRoundEnabled = cbRound.value;
-            var finalRoundUnit = parseFloat(editRound.text);
-            if (isNaN(finalRoundUnit) || finalRoundUnit < 0) finalRoundUnit = 0;
-            var finalRoundPt = __SC_unitToPt(finalRoundUnit, rulerUnit.pointsPerUnit);
-
-            var cropMode = getCropModeFromUI();
-            var bgFillColor = getBgRGBColorOrDefault();
-            var res = placeArtboards(finalPages, finalCols, finalSpacing, finalScalePct, AUTO_FIT_ENABLED, finalMargin, cbColShift.value, finalColShiftPt, cbRotate.value, finalRot, cbBg.value, bgFillColor, cropMode, finalOffsetXPt, finalOffsetYPt, getFlowMode(), cbEvenPlus.value, finalRoundEnabled, finalRoundPt, false);
-
-            // OK時のみ：マージン内側で配置物をマスク（背景は含めない）
-            if (cbMask.value && res && res.maskItems && res.maskItems.length > 0) {
-                var maskGrp = __SC_applyArtboardMask(doc, res.maskItems, finalMargin);
-
-                // マスク角丸：マスクグループに適用
-                if (maskGrp && cbMaskRound.value) {
-                    var mrUnit = parseFloat(editMaskRound.text);
-                    if (isNaN(mrUnit) || mrUnit < 0) mrUnit = 0;
-                    var mrPt = __SC_unitToPt(mrUnit, rulerUnit.pointsPerUnit);
-                    if (mrPt > 0) {
-                        try { __SC_applyRoundCorners([maskGrp], mrPt); } catch (eMR) { }
-                    }
-                }
+            applyLayout(true);
+            preview.group.name = "";
+            if (!ui.maskCheckbox.value) {
+                placeBackgroundBehind(preview.group);
+                return;
             }
+            var maskGroup = clipItemsToRect(doc, [preview.group], getInnerArtboardRect(doc, getMarginPt()));
+            var maskRadiusPt = toPoints(ui.maskRoundRow.getValue());
+            if (ui.maskRoundRow.isChecked() && maskRadiusPt > 0) applyRoundCorners(maskGroup, maskRadiusPt);
+            placeBackgroundBehind(maskGroup);
         }
 
-        // ダイアログ終了後に選択解除 / Clear selection after closing dialog
-        try { doc.selection = null; } catch (eSel) { }
+        // -----------------------------------------
+        // イベント / Events
+        // -----------------------------------------
+
+        ui.btnChooseFile.onClick = function () {
+            var chosenFile = File.openDialog(getLabel("dialog.chooseFile"), "PDF/AI:*.pdf;*.ai");
+            if (!chosenFile) return;
+            if (!isPdfOrAiFile(chosenFile)) {
+                alert(getLabel("alert.pickPdfAi"));
+                return;
+            }
+            setSourceFile(chosenFile);
+        };
+        ui.rangeInput.onChanging = syncCountToRange;
+        ui.countInput.onChanging = ui.countStepOptions.onStep = function () {
+            isCountLinkedToRange = false;
+        };
+        ui.btnLoad.onClick = loadPreview;
+
+        ui.cropDropdown.onChange = reloadOrRefreshPreview;
+        ui.splitSpreadsCheckbox.onClick = function () {
+            updateEvenPageControls();
+            reloadOrRefreshPreview();
+        };
+        ui.evenPageRightRadio.onClick = ui.evenPageLeftRadio.onClick = reloadOrRefreshPreview;
+
+        var layoutRows = [ui.columnsRow, ui.spacingRow, ui.evenShiftRow, ui.scaleRow, ui.rotateRow, ui.marginRow, ui.offsetXRow, ui.offsetYRow];
+        for (var i = 0; i < layoutRows.length; i++) layoutRows[i].onValueChange = refreshPreview;
+
+        /* ずらしをオンにしたら、ずらし量を自動で入れてから並べ直す / auto-fill the offset when Shift is turned on */
+        var toggleEvenShiftControls = ui.evenShiftRow.checkbox.onClick;
+        ui.evenShiftRow.checkbox.onClick = function () {
+            toggleEvenShiftControls();
+            if (!ui.evenShiftRow.isChecked()) return;
+            setDefaultEvenShift();
+            refreshPreview();
+        };
+        /* 角丸・マスク角丸は OK のときだけかけるので、プレビューは更新しない / round corners apply only on OK */
+
+        for (var j = 0; j < ui.flowRadios.length; j++) {
+            ui.flowRadios[j].onClick = function () {
+                preview.randomOrder = null; /* ランダムを選び直したら並びも引き直す / reshuffle on every click */
+                refreshPreview();
+            };
+        }
+        ui.evenPlusCheckbox.onClick = refreshPreview;
+
+        ui.backgroundCheckbox.onClick = function () {
+            updateBackgroundControls();
+            updateBackgroundPreview();
+        };
+        ui.backgroundHexInput.onChange = function () {
+            updateBackgroundControls();
+            updateBackgroundPreview();
+        };
+        ui.backgroundSwatch.addEventListener("mousedown", pickBackgroundColor);
+        ui.maskCheckbox.onClick = updateMaskControls;
+
+        ui.btnReset.onClick = resetSettings;
+        ui.fitViewControls.checkbox.onClick = function () {
+            ui.fitViewControls.updateEnabled();
+            fitViewToArtboard();
+        };
+        ui.fitViewControls.percentInput.onChange = fitViewToArtboard;
+        ui.btnOK.onClick = function () {
+            /* 読み込んでいなければ、ここで配置してから確定する / load first when nothing has been loaded */
+            if (preview.items.length === 0 && !loadPreview()) return;
+            ui.dialog.close(1);
+        };
+
+        // -----------------------------------------
+        // 初期化と表示 / Initialize and show
+        // -----------------------------------------
+
+        applySettings(DEFAULT_SETTINGS);
+        ui.cropDropdown.enabled = false;
+        useSelectedPlacedFile();
+        if (sourceFile) setDefaultEvenShift();
+
+        if (ui.dialog.show() === 1) {
+            finalizePreview();
+        } else {
+            clearPreview();
+            FitViewToItems.restoreView(initialViewState, doc);
+            app.redraw();
+        }
+        doc.selection = null; /* ダイアログを閉じたら選択を解除 / clear the selection after closing */
     }
 
     main();

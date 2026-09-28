@@ -38,7 +38,7 @@
 - Marker Format
   - Font family and style ("Japanese fonts only" narrows the list)
   - Scale (applied equally to horizontal and vertical) and baseline shift
-  - Separate colors for the marker/number and the delimiter (click a swatch to open the color picker)
+  - Separate colors for the marker/number and the delimiter (click a swatch to open Illustrator's standard color picker)
 - Paragraph Settings
   - Leading and space after (left blank = leave unchanged)
   - Leading is not written as a fixed value: the ratio to the font size is derived per paragraph and stored as the auto-leading amount (%), so the leading follows along if the font size changes later
@@ -81,6 +81,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.2 (2026-09-28): Fixed tab stops, leading and other values being left unconverted, as if in pt, when the type unit was feet, yards or meters; inches now show as "in". The button row is now built with the shared part
+- v1.4.3 (2026-09-29): The swatches now open Illustrator's standard color picker instead of the script's own dialog (the common-color presets are gone)
 - v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.0 (2026-09-26): Supports Illustrator bullet and numbered lists: before the dialog opens they are turned into text markers with *Convert to Text*, so the current state is detected and the markers can be replaced. Switching between bullets, numbers and None now clears every tab stop before adding the new ones
 - v1.2.2 (2026-09-21): Folded ColorPicker.jsx into the script, so it now runs on its own. Fixed the color picker not opening when the Marker/Number or Delimiter color swatch is clicked. CMYK swatches are now drawn in the same color as the picker shows

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTw
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.10.2";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.10.3";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
@@ -74,11 +74,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     var PRESET_SAVE_BUTTON_WIDTH = 50;           /* ［保存］ボタンの幅 / Save button width */
     var PRESET_EXPORT_BUTTON_WIDTH = 60;         /* ［書き出し］ボタンの幅 / Export button width */
     var PRESET_NAME_CHARS = 20;                  /* プリセット名の入力欄の文字数 / characters for the preset name field */
-    var PICKER_PREVIEW_SIZE = [90, 40];          /* カラー選択の色見本の大きさ / color picker preview size */
-    var PICKER_LABEL_WIDTH = 20;                 /* カラー選択のチャンネル名の幅 / color picker channel label width */
-    var PICKER_SLIDER_SIZE = [120, 20];          /* カラー選択のスライダーの大きさ / color picker slider size */
-    var PICKER_VALUE_CHARS = 3;                  /* カラー選択の数値欄の文字数 / characters for the color picker value fields */
-    var PICKER_HEX_CHARS = 6;                    /* 16進数の入力欄の文字数 / characters for the hex field */
 
     /**
      * 共通レイアウトのパネルを追加する
@@ -1531,7 +1526,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     var LABELS = {
         dialog: {
             title: { ja: "オブジェクトの分割背景を作成", en: "Create Split Background" },
-            colorPicker: { ja: "カラー選択", en: "Color Picker" },
             presetSave: { ja: "プリセット保存", en: "Save Preset" }
         },
         panel: {
@@ -1541,16 +1535,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             stroke: { ja: "線", en: "Stroke" },
             cornerRadius: { ja: "角丸", en: "Corner radius" }
         },
-        tab: {
-            rgb: { ja: "RGB", en: "RGB" },
-            cmyk: { ja: "CMYK", en: "CMYK" }
-        },
         radio: {
             splitLR: { ja: "左右", en: "Left/Right" },
-            splitTB: { ja: "上下", en: "Top/Bottom" },
-            white: { ja: "白", en: "White" },
-            black: { ja: "黒", en: "Black" },
-            custom: { ja: "カスタム", en: "Custom" }
+            splitTB: { ja: "上下", en: "Top/Bottom" }
         },
         checkbox: {
             square: { ja: "正方形", en: "Square" },
@@ -1561,8 +1548,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             cornerBL: { ja: "左下", en: "BL" },
             cornerTR: { ja: "右上", en: "TR" },
             cornerBR: { ja: "右下", en: "BR" },
-            groupItems: { ja: "グループ化", en: "Group items" },
-            gray: { ja: "グレー", en: "Gray" }
+            groupItems: { ja: "グループ化", en: "Group items" }
         },
         fieldLabel: {
             left: { ja: "左", en: "Left" },
@@ -1616,15 +1602,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             groupItems: {
                 ja: "作ったオブジェクトを1つのグループにまとめます。",
                 en: "Groups the resulting objects together."
-            },
-            colorType: {
-                ja: "塗りに使う色の決め方です。「カスタム」を選ぶと下の欄で指定できます。",
-                en: "How the fill color is chosen. Custom lets you set it in the fields below."
-            },
-            hex: { ja: "塗りの色を16進数で指定します（例: DCDCDC）。", en: "Fill color as a hex value, for example DCDCDC." },
-            gray: {
-                ja: "CMYKのK版だけで色を作ります（グレースケール）。",
-                en: "Builds the color from the K plate only, giving a grayscale."
             },
             swatch: { ja: "クリックすると色を選べます。", en: "Click to choose a color." },
             preset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
@@ -3076,25 +3053,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     }
 
     /**
-     * RGB を CMYK に簡易換算する（近似値）
-     * @param {{r: number, g: number, b: number}} rgb - RGB（0〜255）
-     * @returns {{c: number, m: number, y: number, k: number}} CMYK（0〜100）
-     */
-    function rgbToCmykApprox(rgb) {
-        var red = rgb.r / 255;
-        var green = rgb.g / 255;
-        var blue = rgb.b / 255;
-        var black = 1 - Math.max(red, green, blue);
-        if (black >= 1) return { c: 0, m: 0, y: 0, k: 100 };
-        return {
-            c: Math.round((1 - red - black) / (1 - black) * 100),
-            m: Math.round((1 - green - black) / (1 - black) * 100),
-            y: Math.round((1 - blue - black) / (1 - black) * 100),
-            k: Math.round(black * 100)
-        };
-    }
-
-    /**
      * RGB から色を作る
      * @param {{r: number, g: number, b: number}} rgb - RGB（0〜255）
      * @returns {RGBColor} 色
@@ -3144,481 +3102,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     // =========================================
     // カラー選択 / Color picker
     // =========================================
-    // 状態の mode は "rgb" | "cmyk" | "gray"、presetType は "white" | "black" | "custom"、dialogTab は "rgb" | "cmyk"
-    // State: mode is "rgb" | "cmyk" | "gray", presetType is "white" | "black" | "custom", dialogTab is "rgb" | "cmyk"
 
     /**
-     * 色文字列からカラー選択の状態を作る
-     * @param {string} initialColor - "RRGGBB" か "cmyk:C,M,Y,K"
-     * @returns {Object} カラー選択の状態
-     */
-    function createColorPickerState(initialColor) {
-        var pickerState = {
-            presetType: "custom",
-            mode: "rgb",
-            dialogTab: "rgb",
-            rgb: { r: 0, g: 0, b: 0 },
-            cmyk: { c: 0, m: 0, y: 0, k: 0 }
-        };
-
-        if (isCmykString(initialColor)) {
-            var cmyk = parseCmykString(initialColor);
-            var noColorInk = (cmyk.c === 0 && cmyk.m === 0 && cmyk.y === 0);
-            pickerState.cmyk = cmyk;
-            pickerState.rgb = cmykToRgbApprox(cmyk);
-            pickerState.mode = (noColorInk && cmyk.k > 0) ? "gray" : "cmyk";
-            pickerState.dialogTab = "cmyk";
-            pickerState.presetType = (noColorInk && cmyk.k === 0) ? "white" : (noColorInk && cmyk.k === 100) ? "black" : "custom";
-        } else {
-            var rgb = parseHexRgb(initialColor, "000000");
-            pickerState.rgb = rgb;
-            pickerState.cmyk = rgbToCmykApprox(rgb);
-            var isWhite = (rgb.r === 255 && rgb.g === 255 && rgb.b === 255);
-            var isBlack = (rgb.r === 0 && rgb.g === 0 && rgb.b === 0);
-            pickerState.presetType = isWhite ? "white" : isBlack ? "black" : "custom";
-        }
-        return pickerState;
-    }
-
-    /**
-     * RGB から CMYK を求め直す
-     * @param {Object} pickerState - カラー選択の状態
-     * @returns {void}
-     */
-    function syncPickerCmykFromRgb(pickerState) {
-        pickerState.cmyk = rgbToCmykApprox({
-            r: Math.round(pickerState.rgb.r),
-            g: Math.round(pickerState.rgb.g),
-            b: Math.round(pickerState.rgb.b)
-        });
-    }
-
-    /**
-     * CMYK から RGB を求め直す
-     * @param {Object} pickerState - カラー選択の状態
-     * @returns {void}
-     */
-    function syncPickerRgbFromCmyk(pickerState) {
-        pickerState.rgb = cmykToRgbApprox(pickerState.cmyk);
-    }
-
-    /**
-     * 白・黒・カスタムを切り替える
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {string} presetType - "white" | "black" | "custom"
-     * @returns {void}
-     */
-    function setPickerPresetType(pickerState, presetType) {
-        pickerState.presetType = presetType;
-
-        if (presetType === "white" || presetType === "black") {
-            var channelValue = (presetType === "white") ? 255 : 0;
-            pickerState.rgb = { r: channelValue, g: channelValue, b: channelValue };
-            syncPickerCmykFromRgb(pickerState);
-            if (pickerState.dialogTab !== "cmyk") pickerState.mode = "rgb";
-        } else if (pickerState.dialogTab === "cmyk") {
-            if (pickerState.mode !== "gray") pickerState.mode = "cmyk";
-            syncPickerRgbFromCmyk(pickerState);
-        } else {
-            pickerState.mode = "rgb";
-            syncPickerCmykFromRgb(pickerState);
-        }
-    }
-
-    /**
-     * RGB の値を入れる（カスタムの RGB に切り替わる）
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {number} red - R（0〜255）
-     * @param {number} green - G（0〜255）
-     * @param {number} blue - B（0〜255）
-     * @returns {void}
-     */
-    function setPickerRgb(pickerState, red, green, blue) {
-        pickerState.rgb = { r: Math.round(red), g: Math.round(green), b: Math.round(blue) };
-        syncPickerCmykFromRgb(pickerState);
-        pickerState.mode = "rgb";
-        pickerState.dialogTab = "rgb";
-        pickerState.presetType = "custom";
-    }
-
-    /**
-     * CMYK の値を入れる（カスタムの CMYK かグレーに切り替わる）
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {number} cyan - C（0〜100）
-     * @param {number} magenta - M（0〜100）
-     * @param {number} yellow - Y（0〜100）
-     * @param {number} black - K（0〜100）
-     * @param {boolean} keepGrayMode - グレーのままにするか
-     * @returns {void}
-     */
-    function setPickerCmyk(pickerState, cyan, magenta, yellow, black, keepGrayMode) {
-        pickerState.cmyk = { c: Math.round(cyan), m: Math.round(magenta), y: Math.round(yellow), k: Math.round(black) };
-        syncPickerRgbFromCmyk(pickerState);
-        pickerState.mode = keepGrayMode ? "gray" : "cmyk";
-        pickerState.dialogTab = "cmyk";
-        pickerState.presetType = "custom";
-    }
-
-    /**
-     * カラー選択の状態を色文字列にする
-     * @param {Object} pickerState - カラー選択の状態
-     * @returns {string} "RRGGBB" か "cmyk:C,M,Y,K"
-     */
-    function serializeColorPickerState(pickerState) {
-        if (pickerState.presetType === "white") return "FFFFFF";
-        if (pickerState.presetType === "black") return "000000";
-        if (pickerState.mode === "gray") return cmykStringFromValues({ c: 0, m: 0, y: 0, k: pickerState.cmyk.k });
-        if (pickerState.mode === "cmyk") return cmykStringFromValues(pickerState.cmyk);
-        return rgbToHex(pickerState.rgb);
-    }
-
-    /**
-     * カラー選択の状態を画面表示用の RGB にする
-     * @param {Object} pickerState - カラー選択の状態
-     * @returns {{r: number, g: number, b: number}} RGB（0〜255）
-     */
-    function getPickerPreviewRgb(pickerState) {
-        if (pickerState.presetType === "white") return { r: 255, g: 255, b: 255 };
-        if (pickerState.presetType === "black") return { r: 0, g: 0, b: 0 };
-        if (pickerState.mode === "gray" || pickerState.mode === "cmyk") return cmykToRgbApprox(pickerState.cmyk);
-        return {
-            r: Math.round(pickerState.rgb.r),
-            g: Math.round(pickerState.rgb.g),
-            b: Math.round(pickerState.rgb.b)
-        };
-    }
-
-    /**
-     * カラー選択のスライダー行（チャンネル名・スライダー・数値欄）を追加する
-     * @param {Group} parent - 追加先
-     * @param {string} channelLabel - チャンネル名（"R" など）
-     * @param {number} initialValue - 初期値
-     * @param {number} maxValue - 上限（RGB は 255、CMYK は 100）
-     * @returns {Object} row・slider・input と、値が変わったときの関数を登録する setOnValueChange
-     */
-    function addPickerSliderRow(parent, channelLabel, initialValue, maxValue) {
-        var onValueChange = null;
-        var rowGroup = addRow(parent);
-        var channelText = rowGroup.add("statictext", undefined, channelLabel);
-        channelText.justify = "center";
-        channelText.preferredSize = [PICKER_LABEL_WIDTH, -1];
-        var slider = rowGroup.add("slider", undefined, initialValue, 0, maxValue);
-        slider.preferredSize = PICKER_SLIDER_SIZE;
-        var valueInput = rowGroup.add("edittext", undefined, String(Math.round(initialValue)));
-        valueInput.characters = PICKER_VALUE_CHARS;
-
-        /* 値を整数に丸めて範囲内に収め、スライダーと数値欄に反映してから知らせる
-           Round and clamp the value, show it on the slider and field, then notify */
-        var commitValue = function (value, typedInInput) {
-            value = clampNumber(Math.round(value), 0, maxValue);
-            slider.value = value;
-            /* 入力中の欄は書き換えない / leave the field alone while it is being typed in */
-            if (!typedInInput) valueInput.text = String(value);
-            if (typeof onValueChange === "function") onValueChange(value, typedInInput ? valueInput : null);
-        };
-
-        slider.onChanging = function () {
-            var value = slider.value;
-            var keyboard = ScriptUI.environment.keyboardState;
-            if (keyboard.shiftKey) {
-                /* shift で10%刻み / snap to 10% steps with Shift */
-                var shiftStep = maxValue * 0.1;
-                value = Math.round(value / shiftStep) * shiftStep;
-            } else if (keyboard.altKey) {
-                /* option で RGB は16、CMYK は5%刻み / snap to 16 (RGB) or 5% (CMYK) with Option */
-                var altStep = (maxValue === 255) ? 16 : maxValue * 0.05;
-                value = Math.round(value / altStep) * altStep;
-            }
-            commitValue(value, false);
-        };
-
-        /* shift+↑↓ でスライダーを10%ずつ動かす / Shift+Up/Down moves the slider by 10% */
-        slider.addEventListener("keydown", function (event) {
-            if (event.keyName !== "Up" && event.keyName !== "Down") return;
-            if (!ScriptUI.environment.keyboardState.shiftKey) return;
-            var delta = Math.max(Math.round(maxValue * 0.1), 1);
-            commitValue(slider.value + ((event.keyName === "Up") ? delta : -delta), false);
-            event.preventDefault();
-        });
-
-        /* ↑↓で±1、shift+↑↓で±10 / Up/Down steps by 1, Shift+Up/Down by 10 */
-        valueInput.addEventListener("keydown", function (event) {
-            if (event.keyName !== "Up" && event.keyName !== "Down") return;
-            var value = parseFloat(valueInput.text);
-            if (isNaN(value)) value = 0;
-            var delta = ScriptUI.environment.keyboardState.shiftKey ? 10 : 1;
-            commitValue(value + ((event.keyName === "Up") ? delta : -delta), false);
-            event.preventDefault();
-        });
-
-        valueInput.addEventListener("changing", function () {
-            var value = parseFloat(valueInput.text);
-            if (!isNaN(value)) commitValue(value, true);
-        });
-
-        return {
-            row: rowGroup,
-            slider: slider,
-            input: valueInput,
-            setOnValueChange: function (callback) { onValueChange = callback; }
-        };
-    }
-
-    /**
-     * スライダー行に値を入れる
-     * @param {Object} sliderRow - addPickerSliderRow() の戻り値
-     * @param {number} value - 値
-     * @param {EditText|null} skipInput - 書き換えない入力欄（入力中の欄）
-     * @returns {void}
-     */
-    function setPickerSliderRow(sliderRow, value, skipInput) {
-        sliderRow.slider.value = Math.round(value);
-        if (sliderRow.input !== skipInput) sliderRow.input.text = String(Math.round(value));
-    }
-
-    /**
-     * カラー選択の状態をダイアログに映す
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {Object} pickerControls - カラー選択のコントロール
-     * @param {Object} [renderOptions] - suppressTabSelection（タブを切り替えない）、skipInput（書き換えない欄）
-     * @returns {void}
-     */
-    function renderColorPicker(pickerState, pickerControls, renderOptions) {
-        renderOptions = renderOptions || {};
-        var skipInput = renderOptions.skipInput || null;
-
-        pickerControls.whiteRadio.value = (pickerState.presetType === "white");
-        pickerControls.blackRadio.value = (pickerState.presetType === "black");
-        pickerControls.customRadio.value = (pickerState.presetType === "custom");
-
-        if (!renderOptions.suppressTabSelection) {
-            var targetTab = (pickerState.dialogTab === "cmyk") ? pickerControls.cmykTab : pickerControls.rgbTab;
-            if (pickerControls.tabPanel.selection !== targetTab) pickerControls.tabPanel.selection = targetTab;
-        }
-
-        pickerControls.grayCheckbox.value = (pickerState.mode === "gray");
-
-        setPickerSliderRow(pickerControls.redRow, pickerState.rgb.r, skipInput);
-        setPickerSliderRow(pickerControls.greenRow, pickerState.rgb.g, skipInput);
-        setPickerSliderRow(pickerControls.blueRow, pickerState.rgb.b, skipInput);
-        if (pickerControls.hexInput !== skipInput) pickerControls.hexInput.text = rgbToHex(pickerState.rgb);
-
-        setPickerSliderRow(pickerControls.cyanRow, pickerState.cmyk.c, skipInput);
-        setPickerSliderRow(pickerControls.magentaRow, pickerState.cmyk.m, skipInput);
-        setPickerSliderRow(pickerControls.yellowRow, pickerState.cmyk.y, skipInput);
-        setPickerSliderRow(pickerControls.blackRow, pickerState.cmyk.k, skipInput);
-
-        /* 白・黒のときはタブごと、グレーのときは C・M・Y を使えなくする / disable the tabs for white or black, and C/M/Y for gray */
-        var customEnabled = (pickerState.presetType === "custom");
-        var colorInkEnabled = customEnabled && pickerState.mode !== "gray";
-        pickerControls.tabPanel.enabled = customEnabled;
-        pickerControls.cyanRow.row.enabled = colorInkEnabled;
-        pickerControls.magentaRow.row.enabled = colorInkEnabled;
-        pickerControls.yellowRow.row.enabled = colorInkEnabled;
-
-        pickerControls.refreshPreview();
-    }
-
-    /**
-     * カラー選択ダイアログを組み立てる（イベントは bindColorPickerEvents() で付ける）
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {{r: number, g: number, b: number}} initialRgb - 開いたときの色（比較用）
-     * @returns {Object} ダイアログとコントロールの参照
-     */
-    function buildColorPickerDialog(pickerState, initialRgb) {
-        var pickerControls = {};
-        var pickerDialog = new Window("dialog", getLabel("dialog.colorPicker"));
-        pickerDialog.orientation = "column";
-        pickerDialog.alignChildren = ["fill", "top"];
-        pickerControls.dialog = pickerDialog;
-
-        /* 開いたときの色と今の色を並べる / the original color next to the current one */
-        var previewRowGroup = pickerDialog.add("group");
-        previewRowGroup.orientation = "row";
-        previewRowGroup.alignment = ["center", "top"];
-        previewRowGroup.spacing = 1;
-        var originalPreview = previewRowGroup.add("group");
-        originalPreview.preferredSize = PICKER_PREVIEW_SIZE;
-        originalPreview.onDraw = function () { paintSolidColor(this, initialRgb, false); };
-        var currentPreview = previewRowGroup.add("group");
-        currentPreview.preferredSize = PICKER_PREVIEW_SIZE;
-        currentPreview.onDraw = function () { paintSolidColor(this, getPickerPreviewRgb(pickerState), false); };
-        pickerControls.refreshPreview = function () { repaintControl(currentPreview); };
-
-        var colorTypeRowGroup = addRow(pickerDialog);
-        colorTypeRowGroup.alignment = ["center", "top"];
-        pickerControls.whiteRadio = addRadio(colorTypeRowGroup, "radio.white", "tooltip.colorType");
-        pickerControls.blackRadio = addRadio(colorTypeRowGroup, "radio.black", "tooltip.colorType");
-        pickerControls.customRadio = addRadio(colorTypeRowGroup, "radio.custom", "tooltip.colorType");
-
-        var tabPanel = pickerDialog.add("tabbedpanel");
-        tabPanel.alignment = ["fill", "top"];
-        tabPanel.alignChildren = ["fill", "top"];
-        pickerControls.tabPanel = tabPanel;
-
-        /* RGB タブ / RGB tab */
-        var rgbTab = tabPanel.add("tab", undefined, getLabel("tab.rgb"));
-        rgbTab.orientation = "column";
-        rgbTab.alignChildren = ["fill", "top"];
-        rgbTab.margins = PANEL_MARGINS;
-        pickerControls.rgbTab = rgbTab;
-
-        var rgbSliderGroup = addColumn(rgbTab, "fill");
-        pickerControls.redRow = addPickerSliderRow(rgbSliderGroup, "R", pickerState.rgb.r, 255);
-        pickerControls.greenRow = addPickerSliderRow(rgbSliderGroup, "G", pickerState.rgb.g, 255);
-        pickerControls.blueRow = addPickerSliderRow(rgbSliderGroup, "B", pickerState.rgb.b, 255);
-
-        var hexRowGroup = addRow(rgbTab);
-        hexRowGroup.alignment = ["center", "top"];
-        hexRowGroup.add("statictext", undefined, "#");
-        pickerControls.hexInput = hexRowGroup.add("edittext", undefined, rgbToHex(pickerState.rgb));
-        pickerControls.hexInput.helpTip = getLabel("tooltip.hex");
-        pickerControls.hexInput.characters = PICKER_HEX_CHARS;
-
-        /* CMYK タブ / CMYK tab */
-        var cmykTab = tabPanel.add("tab", undefined, getLabel("tab.cmyk"));
-        cmykTab.orientation = "column";
-        cmykTab.alignChildren = ["fill", "top"];
-        cmykTab.margins = PANEL_MARGINS;
-        pickerControls.cmykTab = cmykTab;
-
-        pickerControls.grayCheckbox = addCheckbox(cmykTab, "checkbox.gray", "tooltip.gray", false);
-
-        var cmykSliderGroup = addColumn(cmykTab, "fill");
-        pickerControls.cyanRow = addPickerSliderRow(cmykSliderGroup, "C", pickerState.cmyk.c, 100);
-        pickerControls.magentaRow = addPickerSliderRow(cmykSliderGroup, "M", pickerState.cmyk.m, 100);
-        pickerControls.yellowRow = addPickerSliderRow(cmykSliderGroup, "Y", pickerState.cmyk.y, 100);
-        pickerControls.blackRow = addPickerSliderRow(cmykSliderGroup, "K", pickerState.cmyk.k, 100);
-
-        /* ボタン行（左右中央） / Button row (centered) */
-        var buttonRow = addButtonRow(pickerDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-
-        return pickerControls;
-    }
-
-    /**
-     * カラー選択ダイアログのイベントを付ける
-     * @param {Object} pickerState - カラー選択の状態
-     * @param {Object} pickerControls - カラー選択のコントロール
-     * @returns {void}
-     */
-    function bindColorPickerEvents(pickerState, pickerControls) {
-        /* 描き直し中に届いたイベントでは描き直さない / ignore events raised while the dialog is being redrawn */
-        var isRendering = false;
-        var render = function (renderOptions) {
-            if (isRendering) return;
-            isRendering = true;
-            try {
-                renderColorPicker(pickerState, pickerControls, renderOptions);
-            } finally {
-                isRendering = false;
-            }
-        };
-
-        pickerControls.redRow.setOnValueChange(function (value, typedInput) {
-            setPickerRgb(pickerState, value, pickerState.rgb.g, pickerState.rgb.b);
-            render({ skipInput: typedInput });
-        });
-        pickerControls.greenRow.setOnValueChange(function (value, typedInput) {
-            setPickerRgb(pickerState, pickerState.rgb.r, value, pickerState.rgb.b);
-            render({ skipInput: typedInput });
-        });
-        pickerControls.blueRow.setOnValueChange(function (value, typedInput) {
-            setPickerRgb(pickerState, pickerState.rgb.r, pickerState.rgb.g, value);
-            render({ skipInput: typedInput });
-        });
-
-        pickerControls.cyanRow.setOnValueChange(function (value, typedInput) {
-            var cmyk = pickerState.cmyk;
-            setPickerCmyk(pickerState, value, cmyk.m, cmyk.y, cmyk.k, pickerControls.grayCheckbox.value);
-            render({ skipInput: typedInput });
-        });
-        pickerControls.magentaRow.setOnValueChange(function (value, typedInput) {
-            var cmyk = pickerState.cmyk;
-            setPickerCmyk(pickerState, cmyk.c, value, cmyk.y, cmyk.k, pickerControls.grayCheckbox.value);
-            render({ skipInput: typedInput });
-        });
-        pickerControls.yellowRow.setOnValueChange(function (value, typedInput) {
-            var cmyk = pickerState.cmyk;
-            setPickerCmyk(pickerState, cmyk.c, cmyk.m, value, cmyk.k, pickerControls.grayCheckbox.value);
-            render({ skipInput: typedInput });
-        });
-        pickerControls.blackRow.setOnValueChange(function (value, typedInput) {
-            var cmyk = pickerState.cmyk;
-            setPickerCmyk(pickerState, cmyk.c, cmyk.m, cmyk.y, value, pickerControls.grayCheckbox.value);
-            render({ skipInput: typedInput });
-        });
-
-        /* 16進数は6桁そろったときだけ反映する / apply the hex value only once all six digits are in */
-        pickerControls.hexInput.addEventListener("changing", function () {
-            var hex = pickerControls.hexInput.text.replace(/^#/, "");
-            if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return;
-            var hexRgb = parseHexRgb(hex, "000000");
-            setPickerRgb(pickerState, hexRgb.r, hexRgb.g, hexRgb.b);
-            render({ skipInput: pickerControls.hexInput });
-        });
-
-        pickerControls.whiteRadio.onClick = function () {
-            setPickerPresetType(pickerState, "white");
-            render();
-        };
-        pickerControls.blackRadio.onClick = function () {
-            setPickerPresetType(pickerState, "black");
-            render();
-        };
-        pickerControls.customRadio.onClick = function () {
-            setPickerPresetType(pickerState, "custom");
-            render();
-        };
-
-        pickerControls.tabPanel.onChange = function () {
-            if (isRendering) return;
-            pickerState.dialogTab = (pickerControls.tabPanel.selection === pickerControls.cmykTab) ? "cmyk" : "rgb";
-            if (pickerState.dialogTab === "rgb") {
-                syncPickerRgbFromCmyk(pickerState);
-                pickerState.mode = "rgb";
-            } else {
-                syncPickerCmykFromRgb(pickerState);
-                pickerState.mode = pickerControls.grayCheckbox.value ? "gray" : "cmyk";
-            }
-            render({ suppressTabSelection: true });
-        };
-
-        /* グレーにするときは C・M・Y を0にする / switching to gray clears C, M and Y */
-        pickerControls.grayCheckbox.onClick = function () {
-            if (pickerControls.grayCheckbox.value) {
-                pickerState.cmyk.c = 0;
-                pickerState.cmyk.m = 0;
-                pickerState.cmyk.y = 0;
-                pickerState.mode = "gray";
-            } else {
-                pickerState.mode = "cmyk";
-            }
-            pickerState.dialogTab = "cmyk";
-            pickerState.presetType = "custom";
-            syncPickerRgbFromCmyk(pickerState);
-            render();
-        };
-    }
-
-    /**
-     * カラー選択ダイアログを表示する
+     * Illustrator 標準のカラーピッカーを開いて色を選ぶ。
+     * OK なら選んだ色がドキュメントのカラーモードの型で返り、キャンセルなら渡した色がそのまま返る
      * @param {string} initialColor - 開いたときの色（"RRGGBB" か "cmyk:C,M,Y,K"）
-     * @returns {string|null} 選んだ色の文字列。キャンセルなら null
+     * @returns {string|null} 選んだ色の文字列。キャンセルしたとき・色が変わらないときは null
      */
     function showColorPickerDialog(initialColor) {
-        var pickerState = createColorPickerState(initialColor);
-        var initialRgb = { r: pickerState.rgb.r, g: pickerState.rgb.g, b: pickerState.rgb.b };
-        var pickerControls = buildColorPickerDialog(pickerState, initialRgb);
-
-        renderColorPicker(pickerState, pickerControls);
-        bindColorPickerEvents(pickerState, pickerControls);
-
-        prepareDialogWindow(pickerControls.dialog, SCRIPT_NAME + "_colorPicker");
-        if (pickerControls.dialog.show() !== 1) return null;
-        return serializeColorPickerState(pickerState);
+        var pickedColor = app.showColorPicker(parseColorString(initialColor));
+        var pickedText = null;
+        if (pickedColor.typename === "CMYKColor") {
+            pickedText = cmykStringFromValues({ c: pickedColor.cyan, m: pickedColor.magenta, y: pickedColor.yellow, k: pickedColor.black });
+        } else if (pickedColor.typename === "GrayColor") {
+            pickedText = cmykStringFromValues({ c: 0, m: 0, y: 0, k: pickedColor.gray });
+        } else if (pickedColor.typename === "RGBColor") {
+            pickedText = rgbToHex({ r: pickedColor.red, g: pickedColor.green, b: pickedColor.blue });
+        }
+        return (pickedText === initialColor) ? null : pickedText;
     }
 
     /**

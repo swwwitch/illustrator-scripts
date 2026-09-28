@@ -17,7 +17,7 @@
 ### Main Features
 
 - Split position: Balance sets the width and share (%) of each half with fields and a slider. Turn on Square to split where that side becomes a square.
-- Fills: choose whether each half is filled and pick its color. Clicking a swatch opens a color picker with white, black, RGB, CMYK and grayscale. By default the left (top) half is light gray (RGB 220) and the right (bottom) half dark gray (RGB 128).
+- Fills: choose whether each half is filled and pick its color. Clicking a swatch opens Illustrator's standard color picker. By default the left (top) half is light gray (RGB 220) and the right (bottom) half dark gray (RGB 128).
 - Strokes: add an outer frame around the whole shape and a divider along the split, with their weight and color.
 - Corners: round each of the four corners on its own, or turn on Pill shape to make both ends semicircles. With Link (the link icon) on, the top-left setting applies to all four corners.
 - Accurate measuring: text is measured from an outlined duplicate, so side bearings do not shift the background (the duplicate is deleted right away). Clip groups are measured by their mask.
@@ -59,3 +59,4 @@
 - v2.10.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.10.1 (20260928): Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.10.2 (20260928): The button row is now built with the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held). Clip groups nested in a group are now measured by their mask too
+- v2.10.3 (20260929): The swatches now open Illustrator's standard color picker instead of the script's own dialog
