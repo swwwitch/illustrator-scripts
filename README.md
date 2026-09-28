@@ -324,7 +324,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択中／全体のパス統計をカウントし、常駐パレットで表示](readme-ja/PathInspectorPalette.md)
 - [グラフィックスタイル／ブラシ／スウォッチ／シンボルの「名前」を、ダイアログで指定した「検索→置換」で一括変更…](readme-ja/RenameAssets.md)
 - [選択したオブジェクトの線幅と矢印（始点／終点の形状・倍率・先端位置）をまとめて設定します](readme-ja/SetStrokeAndArrowheads.md)
-- [アクティブなドキュメント上で、指定した .ai / .pdf（PDFはページ指定）をグリッド配置し、ポートフ…](readme-ja/SlideCollage.md)
+- [アクティブなドキュメントに、選んだ .ai / .pdf のアートボード（PDF はページ）をグリッド状に並…](readme-ja/SlideCollage.md)
 - [基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します](readme-ja/SmartCalendarMaker.md)
 - [Illustrator のアートボード／シンボル／レイヤー名を、接頭辞・接尾辞・名前ソース・検索置換を組み合…](readme-ja/SmartRenamer.md)
 - [2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背…](readme-ja/SmartTableMaker.md)

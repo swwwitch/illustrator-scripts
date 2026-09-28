@@ -304,7 +304,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Count path stats for the selection / whole document an…](readme-en/PathInspectorPalette.md)
 - [Renames graphic styles, brushes, swatches and symbols…](readme-en/RenameAssets.md)
 - [Sets stroke width and arrowheads (shape, scale and tip…](readme-en/SetStrokeAndArrowheads.md)
-- [Places selected .ai / .pdf files (PDFs by page) on the…](readme-en/SlideCollage.md)
+- [Lays out the artboards (or PDF pages) of the .ai / .pd…](readme-en/SlideCollage.md)
 - [Creates calendars (Monday start) for the given number…](readme-en/SmartCalendarMaker.md)
 - [Batch rename and reorder Illustrator artboards / symbo…](readme-en/SmartRenamer.md)
 - [Select two objects (text, paths, groups, and so on) an…](readme-en/SmartTableMaker.md)

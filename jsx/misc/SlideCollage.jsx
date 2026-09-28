@@ -1,12 +1,13 @@
 #target illustrator
+#targetengine "SlideCollageEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-指定した .ai / .pdf ファイルをグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
-読み込むアートボード番号やページを指定できます。
+選んだ .ai / .pdf のアートボード（PDFはページ）をグリッドに並べ、ポートフォリオ用のサムネイル一覧を作成します。
+見開きを片ページに分けたり、回転・マスク・背景色を付けたりできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
@@ -16,8 +17,8 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Overview
 
-Lays out the .ai and .pdf files you choose in a grid to build a portfolio-style thumbnail sheet.
-The artboards or pages to import can be specified by number.
+Lays out the artboards (or PDF pages) of the .ai / .pdf file you choose in a grid to build a portfolio-style thumbnail sheet.
+Spreads can be split into single pages, and the layout can be rotated, masked and given a background color.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md
@@ -28,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideColla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -301,6 +302,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             mask: {
                 ja: "OKのとき、マージンの内側でクリッピングします（背景は含めません）",
                 en: "On OK, clips the items inside the margin (the background is not clipped)"
+            },
+            fitView: {
+                ja: "アクティブなアートボードが収まるよう表示倍率を合わせます。キャンセルすると元の表示に戻ります",
+                en: "Zooms so the active artboard fits in the window. Cancel restores the original view"
             },
             reset: {
                 ja: "ファイルと範囲以外の設定を初期値に戻します",
@@ -990,6 +995,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     }
 
     /**
+     * キャッシュのキーにするファイルの識別子を返す。#targetengine でキャッシュが Illustrator の終了まで残るので、
+     * 更新日時も含めて、ファイルを書き換えたら古い値を使わないようにする
+     * @param {File} sourceFile - ファイル
+     * @returns {string} パスと更新日時をつないだ文字列
+     */
+    function getSourceCacheKey(sourceFile) {
+        return sourceFile.fsName + "|" + (sourceFile.modified ? sourceFile.modified.getTime() : "");
+    }
+
+    /**
      * ファイルをドキュメントとして開いてアートボード数を数える（中身から読めなかったときの予備。セッション中は覚えておく）。
      * すでに開いているファイルは閉じない。数え終えたら元のドキュメントを前面に戻す
      * @param {File} sourceFile - ファイル
@@ -999,7 +1014,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     function countArtboardsByOpening(sourceFile, returnDoc) {
         if (!$.global.SlideCollage_artboardCountCache) $.global.SlideCollage_artboardCountCache = {};
         var countCache = $.global.SlideCollage_artboardCountCache;
-        if (countCache[sourceFile.fsName] > 0) return countCache[sourceFile.fsName];
+        var cacheKey = getSourceCacheKey(sourceFile);
+        if (countCache[cacheKey] > 0) return countCache[cacheKey];
 
         var artboardCount = 0;
         var openedDoc = null;
@@ -1015,7 +1031,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             if (openedDoc && app.documents.length > documentCountBefore) openedDoc.close(SaveOptions.DONOTSAVECHANGES);
             returnDoc.activate();
         }
-        if (artboardCount > 0) countCache[sourceFile.fsName] = artboardCount;
+        if (artboardCount > 0) countCache[cacheKey] = artboardCount;
         return artboardCount;
     }
 
@@ -1071,7 +1087,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     function measureSourcePage(doc, sourceFile, pageNumber, cropToValue) {
         if (!$.global.SlideCollage_pageSizeCache) $.global.SlideCollage_pageSizeCache = {};
         var sizeCache = $.global.SlideCollage_pageSizeCache;
-        var cacheKey = sourceFile.fsName + "|" + cropToValue + "|" + pageNumber;
+        var cacheKey = getSourceCacheKey(sourceFile) + "|" + cropToValue + "|" + pageNumber;
         if (sizeCache[cacheKey]) return sizeCache[cacheKey];
 
         var tempItem = placeSourcePage(doc, sourceFile, pageNumber, cropToValue);
@@ -1911,6 +1927,145 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
     // 画面にフィット（再利用パーツ）ここまで / End of the reusable fit view
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var DIALOG_OPACITY = 0.97;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // メイン処理 / Main
     // =========================================
@@ -1922,11 +2077,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
      * @returns {Object} ダイアログとコントロール一式
      */
     function buildDialog(doc, rulerUnit) {
-        var ui = {};
-        ui.dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        ui.dialog.alignChildren = "fill";
+        var dialogControls = {};
+        dialogControls.dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        dialogControls.dialog.alignChildren = "fill";
 
-        var columnsGroup = ui.dialog.add("group");
+        var columnsGroup = dialogControls.dialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "fill"];
         var leftColumn = columnsGroup.add("group");
@@ -1938,128 +2093,130 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
         /* 読み込みファイル / Source file */
         var sourcePanel = addPanel(leftColumn, getLabel("panel.source"));
-        ui.btnChooseFile = sourcePanel.add("button", undefined, getLabel("button.chooseFile"));
-        ui.sourceNameText = sourcePanel.add("statictext", undefined, getLabel("fallbackName.noFile"));
-        ui.sourceNameText.characters = 20;
+        dialogControls.btnChooseFile = sourcePanel.add("button", undefined, getLabel("button.chooseFile"));
+        dialogControls.sourceNameText = sourcePanel.add("statictext", undefined, getLabel("fallbackName.noFile"));
+        dialogControls.sourceNameText.characters = 20;
 
         /* アートボードの読み込み（範囲・総数・読み込み） / Load artboards */
         var artboardsPanel = addPanel(leftColumn, getLabel("panel.artboards"));
         var rangeRowGroup = addRow(artboardsPanel);
         rangeRowGroup.add("statictext", undefined, labelText("fieldLabel.range")).helpTip = getLabel("tooltip.range");
-        ui.rangeInput = rangeRowGroup.add("edittext", undefined, "");
-        ui.rangeInput.characters = 10;
-        ui.rangeInput.helpTip = getLabel("tooltip.range");
+        dialogControls.rangeInput = rangeRowGroup.add("edittext", undefined, "");
+        dialogControls.rangeInput.characters = 10;
+        dialogControls.rangeInput.helpTip = getLabel("tooltip.range");
 
         var countRowGroup = addRow(artboardsPanel);
         countRowGroup.add("statictext", undefined, labelText("fieldLabel.count")).helpTip = getLabel("tooltip.count");
         /* onStep は main 側で入れる（手で増減したら範囲との連動を切る） / onStep is set in main */
-        ui.countStepOptions = { integer: true, min: 1 };
-        ui.countInput = addStepperEditText(countRowGroup, "", 4, ui.countStepOptions);
-        ui.countInput.helpTip = getLabel("tooltip.count");
+        dialogControls.countStepOptions = { integer: true, min: 1 };
+        dialogControls.countInput = addStepperEditText(countRowGroup, "", 4, dialogControls.countStepOptions);
+        dialogControls.countInput.helpTip = getLabel("tooltip.count");
 
-        ui.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
-        ui.btnLoad.helpTip = getLabel("tooltip.load");
+        dialogControls.btnLoad = artboardsPanel.add("button", undefined, getLabel("button.load"));
+        dialogControls.btnLoad.helpTip = getLabel("tooltip.load");
 
         /* アイテム / Items */
         var itemPanel = addPanel(leftColumn, getLabel("panel.item"));
-        ui.cropDropdown = itemPanel.add("dropdownlist", undefined, [
+        dialogControls.cropDropdown = itemPanel.add("dropdownlist", undefined, [
             getLabel("dropdown.cropArt"), getLabel("dropdown.cropCrop"), getLabel("dropdown.cropTrim"), getLabel("dropdown.cropBleed")
         ]);
-        ui.cropDropdown.minimumSize.width = 160;
-        ui.cropDropdown.helpTip = getLabel("tooltip.crop");
-        ui.roundRow = addNumberRow(itemPanel, {
+        dialogControls.cropDropdown.minimumSize.width = 160;
+        dialogControls.cropDropdown.helpTip = getLabel("tooltip.crop");
+        dialogControls.roundRow = addNumberRow(itemPanel, {
             checkboxLabel: labelText("checkbox.roundCorners"), tooltip: getLabel("tooltip.roundCorners"),
             characters: 3, min: 0, unit: rulerUnit.label
         });
 
-        ui.splitSpreadsCheckbox = itemPanel.add("checkbox", undefined, getLabel("checkbox.splitSpreads"));
-        ui.splitSpreadsCheckbox.helpTip = getLabel("tooltip.splitSpreads");
-        ui.evenPageGroup = addRow(itemPanel);
-        ui.evenPageGroup.add("statictext", undefined, labelText("fieldLabel.evenPage")).helpTip = getLabel("tooltip.evenPage");
-        ui.evenPageRightRadio = ui.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageRight"));
-        ui.evenPageLeftRadio = ui.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageLeft"));
-        ui.evenPageRightRadio.helpTip = ui.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
-        ui.evenPageRightRadio.value = true;
+        dialogControls.splitSpreadsCheckbox = itemPanel.add("checkbox", undefined, getLabel("checkbox.splitSpreads"));
+        dialogControls.splitSpreadsCheckbox.helpTip = getLabel("tooltip.splitSpreads");
+        dialogControls.evenPageGroup = addRow(itemPanel);
+        dialogControls.evenPageGroup.add("statictext", undefined, labelText("fieldLabel.evenPage")).helpTip = getLabel("tooltip.evenPage");
+        dialogControls.evenPageRightRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageRight"));
+        dialogControls.evenPageLeftRadio = dialogControls.evenPageGroup.add("radiobutton", undefined, getLabel("radio.evenPageLeft"));
+        dialogControls.evenPageRightRadio.helpTip = dialogControls.evenPageLeftRadio.helpTip = getLabel("tooltip.evenPage");
+        dialogControls.evenPageRightRadio.value = true;
 
         /* グリッド / Grid */
         var gridPanel = addPanel(rightColumn, getLabel("panel.grid"));
         var directionRowGroup = addRow(gridPanel);
         directionRowGroup.add("statictext", undefined, labelText("fieldLabel.direction"));
-        ui.flowRadios = [
+        dialogControls.flowRadios = [
             directionRowGroup.add("radiobutton", undefined, getLabel("radio.horizontal")), /* FLOW_HORIZONTAL */
             directionRowGroup.add("radiobutton", undefined, getLabel("radio.vertical")),   /* FLOW_VERTICAL */
             directionRowGroup.add("radiobutton", undefined, getLabel("radio.random"))      /* FLOW_RANDOM */
         ];
-        ui.columnsRow = addNumberRow(gridPanel, {
+        dialogControls.columnsRow = addNumberRow(gridPanel, {
             label: labelText("fieldLabel.columns"), characters: 4,
             min: 1, max: MAX_COLUMNS, integer: true, fallback: 1, unit: "", slider: { min: 1, max: MAX_COLUMNS }
         });
-        ui.spacingRow = addNumberRow(gridPanel, {
+        dialogControls.spacingRow = addNumberRow(gridPanel, {
             label: labelText("fieldLabel.spacing"), characters: 4,
             min: 0, max: 100, unit: rulerUnit.label, slider: { min: 0, max: 100 }
         });
 
         /* 偶数列 / Even columns */
         var evenColumnsPanel = addPanel(rightColumn, getLabel("panel.evenColumns"));
-        ui.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
-        ui.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
-        ui.evenShiftRow = addNumberRow(evenColumnsPanel, {
+        dialogControls.evenPlusCheckbox = evenColumnsPanel.add("checkbox", undefined, getLabel("checkbox.evenPlusSlot"));
+        dialogControls.evenPlusCheckbox.helpTip = getLabel("tooltip.evenPlusSlot");
+        dialogControls.evenShiftRow = addNumberRow(evenColumnsPanel, {
             checkboxLabel: labelText("checkbox.evenShift"), tooltip: getLabel("tooltip.evenShift"),
             characters: 4, min: -200, max: 200, unit: rulerUnit.label, slider: { min: -200, max: 200 }
         });
 
         /* レイアウト / Layout */
         var layoutPanel = addPanel(rightColumn, getLabel("panel.layout"));
-        ui.scaleRow = addNumberRow(layoutPanel, {
+        dialogControls.scaleRow = addNumberRow(layoutPanel, {
             label: labelText("fieldLabel.scale"), tooltip: getLabel("tooltip.scale"),
             characters: 4, min: 10, max: 250, integer: true, fallback: 100, unit: "%", slider: { min: 10, max: 250 }
         });
-        ui.rotateRow = addNumberRow(layoutPanel, {
+        dialogControls.rotateRow = addNumberRow(layoutPanel, {
             checkboxLabel: labelText("checkbox.rotate"), tooltip: getLabel("tooltip.rotate"),
             characters: 4, min: -30, max: 30, integer: true, unit: "°", slider: { min: -30, max: 30 }
         });
         /* スライダーのある行は、頭の幅をそろえて入力欄の位置を合わせる / align the leads of the slider rows */
-        alignNumberRowLeads([ui.columnsRow, ui.spacingRow, ui.evenShiftRow, ui.scaleRow, ui.rotateRow]);
+        alignNumberRowLeads([dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow]);
 
         /* 位置調整のスライダーは、アートボードの幅・高さ（定規の単位）まで動かせる / offset range follows the artboard size */
         var artboardRect = getInnerArtboardRect(doc, 0);
-        ui.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
-        ui.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
+        dialogControls.offsetXRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetX"), getLabel("tooltip.offsetX"), artboardRect.width / rulerUnit.pointsPerUnit);
+        dialogControls.offsetYRow = addOffsetRow(layoutPanel, labelText("checkbox.offsetY"), getLabel("tooltip.offsetY"), artboardRect.height / rulerUnit.pointsPerUnit);
 
         /* アートボードとマスク / Artboard & mask */
         var artboardMaskPanel = addPanel(rightColumn, getLabel("panel.artboardMask"));
         var backgroundRowGroup = addRow(artboardMaskPanel);
-        ui.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
-        ui.backgroundSwatch = backgroundRowGroup.add("panel");
-        ui.backgroundSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
-        ui.backgroundSwatch.helpTip = getLabel("tooltip.backgroundHex");
-        ui.backgroundHexInput = backgroundRowGroup.add("edittext", undefined, "");
-        ui.backgroundHexInput.characters = 7;
-        ui.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
+        dialogControls.backgroundCheckbox = backgroundRowGroup.add("checkbox", undefined, labelText("checkbox.background"));
+        dialogControls.backgroundSwatch = backgroundRowGroup.add("panel");
+        dialogControls.backgroundSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
+        dialogControls.backgroundSwatch.helpTip = getLabel("tooltip.backgroundHex");
+        dialogControls.backgroundHexInput = backgroundRowGroup.add("edittext", undefined, "");
+        dialogControls.backgroundHexInput.characters = 7;
+        dialogControls.backgroundHexInput.helpTip = getLabel("tooltip.backgroundHex");
 
         /* マスクとマージンは同じ行、マスク角丸はマージンの左端にそろえて次の行 / mask and margin share a row; the mask corner row starts under the margin */
         var maskRowGroup = addRow(artboardMaskPanel);
         maskRowGroup.spacing = MASK_ROW_SPACING; /* 字下げの計算に使うので明示する / set explicitly for the indent below */
-        ui.maskCheckbox = maskRowGroup.add("checkbox", undefined, getLabel("checkbox.mask"));
-        ui.maskCheckbox.helpTip = getLabel("tooltip.mask");
-        ui.marginRow = addNumberRow(maskRowGroup, {
+        dialogControls.maskCheckbox = maskRowGroup.add("checkbox", undefined, getLabel("checkbox.mask"));
+        dialogControls.maskCheckbox.helpTip = getLabel("tooltip.mask");
+        dialogControls.marginRow = addNumberRow(maskRowGroup, {
             label: labelText("fieldLabel.margin"), characters: 5, min: 0, unit: rulerUnit.label
         });
-        ui.marginRow.group.margins = 0;
-        ui.maskRoundRow = addNumberRow(artboardMaskPanel, {
+        dialogControls.marginRow.group.margins = 0;
+        dialogControls.maskRoundRow = addNumberRow(artboardMaskPanel, {
             checkboxLabel: labelText("checkbox.maskRound"), tooltip: getLabel("tooltip.maskRound"),
             characters: 3, min: 0, unit: rulerUnit.label
         });
-        ui.maskRoundRow.group.margins = [(ui.maskCheckbox.preferredSize.width || 0) + maskRowGroup.spacing, 0, 0, 0];
+        dialogControls.maskRoundRow.group.margins = [(dialogControls.maskCheckbox.preferredSize.width || 0) + maskRowGroup.spacing, 0, 0, 0];
 
         /* ボタン行（左：リセット・画面にフィット／右：キャンセル・OK） / Button row */
-        var buttonRow = addButtonRow(ui.dialog);
-        ui.btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
-        ui.btnReset.helpTip = getLabel("tooltip.reset");
-        ui.fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { lang: uiLang });
-        ui.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        ui.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        return ui;
+        var buttonRow = addButtonRow(dialogControls.dialog);
+        dialogControls.btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
+        dialogControls.btnReset.helpTip = getLabel("tooltip.reset");
+        dialogControls.fitViewControls = FitViewToItems.addControls(buttonRow.leftGroup, { lang: uiLang });
+        /* 部品の既定の説明は「作成するオブジェクト」向けなので、アートボードに合わせる説明に差し替える / describe the artboard fit */
+        dialogControls.fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
+        dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        return dialogControls;
     }
 
     /**
@@ -2081,13 +2238,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
 
         /* 読み込んだプレビューの状態。items は並べる前の順で、baseWidths / baseHeights は配置したままの大きさ
            Loaded preview state; items keep their load order, base sizes are as placed */
-        var preview = {
+        var previewState = {
             items: [], baseWidths: [], baseHeights: [],
             group: null, background: null, rotation: 0, randomOrder: null, roundRadiusPt: 0,
             cropIndex: -1, splitSpreads: false, evenPageOnRight: true
         };
 
-        var ui = buildDialog(doc, rulerUnit);
+        var dialogControls = buildDialog(doc, rulerUnit);
         var initialViewState = FitViewToItems.captureView(doc); /* キャンセルで戻す表示 / view restored on Cancel */
 
         /**
@@ -2117,8 +2274,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} FLOW_HORIZONTAL / FLOW_VERTICAL / FLOW_RANDOM
          */
         function getFlowMode() {
-            for (var i = 0; i < ui.flowRadios.length; i++) {
-                if (ui.flowRadios[i].value) return i;
+            for (var i = 0; i < dialogControls.flowRadios.length; i++) {
+                if (dialogControls.flowRadios[i].value) return i;
             }
             return FLOW_VERTICAL;
         }
@@ -2128,7 +2285,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} CROP_TO_VALUES の値
          */
         function getCropToValue() {
-            return CROP_TO_VALUES[ui.cropDropdown.selection ? ui.cropDropdown.selection.index : DEFAULT_SETTINGS.cropIndex];
+            return CROP_TO_VALUES[dialogControls.cropDropdown.selection ? dialogControls.cropDropdown.selection.index : DEFAULT_SETTINGS.cropIndex];
         }
 
         /**
@@ -2136,7 +2293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} マージン（pt）
          */
         function getMarginPt() {
-            return toPoints(ui.marginRow.getValue());
+            return toPoints(dialogControls.marginRow.getValue());
         }
 
         /**
@@ -2153,7 +2310,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number[]} ページ番号の配列
          */
         function getTargetPages() {
-            return buildTargetPages(ui.rangeInput.text, parsePositiveInt(ui.countInput.text), getSourcePageCount());
+            return buildTargetPages(dialogControls.rangeInput.text, parsePositiveInt(dialogControls.countInput.text), getSourcePageCount());
         }
 
         /**
@@ -2161,10 +2318,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {{width: number, height: number}|null} 大きさ。測れなければ null
          */
         function getReferenceItemSize() {
-            if (preview.items.length > 0) return { width: preview.baseWidths[0], height: preview.baseHeights[0] };
+            if (previewState.items.length > 0) return { width: previewState.baseWidths[0], height: previewState.baseHeights[0] };
             if (!sourceFile) return null;
             var pageSize = measureSourcePage(doc, sourceFile, getTargetPages()[0], getCropToValue());
-            if (pageSize && ui.splitSpreadsCheckbox.value && isSpreadSize(pageSize.width, pageSize.height)) {
+            if (pageSize && dialogControls.splitSpreadsCheckbox.value && isSpreadSize(pageSize.width, pageSize.height)) {
                 return { width: pageSize.width / 2, height: pageSize.height };
             }
             return pageSize;
@@ -2178,17 +2335,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {number} 倍率（%）
          */
         function calcFitPercentForUI(itemCount, itemSize, evenShiftPtOverride) {
-            var columnCount = ui.columnsRow.getValue();
+            var columnCount = dialogControls.columnsRow.getValue();
             var innerRect = getInnerArtboardRect(doc, getMarginPt());
             return calcAutoFitPercent({
                 itemWidth: itemSize.width, itemHeight: itemSize.height,
                 itemCount: itemCount, columnCount: columnCount,
-                gapPt: toPoints(ui.spacingRow.getValue()),
+                gapPt: toPoints(dialogControls.spacingRow.getValue()),
                 innerWidth: innerRect.width, innerHeight: innerRect.height,
-                slotCounts: ui.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null,
+                slotCounts: dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null,
                 evenShiftPt: (evenShiftPtOverride !== undefined) ? evenShiftPtOverride :
-                    (ui.evenShiftRow.isChecked() ? toPoints(ui.evenShiftRow.getValue()) : 0),
-                rotateDeg: ui.rotateRow.isChecked() ? ui.rotateRow.getValue() : 0
+                    (dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0),
+                rotateDeg: dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0
             });
         }
 
@@ -2203,22 +2360,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function setSourceFile(newSourceFile) {
             sourceFile = newSourceFile;
-            ui.sourceNameText.text = decodeURIComponent(sourceFile.name);
-            ui.sourceNameText.helpTip = decodeURIComponent(sourceFile.fsName);
-            ui.cropDropdown.enabled = isPdfFile(sourceFile);
+            dialogControls.sourceNameText.text = decodeURIComponent(sourceFile.name);
+            dialogControls.sourceNameText.helpTip = decodeURIComponent(sourceFile.fsName);
+            dialogControls.cropDropdown.enabled = isPdfFile(sourceFile);
             /* 綴じ方向から偶数ページの位置を設定する / set the even-page side from the binding direction */
-            ui.evenPageRightRadio.value = isRightBoundFile(sourceFile);
-            ui.evenPageLeftRadio.value = !ui.evenPageRightRadio.value;
+            dialogControls.evenPageRightRadio.value = isRightBoundFile(sourceFile);
+            dialogControls.evenPageLeftRadio.value = !dialogControls.evenPageRightRadio.value;
 
             sourcePageCount = readPageCountFromFile(sourceFile);
             if (sourcePageCount > 0) {
-                ui.rangeInput.text = "1-" + sourcePageCount;
+                dialogControls.rangeInput.text = "1-" + sourcePageCount;
                 isCountLinkedToRange = true;
                 syncCountToRange();
             } else {
                 alert(getLabel("alert.pageCountFailed"));
-                ui.rangeInput.text = "";
-                ui.countInput.text = "";
+                dialogControls.rangeInput.text = "";
+                dialogControls.countInput.text = "";
             }
         }
 
@@ -2228,8 +2385,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function syncCountToRange() {
             if (!isCountLinkedToRange) return;
-            var pageCount = parsePageNumbers(ui.rangeInput.text).length;
-            ui.countInput.text = (pageCount > 0) ? String(pageCount) : "";
+            var pageCount = parsePageNumbers(dialogControls.rangeInput.text).length;
+            dialogControls.countInput.text = (pageCount > 0) ? String(pageCount) : "";
         }
 
         /**
@@ -2257,16 +2414,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function clearPreview() {
-            if (preview.group) preview.group.remove(); /* 中のアイテムもまとめて消える / removes its children too */
-            if (preview.background) preview.background.remove();
-            preview.items = [];
-            preview.baseWidths = [];
-            preview.baseHeights = [];
-            preview.group = null;
-            preview.background = null;
-            preview.rotation = 0;
-            preview.randomOrder = null;
-            preview.roundRadiusPt = 0;
+            if (previewState.group) previewState.group.remove(); /* 中のアイテムもまとめて消える / removes its children too */
+            if (previewState.background) previewState.background.remove();
+            previewState.items = [];
+            previewState.baseWidths = [];
+            previewState.baseHeights = [];
+            previewState.group = null;
+            previewState.background = null;
+            previewState.rotation = 0;
+            previewState.randomOrder = null;
+            previewState.roundRadiusPt = 0;
         }
 
         /**
@@ -2282,28 +2439,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             removeLeftoverPreviewGroups(doc);
 
             var targetPages = getTargetPages();
-            if (!ui.countInput.text) ui.countInput.text = String(targetPages.length);
+            if (!dialogControls.countInput.text) dialogControls.countInput.text = String(targetPages.length);
             var cropToValue = getCropToValue();
-            preview.cropIndex = ui.cropDropdown.selection.index;
-            preview.splitSpreads = ui.splitSpreadsCheckbox.value;
-            preview.evenPageOnRight = ui.evenPageRightRadio.value;
+            previewState.cropIndex = dialogControls.cropDropdown.selection.index;
+            previewState.splitSpreads = dialogControls.splitSpreadsCheckbox.value;
+            previewState.evenPageOnRight = dialogControls.evenPageRightRadio.value;
 
             /* 回転・後始末をまとめて扱えるよう、1つのグループに入れる / keep everything in one group for rotation and cleanup */
-            preview.group = doc.groupItems.add();
-            preview.group.name = PREVIEW_GROUP_NAME;
+            previewState.group = doc.groupItems.add();
+            previewState.group.name = PREVIEW_GROUP_NAME;
             for (var i = 0; i < targetPages.length; i++) {
                 var placedItem = placeSourcePage(doc, sourceFile, targetPages[i], cropToValue);
                 if (!placedItem) continue;
-                var pieces = [placedItem];
-                if (preview.splitSpreads && isSpreadSize(placedItem.width, placedItem.height)) {
-                    pieces = splitSpreadItem(doc, placedItem, preview.evenPageOnRight);
+                var placedPieces = [placedItem];
+                if (previewState.splitSpreads && isSpreadSize(placedItem.width, placedItem.height)) {
+                    placedPieces = splitSpreadItem(doc, placedItem, previewState.evenPageOnRight);
                 }
-                for (var j = 0; j < pieces.length; j++) {
-                    pieces[j].moveToEnd(preview.group);
-                    preview.items.push(pieces[j]);
-                    var pieceBounds = getVisibleBounds(pieces[j]);
-                    preview.baseWidths.push(pieceBounds[2] - pieceBounds[0]);
-                    preview.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
+                for (var j = 0; j < placedPieces.length; j++) {
+                    placedPieces[j].moveToEnd(previewState.group);
+                    previewState.items.push(placedPieces[j]);
+                    var pieceBounds = getVisibleBounds(placedPieces[j]);
+                    previewState.baseWidths.push(pieceBounds[2] - pieceBounds[0]);
+                    previewState.baseHeights.push(pieceBounds[1] - pieceBounds[3]);
                 }
             }
             updateBackgroundPreview();
@@ -2319,13 +2476,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          */
         function getPlacementOrder(flowMode) {
             if (flowMode !== FLOW_RANDOM) {
-                preview.randomOrder = null;
+                previewState.randomOrder = null;
                 return null;
             }
-            if (!preview.randomOrder || preview.randomOrder.length !== preview.items.length) {
-                preview.randomOrder = shuffledIndexes(preview.items.length);
+            if (!previewState.randomOrder || previewState.randomOrder.length !== previewState.items.length) {
+                previewState.randomOrder = shuffledIndexes(previewState.items.length);
             }
-            return preview.randomOrder;
+            return previewState.randomOrder;
         }
 
         /**
@@ -2334,25 +2491,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function applyLayout(withRoundCorners) {
-            var itemCount = preview.items.length;
+            var itemCount = previewState.items.length;
             if (itemCount === 0) return;
 
             var innerRect = getInnerArtboardRect(doc, getMarginPt());
-            var columnCount = ui.columnsRow.getValue();
-            var gapPt = toPoints(ui.spacingRow.getValue());
-            var evenShiftPt = ui.evenShiftRow.isChecked() ? toPoints(ui.evenShiftRow.getValue()) : 0;
-            var rotateDeg = ui.rotateRow.isChecked() ? ui.rotateRow.getValue() : 0;
-            var offsetXPt = ui.offsetXRow.checkbox.value ? toPoints(ui.offsetXRow.slider.value) : 0;
-            var offsetYPt = ui.offsetYRow.checkbox.value ? toPoints(ui.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
+            var columnCount = dialogControls.columnsRow.getValue();
+            var gapPt = toPoints(dialogControls.spacingRow.getValue());
+            var evenShiftPt = dialogControls.evenShiftRow.isChecked() ? toPoints(dialogControls.evenShiftRow.getValue()) : 0;
+            var rotateDeg = dialogControls.rotateRow.isChecked() ? dialogControls.rotateRow.getValue() : 0;
+            var offsetXPt = dialogControls.offsetXRow.checkbox.value ? toPoints(dialogControls.offsetXRow.slider.value) : 0;
+            var offsetYPt = dialogControls.offsetYRow.checkbox.value ? toPoints(dialogControls.offsetYRow.slider.value) : 0; /* ＋で下へ / positive moves down */
             var flowMode = getFlowMode();
             var placementOrder = getPlacementOrder(flowMode);
-            var slotCounts = ui.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
-            var finalPercent = calcFitPercentForUI(itemCount, { width: preview.baseWidths[0], height: preview.baseHeights[0] }) * ui.scaleRow.getValue() / 100;
+            var slotCounts = dialogControls.evenPlusCheckbox.value ? getEvenPlusSlotCounts(itemCount, columnCount) : null;
+            var finalPercent = calcFitPercentForUI(itemCount, { width: previewState.baseWidths[0], height: previewState.baseHeights[0] }) * dialogControls.scaleRow.getValue() / 100;
 
             /* 前回の回転を戻してから並べる / undo the previous rotation before laying out */
-            if (preview.rotation !== 0) {
-                preview.group.rotate(-preview.rotation);
-                preview.rotation = 0;
+            if (previewState.rotation !== 0) {
+                previewState.group.rotate(-previewState.rotation);
+                previewState.rotation = 0;
             }
 
             /* 回転するときは回したあとで中央に合わせてから位置調整するので、ここでは足さない
@@ -2361,23 +2518,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             var startY = innerRect.top - (rotateDeg !== 0 ? 0 : offsetYPt);
             for (var i = 0; i < itemCount; i++) {
                 var itemIndex = placementOrder ? placementOrder[i] : i;
-                var item = preview.items[itemIndex];
+                var layoutItem = previewState.items[itemIndex];
                 /* 元の大きさから毎回計算し、拡大縮小が積み重ならないようにする / size from the base each time */
-                var cellWidth = preview.baseWidths[itemIndex] * finalPercent / 100;
-                var cellHeight = preview.baseHeights[itemIndex] * finalPercent / 100;
+                var cellWidth = previewState.baseWidths[itemIndex] * finalPercent / 100;
+                var cellHeight = previewState.baseHeights[itemIndex] * finalPercent / 100;
                 var gridCell = getGridCell(i, itemCount, columnCount, flowMode, slotCounts);
                 var cellTop = startY - gridCell.row * (cellHeight + gapPt);
                 if (gridCell.col % 2 === 1) cellTop -= evenShiftPt; /* 偶数列だけずらす / offset even columns */
-                fitItemToFrame(item, startX + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
+                fitItemToFrame(layoutItem, startX + gridCell.col * (cellWidth + gapPt), cellTop, cellWidth, cellHeight);
             }
 
             if (withRoundCorners) applyItemRoundCorners();
 
             if (rotateDeg !== 0) {
-                preview.group.rotate(rotateDeg);
-                preview.rotation = rotateDeg;
-                moveCenterToArtboardCenter(doc, preview.group);
-                if (offsetXPt !== 0 || offsetYPt !== 0) preview.group.translate(offsetXPt, -offsetYPt);
+                previewState.group.rotate(rotateDeg);
+                previewState.rotation = rotateDeg;
+                moveCenterToArtboardCenter(doc, previewState.group);
+                if (offsetXPt !== 0 || offsetYPt !== 0) previewState.group.translate(offsetXPt, -offsetYPt);
             }
             app.redraw();
         }
@@ -2387,19 +2544,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function applyItemRoundCorners() {
-            if (!ui.roundRow.isChecked()) return;
-            var radiusPt = toPoints(ui.roundRow.getValue());
+            if (!dialogControls.roundRow.isChecked()) return;
+            var radiusPt = toPoints(dialogControls.roundRow.getValue());
             if (!(radiusPt > 0)) return;
 
-            for (var i = 0; i < preview.items.length; i++) {
-                if (preview.items[i].typename === "GroupItem") continue; /* 包み済み・見開きの半ページ / already a clip group */
-                var clipGroup = wrapWithClipGroup(doc, preview.items[i]);
-                clipGroup.moveToEnd(preview.group);
-                preview.items[i] = clipGroup; /* 番号を保ち、元の大きさ・並び順と対応させる / keep the index */
+            for (var i = 0; i < previewState.items.length; i++) {
+                if (previewState.items[i].typename === "GroupItem") continue; /* 包み済み・見開きの半ページ / already a clip group */
+                var clipGroup = wrapWithClipGroup(doc, previewState.items[i]);
+                clipGroup.moveToEnd(previewState.group);
+                previewState.items[i] = clipGroup; /* 番号を保ち、元の大きさ・並び順と対応させる / keep the index */
             }
-            if (preview.roundRadiusPt === radiusPt) return;
-            for (var j = 0; j < preview.items.length; j++) applyRoundCorners(preview.items[j], radiusPt);
-            preview.roundRadiusPt = radiusPt;
+            if (previewState.roundRadiusPt === radiusPt) return;
+            for (var j = 0; j < previewState.items.length; j++) applyRoundCorners(previewState.items[j], radiusPt);
+            previewState.roundRadiusPt = radiusPt;
         }
 
         /**
@@ -2407,7 +2564,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function refreshPreview() {
-            if (preview.items.length > 0) applyLayout(false);
+            if (previewState.items.length > 0) applyLayout(false);
         }
 
         /**
@@ -2415,7 +2572,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function reloadOrRefreshPreview() {
-            if (isApplyingSettings || preview.items.length === 0) return;
+            if (isApplyingSettings || previewState.items.length === 0) return;
             if (previewNeedsReload()) loadPreview();
             else applyLayout(false);
         }
@@ -2425,9 +2582,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {boolean} 読み込み直しが要るなら true
          */
         function previewNeedsReload() {
-            return preview.cropIndex !== ui.cropDropdown.selection.index ||
-                preview.splitSpreads !== ui.splitSpreadsCheckbox.value ||
-                (preview.splitSpreads && preview.evenPageOnRight !== ui.evenPageRightRadio.value);
+            return previewState.cropIndex !== dialogControls.cropDropdown.selection.index ||
+                previewState.splitSpreads !== dialogControls.splitSpreadsCheckbox.value ||
+                (previewState.splitSpreads && previewState.evenPageOnRight !== dialogControls.evenPageRightRadio.value);
         }
 
         /**
@@ -2436,10 +2593,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function fitViewToArtboard() {
-            if (!ui.fitViewControls.checkbox.value) return;
+            if (!dialogControls.fitViewControls.checkbox.value) return;
             var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             /* fit() は geometricBounds だけを読むので、アートボードの矩形を渡す / fit() only reads geometricBounds */
-            FitViewToItems.fit([{ geometricBounds: artboardRect }], { doc: doc, fillRatio: ui.fitViewControls.getFillRatio() });
+            FitViewToItems.fit([{ geometricBounds: artboardRect }], { doc: doc, fillRatio: dialogControls.fitViewControls.getFillRatio() });
             app.redraw();
         }
 
@@ -2448,11 +2605,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function updateBackgroundControls() {
-            var isEnabled = ui.backgroundCheckbox.value;
-            ui.backgroundSwatch.enabled = isEnabled;
-            ui.backgroundHexInput.enabled = isEnabled;
+            var isEnabled = dialogControls.backgroundCheckbox.value;
+            dialogControls.backgroundSwatch.enabled = isEnabled;
+            dialogControls.backgroundHexInput.enabled = isEnabled;
             var swatchColor = getBackgroundColor();
-            var swatchGraphics = ui.backgroundSwatch.graphics;
+            var swatchGraphics = dialogControls.backgroundSwatch.graphics;
             swatchGraphics.backgroundColor = swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR,
                 [swatchColor.red / 255, swatchColor.green / 255, swatchColor.blue / 255, 1]);
         }
@@ -2462,7 +2619,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {RGBColor} 背景色
          */
         function getBackgroundColor() {
-            return parseHexColor(ui.backgroundHexInput.text) || makeRGBColor(0, 0, 0);
+            return parseHexColor(dialogControls.backgroundHexInput.text) || makeRGBColor(0, 0, 0);
         }
 
         /**
@@ -2470,16 +2627,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function updateBackgroundPreview() {
-            if (preview.items.length === 0) return;
-            if (!ui.backgroundCheckbox.value) {
-                if (preview.background) preview.background.remove();
-                preview.background = null;
-            } else if (!preview.background) {
-                preview.background = drawArtboardBackground(doc, getBackgroundColor());
+            if (previewState.items.length === 0) return;
+            if (!dialogControls.backgroundCheckbox.value) {
+                if (previewState.background) previewState.background.remove();
+                previewState.background = null;
+            } else if (!previewState.background) {
+                previewState.background = drawArtboardBackground(doc, getBackgroundColor());
             } else {
-                preview.background.fillColor = getBackgroundColor();
+                previewState.background.fillColor = getBackgroundColor();
             }
-            placeBackgroundBehind(preview.group);
+            placeBackgroundBehind(previewState.group);
             app.redraw();
         }
 
@@ -2489,7 +2646,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function placeBackgroundBehind(frontItem) {
-            if (preview.background && frontItem) preview.background.move(frontItem, ElementPlacement.PLACEAFTER);
+            if (previewState.background && frontItem) previewState.background.move(frontItem, ElementPlacement.PLACEAFTER);
         }
 
         /**
@@ -2501,7 +2658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
                The picked color is returned in the document's color model; the argument is left unchanged */
             var pickedColor = toRGBColor(app.showColorPicker(getBackgroundColor()));
             if (!pickedColor) return;
-            ui.backgroundHexInput.text = toHexColor(pickedColor);
+            dialogControls.backgroundHexInput.text = toHexColor(pickedColor);
             updateBackgroundControls();
             updateBackgroundPreview();
         }
@@ -2511,11 +2668,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function updateMaskControls() {
-            var isMaskEnabled = ui.maskCheckbox.value;
-            ui.marginRow.group.enabled = isMaskEnabled;
-            ui.maskRoundRow.group.enabled = isMaskEnabled;
-            redrawSteppersIn(ui.marginRow.group);
-            redrawSteppersIn(ui.maskRoundRow.group);
+            var isMaskEnabled = dialogControls.maskCheckbox.value;
+            dialogControls.marginRow.group.enabled = isMaskEnabled;
+            dialogControls.maskRoundRow.group.enabled = isMaskEnabled;
+            redrawSteppersIn(dialogControls.marginRow.group);
+            redrawSteppersIn(dialogControls.maskRoundRow.group);
         }
 
         /**
@@ -2523,7 +2680,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function updateEvenPageControls() {
-            ui.evenPageGroup.enabled = ui.splitSpreadsCheckbox.value;
+            dialogControls.evenPageGroup.enabled = dialogControls.splitSpreadsCheckbox.value;
         }
 
         // -----------------------------------------
@@ -2538,34 +2695,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function applySettings(settings) {
             /* selection の代入で onChange が走るので、反映し終えるまで読み込み直しを止める / assigning selection fires onChange */
             isApplyingSettings = true;
-            ui.cropDropdown.selection = settings.cropIndex;
-            ui.roundRow.setChecked(settings.roundEnabled);
-            ui.roundRow.setValue(settings.roundRadius);
-            ui.splitSpreadsCheckbox.value = settings.splitSpreads;
+            dialogControls.cropDropdown.selection = settings.cropIndex;
+            dialogControls.roundRow.setChecked(settings.roundEnabled);
+            dialogControls.roundRow.setValue(settings.roundRadius);
+            dialogControls.splitSpreadsCheckbox.value = settings.splitSpreads;
             updateEvenPageControls();
 
-            ui.flowRadios[settings.flowMode].value = true;
-            ui.columnsRow.setValue(settings.columns);
-            ui.spacingRow.setValue(roundTo2(fromPoints(settings.spacingPt)));
-            ui.evenPlusCheckbox.value = settings.evenPlusSlot;
-            ui.evenShiftRow.setChecked(settings.evenShiftEnabled);
-            ui.evenShiftRow.setValue(settings.evenShift);
+            dialogControls.flowRadios[settings.flowMode].value = true;
+            dialogControls.columnsRow.setValue(settings.columns);
+            dialogControls.spacingRow.setValue(roundTo2(fromPoints(settings.spacingPt)));
+            dialogControls.evenPlusCheckbox.value = settings.evenPlusSlot;
+            dialogControls.evenShiftRow.setChecked(settings.evenShiftEnabled);
+            dialogControls.evenShiftRow.setValue(settings.evenShift);
 
-            ui.scaleRow.setValue(settings.scale);
-            ui.rotateRow.setChecked(settings.rotateEnabled);
-            ui.rotateRow.setValue(settings.rotate);
-            ui.offsetXRow.setChecked(false);
-            ui.offsetXRow.slider.value = 0;
-            ui.offsetYRow.setChecked(false);
-            ui.offsetYRow.slider.value = 0;
+            dialogControls.scaleRow.setValue(settings.scale);
+            dialogControls.rotateRow.setChecked(settings.rotateEnabled);
+            dialogControls.rotateRow.setValue(settings.rotate);
+            dialogControls.offsetXRow.setChecked(false);
+            dialogControls.offsetXRow.slider.value = 0;
+            dialogControls.offsetYRow.setChecked(false);
+            dialogControls.offsetYRow.slider.value = 0;
 
-            ui.backgroundCheckbox.value = settings.backgroundEnabled;
-            ui.backgroundHexInput.text = settings.backgroundHex;
+            dialogControls.backgroundCheckbox.value = settings.backgroundEnabled;
+            dialogControls.backgroundHexInput.text = settings.backgroundHex;
             updateBackgroundControls();
-            ui.maskCheckbox.value = settings.maskEnabled;
-            ui.marginRow.setValue(roundTo2(fromPoints(settings.marginPt)));
-            ui.maskRoundRow.setChecked(settings.maskRoundEnabled);
-            ui.maskRoundRow.setValue(settings.maskRoundRadius);
+            dialogControls.maskCheckbox.value = settings.maskEnabled;
+            dialogControls.marginRow.setValue(roundTo2(fromPoints(settings.marginPt)));
+            dialogControls.maskRoundRow.setChecked(settings.maskRoundEnabled);
+            dialogControls.maskRoundRow.setValue(settings.maskRoundRadius);
             updateMaskControls();
             isApplyingSettings = false;
         }
@@ -2577,14 +2734,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function centerGridHorizontally() {
             var itemSize = getReferenceItemSize();
             if (!itemSize) return;
-            var itemCount = (preview.items.length > 0) ? preview.items.length : getTargetPages().length;
-            var columnCount = ui.columnsRow.getValue();
-            var itemWidth = itemSize.width * calcFitPercentForUI(itemCount, itemSize) * ui.scaleRow.getValue() / 10000;
-            var gridWidth = columnCount * itemWidth + (columnCount - 1) * toPoints(ui.spacingRow.getValue());
+            var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
+            var columnCount = dialogControls.columnsRow.getValue();
+            var itemWidth = itemSize.width * calcFitPercentForUI(itemCount, itemSize) * dialogControls.scaleRow.getValue() / 10000;
+            var gridWidth = columnCount * itemWidth + (columnCount - 1) * toPoints(dialogControls.spacingRow.getValue());
             var offsetValue = fromPoints((getInnerArtboardRect(doc, getMarginPt()).width - gridWidth) / 2);
             if (!isFinite(offsetValue)) return;
-            ui.offsetXRow.setChecked(true);
-            ui.offsetXRow.slider.value = offsetValue;
+            dialogControls.offsetXRow.setChecked(true);
+            dialogControls.offsetXRow.slider.value = offsetValue;
         }
 
         /**
@@ -2597,7 +2754,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             for (var overrideKey in RESET_OVERRIDES) resetSettingsValues[overrideKey] = RESET_OVERRIDES[overrideKey];
             applySettings(resetSettingsValues);
             /* 中央寄せは読み込み直したあとのアイテムで測る / measure the centering on the reloaded items */
-            if (preview.items.length > 0 && previewNeedsReload()) loadPreview();
+            if (previewState.items.length > 0 && previewNeedsReload()) loadPreview();
             centerGridHorizontally();
             refreshPreview();
         }
@@ -2610,14 +2767,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         function setDefaultEvenShift() {
             var itemSize = getReferenceItemSize();
             if (!itemSize) return;
-            var itemCount = (preview.items.length > 0) ? preview.items.length : getTargetPages().length;
-            var gapPt = toPoints(ui.spacingRow.getValue());
+            var itemCount = (previewState.items.length > 0) ? previewState.items.length : getTargetPages().length;
+            var gapPt = toPoints(dialogControls.spacingRow.getValue());
             var evenShiftPt = 0;
             for (var i = 0; i < 5; i++) {
-                var itemHeight = itemSize.height * calcFitPercentForUI(itemCount, itemSize, evenShiftPt) * ui.scaleRow.getValue() / 10000;
+                var itemHeight = itemSize.height * calcFitPercentForUI(itemCount, itemSize, evenShiftPt) * dialogControls.scaleRow.getValue() / 10000;
                 evenShiftPt = (itemHeight + gapPt) / 2;
             }
-            ui.evenShiftRow.setValue(fromPoints(evenShiftPt));
+            dialogControls.evenShiftRow.setValue(fromPoints(evenShiftPt));
         }
 
         // -----------------------------------------
@@ -2629,19 +2786,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
          * @returns {void}
          */
         function finalizePreview() {
-            if (preview.items.length === 0) {
+            if (previewState.items.length === 0) {
                 clearPreview(); /* 1つも配置できなかったときは空のグループを残さない / leave no empty group */
                 return;
             }
             applyLayout(true);
-            preview.group.name = "";
-            if (!ui.maskCheckbox.value) {
-                placeBackgroundBehind(preview.group);
+            previewState.group.name = "";
+            if (!dialogControls.maskCheckbox.value) {
+                placeBackgroundBehind(previewState.group);
                 return;
             }
-            var maskGroup = clipItemsToRect(doc, [preview.group], getInnerArtboardRect(doc, getMarginPt()));
-            var maskRadiusPt = toPoints(ui.maskRoundRow.getValue());
-            if (ui.maskRoundRow.isChecked() && maskRadiusPt > 0) applyRoundCorners(maskGroup, maskRadiusPt);
+            var maskGroup = clipItemsToRect(doc, [previewState.group], getInnerArtboardRect(doc, getMarginPt()));
+            var maskRadiusPt = toPoints(dialogControls.maskRoundRow.getValue());
+            if (dialogControls.maskRoundRow.isChecked() && maskRadiusPt > 0) applyRoundCorners(maskGroup, maskRadiusPt);
             placeBackgroundBehind(maskGroup);
         }
 
@@ -2649,7 +2806,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         // イベント / Events
         // -----------------------------------------
 
-        ui.btnChooseFile.onClick = function () {
+        dialogControls.btnChooseFile.onClick = function () {
             var chosenFile = File.openDialog(getLabel("dialog.chooseFile"), "PDF/AI:*.pdf;*.ai");
             if (!chosenFile) return;
             if (!isPdfOrAiFile(chosenFile)) {
@@ -2658,61 +2815,61 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
             }
             setSourceFile(chosenFile);
         };
-        ui.rangeInput.onChanging = syncCountToRange;
-        ui.countInput.onChanging = ui.countStepOptions.onStep = function () {
+        dialogControls.rangeInput.onChanging = syncCountToRange;
+        dialogControls.countInput.onChanging = dialogControls.countStepOptions.onStep = function () {
             isCountLinkedToRange = false;
         };
-        ui.btnLoad.onClick = loadPreview;
+        dialogControls.btnLoad.onClick = loadPreview;
 
-        ui.cropDropdown.onChange = reloadOrRefreshPreview;
-        ui.splitSpreadsCheckbox.onClick = function () {
+        dialogControls.cropDropdown.onChange = reloadOrRefreshPreview;
+        dialogControls.splitSpreadsCheckbox.onClick = function () {
             updateEvenPageControls();
             reloadOrRefreshPreview();
         };
-        ui.evenPageRightRadio.onClick = ui.evenPageLeftRadio.onClick = reloadOrRefreshPreview;
+        dialogControls.evenPageRightRadio.onClick = dialogControls.evenPageLeftRadio.onClick = reloadOrRefreshPreview;
 
-        var layoutRows = [ui.columnsRow, ui.spacingRow, ui.evenShiftRow, ui.scaleRow, ui.rotateRow, ui.marginRow, ui.offsetXRow, ui.offsetYRow];
+        var layoutRows = [dialogControls.columnsRow, dialogControls.spacingRow, dialogControls.evenShiftRow, dialogControls.scaleRow, dialogControls.rotateRow, dialogControls.marginRow, dialogControls.offsetXRow, dialogControls.offsetYRow];
         for (var i = 0; i < layoutRows.length; i++) layoutRows[i].onValueChange = refreshPreview;
 
         /* ずらしをオンにしたら、ずらし量を自動で入れてから並べ直す / auto-fill the offset when Shift is turned on */
-        var toggleEvenShiftControls = ui.evenShiftRow.checkbox.onClick;
-        ui.evenShiftRow.checkbox.onClick = function () {
+        var toggleEvenShiftControls = dialogControls.evenShiftRow.checkbox.onClick;
+        dialogControls.evenShiftRow.checkbox.onClick = function () {
             toggleEvenShiftControls();
-            if (!ui.evenShiftRow.isChecked()) return;
+            if (!dialogControls.evenShiftRow.isChecked()) return;
             setDefaultEvenShift();
             refreshPreview();
         };
         /* 角丸・マスク角丸は OK のときだけかけるので、プレビューは更新しない / round corners apply only on OK */
 
-        for (var j = 0; j < ui.flowRadios.length; j++) {
-            ui.flowRadios[j].onClick = function () {
-                preview.randomOrder = null; /* ランダムを選び直したら並びも引き直す / reshuffle on every click */
+        for (var j = 0; j < dialogControls.flowRadios.length; j++) {
+            dialogControls.flowRadios[j].onClick = function () {
+                previewState.randomOrder = null; /* ランダムを選び直したら並びも引き直す / reshuffle on every click */
                 refreshPreview();
             };
         }
-        ui.evenPlusCheckbox.onClick = refreshPreview;
+        dialogControls.evenPlusCheckbox.onClick = refreshPreview;
 
-        ui.backgroundCheckbox.onClick = function () {
+        dialogControls.backgroundCheckbox.onClick = function () {
             updateBackgroundControls();
             updateBackgroundPreview();
         };
-        ui.backgroundHexInput.onChange = function () {
+        dialogControls.backgroundHexInput.onChange = function () {
             updateBackgroundControls();
             updateBackgroundPreview();
         };
-        ui.backgroundSwatch.addEventListener("mousedown", pickBackgroundColor);
-        ui.maskCheckbox.onClick = updateMaskControls;
+        dialogControls.backgroundSwatch.addEventListener("mousedown", pickBackgroundColor);
+        dialogControls.maskCheckbox.onClick = updateMaskControls;
 
-        ui.btnReset.onClick = resetSettings;
-        ui.fitViewControls.checkbox.onClick = function () {
-            ui.fitViewControls.updateEnabled();
+        dialogControls.btnReset.onClick = resetSettings;
+        dialogControls.fitViewControls.checkbox.onClick = function () {
+            dialogControls.fitViewControls.updateEnabled();
             fitViewToArtboard();
         };
-        ui.fitViewControls.percentInput.onChange = fitViewToArtboard;
-        ui.btnOK.onClick = function () {
+        dialogControls.fitViewControls.percentInput.onChange = fitViewToArtboard;
+        dialogControls.btnOK.onClick = function () {
             /* 読み込んでいなければ、ここで配置してから確定する / load first when nothing has been loaded */
-            if (preview.items.length === 0 && !loadPreview()) return;
-            ui.dialog.close(1);
+            if (previewState.items.length === 0 && !loadPreview()) return;
+            dialogControls.dialog.close(1);
         };
 
         // -----------------------------------------
@@ -2720,11 +2877,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* 紹�
         // -----------------------------------------
 
         applySettings(DEFAULT_SETTINGS);
-        ui.cropDropdown.enabled = false;
+        dialogControls.cropDropdown.enabled = false;
         useSelectedPlacedFile();
         if (sourceFile) setDefaultEvenShift();
 
-        if (ui.dialog.show() === 1) {
+        prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
+        if (dialogControls.dialog.show() === 1) {
             finalizePreview();
         } else {
             clearPreview();
