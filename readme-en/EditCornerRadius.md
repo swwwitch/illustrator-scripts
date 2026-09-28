@@ -40,8 +40,11 @@
 - Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, locked or hidden objects, and guides are left as they are
 - Rectangles with a callout tail or similar on a side are included. The tail stays as it is and only the four corners change (the radius is limited to the base of the tail)
 - Rectangles inside compound paths are included (select the compound path to change them). Round Corners effect measurement and conversion are not applied to callout shapes or inside compound paths
-- Rectangles inside compound shapes are included only when selected directly with the Direct Selection tool (not when the whole compound shape is selected, nor with the artboard or document target). While previewing, the original path is edited in place and restored on close. Round Corners effect measurement and conversion are not applied
-- With "Selected objects only", select rectangles inside groups directly, for example with the Direct Selection tool
+- Compound shapes are converted to a group with Effect > Pathfinder > Add, and the rectangles inside are changed (with any target: selection, artboard or document). Converting turns every shape mode (such as Minus Front) into Add. Name, opacity and blending mode are carried over. Compound shapes without rectangles are not converted
+- When a released rectangle has the Round Corners effect, the effect is removed and the same radius is built into the path (removal uses Clear Appearance, so other effects on that path are removed too; fill, stroke and opacity are kept)
+- When rectangles inside a compound shape are selected directly with the Direct Selection tool, those paths are edited in place without conversion (shape modes stay). While previewing, the original path is edited in place and restored on close
+- Round Corners effect measurement and conversion are not applied inside compound shapes
+- With "Selected objects only", rectangles inside selected groups are included (also inside subgroups, compound paths and compound shapes; locked or hidden ones are skipped)
 - With "Selected objects only", the dialog shows how many selected objects are skipped. When nothing selected can be changed (for example, a whole compound shape), it shows "Nothing selected can be changed"
 - OK is unavailable when the target has no rectangles
 - The initial radius is the average of the rounded corners (zero radii excluded) in the target chosen when the dialog opens
@@ -50,6 +53,8 @@
 
 ### Update History
 
+- v1.5.0 (2026-09-28): With "Selected objects only", rectangles inside selected groups are included. When converting a compound shape, the Round Corners effect on released rectangles is removed and the same radius is built into the path
+- v1.4.0 (2026-09-28): Compound shapes are converted to a group with the Pathfinder Add effect so their rectangles can be changed (selection, artboard and document)
 - v1.3.0 (2026-09-28): Added support for callout shapes (rectangles with a tail on a side), rectangles inside compound paths, and directly selected rectangles inside compound shapes. Fixed the dialog widening from the skipped-objects text when nothing selected was a target
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (2026-09-26): Merged the radius input into one field so the corners get the same radius; added "Keep zero radii at zero", "Include the Round Corners effect", "Convert to Round Corners effect" and a target switch (selection / current artboard / entire document); the initial radius is now the average of the targets
@@ -57,4 +62,4 @@
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.5.0

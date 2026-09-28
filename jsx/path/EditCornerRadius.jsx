@@ -13,7 +13,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCorner
 
 ### 注意
 
-水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。辺に吹き出しの口などが付いた長方形と、複合パスの中の長方形も対象です。複合シェイプの中の長方形は、ダイレクト選択したときだけ対象です（いずれも「角を丸くする」効果の計測・変換は除く）。選択が対象のときは、グループの中身は直接選択してください。
+水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。辺に吹き出しの口などが付いた長方形と、複合パスの中の長方形も対象です。複合シェイプは「グループ＋［パスファインダー：合体］」に変換して中の長方形を変更します（各パスのモードは合体になります）。ダイレクト選択した複合シェイプの中の長方形は、変換せずに直接変更します（いずれも「角を丸くする」効果の計測・変換は除く）。選択が対象のときは、選択したグループの中の長方形も対象です（ロック・非表示は除く）。
 
 ### Overview
 
@@ -25,7 +25,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCorner
 
 ### Notes
 
-Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. Rectangles with a callout tail or similar on a side, and rectangles inside compound paths, are included. Rectangles inside compound shapes are included only when selected directly (none of these get Round Corners effect measurement or conversion). When the target is the selection, select the contents of groups directly.
+Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. Rectangles with a callout tail or similar on a side, and rectangles inside compound paths, are included. Compound shapes are converted to a group with the Pathfinder Add effect and the rectangles inside are changed (every shape mode becomes Add). Rectangles selected directly inside a compound shape are changed in place without conversion (none of these get Round Corners effect measurement or conversion). When the target is the selection, rectangles inside selected groups are included (except locked or hidden ones).
 
 */
 
@@ -33,7 +33,7 @@ Only rectangles (rounded or not) aligned to the horizontal and vertical axes are
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "EditCornerRadius";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -616,12 +616,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             artboard: {
-                ja: "現在のアートボードに一部でも重なる長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
-                en: "Rectangles (including callout shapes) that overlap the current artboard, including those inside groups and compound paths (locked or hidden ones are skipped)"
+                ja: "現在のアートボードに一部でも重なる長方形（吹き出し形状を含む）が対象です。グループ・複合パス・複合シェイプの中も含みます（複合シェイプは合体に変換。ロック・非表示は除く）",
+                en: "Rectangles (including callout shapes) that overlap the current artboard, including those inside groups, compound paths and compound shapes (compound shapes are converted to Add; locked or hidden ones are skipped)"
             },
             document: {
-                ja: "ドキュメント内のすべての長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
-                en: "All rectangles (including callout shapes) in the document, including those inside groups and compound paths (locked or hidden ones are skipped)"
+                ja: "ドキュメント内のすべての長方形（吹き出し形状を含む）が対象です。グループ・複合パス・複合シェイプの中も含みます（複合シェイプは合体に変換。ロック・非表示は除く）",
+                en: "All rectangles (including callout shapes) in the document, including those inside groups, compound paths and compound shapes (compound shapes are converted to Add; locked or hidden ones are skipped)"
             },
             radiusField: {
                 ja: "短辺の半分（吹き出しは口の付け根まで）を超える値は、そこまでに制限されます。↑↓で増減（Shift：10、Option：0.1）",
@@ -640,12 +640,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "When on, rectangles with all four corners rounded are made square and rounded with the Round Corners effect. Not for callout shapes or paths in compound paths or compound shapes"
             },
             skippedCount: {
-                ja: "水平・垂直の長方形（吹き出し形状・複合パスの中を含む）のみ変更します。複合シェイプの中はダイレクト選択してください",
-                en: "Only axis-aligned rectangles (including callout shapes and those in compound paths) are changed. Select rectangles in compound shapes directly"
+                ja: "水平・垂直の長方形（吹き出し形状、複合パス・複合シェイプの中を含む）のみ変更します",
+                en: "Only axis-aligned rectangles (including callout shapes and those in compound paths and compound shapes) are changed"
             },
             noTargetInSelection: {
-                ja: "複合シェイプの中の長方形は、ダイレクト選択ツールで選んでください",
-                en: "Select rectangles inside compound shapes with the Direct Selection tool"
+                ja: "選択の中に、水平・垂直の長方形がありません",
+                en: "The selection contains no axis-aligned rectangles"
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1146,7 +1146,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 選択から対象の長方形を集める（複合パスは中の長方形を対象にする）
+     * 選択したオブジェクト 1 つから対象の長方形を集める
+     * グループは中を再帰でたどり（ロック・非表示の子は除く）、複合パスは中の長方形、複合シェイプは変換結果の中の長方形を対象にする
+     * @param {PageItem} pageItem - 選択したオブジェクト、またはグループの子
+     * @param {PathItem[]} targetPaths - 見つけたパスを追加する配列
+     * @returns {void}
+     */
+    function collectItemRectangles(pageItem, targetPaths) {
+        switch (pageItem.typename) {
+            case "GroupItem":
+                for (var i = 0; i < pageItem.pageItems.length; i++) {
+                    var childItem = pageItem.pageItems[i];
+                    if (childItem.locked || childItem.hidden) continue;
+                    collectItemRectangles(childItem, targetPaths);
+                }
+                break;
+            case "CompoundPathItem":
+                for (var j = 0; j < pageItem.pathItems.length; j++) {
+                    if (isRectangularShape(pageItem.pathItems[j])) targetPaths.push(pageItem.pathItems[j]);
+                }
+                break;
+            case "PluginItem":
+                var shapePaths = collectShapeRectangles(pageItem);
+                for (var k = 0; k < shapePaths.length; k++) targetPaths.push(shapePaths[k]);
+                break;
+            default:
+                if (isRectangularShape(pageItem)) targetPaths.push(pageItem);
+        }
+    }
+
+    /**
+     * 選択から対象の長方形を集める（グループ・複合パス・複合シェイプの中も含む）
      * @param {PageItem[]} selectedItems - 選択
      * @returns {{targetPaths: PathItem[], skippedCount: number}} 対象パスと、対象を含まない選択の数
      */
@@ -1154,21 +1184,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var targetPaths = [];
         var skippedCount = 0;
         for (var i = 0; i < selectedItems.length; i++) {
-            var selectedItem = selectedItems[i];
-            var memberPaths = (selectedItem.typename === "CompoundPathItem") ? selectedItem.pathItems : [selectedItem];
-            var foundCount = 0;
-            for (var j = 0; j < memberPaths.length; j++) {
-                if (!isRectangularShape(memberPaths[j])) continue;
-                targetPaths.push(memberPaths[j]);
-                foundCount++;
-            }
-            if (foundCount === 0) skippedCount++;
+            var foundCount = targetPaths.length;
+            collectItemRectangles(selectedItems[i], targetPaths);
+            if (targetPaths.length === foundCount) skippedCount++;
         }
         return { targetPaths: targetPaths, skippedCount: skippedCount };
     }
 
     /**
-     * ドキュメント内の編集できる長方形を集める（グループ・複合パスの中も含む。ガイドは除く）
+     * ドキュメント内の編集できる長方形を集める（グループ・複合パスの中と、変換した複合シェイプの中も含む。ガイドは除く）
      * @param {Document} doc - 対象ドキュメント
      * @param {number[]} [areaBounds] - 指定したときは、この範囲に重なるものだけ
      * @returns {PathItem[]} 対象パス
@@ -1182,6 +1206,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!isRectangularShape(pathItem) || !isEditable(pathItem)) continue;
             if (areaBounds && !boundsOverlap(pathItem.geometricBounds, areaBounds)) continue;
             targetPaths.push(pathItem);
+        }
+        /* 複合シェイプは変換すると PluginItem が増減するので、先に一覧を写す
+           Converting adds and removes PluginItems, so snapshot the list first */
+        var pluginItems = [];
+        for (var k = 0; k < doc.pluginItems.length; k++) pluginItems.push(doc.pluginItems[k]);
+        for (var m = 0; m < pluginItems.length; m++) {
+            var pluginItem = pluginItems[m];
+            if (!isEditable(pluginItem)) continue;
+            if (areaBounds && !boundsOverlap(pluginItem.geometricBounds, areaBounds)) continue;
+            targetPaths = targetPaths.concat(collectShapeRectangles(pluginItem));
         }
         return targetPaths;
     }
@@ -1467,13 +1501,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         "}"
     ].join("\n");
 
+    /* ［複合シェイプを解除］のダイナミックアクション（セット「CompoundShape」／アクション「Release」）
+       複合シェイプにだけ効き、ブレンドやエンベロープは解除しない
+       Dynamic action for Release Compound Shape; it affects compound shapes only, not blends or envelopes */
+    var RELEASE_COMPOUND_SHAPE_ACTION = [
+        "/version 3",
+        "/name [ 13",
+        " 436f6d706f756e645368617065",
+        "]",
+        "/isOpen 1",
+        "/actionCount 1",
+        "/action-1 {",
+        " /name [ 7",
+        " 52656c65617365",
+        " ]",
+        " /keyIndex 0",
+        " /colorIndex 0",
+        " /isOpen 1",
+        " /eventCount 1",
+        " /event-1 {",
+        " /useRulersIn1stQuadrant 0",
+        " /internalName (ai_release_compound_shape)",
+        " /localizedName [ 27",
+        " e8a487e59088e382b7e382a7e382a4e38397e38292e8a7a3e999a4",
+        " ]",
+        " /isOpen 0",
+        " /isOn 1",
+        " /hasDialog 0",
+        " /parameterCount 1",
+        " /parameter-1 {",
+        " /key 1919710053",
+        " /showInPalette 4294967295",
+        " /type (integer)",
+        " /value 0",
+        " }",
+        " }",
+        "}"
+    ].join("\n");
+
     /**
      * オブジェクトだけを選択する（メニューコマンドやアクションの対象にする）
      * @param {PageItem} pageItem - 対象オブジェクト（ロック・非表示でないこと）
      * @returns {void}
      */
     function selectOnly(pageItem) {
-        app.activeDocument.selection = null;
+        var doc = app.activeDocument;
+        doc.selection = null;
+        /* グループへ移したばかりのオブジェクトなどは、null の代入で外れずに残ることがある
+           Items just moved into a group can stay selected after assigning null */
+        var remainingItems = doc.selection;
+        for (var i = remainingItems.length - 1; i >= 0; i--) remainingItems[i].selected = false;
         pageItem.selected = true;
     }
 
@@ -1487,31 +1564,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * オブジェクトだけを選択して、ダイナミックアクションを読み込んで実行する（実行後は読み込みを外す）
+     * @param {string} actionSource - アクションの定義（.aia の内容）
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {void}
+     */
+    function runDynamicAction(actionSource, setName, actionName, pageItem) {
+        var actionFile = new File(Folder.temp.fsName + "/EditCornerRadius_" + actionName + "_" + new Date().getTime() + ".aia");
+        actionFile.open("w");
+        actionFile.write(actionSource);
+        actionFile.close();
+        app.loadAction(actionFile);
+        /* 読み込んだ時点でパース済みなので、すぐ消す / Already parsed on load, so remove right away */
+        actionFile.remove();
+
+        /* doScript が失敗しても読み込んだアクションを残さない / Unload the action even if doScript fails */
+        try {
+            selectOnly(pageItem);
+            app.doScript(actionName, setName, false);
+        } finally {
+            app.unloadAction(setName, "");
+        }
+    }
+
+    /**
      * ダイナミックアクションで［アピアランスを消去］を実行し、基本の塗り・線・不透明度を戻す
      * （効果を外すためのメニューコマンドは無いのでアクションで実行する）
      * @param {PathItem} pathItem - 対象パス
      * @returns {PathItem} 処理後のパス（作り直されたときは新しい参照）
      */
     function clearAppearance(pathItem) {
-
         var pathStyle = capturePathStyle(pathItem);
-        var actionFile = new File(Folder.temp.fsName + "/EditCornerRadius_clear_" + new Date().getTime() + ".aia");
-        actionFile.open("w");
-        actionFile.write(CLEAR_APPEARANCE_ACTION);
-        actionFile.close();
-        app.loadAction(actionFile);
-        /* 読み込んだ時点でパース済みなので、すぐ消す / Already parsed on load, so remove right away */
-        actionFile.remove();
-
-        var clearedPath = pathItem;
-        /* doScript が失敗しても読み込んだアクションを残さない / Unload the action even if doScript fails */
-        try {
-            selectOnly(pathItem);
-            app.doScript("clear", "Appearance", false);
-            clearedPath = findFirstPathItem(getFirstSelectedItem()) || pathItem;
-        } finally {
-            app.unloadAction("Appearance", "");
-        }
+        runDynamicAction(CLEAR_APPEARANCE_ACTION, "Appearance", "clear", pathItem);
+        var clearedPath = findFirstPathItem(getFirstSelectedItem()) || pathItem;
         restorePathStyle(clearedPath, pathStyle);
         return clearedPath;
     }
@@ -1577,13 +1664,238 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pathRadii = getShapeRadii(cornerShape);
         /* 効果は複合パス・複合シェイプ全体に付き、吹き出しの口まで丸めるので、いずれも効果では扱わない
            Effects apply to the whole compound path or shape and would round a callout tail too */
-        var canUseEffect = !isCompoundMember(pathItem) && !isCompoundShapeMember(pathItem) && !cornerShape.hasOffEdgePoints;
+        var canUseEffect = !isCompoundMember(pathItem) && !isCompoundShapeMember(pathItem) &&
+            !findShapeConversion(pathItem) && !cornerShape.hasOffEdgePoints;
         var effectRadii = null;
         if (includeEffect && canUseEffect && countRoundedCorners(pathRadii) === 0) {
             var expandedRadii = getEffectiveCornerRadii(pathItem);
             if (countRoundedCorners(expandedRadii) > 0) effectRadii = expandedRadii;
         }
         return { pathRadii: pathRadii, effectRadii: effectRadii, canUseEffect: canUseEffect };
+    }
+
+    // =========================================
+    // 複合シェイプの変換 / Compound shape conversion
+    // =========================================
+
+    /* 複合シェイプの中のパスは PluginItem からたどれないので、複製を解除して「グループ＋［パスファインダー：合体］」に
+       変換し、そのグループの中の長方形を対象にする。変換結果は隠しておき、OK で元と差し替える（キャンセルなら捨てる）
+       Members of a compound shape cannot be reached from the PluginItem, so a copy is released and rebuilt as
+       a group with the Pathfinder Add effect. The result stays hidden and replaces the original on OK */
+
+    /* { original: PluginItem, converted: GroupItem|null, isShown: boolean, isUsed: boolean } の配列
+       converted が null のものは複合シェイプではなかった / converted is null when it was not a compound shape */
+    var shapeConversions = [];
+
+    /* プレビュー中に表示している変換結果 / Conversions shown while previewing */
+    var shownConversions = [];
+
+    /**
+     * 現在の選択を配列に写す（選択は後の操作で変わるため）
+     * @returns {PageItem[]} 選択の写し
+     */
+    function copySelection() {
+        var currentSelection = app.activeDocument.selection;
+        var selectionCopy = [];
+        for (var i = 0; i < currentSelection.length; i++) selectionCopy.push(currentSelection[i]);
+        return selectionCopy;
+    }
+
+    /**
+     * オブジェクトをグループにまとめ、［パスファインダー：合体］効果を付ける（中の複合シェイプも変換する）
+     * @param {PageItem[]} pageItems - まとめるオブジェクト（前面から背面の順）
+     * @returns {GroupItem} 作ったグループ
+     */
+    function groupWithPathfinderAdd(pageItems) {
+        var shapeGroup = pageItems[0].parent.groupItems.add();
+        shapeGroup.move(pageItems[0], ElementPlacement.PLACEBEFORE);
+        /* 前面から順に末尾へ入れて重なり順を保つ / Append front to back to keep the stacking order */
+        for (var i = 0; i < pageItems.length; i++) pageItems[i].move(shapeGroup, ElementPlacement.PLACEATEND);
+
+        /* 入れ子の複合シェイプは 1 段ずつしか解除されないので、中でも変換する / Nested compound shapes release one level at a time */
+        var nestedItems = [];
+        for (var j = 0; j < shapeGroup.pageItems.length; j++) {
+            if (shapeGroup.pageItems[j].typename === "PluginItem") nestedItems.push(shapeGroup.pageItems[j]);
+        }
+        for (var k = 0; k < nestedItems.length; k++) {
+            var nestedGroup = convertCompoundShapeCopy(nestedItems[k]);
+            if (!nestedGroup) continue;
+            nestedGroup.move(nestedItems[k], ElementPlacement.PLACEBEFORE);
+            nestedItems[k].remove();
+        }
+
+        bakeRoundCornersEffects(shapeGroup);
+
+        /* applyEffect() だとアピアランスの「内容」の下に入って図形が消えるので、メニューコマンドで付ける
+           applyEffect() puts the effect below Contents and the art vanishes, so use the menu command */
+        runMenuCommand(shapeGroup, "Live Pathfinder Add");
+        return shapeGroup;
+    }
+
+    /**
+     * グループの中の長方形に「角を丸くする」効果が付いていれば外し、同じ半径をパスの角丸にする
+     * 効果の有無は、複製のアピアランスを分割した半径とパスの半径の違いで判定する
+     * （外すのは［アピアランスを消去］なので、そのパスのほかの効果も外れる。塗り・線・不透明度は戻す）
+     * @param {GroupItem} shapeGroup - 解除した複合シェイプをまとめたグループ
+     * @returns {void}
+     */
+    function bakeRoundCornersEffects(shapeGroup) {
+        var rectanglePaths = [];
+        collectGroupRectangles(shapeGroup, rectanglePaths);
+        for (var i = 0; i < rectanglePaths.length; i++) {
+            var pathRadii = getCornerRadii(rectanglePaths[i]);
+            var effectRadii = getEffectiveCornerRadii(rectanglePaths[i]);
+            var hasRoundCornersEffect = false;
+            for (var j = 0; j < pathRadii.length; j++) {
+                if (Math.abs(effectRadii[j] - pathRadii[j]) >= GEOMETRY_TOLERANCE) hasRoundCornersEffect = true;
+            }
+            if (!hasRoundCornersEffect) continue;
+            /* 消去でパスが作り直されることがあるので、戻り値に作り直す / Clearing may recreate the path, so rebuild the returned one */
+            rebuildPath(clearAppearance(rectanglePaths[i]), effectRadii);
+        }
+    }
+
+    /**
+     * 複合シェイプなら、その複製を「グループ＋［パスファインダー：合体］」に変換して返す（元は変更しない）
+     * @param {PluginItem} pluginItem - 調べるオブジェクト
+     * @returns {GroupItem|null} 変換したグループ（複合シェイプでなければ null）
+     */
+    function convertCompoundShapeCopy(pluginItem) {
+        var shapeCopy = pluginItem.duplicate();
+        runDynamicAction(RELEASE_COMPOUND_SHAPE_ACTION, "CompoundShape", "Release", shapeCopy);
+        var releasedItems = copySelection();
+        /* 解除されなければ複製が選択に残る。エンベロープは MeshItem と 2 つで選択に入るので、数では判定しない
+           An unreleased copy stays selected; envelopes select as two items, so do not judge by count */
+        for (var i = 0; i < releasedItems.length; i++) {
+            if (releasedItems[i] === shapeCopy) {
+                shapeCopy.remove();
+                return null;
+            }
+        }
+        if (releasedItems.length === 0) return null;
+        return groupWithPathfinderAdd(releasedItems);
+    }
+
+    /**
+     * PluginItem の変換結果を返す（初回だけ変換し、結果は隠しておく）
+     * @param {PluginItem} pluginItem - 対象オブジェクト
+     * @returns {Object} shapeConversions の要素
+     */
+    function getShapeConversion(pluginItem) {
+        for (var i = 0; i < shapeConversions.length; i++) {
+            if (shapeConversions[i].original === pluginItem) return shapeConversions[i];
+        }
+        var convertedGroup = convertCompoundShapeCopy(pluginItem);
+        if (convertedGroup) convertedGroup.hidden = true;
+        var shapeConversion = { original: pluginItem, converted: convertedGroup, isShown: false, isUsed: false };
+        shapeConversions.push(shapeConversion);
+        return shapeConversion;
+    }
+
+    /**
+     * パスが属する変換結果を返す
+     * @param {PathItem} pathItem - 調べるパス
+     * @returns {Object|null} shapeConversions の要素（変換結果の中でなければ null）
+     */
+    function findShapeConversion(pathItem) {
+        if (shapeConversions.length === 0) return null;
+        for (var ancestorItem = pathItem.parent; ancestorItem.typename === "GroupItem" ||
+            ancestorItem.typename === "CompoundPathItem"; ancestorItem = ancestorItem.parent) {
+            for (var i = 0; i < shapeConversions.length; i++) {
+                if (shapeConversions[i].converted === ancestorItem) return shapeConversions[i];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * グループの中の長方形を集める（サブグループ・複合パスの中も含む）
+     * @param {GroupItem} containerGroup - 探すグループ
+     * @param {PathItem[]} targetPaths - 見つけたパスを追加する配列
+     * @returns {void}
+     */
+    function collectGroupRectangles(containerGroup, targetPaths) {
+        for (var i = 0; i < containerGroup.pageItems.length; i++) {
+            var childItem = containerGroup.pageItems[i];
+            if (childItem.typename === "GroupItem") {
+                collectGroupRectangles(childItem, targetPaths);
+            } else if (childItem.typename === "CompoundPathItem") {
+                for (var j = 0; j < childItem.pathItems.length; j++) {
+                    if (isRectangularShape(childItem.pathItems[j])) targetPaths.push(childItem.pathItems[j]);
+                }
+            } else if (isRectangularShape(childItem)) {
+                targetPaths.push(childItem);
+            }
+        }
+    }
+
+    /**
+     * 複合シェイプを変換し、中の長方形を返す（複合シェイプでなければ空）
+     * @param {PluginItem} pluginItem - 対象オブジェクト
+     * @returns {PathItem[]} 変換結果の中の長方形
+     */
+    function collectShapeRectangles(pluginItem) {
+        var shapeConversion = getShapeConversion(pluginItem);
+        var targetPaths = [];
+        if (shapeConversion.converted) collectGroupRectangles(shapeConversion.converted, targetPaths);
+        return targetPaths;
+    }
+
+    /**
+     * プレビュー用に、元の複合シェイプを隠して変換結果を表示する
+     * @param {Object} shapeConversion - shapeConversions の要素
+     * @returns {void}
+     */
+    function showShapeConversion(shapeConversion) {
+        if (shapeConversion.isShown) return;
+        shapeConversion.original.hidden = true;
+        hiddenOriginals.push(shapeConversion.original);
+        shapeConversion.converted.hidden = false;
+        shapeConversion.isShown = true;
+        shownConversions.push(shapeConversion);
+    }
+
+    /**
+     * 使った変換結果で元の複合シェイプを差し替え、使わなかったものは捨てる
+     * @param {PathItem[]} targetPaths - 変更したパス
+     * @param {PageItem[]} restoredSelection - 戻す選択（差し替えた元は変換結果に置き換える）
+     * @returns {void}
+     */
+    function finishShapeConversions(targetPaths, restoredSelection) {
+        for (var i = 0; i < targetPaths.length; i++) {
+            var shapeConversion = findShapeConversion(targetPaths[i]);
+            if (shapeConversion) shapeConversion.isUsed = true;
+        }
+        for (var j = 0; j < shapeConversions.length; j++) {
+            var original = shapeConversions[j].original;
+            var convertedGroup = shapeConversions[j].converted;
+            if (!convertedGroup) continue;
+            if (!shapeConversions[j].isUsed) {
+                convertedGroup.remove();
+                continue;
+            }
+            convertedGroup.hidden = false;
+            convertedGroup.move(original, ElementPlacement.PLACEBEFORE);
+            convertedGroup.name = original.name;
+            convertedGroup.opacity = original.opacity;
+            convertedGroup.blendingMode = original.blendingMode;
+            for (var k = 0; k < restoredSelection.length; k++) {
+                if (restoredSelection[k] === original) restoredSelection[k] = convertedGroup;
+            }
+            original.remove();
+        }
+        shapeConversions = [];
+    }
+
+    /**
+     * 変換結果をすべて捨てる（キャンセル時）
+     * @returns {void}
+     */
+    function discardShapeConversions() {
+        for (var i = 0; i < shapeConversions.length; i++) {
+            if (shapeConversions[i].converted) shapeConversions[i].converted.remove();
+        }
+        shapeConversions = [];
     }
 
     // =========================================
@@ -1650,6 +1962,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var k = editedOriginals.length - 1; k >= 0; k--) {
             restorePathPoints(editedOriginals[k].pathItem, editedOriginals[k].savedPoints);
         }
+        for (var m = 0; m < shownConversions.length; m++) {
+            shownConversions[m].converted.hidden = true;
+            shownConversions[m].isShown = false;
+        }
+        shownConversions = [];
         for (var i = 0; i < previewCopies.length; i++) previewCopies[i].remove();
         previewCopies = [];
         hiddenOriginals = [];
@@ -1673,6 +1990,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 複製に半径を適用してプレビューを表示する（元のパスは一時的に隠す。前のプレビューは消してから呼ぶ）
      * 複合パスの一部は、複合パスごと複製して中の同じ番号のパスに適用する
      * 複合シェイプの中のパスは、複製すると形の一部になるので、元を控えて直接書き換える
+     * 変換した複合シェイプは、元を隠して変換結果を表示し、中のパスを控えて直接書き換える
      * @param {PathItem[]} targetPaths - 対象パス
      * @param {Object[]} measurements - パスごとの計測結果（targetPaths と同じ並び）
      * @param {number} cornerRadius - 半径（pt）
@@ -1685,7 +2003,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var compoundCopies = [];
         for (var i = 0; i < targetPaths.length; i++) {
             var targetPath = targetPaths[i];
-            if (isCompoundShapeMember(targetPath)) {
+            var shapeConversion = findShapeConversion(targetPath);
+            if (shapeConversion) showShapeConversion(shapeConversion);
+            if (shapeConversion || isCompoundShapeMember(targetPath)) {
                 editedOriginals.push({ pathItem: targetPath, savedPoints: capturePathPoints(targetPath) });
                 applyCornerRadius(targetPath, measurements[i], cornerRadius, cornerOptions);
                 continue;
@@ -2015,8 +2335,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         var initialSelection = doc.selection || [];
 
-        var selectedRectangles = collectSelectedRectangles(initialSelection);
-        var scopeTargets = { selection: selectedRectangles.targetPaths, artboard: null, document: null };
+        var scopeTargets = { selection: [], artboard: null, document: null };
 
         /**
          * 対象のパスを返す（アートボード・ドキュメントは初回だけ集める）
@@ -2034,9 +2353,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return scopeTargets[scopeKey];
         }
 
-        var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets, selectedRectangles.skippedCount);
-        /* 効果の計測・付け直しで変わる選択を元に戻す / Restore the selection changed by measuring and reapplying */
-        var restoredSelection = dialogValues ? applyDialogValues(dialogValues, initialSelection) : initialSelection;
+        var restoredSelection = initialSelection;
+        /* 途中で止まっても、隠した変換結果をドキュメントに残さない / Never leave hidden conversions behind */
+        try {
+            /* 選択の複合シェイプはここで変換する / Compound shapes in the selection are converted here */
+            var selectedRectangles = collectSelectedRectangles(initialSelection);
+            scopeTargets.selection = selectedRectangles.targetPaths;
+            var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets, selectedRectangles.skippedCount);
+            if (dialogValues) {
+                restoredSelection = applyDialogValues(dialogValues, initialSelection);
+                finishShapeConversions(dialogValues.targetPaths, restoredSelection);
+            }
+        } finally {
+            discardShapeConversions();
+        }
+        /* 計測・変換・効果の付け直しで変わる選択を元に戻す / Restore the selection changed by measuring, converting and reapplying */
         doc.selection = (restoredSelection.length > 0) ? restoredSelection : null;
         app.redraw();
     }
