@@ -119,6 +119,7 @@ Enter is deliberately unassigned, because it conflicts with editing notes.
 
 ## Changelog
 
+- v1.7.4 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.7.4 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
 - v1.7.3 (2026-09-26) Renamed the file from `SelectionInspector.jsx` to `SelectionInspectorPalette.jsx`.
 - v1.7.1 (2026-07-31): Added the basic info block and trimmed the header overview down to a README pointer

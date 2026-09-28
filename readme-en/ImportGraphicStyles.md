@@ -24,12 +24,12 @@
 ### Notes
 
 - During import the content is pasted onto a temporary `// _imported` layer, which is deleted together with its contents once the asset is registered (nothing changes visually)
-- The source file path is stored in `Folder.userData` (`swwwitch_ImportGraphicStyles.txt`), not inside the script
+- The source file path is stored in `Folder.userData/illustrator-scripts/ImportGraphicStyles.json` (the former `swwwitch_ImportGraphicStyles.txt` is read once), not inside the script
 - The radios are generated from the graphic style names in the source file; the default style at index 0 is excluded
 
 ### Update History
 
-- v1.7.3 (20260928): The button row is now built with the shared part
+- v1.7.3 (20260928): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/ImportGraphicStyles.json)
 - v1.7.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (20260701): Replaced the hard-coded source file with a Load Styles button (remembered in `Folder.userData`), generated the radios from the imported style names, and removed the fixed style names
 - v1.6.0 (20260701): Removed search, add and the candidate list; the script now imports the style chosen by radio button when needed and applies it to the selection

@@ -48,4 +48,4 @@
 - v1.9.1 (20260803): Added the "Destination" panel (selection layer / "_guide" layer), added "Group the guides to draw", reworded the per-object option, dimmed the margin field for center-only guides, fixed bounds for mixed text and object selections, internal refactoring
 - v1.10.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.10.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
-- v1.10.2 (20260928): The button row is now built with the shared part
+- v1.10.2 (20260928): The button row is now built with the shared part. Clip groups are now measured by their mask

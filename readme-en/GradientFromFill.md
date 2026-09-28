@@ -37,3 +37,4 @@ Creates a linear gradient on the selected filled objects, starting from their or
 - v1.1.0
 - v1.1.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.3: The button row is now built with the shared part
+- v1.1.3: Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)

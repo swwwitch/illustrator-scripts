@@ -1180,7 +1180,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-
     // =========================================
     // 向きアイコン / Orientation icons
     // =========================================
@@ -1602,7 +1601,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
-
 
     // =========================================
     // ダイアログ / Dialog

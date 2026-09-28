@@ -87,6 +87,8 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.2 (2026-09-28): Clip groups are now measured by their mask
+- v1.7.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.7.2 (2026-09-28): The button row is now built with the shared part
 - v1.7.2 (2026-09-28): In Japanese, error messages now use a full-width colon
 - v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon

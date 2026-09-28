@@ -32,5 +32,6 @@ A palette for moving smoothly between artboards, zooming as it goes.
 
 ### Update History
 
+- v1.2.8 (2026-09-28) Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/ArtboardNavigatorPalette.json`; the old settings are carried over once)
 - v1.2.7 (2026-09-26) Renamed the file from `ArtboardNavigator.jsx` to `ArtboardNavigatorPalette.jsx`.
 - v1.2.5

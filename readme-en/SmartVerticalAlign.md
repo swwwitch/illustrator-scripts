@@ -71,6 +71,7 @@ https://note.com/dtp_tranist/n/n9ee716675032
 
 ### Update History
 
+- v1.1.4 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.1.4 (2026-09-28) The button row is now built with the shared part
 - v1.1.3 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.1 (2026-09-03) Fixed the preview not updating when Align to Glyph Bounds is turned back OFF; moved alignment positions, shortcuts and preference keys into tables; cleaned up naming and structure
@@ -79,6 +80,6 @@ https://note.com/dtp_tranist/n/n9ee716675032
 
 ### Script info
 
-- Version: v1.1.3
+- Version: v1.1.4
 - First release: 2025-08-04
 - Last updated: 2026-09-03

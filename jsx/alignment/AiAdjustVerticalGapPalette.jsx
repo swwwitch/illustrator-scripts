@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAdjustVerticalGapPalette";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGapPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGapPalette.md"; /* README (English) */
@@ -636,6 +636,242 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（uiLang の定義より後、ダイアログを作る関数より前）に貼る。
+    //    識別子はすべて KEY_SHORTCUT_* / *KeyShortcut* の名前。uiLang はコピー先のものをそのまま使う
+    // 2. コントロールをすべて作り、onClick を付けたあとで1回だけ呼ぶ（keydown はウィンドウに1つ）
+    //      addKeyShortcuts(dialog, {
+    //          "L": alignLeftRadio,                    … ラジオ：選んで onClick
+    //          "P": previewCheckbox,                   … チェックボックス：反転して onClick
+    //          "Shift+R": btnReset,                    … ボタン：onClick（無ければ notify）
+    //          "G": function () { toggleGuides(); },   … 関数：呼ぶだけ
+    //          "Escape": { target: function () { palette.close(); }, inFields: true }
+    //      }, { numericFields: [widthInput, heightInput], afterKey: updatePreview });
+    //    キーは keyName と同じ綴り（"A"〜"Z"・"1"・"Semicolon"・"Escape" など。大小文字は区別しない）。
+    //    修飾キーは "Shift+" / "Alt+"（option）/ "Cmd+"（⌘、Windows は Ctrl）を前に付ける
+    // 3. 修飾キーは完全一致。"R" は Shift・option・⌘ を押しながらでは効かない（⌘C などを横取りしない）。
+    //    Shift＋R に別の動作を付けるときは "Shift+R" を並べる
+    // 4. 入力欄（edittext）・ドロップダウン・リストにフォーカスがあるときは効かない（文字は普通に入る）。
+    //    数値だけの欄で効かせたいときは options.numericFields に並べる（押した文字は欄に入らない）。
+    //    入力中でも効かせたいキーは { target: …, inFields: true } にする（Esc で閉じる、option＋数字など）
+    // 5. 無効・非表示のコントロールは、親のパネルやグループが無効なときも含めて何もしない
+    //    （親を無効にしても子の enabled は true のまま、のため親までたどる）
+    // 6. 関数の戻り値：false はこのキーを使わない（文字をそのまま通す）。コントロールを返すと、そのコントロールを
+    //    押したことにする（向きによってラジオが変わるときなど）。それ以外は処理済み
+    // 7. ツールチップへのキー表記は options.showInTip: true で「…（L）」「… (L)」を末尾に足す。
+    //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
+    // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
+    //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
@@ -1338,51 +1574,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     }
 
     // =========================================
-    // キー操作 / Keyboard helpers
-    // =========================================
-
-    /**
-     * ロック中かを返す述語を評価する（true ならパネル系ショートカットを無効にする）
-     * @param {function} [isLockedFn] - ロック中なら true を返す関数
-     * @returns {boolean} 無効にするなら true
-     */
-    function shortcutsDisabled(isLockedFn) {
-        return typeof isLockedFn === "function" && isLockedFn();
-    }
-
-    /**
-     * ラジオを選んでからプレビューする処理を作る
-     * @param {RadioButton} targetRadio - 選ぶラジオ
-     * @param {function} onPreview - プレビューの処理
-     * @returns {function} キーに割り当てる処理
-     */
-    function pickThenPreview(targetRadio, onPreview) {
-        return function () {
-            targetRadio.value = true;
-            onPreview();
-        };
-    }
-
-    /**
-     * キー → 処理の表をウィンドウに登録する（gated: true のものはロック中は無効）
-     * @param {Window} targetWindow - 対象のウィンドウ
-     * @param {function} isLockedFn - ロック中なら true を返す関数
-     * @param {Array} keyBindings - { key, run, gated } の配列
-     * @returns {void}
-     */
-    function addKeyHandlers(targetWindow, isLockedFn, keyBindings) {
-        targetWindow.addEventListener("keydown", function (event) {
-            for (var i = 0; i < keyBindings.length; i++) {
-                if (keyBindings[i].key !== event.keyName) continue;
-                if (keyBindings[i].gated && shortcutsDisabled(isLockedFn)) return;
-                keyBindings[i].run();
-                event.preventDefault();
-                return;
-            }
-        });
-    }
-
-    // =========================================
     // パネル生成 / Panel builders
     // =========================================
 
@@ -1842,19 +2033,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         /* キー操作：A で適用、T/B で固定対象を選択、K で自動判定、N/L/C/R で整列、S/J で行揃え、Esc で閉じる
            Keys: A applies, T/B pick the anchor, K re-detects, N/L/C/R align, S/J justify, Esc closes */
-        addKeyHandlers(gapPalette, isLockedNow, [
-            { key: "A", run: applyBatch },
-            { key: "Escape", run: function () { gapPalette.close(); } },
-            { key: "T", gated: true, run: pickThenPreview(paletteControls.anchor.anchorTopRadio, updatePreview) },
-            { key: "B", gated: true, run: pickThenPreview(paletteControls.anchor.anchorBottomRadio, updatePreview) },
-            { key: "K", gated: true, run: refreshAutoAnchor },
-            { key: "N", gated: true, run: pickThenPreview(paletteControls.align.none, updatePreview) },
-            { key: "L", gated: true, run: pickThenPreview(paletteControls.align.left, updatePreview) },
-            { key: "C", gated: true, run: paletteControls.align.selectCenter },
-            { key: "R", gated: true, run: pickThenPreview(paletteControls.align.right, updatePreview) },
-            { key: "S", gated: true, run: pickThenPreview(paletteControls.justify.link, updatePreview) },
-            { key: "J", gated: true, run: pickThenPreview(paletteControls.justify.full, updatePreview) }
-        ]);
+        /**
+         * ロック中はキーを使うだけで何もしない処理を作る（パネル系ショートカット用）
+         * @param {Object|Function} shortcutTarget - ラジオ、または関数
+         * @returns {Function} addKeyShortcuts に渡す関数
+         */
+        function unlessLocked(shortcutTarget) {
+            return function () {
+                if (isLockedNow()) return true;
+                if (typeof shortcutTarget === "function") return shortcutTarget();
+                return shortcutTarget;
+            };
+        }
+
+        addKeyShortcuts(gapPalette, {
+            "A": applyBatch,
+            "Escape": { target: function () { gapPalette.close(); }, inFields: true },
+            "T": unlessLocked(paletteControls.anchor.anchorTopRadio),
+            "B": unlessLocked(paletteControls.anchor.anchorBottomRadio),
+            "K": unlessLocked(refreshAutoAnchor),
+            "N": unlessLocked(paletteControls.align.none),
+            "L": unlessLocked(paletteControls.align.left),
+            "C": unlessLocked(paletteControls.align.center),
+            "R": unlessLocked(paletteControls.align.right),
+            "S": unlessLocked(paletteControls.justify.link),
+            "J": unlessLocked(paletteControls.justify.full)
+        }, {
+            numericFields: [paletteControls.gap.gapValueInput, paletteControls.align.adjustInput]
+        });
 
         gapPalette.center();
         gapPalette.show();

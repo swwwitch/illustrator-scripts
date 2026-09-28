@@ -115,4 +115,5 @@ https://note.com/yukifurushima/n/n9f2078dc156f
 
 ### 更新履歴
 
+- v1.2.8（2026-09-28）設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/ArtboardNavigatorPalette.json`。旧版の設定は最初の1回だけ読み継ぐ）
 - v1.2.7（2026-09-26）ファイル名を `ArtboardNavigator.jsx` から `ArtboardNavigatorPalette.jsx` に変更。

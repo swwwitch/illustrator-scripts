@@ -50,7 +50,7 @@ Flow:
 | Text + rectangle | — (rectangle size wins) | Yes |
 
 - The button background adds two fills via New Fill and reshapes them with the rectangle shape effect. Fill colors are not set (the added fills keep their defaults).
-- When a loaded style is chosen, the style defines the appearance, so no button background is added. If not registered in the current document, it is imported from the remembered AI file and applied. The source file and its style names are remembered in Folder.userData (styles_for_TextWithShapeToAreaType.txt).
+- When a loaded style is chosen, the style defines the appearance, so no button background is added. If not registered in the current document, it is imported from the remembered AI file and applied. The source file and its style names are remembered in Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json (shared with TextWithShapeToAreaType; the former styles_for_TextWithShapeToAreaType.txt is read once).
 
 ### Script info
 
@@ -58,6 +58,6 @@ Flow:
 
 ### Update History
 
-- v1.4.1 (2026-09-28) Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure. Temporary actions on the BridgeTalk side now use the shared part.
+- v1.4.1 (2026-09-28) Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure. Temporary actions on the BridgeTalk side now use the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json).
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.3.2 (2026-09-26) Renamed the file from `ImportAndApplyGraphicStyle.jsx` to `ImportAndApplyGraphicStylePalette.jsx`.

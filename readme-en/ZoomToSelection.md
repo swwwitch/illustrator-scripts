@@ -28,3 +28,7 @@ John Wundes - Zoom and Center to Selection v2.
 http://www.wundes.com/js4ai/copyright.txt
 
 The animation interpolation is based on ArtboardNavigatorPalette.jsx by Yuki Furushima.
+
+### Update History
+
+- v2.1.2 (2026-09-29) : Clip groups are now measured by their mask

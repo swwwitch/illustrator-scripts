@@ -68,11 +68,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     var MARGIN_FIELD_CHARACTERS = 4;
     var BOUNDS_OPTION_MARGINS = [4, 4, 4, 4];  /* プレビュー境界の行の余白 / margins of the preview-bounds row */
 
-    /* 9軸ウィジェットの寸法（onDrawで描画） / 9-axis widget metrics (drawn via onDraw) */
-    var ANCHOR_WIDGET_SIZE = 66;
-    var ANCHOR_CELL_SIZE = 9;
-    var ANCHOR_CELL_GAP = 7.5;
-
     // =========================================
     // 整列先の定義 / Anchor definitions
     // =========================================
@@ -1320,6 +1315,242 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（uiLang の定義より後、ダイアログを作る関数より前）に貼る。
+    //    識別子はすべて KEY_SHORTCUT_* / *KeyShortcut* の名前。uiLang はコピー先のものをそのまま使う
+    // 2. コントロールをすべて作り、onClick を付けたあとで1回だけ呼ぶ（keydown はウィンドウに1つ）
+    //      addKeyShortcuts(dialog, {
+    //          "L": alignLeftRadio,                    … ラジオ：選んで onClick
+    //          "P": previewCheckbox,                   … チェックボックス：反転して onClick
+    //          "Shift+R": btnReset,                    … ボタン：onClick（無ければ notify）
+    //          "G": function () { toggleGuides(); },   … 関数：呼ぶだけ
+    //          "Escape": { target: function () { palette.close(); }, inFields: true }
+    //      }, { numericFields: [widthInput, heightInput], afterKey: updatePreview });
+    //    キーは keyName と同じ綴り（"A"〜"Z"・"1"・"Semicolon"・"Escape" など。大小文字は区別しない）。
+    //    修飾キーは "Shift+" / "Alt+"（option）/ "Cmd+"（⌘、Windows は Ctrl）を前に付ける
+    // 3. 修飾キーは完全一致。"R" は Shift・option・⌘ を押しながらでは効かない（⌘C などを横取りしない）。
+    //    Shift＋R に別の動作を付けるときは "Shift+R" を並べる
+    // 4. 入力欄（edittext）・ドロップダウン・リストにフォーカスがあるときは効かない（文字は普通に入る）。
+    //    数値だけの欄で効かせたいときは options.numericFields に並べる（押した文字は欄に入らない）。
+    //    入力中でも効かせたいキーは { target: …, inFields: true } にする（Esc で閉じる、option＋数字など）
+    // 5. 無効・非表示のコントロールは、親のパネルやグループが無効なときも含めて何もしない
+    //    （親を無効にしても子の enabled は true のまま、のため親までたどる）
+    // 6. 関数の戻り値：false はこのキーを使わない（文字をそのまま通す）。コントロールを返すと、そのコントロールを
+    //    押したことにする（向きによってラジオが変わるときなど）。それ以外は処理済み
+    // 7. ツールチップへのキー表記は options.showInTip: true で「…（L）」「… (L)」を末尾に足す。
+    //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
+    // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
+    //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     var LABELS = {
         dialog: {
             title: { ja: "各アートボードに整列", en: "Align to Artboards" }
@@ -1393,41 +1624,394 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         }
     };
 
-    // =========================================
-    // 境界取得（プレビュー境界 or 幾何境界） / Bounds resolver
-    // プレビュー境界＝ストローク・効果を含む、幾何境界＝図形のみ
-    // Preview bounds include strokes/effects; geometric bounds use the object shape only
-    // =========================================
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。使わない関数も消さずに残してよい（互いに呼び合う）。
+    //    識別子は SELECTION_ITEMS_TOLERANCE / normalizeSelectionItems / resolveTextRangeFrame /
+    //    collectSelectionItems / getTextFrameKindKey / collectSelectionTextFrames / collectSelectionPathItems /
+    //    isClipMaskItem / getClipMaskItem / hasClippedDescendant / readUsePreviewBoundsPreference /
+    //    getClipAwareBounds / filterMeasurableChildren / getClipAwareUnionBounds / isNearlySameCoordinate / areBoundsNearlyEqual
+    // 2. 選択は normalizeSelectionItems(doc.selection) で配列にする。文字カーソルの選択（TextRange）は
+    //    配列ではなく1個で返り、しかも .length（文字数）を持つので、length だけで配列と見なさない
+    // 3. テキストフレーム:
+    //      var frames = collectSelectionTextFrames(doc.selection);                           // 全種類
+    //      var frames = collectSelectionTextFrames(doc.selection, { kinds: ["point", "path"] });
+    //    パス:
+    //      var paths = collectSelectionPathItems(doc.selection);                             // 複合パスは中のパスへ
+    //      var paths = collectSelectionPathItems(doc.selection, { compoundPaths: "whole", skipClipMasks: true });
+    //    それ以外は collectSelectionItems(source, { accept: function (item) { … } }) で条件を書く
+    // 4. 並びは選択と同じ前面→背面（グループの中も pageItems の順）。重なり順を使う処理はこの順を前提にしてよい
+    // 5. doc.selection に代入し直す配列は skipLocked / skipHidden を true にする。
+    //    ロック・非表示を選択に代入すると例外になり、中の子が選択に残る
+    // 6. 境界は getClipAwareBounds(item, usePreviewBounds) / getClipAwareUnionBounds(items, usePreviewBounds)。
+    //    usePreviewBounds を省くと環境設定の［プレビュー境界を使用］に従う。返り値は [左, 上, 右, 下] の新しい配列
+    //    （書き換えても元のオブジェクトに影響しない）。測れないときは null
+    // 7. 座標の一致・前後の判定は isNearlySameCoordinate / areBoundsNearlyEqual で許容値を挟む
+    //    （吸着させた辺とガイドは 1e-12 ほどずれる）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    /* ダイアログのチェックボックスで切り替わる整列基準の境界 / Bounds type toggled from the dialog */
-    var useVisibleBounds = DEFAULT_SETTINGS.useVisibleBounds;
+    /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */
+    var SELECTION_ITEMS_TOLERANCE = 0.001;
 
     /**
-     * アイテムの整列用バウンディングボックスを返す
-     * @param {PageItem} pageItem - 対象アイテム
-     * @returns {number[]} [左, 上, 右, 下]。取得できない場合は null
+     * 選択やコレクションを、オブジェクトの配列にそろえる
+     * TextRange・PathItem は length を持つので、typename で1個か集まりかを見分ける
+     * @param {*} source - doc.selection、配列、DOM のコレクション、または単独のオブジェクト
+     * @returns {Array} オブジェクトの配列（空なら []）
      */
-    function getItemBounds(pageItem) {
-        /* 文字編集中の TextRange など、境界を持たない選択は対象外 / Skip selections without bounds (e.g. TextRange) */
+    function normalizeSelectionItems(source) {
+        var items = [];
+        if (!source) return items;
+        var typeName = "";
+        try { typeName = source.typename || ""; } catch (e) { /* 読めない種類 / unreadable kind */ }
+        /* 単数形の typename は1個（PageItems などのコレクションは s で終わる）
+           A singular typename is one object (collections such as PageItems end in s) */
+        if (typeName && !/s$/.test(typeName)) return [source];
+        if (typeof source.length !== "number") return items;
+        for (var i = 0; i < source.length; i++) items.push(source[i]);
+        return items;
+    }
+
+    /**
+     * 文字カーソルの選択（TextRange）を、それを含むテキストフレームに読み替える
+     * @param {TextRange} textRange - 文字の範囲
+     * @returns {TextFrame|null} テキストフレーム（たどれなければ null）
+     */
+    function resolveTextRangeFrame(textRange) {
+        var current = textRange;
+        /* parent をたどる（深さは念のため制限） / Walk up the parents, with a safety limit */
+        for (var depth = 0; depth < 10 && current; depth++) {
+            try {
+                if (current.typename === "TextFrame") return current;
+                current = current.parent;
+            } catch (e) {
+                break;
+            }
+        }
+        /* ストーリーの先頭フレームで代用する / Fall back to the first frame of the story */
         try {
-            return useVisibleBounds ? pageItem.visibleBounds : pageItem.geometricBounds;
+            var storyFrames = textRange.story.textFrames;
+            if (storyFrames.length > 0) return storyFrames[0];
+        } catch (e2) { /* ストーリーを持たない / no story */ }
+        return null;
+    }
+
+    /**
+     * 選択から条件に合うオブジェクトを集める（グループ・レイヤーを再帰でたどり、重複は除く）
+     * 条件に合ったオブジェクトの中へは進まない
+     * @param {*} source - doc.selection、配列、コレクション、または単独のオブジェクト
+     * @param {Object} [options] - 収集の設定
+     * @param {function(PageItem): boolean} [options.accept] - 集める条件（既定はグループ・レイヤー以外すべて）
+     * @param {boolean} [options.enterGroups] - グループの中をたどる（既定 true）
+     * @param {boolean} [options.enterClipGroups] - クリップグループの中をたどる（既定は enterGroups と同じ）
+     * @param {boolean} [options.enterCompoundPaths] - 複合パスの中のパスをたどる（既定 false）
+     * @param {boolean} [options.textRangeToFrame] - 文字の選択をテキストフレームに読み替える（既定 true）
+     * @param {boolean} [options.skipLocked] - ロックされたものを中ごと外す（既定 false）
+     * @param {boolean} [options.skipHidden] - 非表示のものを中ごと外す（既定 false）
+     * @param {boolean} [options.skipClipMasks] - クリッピングマスクを外す（既定 false）
+     * @param {boolean} [options.skipGuides] - ガイドを外す（既定 false）
+     * @param {boolean} [options.unique] - 同じ参照を1回だけにする（既定 true。数千件で遅ければ false）
+     * @returns {Array} 集めたオブジェクト（前面→背面の順）
+     */
+    function collectSelectionItems(source, options) {
+        var opts = options || {};
+        var enterGroups = (opts.enterGroups !== false);
+        var enterClipGroups = (opts.enterClipGroups === undefined) ? enterGroups : (opts.enterClipGroups === true);
+        var accept = opts.accept || function (item) {
+            return item.typename !== "GroupItem" && item.typename !== "Layer";
+        };
+        var collected = [];
+
+        /**
+         * 集めた配列に加える（unique のときは同じ参照を足さない）
+         * @param {PageItem} item - 加えるオブジェクト
+         * @returns {void}
+         */
+        function pushItem(item) {
+            if (opts.unique !== false) {
+                for (var k = 0; k < collected.length; k++) {
+                    if (collected[k] === item) return;
+                }
+            }
+            collected.push(item);
+        }
+
+        /**
+         * 設定に従って外すオブジェクトか判定する
+         * @param {PageItem} item - 判定するオブジェクト
+         * @returns {boolean} 外すなら true
+         */
+        function isSkipped(item) {
+            try {
+                if (item.typename === "Layer") {
+                    if (opts.skipLocked && item.locked) return true;
+                    if (opts.skipHidden && !item.visible) return true;
+                    return false;
+                }
+                if (opts.skipLocked && item.locked) return true;
+                if (opts.skipHidden && item.hidden) return true;
+                if (opts.skipGuides && item.guides === true) return true;
+                if (opts.skipClipMasks && isClipMaskItem(item)) return true;
+            } catch (e) {
+                /* 読めないプロパティは「外さない」に倒す / Unreadable properties do not exclude */
+            }
+            return false;
+        }
+
+        /**
+         * 1件をたどって集める
+         * @param {PageItem} item - 対象のオブジェクト
+         * @returns {void}
+         */
+        function visit(item) {
+            if (!item) return;
+            var typeName = "";
+            try { typeName = item.typename; } catch (e) { return; }
+
+            if (typeName === "TextRange" || typeName === "InsertionPoint") {
+                if (opts.textRangeToFrame === false) {
+                    if (accept(item)) pushItem(item);
+                    return;
+                }
+                visit(resolveTextRangeFrame(item));
+                return;
+            }
+            if (isSkipped(item)) return;
+            if (accept(item)) {
+                pushItem(item);
+                return;
+            }
+
+            var children = null;
+            if (typeName === "GroupItem") {
+                var isClipped = false;
+                try { isClipped = (item.clipped === true); } catch (e2) { }
+                if (isClipped ? enterClipGroups : enterGroups) children = item.pageItems;
+            } else if (typeName === "CompoundPathItem") {
+                if (opts.enterCompoundPaths) children = item.pathItems;
+            } else if (typeName === "Layer") {
+                /* 重なり順はサブレイヤーとページアイテムで別々なので、ページアイテム→サブレイヤーの順にする
+                   Page items and sublayers stack separately; visit page items first, then sublayers */
+                walk(item.pageItems);
+                walk(item.layers);
+                return;
+            }
+            if (children) walk(children);
+        }
+
+        /**
+         * 集まりの各要素をたどる
+         * @param {*} list - 配列またはコレクション
+         * @returns {void}
+         */
+        function walk(list) {
+            var listItems = normalizeSelectionItems(list);
+            for (var i = 0; i < listItems.length; i++) visit(listItems[i]);
+        }
+
+        walk(source);
+        return collected;
+    }
+
+    /**
+     * テキストフレームの種類を "point" / "area" / "path" で返す
+     * @param {TextFrame} textFrame - テキストフレーム
+     * @returns {string} 種類のキー（判定できなければ ""）
+     */
+    function getTextFrameKindKey(textFrame) {
+        try {
+            if (textFrame.kind === TextType.POINTTEXT) return "point";
+            if (textFrame.kind === TextType.AREATEXT) return "area";
+            if (textFrame.kind === TextType.PATHTEXT) return "path";
+        } catch (e) { /* kind を読めない / kind is unreadable */ }
+        return "";
+    }
+
+    /**
+     * 選択からテキストフレームを集める（グループの中・文字カーソルの選択を含む）
+     * @param {*} source - doc.selection など
+     * @param {Object} [options] - collectSelectionItems と同じ設定に加えて次を受ける
+     * @param {string[]} [options.kinds] - 集める種類（"point" / "area" / "path"。既定はすべて）
+     * @returns {TextFrame[]} テキストフレーム（前面→背面の順）
+     */
+    function collectSelectionTextFrames(source, options) {
+        var opts = {};
+        var sourceOptions = options || {};
+        for (var key in sourceOptions) {
+            if (sourceOptions.hasOwnProperty(key)) opts[key] = sourceOptions[key];
+        }
+        var kindFilter = null;
+        if (opts.kinds && opts.kinds.length) {
+            kindFilter = {};
+            for (var i = 0; i < opts.kinds.length; i++) kindFilter[opts.kinds[i]] = true;
+        }
+        opts.accept = function (item) {
+            if (item.typename !== "TextFrame") return false;
+            return !kindFilter || kindFilter[getTextFrameKindKey(item)] === true;
+        };
+        /* 種類で外したテキストは中をたどらない（accept が false でも子は無い） / Text frames have no children to walk */
+        return collectSelectionItems(source, opts);
+    }
+
+    /**
+     * 選択からパスを集める（グループの中を含む）
+     * @param {*} source - doc.selection など
+     * @param {Object} [options] - collectSelectionItems と同じ設定に加えて次を受ける
+     * @param {string} [options.compoundPaths] - 複合パスの扱い。"children"（中のパス、既定）/ "whole"（複合パスごと）/ "skip"（外す）
+     * @returns {Array} PathItem（"whole" のときは CompoundPathItem も）の配列
+     */
+    function collectSelectionPathItems(source, options) {
+        var opts = {};
+        var sourceOptions = options || {};
+        for (var key in sourceOptions) {
+            if (sourceOptions.hasOwnProperty(key)) opts[key] = sourceOptions[key];
+        }
+        var compoundMode = opts.compoundPaths || "children";
+        opts.enterCompoundPaths = (compoundMode === "children");
+        opts.accept = function (item) {
+            if (item.typename === "PathItem") return true;
+            return compoundMode === "whole" && item.typename === "CompoundPathItem";
+        };
+        return collectSelectionItems(source, opts);
+    }
+
+    /**
+     * クリッピングマスク（クリップグループの型）か判定する
+     * パスは clipping、複合パスは中の先頭パスの clipping、テキストは clipping が無いので「クリップグループの先頭」で見る
+     * @param {PageItem} item - 判定するオブジェクト
+     * @returns {boolean} マスクなら true
+     */
+    function isClipMaskItem(item) {
+        try {
+            if (item.typename === "PathItem") return item.clipping === true;
+            if (item.typename === "CompoundPathItem") {
+                return item.pathItems.length > 0 && item.pathItems[0].clipping === true;
+            }
+            if (item.typename === "TextFrame") {
+                var parentGroup = item.parent;
+                return parentGroup.typename === "GroupItem" && parentGroup.clipped === true &&
+                    parentGroup.pageItems.length > 0 && parentGroup.pageItems[0] === item;
+            }
+        } catch (e) { /* 読めない種類はマスクではない / unreadable kinds are not masks */ }
+        return false;
+    }
+
+    /**
+     * クリップグループの型（マスク）を返す
+     * フラグで探し、見つからなければ先頭（pageItems[0]）を返す（型は常に最前面。テキストの型はフラグを持たない）
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {PageItem|null} マスク（クリップグループでなければ null）
+     */
+    function getClipMaskItem(groupItem) {
+        try {
+            if (!groupItem || groupItem.typename !== "GroupItem" || groupItem.clipped !== true) return null;
+            var groupChildren = groupItem.pageItems;
+            if (groupChildren.length === 0) return null;
+            for (var i = 0; i < groupChildren.length; i++) {
+                var childType = groupChildren[i].typename;
+                if ((childType === "PathItem" || childType === "CompoundPathItem") && isClipMaskItem(groupChildren[i])) {
+                    return groupChildren[i];
+                }
+            }
+            return groupChildren[0];
         } catch (e) {
             return null;
         }
     }
 
     /**
-     * 複数アイテムを包含する最小バウンディングを返す
-     * @param {PageItem[]} targetItems - 対象アイテムの配列
-     * @returns {number[]} [左, 上, 右, 下]。取得できない場合は null
+     * グループの中（入れ子を含む）にクリップグループがあるか判定する
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {boolean} あれば true
      */
-    function getUnionBounds(targetItems) {
+    function hasClippedDescendant(groupItem) {
+        try {
+            var groupChildren = groupItem.pageItems;
+            for (var i = 0; i < groupChildren.length; i++) {
+                if (groupChildren[i].typename !== "GroupItem") continue;
+                if (groupChildren[i].clipped === true || hasClippedDescendant(groupChildren[i])) return true;
+            }
+        } catch (e) { /* 中を読めない / cannot read the children */ }
+        return false;
+    }
+
+    /**
+     * 環境設定の［プレビュー境界を使用］を読む
+     * @returns {boolean} オンなら true（読めなければ false）
+     */
+    function readUsePreviewBoundsPreference() {
+        try {
+            return app.preferences.getBooleanPreference("includeStrokeInBounds");
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 見た目どおりの境界を返す。クリップグループはマスクの境界、
+     * 中にクリップグループを含むグループは子の境界を合わせたもの（隠れた部分を含めない）
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {boolean} [usePreviewBounds] - true で visibleBounds、false で geometricBounds（省略時は環境設定に従う）
+     * @returns {number[]|null} [左, 上, 右, 下] の新しい配列（測れなければ null）
+     */
+    function getClipAwareBounds(item, usePreviewBounds) {
+        var usePreview = (usePreviewBounds === undefined || usePreviewBounds === null) ?
+            readUsePreviewBoundsPreference() : (usePreviewBounds === true);
+        try {
+            var measuredItem = item;
+            if (item.typename === "GroupItem") {
+                var maskItem = getClipMaskItem(item);
+                if (maskItem) {
+                    measuredItem = maskItem;
+                } else if (hasClippedDescendant(item)) {
+                    /* グループ自体の効果（影など）の広がりは含まれなくなる
+                       This leaves out the reach of effects applied to the group itself (drop shadows etc.) */
+                    var childBounds = getClipAwareUnionBounds(filterMeasurableChildren(item.pageItems), usePreview);
+                    if (childBounds) return childBounds;
+                }
+            }
+            var bounds = usePreview ? measuredItem.visibleBounds : measuredItem.geometricBounds;
+            return [bounds[0], bounds[1], bounds[2], bounds[3]];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 境界の計算に入れる子だけを残す（非表示とガイドを外す）
+     * @param {*} childList - 子のコレクション
+     * @returns {Array} 残した子
+     */
+    function filterMeasurableChildren(childList) {
+        var childItems = normalizeSelectionItems(childList);
+        var measurable = [];
+        for (var i = 0; i < childItems.length; i++) {
+            try {
+                if (childItems[i].hidden === true || childItems[i].guides === true) continue;
+            } catch (e) { /* 読めなければ残す / keep when unreadable */ }
+            measurable.push(childItems[i]);
+        }
+        return measurable;
+    }
+
+    /**
+     * 複数のオブジェクトを囲む外接範囲を返す（クリップグループはマスクで測る）
+     * @param {*} items - オブジェクトの配列・コレクション・選択
+     * @param {boolean} [usePreviewBounds] - true で visibleBounds、false で geometricBounds（省略時は環境設定に従う）
+     * @returns {number[]|null} [左, 上, 右, 下]（測れるものが無ければ null）
+     */
+    function getClipAwareUnionBounds(items, usePreviewBounds) {
+        var usePreview = (usePreviewBounds === undefined || usePreviewBounds === null) ?
+            readUsePreviewBoundsPreference() : (usePreviewBounds === true);
+        var itemList = normalizeSelectionItems(items);
         var unionBounds = null;
-        for (var i = 0; i < targetItems.length; i++) {
-            var itemBounds = getItemBounds(targetItems[i]);
+        for (var i = 0; i < itemList.length; i++) {
+            var itemBounds = getClipAwareBounds(itemList[i], usePreview);
             if (!itemBounds) continue;
             if (!unionBounds) {
-                unionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
+                unionBounds = itemBounds;
                 continue;
             }
             if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
@@ -1437,6 +2021,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         }
         return unionBounds;
     }
+
+    /**
+     * 2つの座標を許容値つきで比べる
+     * @param {number} valueA - 座標A（pt）
+     * @param {number} valueB - 座標B（pt）
+     * @param {number} [tolerance] - 許容値（pt、既定は SELECTION_ITEMS_TOLERANCE）
+     * @returns {boolean} 差が許容値以下なら true
+     */
+    function isNearlySameCoordinate(valueA, valueB, tolerance) {
+        var limit = (typeof tolerance === "number") ? tolerance : SELECTION_ITEMS_TOLERANCE;
+        return Math.abs(valueA - valueB) <= limit;
+    }
+
+    /**
+     * 2つの境界を許容値つきで比べる
+     * @param {number[]} boundsA - [左, 上, 右, 下]
+     * @param {number[]} boundsB - [左, 上, 右, 下]
+     * @param {number} [tolerance] - 許容値（pt、既定は SELECTION_ITEMS_TOLERANCE）
+     * @returns {boolean} 4辺とも許容値以内なら true
+     */
+    function areBoundsNearlyEqual(boundsA, boundsB, tolerance) {
+        if (!boundsA || !boundsB) return false;
+        for (var i = 0; i < 4; i++) {
+            if (!isNearlySameCoordinate(boundsA[i], boundsB[i], tolerance)) return false;
+        }
+        return true;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 選択の収集と境界（再利用パーツ）ここまで / End of the reusable selection items and bounds
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // =========================================
+    // 境界取得（プレビュー境界 or 幾何境界） / Bounds resolver
+    // プレビュー境界＝ストローク・効果を含む、幾何境界＝図形のみ
+    // Preview bounds include strokes/effects; geometric bounds use the object shape only
+    // =========================================
+
+    /* ダイアログのチェックボックスで切り替わる整列基準の境界 / Bounds type toggled from the dialog */
+    var useVisibleBounds = DEFAULT_SETTINGS.useVisibleBounds;
 
     // =========================================
     // 単位（rulerType） / Units (rulerType)
@@ -1507,7 +2131,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var itemsByArtboard = {};
         for (var i = 0; i < targetItems.length; i++) {
             var pageItem = targetItems[i];
-            var itemBounds = getItemBounds(pageItem);
+            var itemBounds = getClipAwareBounds(pageItem, useVisibleBounds);
             if (!itemBounds) continue;
             if (isLockedOrHidden(pageItem)) continue;
 
@@ -1661,7 +2285,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     function alignItemsToArtboardAnchor(targetItems, artboardRect, anchorCode, marginX, marginY, previewState) {
         var targetPoint = getAnchorPoint(insetBounds(artboardRect, marginX, marginY), anchorCode);
         for (var i = 0; i < targetItems.length; i++) {
-            var itemBounds = getItemBounds(targetItems[i]);
+            var itemBounds = getClipAwareBounds(targetItems[i], useVisibleBounds);
             if (!itemBounds) continue;
             var itemAnchor = getAnchorPoint(itemBounds, anchorCode);
             translateItem(targetItems[i], targetPoint[0] - itemAnchor[0], targetPoint[1] - itemAnchor[1], previewState);
@@ -1678,7 +2302,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {void}
      */
     function alignItemGroupToArtboardAnchor(targetItems, artboardRect, anchorCode, groupOffset, previewState) {
-        var groupBounds = getUnionBounds(targetItems);
+        var groupBounds = getClipAwareUnionBounds(targetItems, useVisibleBounds);
         if (!groupBounds) return;
         var artboardAnchor = getAnchorPoint(artboardRect, anchorCode);
         var groupAnchor = getAnchorPoint(groupBounds, anchorCode);
@@ -1721,7 +2345,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         );
 
         /* 寄せたあとの位置を測り直す / Re-measure after the reference group has moved */
-        var referenceBounds = getUnionBounds(referenceItems);
+        var referenceBounds = getClipAwareUnionBounds(referenceItems, useVisibleBounds);
         if (!referenceBounds) return;
 
         /* 基準アートボードのアンカーから見た、基準オブジェクト群の相対位置
@@ -1797,46 +2421,379 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         return isNaN(parsedValue) ? defaultValue : parsedValue;
     }
 
-    // =========================================
-    // 9軸ウィジェットの描画 / Anchor widget drawing
-    // =========================================
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は ANCHOR_WIDGET_* / *AnchorWidget* / getAnchor* の名前。貼る前に、コピー先にある旧版の
+    //    ANCHOR_WIDGET_SIZE・ANCHOR_CELL_*・ANCHOR_CONNECTIONS・ANCHOR_*_COLOR / FILL・addAnchorWidget・drawAnchorWidget・
+    //    drawAnchorCell・redrawAnchorWidget・initAnchorColors（9軸の配色だけを決めているもの）・clampGridIndex を消す
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
+    // 2. ウィジェットを作る。初期値は 0〜8（0=左上, 4=中央, 8=右下）か名前（"topLeft" / "top" / "topRight" /
+    //    "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"）
+    //      var anchorWidget = addAnchorWidget(anchorPanel, "center", function (anchorIndex) { updatePreview(); });
+    //      anchorWidget.helpTip = getLabel(LABELS.tooltip.anchor);
+    //    onChange はクリックのたびに呼ぶ（同じセルでも呼ぶ）。setAnchorWidgetValue() からは呼ばない
+    //    未選択（-1）を許すときは addAnchorWidget(parent, -1, onChange, { allowNone: true })
+    //    選べないセルは { disabledCells: [4] } か setAnchorWidgetCellsDisabled(anchorWidget, [4])（薄く描き、クリックも無視）
+    // 3. 値を読む: getAnchorWidgetIndex(anchorWidget) … 0〜8（未選択は -1）/ getAnchorWidgetName(anchorWidget) … "topLeft" など
+    //    値を書く: setAnchorWidgetValue(anchorWidget, 2) または setAnchorWidgetValue(anchorWidget, "topRight")（描き直す）
+    //    旧版の widget.selectedAnchorIndex / widget.anchorIndex への直接代入は描き直されないので使わない
+    // 4. Illustrator の変形に渡す:
+    //      pageItem.resize(150, 150, true, true, true, true, 150, getAnchorTransformation(getAnchorWidgetIndex(anchorWidget)));
+    //    座標で使うときは getAnchorPointOnBounds(geometricBounds, anchorIndex) → [x, y]、
+    //    割合で使うときは getAnchorRatio(anchorIndex) → [0|0.5|1, 0|0.5|1]（左上が [0, 0]）、
+    //    シンボル登録は getAnchorSymbolRegistrationPoint(anchorIndex)
+    // 5. 有効／無効は setAnchorWidgetEnabled(anchorWidget, isEnabled)（薄い色で描き直し、クリックも無視）。
+    //    パネル・行など親の enabled を切り替えたときは、そのあとで redrawAnchorWidgetsIn(親) を呼ぶ
+    //    （親の無効化は子の enabled に出ないので、描画とクリックの判定は親までたどる）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    /* 外周の□どうしをつなぐケイ線の組み合わせ（中央は独立） / Rules joining the outer squares (center stands alone) */
-    var ANCHOR_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
 
-    /* UIの明暗に合わせて initAnchorColors() で設定 / Set from the light/dark UI in initAnchorColors() */
-    var anchorLineColor = [0.6, 0.6, 0.6, 1];
-    var anchorSelectedFillColor = [0.4, 0.4, 0.4, 1];
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
 
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 1]   : [0.6, 0.6, 0.6, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 1]      : [0.4, 0.4, 0.4, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 0.4] : [0.6, 0.6, 0.6, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 0.3]    : [0.4, 0.4, 0.4, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
     /**
-     * IllustratorのUIが明るいテーマか判定する
-     * @returns {boolean} 明るいテーマなら true
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
      */
-    function isLightUI() {
-        return app.preferences.getRealPreference("uiBrightness") > 0.5;
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
     }
 
     /**
-     * 9軸ウィジェットの配色をUIの明暗に合わせて決める
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
      * @returns {void}
      */
-    function initAnchorColors() {
-        var lightUI = isLightUI();
-        /* 選択セルの塗り：ライトは濃いグレー、ダークは明るいグレー / Selected-cell fill: dark gray in light UI, bright gray in dark UI */
-        anchorLineColor = lightUI ? [0.6, 0.6, 0.6, 1] : [0.55, 0.55, 0.55, 1];
-        anchorSelectedFillColor = lightUI ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
     }
 
     /**
-     * 3×3のグリッド位置を 0〜2 に収める
-     * @param {number} gridPosition - 計算した行または列
-     * @returns {number} 0〜2 に丸めた値
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
      */
-    function clampGridIndex(gridPosition) {
-        if (gridPosition < 0) return 0;
-        if (gridPosition > 2) return 2;
-        return gridPosition;
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
     }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
+    }
+
+    /**
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
+
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
+            } else {
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
+        }
+    }
+
+    /**
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /* 9軸ウィジェットのセル番号（0〜8）は ANCHOR_DEFINITIONS の並びと同じ / Widget cell indexes (0-8) follow the ANCHOR_DEFINITIONS order */
 
     /**
      * アンカーコードから ANCHOR_DEFINITIONS 上のインデックスを求める
@@ -1848,111 +2805,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             if (ANCHOR_DEFINITIONS[i].code === anchorCode) return i;
         }
         return 0;
-    }
-
-    /**
-     * 9軸ウィジェットを再描画する
-     * @param {Button} anchorWidget - 対象ウィジェット
-     * @returns {void}
-     */
-    function redrawAnchorWidget(anchorWidget) {
-        /* notify は環境により例外を投げ得るので保護 / notify can throw in some environments */
-        try {
-            anchorWidget.notify("onDraw");
-        } catch (e) { }
-    }
-
-    /**
-     * 9軸ウィジェットを描画する（外周の□をケイ線でつなぎ、選択セルを塗る）
-     * @param {Button} anchorWidget - 対象ウィジェット
-     * @returns {void}
-     */
-    function drawAnchorWidget(anchorWidget) {
-        var graphics = anchorWidget.graphics;
-        var widgetWidth = anchorWidget.size[0];
-        var widgetHeight = anchorWidget.size[1];
-
-        /* 背景はコントロールの地色で塗り、パネルと同色に見せる / Paint the control background so the widget blends into the panel */
-        try {
-            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
-            graphics.fillPath(graphics.backgroundColor);
-        } catch (e) { }
-
-        var cellStep = ANCHOR_CELL_SIZE + ANCHOR_CELL_GAP;
-        var gridSize = ANCHOR_CELL_SIZE * 3 + ANCHOR_CELL_GAP * 2;
-        var originX = Math.round((widgetWidth - gridSize) / 2);
-        var originY = Math.round((widgetHeight - gridSize) / 2);
-
-        /**
-         * セルの左上座標を返す
-         * @param {number} cellIndex - 0〜8のセル番号（行優先）
-         * @returns {number[]} [X座標, Y座標]
-         */
-        function getCellOrigin(cellIndex) {
-            return [
-                originX + (cellIndex % 3) * cellStep,
-                originY + Math.floor(cellIndex / 3) * cellStep
-            ];
-        }
-
-        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, anchorLineColor, 1);
-        for (var i = 0; i < ANCHOR_CONNECTIONS.length; i++) {
-            var fromCell = getCellOrigin(ANCHOR_CONNECTIONS[i][0]);
-            var toCell = getCellOrigin(ANCHOR_CONNECTIONS[i][1]);
-            var isHorizontal = (ANCHOR_CONNECTIONS[i][1] - ANCHOR_CONNECTIONS[i][0] === 1);
-            graphics.newPath();
-            if (isHorizontal) {
-                /* 横方向：右隣の□へ / Horizontal: to the square on the right */
-                graphics.moveTo(fromCell[0] + ANCHOR_CELL_SIZE, fromCell[1] + ANCHOR_CELL_SIZE / 2);
-                graphics.lineTo(toCell[0], toCell[1] + ANCHOR_CELL_SIZE / 2);
-            } else {
-                /* 縦方向：下の□へ / Vertical: to the square below */
-                graphics.moveTo(fromCell[0] + ANCHOR_CELL_SIZE / 2, fromCell[1] + ANCHOR_CELL_SIZE);
-                graphics.lineTo(toCell[0] + ANCHOR_CELL_SIZE / 2, toCell[1]);
-            }
-            graphics.strokePath(linePen);
-        }
-
-        for (var cellIndex = 0; cellIndex < ANCHOR_DEFINITIONS.length; cellIndex++) {
-            var cellOrigin = getCellOrigin(cellIndex);
-            drawAnchorCell(
-                graphics,
-                cellOrigin[0],
-                cellOrigin[1],
-                cellIndex === anchorWidget.selectedAnchorIndex
-            );
-        }
-    }
-
-    /**
-     * 9軸ウィジェットのセルを1つ描画する（選択時のみ塗りつぶす）
-     * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
-     * @param {number} cellX - セルの左端
-     * @param {number} cellY - セルの上端
-     * @param {boolean} isSelected - 選択中なら true
-     * @returns {void}
-     */
-    function drawAnchorCell(graphics, cellX, cellY, isSelected) {
-        /**
-         * セルの四角形パスを作る
-         * @returns {void}
-         */
-        function addCellPath() {
-            graphics.newPath();
-            graphics.moveTo(cellX, cellY);
-            graphics.lineTo(cellX + ANCHOR_CELL_SIZE, cellY);
-            graphics.lineTo(cellX + ANCHOR_CELL_SIZE, cellY + ANCHOR_CELL_SIZE);
-            graphics.lineTo(cellX, cellY + ANCHOR_CELL_SIZE);
-            graphics.closePath();
-        }
-
-        /* 選択中のみ塗る（枠は塗りの上に描く） / Fill only when selected; the border is drawn over the fill */
-        if (isSelected) {
-            addCellPath();
-            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, anchorSelectedFillColor));
-        }
-        addCellPath();
-        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, anchorLineColor, 1));
     }
 
     // =========================================
@@ -2027,14 +2879,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         anchorPanel.margins = ANCHOR_PANEL_MARGINS;
         anchorPanel.alignChildren = ["center", "top"];
 
-        var anchorWidget = anchorPanel.add("button", undefined, "");
-        anchorWidget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.selectedAnchorIndex = findAnchorIndexByCode(DEFAULT_SETTINGS.anchorCode);
-        anchorWidget.onDraw = function () {
-            drawAnchorWidget(this);
-        };
+        var anchorWidget = addAnchorWidget(anchorPanel, findAnchorIndexByCode(DEFAULT_SETTINGS.anchorCode), function (selectedIndex) {
+            updateAnchorHelpTip(selectedIndex);
+            onSettingsChanged();
+        });
+
+        /**
+         * ツールチップを選択中のセルに合わせて更新する
+         * @param {number} selectedIndex - ANCHOR_DEFINITIONS 上のインデックス
+         * @returns {void}
+         */
+        function updateAnchorHelpTip(selectedIndex) {
+            var anchorDefinition = ANCHOR_DEFINITIONS[selectedIndex];
+            anchorWidget.helpTip = getLabel("tooltip.anchor") + "\n" +
+                getLabel("anchor." + anchorDefinition.labelKey) + " (" + anchorDefinition.shortcutKey + ")";
+            anchorPanel.helpTip = anchorWidget.helpTip;
+        }
 
         /**
          * 指定したセルを選択し、ウィジェットとツールチップを更新する
@@ -2042,28 +2902,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
          * @returns {void}
          */
         function selectAnchorAt(selectedIndex) {
-            var anchorDefinition = ANCHOR_DEFINITIONS[selectedIndex];
-            anchorWidget.selectedAnchorIndex = selectedIndex;
-            anchorWidget.helpTip = getLabel("tooltip.anchor") + "\n" +
-                getLabel("anchor." + anchorDefinition.labelKey) + " (" + anchorDefinition.shortcutKey + ")";
-            anchorPanel.helpTip = anchorWidget.helpTip;
-            redrawAnchorWidget(anchorWidget);
+            setAnchorWidgetValue(anchorWidget, selectedIndex);
+            updateAnchorHelpTip(selectedIndex);
         }
 
-        /* クリックした3×3のセルを整列先にする（座標はウィジェット基準）
-           Set the anchor from the clicked 3x3 cell (coordinates are widget-relative) */
-        anchorWidget.addEventListener("mousedown", function (event) {
-            var cellColumn = clampGridIndex(Math.floor(event.clientX / (anchorWidget.size[0] / 3)));
-            var cellRow = clampGridIndex(Math.floor(event.clientY / (anchorWidget.size[1] / 3)));
-            selectAnchorAt(cellRow * 3 + cellColumn);
-            onSettingsChanged();
-        });
-
-        selectAnchorAt(anchorWidget.selectedAnchorIndex);
+        updateAnchorHelpTip(getAnchorWidgetIndex(anchorWidget));
 
         return {
             getAnchorCode: function () {
-                return ANCHOR_DEFINITIONS[anchorWidget.selectedAnchorIndex].code;
+                return ANCHOR_DEFINITIONS[getAnchorWidgetIndex(anchorWidget)].code;
             },
             selectByShortcutKey: function (pressedKey) {
                 for (var i = 0; i < ANCHOR_DEFINITIONS.length; i++) {
@@ -2200,6 +3047,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         return {
             panel: marginPanel,
             linkToggle: linkToggle,
+            numericFields: [horizontalField, verticalField],
             getMarginInPoints: function () {
                 var horizontalValue = readMarginField(horizontalField);
                 var verticalValue = linkToggle.value ? horizontalValue : readMarginField(verticalField);
@@ -2251,26 +3099,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @param {Window} targetDialog - 対象ダイアログ
      * @param {Object} baseControls - 整列の基準パネルのインターフェース
      * @param {Object} anchorControls - 整列先パネルのインターフェース
+     * @param {Object} marginControls - マージンパネルのインターフェース（数値欄を渡す）
      * @param {Function} onSettingsChanged - 選択が変わったときに呼ぶ関数
      * @returns {void}
      */
-    function registerShortcutKeys(targetDialog, baseControls, anchorControls, onSettingsChanged) {
-        targetDialog.addEventListener("keydown", function (event) {
-            /* テキスト入力中はショートカットを無効化 / Skip shortcuts while typing in edittext */
-            if (event.target && event.target.type === "edittext") return;
-            if (!event.keyName) return;
+    function registerShortcutKeys(targetDialog, baseControls, anchorControls, marginControls, onSettingsChanged) {
+        /**
+         * 整列の基準を切り替えるショートカットを作る。数値欄では数字をそのまま入力させる
+         * @param {boolean} useActiveArtboard - アクティブを基準にするなら true
+         * @returns {Function} ショートカットの関数
+         */
+        function makeBaseShortcut(useActiveArtboard) {
+            return function (keyEvent) {
+                /* 数字は数値欄の入力を優先 / Digits stay as typing in the margin fields */
+                if (keyEvent && keyEvent.target && keyEvent.target.type === "edittext") return false;
+                baseControls.selectAlignmentBase(useActiveArtboard);
+                return true;
+            };
+        }
 
-            var pressedKey = ("" + event.keyName).toLowerCase();
-            if (pressedKey === "1" || pressedKey === "2") {
-                baseControls.selectAlignmentBase(pressedKey === "2");
-                event.preventDefault();
-                onSettingsChanged();
-                return;
-            }
+        /**
+         * 整列先のセルを選ぶショートカットを作る
+         * @param {string} shortcutKey - ANCHOR_DEFINITIONS の shortcutKey
+         * @returns {Function} ショートカットの関数
+         */
+        function makeAnchorShortcut(shortcutKey) {
+            return function () {
+                return anchorControls.selectByShortcutKey(shortcutKey);
+            };
+        }
 
-            if (!anchorControls.selectByShortcutKey(pressedKey)) return;
-            event.preventDefault();
-            onSettingsChanged();
+        var shortcutMap = {
+            "1": makeBaseShortcut(false),
+            "2": makeBaseShortcut(true)
+        };
+        for (var i = 0; i < ANCHOR_DEFINITIONS.length; i++) {
+            shortcutMap[ANCHOR_DEFINITIONS[i].shortcutKey] = makeAnchorShortcut(ANCHOR_DEFINITIONS[i].shortcutKey);
+        }
+        addKeyShortcuts(targetDialog, shortcutMap, {
+            numericFields: marginControls.numericFields,
+            afterKey: onSettingsChanged
         });
     }
 
@@ -2286,7 +3154,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
         var unitLabel = getUnitInfo().label;
         var previewState = createPreviewState(doc.selection);
-        initAnchorColors();
 
         var baseControls = buildAlignmentBasePanel(alignDialog, doc.artboards.length, handleSettingsChanged);
 
@@ -2311,7 +3178,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignDialog.defaultElement = btnOK;
         marginControls.bindEnterKey(btnOK);
-        registerShortcutKeys(alignDialog, baseControls, anchorControls, handleSettingsChanged);
+        registerShortcutKeys(alignDialog, baseControls, anchorControls, marginControls, handleSettingsChanged);
 
         /**
          * ダイアログの入力から整列設定を読み取る

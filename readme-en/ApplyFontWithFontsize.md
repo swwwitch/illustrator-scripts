@@ -81,3 +81,4 @@ A line can carry the font name alone, or the name followed by a size and a leadi
 - v1.3.5: Merged ApplyFontByLine.jsx, added support for sizes and leading, and renamed to ApplyFontWithFontsize.jsx (current version)
 - v1.3.7: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.8: The button row is now built with the shared part
+- v1.3.8: Target collection now uses the shared part

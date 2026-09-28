@@ -28,3 +28,7 @@ John Wundes - Zoom and Center to Selection v2.
 http://www.wundes.com/js4ai/copyright.txt
 
 アニメーション補間は ArtboardNavigator.jsx（古島佑起さん）を参考にしています。
+
+### 更新履歴
+
+- v2.1.2 (2026-09-29) : クリップグループの範囲をマスクで測るようにした

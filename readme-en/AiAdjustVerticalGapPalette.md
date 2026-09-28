@@ -34,10 +34,11 @@ with a live preview that updates as you change the settings.
 
 ### Script info
 
-- Version: v1.4.0
+- Version: v1.4.1
 
 ### Update History
 
+- v1.4.1 (2026-09-29) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.3.3 (2026-09-26) Renamed the file from `AiAdjustVerticalGap.jsx` to `AiAdjustVerticalGapPalette.jsx`.
 - v1.3.2 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

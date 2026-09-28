@@ -57,3 +57,6 @@
 - v1.2.1 (20260928): Replaced the Link checkbox with a link icon
 - v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.2 (20260928): The button row is now built with the shared part
+- v1.2.2 (20260928): The 3×3 reference point picker now uses the shared part
+- v1.2.2 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.2.2 (20260928): Clip groups are measured by their masks (hidden parts no longer count when aligning)

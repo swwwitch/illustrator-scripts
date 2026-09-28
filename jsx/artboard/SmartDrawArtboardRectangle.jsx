@@ -220,6 +220,242 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（uiLang の定義より後、ダイアログを作る関数より前）に貼る。
+    //    識別子はすべて KEY_SHORTCUT_* / *KeyShortcut* の名前。uiLang はコピー先のものをそのまま使う
+    // 2. コントロールをすべて作り、onClick を付けたあとで1回だけ呼ぶ（keydown はウィンドウに1つ）
+    //      addKeyShortcuts(dialog, {
+    //          "L": alignLeftRadio,                    … ラジオ：選んで onClick
+    //          "P": previewCheckbox,                   … チェックボックス：反転して onClick
+    //          "Shift+R": btnReset,                    … ボタン：onClick（無ければ notify）
+    //          "G": function () { toggleGuides(); },   … 関数：呼ぶだけ
+    //          "Escape": { target: function () { palette.close(); }, inFields: true }
+    //      }, { numericFields: [widthInput, heightInput], afterKey: updatePreview });
+    //    キーは keyName と同じ綴り（"A"〜"Z"・"1"・"Semicolon"・"Escape" など。大小文字は区別しない）。
+    //    修飾キーは "Shift+" / "Alt+"（option）/ "Cmd+"（⌘、Windows は Ctrl）を前に付ける
+    // 3. 修飾キーは完全一致。"R" は Shift・option・⌘ を押しながらでは効かない（⌘C などを横取りしない）。
+    //    Shift＋R に別の動作を付けるときは "Shift+R" を並べる
+    // 4. 入力欄（edittext）・ドロップダウン・リストにフォーカスがあるときは効かない（文字は普通に入る）。
+    //    数値だけの欄で効かせたいときは options.numericFields に並べる（押した文字は欄に入らない）。
+    //    入力中でも効かせたいキーは { target: …, inFields: true } にする（Esc で閉じる、option＋数字など）
+    // 5. 無効・非表示のコントロールは、親のパネルやグループが無効なときも含めて何もしない
+    //    （親を無効にしても子の enabled は true のまま、のため親までたどる）
+    // 6. 関数の戻り値：false はこのキーを使わない（文字をそのまま通す）。コントロールを返すと、そのコントロールを
+    //    押したことにする（向きによってラジオが変わるときなど）。それ以外は処理済み
+    // 7. ツールチップへのキー表記は options.showInTip: true で「…（L）」「… (L)」を末尾に足す。
+    //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
+    // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
+    //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     /* ラベル定義（カテゴリ別）/ Label definitions (by category) */
     var LABELS = {
         dialog: {
@@ -476,25 +712,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-    /* 入力中のホットキー抑止用に、フォーカス中のコントロールを保持 / Control that currently owns focus */
-    var focusedField = null;
-
-    /**
-     * 入力欄のフォーカスを追跡し、入力中はダイアログのホットキーを無効にする
-     * 単一 boolean だと「新フィールドの focus → 旧フィールドの blur」の順で false に落ちるため、
-     * コントロール自体を保持して自分の blur のときだけクリアする（順序非依存）。
-     * @param {EditText} fieldControl - 追跡対象の入力欄
-     * @returns {void}
-     */
-    function trackFocusForHotkeys(fieldControl) {
-        fieldControl.addEventListener('focus', function () {
-            focusedField = fieldControl;
-        });
-        fieldControl.addEventListener('blur', function () {
-            if (focusedField === fieldControl) focusedField = null;
-        });
-    }
 
     /**
      * 入力欄を淡黄色でハイライト表示する（選択中のカラーモードを示す）
@@ -1635,8 +1852,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             previewHooks.deferred();
         };
         bindSteppedArrowKeys(channelInput, channelInput.stepperGroup);
-
-        trackFocusForHotkeys(channelInput);
     }
 
     // =========================================
@@ -1715,7 +1930,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (event.keyName == 'Enter') previewHooks.immediate();
         });
         bindSteppedArrowKeys(offsetInput, offsetStepper);
-        trackFocusForHotkeys(offsetInput);
 
         return {
             offsetInput: offsetInput,
@@ -1824,8 +2038,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             }
             previewHooks.immediate();
         };
-
-        trackFocusForHotkeys(hexInput);
 
         /* ラジオ選択に応じて入力欄の有効・無効を反映 / Sync field enable state with the radios */
         function updateColorFieldStates() {
@@ -1962,40 +2174,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * ダイアログのホットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
+     * ダイアログのショートカットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
+     * HEX の欄（色名も入る）では文字入力を優先し、数値の欄では効かせる
      * @param {Window} settingsDialog - 対象ダイアログ
      * @param {object} dialogControls - 各パネルのコントロール
-     * @param {function} refreshPreview - プレビューを即時更新するコールバック
      * @returns {void}
      */
-    function addDialogHotkeys(settingsDialog, dialogControls, refreshPreview) {
-        settingsDialog.addEventListener('keydown', function (event) {
-            if (focusedField) return; /* 入力中は無効 / ignore while typing in a field */
-            var pressedKey = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
-
-            if (pressedKey === 'G') {
-                /* ガイド化は描画後の処理なのでプレビューには反映しない
-                   Make-guides is a post-draw option and is not previewed */
-                var makeGuideCheckbox = dialogControls.options.makeGuideCheckbox;
-                makeGuideCheckbox.value = !makeGuideCheckbox.value;
-                event.preventDefault();
-                return;
-            }
-
-            var selectedRadio = null;
-            if (pressedKey === 'F') selectedRadio = dialogControls.placement.frontRadio;
-            else if (pressedKey === 'B') selectedRadio = dialogControls.placement.backRadio;
-            else if (pressedKey === 'L') selectedRadio = dialogControls.placement.bgLayerRadio;
-            else if (pressedKey === 'C') selectedRadio = dialogControls.target.currentArtboardRadio;
-            else if (pressedKey === 'A') selectedRadio = dialogControls.target.allArtboardsRadio;
-            else return;
-
-            if (selectedRadio.enabled) {
-                selectedRadio.value = true;
-                refreshPreview();
-            }
-            event.preventDefault();
-        });
+    function addDialogShortcutKeys(settingsDialog, dialogControls) {
+        var numericFields = [dialogControls.offset.offsetInput];
+        for (var i = 0; i < dialogControls.color.cmykInputs.length; i++) {
+            numericFields.push(dialogControls.color.cmykInputs[i]);
+        }
+        addKeyShortcuts(settingsDialog, {
+            /* ガイド化は描画後の処理なのでプレビューには反映しない / Make-guides is a post-draw option and is not previewed */
+            "G": dialogControls.options.makeGuideCheckbox,
+            "F": dialogControls.placement.frontRadio,
+            "B": dialogControls.placement.backRadio,
+            "L": dialogControls.placement.bgLayerRadio,
+            "C": dialogControls.target.currentArtboardRadio,
+            "A": dialogControls.target.allArtboardsRadio
+        }, { numericFields: numericFields });
     }
 
     /**
@@ -2131,7 +2329,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             target: buildTargetPanel(rightColumnGroup, previewHooks)
         };
 
-        addDialogHotkeys(settingsDialog, dialogControls, updatePreviewImmediately);
+        addDialogShortcutKeys(settingsDialog, dialogControls);
 
         var dialogButtons = buildButtonRow(settingsDialog);
 

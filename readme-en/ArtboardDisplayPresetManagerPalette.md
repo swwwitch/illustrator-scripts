@@ -80,6 +80,7 @@ Illustrator application preferences, plus the active document's artboard (pixel-
 
 ### Update History
 
+- v1.3.1 (2026-09-28) The 3×3 reference point picker now uses the shared part.
 - v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.2.5 (2026-09-26) Renamed the file from `ArtboardDisplayPresetManager.jsx` to `ArtboardDisplayPresetManagerPalette.jsx`.
 - v1.2.4 (2026-09-25) The width/height fields can now be stepped with the arrow keys (Shift ±10, Option ±0.1); the artboard is resized when the key is released. Width and height are now stacked vertically, with a 9-axis widget beside them to set the resize reference point. Removed the Reload button (info is re-read when the palette is activated).

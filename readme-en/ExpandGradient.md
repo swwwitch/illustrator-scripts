@@ -46,7 +46,7 @@ With "Convert to blend" selected the value is fixed at 2 and the field is dimmed
 
 ### Update History
 
-- v1.2.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
+- v1.2.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part. Target collection now uses the shared part
 - v1.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten). Also fixed an error when opening the dialog and the missing tooltips
 - v1.1.2 (2026-08-27): Fixed the object count coming out one short; the step count is fixed at 2 and dimmed for "Convert to blend"; added the article link; removed ExpandGradient-v2.jsx; cleaned up the code

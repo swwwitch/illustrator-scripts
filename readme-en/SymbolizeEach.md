@@ -62,6 +62,8 @@ https://note.com/dtp_tranist/n/nce9ec30232a0 (Japanese)
 
 ### Update History
 
+- v1.0.4 (2026-09-28) Clip groups are now measured by their mask
+- v1.0.4 (2026-09-28) The 3×3 reference point picker now uses the shared part
 - v1.0.4 (2026-09-28) The button row is now built with the shared part
 - v1.0.3 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-15) Replaced the registration-point radio buttons with a 3×3 anchor widget, tidied the field labels, and reorganized internal naming and functions

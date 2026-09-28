@@ -45,4 +45,5 @@ Align panel commands cannot be called from the DOM, so the script writes an acti
 ### Update history
 
 - v1.0.3 (20260928) : Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.0.3 (20260928) : Clip groups are measured by their masks when finding the artboard the selection is on
 - v1.0.0 (20260821) : Initial release

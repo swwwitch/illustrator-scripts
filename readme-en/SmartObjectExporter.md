@@ -73,6 +73,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 ### Update History
 
 - v1.1.3 (2026-09-28): The button row is now built with the shared part
+- v1.1.3 (2026-09-28): Clip groups are now measured by their mask (affects the export area)
 - v1.1.2 (2026-09-28): Replaced the Link checkbox with a link icon
 - v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.1 (2026-09-27): Revised UI wording (Document Name: Include / Exclude; location: Same Folder as Document; rounding: Round Export Area with Align to pixel grid / Whole ruler units / Don't round). Added colons to the Transparency Grid and Color Code labels, and tooltips to the transparency grid, document name and delimiter

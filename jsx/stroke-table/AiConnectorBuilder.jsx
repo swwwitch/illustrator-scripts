@@ -127,9 +127,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
     var RADIO_COLUMN_SPACING = 4;            /* 縦並びラジオの間隔 */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 */
     var PRESET_BUTTON_WIDTH = 60;            /* プリセットの保存・削除ボタンの幅 */
-    var ANCHOR_WIDGET_SIZE = 66;             /* 起点ウィジェット全体の大きさ */
-    var ANCHOR_CELL_SIZE   = 9;              /* 起点ウィジェットの□1個の大きさ */
-    var ANCHOR_CELL_GAP    = 7.5;            /* 起点ウィジェットの□どうしの間隔 */
     var ANCHOR_DEFAULT_INDEX = 4;            /* 起点ウィジェットの初期位置（4=中央） */
     var KEY_DIALOG_TEXT_WIDTH = 240;         /* 起点ダイアログの説明文の幅 */
     var PRESET_LIST_WIDTH = 120;             /* プリセットのドロップダウンの幅 */
@@ -138,24 +135,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
     var ICON_PADDING = 4;                    /* 矢印アイコンの内側の余白 */
     var ICON_ROW_BOTTOM_MARGIN = 5;          /* 矢印アイコン行の下余白 */
 
-    /* 矢印アイコンの配色と起点ウィジェットの選択セルの塗り。UIの明暗に合わせて initThemeColors() で決める */
+    /* 矢印アイコンの配色。UIの明暗に合わせて initThemeColors() で決める */
     var ICON_COLOR;
     var ICON_SELECTED_COLOR;
     var ICON_BG;
     var ICON_SELECTED_BG;
     var ICON_BORDER_COLOR;
-    var ANCHOR_SELECTED_FILL;
 
     /* 確定／破棄の判定は show() の戻り値に一本化する（ESCやウィンドウを閉じたときは onClick が発火しないため） */
     var DIALOG_RESULT_OK = 1;
     var DIALOG_RESULT_CANCEL = 2;
-
-    /* 起点ウィジェットのケイ線・枠線（常時この色） */
-    var ANCHOR_LINE_COLOR    = [0.6, 0.6, 0.6, 1];
-    var ANCHOR_DISABLED_LINE = [0.75, 0.75, 0.75, 1];
-    var ANCHOR_DISABLED_FILL = [0.75, 0.75, 0.75, 1];
-    /* 外周の□どうしをつなぐケイ線（中央は独立）*/
-    var ANCHOR_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
 
     /* 行ラベルの幅。パネルごとに setLabelWidth() で切り替える */
     var currentLabelWidth = LABEL_WIDTH;
@@ -1236,6 +1225,435 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。使わない関数も消さずに残してよい（互いに呼び合う）。
+    //    識別子は SELECTION_ITEMS_TOLERANCE / normalizeSelectionItems / resolveTextRangeFrame /
+    //    collectSelectionItems / getTextFrameKindKey / collectSelectionTextFrames / collectSelectionPathItems /
+    //    isClipMaskItem / getClipMaskItem / hasClippedDescendant / readUsePreviewBoundsPreference /
+    //    getClipAwareBounds / filterMeasurableChildren / getClipAwareUnionBounds / isNearlySameCoordinate / areBoundsNearlyEqual
+    // 2. 選択は normalizeSelectionItems(doc.selection) で配列にする。文字カーソルの選択（TextRange）は
+    //    配列ではなく1個で返り、しかも .length（文字数）を持つので、length だけで配列と見なさない
+    // 3. テキストフレーム:
+    //      var frames = collectSelectionTextFrames(doc.selection);                           // 全種類
+    //      var frames = collectSelectionTextFrames(doc.selection, { kinds: ["point", "path"] });
+    //    パス:
+    //      var paths = collectSelectionPathItems(doc.selection);                             // 複合パスは中のパスへ
+    //      var paths = collectSelectionPathItems(doc.selection, { compoundPaths: "whole", skipClipMasks: true });
+    //    それ以外は collectSelectionItems(source, { accept: function (item) { … } }) で条件を書く
+    // 4. 並びは選択と同じ前面→背面（グループの中も pageItems の順）。重なり順を使う処理はこの順を前提にしてよい
+    // 5. doc.selection に代入し直す配列は skipLocked / skipHidden を true にする。
+    //    ロック・非表示を選択に代入すると例外になり、中の子が選択に残る
+    // 6. 境界は getClipAwareBounds(item, usePreviewBounds) / getClipAwareUnionBounds(items, usePreviewBounds)。
+    //    usePreviewBounds を省くと環境設定の［プレビュー境界を使用］に従う。返り値は [左, 上, 右, 下] の新しい配列
+    //    （書き換えても元のオブジェクトに影響しない）。測れないときは null
+    // 7. 座標の一致・前後の判定は isNearlySameCoordinate / areBoundsNearlyEqual で許容値を挟む
+    //    （吸着させた辺とガイドは 1e-12 ほどずれる）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */
+    var SELECTION_ITEMS_TOLERANCE = 0.001;
+
+    /**
+     * 選択やコレクションを、オブジェクトの配列にそろえる
+     * TextRange・PathItem は length を持つので、typename で1個か集まりかを見分ける
+     * @param {*} source - doc.selection、配列、DOM のコレクション、または単独のオブジェクト
+     * @returns {Array} オブジェクトの配列（空なら []）
+     */
+    function normalizeSelectionItems(source) {
+        var items = [];
+        if (!source) return items;
+        var typeName = "";
+        try { typeName = source.typename || ""; } catch (e) { /* 読めない種類 / unreadable kind */ }
+        /* 単数形の typename は1個（PageItems などのコレクションは s で終わる）
+           A singular typename is one object (collections such as PageItems end in s) */
+        if (typeName && !/s$/.test(typeName)) return [source];
+        if (typeof source.length !== "number") return items;
+        for (var i = 0; i < source.length; i++) items.push(source[i]);
+        return items;
+    }
+
+    /**
+     * 文字カーソルの選択（TextRange）を、それを含むテキストフレームに読み替える
+     * @param {TextRange} textRange - 文字の範囲
+     * @returns {TextFrame|null} テキストフレーム（たどれなければ null）
+     */
+    function resolveTextRangeFrame(textRange) {
+        var current = textRange;
+        /* parent をたどる（深さは念のため制限） / Walk up the parents, with a safety limit */
+        for (var depth = 0; depth < 10 && current; depth++) {
+            try {
+                if (current.typename === "TextFrame") return current;
+                current = current.parent;
+            } catch (e) {
+                break;
+            }
+        }
+        /* ストーリーの先頭フレームで代用する / Fall back to the first frame of the story */
+        try {
+            var storyFrames = textRange.story.textFrames;
+            if (storyFrames.length > 0) return storyFrames[0];
+        } catch (e2) { /* ストーリーを持たない / no story */ }
+        return null;
+    }
+
+    /**
+     * 選択から条件に合うオブジェクトを集める（グループ・レイヤーを再帰でたどり、重複は除く）
+     * 条件に合ったオブジェクトの中へは進まない
+     * @param {*} source - doc.selection、配列、コレクション、または単独のオブジェクト
+     * @param {Object} [options] - 収集の設定
+     * @param {function(PageItem): boolean} [options.accept] - 集める条件（既定はグループ・レイヤー以外すべて）
+     * @param {boolean} [options.enterGroups] - グループの中をたどる（既定 true）
+     * @param {boolean} [options.enterClipGroups] - クリップグループの中をたどる（既定は enterGroups と同じ）
+     * @param {boolean} [options.enterCompoundPaths] - 複合パスの中のパスをたどる（既定 false）
+     * @param {boolean} [options.textRangeToFrame] - 文字の選択をテキストフレームに読み替える（既定 true）
+     * @param {boolean} [options.skipLocked] - ロックされたものを中ごと外す（既定 false）
+     * @param {boolean} [options.skipHidden] - 非表示のものを中ごと外す（既定 false）
+     * @param {boolean} [options.skipClipMasks] - クリッピングマスクを外す（既定 false）
+     * @param {boolean} [options.skipGuides] - ガイドを外す（既定 false）
+     * @param {boolean} [options.unique] - 同じ参照を1回だけにする（既定 true。数千件で遅ければ false）
+     * @returns {Array} 集めたオブジェクト（前面→背面の順）
+     */
+    function collectSelectionItems(source, options) {
+        var opts = options || {};
+        var enterGroups = (opts.enterGroups !== false);
+        var enterClipGroups = (opts.enterClipGroups === undefined) ? enterGroups : (opts.enterClipGroups === true);
+        var accept = opts.accept || function (item) {
+            return item.typename !== "GroupItem" && item.typename !== "Layer";
+        };
+        var collected = [];
+
+        /**
+         * 集めた配列に加える（unique のときは同じ参照を足さない）
+         * @param {PageItem} item - 加えるオブジェクト
+         * @returns {void}
+         */
+        function pushItem(item) {
+            if (opts.unique !== false) {
+                for (var k = 0; k < collected.length; k++) {
+                    if (collected[k] === item) return;
+                }
+            }
+            collected.push(item);
+        }
+
+        /**
+         * 設定に従って外すオブジェクトか判定する
+         * @param {PageItem} item - 判定するオブジェクト
+         * @returns {boolean} 外すなら true
+         */
+        function isSkipped(item) {
+            try {
+                if (item.typename === "Layer") {
+                    if (opts.skipLocked && item.locked) return true;
+                    if (opts.skipHidden && !item.visible) return true;
+                    return false;
+                }
+                if (opts.skipLocked && item.locked) return true;
+                if (opts.skipHidden && item.hidden) return true;
+                if (opts.skipGuides && item.guides === true) return true;
+                if (opts.skipClipMasks && isClipMaskItem(item)) return true;
+            } catch (e) {
+                /* 読めないプロパティは「外さない」に倒す / Unreadable properties do not exclude */
+            }
+            return false;
+        }
+
+        /**
+         * 1件をたどって集める
+         * @param {PageItem} item - 対象のオブジェクト
+         * @returns {void}
+         */
+        function visit(item) {
+            if (!item) return;
+            var typeName = "";
+            try { typeName = item.typename; } catch (e) { return; }
+
+            if (typeName === "TextRange" || typeName === "InsertionPoint") {
+                if (opts.textRangeToFrame === false) {
+                    if (accept(item)) pushItem(item);
+                    return;
+                }
+                visit(resolveTextRangeFrame(item));
+                return;
+            }
+            if (isSkipped(item)) return;
+            if (accept(item)) {
+                pushItem(item);
+                return;
+            }
+
+            var children = null;
+            if (typeName === "GroupItem") {
+                var isClipped = false;
+                try { isClipped = (item.clipped === true); } catch (e2) { }
+                if (isClipped ? enterClipGroups : enterGroups) children = item.pageItems;
+            } else if (typeName === "CompoundPathItem") {
+                if (opts.enterCompoundPaths) children = item.pathItems;
+            } else if (typeName === "Layer") {
+                /* 重なり順はサブレイヤーとページアイテムで別々なので、ページアイテム→サブレイヤーの順にする
+                   Page items and sublayers stack separately; visit page items first, then sublayers */
+                walk(item.pageItems);
+                walk(item.layers);
+                return;
+            }
+            if (children) walk(children);
+        }
+
+        /**
+         * 集まりの各要素をたどる
+         * @param {*} list - 配列またはコレクション
+         * @returns {void}
+         */
+        function walk(list) {
+            var listItems = normalizeSelectionItems(list);
+            for (var i = 0; i < listItems.length; i++) visit(listItems[i]);
+        }
+
+        walk(source);
+        return collected;
+    }
+
+    /**
+     * テキストフレームの種類を "point" / "area" / "path" で返す
+     * @param {TextFrame} textFrame - テキストフレーム
+     * @returns {string} 種類のキー（判定できなければ ""）
+     */
+    function getTextFrameKindKey(textFrame) {
+        try {
+            if (textFrame.kind === TextType.POINTTEXT) return "point";
+            if (textFrame.kind === TextType.AREATEXT) return "area";
+            if (textFrame.kind === TextType.PATHTEXT) return "path";
+        } catch (e) { /* kind を読めない / kind is unreadable */ }
+        return "";
+    }
+
+    /**
+     * 選択からテキストフレームを集める（グループの中・文字カーソルの選択を含む）
+     * @param {*} source - doc.selection など
+     * @param {Object} [options] - collectSelectionItems と同じ設定に加えて次を受ける
+     * @param {string[]} [options.kinds] - 集める種類（"point" / "area" / "path"。既定はすべて）
+     * @returns {TextFrame[]} テキストフレーム（前面→背面の順）
+     */
+    function collectSelectionTextFrames(source, options) {
+        var opts = {};
+        var sourceOptions = options || {};
+        for (var key in sourceOptions) {
+            if (sourceOptions.hasOwnProperty(key)) opts[key] = sourceOptions[key];
+        }
+        var kindFilter = null;
+        if (opts.kinds && opts.kinds.length) {
+            kindFilter = {};
+            for (var i = 0; i < opts.kinds.length; i++) kindFilter[opts.kinds[i]] = true;
+        }
+        opts.accept = function (item) {
+            if (item.typename !== "TextFrame") return false;
+            return !kindFilter || kindFilter[getTextFrameKindKey(item)] === true;
+        };
+        /* 種類で外したテキストは中をたどらない（accept が false でも子は無い） / Text frames have no children to walk */
+        return collectSelectionItems(source, opts);
+    }
+
+    /**
+     * 選択からパスを集める（グループの中を含む）
+     * @param {*} source - doc.selection など
+     * @param {Object} [options] - collectSelectionItems と同じ設定に加えて次を受ける
+     * @param {string} [options.compoundPaths] - 複合パスの扱い。"children"（中のパス、既定）/ "whole"（複合パスごと）/ "skip"（外す）
+     * @returns {Array} PathItem（"whole" のときは CompoundPathItem も）の配列
+     */
+    function collectSelectionPathItems(source, options) {
+        var opts = {};
+        var sourceOptions = options || {};
+        for (var key in sourceOptions) {
+            if (sourceOptions.hasOwnProperty(key)) opts[key] = sourceOptions[key];
+        }
+        var compoundMode = opts.compoundPaths || "children";
+        opts.enterCompoundPaths = (compoundMode === "children");
+        opts.accept = function (item) {
+            if (item.typename === "PathItem") return true;
+            return compoundMode === "whole" && item.typename === "CompoundPathItem";
+        };
+        return collectSelectionItems(source, opts);
+    }
+
+    /**
+     * クリッピングマスク（クリップグループの型）か判定する
+     * パスは clipping、複合パスは中の先頭パスの clipping、テキストは clipping が無いので「クリップグループの先頭」で見る
+     * @param {PageItem} item - 判定するオブジェクト
+     * @returns {boolean} マスクなら true
+     */
+    function isClipMaskItem(item) {
+        try {
+            if (item.typename === "PathItem") return item.clipping === true;
+            if (item.typename === "CompoundPathItem") {
+                return item.pathItems.length > 0 && item.pathItems[0].clipping === true;
+            }
+            if (item.typename === "TextFrame") {
+                var parentGroup = item.parent;
+                return parentGroup.typename === "GroupItem" && parentGroup.clipped === true &&
+                    parentGroup.pageItems.length > 0 && parentGroup.pageItems[0] === item;
+            }
+        } catch (e) { /* 読めない種類はマスクではない / unreadable kinds are not masks */ }
+        return false;
+    }
+
+    /**
+     * クリップグループの型（マスク）を返す
+     * フラグで探し、見つからなければ先頭（pageItems[0]）を返す（型は常に最前面。テキストの型はフラグを持たない）
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {PageItem|null} マスク（クリップグループでなければ null）
+     */
+    function getClipMaskItem(groupItem) {
+        try {
+            if (!groupItem || groupItem.typename !== "GroupItem" || groupItem.clipped !== true) return null;
+            var groupChildren = groupItem.pageItems;
+            if (groupChildren.length === 0) return null;
+            for (var i = 0; i < groupChildren.length; i++) {
+                var childType = groupChildren[i].typename;
+                if ((childType === "PathItem" || childType === "CompoundPathItem") && isClipMaskItem(groupChildren[i])) {
+                    return groupChildren[i];
+                }
+            }
+            return groupChildren[0];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * グループの中（入れ子を含む）にクリップグループがあるか判定する
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {boolean} あれば true
+     */
+    function hasClippedDescendant(groupItem) {
+        try {
+            var groupChildren = groupItem.pageItems;
+            for (var i = 0; i < groupChildren.length; i++) {
+                if (groupChildren[i].typename !== "GroupItem") continue;
+                if (groupChildren[i].clipped === true || hasClippedDescendant(groupChildren[i])) return true;
+            }
+        } catch (e) { /* 中を読めない / cannot read the children */ }
+        return false;
+    }
+
+    /**
+     * 環境設定の［プレビュー境界を使用］を読む
+     * @returns {boolean} オンなら true（読めなければ false）
+     */
+    function readUsePreviewBoundsPreference() {
+        try {
+            return app.preferences.getBooleanPreference("includeStrokeInBounds");
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 見た目どおりの境界を返す。クリップグループはマスクの境界、
+     * 中にクリップグループを含むグループは子の境界を合わせたもの（隠れた部分を含めない）
+     * @param {PageItem} item - 対象のオブジェクト
+     * @param {boolean} [usePreviewBounds] - true で visibleBounds、false で geometricBounds（省略時は環境設定に従う）
+     * @returns {number[]|null} [左, 上, 右, 下] の新しい配列（測れなければ null）
+     */
+    function getClipAwareBounds(item, usePreviewBounds) {
+        var usePreview = (usePreviewBounds === undefined || usePreviewBounds === null) ?
+            readUsePreviewBoundsPreference() : (usePreviewBounds === true);
+        try {
+            var measuredItem = item;
+            if (item.typename === "GroupItem") {
+                var maskItem = getClipMaskItem(item);
+                if (maskItem) {
+                    measuredItem = maskItem;
+                } else if (hasClippedDescendant(item)) {
+                    /* グループ自体の効果（影など）の広がりは含まれなくなる
+                       This leaves out the reach of effects applied to the group itself (drop shadows etc.) */
+                    var childBounds = getClipAwareUnionBounds(filterMeasurableChildren(item.pageItems), usePreview);
+                    if (childBounds) return childBounds;
+                }
+            }
+            var bounds = usePreview ? measuredItem.visibleBounds : measuredItem.geometricBounds;
+            return [bounds[0], bounds[1], bounds[2], bounds[3]];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 境界の計算に入れる子だけを残す（非表示とガイドを外す）
+     * @param {*} childList - 子のコレクション
+     * @returns {Array} 残した子
+     */
+    function filterMeasurableChildren(childList) {
+        var childItems = normalizeSelectionItems(childList);
+        var measurable = [];
+        for (var i = 0; i < childItems.length; i++) {
+            try {
+                if (childItems[i].hidden === true || childItems[i].guides === true) continue;
+            } catch (e) { /* 読めなければ残す / keep when unreadable */ }
+            measurable.push(childItems[i]);
+        }
+        return measurable;
+    }
+
+    /**
+     * 複数のオブジェクトを囲む外接範囲を返す（クリップグループはマスクで測る）
+     * @param {*} items - オブジェクトの配列・コレクション・選択
+     * @param {boolean} [usePreviewBounds] - true で visibleBounds、false で geometricBounds（省略時は環境設定に従う）
+     * @returns {number[]|null} [左, 上, 右, 下]（測れるものが無ければ null）
+     */
+    function getClipAwareUnionBounds(items, usePreviewBounds) {
+        var usePreview = (usePreviewBounds === undefined || usePreviewBounds === null) ?
+            readUsePreviewBoundsPreference() : (usePreviewBounds === true);
+        var itemList = normalizeSelectionItems(items);
+        var unionBounds = null;
+        for (var i = 0; i < itemList.length; i++) {
+            var itemBounds = getClipAwareBounds(itemList[i], usePreview);
+            if (!itemBounds) continue;
+            if (!unionBounds) {
+                unionBounds = itemBounds;
+                continue;
+            }
+            if (itemBounds[0] < unionBounds[0]) unionBounds[0] = itemBounds[0];
+            if (itemBounds[1] > unionBounds[1]) unionBounds[1] = itemBounds[1];
+            if (itemBounds[2] > unionBounds[2]) unionBounds[2] = itemBounds[2];
+            if (itemBounds[3] < unionBounds[3]) unionBounds[3] = itemBounds[3];
+        }
+        return unionBounds;
+    }
+
+    /**
+     * 2つの座標を許容値つきで比べる
+     * @param {number} valueA - 座標A（pt）
+     * @param {number} valueB - 座標B（pt）
+     * @param {number} [tolerance] - 許容値（pt、既定は SELECTION_ITEMS_TOLERANCE）
+     * @returns {boolean} 差が許容値以下なら true
+     */
+    function isNearlySameCoordinate(valueA, valueB, tolerance) {
+        var limit = (typeof tolerance === "number") ? tolerance : SELECTION_ITEMS_TOLERANCE;
+        return Math.abs(valueA - valueB) <= limit;
+    }
+
+    /**
+     * 2つの境界を許容値つきで比べる
+     * @param {number[]} boundsA - [左, 上, 右, 下]
+     * @param {number[]} boundsB - [左, 上, 右, 下]
+     * @param {number} [tolerance] - 許容値（pt、既定は SELECTION_ITEMS_TOLERANCE）
+     * @returns {boolean} 4辺とも許容値以内なら true
+     */
+    function areBoundsNearlyEqual(boundsA, boundsB, tolerance) {
+        if (!boundsA || !boundsB) return false;
+        for (var i = 0; i < 4; i++) {
+            if (!isNearlySameCoordinate(boundsA[i], boundsB[i], tolerance)) return false;
+        }
+        return true;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 選択の収集と境界（再利用パーツ）ここまで / End of the reusable selection items and bounds
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // キーオブジェクトの検出 / Key object detection
     // =========================================
@@ -1320,7 +1738,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         var leftmostIndex = 0;
         var minCenterX = null;
         for (var i = 0; i < items.length; i++) {
-            var centerX = getBoundsCenter(items[i].visibleBounds)[0];
+            var centerX = getBoundsCenter(getClipAwareBounds(items[i], true))[0];
             if (minCenterX === null || centerX < minCenterX) {
                 minCenterX = centerX;
                 leftmostIndex = i;
@@ -1330,38 +1748,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
     }
 
     /**
-     * 選択したオブジェクト全体を囲む外接矩形を返す
-     * @param {Array<object>} items - 対象のオブジェクト
-     * @returns {Array<number>} [左, 上, 右, 下]
-     */
-    function getSelectionBounds(items) {
-        var firstBounds = items[0].visibleBounds;
-        var union = [firstBounds[0], firstBounds[1], firstBounds[2], firstBounds[3]];
-        for (var i = 1; i < items.length; i++) {
-            var bounds = items[i].visibleBounds;
-            if (bounds[0] < union[0]) union[0] = bounds[0];
-            if (bounds[1] > union[1]) union[1] = bounds[1];
-            if (bounds[2] > union[2]) union[2] = bounds[2];
-            if (bounds[3] < union[3]) union[3] = bounds[3];
-        }
-        return union;
-    }
-
-    /**
      * 3×3のどの位置かを指定して、そこにいちばん近いオブジェクトのインデックスを返す
      * @param {Array<object>} items - 対象のオブジェクト
      * @param {number} anchorIndex - 0〜8（左上から右下へ）
      * @returns {number} インデックス
      */
     function getIndexAtAnchor(items, anchorIndex) {
-        var union = getSelectionBounds(items);
+        var union = getClipAwareUnionBounds(items, true);
         var targetX = union[0] + (union[2] - union[0]) * ((anchorIndex % 3) / 2);
         var targetY = union[1] - (union[1] - union[3]) * (Math.floor(anchorIndex / 3) / 2);
 
         var nearestIndex = 0;
         var minDistance = null;
         for (var i = 0; i < items.length; i++) {
-            var center = getBoundsCenter(items[i].visibleBounds);
+            var center = getBoundsCenter(getClipAwareBounds(items[i], true));
             var dx = center[0] - targetX;
             var dy = center[1] - targetY;
             var distance = dx * dx + dy * dy;
@@ -1499,7 +1899,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         var paths = [];
         for (var i = 0; i < selectedItems.length; i++) {
             if (i === keyIndex) continue;
-            var path = getConnectionPointsOnSide(keyBounds, selectedItems[i].visibleBounds, side);
+            var path = getConnectionPointsOnSide(keyBounds, getClipAwareBounds(selectedItems[i], true), side);
             path.points[0][horizontal ? 1 : 0] = startPerp;
             paths.push(path);
         }
@@ -1589,7 +1989,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         for (var pass = 0; pass < selectedItems.length; pass++) {
             var moved = false;
             for (var i = 0; i < selectedItems.length; i++) {
-                var bounds = selectedItems[i].visibleBounds;
+                var bounds = getClipAwareBounds(selectedItems[i], true);
                 var minAxis = horizontal ? bounds[0] : bounds[3];
                 var maxAxis = horizontal ? bounds[2] : bounds[1];
                 var minPerp = horizontal ? bounds[3] : bounds[0];
@@ -2309,11 +2709,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
      */
     function setKeyIndex(index) {
         keyIndex = index;
-        keyBounds = selectedItems[keyIndex].visibleBounds;
+        keyBounds = getClipAwareBounds(selectedItems[keyIndex], true);
         connectorPaths = [];
         for (var i = 0; i < selectedItems.length; i++) {
             if (i === keyIndex) continue;
-            connectorPaths.push(getConnectionPoints(keyBounds, selectedItems[i].visibleBounds));
+            connectorPaths.push(getConnectionPoints(keyBounds, getClipAwareBounds(selectedItems[i], true)));
         }
     }
 
@@ -2705,127 +3105,384 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         try { control.notify("onDraw"); } catch (e) {}
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は ANCHOR_WIDGET_* / *AnchorWidget* / getAnchor* の名前。貼る前に、コピー先にある旧版の
+    //    ANCHOR_WIDGET_SIZE・ANCHOR_CELL_*・ANCHOR_CONNECTIONS・ANCHOR_*_COLOR / FILL・addAnchorWidget・drawAnchorWidget・
+    //    drawAnchorCell・redrawAnchorWidget・initAnchorColors（9軸の配色だけを決めているもの）・clampGridIndex を消す
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
+    // 2. ウィジェットを作る。初期値は 0〜8（0=左上, 4=中央, 8=右下）か名前（"topLeft" / "top" / "topRight" /
+    //    "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"）
+    //      var anchorWidget = addAnchorWidget(anchorPanel, "center", function (anchorIndex) { updatePreview(); });
+    //      anchorWidget.helpTip = getLabel(LABELS.tooltip.anchor);
+    //    onChange はクリックのたびに呼ぶ（同じセルでも呼ぶ）。setAnchorWidgetValue() からは呼ばない
+    //    未選択（-1）を許すときは addAnchorWidget(parent, -1, onChange, { allowNone: true })
+    //    選べないセルは { disabledCells: [4] } か setAnchorWidgetCellsDisabled(anchorWidget, [4])（薄く描き、クリックも無視）
+    // 3. 値を読む: getAnchorWidgetIndex(anchorWidget) … 0〜8（未選択は -1）/ getAnchorWidgetName(anchorWidget) … "topLeft" など
+    //    値を書く: setAnchorWidgetValue(anchorWidget, 2) または setAnchorWidgetValue(anchorWidget, "topRight")（描き直す）
+    //    旧版の widget.selectedAnchorIndex / widget.anchorIndex への直接代入は描き直されないので使わない
+    // 4. Illustrator の変形に渡す:
+    //      pageItem.resize(150, 150, true, true, true, true, 150, getAnchorTransformation(getAnchorWidgetIndex(anchorWidget)));
+    //    座標で使うときは getAnchorPointOnBounds(geometricBounds, anchorIndex) → [x, y]、
+    //    割合で使うときは getAnchorRatio(anchorIndex) → [0|0.5|1, 0|0.5|1]（左上が [0, 0]）、
+    //    シンボル登録は getAnchorSymbolRegistrationPoint(anchorIndex)
+    // 5. 有効／無効は setAnchorWidgetEnabled(anchorWidget, isEnabled)（薄い色で描き直し、クリックも無視）。
+    //    パネル・行など親の enabled を切り替えたときは、そのあとで redrawAnchorWidgetsIn(親) を呼ぶ
+    //    （親の無効化は子の enabled に出ないので、描画とクリックの判定は親までたどる）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 1]   : [0.6, 0.6, 0.6, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 1]      : [0.4, 0.4, 0.4, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 0.4] : [0.6, 0.6, 0.6, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 0.3]    : [0.4, 0.4, 0.4, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
     /**
-     * 正方形のパスを作る
-     * @param {object} graphics - ScriptUIGraphics
-     * @param {number} x - 左端
-     * @param {number} y - 上端
-     * @param {number} size - 一辺の長さ
-     * @returns {void}
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
      */
-    function squarePath(graphics, x, y, size) {
-        graphics.newPath();
-        graphics.moveTo(x, y);
-        graphics.lineTo(x + size, y);
-        graphics.lineTo(x + size, y + size);
-        graphics.lineTo(x, y + size);
-        graphics.closePath();
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
     }
 
     /**
-     * 起点ウィジェットの□を1つ描く
-     * @param {object} graphics - ScriptUIGraphics
-     * @param {number} x - 左端
-     * @param {number} y - 上端
-     * @param {boolean} selected - 選択中か
-     * @param {boolean} enabled - ウィジェットが有効か
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
      * @returns {void}
      */
-    function drawAnchorCell(graphics, x, y, selected, enabled) {
-        // 枠を上に描くので塗りを先に行う
-        if (selected) {
-            squarePath(graphics, x, y, ANCHOR_CELL_SIZE);
-            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, enabled ? ANCHOR_SELECTED_FILL : ANCHOR_DISABLED_FILL));
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
         }
-        squarePath(graphics, x, y, ANCHOR_CELL_SIZE);
-        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, enabled ? ANCHOR_LINE_COLOR : ANCHOR_DISABLED_LINE, 1));
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
     }
 
     /**
-     * 起点ウィジェットを描く（外周の□をケイ線でつなぐ・中央は独立）
-     * @param {object} widget - 描画対象のボタン
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
      * @returns {void}
      */
-    function drawAnchorWidget(widget) {
-        var graphics = widget.graphics;
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
 
-        // 背景はコントロールの地色で塗って、パネルに溶け込ませる（地色が無い環境では塗らない）
-        if (graphics.backgroundColor) {
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
             graphics.newPath();
-            graphics.rectPath(0, 0, widget.size[0], widget.size[1]);
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
             graphics.fillPath(graphics.backgroundColor);
-        }
+        } catch (e) {}
 
-        var cellStep = ANCHOR_CELL_SIZE + ANCHOR_CELL_GAP;
-        var gridSize = ANCHOR_CELL_SIZE * 3 + ANCHOR_CELL_GAP * 2;
-        var originX = Math.round((widget.size[0] - gridSize) / 2);
-        var originY = Math.round((widget.size[1] - gridSize) / 2);
-
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
         var cellPositions = [];
         var i;
         for (i = 0; i < 9; i++) {
             cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
         }
 
-        // パネルのenabledは描画に伝わらないので、ウィジェット自身のenabledを見る
-        var enabled = (widget.enabled !== false);
-        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, enabled ? ANCHOR_LINE_COLOR : ANCHOR_DISABLED_LINE, 1);
-        for (i = 0; i < ANCHOR_CONNECTIONS.length; i++) {
-            var cellA = cellPositions[ANCHOR_CONNECTIONS[i][0]];
-            var cellB = cellPositions[ANCHOR_CONNECTIONS[i][1]];
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
             graphics.newPath();
-            if (ANCHOR_CONNECTIONS[i][1] - ANCHOR_CONNECTIONS[i][0] === 1) {
-                // 横方向：右隣の□へ
-                graphics.moveTo(cellA[0] + ANCHOR_CELL_SIZE, cellA[1] + ANCHOR_CELL_SIZE / 2);
-                graphics.lineTo(cellB[0], cellB[1] + ANCHOR_CELL_SIZE / 2);
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
             } else {
-                // 縦方向：下の□へ
-                graphics.moveTo(cellA[0] + ANCHOR_CELL_SIZE / 2, cellA[1] + ANCHOR_CELL_SIZE);
-                graphics.lineTo(cellB[0] + ANCHOR_CELL_SIZE / 2, cellB[1]);
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
             }
             graphics.strokePath(linePen);
         }
 
-        for (i = 0; i < cellPositions.length; i++) {
-            drawAnchorCell(graphics, cellPositions[i][0], cellPositions[i][1], i === widget.selectedAnchorIndex, enabled);
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
         }
     }
 
     /**
-     * 起点を位置で選ぶ3×3ウィジェットを追加する
-     * @param {object} parent - 追加先
-     * @param {number} anchorIndex - 最初に選んでおくセル（0〜8）
-     * @param {function} onSelect - セルを選んだときに呼ぶ処理。引数はセルのインデックス
-     * @returns {object} 追加したウィジェット
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
      */
-    function addAnchorWidget(parent, anchorIndex, onSelect) {
-        var widget = parent.add("button", undefined, "");
-        widget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        widget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        widget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        widget.selectedAnchorIndex = anchorIndex;
-        widget.onDraw = function () {
-            drawAnchorWidget(this);
-        };
-        // クリック位置の判定は mousedown で行う（座標はコントロール基準）
-        widget.addEventListener("mousedown", function (event) {
-            if (widget.enabled === false) return;
-            var columnIndex = Math.min(2, Math.max(0, Math.floor(event.clientX / (widget.size[0] / 3))));
-            var rowIndex = Math.min(2, Math.max(0, Math.floor(event.clientY / (widget.size[1] / 3))));
-            widget.selectedAnchorIndex = rowIndex * 3 + columnIndex;
-            redrawControl(widget);
-            onSelect(widget.selectedAnchorIndex);
-        });
-        return widget;
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
     }
 
     /**
-     * UIの明暗に合わせて、矢印アイコンと起点ウィジェットの配色を決める
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /**
+     * UIの明暗に合わせて、矢印アイコンの配色を決める
      * @returns {void}
      */
     function initThemeColors() {
         var lightUI = isLightUI();
-        ANCHOR_SELECTED_FILL = lightUI ? [0.4, 0.4, 0.4, 1]   : [0.8, 0.8, 0.8, 1];
         ICON_COLOR          = lightUI ? [0.25, 0.25, 0.25, 1] : [0.85, 0.85, 0.85, 1];
         ICON_SELECTED_COLOR = lightUI ? [1, 1, 1, 1]          : [0.15, 0.15, 0.15, 1];
         ICON_BG             = lightUI ? [1, 1, 1, 1]          : [0.22, 0.22, 0.22, 1];
@@ -3087,6 +3744,545 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         field.slider.value = value;
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は SETTINGS_STORE_* / createSettingsStore / readSettingsLegacyFile / readSettingsLegacyPreference / settingsStore*
+    // 2. 寿命は今のスクリプトに合わせて選ぶ。
+    //      "session"    … $.global に置く。Illustrator を終了するまで残る。#targetengine が必須（無いと毎回消える）
+    //      "persistent" … Folder.userData/illustrator-scripts/<storeName>.json に書く。再起動しても残る
+    //    storeName はふつう SCRIPT_NAME。ダイアログの位置は DialogPosition の部品が持つので、ここには入れない
+    // 3. 既定値を1か所にまとめ、load で受け取る。戻り値は毎回新しいオブジェクト（書き換えても保存されない）
+    //      var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
+    //      var DEFAULT_SETTINGS = { widthPt: 10, addFrame: true, modeKey: "fit", corners: { tl: 0, tr: 0 } };
+    //      var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
+    //      …OK で閉じたら…
+    //      settingsStore.save({ widthPt: …, addFrame: …, modeKey: …, corners: { tl: …, tr: … } });
+    //    型は既定値に合わせる（数値の既定値には "12" も 12 として読む。真偽は "1"/"0"/"true"/"false" も読む）。
+    //    合わない値・既定値に無い項目は捨てて既定値を使う。{} と null の既定値は中身を問わずそのまま受け取る
+    //    （名前をキーにしたプリセット集など）。配列は配列ならそのまま受け取る
+    // 4. 保存できるのは文字列・数値・真偽・null と、その配列・入れ子のオブジェクトだけ。
+    //    DOM オブジェクト・File・関数は入れない（パスは fsName の文字列で持つ）。長さは pt で持つ
+    // 5. 旧形式の設定を読み継ぐときは、3つ目の引数に legacy 関数を渡す。
+    //    新しい保存が1度も無いとき（ファイルが無い・$.global に無い）だけ呼ばれ、戻り値を保存値として既定値と突き合わせる。
+    //    旧ファイル・旧キーは消さない。キー名が変わったときは legacy の中で詰め替える
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyFile(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");  … key=value / toSource / JSON を自動判別
+    //      } });
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyPreference("SmartTextFindReplace/settings");  … app.preferences の文字列
+    //      } });
+    // 6. clear() は保存を消す。legacy を渡したストアでは空の保存（{}）を書き、旧設定が戻ってこないようにする
+    // 7. 失敗は例外にせず、load は既定値、save は false を返す（$.writeln に理由を出す）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
+    }
+
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^﻿/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^﻿/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // プリセット / Presets
     // =========================================
@@ -3096,10 +4292,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
 
     /* 直前の設定をIllustratorのセッション中だけ記憶する（終了でリセット） */
     /* Remember the last settings within this Illustrator session (resets on quit) */
-    var SESSION_KEY = SCRIPT_NAME + "_lastSettings";
-    if (typeof $.global[SESSION_KEY] === "undefined") {
-        $.global[SESSION_KEY] = null;
-    }
+    /* 旧キー（$.global.AiConnectorBuilder_lastSettings）が残っていれば1度だけ読み継ぐ / read the old key once if it is still there */
+    var sessionSettingsStore = createSettingsStore(SCRIPT_NAME, "session", {
+        legacy: function () {
+            return $.global[SCRIPT_NAME + "_lastSettings"] || null;
+        }
+    });
+
+    /* 既定値は {}（getPresetEntries() のキーをそのまま入れる自由な入れ物。空なら何も戻さない）
+       The default is {}: a free-form map keyed by getPresetEntries(); empty means nothing to restore */
+    var DEFAULT_SESSION_SETTINGS = {};
 
     /**
      * 保存済みのプリセットを読み込む
@@ -3281,7 +4483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
             dashGap: parseNumberInput(dashGapField.input.text, DEFAULT_DASH_GAP),
             startPoint: getSelectedRadioIndex(startPointField.radios),
             unifyStart: unifyStartCheck.value,
-            unifyAnchor: unifyAnchorWidget.selectedAnchorIndex,
+            unifyAnchor: getAnchorWidgetIndex(unifyAnchorWidget),
             lineShape: lineShape,
             warpName: warpType.name,
             warpStyle: warpType.style,
@@ -3315,8 +4517,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         warpAxisField.row.enabled = (settings.lineShape === 1);
         setFieldRowEnabled(cornerField.row, (settings.lineShape === 2 || settings.lineShape === 3));
         if (unifyAnchorWidget.enabled !== settings.unifyStart) {
-            unifyAnchorWidget.enabled = settings.unifyStart;
-            redrawControl(unifyAnchorWidget);
+            setAnchorWidgetEnabled(unifyAnchorWidget, settings.unifyStart);
         }
         setFieldRowEnabled(dashSegmentsField.row, (settings.dashStyle === 1));
         setFieldRowEnabled(dashGapField.row, (settings.dashStyle !== 0));
@@ -3340,7 +4541,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         app.redraw();
 
         // 閉じた後はコントロールを読めないので、更新のたびに控えておく
-        $.global[SESSION_KEY] = getPresetFromDialog("");
+        sessionSettingsStore.save(getPresetFromDialog(""));
     }
 
     /**
@@ -3404,7 +4605,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
             } else if (entry.check) {
                 preset[entry.key] = entry.check.value;
             } else if (entry.widget) {
-                preset[entry.key] = entry.widget.selectedAnchorIndex;
+                preset[entry.key] = getAnchorWidgetIndex(entry.widget);
             } else {
                 preset[entry.key] = entry.list.selection ? entry.list.selection.index : 0;
             }
@@ -3436,8 +4637,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
             } else if (entry.check) {
                 entry.check.value = (value === true || value === "true");
             } else if (entry.widget) {
-                entry.widget.selectedAnchorIndex = value;
-                redrawControl(entry.widget);
+                setAnchorWidgetValue(entry.widget, value);
             } else if (value >= 0 && value < entry.list.items.length) {
                 entry.list.selection = value;
             }
@@ -3577,11 +4777,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
     };
 
     // 前回このセッションで閉じたときの設定に戻す
-    if ($.global[SESSION_KEY]) {
-        isApplyingPreset = true;
-        applyPresetToDialog($.global[SESSION_KEY]);
-        isApplyingPreset = false;
-    }
+    var lastSessionSettings = sessionSettingsStore.load(DEFAULT_SESSION_SETTINGS);
+    isApplyingPreset = true;
+    applyPresetToDialog(lastSessionSettings);
+    isApplyingPreset = false;
     refreshPresetDropdown(null);
     updatePreview();
 

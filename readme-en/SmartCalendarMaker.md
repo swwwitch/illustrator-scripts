@@ -22,6 +22,7 @@
 
 ### Update history
 
+- v1.4.2 (20260928) : Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.4.2 (20260928) : The button row is now built with the shared part
 - v1.4.2 (20260928) : In English, removed the extra space after field-label colons
 - v1.4.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -40,3 +40,4 @@
 - v1.4.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.2 (20260928): In English, the paste-failure message now uses a half-width colon followed by a space instead of a full-width colon
 - v1.4.2 (20260928): The button row is now built with the shared part
+- v1.4.2 (20260928): Clip groups are now measured by their mask (affects the position within the artboard and the cell size)

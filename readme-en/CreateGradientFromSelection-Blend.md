@@ -28,3 +28,4 @@ Extracts the fill and stroke colors of the selection in layout order, registers 
 - v1.6.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.6.3: Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.6.3: The button row is now built with the shared part
+- v1.6.3: Clip groups are now measured by their mask (affects where the rectangle is placed)

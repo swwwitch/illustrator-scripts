@@ -37,3 +37,4 @@
 - v1.1.4 (20260927): Cancel now also restores the fonts of text inside groups. The list heading now matches the actual order (by name), and field labels gained colons and tooltips
 - v1.1.5 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.6 (20260928): The button row is now built with the shared part
+- v1.1.6 (20260928): Target collection now uses the shared part

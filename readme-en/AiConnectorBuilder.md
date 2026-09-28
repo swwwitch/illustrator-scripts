@@ -134,3 +134,5 @@ Egor Chistyakov https://x.com/tchegr
 - v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.1.2 (20260928): The button row is now built with the shared part
+- v1.1.2 (20260928): The 3×3 reference point picker now uses the shared part
+- v1.1.2 (20260928): Clip groups are now measured by their mask
