@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "SymbolReplaceSwEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*

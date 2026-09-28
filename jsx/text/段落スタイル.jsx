@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "段落スタイルEngine"
+#targetengine "ParagraphStyleEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
