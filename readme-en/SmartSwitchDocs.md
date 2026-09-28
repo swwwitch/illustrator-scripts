@@ -50,3 +50,4 @@ Quickly switches to another Illustrator document when several are open.
 - v0.5.4 (20260924): Closing the dialog with the window close box now also restores the original document, renamed the "Current Document" panel to "Original Document" and gave it a tooltip, and split part of the dialog building into functions
 - v0.5.5 (20260924): Double-clicking a list item now switches and closes the dialog; added a tooltip to the list
 - v0.5.6 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v0.5.7 (20260928): The button row is now built with the shared part

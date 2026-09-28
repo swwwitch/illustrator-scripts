@@ -59,6 +59,7 @@ https://note.com/dtp_tranist/n/ncc9330ba1f7d (Japanese)
 
 ### Update History
 
+- v2.0.2 (2026-09-28) The button row is now built with the shared part; Cancel moved to the right
 - v2.0.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.0.0 (2026-09-17) Added family / style nesting with a per-style usage count, "Show PostScript names", highlighting of the text matching the source selection, and "Replace All". Widened the dialog. Applied the house rules (user-settings / layout blocks, nested LABELS, JSDoc, tooltips)
 - v1.0.0 (2025-03-29) Public release

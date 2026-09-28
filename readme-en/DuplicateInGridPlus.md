@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.2 (2026-09-28): The button row is now built with the shared part
 - v2.1.1 (2026-09-28): Replaced the Link checkbox with a link icon
 - v2.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

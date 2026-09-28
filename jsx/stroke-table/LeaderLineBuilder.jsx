@@ -31,7 +31,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LeaderLine
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LeaderLineBuilder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -279,11 +279,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -301,7 +330,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
     //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
     // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄には別の↑↓キー増減処理を付けない（↑↓キーが二重に効く）
+    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
     // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
     // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
@@ -320,22 +349,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -447,10 +461,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "stepUpInteger" : "stepUp";
-        var downTooltip = stepOptions.integer ? "stepDownInteger" : "stepDown";
-        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel("tooltip", upTooltip);
-        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel("tooltip", downTooltip);
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
+        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
+        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
         return stepperGroup;
     }
@@ -707,6 +721,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -743,15 +817,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         return fallbackKey;
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * 現在のUI言語を取得する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        var locale = $.locale || "";
-        return (locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -883,55 +1044,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         }
     };
 
-    /**
-     * LABELS を上から順にたどって現在のUI言語のラベルを返す
-     * @param {...string} - LABELS をたどるキー
-     * @returns {string} ラベル文字列（見つからない場合は空文字）
-     */
-    function getLabel() {
-        var node = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
-            if (node == null) break;
-            node = node[arguments[i]];
-        }
-        return (node && node[uiLang] != null) ? node[uiLang] : "";
-    }
-
     // =========================================
     // セッション記憶 / Session state
     // =========================================
 
-    /* #targetengine が生きている間だけダイアログの設定を保持する */
-    if (typeof $.global._leaderLineSettings === "undefined") {
-        $.global._leaderLineSettings = {
-            angle: DEFAULT_ANGLE,
-            radioAngle: 45,
-            applyScope: "all",
-            hasUserSetApplyScope: false,
-            diagDir: "upperLeft",
-            hDir: "left",
-            vDir: "up",
-            tipMarkerType: "circle",
-            tipMarkerStyle: "fill",
-            tipMarkerSize: DEFAULT_TIP_MARKER_SIZE_PT,
-            strokeCapType: "round",
-            groupEnabled: true,
-            whiteEdge: false,
-            edgeColor: "white",
-            edgeColorHex: "#ffcc00",
-            lineColor: "black",
-            lineColorHex: "#ffcc00",
-            lineWidth: DEFAULT_LINE_WIDTH_PT,
-            textDist: DEFAULT_TEXT_DIST_PT
-        };
-    }
-    var sessionSettings = $.global._leaderLineSettings;
+    @@SETTINGS_STORE_PART@@
+
+    /* #targetengine が生きている間だけダイアログの設定を保持する / Keep dialog settings while the #targetengine lives */
+    var settingsStore = createSettingsStore(SCRIPT_NAME, "session");
+
+    /* 保存する値の既定値 / Default values of the saved settings */
+    var DEFAULT_SETTINGS = {
+        angle: DEFAULT_ANGLE,
+        radioAngle: 45,
+        applyScope: "all",
+        hasUserSetApplyScope: false,
+        diagDir: "upperLeft",
+        hDir: "left",
+        vDir: "up",
+        tipMarkerType: "circle",
+        tipMarkerStyle: "fill",
+        tipMarkerSize: DEFAULT_TIP_MARKER_SIZE_PT,
+        strokeCapType: "round",
+        groupEnabled: true,
+        whiteEdge: false,
+        edgeColor: "white",
+        edgeColorHex: "#ffcc00",
+        lineColor: "black",
+        lineColorHex: "#ffcc00",
+        lineWidth: DEFAULT_LINE_WIDTH_PT,
+        textDist: DEFAULT_TEXT_DIST_PT
+    };
+
+    /* 今回の設定（main で読み込む）/ Current settings, loaded in main */
+    var sessionSettings = null;
 
     // =========================================
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 単位コードと単位ラベルの対応 / Unit code to label */
     /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
@@ -2400,12 +2551,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addApplyScopePanel(parent, ui) {
-        ui.applyScopePanel = addLabeledPanel(parent, getLabel("panel", "applyScope"));
+        ui.applyScopePanel = addLabeledPanel(parent, getLabel("panel.applyScope"));
         setupRowGroup(ui.applyScopePanel, ["center", "center"]);
-        ui.applyScopeAllRadio = ui.applyScopePanel.add("radiobutton", undefined, getLabel("radio", "applyScopeAll"));
-        ui.applyScopeAllRadio.helpTip = getLabel("tooltip", "applyScopeAll");
-        ui.applyScopeKeepDirRadio = ui.applyScopePanel.add("radiobutton", undefined, getLabel("radio", "applyScopeKeepDir"));
-        ui.applyScopeKeepDirRadio.helpTip = getLabel("tooltip", "applyScopeKeepDir");
+        ui.applyScopeAllRadio = ui.applyScopePanel.add("radiobutton", undefined, getLabel("radio.applyScopeAll"));
+        ui.applyScopeAllRadio.helpTip = getLabel("tooltip.applyScopeAll");
+        ui.applyScopeKeepDirRadio = ui.applyScopePanel.add("radiobutton", undefined, getLabel("radio.applyScopeKeepDir"));
+        ui.applyScopeKeepDirRadio.helpTip = getLabel("tooltip.applyScopeKeepDir");
     }
 
     /**
@@ -2415,12 +2566,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addAnglePanel(parent, ui) {
-        ui.anglePanel = addLabeledPanel(parent, getLabel("panel", "angle"));
+        ui.anglePanel = addLabeledPanel(parent, getLabel("panel.angle"));
 
         ui.angleInputRow = ui.anglePanel.add("group");
         ui.angleInputRow.alignment = ["center", "top"];
         ui.angleInput = addStepperInput(ui.angleInputRow, 4, { step: 1, min: 0 });
-        ui.angleInput.helpTip = getLabel("tooltip", "angleInput");
+        ui.angleInput.helpTip = getLabel("tooltip.angleInput");
         ui.angleInputRow.add("statictext", undefined, "\u00B0");
         ui.angleInput.active = true;
 
@@ -2439,31 +2590,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addDiagDirPanel(parent, ui) {
-        ui.diagDirPanel = addLabeledPanel(parent, getLabel("panel", "direction"));
+        ui.diagDirPanel = addLabeledPanel(parent, getLabel("panel.direction"));
 
         ui.diagDirRow = ui.diagDirPanel.add("group");
         setupRowGroup(ui.diagDirRow, ["fill", "top"]);
-        ui.diagDirRow.helpTip = getLabel("tooltip", "diagDir");
+        ui.diagDirRow.helpTip = getLabel("tooltip.diagDir");
 
         ui.diagDirLeftColumn = ui.diagDirRow.add("group");
         ui.diagDirLeftColumn.orientation = "column";
         ui.diagDirLeftColumn.alignChildren = ["fill", "top"];
-        ui.diagDirUpperLeftRadio = ui.diagDirLeftColumn.add("radiobutton", undefined, getLabel("radio", "diagDirUpperLeft"));
+        ui.diagDirUpperLeftRadio = ui.diagDirLeftColumn.add("radiobutton", undefined, getLabel("radio.diagDirUpperLeft"));
         ui.diagDirLeftColumn.add("statictext", undefined, " ");
-        ui.diagDirLowerLeftRadio = ui.diagDirLeftColumn.add("radiobutton", undefined, getLabel("radio", "diagDirLowerLeft"));
+        ui.diagDirLowerLeftRadio = ui.diagDirLeftColumn.add("radiobutton", undefined, getLabel("radio.diagDirLowerLeft"));
 
         ui.diagDirCenterColumn = ui.diagDirRow.add("group");
         ui.diagDirCenterColumn.orientation = "column";
         ui.diagDirCenterColumn.alignChildren = ["center", "center"];
         ui.diagDirCenterColumn.add("statictext", undefined, " ");
-        ui.diagDirCenterColumn.add("statictext", undefined, getLabel("fieldLabel", "targetMark"));
+        ui.diagDirCenterColumn.add("statictext", undefined, getLabel("fieldLabel.targetMark"));
 
         ui.diagDirRightColumn = ui.diagDirRow.add("group");
         ui.diagDirRightColumn.orientation = "column";
         ui.diagDirRightColumn.alignChildren = ["fill", "top"];
-        ui.diagDirUpperRightRadio = ui.diagDirRightColumn.add("radiobutton", undefined, getLabel("radio", "diagDirUpperRight"));
+        ui.diagDirUpperRightRadio = ui.diagDirRightColumn.add("radiobutton", undefined, getLabel("radio.diagDirUpperRight"));
         ui.diagDirRightColumn.add("statictext", undefined, " ");
-        ui.diagDirLowerRightRadio = ui.diagDirRightColumn.add("radiobutton", undefined, getLabel("radio", "diagDirLowerRight"));
+        ui.diagDirLowerRightRadio = ui.diagDirRightColumn.add("radiobutton", undefined, getLabel("radio.diagDirLowerRight"));
     }
 
     /**
@@ -2474,32 +2625,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addLineStylePanel(parent, ui, strokeUnitLabel) {
-        ui.lineStylePanel = addLabeledPanel(parent, getLabel("panel", "lineStyle"));
+        ui.lineStylePanel = addLabeledPanel(parent, getLabel("panel.lineStyle"));
 
         ui.lineColorRow = ui.lineStylePanel.add("group");
         setupRowGroup(ui.lineColorRow);
-        ui.lineColorBlackRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio", "lineColorBlack"));
-        ui.lineColorWhiteRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio", "lineColorWhite"));
-        ui.lineColorCustomRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio", "colorCustom"));
+        ui.lineColorBlackRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio.lineColorBlack"));
+        ui.lineColorWhiteRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio.lineColorWhite"));
+        ui.lineColorCustomRadio = ui.lineColorRow.add("radiobutton", undefined, getLabel("radio.colorCustom"));
         /* HEX値はコントロールではなく、text プロパティだけを持つ保持箱に入れる */
         ui.lineColorHexHolder = { text: sessionSettings.lineColorHex };
         ui.lineColorChip = ui.lineColorRow.add("panel", undefined, "");
         ui.lineColorChip.preferredSize = COLOR_CHIP_SIZE;
-        ui.lineColorChip.helpTip = getLabel("tooltip", "colorChip");
+        ui.lineColorChip.helpTip = getLabel("tooltip.colorChip");
 
         ui.lineWidthRow = ui.lineStylePanel.add("group");
         setupRowGroup(ui.lineWidthRow);
-        ui.lineWidthRow.add("statictext", undefined, getLabel("fieldLabel", "lineWidth"));
+        ui.lineWidthRow.add("statictext", undefined, getLabel("fieldLabel.lineWidth"));
         ui.lineWidthInput = addStepperInput(ui.lineWidthRow, 3, { step: 0.1, min: 0 });
-        ui.lineWidthInput.helpTip = getLabel("tooltip", "lengthInput");
+        ui.lineWidthInput.helpTip = getLabel("tooltip.lengthInput");
         ui.lineWidthRow.add("statictext", undefined, strokeUnitLabel);
 
         ui.strokeCapRow = ui.lineStylePanel.add("group");
         setupRowGroup(ui.strokeCapRow);
-        ui.strokeCapRow.helpTip = getLabel("tooltip", "strokeCap");
-        ui.strokeCapRow.add("statictext", undefined, getLabel("fieldLabel", "strokeCap"));
-        ui.strokeCapButtRadio = ui.strokeCapRow.add("radiobutton", undefined, getLabel("radio", "strokeCapButt"));
-        ui.strokeCapRoundRadio = ui.strokeCapRow.add("radiobutton", undefined, getLabel("radio", "strokeCapRound"));
+        ui.strokeCapRow.helpTip = getLabel("tooltip.strokeCap");
+        ui.strokeCapRow.add("statictext", undefined, getLabel("fieldLabel.strokeCap"));
+        ui.strokeCapButtRadio = ui.strokeCapRow.add("radiobutton", undefined, getLabel("radio.strokeCapButt"));
+        ui.strokeCapRoundRadio = ui.strokeCapRow.add("radiobutton", undefined, getLabel("radio.strokeCapRound"));
     }
 
     /**
@@ -2510,30 +2661,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addTipMarkerPanel(parent, ui, strokeUnitLabel) {
-        ui.tipMarkerPanel = addLabeledPanel(parent, getLabel("panel", "tipMarker"));
+        ui.tipMarkerPanel = addLabeledPanel(parent, getLabel("panel.tipMarker"));
 
         ui.tipMarkerTypeRow = ui.tipMarkerPanel.add("group");
         setupRowGroup(ui.tipMarkerTypeRow);
-        ui.tipMarkerNoneRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio", "tipMarkerNone"));
-        ui.tipMarkerCircleRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio", "tipMarkerCircle"));
-        ui.tipMarkerArrowRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio", "tipMarkerArrow"));
+        ui.tipMarkerNoneRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio.tipMarkerNone"));
+        ui.tipMarkerCircleRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio.tipMarkerCircle"));
+        ui.tipMarkerArrowRadio = ui.tipMarkerTypeRow.add("radiobutton", undefined, getLabel("radio.tipMarkerArrow"));
 
         ui.tipMarkerStyleRow = ui.tipMarkerPanel.add("group");
         setupRowGroup(ui.tipMarkerStyleRow);
-        ui.tipMarkerStyleRow.helpTip = getLabel("tooltip", "tipMarkerStyle");
-        ui.tipMarkerFillRadio = ui.tipMarkerStyleRow.add("radiobutton", undefined, getLabel("radio", "tipMarkerFill"));
-        ui.tipMarkerOutlineRadio = ui.tipMarkerStyleRow.add("radiobutton", undefined, getLabel("radio", "tipMarkerOutline"));
+        ui.tipMarkerStyleRow.helpTip = getLabel("tooltip.tipMarkerStyle");
+        ui.tipMarkerFillRadio = ui.tipMarkerStyleRow.add("radiobutton", undefined, getLabel("radio.tipMarkerFill"));
+        ui.tipMarkerOutlineRadio = ui.tipMarkerStyleRow.add("radiobutton", undefined, getLabel("radio.tipMarkerOutline"));
 
         ui.tipMarkerSizeRow = ui.tipMarkerPanel.add("group");
         setupRowGroup(ui.tipMarkerSizeRow);
-        ui.tipMarkerSizeRow.add("statictext", undefined, getLabel("fieldLabel", "tipMarkerSize"));
+        ui.tipMarkerSizeRow.add("statictext", undefined, getLabel("fieldLabel.tipMarkerSize"));
         ui.tipMarkerSizeInput = addStepperInput(ui.tipMarkerSizeRow, 3, { step: 0.1, min: 0 });
-        ui.tipMarkerSizeInput.helpTip = getLabel("tooltip", "tipMarkerSize");
+        ui.tipMarkerSizeInput.helpTip = getLabel("tooltip.tipMarkerSize");
         ui.tipMarkerSizeRow.add("statictext", undefined, strokeUnitLabel);
 
-        ui.groupItemsCheck = ui.tipMarkerPanel.add("checkbox", undefined, getLabel("checkbox", "groupEnabled"));
+        ui.groupItemsCheck = ui.tipMarkerPanel.add("checkbox", undefined, getLabel("checkbox.groupEnabled"));
         ui.groupItemsCheck.alignment = "left";
-        ui.groupItemsCheck.helpTip = getLabel("tooltip", "groupEnabled");
+        ui.groupItemsCheck.helpTip = getLabel("tooltip.groupEnabled");
     }
 
     /**
@@ -2543,13 +2694,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addTextAlignPanel(parent, ui) {
-        ui.textAlignPanel = addLabeledPanel(parent, getLabel("panel", "text"));
+        ui.textAlignPanel = addLabeledPanel(parent, getLabel("panel.text"));
 
         ui.textDistRow = ui.textAlignPanel.add("group");
         setupRowGroup(ui.textDistRow);
-        ui.textDistRow.add("statictext", undefined, getLabel("fieldLabel", "textDist"));
+        ui.textDistRow.add("statictext", undefined, getLabel("fieldLabel.textDist"));
         ui.textDistInput = addStepperInput(ui.textDistRow, 4, { step: 0.1, min: 0 });
-        ui.textDistInput.helpTip = getLabel("tooltip", "textDist");
+        ui.textDistInput.helpTip = getLabel("tooltip.textDist");
         ui.textDistRow.add("statictext", undefined, "pt");
     }
 
@@ -2560,20 +2711,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      * @returns {void}
      */
     function addEdgePanel(parent, ui) {
-        ui.edgePanel = addLabeledPanel(parent, getLabel("panel", "edge"));
+        ui.edgePanel = addLabeledPanel(parent, getLabel("panel.edge"));
 
-        ui.edgeEnabledCheck = ui.edgePanel.add("checkbox", undefined, getLabel("checkbox", "edgeEnabled"));
+        ui.edgeEnabledCheck = ui.edgePanel.add("checkbox", undefined, getLabel("checkbox.edgeEnabled"));
         ui.edgeEnabledCheck.alignment = "left";
-        ui.edgeEnabledCheck.helpTip = getLabel("tooltip", "edgeEnabled");
+        ui.edgeEnabledCheck.helpTip = getLabel("tooltip.edgeEnabled");
 
         ui.edgeColorRow = ui.edgePanel.add("group");
         setupRowGroup(ui.edgeColorRow);
-        ui.edgeColorWhiteRadio = ui.edgeColorRow.add("radiobutton", undefined, getLabel("radio", "lineColorWhite"));
-        ui.edgeColorCustomRadio = ui.edgeColorRow.add("radiobutton", undefined, getLabel("radio", "colorCustom"));
+        ui.edgeColorWhiteRadio = ui.edgeColorRow.add("radiobutton", undefined, getLabel("radio.lineColorWhite"));
+        ui.edgeColorCustomRadio = ui.edgeColorRow.add("radiobutton", undefined, getLabel("radio.colorCustom"));
         ui.edgeColorHexHolder = { text: sessionSettings.edgeColorHex };
         ui.edgeColorChip = ui.edgeColorRow.add("panel", undefined, "");
         ui.edgeColorChip.preferredSize = COLOR_CHIP_SIZE;
-        ui.edgeColorChip.helpTip = getLabel("tooltip", "colorChip");
+        ui.edgeColorChip.helpTip = getLabel("tooltip.colorChip");
     }
 
     /**
@@ -2631,7 +2782,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         var ui = {};
         var strokeUnitLabel = getUnitInfo("strokeUnits").label;
 
-        ui.dialogWindow = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        ui.dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(ui.dialogWindow);
 
         addApplyScopePanel(ui.dialogWindow, ui);
@@ -2737,6 +2888,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
 
         var savedTextDist = parseFloat(ui.textDistInput.text);
         sessionSettings.textDist = (!isNaN(savedTextDist) && savedTextDist >= 0) ? formatNumber(savedTextDist, 4) : DEFAULT_TEXT_DIST_PT;
+        settingsStore.save(sessionSettings);
     }
 
     /**
@@ -3019,15 +3171,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     function main() {
         /* ドキュメントが開かれているか確認 / Check for an open document */
         if (app.documents.length === 0) {
-            alert(getLabel("alert", "noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
         var doc = app.activeDocument;
 
+        /* 前回の設定を読み込む / Load the previous settings */
+        sessionSettings = settingsStore.load(DEFAULT_SETTINGS);
+
         /* 選択オブジェクトのチェック / Check the selection */
         if (doc.selection.length === 0) {
-            alert(getLabel("alert", "noSelection"));
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
@@ -3036,7 +3191,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         var textFrameTargets = targets.textTargets;
 
         if (targetItems.length === 0) {
-            alert(getLabel("alert", "noValidTargets"));
+            alert(getLabel("alert.noValidTargets"));
             return;
         }
 
@@ -3117,21 +3272,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
         restoreDirFromSelection(targetItems);
         loadDialogSettingsToUI(dialogUI, targetItems, textFrameTargets);
 
-        var zoomControls = addZoomControls(dialogUI.dialogWindow, doc, getLabel("fieldLabel", "zoom"), initialViewState, {
+        var zoomControls = addZoomControls(dialogUI.dialogWindow, doc, getLabel("fieldLabel.zoom"), initialViewState, {
             min: ZOOM_MIN,
             max: ZOOM_MAX,
             sliderWidth: ZOOM_SLIDER_WIDTH,
             margins: [0, 0, 0, 10],
             redraw: true,
             lightMode: true,
-            lightModeLabel: getLabel("checkbox", "lightMode"),
-            lightModeTip: getLabel("tooltip", "lightMode"),
+            lightModeLabel: getLabel("checkbox.lightMode"),
+            lightModeTip: getLabel("tooltip.lightMode"),
             lightModeDefault: false
         });
-        var buttonGroup = dialogUI.dialogWindow.add("group");
-        buttonGroup.alignment = ["center", "top"];
-        buttonGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
-        buttonGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
+        /* ボタン行（左右中央） / Button row (centered) */
+        var buttonRow = addButtonRow(dialogUI.dialogWindow, { centered: true });
+        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         updatePreview(dialogUI);
 
@@ -3151,7 +3306,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
 
         var angleDeg = parseFloat(dialogUI.angleInput.text);
         if (isNaN(angleDeg) || angleDeg <= 0 || angleDeg >= 90) {
-            alert(getLabel("alert", "invalidAngle"));
+            alert(getLabel("alert.invalidAngle"));
             app.redraw();
             return;
         }

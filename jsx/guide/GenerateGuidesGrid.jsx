@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -165,11 +165,100 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -206,22 +295,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -333,8 +407,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -753,6 +827,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
     //    識別子はすべて LINK_* / *LinkToggle* / *Link* の名前か、描画の下請け関数（buildArcPoints など）
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数) で作る。helpTip はコピー先で付ける
     //      var linkToggle = addLinkToggle(fieldsRowGroup, true, function () { syncFields(); });
     //      linkToggle.helpTip = getLabel(LABELS.tooltip.linkToggle);
@@ -775,22 +850,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // -----------------------------------------
     // リンクアイコンの配色 / Link toggle colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkLinkToggleUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var LINK_UI_DARK = isDarkLinkToggleUI();
+    var LINK_UI_DARK = isDarkUI();
     /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
        Translucent overlays that follow the dialog background; same values as the stepper buttons */
     var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
@@ -1171,10 +1231,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    function getUiLanguage() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getUiLanguage();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義（カテゴリ別）/ Japanese-English label definitions (by category) */
     var LABELS = {
@@ -1266,29 +1418,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         }
     };
 
-    /* ラベル取得（ドット区切りキー、{slash} は "/" に置換）/ Get label (dotted key, {slash} replaced with "/") */
-    function getLabel(key) {
-        var keyParts = key.split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
-            if (labelNode && labelNode[keyParts[i]] !== undefined) {
-                labelNode = labelNode[keyParts[i]];
-            } else {
-                return key;
-            }
-        }
-        var labelValue = (labelNode && labelNode[currentLanguage] !== undefined) ? labelNode[currentLanguage] : key;
-        return String(labelValue).replace(/\{slash\}/g, "/");
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
     /* 見出しに単位を付与（日本語は全角括弧、英語は半角括弧）/ Append unit to a title (full-width parens JA, half-width EN) */
     function titleWithUnit(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
+        return getLabel(key) + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
     }
 
     // =========================================
@@ -1581,6 +1713,126 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             this.undoDepth = 0;
         }
     };
+
+    // =========================================
+    // 一時アクション / Temporary action
+    // =========================================
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
+    // 2. アクション定義は配列＋join("\n") で組み立てる（''' は ES3 の構文エラー）。
+    //    セット名・アクション名は英数字にする。/name [ n 16進 ] は buildActionNameLines で作るとバイト数がずれない
+    //      var actionSource = [
+    //          "/version 3"
+    //      ].concat(buildActionNameLines("", "MySet"), [
+    //          "/isOpen 1", "/actionCount 1", "/action-1 {"
+    //      ], buildActionNameLines("\t", "myAction"), [ … ]).join("\n");
+    // 3. 1回だけ実行するとき:
+    //      if (!runTemporaryAction(actionSource, "MySet", "myAction")) alert(getLabel("alert.actionFailed"));
+    //    何度も実行するとき（オブジェクトごとなど）は、読み込み・解除を1回ずつにする:
+    //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
+    //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
+    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // 描画ヘルパー（doc を受け取り、UI/クロージャに依存しない）/ Drawing helpers (take doc; no UI/closure deps)
@@ -2118,7 +2370,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var gridSettingRow = dialog.add("group");
         setupGroup(gridSettingRow, "row", COLUMN_SPACING);
         gridSettingRow.alignChildren = ["left", "top"];
-        var gridLabelWidth = (currentLanguage === "ja") ? 40 : 50; // unify Number/Gutter label width and right-align
+        var gridLabelWidth = (uiLang === "ja") ? 40 : 50; // unify Number/Gutter label width and right-align
 
         // 行設定パネル / Row settings panel
         var rowSettingPanel = gridSettingRow.add("panel", undefined, getLabel("panel.row"));
@@ -2175,7 +2427,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var marginPanel = dialog.add("panel", undefined, titleWithUnit("panel.margin"));
         setupPanel(marginPanel);
         // 3×3 グリッド配置（中央=連動）/ 3×3 grid layout (center = link)
-        var MARGIN_CELL_WIDTH = (currentLanguage === "ja") ? 78 : 92;
+        var MARGIN_CELL_WIDTH = (uiLang === "ja") ? 78 : 92;
 
         // ラベル＋数値のセル / A label+field cell
         function addMarginCell(parentRow, labelKey) {
@@ -2400,17 +2652,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         attachLivePreview(columnGutterInput);
 
         // === ボタンエリア（3カラム：左アウトライン／中央スペーサー／右キャンセル・OK）/ Button area (3 columns: left outline / center spacer / right cancel+ok)
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.alignment = ["fill", "top"];
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.margins = [0, 5, 0, 0]; // ボタンエリア上マージン +5 / extra top margin
-        btnRowGroup.spacing = 0;
+        var buttonRow = addButtonRow(dialog);
 
         // 左グループ（アウトラインボタン）/ Left group (Outline button)
-        var btnLeftGroup = btnRowGroup.add("group");
-        setupRow(btnLeftGroup, "left");
-        var btnOutline = btnLeftGroup.add("button", undefined, getLabel("button.outline"));
+        var btnOutline = buttonRow.leftGroup.add("button", undefined, getLabel("button.outline"));
         btnOutline.helpTip = getLabel("tooltip.outline");
         // アウトライン⇔プレビュー表示を切り替え、ラベルもトグル / Toggle Outline/Preview view and the button label
         btnOutline.onClick = function () {
@@ -2420,28 +2665,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                 : getLabel("button.outline");
         };
 
-        // スペーサー（横に伸びる空白）/ Spacer (horizontal stretch)
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-        spacer.maximumSize.height = 0;
-
         // 右グループ（キャンセル・OKボタン）/ Right group (Cancel/OK buttons)
-        var btnRightGroup = btnRowGroup.add("group");
-        setupRow(btnRightGroup, "right", 10);
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), {
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), {
             name: "cancel"
         });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), {
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), {
             name: "ok"
         });
-        btnOK.alignment = ["right", "center"];
 
         // 表示用ラベルをローカライズ / Localize display label for dropdown
         function presetDisplayLabel(rawLabel) {
             // 日本語UIのときは「 / 」以降を隠す / In Japanese UI, hide text after " / "
-            if (currentLanguage === "ja") return String(rawLabel).replace(/\s*\/.*$/, "");
+            if (uiLang === "ja") return String(rawLabel).replace(/\s*\/.*$/, "");
             return rawLabel;
         }
 
@@ -2640,23 +2875,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         function applyShowCenterAction() {
             var actionSource = '/version 3' + '/name [ 9' + ' 417474726962757465' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 10' + ' 53686f7743656e746572' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_attributePalette)' + ' /localizedName [ 12' + ' e5b19ee680a7e8a8ade5ae9a' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1668183154' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 1' + ' }' + ' }' + '}';
 
-            // 他スクリプトと衝突しないよう temp 配下に固有名で書き出す / Write to temp with a script-specific name to avoid collisions
-            var actionFile = new File(Folder.temp + "/GenerateGuidesGrid_ShowCenter.aia");
-            if (!actionFile.open("w")) {
-                return; // 書き込めなければ中止 / abort if it cannot be written
-            }
-            actionFile.write(actionSource);
-            actionFile.close();
-
-            // 同名セットが残っていると二重登録になるので先に破棄 / A leftover set of the same name would be registered twice, so discard it first
-            safeExecute(function () { app.unloadAction("Attribute", ""); }); // set name
-            // 途中で落ちてもセットと一時ファイルを残さない / Never leave the set or the temp file behind
-            try {
-                app.loadAction(actionFile);
-                app.doScript("ShowCenter", "Attribute", false); // action name, set name
-            } finally {
-                safeExecute(function () { app.unloadAction("Attribute", ""); }); // set name
-                safeExecute(function () { actionFile.remove(); });
+            // 読み込み・実行・解除は共通の処理で（失敗してもセットと一時ファイルを残さない）/ Shared load/play/unload; never leaves the set or temp file behind
+            if (!runTemporaryAction(actionSource, "Attribute", "ShowCenter")) { // set name, action name
+                $.writeln("[GenerateGuidesGrid] show center action failed");
             }
         }
 

@@ -52,6 +52,7 @@
 - v1.7.3 (20260413) : Narrowed excluded layer names to only "bg" (removed "背景" and "background")
 - v1.7.4 (20260415) : Added option to move guides from excluded layers to the guide layer (available when "Move to another layer" is selected, default ON)
 - v1.7.6 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.7.7 (20260928) : The button row is now built with the shared part
 
 ### Script info
 

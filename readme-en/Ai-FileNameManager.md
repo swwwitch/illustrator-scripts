@@ -209,6 +209,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 - v1.3.7 (2026-09-12) Fixed the three "Segment Order" radio buttons not being mutually exclusive ("Custom" lived in its own group, so ScriptUI's built-in exclusivity did not cover it). Fixed a case where a rename differing only in letter case or kana composition sent the freshly saved file to the Trash. Rename and Save a Copy are now unavailable for non-.ai documents. Moved the empty-name check to run **after** formatting, so a name that formatting reduces to an empty string (symbols only, emoji only) is rejected. Fixed "Save a Copy" failing after an overwrite was approved, because `File.copy()` does not overwrite. Version and sequence numbers are now matched as delimited segments (a word such as `rev1` is no longer bumped). Turning on "Append HHMM" now selects a timestamp format automatically. The PDF compatibility used on save is now explicit via `FEATURE_PDF_COMPATIBLE`. Unified the formatting pipeline shared by the preview and the actual save, and cached the folder listing. Added JSDoc to every function and removed unused layout helpers.
 
 - v1.3.9 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.10 (2026-09-28) The button row is now built with the shared part
 
 ### Article
 

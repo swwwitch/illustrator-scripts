@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToR
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConvertToRectangle";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -39,10 +39,106 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // ==============================
+    // ローカライズ / Localization
+    // ==============================
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ==============================
     // ラベル定義 / Label definitions
@@ -108,24 +204,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         noResult: { ja: "長方形を作成できるオブジェクトがありませんでした。", en: "No rectangles could be created." },
 
         /* Stepper / ステップボタン */
-        stepUpTip: {
-            ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
-            en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
-        },
-        stepDownTip: {
-            ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
-            en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
-        },
-        stepUpIntegerTip: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-        stepDownIntegerTip: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        tooltip: {
+            stepUp: {
+                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepDown: {
+                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
+                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            },
+            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
+            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        }
     };
-
-    // ラベル取得 / Get label
-    function getLabel(labelKey) {
-        var labelEntry = LABELS[labelKey];
-        if (!labelEntry) return labelKey;
-        return labelEntry[currentLanguage] || labelEntry.en || labelKey;
-    }
 
     // ==============================
     // 塗り・線プリセット / Fill & stroke presets
@@ -151,82 +242,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return -1;
     })();
 
-    // ==============================
-    // 単位変換 / Unit conversion
-    // ==============================
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // Illustrator の strokeUnits 設定値を取得する / Get Illustrator strokeUnits preference
-    function getStrokeUnitsPreference() {
-        var strokeUnits = 2; // 既定：pt / Default: points
-        try {
-            strokeUnits = app.preferences.getIntegerPreference("strokeUnits");
-        } catch (ignoreStrokeUnits) { }
-        return strokeUnits;
-    }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // Illustrator の単位設定値ごとの換算情報 / Conversion info for Illustrator unit preferences
-    var UNIT_INFO_BY_TYPE = {
-        0: { factor: 72, label: "in" },        // inch
-        1: { factor: 72 / 25.4, label: "mm" }, // mm
-        2: { factor: 1, label: "pt" },         // pt
-        3: { factor: 12, label: "pc" },        // pica
-        4: { factor: 72 / 2.54, label: "cm" }, // cm
-        5: { factor: 0.25, label: "Q" },       // Q/H
-        6: { factor: 1, label: "px" }          // px
-    };
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    // Illustrator の単位設定値に対応する換算情報を返す / Get conversion info for an Illustrator unit preference value
-    function getUnitInfo(unitType) {
-        return UNIT_INFO_BY_TYPE[unitType] || UNIT_INFO_BY_TYPE[2];
-    }
-
-    // Illustrator の単位設定値を pt 変換係数に変換する / Convert Illustrator unit preference value to a points factor
-    function getUnitToPointFactor(unitType) {
-        return getUnitInfo(unitType).factor;
-    }
-
-    // Illustrator の単位設定値を表示用単位ラベルに変換する / Convert Illustrator unit preference value to a display label
-    function getUnitLabel(unitType) {
-        return getUnitInfo(unitType).label;
-    }
-
-    // Illustrator の strokeUnits 設定値を pt 変換係数に変換する / Convert Illustrator strokeUnits to a points factor
-    function getStrokeUnitToPointFactor() {
-        return getUnitToPointFactor(getStrokeUnitsPreference());
-    }
-
-    // Illustrator の strokeUnits 設定値を表示用単位ラベルに変換する / Convert Illustrator strokeUnits to a display label
-    function getStrokeUnitLabel() {
-        return getUnitLabel(getStrokeUnitsPreference());
-    }
-
-    // Illustrator の rulerType 設定値を取得する / Get Illustrator rulerType preference
-    function getRulerTypePreference() {
-        var rulerType = 2; // 既定：pt / Default: points
-        try {
-            rulerType = app.preferences.getIntegerPreference("rulerType");
-        } catch (ignoreRulerType) { }
-        return rulerType;
-    }
-
-    // Illustrator の rulerType 設定値を pt 変換係数に変換する / Convert Illustrator rulerType to a points factor
-    function getRulerUnitToPointFactor() {
-        return getUnitToPointFactor(getRulerTypePreference());
-    }
-
-    // Illustrator の rulerType 設定値を表示用単位ラベルに変換する / Convert Illustrator rulerType to a display label
-    function getRulerUnitLabel() {
-        return getUnitLabel(getRulerTypePreference());
-    }
-
-    // 定規単位の値を pt に変換する / Convert ruler-unit value to points
-    function rulerUnitValueToPoints(value) {
-        return value * getRulerUnitToPointFactor();
-    }
-
-    // 線幅設定単位の値を pt に変換する / Convert stroke-unit value to points
-    function strokeUnitValueToPoints(value) {
-        return value * getStrokeUnitToPointFactor();
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // ドキュメントのカラースペースに合わせた黒を返す / Returns black for the document color space
@@ -244,12 +296,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 線幅プリセット名に現在の線幅単位を反映する / Apply the current stroke unit to preset labels
     function formatFillStrokePresetLabel(preset) {
-        var presetLabel = preset[currentLanguage] || preset.en;
+        var presetLabel = preset[uiLang] || preset.en;
         if (presetLabel.indexOf("{width}") < 0) return presetLabel;
 
         return presetLabel
             .replace("{width}", preset.strokeWidth)
-            .replace("{unit}", getStrokeUnitLabel());
+            .replace("{unit}", getUnitInfo("strokeUnits").label);
     }
 
     // ==============================
@@ -339,12 +391,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS に stepUpTip / stepDownTip / stepUpIntegerTip / stepDownIntegerTip を足す（このファイルの LABELS から写す）。
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
+    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
     //      var widthInput = addSteppedField(parentPanel, {
@@ -361,7 +442,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
     //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
     // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に↑↓キーの増減処理を別に付けない（↑↓キーが二重に効く）
+    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
     // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
     // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
@@ -380,22 +461,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -507,8 +573,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "stepUpIntegerTip" : "stepUpTip";
-        var downTooltip = stepOptions.integer ? "stepDownIntegerTip" : "stepDownTip";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -945,6 +1011,66 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // ==============================
     // 設定ダイアログ / Settings dialog
     // ==============================
@@ -1010,7 +1136,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         marginInput.enabled = false;
         marginInput.stepperGroup.enabled = false;
         marginInput.helpTip = getLabel("marginTip");
-        var marginUnitLabel = marginRow.add("statictext", undefined, getRulerUnitLabel());
+        var marginUnitLabel = marginRow.add("statictext", undefined, getUnitInfo().label);
         marginUnitLabel.enabled = false;
 
         var dimCheck = optionsPanel.add("checkbox", undefined, getLabel("dimSelection"));
@@ -1072,7 +1198,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cornerRadiusLabel.helpTip = getLabel("cornerRadiusTip");
         var cornerRadiusInput = addStepperInput(cornerRow, "0", 5, { min: 0 });
         cornerRadiusInput.helpTip = getLabel("cornerRadiusTip");
-        var cornerUnitLabel = cornerRow.add("statictext", undefined, getRulerUnitLabel());
+        var cornerUnitLabel = cornerRow.add("statictext", undefined, getUnitInfo().label);
         return {
             cornerRadiusInput: cornerRadiusInput,
             cornerUnitLabel: cornerUnitLabel
@@ -1092,41 +1218,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
     }
 
-    function buildButtonRow(dialog) {
-        var buttonRow = dialog.add("group");
-        buttonRow.orientation = "row";
-        buttonRow.alignment = "fill";
-        buttonRow.alignChildren = ["fill", "center"];
-
-        var buttonLeft = buttonRow.add("group");
-        buttonLeft.alignment = ["left", "center"];
-        var previewCheck = buttonLeft.add("checkbox", undefined, getLabel("preview"));
-        previewCheck.helpTip = getLabel("previewTip");
-
-        var buttonSpacer = buttonRow.add("group");
-        buttonSpacer.alignment = ["fill", "fill"];
-
-        var buttonRight = buttonRow.add("group");
-        buttonRight.alignment = ["right", "center"];
-        var cancelButton = buttonRight.add("button", undefined, getLabel("cancel"), { name: "cancel" });
-        var okButton = buttonRight.add("button", undefined, "OK", { name: "ok" });
-
-        return {
-            previewCheck: previewCheck,
-            cancelButton: cancelButton,
-            okButton: okButton
-        };
-    }
-
     function getMarginValue(ui) {
         if (!ui.options.useMarginCheck.value) return 0;
-        return rulerUnitValueToPoints(parseFloat(ui.options.marginInput.text) || 0);
+        return (parseFloat(ui.options.marginInput.text) || 0) * getUnitInfo().pointsPerUnit;
     }
 
     function getCornerRadiusValue(ui) {
         var raw = parseFloat(ui.corner.cornerRadiusInput.text) || 0;
         if (raw <= 0) return 0;
-        return rulerUnitValueToPoints(raw);
+        return raw * getUnitInfo().pointsPerUnit;
     }
 
     function buildDialogSettings(ui, forPreview) {
@@ -1387,15 +1487,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function buildDialogUI(dialog, selectionAllImages, selectionHasTextItem) {
         var columns = createDialogColumns(dialog);
-        return {
+        var ui = {
             target: buildTargetPanel(columns.leftColumn),
             options: buildOptionsPanel(columns.leftColumn, selectionHasTextItem),
             original: buildOriginalPanel(columns.leftColumn, selectionAllImages),
             appearanceRadios: buildAppearancePanel(columns.rightColumn, selectionAllImages),
             corner: buildCornerPanel(columns.rightColumn),
-            order: buildOrderPanel(columns.rightColumn),
-            buttons: buildButtonRow(dialog)
+            order: buildOrderPanel(columns.rightColumn)
         };
+
+        /* ボタン行（左：プレビュー／右：キャンセル・OK）/ Button row: preview on the left, Cancel/OK on the right */
+        var buttonRow = addButtonRow(dialog);
+        var previewCheck = buttonRow.leftGroup.add("checkbox", undefined, getLabel("preview"));
+        previewCheck.helpTip = getLabel("previewTip");
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
+        ui.buttons = {
+            previewCheck: previewCheck,
+            cancelButton: btnCancel,
+            okButton: btnOK
+        };
+        return ui;
     }
 
     function showSettingsDialog(doc, eligibleItems, selectionAllImages, selectionHasTextItem) {
@@ -1461,7 +1573,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (preset.stroked) {
             rect.strokeColor = makeBlack(isRgbDocument);
-            rect.strokeWidth = strokeUnitValueToPoints(preset.strokeWidth);
+            rect.strokeWidth = preset.strokeWidth * getUnitInfo("strokeUnits").pointsPerUnit;
         }
         if (typeof preset.opacity === "number") {
             rect.opacity = preset.opacity;

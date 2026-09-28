@@ -37,103 +37,148 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
 
-    /* UIラベル定義 / UI label definitions */
-    var UI_LABELS = {
-      dialogTitle: {
-        ja: "互い違いに選択",
-        en: "Alternate Select"
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+      dialog: {
+        title: { ja: "互い違いに選択", en: "Alternate Select" }
       },
-      panelSelect: {
-        ja: "選択",
-        en: "Selection"
+      panel: {
+        select: { ja: "選択", en: "Selection" },
+        direction: { ja: "方向", en: "Direction" }
       },
-      odd: {
-        ja: "奇数",
-        en: "Odd"
+      radio: {
+        odd: { ja: "奇数", en: "Odd" },
+        even: { ja: "偶数", en: "Even" },
+        vertical: { ja: "垂直", en: "Vertical" },
+        horizontal: { ja: "水平", en: "Horizontal" },
+        zOrder: { ja: "重ね順", en: "Z-order" }
       },
-      even: {
-        ja: "偶数",
-        en: "Even"
+      tooltip: {
+        odd: { ja: "並びの1番目から1つおきに選びます。", en: "Selects every other object starting from the first." },
+        even: { ja: "並びの2番目から1つおきに選びます。", en: "Selects every other object starting from the second." },
+        vertical: { ja: "上から下の並び順で数えます。", en: "Counts the objects from top to bottom." },
+        horizontal: { ja: "左から右の並び順で数えます。", en: "Counts the objects from left to right." },
+        zOrder: { ja: "重ね順（背面から前面）で数えます。位置ではなく前後関係で選びます。", en: "Counts the objects by stacking order, from back to front, rather than by position." }
       },
-      panelDirection: {
-        ja: "方向",
-        en: "Direction"
+      button: {
+        ok: { ja: "OK", en: "OK" },
+        cancel: { ja: "キャンセル", en: "Cancel" }
       },
-      tipOdd: { ja: "並びの1番目から1つおきに選びます。", en: "Selects every other object starting from the first." },
-      tipEven: { ja: "並びの2番目から1つおきに選びます。", en: "Selects every other object starting from the second." },
-      tipVertical: { ja: "上から下の並び順で数えます。", en: "Counts the objects from top to bottom." },
-      tipHorizontal: { ja: "左から右の並び順で数えます。", en: "Counts the objects from left to right." },
-      tipZOrder: { ja: "重ね順（背面から前面）で数えます。位置ではなく前後関係で選びます。", en: "Counts the objects by stacking order, from back to front, rather than by position." },
-      vertical: {
-        ja: "垂直",
-        en: "Vertical"
-      },
-      horizontal: {
-        ja: "水平",
-        en: "Horizontal"
-      },
-      zOrder: {
-        ja: "重ね順",
-        en: "Z-order"
-      },
-      ok: {
-        ja: "OK",
-        en: "OK"
-      },
-      cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
+      /* エラー／ログ文言 / Error and log messages */
+      alert: {
+        noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+        noSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
+        noValidItems: { ja: "有効なオブジェクトが選択されていません。", en: "No valid objects are selected." },
+        preview: { ja: "プレビューエラー：", en: "Preview Error: " },
+        prefix: { ja: "エラー：", en: "Error: " },
+        debugPrefix: { ja: "デバッグ：", en: "Debug: " }
       }
     };
 
-    /* エラー／ログ文言定義 / Error and log message definitions */
-    var ERROR_LABELS = {
-      noDocument: {
-        ja: "ドキュメントを開いてください。",
-        en: "Please open a document."
-      },
-      noSelection: {
-        ja: "オブジェクトを選択してください。",
-        en: "Please select objects."
-      },
-      noValidItems: {
-        ja: "有効なオブジェクトが選択されていません。",
-        en: "No valid objects are selected."
-      },
-      preview: {
-        ja: "プレビューエラー：",
-        en: "Preview Error: "
-      },
-      prefix: {
-        ja: "エラー：",
-        en: "Error: "
-      },
-      debugPrefix: {
-        ja: "デバッグ：",
-        en: "Debug: "
-      }
-    };
-
-    function getLabel(table, key) {
-      if (!table[key]) return key;
-      return table[key][currentLanguage] || table[key].en || key;
-    }
-
-    function getUILabel(key) {
-      return getLabel(UI_LABELS, key);
-    }
-
-    function getErrorLabel(key) {
-      return getLabel(ERROR_LABELS, key);
-    }
 
     function getErrorMessage(key, detail) {
-      var message = getErrorLabel(key);
+      var message = getLabel("alert." + key);
       if (detail !== undefined && detail !== null && String(detail) !== "") {
         message += String(detail);
       }
@@ -571,11 +616,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
 
       /* ダイアログボックス / Dialog box */
-      var dialog = new Window("dialog", getUILabel("dialogTitle") + " " + SCRIPT_VERSION);
+      var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
       dialog.orientation = "column";
       dialog.alignChildren = "left";
 
-      var selectionPanel = dialog.add("panel", undefined, getUILabel("panelSelect"));
+      var selectionPanel = dialog.add("panel", undefined, getLabel("panel.select"));
       selectionPanel.margins = [15, 20, 15, 10];
       selectionPanel.orientation = "column";
       selectionPanel.alignChildren = "left";
@@ -584,10 +629,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       selectGroup.orientation = "row";
       selectGroup.alignChildren = "left";
 
-      var oddRadio = selectGroup.add("radiobutton", undefined, getUILabel("odd"));
-      oddRadio.helpTip = getUILabel("tipOdd");
-      var evenRadio = selectGroup.add("radiobutton", undefined, getUILabel("even"));
-      evenRadio.helpTip = getUILabel("tipEven");
+      var oddRadio = selectGroup.add("radiobutton", undefined, getLabel("radio.odd"));
+      oddRadio.helpTip = getLabel("tooltip.odd");
+      var evenRadio = selectGroup.add("radiobutton", undefined, getLabel("radio.even"));
+      evenRadio.helpTip = getLabel("tooltip.even");
       oddRadio.value = true; // デフォルトは奇数 / Default is odd
 
       function setAlternateSelectionMode(selectionMode) {
@@ -597,7 +642,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
 
       /* 方向パネル / Direction panel */
-      var dirPanel = dialog.add("panel", undefined, getUILabel("panelDirection"));
+      var dirPanel = dialog.add("panel", undefined, getLabel("panel.direction"));
       dirPanel.margins = [15, 20, 15, 10];
       dirPanel.orientation = "column";
       dirPanel.alignChildren = "left";
@@ -606,12 +651,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       dirGroup.orientation = "row";
       dirGroup.alignChildren = "left";
 
-      var verticalRadio = dirGroup.add("radiobutton", undefined, getUILabel("vertical"));
-      verticalRadio.helpTip = getUILabel("tipVertical");
-      var horizontalRadio = dirGroup.add("radiobutton", undefined, getUILabel("horizontal"));
-      horizontalRadio.helpTip = getUILabel("tipHorizontal");
-      var zOrderRadio = dirGroup.add("radiobutton", undefined, getUILabel("zOrder"));
-      zOrderRadio.helpTip = getUILabel("tipZOrder");
+      var verticalRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.vertical"));
+      verticalRadio.helpTip = getLabel("tooltip.vertical");
+      var horizontalRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.horizontal"));
+      horizontalRadio.helpTip = getLabel("tooltip.horizontal");
+      var zOrderRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.zOrder"));
+      zOrderRadio.helpTip = getLabel("tooltip.zOrder");
 
       function setDirectionMode(directionMode) {
         verticalRadio.value = (directionMode === "vertical");
@@ -633,8 +678,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       var buttonGroup = dialog.add("group");
       buttonGroup.alignment = "right";
-      var cancelBtn = buttonGroup.add("button", undefined, getUILabel("cancel"));
-      var okBtn = buttonGroup.add("button", undefined, getUILabel("ok"));
+      var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"));
+      var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"));
 
       oddRadio.onClick = function () {
         setAlternateSelectionMode("odd");

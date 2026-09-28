@@ -32,3 +32,5 @@ Sets the units and the numeric increment from a dialog.
 - v1.0 (2025-08-06)
 - v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.2 (2026-09-28): Removed the space after the colon in English field labels, matching the Japanese labels
+- v1.1.2 (2026-09-28): The button row is now built with the shared part

@@ -24,6 +24,7 @@ Converts point text, text on a path, or a shape plus text into area text while p
 
 ### Update History
 
+- v1.3.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
 - v1.3.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.0 (2026-07-01)

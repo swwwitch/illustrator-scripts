@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -56,10 +56,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -271,34 +363,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         }
     };
 
-    // ドット区切りキー（例 'panel.sort'）で LABELS を辿る。見つからなければキー文字列を返す
-    function getLabel(key) {
-        var node = LABELS;
-        var parts = key.split(".");
-        for (var i = 0; i < parts.length; i++) {
-            if (node && typeof node === "object" && node.hasOwnProperty(parts[i])) {
-                node = node[parts[i]];
-            } else {
-                return key;
-            }
-        }
-        return (node && node[currentLanguage]) ? node[currentLanguage] : key;
-    }
-
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === 'ja' ? '：' : ':');
-    }
-
     // 数値＋単位をローカライズ付きで整形
     function withUnit(value, unitKey) {
-        return (currentLanguage === 'ja')
+        return (uiLang === 'ja')
             ? (value + getLabel(unitKey))
             : (value + " " + getLabel(unitKey));
     }
 
     // alert / status 用に「ラベル：値+単位」を 1 行で組み立てる
     function kvLine(labelKey, value, unitKey) {
-        var sep = (currentLanguage === 'ja' ? '：' : ': ');
+        var sep = (uiLang === 'ja' ? '：' : ': ');
         var valueText = unitKey ? withUnit(value, unitKey) : String(value);
         return getLabel(labelKey) + sep + valueText;
     }
@@ -763,6 +837,131 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         if (sep < 0) return { marker: res, body: "" };
         return { marker: res.substring(0, sep), body: res.substring(sep + 1) };
     }
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
+    //    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
+    //    workerLoadTemporaryActionSet / workerRunTemporaryAction。一覧は TEMPORARY_ACTION_WORKER_FUNCS
+    //    パレット側だけで使うのは buildTemporaryActionWorkerArg / buildTemporaryActionWorkerCall
+    // 2. 送る関数の一覧に連結する（var の代入順に注意。このパーツより後ろで連結する）
+    //      var WORKER_FUNCS = [workerA, workerB].concat(TEMPORARY_ACTION_WORKER_FUNCS);
+    //      （push 方式なら WORKER_FUNCS.push.apply(WORKER_FUNCS, TEMPORARY_ACTION_WORKER_FUNCS);）
+    // 3. ワーカー内で使う（アクション定義もワーカー内で組むとき）:
+    //      function workerDoSomething() {
+    //          var src = ["/version 3"].concat(workerBuildActionNameLines("", "MySet"), [ … ]).join(String.fromCharCode(10));
+    //          return workerRunTemporaryAction(src, "MySet", "myAction") ? "OK" : "ERR:action";
+    //      }
+    //    パレット側で組んで送るとき（定義に \n \t や日本語があっても壊れない）:
+    //      delegate(buildTemporaryActionWorkerCall(actionSource, "MySet", "myAction") + ' ? "OK" : "ERR:action"');
+    //    何度も実行するとき: workerLoadTemporaryActionSet → try { app.doScript(…) } finally { workerUnloadTemporaryActionSet }
+    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。戻り値はマーカー文字列にして返すこと
+    //    （BridgeTalk の戻り値は文字列。true/false は "true"/"false" で届く）
+    // 5. ワーカー関数を書き換えるときの決まり（toString() で送るため）:
+    //    JSDoc・コメントを本体にも直前直後にも置かない（直後のコメントは取り込まれ、改行が落ちると後ろを潰す）。
+    //    各文はセミコロンで終える。ASCII のみ（日本語は化ける）。文字列に \ を書かない（タブは String.fromCharCode(9)）。
+    //    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
+    //    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
+     * @param {string} sourceText - 送る文字列
+     * @returns {string} decodeURIComponent("…") の形の式
+     */
+    function buildTemporaryActionWorkerArg(sourceText) {
+        return 'decodeURIComponent("' + encodeURIComponent(String(sourceText)) + '")';
+    }
+
+    /**
+     * workerRunTemporaryAction の呼び出し式を組み立てる（パレット側で使う。評価結果は true / false）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {string} メインエンジンで評価する呼び出し式
+     */
+    function buildTemporaryActionWorkerCall(actionSource, setName, actionName) {
+        return "workerRunTemporaryAction("
+            + buildTemporaryActionWorkerArg(actionSource) + ", "
+            + buildTemporaryActionWorkerArg(setName) + ", "
+            + buildTemporaryActionWorkerArg(actionName) + ")";
+    }
+
+    /* 送るワーカー関数の一覧（関数宣言は巻き上がるのでここで参照できる） / Worker functions to send (declarations are hoisted) */
+    var TEMPORARY_ACTION_WORKER_FUNCS = [
+        workerToActionHex,
+        workerBuildActionNameLines,
+        workerUnloadTemporaryActionSet,
+        workerLoadTemporaryActionSet,
+        workerRunTemporaryAction
+    ];
+
+    function workerToActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    function workerBuildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = workerToActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + String.fromCharCode(9) + nameHex,
+            indent + "]"
+        ];
+    }
+
+    function workerUnloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+        }
+    }
+
+    function workerLoadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            workerUnloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("workerLoadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { }
+            try { actionFile.remove(); } catch (removeError) { }
+        }
+    }
+
+    function workerRunTemporaryAction(actionSource, setName, actionName) {
+        if (!workerLoadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("workerRunTemporaryAction: " + e);
+            return false;
+        } finally {
+            workerUnloadTemporaryActionSet(setName);
+        }
+    }
+
+    /* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
+    var TEMPORARY_ACTION_WORKER_END = true;
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // WORKER 関数（メインエンジンで実行）/ Worker functions (run in main engine)
@@ -1867,7 +2066,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         return {
             actionSetName: "LinkedImageManagerTempSet",
             actionName: "LinkedImageManagerPlace",
-            actionFilePath: "~/LinkedImageManagerTemp.aia",
             linksFolderName: "Links",
             exportResolution: 72
         };
@@ -1889,41 +2087,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         ];
     }
 
-    /* 文字列を UTF-8 バイト列へ */
-    function w_stringToUtf8Bytes(sourceText) {
-        var encodedText = encodeURIComponent(sourceText);
-        var byteList = [];
-        for (var i = 0; i < encodedText.length; i++) {
-            var currentChar = encodedText.charAt(i);
-            if (currentChar === "%") {
-                byteList.push(parseInt(encodedText.substr(i + 1, 2), 16));
-                i += 2;
-            } else {
-                byteList.push(currentChar.charCodeAt(0));
-            }
-        }
-        return byteList;
-    }
-
-    /* バイト列を 16 進文字列にし、記録された .aia と同じく 32 バイトごとに改行する */
-    function w_bytesToHexLines(byteList, indentText) {
-        var hexText = "";
-        for (var i = 0; i < byteList.length; i++) {
-            hexText += (byteList[i] < 16 ? "0" : "") + byteList[i].toString(16);
-        }
+    /* .aia のテキスト値（[ バイト数 16進 ]）を組み立てる。16進は記録された .aia と同じく 32 バイトごとに改行する */
+    function w_buildTextValue(sourceText, indentText) {
+        var hexText = workerToActionHex(sourceText);
+        if (hexText.length === 0) return "[ 0 ]";
         var lineList = [];
         for (var start = 0; start < hexText.length; start += 64) {
-            lineList.push(indentText + hexText.substr(start, 64));
+            lineList.push(indentText + "\t" + hexText.substr(start, 64));
         }
-        return lineList.join("\n");
-    }
-
-    /* .aia のテキスト値（[ バイト数 16進 ]）を組み立てる */
-    function w_buildTextValue(sourceText, indentText) {
-        var byteList = w_stringToUtf8Bytes(sourceText);
-        if (byteList.length === 0) return "[ 0 ]";
-        return "[ " + byteList.length + "\n"
-            + w_bytesToHexLines(byteList, indentText + "\t") + "\n"
+        return "[ " + (hexText.length / 2) + "\n"
+            + lineList.join("\n") + "\n"
             + indentText + "]";
     }
 
@@ -1969,24 +2142,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             + parameterText
             + "\t}\n"
             + "}\n";
-    }
-
-    /* 一時アクションを書き出して読み込み、実行後に必ず後片付けする */
-    function w_playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-        var actionFile = new File(actionFilePath);
-        w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
-        try {
-            actionFile.lineFeed = "Unix";
-            if (!actionFile.open("w")) throw new Error("ACTION_FILE_FAILED");
-            actionFile.write(actionSource);
-            actionFile.close();
-            app.loadAction(actionFile);
-            app.doScript(actionName, setName, false);
-        } finally {
-            actionFile.close();
-            if (actionFile.exists) actionFile.remove();
-            w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
-        }
     }
 
     /* 選択できない理由コードを返す。選択できる場合は空文字（祖先のロック・非表示も見る）*/
@@ -2053,7 +2208,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var actionSource = w_buildActionSource(config.actionSetName, config.actionName, targetFile.fsName);
             /* ここから先はアクションが実行済みとして扱う */
             status.actionPlayed = true;
-            w_playTemporaryAction(actionSource, config.actionSetName, config.actionName, config.actionFilePath);
+            if (!workerLoadTemporaryActionSet(actionSource, config.actionSetName)) throw new Error("ACTION_FILE_FAILED");
+            try {
+                app.doScript(config.actionName, config.actionSetName, false);
+            } finally {
+                workerUnloadTemporaryActionSet(config.actionSetName);
+            }
             var newSelection = doc.selection;
             if (!newSelection || newSelection.length === 0 || newSelection[0].typename !== "PlacedItem") {
                 throw new Error("ACTION_RESULT_MISSING");
@@ -2480,8 +2640,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         w_findSelectedItemIndex, w_analyze, w_currentIndex, w_select, w_fitArtboard, w_openLinksPanel,
         w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster,
         w_findClippingPath, w_clipCoversItems, w_releaseEmbeddedGroup, w_embed,
-        w_unembedConfig, w_placeParameters, w_stringToUtf8Bytes, w_bytesToHexLines, w_buildTextValue,
-        w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction,
+        w_unembedConfig, w_placeParameters, w_buildTextValue,
+        w_buildParameterBlock, w_buildActionSource,
         w_unlockForSelection, w_restoreLocks, w_findSelectionBlocker,
         w_isSameArtItem, w_relinkByAction, w_isSameFile, w_resolveCollectDestination, w_getLinksFolder,
         w_collectLink, w_getEmbeddedSourceFile, w_getImageNameFromItem, w_getManifestFileNames,
@@ -2489,7 +2649,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         w_getAccumulatedRotation, w_getScaleAndRotation, w_getNonOverwritingFilePath,
         w_createExportDocument, w_exportDocumentAsPSD, w_exportEmbeddedImageAsPSD, w_unembed,
         w_probeDelete, w_del, w_docFolder, w_copyText
-    ];
+    ].concat(TEMPORARY_ACTION_WORKER_FUNCS);
 
     // =========================================
     // パレット側データ状態 / Palette-side data state
@@ -2556,7 +2716,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             for (var i = 0; i < allPlacementEntries.length; i++) localizeEntry(allPlacementEntries[i]);
             for (var j = 0; j < uniqueFileEntries.length; j++) localizeEntry(uniqueFileEntries[j]);
             if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
-            else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+            else setStatus(labelValueText('status.loaded', withUnit(allPlacementEntries.length, 'label.items')));
             return true;
         } finally {
             isBusy = false;
@@ -3009,7 +3169,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         setupPanel(optPanel, 6);
         var dedupCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.dedup'));
         dedupCheck.value = true;
-        dedupCheck.helpTip = (currentLanguage === 'ja')
+        dedupCheck.helpTip = (uiLang === 'ja')
             ? "ON：同じリンクファイルを1行にまとめます。\nOFF：配置ごとに個別表示します。"
             : "ON: Group same linked files into one row.\nOFF: Each placement is listed separately.";
         var countColCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.displayFileCount'));
@@ -3084,7 +3244,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 var abNum = allPlacementEntries[entryIdx].artboardNum;
                 if (abNum !== null) artboardsWithImages[abNum] = true;
             }
-            var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
+            var artboardSep = (uiLang === 'ja') ? '：' : ': ';
 
             suppressArtboardChange = true;
             try {
@@ -3608,20 +3768,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         embedRow.alignChildren = ["left", "center"];
 
         var embedBtn = embedRow.add("button", undefined, getLabel('button.embed'));
-        embedBtn.helpTip = (currentLanguage === 'ja')
+        embedBtn.helpTip = (uiLang === 'ja')
             ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
             : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
         embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
 
         var unembedBtn = embedRow.add("button", undefined, getLabel('button.unembed'));
-        unembedBtn.helpTip = (currentLanguage === 'ja')
+        unembedBtn.helpTip = (uiLang === 'ja')
             ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
             : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
         unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
 
         var collectAfterRelinkCheck = embedRow.add("checkbox", undefined, getLabel('checkbox.collectAfterRelink'));
         collectAfterRelinkCheck.value = true;
-        collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
+        collectAfterRelinkCheck.helpTip = (uiLang === 'ja')
             ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
             : "After unembedding, copy the linked file into the \"Links\" folder next to the document.";
 
@@ -3865,13 +4025,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             for (var i = 0; i < idxs.length; i++) pairs.push([idxs[i], newFile.fsName]);
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(getLabel('message.renameDone') + "：" + oldName + " → " + newName + "／" + kvLine('label.success', counts.success, 'label.items'));
+            setStatus(labelValueText('message.renameDone', oldName + " → " + newName) + "／" + kvLine('label.success', counts.success, 'label.items'));
         }
 
         function handleCopyFileName() {
             var name = selectedEntry.fileName || "";
             var res = parseWorkerResult(delegate("$.global.__LIM.copyText(" + jsString(name) + ")"));
-            if (res.marker === "OK") setStatus(getLabel('message.copyFileNameDone') + "：" + name);
+            if (res.marker === "OK") setStatus(labelValueText('message.copyFileNameDone', name));
             else setStatus(getLabel('message.copyFileNameFailed'));
         }
 
@@ -4019,7 +4179,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
         var reloadBtn = btnGroup.add("button", undefined, getLabel('button.reload'));
         reloadBtn.alignment = ["right", "center"];
-        reloadBtn.helpTip = (currentLanguage === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
+        reloadBtn.helpTip = (uiLang === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
         reloadBtn.onClick = guardAction(function () { refreshFromDoc(); });
 
         statusText = palette.add("statictext", undefined, "", { truncate: "middle" });
@@ -4027,7 +4187,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         // loadData が出した理由（未オープン／読み込み失敗）を優先し、無い場合だけ件数表示にフォールバック
         if (lastStatusMessage) statusText.text = lastStatusMessage;
         else if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
-        else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+        else setStatus(labelValueText('status.loaded', withUnit(allPlacementEntries.length, 'label.items')));
 
         // 実行前に選択していた PlacedItem があれば対応行を初期選択（カンバスは触らない）
         function applyInitialSelection() {

@@ -138,6 +138,7 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.0.3 (2026-09-22) : Fixed the OK button not sitting flush with the right edge of the dialog
 - v2.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.1.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v2.1.2 (2026-09-28) : The button row is now built with the shared part
 
 ### Script info
 

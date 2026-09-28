@@ -48,3 +48,5 @@
 
 - v1.9.2 (20260528): Current version
 - v1.9.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.9.5 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.9.5 (20260928): The button row is now built with the shared part

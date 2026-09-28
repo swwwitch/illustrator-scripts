@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardLayerOrganizer";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -135,24 +135,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * Illustrator の UI 言語から表示言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
-    function detectUILanguage() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLanguage = detectUILanguage();
+    var uiLang = getCurrentLang();
 
-    /* ラベル内の {slash} などを言語別に置き換えるための記号表 / Symbol table for {slash}-style placeholders */
-    var LOCALIZED_SYMBOLS = {
-        slash:      { ja: "／", en: "/" },
-        colon:      { ja: "：", en: ":" },
-        comma:      { ja: "、", en: ", " },
-        openParen:  { ja: "（", en: "(" },
-        closeParen: { ja: "）", en: ")" }
-    };
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         dialog: {
@@ -176,11 +254,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
             excludeLayer: { ja: "レイヤー", en: "Layers" },
             excludeObject: { ja: "オブジェクト", en: "Objects" },
             excludeGuide: { ja: "ガイド", en: "Guides" },
-            removeEmpty: { ja: "空のレイヤー{slash}サブレイヤーを削除", en: "Remove empty layers{slash}sub-layers" }
+            removeEmpty: { ja: "空のレイヤー／サブレイヤーを削除", en: "Remove empty layers/sub-layers" }
         },
         dropdown: {
-            separatorUnderscore: { ja: "アンダースコア{openParen}_{closeParen}", en: "Underscore (_)" },
-            separatorHyphen: { ja: "ハイフン{openParen}-{closeParen}", en: "Hyphen (-)" },
+            separatorUnderscore: { ja: "アンダースコア（_）", en: "Underscore (_)" },
+            separatorHyphen: { ja: "ハイフン（-）", en: "Hyphen (-)" },
             separatorSpace: { ja: "半角スペース", en: "Space" },
             separatorNone: { ja: "なし", en: "None" }
         },
@@ -207,8 +285,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
                 en: "Character inserted between the artboard number and the artboard name; \"None\" joins them directly"
             },
             exclusionPanel: {
-                ja: "ガイドは「レイヤー名で指定」に関係なく _guide レイヤーに集めます（対象外にしたロック中{slash}非表示のレイヤー内にあるものは除く）",
-                en: "Guides go to the _guide layer even inside layers listed in \"Layer names\" (except those inside excluded locked{slash}hidden layers)"
+                ja: "ガイドは「レイヤー名で指定」に関係なく _guide レイヤーに集めます（対象外にしたロック中／非表示のレイヤー内にあるものは除く）",
+                en: "Guides go to the _guide layer even inside layers listed in \"Layer names\" (except those inside excluded locked/hidden layers)"
             },
             lockedExclusion: {
                 ja: "チェックしたものはロック中なら整理対象から除外します。外したものはロックを一時解除して移動し、処理後にロックし直します",
@@ -223,8 +301,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
                 en: "Names of layers to exclude, separated by commas. Sub-layers match by name too (e.g. bg, temp)"
             },
             removeEmpty: {
-                ja: "整理後に空になったレイヤー{slash}サブレイヤーを削除します（_guide と _pasteboard は削除しません）",
-                en: "Removes layers{slash}sub-layers left empty after organizing (_guide and _pasteboard are kept)"
+                ja: "整理後に空になったレイヤー／サブレイヤーを削除します（_guide と _pasteboard は削除しません）",
+                en: "Removes layers/sub-layers left empty after organizing (_guide and _pasteboard are kept)"
             }
         },
         button: {
@@ -242,57 +320,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
             }
         }
     };
-
-    /**
-     * 言語別の記号を返す（日本語＝全角、英語＝半角）
-     * @param {string} symbolName - 記号名（slash / colon / comma / openParen / closeParen）
-     * @returns {string} 表示言語に合わせた記号。未定義の記号名なら空文字
-     */
-    function getLocalizedSymbol(symbolName) {
-        var symbolVariants = LOCALIZED_SYMBOLS[symbolName];
-        if (!symbolVariants) return "";
-        return symbolVariants[uiLanguage] || symbolVariants.en;
-    }
-
-    /**
-     * {slash} などのプレースホルダを言語別の記号に展開する
-     * 記号表に無いプレースホルダ（{count} など）はそのまま残す
-     * @param {string} labelText - 展開前のテキスト
-     * @returns {string} 展開後のテキスト
-     */
-    function expandSymbolPlaceholders(labelText) {
-        return labelText.replace(/\{(\w+)\}/g, function (matchedText, symbolName) {
-            var symbolText = getLocalizedSymbol(symbolName);
-            return (symbolText === "") ? matchedText : symbolText;
-        });
-    }
-
-    /**
-     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
-     * @param {string} labelPath - "panel.layerName" のようなドット区切りのキー
-     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
-     */
-    function getLabel(labelPath) {
-        var labelPathKeys = labelPath.split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < labelPathKeys.length; i++) {
-            labelNode = labelNode[labelPathKeys[i]];
-            if (labelNode === undefined || labelNode === null) return labelPath;
-        }
-        var labelText = labelNode[uiLanguage];
-        if (typeof labelText !== "string") labelText = labelNode.en;
-        if (typeof labelText !== "string") return labelPath;
-        return expandSymbolPlaceholders(labelText);
-    }
-
-    /**
-     * 項目名に言語別のコロンを付けて返す（日本語は全角、英語は半角）
-     * @param {string} labelPath - LABELS のドット区切りのキー
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelPath) {
-        return getLabel(labelPath) + getLocalizedSymbol("colon");
-    }
 
     // =========================================
     // 前提チェック / Preconditions
@@ -461,6 +488,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -479,7 +566,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         var layerNameControls = buildLayerNamePanel(optionsDialog);
         var exclusionControls = buildExclusionPanel(optionsDialog);
         var postProcessControls = buildPostProcessPanel(optionsDialog);
-        buildDialogButtonRow(optionsDialog);
+
+        var buttonRow = addButtonRow(optionsDialog, { centered: true });
+        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        optionsDialog.defaultElement = btnOK;
+        optionsDialog.cancelElement = btnCancel;
 
         prepareDialogWindow(optionsDialog, SCRIPT_NAME);
         if (optionsDialog.show() !== 1) {
@@ -685,19 +777,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         removeEmptyLayersCheckbox.value = DEFAULT_OPTIONS.removeEmptyLayers;
         removeEmptyLayersCheckbox.helpTip = getLabel("tooltip.removeEmpty");
         return { removeEmptyLayersCheckbox: removeEmptyLayersCheckbox };
-    }
-
-    /**
-     * OK / キャンセルのボタン列を構築する
-     * @param {Window} optionsDialog - 対象ダイアログ
-     * @returns {void}
-     */
-    function buildDialogButtonRow(optionsDialog) {
-        var dialogButtonRow = addRowGroup(optionsDialog, "center");
-        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        optionsDialog.defaultElement = okButton;
-        optionsDialog.cancelElement = cancelButton;
     }
 
     // =========================================

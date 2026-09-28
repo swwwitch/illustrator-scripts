@@ -48,6 +48,8 @@
 
 ### Update History
 
+- v3.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v3.1.2 (20260928): The button row is now built with the shared part
 - v3.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v3.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v3.0.2 (20260927): Added tooltips to the English UI. Unit conversion now covers every ruler unit. Values are no longer re-rounded while typing, and the script works when the first selected item is not a clip group

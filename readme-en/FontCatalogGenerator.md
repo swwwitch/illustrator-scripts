@@ -30,6 +30,7 @@ Lists the fonts installed on the system and generates a specimen sheet for them 
 
 ### Update History
 
+- v1.7.2 (2026-09-28) : English field labels now end in ":" without a trailing space. The button row is now built with the shared part
 - v1.7.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6 (2026-01-27)

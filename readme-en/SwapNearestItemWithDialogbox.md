@@ -35,4 +35,4 @@
 - v1.0.2 (20250613): Refactored with getCenter() and getSize()
 - v1.0.3 (20250614): Added temporary group handling for multiple selection
 - v1.0.4 (20250615): Removed temporary grouping, cleaned up logic
-- v1.0.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.5 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

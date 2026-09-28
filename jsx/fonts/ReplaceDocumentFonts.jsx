@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceDoc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceDocumentFonts";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -61,13 +61,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     var WINDOW_SPACING        = 10;   /* ウィンドウ内の要素間隔 / window spacing */
     var COLUMN_SPACING        = 10;   /* 2カラムの間隔 / spacing between the two lists */
     var LIST_LABEL_SPACING    = 6;    /* 見出しとリストの間隔 / spacing between a label and its list */
-    var BUTTON_SPACING        = 10;   /* ボタンの間隔 / spacing between buttons */
-    var BUTTON_ROW_TOP_MARGIN = 10;   /* ボタン行の上余白 / top margin of the button row */
     var LISTBOX_HEIGHT        = 300;  /* リストの高さ / list height */
     var LISTBOX_WIDTH_MIN     = 200;  /* リスト幅の下限 / minimum list width */
     var LISTBOX_WIDTH_MAX     = 600;  /* リスト幅の上限 / maximum list width */
     var LISTBOX_CHAR_WIDTH    = 9;    /* 1文字あたりの概算幅 / approximate width per character */
     var LISTBOX_WIDTH_PADDING = 60;   /* リスト幅の余裕 / extra width added to the list */
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -227,15 +285,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * UI言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
 
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         dialog: {
@@ -297,39 +442,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
                 en: "Please select either a target font or source fonts.\n(Alternatively, select only the source fonts to replace all.)"
             },
             targetNotFound: {
-                ja: "置換先フォントが見つかりません（%s）。",
-                en: "Target font not found (%s)."
+                ja: "置換先フォントが見つかりません（%1）。",
+                en: "Target font not found (%1)."
             }
         }
     };
-
-    /**
-     * ラベル（ja/en）を現在の UI 言語の文字列にする
-     * @param {object} labelSet - ja/en を持つラベル
-     * @returns {string} 現在の言語の文字列
-     */
-    function getLabel(labelSet) {
-        return (labelSet && labelSet[uiLang]) || "";
-    }
-
-    /**
-     * 項目名にコロンを付ける（日本語は全角、英語は半角）
-     * @param {object} labelSet - ja/en を持つラベル
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
-    }
-
-    /**
-     * ラベル内の %s を差し替える
-     * @param {object} labelSet - ja/en を持つラベル
-     * @param {string} value - 差し込む文字列
-     * @returns {string} 差し替え後の文字列
-     */
-    function formatLabel(labelSet, value) {
-        return getLabel(labelSet).replace("%s", value);
-    }
 
     /**
      * 件数を括弧で囲む（日本語は全角括弧、英語は半角括弧）
@@ -550,7 +667,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         if (fontName === "") return null;
 
         var targetFont = findFontByName(fontName);
-        if (!targetFont) alert(formatLabel(LABELS.alert.targetNotFound, fontName));
+        if (!targetFont) alert(getLabel(LABELS.alert.targetNotFound, [fontName]));
         return targetFont;
     }
 
@@ -703,7 +820,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
 
         var fallbackFont = findFontByName(sourceFontNames[0]);
         if (!fallbackFont) {
-            alert(formatLabel(LABELS.alert.targetNotFound, sourceFontNames[0]));
+            alert(getLabel(LABELS.alert.targetNotFound, [sourceFontNames[0]]));
             return;
         }
         replaceFonts(collectAllFontNames(sourceFontNames[0]), fallbackFont);
@@ -762,25 +879,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         postScriptNameCheckbox.value = SHOW_POSTSCRIPT_NAME_DEFAULT;
         postScriptNameCheckbox.helpTip = getLabel(LABELS.tooltip.postScriptName);
 
-        /* ボタンエリア（閉じるは左、置換系は右）/ Button row: Close on the left, replace buttons on the right */
-        var btnRowGroup = mainDialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        btnLeftGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
-
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.spacing = BUTTON_SPACING;
-        var btnReplaceAll = btnRightGroup.add("button", undefined, getLabel(LABELS.button.replaceAll));
-        var btnReplace = btnRightGroup.add("button", undefined, getLabel(LABELS.button.replace), { name: "ok" });
+        /* ボタンエリア（右側に閉じる→置換系）/ Button row: Close, then replace buttons, on the right */
+        var buttonRow = addButtonRow(mainDialog);
+        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
+        var btnReplaceAll = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replaceAll));
+        var btnReplace = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replace), { name: "ok" });
         btnReplaceAll.helpTip = getLabel(LABELS.tooltip.replaceAll);
         btnReplace.helpTip = getLabel(LABELS.tooltip.replace);
 

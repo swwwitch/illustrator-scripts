@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartArtbo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartArtboardRenamer";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -116,14 +116,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * 現在のUI言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
-    function getUILanguage() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = getUILanguage();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -176,20 +264,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
             }
         }
     };
-
-    /**
-     * ラベルを現在のUI言語で取得する
-     * @param {...string} labelPath - たどるキー（例: getLabel("dialog", "title")）
-     * @returns {string} ローカライズ済みラベル
-     */
-    function getLabel() {
-        var node = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
-            if (node == null) break;
-            node = node[arguments[i]];
-        }
-        return (node && node[uiLang] != null) ? node[uiLang] : "";
-    }
 
     // =========================================
     // ユーティリティ / Utilities
@@ -751,7 +825,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
     function executeRename(doc, renameSettings, renameOptions) {
         var alertKey = validateRenameSettings(doc, renameSettings);
         if (alertKey) {
-            if (!renameOptions || !renameOptions.silent) alert(getLabel("alert", alertKey));
+            if (!renameOptions || !renameOptions.silent) alert(getLabel("alert." + alertKey));
             return false;
         }
 
@@ -848,7 +922,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
     function applyRenameAndReorder(doc, renameSettings, renameOptions) {
         var alertKey = validateRenameSettings(doc, renameSettings);
         if (alertKey) {
-            if (!renameOptions || !renameOptions.silent) alert(getLabel("alert", alertKey));
+            if (!renameOptions || !renameOptions.silent) alert(getLabel("alert." + alertKey));
             return false;
         }
 
@@ -933,10 +1007,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
 
         var moveButtonsRow = hostPanel.add("group");
         setupRow(moveButtonsRow, "center", 4);
-        var moveToTopButton = moveButtonsRow.add("button", undefined, getLabel("button", "moveToTop"));
-        var moveUpButton = moveButtonsRow.add("button", undefined, getLabel("button", "moveUp"));
-        var moveDownButton = moveButtonsRow.add("button", undefined, getLabel("button", "moveDown"));
-        var moveToBottomButton = moveButtonsRow.add("button", undefined, getLabel("button", "moveToBottom"));
+        var moveToTopButton = moveButtonsRow.add("button", undefined, getLabel("button.moveToTop"));
+        var moveUpButton = moveButtonsRow.add("button", undefined, getLabel("button.moveUp"));
+        var moveDownButton = moveButtonsRow.add("button", undefined, getLabel("button.moveDown"));
+        var moveToBottomButton = moveButtonsRow.add("button", undefined, getLabel("button.moveToBottom"));
         moveToTopButton.preferredSize = [MOVE_BUTTON_WIDTH + 4, MOVE_BUTTON_HEIGHT];
         moveUpButton.preferredSize = [MOVE_BUTTON_WIDTH, MOVE_BUTTON_HEIGHT];
         moveDownButton.preferredSize = [MOVE_BUTTON_WIDTH, MOVE_BUTTON_HEIGHT];
@@ -1069,11 +1143,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
             setupRow(headerRow, "left", ROW_SPACING);
             var headerWidths = [ORDER_COLUMN_WIDTH, TARGET_COLUMN_WIDTH, CURRENT_NAME_WIDTH, ARROW_COLUMN_WIDTH, NEW_NAME_WIDTH];
             var headerTexts = [
-                getLabel("columnHeader", "order"),
-                getLabel("columnHeader", "selection"),
-                getLabel("columnHeader", "currentName"),
+                getLabel("columnHeader.order"),
+                getLabel("columnHeader.selection"),
+                getLabel("columnHeader.currentName"),
                 "→",
-                getLabel("columnHeader", "newName")
+                getLabel("columnHeader.newName")
             ];
             for (var i = 0; i < headerTexts.length; i++) {
                 headerRow.add("statictext", undefined, headerTexts[i]).preferredSize.width = headerWidths[i];
@@ -1494,24 +1568,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
      * @returns {object} 生成したラジオボタンと入力欄
      */
     function addTextSourcePanel(parentPanel, doc) {
-        var textSourcePanel = parentPanel.add("panel", undefined, getLabel("panel", "textSource"));
+        var textSourcePanel = parentPanel.add("panel", undefined, getLabel("panel.textSource"));
         setupPanel(textSourcePanel, ROW_SPACING);
 
-        var originalNameRadio = textSourcePanel.add("radiobutton", undefined, getLabel("radio", "originalName"));
+        var originalNameRadio = textSourcePanel.add("radiobutton", undefined, getLabel("radio.originalName"));
 
         var customTextRow = textSourcePanel.add("group");
         setupRow(customTextRow, "left", ROW_SPACING);
-        var customTextRadio = customTextRow.add("radiobutton", undefined, getLabel("radio", "customText"));
+        var customTextRadio = customTextRow.add("radiobutton", undefined, getLabel("radio.customText"));
         var customTextInput = customTextRow.add("edittext", undefined, "");
         customTextInput.characters = 12;
         customTextInput.enabled = false;
 
-        var frontmostRadio = textSourcePanel.add("radiobutton", undefined, getLabel("radio", "frontmost"));
+        var frontmostRadio = textSourcePanel.add("radiobutton", undefined, getLabel("radio.frontmost"));
 
         /* 「レイヤー」ラジオとレイヤードロップダウンを横並びに / Keep the layer radio and dropdown on one row */
         var layerSelectRow = textSourcePanel.add("group");
         setupRow(layerSelectRow, "left", ROW_SPACING);
-        var layerRadio = layerSelectRow.add("radiobutton", undefined, getLabel("radio", "layer"));
+        var layerRadio = layerSelectRow.add("radiobutton", undefined, getLabel("radio.layer"));
         var layerDropdown = layerSelectRow.add("dropdownlist", undefined, []);
         layerDropdown.minimumSize.width = 100;
         for (var i = 0; i < doc.layers.length; i++) {
@@ -1542,13 +1616,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
      * @returns {object} 生成したラジオボタンと入力欄
      */
     function addTargetArtboardPanel(parentGroup) {
-        var targetPanel = parentGroup.add("panel", undefined, getLabel("panel", "targetBoards"));
+        var targetPanel = parentGroup.add("panel", undefined, getLabel("panel.targetBoards"));
         setupPanel(targetPanel, ROW_SPACING);
 
         var targetRow = targetPanel.add("group");
         setupRow(targetRow, "left", ROW_SPACING);
-        var allArtboardsRadio = targetRow.add("radiobutton", undefined, getLabel("radio", "allBoards"));
-        var rangeArtboardsRadio = targetRow.add("radiobutton", undefined, getLabel("radio", "rangeBoards"));
+        var allArtboardsRadio = targetRow.add("radiobutton", undefined, getLabel("radio.allBoards"));
+        var rangeArtboardsRadio = targetRow.add("radiobutton", undefined, getLabel("radio.rangeBoards"));
         var rangeInput = targetRow.add("edittext", undefined, "");
         rangeInput.characters = 10;
         rangeInput.enabled = false;
@@ -1562,30 +1636,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
         };
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
     /**
-     * ダイアログ下部のボタン行を構築する
-     * @param {Window} renameDialog - 対象ダイアログ
-     * @returns {object} 更新・キャンセル・OK ボタン
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
      */
-    function addDialogButtonRow(renameDialog) {
-        var buttonRow = renameDialog.add("group");
-        setupRow(buttonRow, "fill", ROW_SPACING);
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
 
-        var refreshButton = buttonRow.add("button", undefined, getLabel("button", "refresh"));
-        refreshButton.alignment = ["left", "center"];
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
 
-        var buttonSpacer = buttonRow.add("group");
-        buttonSpacer.alignment = ["fill", "fill"];
-        buttonSpacer.minimumSize.width = 0;
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var cancelButton = buttonRow.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
-        cancelButton.alignment = ["right", "center"];
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
 
-        var okButton = buttonRow.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
-        okButton.alignment = ["right", "center"];
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        return { refreshButton: refreshButton, cancelButton: cancelButton, okButton: okButton };
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * リネームダイアログのUIを構築する
@@ -1593,7 +1702,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
      * @returns {object} ダイアログとコントロール群
      */
     function createRenameDialog(doc) {
-        var renameDialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        var renameDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(renameDialog);
 
         /* コンテンツ行（左：リネーム条件、右：対象アートボード＋並び替え／リネーム） / Content row: conditions on the left, targets and reorder list on the right */
@@ -1606,13 +1715,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
         conditionColumn.alignChildren = "fill";
         conditionColumn.spacing = COLUMN_SPACING;
 
-        var renamePanel = conditionColumn.add("panel", undefined, getLabel("panel", "rename"));
+        var renamePanel = conditionColumn.add("panel", undefined, getLabel("panel.rename"));
         setupPanel(renamePanel, ROW_SPACING);
 
-        var prefixInput = addAffixPanel(renamePanel, getLabel("panel", "prefix"), 14);
+        var prefixInput = addAffixPanel(renamePanel, getLabel("panel.prefix"), 14);
         prefixInput.active = true;
         var textSourceControls = addTextSourcePanel(renamePanel, doc);
-        var suffixInput = addAffixPanel(renamePanel, getLabel("panel", "suffix"), 16);
+        var suffixInput = addAffixPanel(renamePanel, getLabel("panel.suffix"), 16);
 
         var targetColumn = contentRow.add("group");
         targetColumn.orientation = "column";
@@ -1621,7 +1730,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
 
         var targetControls = addTargetArtboardPanel(targetColumn);
 
-        var reorderPanel = targetColumn.add("panel", undefined, getLabel("panel", "reorder"));
+        var reorderPanel = targetColumn.add("panel", undefined, getLabel("panel.reorder"));
         setupPanel(reorderPanel, ROW_SPACING);
 
         /* bindDialogEvents から注入されるプレビュー更新コールバック / Preview updater injected by bindDialogEvents */
@@ -1656,16 +1765,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
             onLayoutChange: function () { renameDialog.layout.layout(true); }
         });
 
-        var dialogButtons = addDialogButtonRow(renameDialog);
+        var buttonRow = addButtonRow(renameDialog);
+        var btnRefresh = buttonRow.leftGroup.add("button", undefined, getLabel("button.refresh"));
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-        dialogButtons.okButton.onClick = function () {
+        btnOK.onClick = function () {
             reorderList.syncEditingValues();
             var artboardEntries = reorderList.getEntries();
             for (var i = 0; i < artboardEntries.length; i++) {
                 if (artboardEntries[i].checked && artboardEntries[i].newName === "") {
                     /* 該当行が見えるところまでスクロールしてから知らせる / Scroll to the offending row before alerting */
                     reorderList.revealEntry(i);
-                    alert(getLabel("alert", "emptyName").replace("{n}", (i + 1)));
+                    alert(getLabel("alert.emptyName").replace("{n}", (i + 1)));
                     return;
                 }
             }
@@ -1688,7 +1800,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
             allArtboardsRadio: targetControls.allArtboardsRadio,
             rangeArtboardsRadio: targetControls.rangeArtboardsRadio,
             rangeInput: targetControls.rangeInput,
-            refreshButton: dialogButtons.refreshButton,
+            refreshButton: btnRefresh,
             reorderList: reorderList,
             setRequestPreviewUpdate: function (previewUpdater) { requestPreviewUpdate = previewUpdater; }
         };

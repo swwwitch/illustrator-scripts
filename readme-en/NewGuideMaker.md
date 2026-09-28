@@ -38,4 +38,5 @@
 - v1.2.2 (20260817): Restore the "_guide" layer on cancel (remove the empty layer this run created, put back an existing layer's lock state), warn only once when the active layer is locked, cap the repeat count at 1000, and handle H/V in the capture phase so the letter never lands in a numeric field. Also trimmed the header to an overview + README pointer, added README links and the article URL to the basic-info block, split user settings from layout constants, extracted colors / stroke widths / the layer name into constants, added JSDoc to every function, aligned names with the naming rules (`L()` → `getLabel()` and friends), split the preview and dialog-building code into smaller functions, and merged the duplicated target-switch and H/V handlers
 - v1.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.2 (20260928): The button row is now built with the shared part
 

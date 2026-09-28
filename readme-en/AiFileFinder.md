@@ -186,6 +186,7 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.0.4 (2026-09-28): The button row is now built with the shared part
 - v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-18): Multi-select in the file list, so the selected files open together
 - v1.0.1 (2026-08-28): Keep unmounted search folders in the settings; skip saving the index when a folder could not be read; fix the keyword button wrapping width, the year list against the exclusions, and the period filter for files with no modified date

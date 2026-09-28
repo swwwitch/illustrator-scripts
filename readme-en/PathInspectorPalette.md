@@ -32,10 +32,11 @@
 
 ### Script info
 
-- Version: v1.0.2
+- Version: v1.0.3
 - First release: 20260731
-- Last updated: 2026-09-26
+- Last updated: 2026-09-28
 
 ### Update History
 
+- v1.0.3 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
 - v1.0.2 (2026-09-26) Renamed the file from `PathInspector.jsx` to `PathInspectorPalette.jsx`.

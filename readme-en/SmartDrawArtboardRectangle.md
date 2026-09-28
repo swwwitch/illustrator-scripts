@@ -95,6 +95,7 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Update History
 
+- v1.6.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.6.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.6.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.5 (2026-09-03) Reliable preview-layer cleanup; guide mode renames items to `<Guide>` and clears the selection; the HEX field accepts color names, shorthand hex and grayNN; the center widget is applied only when converting to a live shape. Alongside an internal cleanup (naming, structure, function splits), fixed the preview staying faint after switching to None or entering an invalid HEX value, and the mismatch between the shown offset and the drawn offset when Bleed was used with a unit other than mm, Q/H or pt

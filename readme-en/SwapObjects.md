@@ -48,3 +48,4 @@ https://note.com/dtp_tranist/n/na534a676fae2
 - v1.2.1 (20260406): Public release
 - v1.3.0 (20260721): Fixed "Swap Keeping Outer Edges" doing nothing, refactored the whole script (IIFE, shared layout helpers, categorized labels), added tooltips and a no-document check
 - v1.3.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.3 (20260928): The button row is now built with the shared part

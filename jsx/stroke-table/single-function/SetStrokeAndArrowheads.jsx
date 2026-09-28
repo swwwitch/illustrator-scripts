@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetStrokeA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SetStrokeAndArrowheads";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -45,7 +45,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 一時アクション / Temporary action */
     var ACTION_SET_NAME  = "SwwwitchTempStrokeSet";
     var ACTION_NAME      = "SwwwitchTempStroke";
-    var ACTION_FILE_NAME = File(Folder.temp).fsName + "/swwwitch_temp_stroke.aia";
 
     /* 既定値 / Defaults */
     var DEFAULT_STROKE_WIDTH = 5;            /* 線幅の初期値 / initial stroke width */
@@ -233,11 +232,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -274,22 +302,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -401,8 +414,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -661,15 +674,166 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 実行環境の言語を判定 / Detect the runtime language */
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         dialog: {
@@ -683,9 +847,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tipAlign: { ja: "先端位置", en: "Tip Alignment" }
         },
         field: {
-            strokeWidth: { ja: "線幅：", en: "Weight:" },
-            shape: { ja: "形状：", en: "Shape:" },
-            scale: { ja: "倍率：", en: "Scale:" },
+            strokeWidth: { ja: "線幅", en: "Weight" },
+            shape: { ja: "形状", en: "Shape" },
+            scale: { ja: "倍率", en: "Scale" },
             unitPt: { ja: "pt", en: "pt" },
             unitPercent: { ja: "%", en: "%" }
         },
@@ -751,24 +915,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "線幅には 0 以上の数値を入力してください。",
                 en: "Enter a stroke weight of 0 or greater."
             },
-            actionFailed: {
-                ja: "一時アクションファイルを開けませんでした。",
-                en: "Failed to open the temporary action file."
-            }
+            actionFailed: { ja: "アクションを実行できませんでした。", en: "Could not run the action." }
         }
     };
-
-    /* ドット区切りのキーからローカライズ文字列を取得 / Resolve a dotted key to a localized string */
-    function getLabel(keyPath) {
-        var parts = String(keyPath).split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (!node) return keyPath;
-            node = node[parts[i]];
-        }
-        if (!node) return keyPath;
-        return (node[currentLanguage] !== undefined) ? node[currentLanguage] : node.en;
-    }
 
     // =========================================
     // 単位 / Units
@@ -899,8 +1048,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             previewAction: function (settings) {
                 clearActionPreview();
                 restoreStroke();
-                var source = buildStrokeActionSource(ACTION_SET_NAME, ACTION_NAME, settings);
-                playTemporaryAction(source, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
+                playStrokeAction(settings);
                 isActionPreviewApplied = true;
                 app.redraw();
             },
@@ -998,7 +1146,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var strokeRow = strokePanel.add("group");
         setupRow(strokeRow);
-        strokeRow.add("statictext", undefined, getLabel("field.strokeWidth"));
+        strokeRow.add("statictext", undefined, labelText("field.strokeWidth"));
         var strokeWidthInput = addSteppedInput(strokeRow, String(DEFAULT_STROKE_WIDTH), { min: 0, onStep: notifySteppedInput });
         strokeWidthInput.helpTip = getLabel("tooltip.strokeWidth");
         strokeRow.add("statictext", undefined, getLabel("field.unitPt"));
@@ -1025,7 +1173,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var shapeRow = panel.add("group");
             setupRow(shapeRow);
-            var shapeLabel = shapeRow.add("statictext", undefined, getLabel("field.shape"));
+            var shapeLabel = shapeRow.add("statictext", undefined, labelText("field.shape"));
             shapeLabel.preferredSize.width = LABEL_WIDTH;
             var shapeList = shapeRow.add("dropdownlist", undefined, arrowNames);
             shapeList.helpTip = getLabel("tooltip.shape");
@@ -1034,7 +1182,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var scaleRow = panel.add("group");
             setupRow(scaleRow);
-            var scaleLabel = scaleRow.add("statictext", undefined, getLabel("field.scale"));
+            var scaleLabel = scaleRow.add("statictext", undefined, labelText("field.scale"));
             scaleLabel.preferredSize.width = LABEL_WIDTH;
             /* 0 以下は既定の倍率に戻されるので、下限は 1 / values of 0 or less fall back to the default, so the minimum is 1 */
             var scaleInput = addSteppedInput(scaleRow, String(DEFAULT_ARROW_SCALE), { min: 1, onStep: notifySteppedInput });
@@ -1068,23 +1216,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ボタン（左：プレビュー／中央：スペーサー／右：キャンセル・OK） */
         /* Buttons (left: preview, center: spacer, right: cancel and OK) */
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignChildren = ["fill", "center"];
-
-        var buttonLeft = buttonGroup.add("group");
-        buttonLeft.alignment = ["left", "center"];
-        var previewCheckbox = buttonLeft.add("checkbox", undefined, getLabel("checkbox.preview"));
+        var buttonRow = addButtonRow(dialog);
+        var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
         previewCheckbox.helpTip = getLabel("tooltip.preview");
         previewCheckbox.value = false;
-
-        var buttonCenter = buttonGroup.add("group");
-        buttonCenter.alignment = ["fill", "center"];
-
-        var buttonRight = buttonGroup.add("group");
-        buttonRight.alignment = ["right", "center"];
-        buttonRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        buttonRight.add("button", undefined, "OK", { name: "ok" });
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* 連動時は始点の値を終点にコピー / Mirror start values onto end when linked */
         function applyLink() {
@@ -1289,7 +1426,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* enumerated パラメータを表示名から組み立てる（hex は自動生成）/ Enumerated parameter from a display name */
     function buildEnumParamByName(index, key, name, value) {
-        var hex = stringToUtf8Hex(name);
+        var hex = toActionHex(name);
         return buildEnumParam(index, key, hex, hex.length / 2, value);
     }
 
@@ -1310,7 +1447,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* Unicode 文字列パラメータ / A ustring parameter */
     function buildUStrParam(index, key, value) {
-        var hex = stringToUtf8Hex(value);
+        var hex = toActionHex(value);
         return buildParamBlock(index, key, ''
             + '\t\t\t/type (ustring)\n'
             + '\t\t\t/value [ ' + (hex.length / 2) + ' \n\t\t\t\t' + hex + '\n\t\t\t]\n');
@@ -1320,30 +1457,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* アクションセット名・アクション名の /name 行を作る / Build a /name line */
     function buildNameLine(name) {
-        var hex = stringToUtf8Hex(name);
+        var hex = toActionHex(name);
         return '/name [ ' + (hex.length / 2) + ' \n\t' + hex + '\n]\n';
-    }
-
-    /* UTF-8 バイト列の 16 進表現にする（長さもバイト数で数える）/ Encode a string as UTF-8 hex */
-    function stringToUtf8Hex(sourceText) {
-        var hexText = "";
-        for (var i = 0; i < sourceText.length; i++) {
-            var code = sourceText.charCodeAt(i);
-            var bytes;
-            if (code < 0x80) {
-                bytes = [code];
-            } else if (code < 0x800) {
-                bytes = [0xC0 | (code >> 6), 0x80 | (code & 0x3F)];
-            } else {
-                bytes = [0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F)];
-            }
-            for (var j = 0; j < bytes.length; j++) {
-                var h = bytes[j].toString(16);
-                if (h.length < 2) h = "0" + h;
-                hexText += h;
-            }
-        }
-        return hexText;
     }
 
     /* 5 → "5.0" のように必ず小数点を含む文字列にする / Force a decimal point */
@@ -1357,40 +1472,131 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 一時アクション実行 / Temporary action playback
     // =========================================
 
-    /* アクションを書き出して読み込み、実行後に破棄する / Write, load, play, then discard the action */
-    function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-        var actionFile = new File(actionFilePath);
-        var isActionLoaded = false;
-        var isActionFileOpen = false;
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
+    // 2. アクション定義は配列＋join("\n") で組み立てる（''' は ES3 の構文エラー）。
+    //    セット名・アクション名は英数字にする。/name [ n 16進 ] は buildActionNameLines で作るとバイト数がずれない
+    //      var actionSource = [
+    //          "/version 3"
+    //      ].concat(buildActionNameLines("", "MySet"), [
+    //          "/isOpen 1", "/actionCount 1", "/action-1 {"
+    //      ], buildActionNameLines("\t", "myAction"), [ … ]).join("\n");
+    // 3. 1回だけ実行するとき:
+    //      if (!runTemporaryAction(actionSource, "MySet", "myAction")) alert(getLabel("alert.actionFailed"));
+    //    何度も実行するとき（オブジェクトごとなど）は、読み込み・解除を1回ずつにする:
+    //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
+    //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
+    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-        try { app.unloadAction(setName, ""); } catch (e) {}
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
 
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
         try {
-            actionFile.encoding = "BINARY";
-            if (!actionFile.open("w")) {
-                throw new Error(getLabel("alert.actionFailed"));
-            }
-            isActionFileOpen = true;
-
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
             actionFile.write(actionSource);
             actionFile.close();
-            isActionFileOpen = false;
-
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
             app.loadAction(actionFile);
-            isActionLoaded = true;
-
-            app.doScript(actionName, setName, false);
-
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
         } finally {
-            if (isActionFileOpen) {
-                try { actionFile.close(); } catch (e) {}
-            }
-            if (actionFile.exists) {
-                try { actionFile.remove(); } catch (e) {}
-            }
-            if (isActionLoaded) {
-                try { app.unloadAction(setName, ""); } catch (e) {}
-            }
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /**
+     * ［線］の設定アクションを1回実行する。失敗は従来どおり例外で伝える
+     * @param {object} settings - showSettingsDialog() の戻り値
+     * @returns {void}
+     */
+    function playStrokeAction(settings) {
+        var source = buildStrokeActionSource(ACTION_SET_NAME, ACTION_NAME, settings);
+        if (!runTemporaryAction(source, ACTION_SET_NAME, ACTION_NAME)) {
+            throw new Error(getLabel("alert.actionFailed"));
         }
     }
 
@@ -1413,8 +1619,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var settings = showSettingsDialog();
         if (!settings) return;
 
-        var source = buildStrokeActionSource(ACTION_SET_NAME, ACTION_NAME, settings);
-        playTemporaryAction(source, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
+        playStrokeAction(settings);
     }
 
     main();

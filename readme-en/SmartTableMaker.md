@@ -33,6 +33,7 @@ In the height (%), stroke weight, corner radius and Width fields, the stepper bu
 - v1.2 (20260131): Introduced a PreviewManager based on `app.undo()` so the preview does not pollute the Undo history; on OK the preview is rolled back and the real run happens once, so a single Ctrl+Z reverts it
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.2.2 (20260928): The button row is now built with the shared part
 
 ### Script info
 

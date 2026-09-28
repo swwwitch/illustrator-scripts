@@ -35,3 +35,4 @@ They are stored in `$.global.FontClipboard` inside the persistent "FontClipboard
 
 - v1.3.0 (2026-05-21)
 - v1.3.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.3 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part

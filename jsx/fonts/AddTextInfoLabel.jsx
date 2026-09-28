@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInf
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddTextInfoLabel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -226,14 +226,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * 現在のUI言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -281,21 +369,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         }
     };
 
-    /**
-     * ラベルを取得する（ドット区切りキー）
-     * @param {string} labelPath - "panel.position" のようなドット区切りキー
-     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
-     */
-    function getLabel(labelPath) {
-        var pathKeys = String(labelPath).split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < pathKeys.length; i++) {
-            labelNode = labelNode[pathKeys[i]];
-            if (!labelNode) return labelPath;
-        }
-        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
-    }
-
     // =========================================
     // 表示項目 / Info items
     // =========================================
@@ -316,30 +389,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     ];
 
     // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /* ラベル枠の余白は常に mm で指定する / label frame padding is always given in mm */
+    var POINTS_PER_MM = UNITS[1].pointsPerUnit;
+
+    // =========================================
     // テキスト情報の読み取り / Reading text attributes
     // =========================================
 
     /* 段落の区切り（CR） / Paragraph separator (CR) */
     var PARAGRAPH_BREAK = String.fromCharCode(13);
-
-    /**
-     * 環境設定の文字単位の表示名を返す
-     * @param {string} prefKey - "text/units"（文字サイズ）または "text/asianunits"（行送り）
-     * @returns {string} 単位の表示名（コード5は文字サイズなら Q、行送りなら H）
-     */
-    function getTextUnitLabel(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey);
-        switch (unitCode) {
-            case 0: return "inch";
-            case 1: return "mm";
-            case 2: return "pt";
-            case 3: return "p";
-            case 4: return "cm";
-            case 5: return (prefKey === "text/units") ? "Q" : "H";
-            case 6: return "px";
-            default: return "pt";
-        }
-    }
 
     /**
      * 読み取り関数を呼び、例外が出たら「不明」を返す
@@ -363,9 +459,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
      * @returns {string} フォントサイズ
      */
     function getFontSize(textFrame) {
-        var rawSize = textFrame.textRange.characterAttributes.size;
+        /* size は常に pt なので、文字サイズの単位に換算してから表示する / size is always in pt; convert to the type-size unit */
+        var sizeUnit = getUnitInfo("text/units");
+        var rawSize = textFrame.textRange.characterAttributes.size / sizeUnit.pointsPerUnit;
         var roundedSize = Math.round(rawSize * 10) / 10;
-        return roundedSize + " " + getTextUnitLabel("text/units");
+        return roundedSize + " " + sizeUnit.label;
     }
 
     /**
@@ -392,7 +490,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
      */
     function getLeading(textFrame, displayMode) {
         var textAttributes = textFrame.textRange.characterAttributes;
-        var leadingText = formatUpToTwoDecimals(textAttributes.leading) + " " + getTextUnitLabel("text/asianunits");
+        /* leading は常に pt なので、行送りの単位に換算してから表示する / leading is always in pt; convert to the leading unit */
+        var leadingUnit = getUnitInfo("text/asianunits");
+        var leadingText = formatUpToTwoDecimals(textAttributes.leading / leadingUnit.pointsPerUnit) + " " + leadingUnit.label;
 
         if (textAttributes.autoLeading && displayMode !== "compact") {
             return "自動（" + leadingText + "）";
@@ -562,10 +662,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
      * @returns {TextFrame} 作ったラベル
      */
     function createDetailedInfoFrame(doc, textContent, sourceBounds, position) {
-        var mmToPt = 72 / 25.4;
         var lineCount = textContent.split(PARAGRAPH_BREAK).length;
         var lineHeight = LABEL_FONT_SIZE * 1.4;
-        var frameHeight = lineHeight * (lineCount + 2) + 4 * mmToPt;
+        var frameHeight = lineHeight * (lineCount + 2) + 4 * POINTS_PER_MM;
         var frameWidth = 300;
 
         var frameLeft = (position === "right") ? sourceBounds[2] + 10 : sourceBounds[0];
@@ -574,7 +673,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         var framePath = doc.pathItems.rectangle(frameTop, frameLeft, frameWidth, frameHeight);
         var infoFrame = doc.textFrames.areaText(framePath);
         infoFrame.contents = textContent;
-        infoFrame.spacing = 2 * mmToPt;
+        infoFrame.spacing = 2 * POINTS_PER_MM;
 
         /* タブストップ（右揃え、位置400pt、リーダー…） / Right tab stop at 400pt with a "…" leader */
         var tabStop = new TabStopInfo();
@@ -642,6 +741,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         newLayer.name = layerName;
         return newLayer;
     }
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ダイアログ / Dialog
@@ -759,10 +918,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         modeRadios.modeCompact.onClick = updateInfoPanelEnabled;
         updateInfoPanelEnabled();
 
-        var btnRowGroup = optionDialog.add("group");
-        btnRowGroup.alignment = "right";
-        btnRowGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-        btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+        var buttonRow = addButtonRow(optionDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, "キャンセル", { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
 
         prepareDialogWindow(optionDialog, SCRIPT_NAME);
         if (optionDialog.show() !== 1) return null;

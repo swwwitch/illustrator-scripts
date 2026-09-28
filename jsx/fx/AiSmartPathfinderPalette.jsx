@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPat
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartPathfinderPalette";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinderPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinderPalette.md"; /* README (English) */
@@ -49,15 +49,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6909b836221a"; /* 紹�
  * ローカライズ / Localization
  * ============================================================ */
 
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// ローカライズ（再利用パーツ） / Localization (reusable)
+//
+// 【移植手順 / How to port】
+// 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+//    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+// 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+//    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+// 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+//      getLabel("dialog.title")        … パス
+//      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+//      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+//      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+//      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+//      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+// 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
 /**
- * 現在の UI 言語を返す。
- * @returns {string} "ja" または "en" / "ja" or "en"
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+ * @returns {string} "ja" または "en"
  */
-function getCurrentLanguage() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+function getCurrentLang() {
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLanguage = getCurrentLanguage();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 var LABELS = {
     dialog: {
@@ -165,24 +252,6 @@ var LABELS = {
     }
 };
 
-/**
- * ドットパスでローカライズ文字列を引く。存在しないキーは null 耐性でパス文字列を返す。
- * @param {string} dotPath 例 "mode.unite" / e.g. "mode.unite"
- * @returns {string} ローカライズ済み文字列 / localized string
- */
-function getLabel(dotPath) {
-    var parts = String(dotPath).split(".");
-    var labelNode = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        if (labelNode == null) return dotPath;
-        labelNode = labelNode[parts[i]];
-    }
-    if (labelNode == null) return dotPath;
-    if (typeof labelNode[currentLanguage] === "string") return labelNode[currentLanguage];
-    if (typeof labelNode.en === "string") return labelNode.en;
-    return dotPath;
-}
-
 /* ============================================================
  * 基本設定 / Settings
  * ============================================================ */
@@ -239,6 +308,131 @@ var PATHFINDER_MODES = [
     { command: 6, icon: "outline",   labelKey: "pathfinder.outline",   unpainted: true },
     { command: 4, icon: "minusBack", labelKey: "pathfinder.minusBack", unpainted: false }
 ];
+
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
+//
+// 【移植手順 / How to port】
+// 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
+//    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
+//    workerLoadTemporaryActionSet / workerRunTemporaryAction。一覧は TEMPORARY_ACTION_WORKER_FUNCS
+//    パレット側だけで使うのは buildTemporaryActionWorkerArg / buildTemporaryActionWorkerCall
+// 2. 送る関数の一覧に連結する（var の代入順に注意。このパーツより後ろで連結する）
+//      var WORKER_FUNCS = [workerA, workerB].concat(TEMPORARY_ACTION_WORKER_FUNCS);
+//      （push 方式なら WORKER_FUNCS.push.apply(WORKER_FUNCS, TEMPORARY_ACTION_WORKER_FUNCS);）
+// 3. ワーカー内で使う（アクション定義もワーカー内で組むとき）:
+//      function workerDoSomething() {
+//          var src = ["/version 3"].concat(workerBuildActionNameLines("", "MySet"), [ … ]).join(String.fromCharCode(10));
+//          return workerRunTemporaryAction(src, "MySet", "myAction") ? "OK" : "ERR:action";
+//      }
+//    パレット側で組んで送るとき（定義に \n \t や日本語があっても壊れない）:
+//      delegate(buildTemporaryActionWorkerCall(actionSource, "MySet", "myAction") + ' ? "OK" : "ERR:action"');
+//    何度も実行するとき: workerLoadTemporaryActionSet → try { app.doScript(…) } finally { workerUnloadTemporaryActionSet }
+// 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。戻り値はマーカー文字列にして返すこと
+//    （BridgeTalk の戻り値は文字列。true/false は "true"/"false" で届く）
+// 5. ワーカー関数を書き換えるときの決まり（toString() で送るため）:
+//    JSDoc・コメントを本体にも直前直後にも置かない（直後のコメントは取り込まれ、改行が落ちると後ろを潰す）。
+//    各文はセミコロンで終える。ASCII のみ（日本語は化ける）。文字列に \ を書かない（タブは String.fromCharCode(9)）。
+//    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
+//    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+/**
+ * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
+ * @param {string} sourceText - 送る文字列
+ * @returns {string} decodeURIComponent("…") の形の式
+ */
+function buildTemporaryActionWorkerArg(sourceText) {
+    return 'decodeURIComponent("' + encodeURIComponent(String(sourceText)) + '")';
+}
+
+/**
+ * workerRunTemporaryAction の呼び出し式を組み立てる（パレット側で使う。評価結果は true / false）
+ * @param {string} actionSource - アクション定義のテキスト
+ * @param {string} setName - アクションセット名
+ * @param {string} actionName - 実行するアクション名
+ * @returns {string} メインエンジンで評価する呼び出し式
+ */
+function buildTemporaryActionWorkerCall(actionSource, setName, actionName) {
+    return "workerRunTemporaryAction("
+        + buildTemporaryActionWorkerArg(actionSource) + ", "
+        + buildTemporaryActionWorkerArg(setName) + ", "
+        + buildTemporaryActionWorkerArg(actionName) + ")";
+}
+
+/* 送るワーカー関数の一覧（関数宣言は巻き上がるのでここで参照できる） / Worker functions to send (declarations are hoisted) */
+var TEMPORARY_ACTION_WORKER_FUNCS = [
+    workerToActionHex,
+    workerBuildActionNameLines,
+    workerUnloadTemporaryActionSet,
+    workerLoadTemporaryActionSet,
+    workerRunTemporaryAction
+];
+
+function workerToActionHex(sourceText) {
+    var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+    var hexText = "";
+    for (var i = 0; i < utf8Text.length; i++) {
+        var hexByte = utf8Text.charCodeAt(i).toString(16);
+        hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+    }
+    return hexText;
+}
+
+function workerBuildActionNameLines(indent, nameText, fieldName) {
+    var nameHex = workerToActionHex(nameText);
+    return [
+        indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+        indent + String.fromCharCode(9) + nameHex,
+        indent + "]"
+    ];
+}
+
+function workerUnloadTemporaryActionSet(setName) {
+    try {
+        app.unloadAction(setName, "");
+    } catch (e) {
+    }
+}
+
+function workerLoadTemporaryActionSet(actionSource, setName) {
+    var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+    try {
+        actionFile.encoding = "UTF-8";
+        if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+        actionFile.write(actionSource);
+        actionFile.close();
+        workerUnloadTemporaryActionSet(setName);
+        app.loadAction(actionFile);
+        return true;
+    } catch (e) {
+        $.writeln("workerLoadTemporaryActionSet: " + e);
+        return false;
+    } finally {
+        try { actionFile.close(); } catch (closeError) { }
+        try { actionFile.remove(); } catch (removeError) { }
+    }
+}
+
+function workerRunTemporaryAction(actionSource, setName, actionName) {
+    if (!workerLoadTemporaryActionSet(actionSource, setName)) return false;
+    try {
+        app.doScript(actionName, setName);
+        return true;
+    } catch (e) {
+        $.writeln("workerRunTemporaryAction: " + e);
+        return false;
+    } finally {
+        workerUnloadTemporaryActionSet(setName);
+    }
+}
+
+/* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
+var TEMPORARY_ACTION_WORKER_END = true;
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+// 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 /* ============================================================
  * worker 関数（メインエンジンで実行）/ Worker functions (run in main engine)
@@ -303,12 +497,11 @@ function workerApplyCompoundShape(shapeModeValue, shapeModeName) {
         shapeModeKey: 1851878757,
         shapeModeName: shapeModeName,
         shapeModeValue: shapeModeValue,
-        expandKey: 1836016741,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        expandKey: 1836016741
     };
     try {
         var actionSource = buildActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { return "ERR:Temporary action failed."; }
         app.redraw();
         return "OK";
     } catch (applyError) {
@@ -441,84 +634,14 @@ function buildActionSource(actionConfig) {
 }
 
 /**
- * `/name [ <byteCount> <utf8Hex> ]` 形式の1行を生成する。
+ * `/name [ <byteCount> <utf8Hex> ]` 形式の1行を生成する（16進化は workerToActionHex）。
  * @param {string} prefix 行頭のキー（先頭スペース含む）/ line key prefix
  * @param {string} text 対象文字列 / target string
  * @returns {string} 生成した1行 / generated line
  */
 function buildNameLine(prefix, text) {
-    var encoded = stringToUtf8Hex(text);
-    return prefix + ' [ ' + encoded.byteCount + ' ' + encoded.hex + ' ]\n';
-}
-
-/**
- * 文字列を UTF-8 バイト列の16進表記に変換する（.aia の名前フィールド用）。
- * サロゲートペア（U+10000 以上、絵文字等）は結合して 4 バイトで符号化する。
- * @param {string} sourceText 変換対象 / source string
- * @returns {{hex: string, byteCount: number}} 16進文字列とバイト数 / hex text and byte count
- */
-function stringToUtf8Hex(sourceText) {
-    var hexText = "";
-    var byteCount = 0;
-    for (var i = 0; i < sourceText.length; i++) {
-        var codePoint = sourceText.charCodeAt(i);
-        if (codePoint >= 0xD800 && codePoint <= 0xDBFF && i + 1 < sourceText.length) {
-            var lowSurrogate = sourceText.charCodeAt(i + 1);
-            if (lowSurrogate >= 0xDC00 && lowSurrogate <= 0xDFFF) {
-                codePoint = 0x10000 + ((codePoint - 0xD800) << 10) + (lowSurrogate - 0xDC00);
-                i++;
-            }
-        }
-        var bytes;
-        if (codePoint < 0x80) {
-            bytes = [codePoint];
-        } else if (codePoint < 0x800) {
-            bytes = [0xC0 | (codePoint >> 6), 0x80 | (codePoint & 0x3F)];
-        } else if (codePoint < 0x10000) {
-            bytes = [0xE0 | (codePoint >> 12), 0x80 | ((codePoint >> 6) & 0x3F), 0x80 | (codePoint & 0x3F)];
-        } else {
-            bytes = [0xF0 | (codePoint >> 18), 0x80 | ((codePoint >> 12) & 0x3F), 0x80 | ((codePoint >> 6) & 0x3F), 0x80 | (codePoint & 0x3F)];
-        }
-        for (var byteIndex = 0; byteIndex < bytes.length; byteIndex++) {
-            var singleHex = bytes[byteIndex].toString(16);
-            if (singleHex.length < 2) { singleHex = "0" + singleHex; }
-            hexText += singleHex;
-            byteCount++;
-        }
-    }
-    return { hex: hexText, byteCount: byteCount };
-}
-
-/**
- * 一時アクションをファイル化 → ロード → 実行し、後始末する。
- * encoding は open より前に設定する（open 後だと書き込みに反映されない場合があるため）。
- * unloadAction はロードに成功したときだけ行う（未ロードのセットを外そうとして例外を出さない）。
- * ※ この関数は BridgeTalk 委譲で toString 送信されるため、本体にコメントを書かず説明はこの JSDoc に集約する。
- * @param {string} actionSource .aia のソース文字列 / .aia source text
- * @param {string} setName アクションセット名 / action set name
- * @param {string} actionName アクション名 / action name
- * @param {string} actionFilePath 一時ファイルパス / temp file path
- * @returns {void}
- */
-function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-    var actionFile = new File(actionFilePath);
-    var isActionLoaded = false;
-    var isActionFileOpen = false;
-    actionFile.encoding = "UTF-8";
-    try {
-        if (!actionFile.open("w")) { throw new Error("Failed to open temporary action file."); }
-        isActionFileOpen = true;
-        actionFile.write(actionSource);
-        actionFile.close();
-        isActionFileOpen = false;
-        app.loadAction(actionFile);
-        isActionLoaded = true;
-        app.doScript(actionName, setName, false);
-    } finally {
-        if (isActionFileOpen) { try { actionFile.close(); } catch (closeError) { } }
-        if (actionFile.exists) { try { actionFile.remove(); } catch (removeError) { } }
-        if (isActionLoaded) { try { app.unloadAction(setName, ""); } catch (unloadError2) { } }
-    }
+    var nameHex = workerToActionHex(text);
+    return prefix + ' [ ' + (nameHex.length / 2) + ' ' + nameHex + ' ]\n';
 }
 
 /**
@@ -559,12 +682,11 @@ function playCompoundShapeAction(tokenPrefix, internalName, localizedName, expan
         actionName: uniqueToken + "_action",
         internalName: internalName,
         localizedName: localizedName,
-        expandParamKey: expandParamKey,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        expandParamKey: expandParamKey
     };
     try {
         var actionSource = buildExpandActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { return "ERR:Temporary action failed."; }
         app.redraw();
         return "OK";
     } catch (compoundShapeError) {
@@ -1007,6 +1129,7 @@ function workerClearAppearance() {
  * 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
  * 現在の選択に対して一時アクションとして1回再生する（呼び出し前に対象を選択しておくこと）。
  * ClearAppearance.jsx の act_Clear 相当。セット名のみユニーク化して既存アクションセットとの衝突を避ける。
+ * 失敗したら例外を投げ、呼び出し元の後続処理（塗り・線の復元）を止めて "ERR:" で返させる。
  * @returns {void}
  */
 function playClearAppearanceAction() {
@@ -1021,11 +1144,10 @@ function playClearAppearanceAction() {
         localizedName: "アピアランス",
         enumKey: 1835363957,
         enumName: "アピアランスを消去",
-        enumValue: 6,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        enumValue: 6
     };
     var actionSource = buildEnumeratedActionSource(actionConfig);
-    playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+    if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { throw new Error("Temporary action failed."); }
 }
 
 /**
@@ -1447,10 +1569,8 @@ var WORKER_FUNCS = [
     buildPathfinderXML,
     buildActionSource,
     buildExpandActionSource,
-    buildNameLine,
-    stringToUtf8Hex,
-    playTemporaryAction
-];
+    buildNameLine
+].concat(TEMPORARY_ACTION_WORKER_FUNCS);
 
 /* ============================================================
  * BridgeTalk 委譲 / Delegation to the main engine
@@ -1716,7 +1836,7 @@ function delegateCleanupCollinear() {
  * @returns {string} 表示用テキスト / status text
  */
 function markerToStatus(marker, mode) {
-    if (marker === "OK") { return getLabel(mode.labelKey) + ": " + getLabel("status.applied"); }
+    if (marker === "OK") { return labelValueText(mode.labelKey, getLabel("status.applied")); }
     if (marker === "NODOC") { return getLabel("status.noDoc"); }
     if (marker === "NOSEL") { return getLabel("status.noSel"); }
     if (marker === "NEEDTWO") { return getLabel("status.needTwo"); }

@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportStyl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportStyles";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -66,11 +66,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在のロケールから言語コードを取得 / Get language code from locale */
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         /* ダイアログ / Dialog */
@@ -151,8 +242,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
                 en: "\n\nReflected in ImportStyles_candidates.tsv and the current dialog."
             },
             folderHint: {
-                ja: "現在のフォルダー：",
-                en: "Current folder: "
+                ja: "現在のフォルダー",
+                en: "Current folder"
             }
         },
         /* エラー / Errors */
@@ -175,22 +266,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
             }
         }
     };
-
-    /* 指定キーのローカライズ文字列を取得（ドット区切りパス対応）/ Resolve localized string by dotted key path */
-    function getLabel(key) {
-        var parts = key.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node == null) break;
-            node = node[parts[i]];
-        }
-        return (node && node[currentLanguage] != null) ? node[currentLanguage] : ("[" + key + "]");
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // UIレイアウトの共通設定 / Shared UI layout
@@ -582,6 +657,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // ライブラリ登録フロー / Register Flow
     // =========================================
@@ -611,12 +746,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         styleRadio.value = !looksLikeFont;
 
         // ボタン行（パネル幅いっぱいに広げない）/ Button row (buttons must not stretch)
-        var registerButtonRow = registerWindow.add("group");
-        setupRow(registerButtonRow, "center");
-        var registerCancelButton = registerButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var registerOkButton = registerButtonRow.add("button", undefined, getLabel("button.register"), { name: "ok" });
-        registerCancelButton.alignment = "left";
-        registerOkButton.alignment = "left";
+        var registerButtonRow = addButtonRow(registerWindow, { centered: true });
+        var btnRegisterCancel = registerButtonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnRegisterOK = registerButtonRow.rowGroup.add("button", undefined, getLabel("button.register"), { name: "ok" });
 
         prepareDialogWindow(registerWindow, SCRIPT_NAME + "_register");
         if (registerWindow.show() !== 1) return null;
@@ -723,7 +855,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         destinationRow.add("statictext", undefined, labelText("destination.label"));
 
         var currentLayerRadio = destinationRow.add("radiobutton", undefined, getLabel("destination.currentLayer"));
-        var importLayerLabel = (currentLanguage === "ja") ?
+        var importLayerLabel = (uiLang === "ja") ?
             getLabel("destination.importLayer") + "（" + IMPORT_LAYER_NAME + "）" :
             getLabel("destination.importLayer") + " (" + IMPORT_LAYER_NAME + ")";
         var importLayerRadio = destinationRow.add("radiobutton", undefined, importLayerLabel);
@@ -732,31 +864,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         return { currentLayerRadio: currentLayerRadio, importLayerRadio: importLayerRadio };
     }
 
-    /* 下部ボタン行：左（キャンセル／フォルダー）－スペーサー－右（追加／読み込み）/ Footer buttons */
+    /* 下部ボタン行：左（フォルダー）－スペーサー－右（キャンセル／追加／読み込み）/ Footer buttons */
     function buildFooterRow(parent) {
-        var footerRow = parent.add("group");
-        setupRow(footerRow, "fill");
-        footerRow.margins = [0, 10, 0, 0];
+        var footerRow = addButtonRow(parent);
 
-        var cancelButton = footerRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var folderButton = footerRow.add("button", undefined, getLabel("button.folder"));
-        cancelButton.alignment = "left";
-        folderButton.alignment = "left";
+        var btnFolder = footerRow.leftGroup.add("button", undefined, getLabel("button.folder"));
 
-        var flexSpacer = footerRow.add("group");
-        flexSpacer.alignment = ["fill", "fill"];
-        flexSpacer.minimumSize = [0, 0];
-
-        var addButton = footerRow.add("button", undefined, getLabel("button.add"));
-        var loadButton = footerRow.add("button", undefined, getLabel("button.load"), { name: "ok" });
-        addButton.alignment = "left";
-        loadButton.alignment = "left";
+        var btnCancel = footerRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnAdd = footerRow.rightGroup.add("button", undefined, getLabel("button.add"));
+        var btnLoad = footerRow.rightGroup.add("button", undefined, getLabel("button.load"), { name: "ok" });
 
         return {
-            cancelButton: cancelButton,
-            folderButton: folderButton,
-            addButton: addButton,
-            loadButton: loadButton
+            cancelButton: btnCancel,
+            folderButton: btnFolder,
+            addButton: btnAdd,
+            loadButton: btnLoad
         };
     }
 
@@ -869,7 +991,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
         // フォルダー：保存先を選び直してライブラリを読み込み直す / Folder: re-pick the folder and reload the library
         function updateFolderHint() {
-            footer.folderButton.helpTip = getLabel("message.folderHint") + styleLibraryFolder;
+            footer.folderButton.helpTip = labelValueText("message.folderHint", styleLibraryFolder);
         }
         updateFolderHint();
         footer.folderButton.onClick = function() {

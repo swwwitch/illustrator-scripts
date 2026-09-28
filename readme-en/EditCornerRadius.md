@@ -62,6 +62,8 @@
 
 ### Update History
 
+- v1.5.2 (2026-09-28): The button row is now built with the shared part
+- v1.5.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.0 (2026-09-28): With "Selected objects only", rectangles inside selected groups are included. When converting a compound shape, the Round Corners effect on released rectangles is removed and the same radius is built into the path
 - v1.4.0 (2026-09-28): Compound shapes are converted to a group with the Pathfinder Add effect so their rectangles can be changed (selection, artboard and document)
@@ -72,4 +74,4 @@
 
 ### Script info
 
-- Version: v1.5.1
+- Version: v1.5.2

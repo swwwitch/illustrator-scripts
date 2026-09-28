@@ -43,6 +43,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
     //    識別子はすべて LINK_* / *LinkToggle* / *Link* の名前か、描画の下請け関数（buildArcPoints など）
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数) で作る。helpTip はコピー先で付ける
     //      var linkToggle = addLinkToggle(fieldsRowGroup, true, function () { syncFields(); });
     //      linkToggle.helpTip = getLabel(LABELS.tooltip.linkToggle);
@@ -65,22 +66,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // -----------------------------------------
     // リンクアイコンの配色 / Link toggle colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkLinkToggleUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var LINK_UI_DARK = isDarkLinkToggleUI();
+    var LINK_UI_DARK = isDarkUI();
     /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
        Translucent overlays that follow the dialog background; same values as the stepper buttons */
     var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
@@ -457,6 +443,21 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /**
+     * デモ用：UI がダークテーマかどうか（本番では UITheme の部品を貼る）
+     * @returns {boolean} ダークなら true
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
 
     // =========================================
     // ローカライズ / Localization

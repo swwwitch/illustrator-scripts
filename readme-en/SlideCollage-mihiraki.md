@@ -34,6 +34,7 @@ Landscape pages are treated as spreads, split left and right, and ordered accord
 
 ### Update History
 
+- v1.0.4 (2026-09-28): The button row is now built with the shared part
 - v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-25): Fixed the crop box values so Trim, Bleed and Art place the box you choose, and corrected the English names of Crop and Trim
 - v1.0 (2026-03-17)

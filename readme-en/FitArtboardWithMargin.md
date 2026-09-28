@@ -97,3 +97,4 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.10.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.10.1 (2026-09-28): Replaced the Link checkbox with a link icon
 - v1.10.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.10.2 (2026-09-28): The button row is now built with the shared part

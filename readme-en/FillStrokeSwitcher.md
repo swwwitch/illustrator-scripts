@@ -52,3 +52,5 @@
 
 - v1.1.0: Current version
 - v1.1.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.3: In Japanese, failure counts now use a full-width colon
+- v1.1.3: The button row is now built with the shared part

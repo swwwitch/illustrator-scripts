@@ -33,7 +33,8 @@
 - v1.1.1 (20260608): Allow running from a partial character selection (TextRange), made OK the default button, internal refactor
 - v1.1.2 (20260611): Removed the redundant re-apply on OK to avoid crashes (commit the previewed state as-is)
 - v1.1.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.5 (20260928): Fixed px font sizes being scaled as 96 dpi (1 px equals 1 pt in Illustrator). Feet, meters and yards are now converted too; inches shown as "in". The button row is now built with the shared part
 
 ### Script info
 
-- Version: v1.1.4
+- Version: v1.1.5

@@ -25,6 +25,10 @@ Flow:
 - Frame size is based on the real size measured via duplicate → expand appearance → create outlines.
 - Vertical centering and graphic-style registration use dynamic actions that are loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
 
+### Update History
+
+- v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.2

@@ -28,3 +28,4 @@ Picks a symbol from the ones registered in the document and replaces the selecte
 
 - v0.5.0
 - v0.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v0.5.2 (2026-09-28): Removed the trailing space after the colon in English field labels ("Symbol: " -> "Symbol:"). The button row is now built with the shared part

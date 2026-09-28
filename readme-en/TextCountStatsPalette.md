@@ -32,7 +32,8 @@
 - v1.0 (20250806): Initial version
 - v1.1 (20260702): Palette conversion (#targetengine + BridgeTalk delegation), refresh button, status line, localization cleanup
 - v1.1.2 (2026-09-26) Renamed the file from `TextCountStats.jsx` to `TextCountStatsPalette.jsx`.
+- v1.1.3 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
 
 ### Script info
 
-- Version: v1.1.2
+- Version: v1.1.3

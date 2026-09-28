@@ -132,3 +132,5 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.8 (20260926): Fixed the Ends & Arrowheads labels being cut off (the colon was hidden)
 - v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.1.2 (20260928): The button row is now built with the shared part

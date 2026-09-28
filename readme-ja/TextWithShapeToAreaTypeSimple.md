@@ -43,6 +43,7 @@
 
 ### 更新履歴
 
+- v1.4.2 (2026-09-28): 英語表示の項目名のコロンの後ろの空白を削除（「Width: 」→「Width:」）。一時アクションの読み込み・実行・解除を共通の処理にし、失敗してもアクションセットと一時ファイルが残らないようにした。ボタン行を共通の部品で組むようにした
 - v1.4.1 (2026-09-28): ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.4.0 (2026-09-27): 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.3.0 (2026-07-02): 「スタイルの読み込み」機能（読み込み／再読み込みボタン、外部 AI ファイルからのスタイル取り込み、参照ファイルの記憶）、グラフィックスタイルの選択 UI（元の見た目／読み込んだスタイルのラジオ）、テキスト＋長方形の合体ロジック（長方形をフレーム化してテキストを流し込む処理）を撤去。ポイント文字・パス上文字を実寸計測でエリア内文字へ変換する処理に単純化。アピアランスの引き継ぎ（選択テキストの見た目を一時グラフィックスタイルとして登録・適用し、適用後に削除）は従来どおり維持 ／ Removed the "Load Styles" feature (Load/Reload buttons, importing styles from an external AI file, remembering the source file), the graphic-style selection UI (original/loaded-style radios), and the text + rectangle merge logic (turning a rectangle into the frame and flowing the text in). Simplified to converting point/path text into area type at the measured real size, while keeping the appearance inheritance as before (register the source text's look as a temp graphic style, apply it, then remove it)
@@ -53,4 +54,4 @@
 
 ### スクリプト情報
 
-- バージョン: v1.4.1
+- バージョン: v1.4.2

@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalen
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -51,11 +51,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    /* UIロケールから言語(ja/en)を判定 / Detect UI language (ja/en) from locale */
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義（カテゴリ別に構造化）/ Japanese-English label definitions (grouped by category) */
     var LABELS = {
@@ -165,11 +256,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* 月数プリセット・起点 / Month-count presets & base */
         base: {
-            monthCount: { ja: "月数：", en: "Months:" },
+            monthCount: { ja: "月数", en: "Months" },
             preset1: { ja: "1ヶ月", en: "1 mo" },
             preset3: { ja: "3ヶ月", en: "3 mo" },
             preset12: { ja: "12ヶ月", en: "12 mo" },
-            label: { ja: "基準：", en: "Base:" },
+            label: { ja: "基準", en: "Base" },
             current: { ja: "当月基準", en: "Current month" },
             jan: { ja: "1月から", en: "From January" },
             ghost: { ja: "ゴースト", en: "Ghost" }
@@ -177,14 +268,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* 共通UI / Common UI */
         common: {
-            bottomMargin: { ja: "下マージン：", en: "Bottom margin: " },
-            align: { ja: "揃え：", en: "Align:" },
+            bottomMargin: { ja: "下マージン", en: "Bottom margin" },
+            align: { ja: "揃え", en: "Align" },
             left: { ja: "左", en: "Left" },
             center: { ja: "中央", en: "Center" },
             right: { ja: "右", en: "Right" },
-            zoom: { ja: "ズーム：", en: "Zoom:" },
-            lr: { ja: "左右：", en: "L/R:" },
-            ud: { ja: "上下：", en: "U/D:" }
+            zoom: { ja: "ズーム", en: "Zoom" },
+            lr: { ja: "左右", en: "L/R" },
+            ud: { ja: "上下", en: "U/D" }
         },
 
         /* 月タイトル / Month title */
@@ -204,27 +295,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* 曜日ヘッダ / Weekday header */
         weekday: {
-            start: { ja: "週の始まり：", en: "Week starts:" },
+            start: { ja: "週の始まり", en: "Week starts" },
             monday: { ja: "月曜日", en: "Monday" },
             sunday: { ja: "日曜日", en: "Sunday" },
-            notation: { ja: "表記：", en: "Notation:" },
-            margin: { ja: "下マージン：", en: "Bottom margin: " },
-            fontSize: { ja: "基本：", en: "Basic: " }
+            notation: { ja: "表記", en: "Notation" },
+            margin: { ja: "下マージン", en: "Bottom margin" },
+            fontSize: { ja: "基本", en: "Basic" }
         },
 
         /* レイアウト / Layout */
         layout: {
             months: { ja: "月数", en: "Months" },
             cols: { ja: "列数", en: "Columns" },
-            width: { ja: "幅：", en: "W:" },
-            height: { ja: "高さ：", en: "H:" },
+            width: { ja: "幅", en: "W" },
+            height: { ja: "高さ", en: "H" },
             cellFill: { ja: "塗り", en: "Fill" }
         },
 
         /* 書式（フォント・色）/ Format (font & color) */
         format: {
-            font: { ja: "フォント：", en: "Font: " },
-            favorites: { ja: "お気に入り：", en: "Favorites: " },
+            font: { ja: "フォント", en: "Font" },
+            favorites: { ja: "お気に入り", en: "Favorites" },
             sunday: { ja: "日曜日", en: "Sunday" },
             holiday: { ja: "祝日", en: "Holidays" }
         },
@@ -276,27 +367,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             }
         }
     };
-
-    /* ドット区切りキー（例 "panel.base"）でラベルを引く / Look up a label by dot-separated key (e.g. "panel.base") */
-    function getLabel(key) {
-        try {
-            var parts = String(key).split(".");
-            var o = LABELS;
-            for (var i = 0; i < parts.length; i++) {
-                if (!o) return key;
-                o = o[parts[i]];
-            }
-            if (!o) return key;
-            return o[uiLang] || o.en || o.ja || key;
-        } catch (e) {
-            return key;
-        }
-    }
-
-    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
-    function labelText(key) {
-        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
-    }
 
     // =========================================
     // 単位 / Units
@@ -538,11 +608,100 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -579,22 +738,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -706,8 +850,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -1569,7 +1713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthPreset.orientation = "row";
         gMonthPreset.alignChildren = ["left", "center"];
 
-        gMonthPreset.add("statictext", undefined, getLabel("base.monthCount"));
+        gMonthPreset.add("statictext", undefined, labelText("base.monthCount"));
         var rbPreset1 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset1"));
         rbPreset1.helpTip = getLabel("tooltip.preset1");
         var rbPreset3 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset3"));
@@ -1639,7 +1783,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthStart.orientation = "row";
         gMonthStart.alignChildren = ["left", "center"];
 
-        gMonthStart.add("statictext", undefined, getLabel("base.label"));
+        gMonthStart.add("statictext", undefined, labelText("base.label"));
         var rbStartCurrent = gMonthStart.add("radiobutton", undefined, getLabel("base.current"));
         rbStartCurrent.helpTip = getLabel("tooltip.startCurrent");
         var rbStartJan = gMonthStart.add("radiobutton", undefined, getLabel("base.jan"));
@@ -1668,7 +1812,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gAlign.orientation = "row";
         gAlign.alignChildren = ["left", "center"];
 
-        gAlign.add("statictext", undefined, getLabel("common.align"));
+        gAlign.add("statictext", undefined, labelText("common.align"));
 
         var rbLeft = gAlign.add("radiobutton", undefined, getLabel("common.left"));
         var rbCenter = gAlign.add("radiobutton", undefined, getLabel("common.center"));
@@ -1704,7 +1848,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekStart.orientation = "row";
         gWeekStart.alignChildren = ["left", "center"];
 
-        gWeekStart.add("statictext", undefined, getLabel("weekday.start"));
+        gWeekStart.add("statictext", undefined, labelText("weekday.start"));
         var rbWeekMon = gWeekStart.add("radiobutton", undefined, getLabel("weekday.monday"));
         rbWeekMon.helpTip = getLabel("tooltip.weekMonday");
         var rbWeekSun = gWeekStart.add("radiobutton", undefined, getLabel("weekday.sunday"));
@@ -1719,7 +1863,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekdayLabel.orientation = "row";
         gWeekdayLabel.alignChildren = ["left", "center"];
 
-        gWeekdayLabel.add("statictext", undefined, getLabel("weekday.notation"));
+        gWeekdayLabel.add("statictext", undefined, labelText("weekday.notation"));
         var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
         rbWdJP.helpTip = getLabel("tooltip.weekdayLabel");
         var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
@@ -1731,7 +1875,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
         gWeekdayBottomMargin.orientation = "row";
         gWeekdayBottomMargin.alignChildren = ["left", "center"];
-        gWeekdayBottomMargin.add("statictext", undefined, getLabel("weekday.margin"));
+        gWeekdayBottomMargin.add("statictext", undefined, labelText("weekday.margin"));
         var inputWeekdayBottomMargin = addStepperInput(gWeekdayBottomMargin, "2", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputWeekdayBottomMargin.helpTip = getLabel("tooltip.weekdayBottomMargin");
         inputWeekdayBottomMargin.characters = 4;
@@ -1770,7 +1914,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gMonthAlign = pnlMonth.add("group");
         gMonthAlign.orientation = "row";
         gMonthAlign.alignChildren = ["left", "center"];
-        gMonthAlign.add("statictext", undefined, getLabel("common.align"));
+        gMonthAlign.add("statictext", undefined, labelText("common.align"));
         var rbMonthAlignL = gMonthAlign.add("radiobutton", undefined, getLabel("common.left"));
         var rbMonthAlignC = gMonthAlign.add("radiobutton", undefined, getLabel("common.center"));
         var rbMonthAlignR = gMonthAlign.add("radiobutton", undefined, getLabel("common.right"));
@@ -1810,7 +1954,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gMonthMargin = pnlMonth.add("group");
         gMonthMargin.orientation = "row";
         gMonthMargin.alignChildren = ["left", "center"];
-        gMonthMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
+        gMonthMargin.add("statictext", undefined, labelText("common.bottomMargin"));
         var inputMonthBottomMargin = addStepperInput(gMonthMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputMonthBottomMargin.helpTip = getLabel("tooltip.monthBottomMargin");
         inputMonthBottomMargin.characters = 4;
@@ -1847,7 +1991,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gYearMargin = pnlYear.add("group");
         gYearMargin.orientation = "row";
         gYearMargin.alignChildren = ["left", "center"];
-        gYearMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
+        gYearMargin.add("statictext", undefined, labelText("common.bottomMargin"));
         var inputTopYearBottomMargin = addStepperInput(gYearMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputTopYearBottomMargin.helpTip = getLabel("tooltip.topYearBottomMargin");
         inputTopYearBottomMargin.characters = 4;
@@ -1934,7 +2078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gOuterH = gOuterRow.add("group");
         gOuterH.orientation = "row";
         gOuterH.alignChildren = ["left", "center"];
-        gOuterH.add("statictext", undefined, getLabel("common.lr"));
+        gOuterH.add("statictext", undefined, labelText("common.lr"));
         var inputOuterMarginX = addStepperInput(gOuterH, "10", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
         inputOuterMarginX.helpTip = getLabel("tooltip.outerMarginX");
         inputOuterMarginX.characters = 3;
@@ -1943,7 +2087,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gOuterV = gOuterRow.add("group");
         gOuterV.orientation = "row";
         gOuterV.alignChildren = ["left", "center"];
-        gOuterV.add("statictext", undefined, getLabel("common.ud"));
+        gOuterV.add("statictext", undefined, labelText("common.ud"));
         var inputOuterMarginY = addStepperInput(gOuterV, "3", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
         inputOuterMarginY.helpTip = getLabel("tooltip.outerMarginY");
         inputOuterMarginY.characters = 3;
@@ -1994,7 +2138,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gZoom.orientation = "row";
         gZoom.alignChildren = ["left", "center"];
 
-        var stZoom = gZoom.add("statictext", undefined, getLabel("common.zoom"));
+        var stZoom = gZoom.add("statictext", undefined, labelText("common.zoom"));
         try { stZoom.preferredSize.width = 58; } catch (e) { }
 
         var __initZoomPct = 100;
@@ -2017,7 +2161,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanX.orientation = "row";
         gPanX.alignChildren = ["left", "center"];
 
-        var stPanX = gPanX.add("statictext", undefined, getLabel("common.lr"));
+        var stPanX = gPanX.add("statictext", undefined, labelText("common.lr"));
         try { stPanX.preferredSize.width = 58; } catch (e) { }
 
         var __panRange = __SCM_getPanRangePt();
@@ -2037,7 +2181,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanY.orientation = "row";
         gPanY.alignChildren = ["left", "center"];
 
-        var stPanY = gPanY.add("statictext", undefined, getLabel("common.ud"));
+        var stPanY = gPanY.add("statictext", undefined, labelText("common.ud"));
         try { stPanY.preferredSize.width = 58; } catch (e) { }
 
         var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
@@ -2071,7 +2215,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         pnlCellSize.margins = PANEL_MARGINS;
 
         var gCellW = pnlCellSize.add("group");
-        var stCellW = gCellW.add("statictext", undefined, getLabel("layout.width"));
+        var stCellW = gCellW.add("statictext", undefined, labelText("layout.width"));
         stCellW.justification = "right";
         stCellW.preferredSize.width = 30;
         var __fs0 = 12;
@@ -2089,7 +2233,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellW.add("statictext", undefined, unitLabel);
 
         var gCellH = pnlCellSize.add("group");
-        var stCellH = gCellH.add("statictext", undefined, getLabel("layout.height"));
+        var stCellH = gCellH.add("statictext", undefined, labelText("layout.height"));
         stCellH.justification = "right";
         stCellH.preferredSize.width = 30;
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
@@ -2114,7 +2258,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCellGapX = gCellGapRow.add("group");
         gCellGapX.orientation = "row";
         gCellGapX.alignChildren = ["left", "center"];
-        gCellGapX.add("statictext", undefined, getLabel("common.lr"));
+        gCellGapX.add("statictext", undefined, labelText("common.lr"));
         var inputCellGapX = addStepperInput(gCellGapX, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputCellGapX.helpTip = getLabel("tooltip.cellGapX");
         inputCellGapX.characters = 3;
@@ -2122,7 +2266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCellGapY = gCellGapRow.add("group");
         gCellGapY.orientation = "row";
         gCellGapY.alignChildren = ["left", "center"];
-        gCellGapY.add("statictext", undefined, getLabel("common.ud"));
+        gCellGapY.add("statictext", undefined, labelText("common.ud"));
         var inputCellGapY = addStepperInput(gCellGapY, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
         inputCellGapY.helpTip = getLabel("tooltip.cellGapY");
         inputCellGapY.characters = 3;
@@ -2306,7 +2450,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // フォント（インストール済み）選択
         var gFontName = pnlFormat.add("group");
-        var stFontLbl = gFontName.add("statictext", undefined, getLabel("format.font"));
+        var stFontLbl = gFontName.add("statictext", undefined, labelText("format.font"));
         var ddFont = gFontName.add("dropdownlist", undefined, []);
         ddFont.helpTip = getLabel("tooltip.fontName");
         gFontName.alignChildren = ["left", "center"];
@@ -2318,7 +2462,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gFontFav = pnlFormat.add("group");
         gFontFav.orientation = "row";
         gFontFav.alignChildren = ["left", "left"];
-        var stFavLbl = gFontFav.add("statictext", undefined, getLabel("format.favorites"));
+        var stFavLbl = gFontFav.add("statictext", undefined, labelText("format.favorites"));
         var ddFavFont = gFontFav.add("dropdownlist", undefined, [
             "-",
             "Automate OT Light",
@@ -2592,29 +2736,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         }
 
         // ===== 下部コントロール行（左：プレビュー／右：キャンセル・OK）=====
-        var gBottom = dlg.add("group");
-        gBottom.orientation = "row";
-        gBottom.alignChildren = ["fill", "center"];
-        gBottom.alignment = "fill";
+        var buttonRow = addButtonRow(dlg);
 
         // 左側：プレビュー
-        var gBottomLeft = gBottom.add("group");
-        gBottomLeft.alignment = ["left", "center"];
-        var previewChk = gBottomLeft.add("checkbox", undefined, getLabel("button.preview"));
+        var previewChk = buttonRow.leftGroup.add("checkbox", undefined, getLabel("button.preview"));
         previewChk.helpTip = getLabel("tooltip.preview");
         previewChk.value = true;
 
-        // スペーサー（左右を分離）
-        var gSpacer = gBottom.add("group");
-        gSpacer.alignment = ["fill", "fill"];
-
         // 右側：ボタン
-        var gBottomRight = gBottom.add("group");
-        gBottomRight.alignment = ["right", "center"];
-
-        var cancelBtn = gBottomRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okBtn = gBottomRight.add("button", undefined, getLabel("button.create"), { name: "ok" });
-
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.create"), { name: "ok" });
 
         // ===== プレビュー更新のデバウンス（入力中の連打を抑制）=====
         // onChanging が連続発火すると「全消去→大量生成」を連打してしまい重くなるため、
@@ -3251,7 +3382,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             }
         });
 
-        okBtn.onClick = function () {
+        btnOK.onClick = function () {
             var baseDate = parseYMDFields(inputY.text, inputM.text, inputD.text);
             if (!baseDate) {
                 alert(getLabel("error.badDate"));
@@ -3430,7 +3561,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             dlg.close(1);
         };
 
-        cancelBtn.onClick = function () {
+        btnCancel.onClick = function () {
             try {
                 if (__SCM_VIEW && __SCM_ORG_ZOOM != null && __SCM_ORG_CENTER != null) {
                     __SCM_VIEW.zoom = __SCM_ORG_ZOOM;

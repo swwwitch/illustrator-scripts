@@ -19,6 +19,7 @@
 
 ### Update History
 
+- v1.1.3 (2026-09-28): The button row is now built with the shared part
 - v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info

@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeRectan
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MakeRectangleFromGuides";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-13";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -70,13 +70,99 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between the two columns */
-    var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
-    var BUTTON_BAR_SPACING = 10;               /* ボタンバー内の要素間隔 / spacing inside the button bar */
     var FIELD_ROW_SPACING  = 6;                /* ラジオと入力欄の間隔 / gap between a radio and its input */
     var LAYER_NAME_CHARS   = 15;               /* レイヤー名入力欄の最小幅（文字数）/ minimum width of the layer name field (characters) */
     var INDENT_MARGINS     = [20, 0, 0, 0];    /* ラジオの下に続く行の字下げ / indent for a row that follows its radio */
     var MESSAGE_MARGINS    = [0, 0, 0, 10];    /* パネル最上部のメッセージの下余白 / space under the message at the top of a panel */
     var OFFSET_CHARS       = 5;                /* オフセット入力欄の幅（文字数）/ width of the offset field (characters) */
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
@@ -84,6 +170,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -120,22 +207,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -247,10 +319,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "stepUpInteger" : "stepUp";
-        var downTooltip = stepOptions.integer ? "stepDownInteger" : "stepDown";
-        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel("tooltip", upTooltip);
-        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel("tooltip", downTooltip);
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
+        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
+        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
         return stepperGroup;
     }
@@ -665,16 +737,102 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
     /**
-     * 現在の表示言語を取得する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
-        /* "ja" で始まるロケール（ja, ja_JP など）は日本語扱い / Treat "ja*" locales as Japanese */
-        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
@@ -710,22 +868,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         },
         rectangleOption: {
             panelTitle:     { ja: "後処理", en: "After Creation" },
-            offset:         { ja: "オフセット：", en: "Offset:" },
+            offset:         { ja: "オフセット", en: "Offset" },
             mergeAdjacent:  { ja: "長方形を1つに結合", en: "Merge Into a Single Path" },
             convertToShape: { ja: "シェイプに変換", en: "Convert to Shape" }
         },
         summary: {
             guides: {
-                ja: "縦#vertical#本・横#horizontal#本",
-                en: "#vertical# vertical / #horizontal# horizontal"
+                ja: "縦{vertical}本・横{horizontal}本",
+                en: "{vertical} vertical / {horizontal} horizontal"
             },
             count: {
-                ja: "#count#個",
-                en: "#count#"
+                ja: "{count}個",
+                en: "{count}"
             },
             merged: {
-                ja: "#count#個 → 結合して1つ",
-                en: "#count# → merged into 1"
+                ja: "{count}個 → 結合して1つ",
+                en: "{count} → merged into 1"
             }
         },
         tooltip: {
@@ -798,34 +956,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
             lockedActiveLayer: { ja: "現在のレイヤーがロックまたは非表示のため作成できません。ロックを解除するか、作成先を「指定レイヤー」にしてください。", en: "Cannot draw because the current layer is locked or hidden. Unlock it, or set the destination to the specific layer." }
         }
     };
-
-    /**
-     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('button','ok')）
-     * @param {...string} keys - LABELS を辿るキー列
-     * @returns {string} 該当するラベル（見つからない場合は空文字）
-     */
-    function getLabel() {
-        var labelNode = LABELS;
-        for (var i = 0; i < arguments.length; i++) {
-            if (labelNode == null) break;
-            labelNode = labelNode[arguments[i]];
-        }
-        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
-    }
-
-    /**
-     * ラベル内の #キー# を値に差し替える
-     * @param {string} template - 差し替え前の文字列
-     * @param {object} values - キーと値の対応
-     * @returns {string} 差し替え後の文字列
-     */
-    function formatMessage(template, values) {
-        var formatted = template;
-        for (var key in values) {
-            formatted = formatted.replace(new RegExp("#" + key + "#", "g"), values[key]);
-        }
-        return formatted;
-    }
 
     // =========================================
     // 単位 / Units
@@ -1078,7 +1208,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         if (activateOutputLayer(doc, options)) {
             return true;
         }
-        alert(getLabel('alert', 'lockedActiveLayer'));
+        alert(getLabel('alert.lockedActiveLayer'));
         return false;
     }
 
@@ -1374,7 +1504,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
      * @returns {GuideRectOptions|null} 設定値（キャンセル時は null）
      */
     function showOptionsDialog(doc) {
-        var dialog = createDialogWindow(getLabel('dialog', 'title') + ' ' + SCRIPT_VERSION);
+        var dialog = createDialogWindow(getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
 
         /* 上段：左＝対象となるガイド、右＝作成する長方形 / Top area: target guides on the left, rectangles on the right */
         var columnsRow = dialog.add("group");
@@ -1382,41 +1512,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         columnsRow.alignChildren = ["fill", "top"];
         columnsRow.spacing = COLUMN_SPACING;
 
-        var guideSourcePanel = addPanel(columnsRow, getLabel('guideSource', 'panelTitle'));
+        var guideSourcePanel = addPanel(columnsRow, getLabel('guideSource.panelTitle'));
         /* 各カラムは中身の高さのまま、上端をそろえて並べる / Each column keeps its own height and lines up at the top */
         guideSourcePanel.alignment = ["fill", "top"];
 
         /* 見つかったガイドの本数（絞り込みの結果がすぐ分かるよう最上部に置く）/ How many guides matched, kept at the top so the filter result is visible at once */
-        var guideCountText = addPanelMessage(guideSourcePanel, getLabel('tooltip', 'guideCount'));
+        var guideCountText = addPanelMessage(guideSourcePanel, getLabel('tooltip.guideCount'));
 
-        var guideTypePanel = addPanel(guideSourcePanel, getLabel('guideType', 'panelTitle'));
+        var guideTypePanel = addPanel(guideSourcePanel, getLabel('guideType.panelTitle'));
         var guideTypeRadios = addRadioPair(guideTypePanel,
-            getLabel('guideType', 'all'), getLabel('guideType', 'rulerOnly'), 0,
-            getLabel('tooltip', 'guideType'));
+            getLabel('guideType.all'), getLabel('guideType.rulerOnly'), 0,
+            getLabel('tooltip.guideType'));
         var rulerGuidesRadio = guideTypeRadios[1];
 
-        var targetLayerPanel = addPanel(guideSourcePanel, getLabel('targetLayer', 'panelTitle'));
+        var targetLayerPanel = addPanel(guideSourcePanel, getLabel('targetLayer.panelTitle'));
         var targetLayerRadios = addRadioPair(targetLayerPanel,
-            getLabel('targetLayer', 'allLayers'), getLabel('targetLayer', 'activeOnly'), 0,
-            getLabel('tooltip', 'targetLayer'));
+            getLabel('targetLayer.allLayers'), getLabel('targetLayer.activeOnly'), 0,
+            getLabel('tooltip.targetLayer'));
         var activeLayerRadio = targetLayerRadios[1];
 
-        var guideOptionPanel = addPanel(guideSourcePanel, getLabel('guideOption', 'panelTitle'));
+        var guideOptionPanel = addPanel(guideSourcePanel, getLabel('guideOption.panelTitle'));
         var activeArtboardCheckbox = addPanelCheckbox(guideOptionPanel,
-            getLabel('guideOption', 'activeArtboardOnly'), false, getLabel('tooltip', 'activeArtboardOnly'));
+            getLabel('guideOption.activeArtboardOnly'), false, getLabel('tooltip.activeArtboardOnly'));
         var includeLockedCheckbox = addPanelCheckbox(guideOptionPanel,
-            getLabel('guideOption', 'includeLocked'), true, getLabel('tooltip', 'includeLocked'));
+            getLabel('guideOption.includeLocked'), true, getLabel('tooltip.includeLocked'));
 
-        var rectanglePanel = addPanel(columnsRow, getLabel('rectangle', 'panelTitle'));
+        var rectanglePanel = addPanel(columnsRow, getLabel('rectangle.panelTitle'));
         rectanglePanel.alignment = ["fill", "top"];
 
         /* 作成予定数（左カラムのガイド本数と同じく、パネルの最上部に置く）/ Expected count, kept at the top like the guide count in the left column */
-        var summaryText = addPanelMessage(rectanglePanel, getLabel('tooltip', 'summaryCount'));
+        var summaryText = addPanelMessage(rectanglePanel, getLabel('tooltip.summaryCount'));
 
-        var destinationPanel = addPanel(rectanglePanel, getLabel('destination', 'panelTitle'));
+        var destinationPanel = addPanel(rectanglePanel, getLabel('destination.panelTitle'));
         var destinationRadios = addRadioPair(destinationPanel,
-            getLabel('destination', 'activeLayer'), getLabel('destination', 'outputLayer'), 0,
-            getLabel('tooltip', 'destination'));
+            getLabel('destination.activeLayer'), getLabel('destination.outputLayer'), 0,
+            getLabel('tooltip.destination'));
         var outputLayerRadio = destinationRadios[1];
 
         /* 「指定レイヤー」の名前はラジオの次の行に字下げして置く / The layer name sits on the line below its radio, indented */
@@ -1427,16 +1557,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         outputLayerNameInput.text = OUTPUT_LAYER_NAME;
         /* 余った幅で伸ばす（characters を増やすとダイアログごと広がる）/ Stretch into the leftover width; raising characters would widen the dialog */
         outputLayerNameInput.alignment = ["fill", "center"];
-        outputLayerNameInput.helpTip = getLabel('tooltip', 'outputLayerName');
+        outputLayerNameInput.helpTip = getLabel('tooltip.outputLayerName');
 
-        var rectangleOptionPanel = addPanel(rectanglePanel, getLabel('rectangleOption', 'panelTitle'));
+        var rectangleOptionPanel = addPanel(rectanglePanel, getLabel('rectangleOption.panelTitle'));
 
         /* オフセット：チェックボックス＋数値欄＋ルーラー単位 / Offset: checkbox, value field, and the ruler unit */
         var rulerUnit = getUnitInfo("rulerType");
         var offsetRow = rectangleOptionPanel.add("group");
         setupRow(offsetRow, "left", FIELD_ROW_SPACING);
-        var offsetCheckbox = offsetRow.add("checkbox", undefined, getLabel('rectangleOption', 'offset'));
-        offsetCheckbox.helpTip = getLabel('tooltip', 'offset');
+        var offsetCheckbox = offsetRow.add("checkbox", undefined, labelText('rectangleOption.offset'));
+        offsetCheckbox.helpTip = getLabel('tooltip.offset');
         /* ∧∨と入力欄は隙間0で突き合わせる。マイナス値（縮小）も使えるので下限は付けない
            Butt the stepper against the field; no minimum, since negative values shrink the rectangles */
         var offsetStepperGroup = offsetRow.add("group");
@@ -1448,14 +1578,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         });
         offsetInput = offsetStepperGroup.add('edittext {characters: ' + OFFSET_CHARS + '}');
         offsetInput.text = "0";
-        offsetInput.helpTip = getLabel('tooltip', 'offset');
+        offsetInput.helpTip = getLabel('tooltip.offset');
         bindSteppedArrowKeys(offsetInput, offsetStepper);
         offsetRow.add("statictext", undefined, rulerUnit.label);
 
         var mergeAdjacentCheckbox = addPanelCheckbox(rectangleOptionPanel,
-            getLabel('rectangleOption', 'mergeAdjacent'), false, getLabel('tooltip', 'mergeAdjacent'));
+            getLabel('rectangleOption.mergeAdjacent'), false, getLabel('tooltip.mergeAdjacent'));
         var convertToShapeCheckbox = addPanelCheckbox(rectangleOptionPanel,
-            getLabel('rectangleOption', 'convertToShape'), true, getLabel('tooltip', 'convertToShape'));
+            getLabel('rectangleOption.convertToShape'), true, getLabel('tooltip.convertToShape'));
 
         /**
          * 指定レイヤーを選んでいるときだけ名前欄を使えるようにする
@@ -1505,33 +1635,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
          * @returns {void}
          */
         function updateSummary(options, guidePositions, rectangleCount) {
-            guideCountText.text = formatMessage(getLabel('summary', 'guides'), {
+            guideCountText.text = getLabel('summary.guides', {
                 vertical: guidePositions.verticals.length,
                 horizontal: guidePositions.horizontals.length
             });
             /* 判定は main() の結合条件と同じにそろえる / Mirror the merge condition used in main() */
             var willMerge = options.mergeAdjacent && rectangleCount > 1;
-            summaryText.text = formatMessage(getLabel('summary', willMerge ? 'merged' : 'count'), {
+            summaryText.text = getLabel(willMerge ? 'summary.merged' : 'summary.count', {
                 count: rectangleCount
             });
         }
 
-        var buttonBarGroup = dialog.add("group");
-        setupRow(buttonBarGroup, "fill", BUTTON_BAR_SPACING);
-        buttonBarGroup.margins = BUTTON_BAR_MARGINS;
-        var previewCheckbox = buttonBarGroup.add("checkbox", undefined, getLabel('dialog', 'preview'));
+        var buttonRow = addButtonRow(dialog);
+        var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel('dialog.preview'));
         previewCheckbox.value = true;
-        previewCheckbox.helpTip = getLabel('tooltip', 'preview');
+        previewCheckbox.helpTip = getLabel('tooltip.preview');
 
-        /* スペーサー：ボタンを右端へ押し出す / Spacer that pushes the buttons to the right edge */
-        var buttonBarSpacer = buttonBarGroup.add("group");
-        buttonBarSpacer.alignment = ["fill", "fill"];
-        buttonBarSpacer.minimumSize.width = 0;
-
-        var dialogButtonGroup = buttonBarGroup.add("group");
-        setupRow(dialogButtonGroup, "right", BUTTON_BAR_SPACING);
-        dialogButtonGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
-        dialogButtonGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
 
         /* プレビューで描いた長方形と、そのために新規作成したレイヤー / Previewed rectangles and any layer created just for them */
         var previewRects = null;
@@ -1640,7 +1761,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(getLabel('alert', 'noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
@@ -1650,7 +1771,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
 
         var guidePositions = getGuidePositions(doc, options);
         if (countRectangles(guidePositions) === 0) {
-            alert(getLabel('alert', 'notEnoughGuides'));
+            alert(getLabel('alert.notEnoughGuides'));
             return;
         }
 

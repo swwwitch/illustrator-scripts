@@ -80,6 +80,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 ### Update History
 
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.4.2 (2026-09-28): Fixed tab stops, leading and other values being left unconverted, as if in pt, when the type unit was feet, yards or meters; inches now show as "in". The button row is now built with the shared part
 - v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.0 (2026-09-26): Supports Illustrator bullet and numbered lists: before the dialog opens they are turned into text markers with *Convert to Text*, so the current state is detected and the markers can be replaced. Switching between bullets, numbers and None now clears every tab stop before adding the new ones
 - v1.2.2 (2026-09-21): Folded ColorPicker.jsx into the script, so it now runs on its own. Fixed the color picker not opening when the Marker/Number or Delimiter color swatch is clicked. CMYK swatches are now drawn in the same color as the picker shows

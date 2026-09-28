@@ -54,9 +54,10 @@ Flow:
 
 ### Script info
 
-- Version: v1.3.2
+- Version: v1.4.1
 
 ### Update History
 
+- v1.4.1 (2026-09-28) Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure. Temporary actions on the BridgeTalk side now use the shared part.
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.3.2 (2026-09-26) Renamed the file from `ImportAndApplyGraphicStyle.jsx` to `ImportAndApplyGraphicStylePalette.jsx`.

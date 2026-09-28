@@ -35,3 +35,4 @@ Analyzes how the existing artboards are arranged in rows and columns and inserts
 - v1.1.3 (20260914) : Revised the UI wording (spacing scope is now "Apply to Added Only / Apply to All", and the alerts are more specific), added tooltips that explain each option and its shortcut key, and split the internal functions by role
 - v1.2.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.2.2 (20260928) : The button row is now built with the shared part

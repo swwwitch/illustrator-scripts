@@ -35,6 +35,7 @@
 - v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.1 (20260928): Replaced the Link checkbox with a link icon
 - v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.2 (20260928): The button row is now built with the shared part
 
 ### Script info
 

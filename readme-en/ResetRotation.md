@@ -52,3 +52,4 @@
 - v1.3.2 (2026-09-27): Added a colon to the "Level Tolerance" label, corrected tooltips and English labels to match the actual behavior, and showed alerts in the UI language only; code cleanup
 - v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.4.2 (2026-09-28): The button row is now built with the shared part

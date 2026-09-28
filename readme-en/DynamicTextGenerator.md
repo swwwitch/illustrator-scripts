@@ -107,6 +107,7 @@ Settings that apply to every mode. Both change the glyph widths, so they are **a
 
 ### Update History
 
+- v1.2.2 (20260928): The button row is now built with the shared part
 - v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (20260814): Added a "Coverage" slider (30-100) to the Type on a Path options, setting how much of the path length the text covers without changing the path shape. Renamed the "Arch Up" mode to "Arch" and "Adjust" to "Fit", tidied up the panel, checkbox and button wording, and added help tips to the Fit and Kerning choices. The Curve and Coverage sliders now snap to steps of 10 while Shift is held

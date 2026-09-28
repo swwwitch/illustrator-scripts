@@ -26,3 +26,4 @@
 ### Update History
 
 - v1.0.1 (2026-09-27): Error messages now appear in English on English systems
+- v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure

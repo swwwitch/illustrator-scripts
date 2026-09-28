@@ -134,6 +134,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.5.1 (2026-09-28): The button row is now built with the shared part
 - v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.3 (2026-09-27): “Palette” now always leads the keyword buttons whenever a matching file exists
 - v1.4.2 (2026-08-31): Added “Remember the search”. While it is on, the keyword and the list selections carry over between runs within an Illustrator session

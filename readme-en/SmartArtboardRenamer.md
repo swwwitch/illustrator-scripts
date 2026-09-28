@@ -81,3 +81,4 @@
     - Fixed Frontmost Text mode picking up another artboard's text when artboards overlap
     - Range input now handles out-of-range, duplicate, and reversed entries safely
 - v1.5.5 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.5.6 (20260928): The button row is now built with the shared part

@@ -124,3 +124,6 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
   - Code cleanup (dialog and initial values split into functions, shared range parsing, fewer try blocks); no change in behavior
 - v1.2.1 (20260928):
   - The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.2.2 (20260928):
+  - English field labels now end in ":" without a trailing space
+  - The button row is now built with the shared part

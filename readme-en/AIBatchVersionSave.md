@@ -52,3 +52,4 @@
 
 - v1.5.0: Current version
 - v1.5.1: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.5.2: The button row is now built with the shared part

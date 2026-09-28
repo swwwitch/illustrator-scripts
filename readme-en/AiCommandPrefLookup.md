@@ -70,3 +70,4 @@ https://note.com/dtp_tranist/n/n0cf4826bf4a7
 - v1.0.0 (20260927) : Initial release
 - v1.0.1 (20260927) : Removed unnamed history preference keys (such as rulerType_1) from the list
 - v1.0.2 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.3 (20260928) : The button row is now built with the shared part

@@ -21,3 +21,7 @@
 ### Notes
 
 - Settings such as the flattening resolution come from the parameters baked into the action definition.
+
+### Update history
+
+- v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure

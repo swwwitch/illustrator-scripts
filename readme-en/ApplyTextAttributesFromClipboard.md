@@ -36,3 +36,4 @@ The values are read from `$.global.FontClipboard` in the persistent "FontClipboa
 
 - v1.3.1 (2026-05-21)
 - v1.3.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.4 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part

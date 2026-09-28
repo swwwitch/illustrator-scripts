@@ -26,6 +26,8 @@ Generates color palettes, draws them on the artboard and registers them as a swa
 
 ### Update History
 
+- v1.1.2 (20260928): Removed the extra space after the colon in the "HEX:" field label in English, matching the other scripts
+- v1.1.2 (20260928): The button row is now built with the shared part
 - v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1

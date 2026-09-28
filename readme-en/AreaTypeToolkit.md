@@ -185,6 +185,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
+- v1.3.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
 - v1.3.1 (2026-09-28) Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.2 (2026-08-03) Fixed path text being replaced even when the convert dialog was cancelled — the split now happens once [Convert] is clicked. Fixed opening existing Area Type and clicking OK resetting the vertical alignment to Top and overwriting kinsoku / mojikumi with the defaults. Renamed the dynamic action sets to `AreaTypeToolkit_AutoSize` and `AreaTypeToolkit_Alignment` so a user's own same-named action sets are no longer unloaded. Fixed "Pour into selected shape" ignoring compound paths. Fixed clearing the mojikumi on a non-Japanese UI

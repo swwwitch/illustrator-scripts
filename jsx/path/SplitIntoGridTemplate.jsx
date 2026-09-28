@@ -18,7 +18,7 @@ Splits the selected paths into an equal grid of rows and columns across their bo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitIntoGridTemplate";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
@@ -52,7 +52,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // =========================================
     var DIALOG_MARGINS = 18;                 /* ダイアログ外周の余白 / dialog margins */
     var PANEL_MARGINS = [15, 20, 15, 10];    /* パネルの余白 [左,上,右,下] / panel margins */
-    var BUTTON_ROW_TOP_MARGIN = 10;          /* ボタン行の上の余白 / space above the button row */
     var PRESET_PIECE_COUNTS = [2, 3, 4];     /* 分割ボタンの分割数 / piece counts on the split buttons */
     var GRID_INPUT_CHARS = 3;                /* 行・列の入力欄の文字数 / characters for the row and column fields */
     var GUTTER_INPUT_CHARS = 5;              /* 間隔の入力欄の文字数 / characters for the gutter fields */
@@ -101,11 +100,40 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
+    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
+    //      var MY_UI_DARK = isDarkUI();
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
     //    getLabel() と uiLang はコピー先のものをそのまま使う
     // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
@@ -142,22 +170,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -529,13 +542,555 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は SETTINGS_STORE_* / createSettingsStore / readSettingsLegacyFile / readSettingsLegacyPreference / settingsStore*
+    // 2. 寿命は今のスクリプトに合わせて選ぶ。
+    //      "session"    … $.global に置く。Illustrator を終了するまで残る。#targetengine が必須（無いと毎回消える）
+    //      "persistent" … Folder.userData/illustrator-scripts/<storeName>.json に書く。再起動しても残る
+    //    storeName はふつう SCRIPT_NAME。ダイアログの位置は DialogPosition の部品が持つので、ここには入れない
+    // 3. 既定値を1か所にまとめ、load で受け取る。戻り値は毎回新しいオブジェクト（書き換えても保存されない）
+    //      var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
+    //      var DEFAULT_SETTINGS = { widthPt: 10, addFrame: true, modeKey: "fit", corners: { tl: 0, tr: 0 } };
+    //      var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
+    //      …OK で閉じたら…
+    //      settingsStore.save({ widthPt: …, addFrame: …, modeKey: …, corners: { tl: …, tr: … } });
+    //    型は既定値に合わせる（数値の既定値には "12" も 12 として読む。真偽は "1"/"0"/"true"/"false" も読む）。
+    //    合わない値・既定値に無い項目は捨てて既定値を使う。{} と null の既定値は中身を問わずそのまま受け取る
+    //    （名前をキーにしたプリセット集など）。配列は配列ならそのまま受け取る
+    // 4. 保存できるのは文字列・数値・真偽・null と、その配列・入れ子のオブジェクトだけ。
+    //    DOM オブジェクト・File・関数は入れない（パスは fsName の文字列で持つ）。長さは pt で持つ
+    // 5. 旧形式の設定を読み継ぐときは、3つ目の引数に legacy 関数を渡す。
+    //    新しい保存が1度も無いとき（ファイルが無い・$.global に無い）だけ呼ばれ、戻り値を保存値として既定値と突き合わせる。
+    //    旧ファイル・旧キーは消さない。キー名が変わったときは legacy の中で詰め替える
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyFile(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");  … key=value / toSource / JSON を自動判別
+    //      } });
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyPreference("SmartTextFindReplace/settings");  … app.preferences の文字列
+    //      } });
+    // 6. clear() は保存を消す。legacy を渡したストアでは空の保存（{}）を書き、旧設定が戻ってこないようにする
+    // 7. 失敗は例外にせず、load は既定値、save は false を返す（$.writeln に理由を出す）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
+    }
+
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^﻿/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^﻿/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // セッション中の記憶 / Session memory
     // =========================================
 
-    /* 常駐エンジン（#targetengine）の $.global に載せ、Illustrator を終了するまで前回の値を残す
-       Kept on $.global of the persistent engine, so the last values survive until Illustrator quits */
-    var SESSION_STATE_KEY = "__SplitIntoGridTemplate_State__";
+    /* 常駐エンジン（#targetengine）の $.global に載せ、Illustrator を終了するまで前回の値を残す。旧版の $.global のキーを1度だけ読み継ぐ
+       Kept on $.global of the persistent engine, so the last values survive until Illustrator quits; the old $.global key is read once */
+    var LEGACY_SESSION_STATE_KEY = "__SplitIntoGridTemplate_State__";
+    var settingsStore = createSettingsStore(SCRIPT_NAME, "session", {
+        legacy: function () { return $.global[LEGACY_SESSION_STATE_KEY] || null; }
+    });
 
     /**
      * @typedef {Object} DialogState
@@ -579,14 +1134,8 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
             preview: DEFAULT_PREVIEW,
             unitLabel: unitLabel
         };
-        var savedState = $.global[SESSION_STATE_KEY];
-        if (!savedState) return defaults;
-
-        var dialogState = {};
-        for (var key in defaults) {
-            dialogState[key] = (typeof savedState[key] === typeof defaults[key]) ? savedState[key] : defaults[key];
-        }
-        if (savedState.unitLabel !== unitLabel) {
+        var dialogState = settingsStore.load(defaults);
+        if (dialogState.unitLabel !== unitLabel) {
             dialogState.rowGutter = defaults.rowGutter;
             dialogState.columnGutter = defaults.columnGutter;
             dialogState.guideExtension = defaults.guideExtension;
@@ -601,15 +1150,109 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
      * @returns {void}
      */
     function saveDialogState(dialogState) {
-        $.global[SESSION_STATE_KEY] = dialogState;
+        settingsStore.save(dialogState);
     }
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 実行環境のロケールから表示言語を決める / Pick the UI language from the locale */
-    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
+    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
+    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
+    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
+    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
+    //      getLabel("dialog.title")        … パス
+    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
+    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
+    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
+    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         dialog: {
@@ -701,24 +1344,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
             failed: { ja: "分割に失敗しました：\n", en: "Failed to split:\n" }
         }
     };
-
-    /**
-     * 表示言語に合わせたラベルを返す。
-     * @param {Object} labelSet - { ja, en } の組
-     * @returns {string} ラベル文字列
-     */
-    function getLabel(labelSet) {
-        return labelSet[uiLang] || labelSet.en;
-    }
-
-    /**
-     * コロン付きのラベルを返す（日本語は全角、英語は半角）。
-     * @param {Object} labelSet - { ja, en } の組
-     * @returns {string} コロン付きラベル
-     */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
-    }
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -874,6 +1499,66 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ボタン行（再利用パーツ） / Button row (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    //    識別子は BUTTON_ROW_* / addButtonRow
+    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
+    //      var buttonRow = addButtonRow(dialog);
+    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
+    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -920,29 +1605,14 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
         cbShowCenter.value = dialogState.showCenter;
         cbShowCenter.helpTip = getLabel(LABELS.tooltip.showCenter);
 
-        // メイングループ（横並び） / Main group (horizontal layout)
-        var btnRowGroup = dlg.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        // 左側グループ / Left-side group
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var cbPreview = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        // ボタン行（左：プレビュー／右：キャンセル・OK）/ Button row: preview on the left, Cancel/OK on the right
+        var buttonRow = addButtonRow(dlg);
+        var cbPreview = buttonRow.leftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
         cbPreview.value = dialogState.preview;
         cbPreview.helpTip = getLabel(LABELS.tooltip.preview);
 
-        // スペーサー（伸縮）/ Spacer (stretchable)
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // 右側グループ / Right-side button group
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         var splitPreview = createSplitPreview(doc, targets);
 
@@ -1291,6 +1961,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
     //    識別子はすべて LINK_* / *LinkToggle* / *Link* の名前か、描画の下請け関数（buildArcPoints など）
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
     // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数) で作る。helpTip はコピー先で付ける
     //      var linkToggle = addLinkToggle(fieldsRowGroup, true, function () { syncFields(); });
     //      linkToggle.helpTip = getLabel(LABELS.tooltip.linkToggle);
@@ -1313,22 +1984,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // -----------------------------------------
     // リンクアイコンの配色 / Link toggle colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkLinkToggleUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var LINK_UI_DARK = isDarkLinkToggleUI();
+    var LINK_UI_DARK = isDarkUI();
     /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
        Translucent overlays that follow the dialog background; same values as the stepper buttons */
     var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
@@ -1754,6 +2410,122 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 属性パネルの［中心を表示］アクション / "Show Center" action
     // =========================================
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
+    // 2. アクション定義は配列＋join("\n") で組み立てる（''' は ES3 の構文エラー）。
+    //    セット名・アクション名は英数字にする。/name [ n 16進 ] は buildActionNameLines で作るとバイト数がずれない
+    //      var actionSource = [
+    //          "/version 3"
+    //      ].concat(buildActionNameLines("", "MySet"), [
+    //          "/isOpen 1", "/actionCount 1", "/action-1 {"
+    //      ], buildActionNameLines("\t", "myAction"), [ … ]).join("\n");
+    // 3. 1回だけ実行するとき:
+    //      if (!runTemporaryAction(actionSource, "MySet", "myAction")) alert(getLabel("alert.actionFailed"));
+    //    何度も実行するとき（オブジェクトごとなど）は、読み込み・解除を1回ずつにする:
+    //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
+    //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
+    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     /**
      * 選択中のオブジェクトに属性パネルの［中心を表示］を適用する。
      * API で直接設定できないため、一時アクション（.aia）を読み込んで再生する。
@@ -1791,19 +2563,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
             "}"
         ].join("\n");
 
-        var actionFile = new File(Folder.temp + "/" + SCRIPT_NAME + "_ShowCenter.aia");
-        actionFile.open("w");
-        actionFile.write(actionSource);
-        actionFile.close();
-
-        /* 同名セットが残っていると二重登録になるので先に破棄（無ければ例外）/ Discard a leftover set first; throws when there is none */
-        try { app.unloadAction(actionSetName, ""); } catch (e) {}
-        app.loadAction(actionFile);
-        actionFile.remove();
-        try {
-            app.doScript(actionName, actionSetName, false);
-        } finally {
-            app.unloadAction(actionSetName, "");
+        /* 失敗は従来どおり例外で伝える / Report a failure as an exception, as before */
+        if (!runTemporaryAction(actionSource, actionSetName, actionName)) {
+            throw new Error("Could not run the action: " + actionSetName + " / " + actionName);
         }
     }
 

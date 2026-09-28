@@ -33,6 +33,8 @@ https://note.com/dtp_tranist/n/nd4afdd8315f0
 
 ### Update History
 
+- v1.4.2 (2026-09-28): The button row is now built with the shared part
+- v1.4.2 (2026-09-28): Removed the space after the colon in English field labels, matching the Japanese labels. Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.0 (2026-09-23): Added key object support (selected by default under "Take Fill and Stroke From"). Fixed the rectangle using geometric bounds when OK was clicked with "Use Preview Bounds" left on, and the rectangle sometimes landing on a layer other than the original active one. Revised the UI wording (title, panel name, tooltips), cleaned up the internals and added shortcut-key tooltips to the source radio buttons
 - v1.3 (2026-03-08)
