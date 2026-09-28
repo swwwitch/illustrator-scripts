@@ -71,3 +71,4 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 - v1.0.3 (20250610): Added offset feature and unit code support
 - v1.5.2 (20260927): "Add stroke" now works in Puzzle mode too; revised the dialog title, field labels and tooltips; options disabled for the current method (such as Scatter in Grid mode) no longer take effect; the dialog stays open when the column/row counts cannot be sliced
 - v1.6.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.6.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

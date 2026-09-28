@@ -137,10 +137,11 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.0.1 (2026-08-13) : Reorganized the internal structure; fixed the random mode being blocked by the unused segment count; added tooltips to the dialog
 - v2.0.3 (2026-09-22) : Fixed the OK button not sitting flush with the right edge of the dialog
 - v2.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v2.1.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v2.1.0
+- Version: v2.1.1
 - First release: 2026-02-25
 - Last updated: 2026-09-27
 - Article: https://note.com/dtp_tranist/n/n868bedb96542

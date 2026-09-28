@@ -39,6 +39,7 @@ A modal dialog that applies swatches, or predefined colors, to the selected obje
 
 ### Update History
 
+- v1.8.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.8.1 (2026-09-09): Merged the persistent-palette and modal-dialog versions into the dialog version
 - v1.8.0 (2026-07-19): Preview is now reverted from a snapshot baseline; per-character coloring of long text is decimated while previewing
 - v1.7.3 (2026-07-17): Lighter behavior while the UI is open

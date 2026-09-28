@@ -46,4 +46,5 @@
 
 ### Update History
 
+- v1.0.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.0 (20260702): Initial release. Converts point / path text ⇔ area type depending on the selection. A shared "Convert Text" dialog shows the current selection and a Keep / Don't-keep style choice. Forward: area type at the appearance-expanded measured size. Reverse: point text (Don't keep adds two fills plus an absolute-size rectangle background). Vertical centering and graphic-style registration use temporary dynamic actions

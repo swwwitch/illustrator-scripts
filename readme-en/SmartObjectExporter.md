@@ -22,7 +22,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 - Text is measured from an outlined copy, so the export area follows the actual glyphs (the original text is left untouched)
 - Background: transparent, black, white, transparency grid or a color code. The grid tile size is given as a percentage, where 100% is an 8pt square
 - Color codes accept three formats: `#RRGGBB`, `R255G255B255` and `C0M100Y100K0`
-- Margin: top, bottom, left and right set individually, in the current ruler unit. Same Value applies the top value to all four sides
+- Margin: top, bottom, left and right set individually, in the current ruler unit. Turning on Link (the link icon in the middle) applies the top value to all four sides
 - Round Export Area picks how the export area is rounded: Align to pixel grid, Whole ruler units, or Don't round
 - Border: enabled by the Width checkbox, with a width plus color (black, white or a color code), drawn inside the export area with a minimum of 1px
 - Export size: 1x to 4x, a custom scale (%) or a target width (px). The 1x–4x labels show the resulting pixel size including the margin, and follow the margin as it changes
@@ -47,7 +47,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 | --- | --- |
 | Preset | Recalls a built-in setting. Save Preset writes the current settings to the desktop as text |
 | Background | Transparent / Black / White / Transparency grid (%) / Color code |
-| Margin | Top / Bottom / Left / Right, in the current ruler unit; Linked keeps all four equal; Round Export Area picks how the area is rounded |
+| Margin | Top / Bottom / Left / Right, in the current ruler unit; Link (the link icon in the middle) keeps all four equal; Round Export Area picks how the area is rounded |
 | Border | Width checkbox plus a width in the current ruler unit, and black, white or a color code |
 | Export Size (px) | 1x–4x / custom scale (%) / target width (px) |
 | Export Filename | Whether to use the document name, the delimiter, and the Suffix checkbox with its value |
@@ -72,6 +72,8 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.1.2 (2026-09-28): Replaced the Link checkbox with a link icon
+- v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.1 (2026-09-27): Revised UI wording (Document Name: Include / Exclude; location: Same Folder as Document; rounding: Round Export Area with Align to pixel grid / Whole ruler units / Don't round). Added colons to the Transparency Grid and Color Code labels, and tooltips to the transparency grid, document name and delimiter
 - v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.2 (2026-09-11): Fixed stacking order across layers, the working layer left behind when something failed mid-run, deletion of same-named user artwork, the crash on a text-tool selection, the destination folder for an unsaved document, the delimiter with no document name, how an unreadable color code is handled for the background and border, and the transparency grid spilling past the export area. Preset margins and border widths are now kept in mm, the UI wording was revised, and tooltips were added throughout

@@ -44,4 +44,5 @@ Converts the selected area type to point text. Frames whose text is overset get 
 
 ### Change Log
 
+- v1.0.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.0 (20260820) : Initial release (with the "Remove forced line breaks" option in the dialog)

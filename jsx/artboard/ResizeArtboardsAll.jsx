@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeArtboardsAll.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtboardsAll.md"; /* README (English) */
@@ -52,8 +52,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var SPECIFY_FIELD_CHARACTERS = 12;       /* 番号指定欄の桁数 / artboard number field characters */
     var LABEL_WIDTH_PADDING = 6;             /* 項目名の幅に足す余白 / padding added to the measured label width */
 
-    /* ダイアログの不透明度と、初回表示時の画面中央からの横オフセット / Dialog opacity and first-run offset from screen center */
-    var DIALOG_OPACITY = 0.95;
+    /* 初回表示時の画面中央からの横オフセット / First-run offset from screen center */
     var DIALOG_FIRST_RUN_OFFSET_X = 300;
 
     /* プレビューの再描画の最短間隔（ms） / Minimum interval between preview redraws (ms) */
@@ -654,83 +653,159 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return messageText + lineText + fileText;
     }
 
-    // =========================================
-    // ダイアログ位置の記憶 / Dialog position persistence
-    // =========================================
-    // #targetengine の $.global に置くので、Illustrator を終了するまで位置が残る。
-    // Kept in $.global of the named engine, so it lasts until Illustrator quits.
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は DIALOG_* / prepareDialogWindow / *DialogLeft* / getSelectionViewSpan の名前
+    // 2. スクリプトの先頭（#target の次の行）に #targetengine "<SCRIPT_NAME>Engine" を置く。
+    //    #targetengine が無いと $.global が実行ごとに消え、位置を覚えられない。すでにあればそのまま使う
+    // 3. ダイアログの show() の直前で prepareDialogWindow(dialog, SCRIPT_NAME) を呼ぶ。
+    //    それまでに入れた onShow / onMove / onClose はそのまま生かし、あとに位置の復元・記録をつなぐ
+    //      prepareDialogWindow(mainDialog, SCRIPT_NAME);
+    //      var dialogResult = mainDialog.show();
+    //    同じスクリプトで複数のダイアログを開くときは、2つ目以降のキーを変える（SCRIPT_NAME + "_colorPicker" など）
+    //    同じダイアログを何度も開くときも、毎回 show() の直前で呼んでよい（2回目からは選択範囲を測り直すだけ）
+    // 4. 初めて開くとき（記録が無いとき）は、スクリプト側の配置（中央・オフセットなど）がそのまま効く
+    // 5. 開く位置が選択中のオブジェクトに重なりそうなら左右の反対側へずらす（Illustrator のみ）。
+    //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    var DIALOG_POSITION_KEY = "__ResizeArtboardsAll_Dialog";
+    var DIALOG_OPACITY = 0.97;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
 
     /**
-     * 保存済みのダイアログ位置を取得する
-     * @param {string} storageKey - $.global のキー
-     * @returns {number[]|null} [x, y]。無ければ null
-     */
-    function getStoredLocation(storageKey) {
-        return $.global[storageKey] && $.global[storageKey].length === 2 ? $.global[storageKey] : null;
-    }
-
-    /**
-     * ダイアログ位置をセッションに保存する
-     * @param {string} storageKey - $.global のキー
-     * @param {number[]} location - [x, y]
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
      * @returns {void}
      */
-    function storeLocation(storageKey, location) {
-        $.global[storageKey] = [location[0], location[1]];
-    }
-
-    /**
-     * 位置を画面内に収める
-     * @param {number[]} location - [x, y]
-     * @returns {number[]} 画面内に収めた [x, y]
-     */
-    function clampLocationToScreen(location) {
-        /* 画面情報が取れない環境では元の位置のまま / keep the location when screen info is unavailable */
-        try {
-            var visibleBounds = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
-            var clampedX = Math.max(visibleBounds[0] + 10, Math.min(location[0], visibleBounds[2] - 10));
-            var clampedY = Math.max(visibleBounds[1] + 10, Math.min(location[1], visibleBounds[3] - 10));
-            return [clampedX, clampedY];
-        } catch (e) {
-            return location;
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
         }
-    }
-
-    /**
-     * ダイアログ位置の記憶を設定し、保存関数を返す
-     * 保存位置があれば表示時に復元し、無ければ初回は画面中央から横にずらして表示する
-     * @param {Window} dialogWindow - 対象のダイアログ
-     * @param {string} positionKey - $.global のキー
-     * @param {number} firstRunOffsetX - 初回表示時の中央からの横オフセット
-     * @returns {function} 現在位置を保存する関数
-     */
-    function attachPositionPersistence(dialogWindow, positionKey, firstRunOffsetX) {
-        var savedLocation = getStoredLocation(positionKey);
-
-        var persist = function () {
-            storeLocation(positionKey, [dialogWindow.location[0], dialogWindow.location[1]]);
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
         };
+        dialog.dialogWindowState = windowState;
 
-        if (savedLocation) {
-            dialogWindow.onShow = function () {
-                dialogWindow.location = clampLocationToScreen(savedLocation);
-            };
-        } else {
-            dialogWindow.onShow = function () {
-                dialogWindow.layout.layout(true);
-                var screenWidth = $.screens[0].right - $.screens[0].left;
-                var screenHeight = $.screens[0].bottom - $.screens[0].top;
-                var centerX = screenWidth / 2 - dialogWindow.bounds.width / 2;
-                var centerY = screenHeight / 2 - dialogWindow.bounds.height / 2;
-                dialogWindow.location = [centerX + firstRunOffsetX, centerY];
-            };
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
         }
 
-        dialogWindow.onMove = persist;
-        return persist;
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
     }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // 入力の解釈 / Input parsing
@@ -959,8 +1034,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         resizeDialog.orientation = "column";
         resizeDialog.alignChildren = "fill";
         resizeDialog.margins = WINDOW_MARGINS;
-        resizeDialog.opacity = DIALOG_OPACITY;
-        var persistLocation = attachPositionPersistence(resizeDialog, DIALOG_POSITION_KEY, DIALOG_FIRST_RUN_OFFSET_X);
 
         var columnsGroup = resizeDialog.add("group");
         columnsGroup.orientation = "row";
@@ -1097,27 +1170,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var isConfirmed = false;
         btnOK.onClick = function () {
-            persistLocation();
             applyResizePreview();
             isConfirmed = true;
             resizeDialog.close(1);
         };
         btnCancel.onClick = function () {
-            persistLocation();
             restoreArtboardRects(targetDocument, originalRects);
             app.redraw();
             resizeDialog.close(0);
         };
 
-        /* 表示時の位置合わせに続けて、幅の欄にフォーカスを置く / Focus the width field after positioning */
-        var positionOnShow = resizeDialog.onShow;
         resizeDialog.onShow = function () {
-            positionOnShow();
+            /* 初回は画面中央から横にずらす。前回の位置があれば prepareDialogWindow が上書きする
+               First run: offset from the center; prepareDialogWindow overrides it with the last location */
+            resizeDialog.location = [resizeDialog.location[0] + DIALOG_FIRST_RUN_OFFSET_X, resizeDialog.location[1]];
+            /* 幅の欄にフォーカスを置く / Focus the width field */
             widthInput.active = true;
         };
 
         updateSpecifyEnabled();
         applyResizePreview();
+        prepareDialogWindow(resizeDialog, SCRIPT_NAME);
         resizeDialog.show();
         return isConfirmed;
     }

@@ -32,3 +32,4 @@
 - v1.0.0 (20250420): Initial version
 - v1.0.1 (20250423): Added item disable control and spacing settings
 - v1.0.2 (20250424): Fixed incorrect leading (%) detection for accurate display
+- v1.0.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -51,7 +51,8 @@
 - v1.7.1 (20260408) : Added automatic dimming of irrelevant exclusion UI, enabled-only toggle-all behavior, consistent skipLockedLayers / skipHiddenLayers handling for sublayers, clearer guides-panel initialization, and updated overview/comments
 - v1.7.3 (20260413) : Narrowed excluded layer names to only "bg" (removed "背景" and "background")
 - v1.7.4 (20260415) : Added option to move guides from excluded layers to the guide layer (available when "Move to another layer" is selected, default ON)
+- v1.7.6 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.7.4
+- Version: v1.7.6

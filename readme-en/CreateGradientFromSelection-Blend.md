@@ -25,3 +25,4 @@ Extracts the fill and stroke colors of the selection in layout order, registers 
 ### Update History
 
 - v1.6
+- v1.6.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

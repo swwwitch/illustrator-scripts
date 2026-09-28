@@ -34,3 +34,4 @@ They are stored in `$.global.FontClipboard` inside the persistent "FontClipboard
 ### Update History
 
 - v1.3.0 (2026-05-21)
+- v1.3.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -31,3 +31,4 @@ Detects missing linked images and relinks them automatically from a folder you c
 ### Update History
 
 - v1.4 (2025-08-02)
+- v1.4.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -56,7 +56,8 @@
 ### Update History
 
 - v1.0.0 (20260928): Initial version
+- v1.0.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1

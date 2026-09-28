@@ -126,6 +126,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ## Changelog
 
+- v2.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.3.0 (2026-09-27): Removed the View Zoom slider. "Fit to Window" gained a percentage field, 65 by default, and Cancel now restores the view position as well. Added Option (Alt) + 3/4/5/6/8 shortcuts for the side count. The "4 (Square)" label, colons after "Fill:" and "Stroke:", a percent sign on the smoothing value, the superellipse exponent reduced to a slider on the checkbox row, and reworded labels such as "Anchor Count", "Rounded Corners", "Convert to Live Shape", "Fit to Window" and "Cap". Added tooltips and consolidated duplicated internal code
 - v2.2.4 (2026-09-27): Fixed number fields that would not accept a decimal point (the value was rewritten on every key, not just the arrow keys). Units now come from the shared unit table (adds H, ft, yd and m; inches read "in"). Renamed the English dialog title to "Create Basic Shapes". Added tooltips to the controls and unified how field labels get their colon

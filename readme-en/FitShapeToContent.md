@@ -31,7 +31,7 @@ Quickly creates and adjusts a backing shape that fits a text frame or a group. P
 | --- | --- |
 | Adjust Shape | When off, the shape keeps its size and is only centered on the content |
 | Padding (Width / Height) | Space added around the content |
-| Link | Keeps width and height at the same value |
+| Link (link icon) | Keeps width and height at the same value |
 | Radius | Corner radius; turn it off for square corners |
 | Pill Shape | Sets the radius to half the height and caps both ends; the width is computed automatically |
 
@@ -61,6 +61,8 @@ https://note.com/dtp_tranist/n/n6e4a6a2b175f
 
 ### Update History
 
+- v2.1.1 (2026-09-28) Replaced the Link checkbox with a link icon
+- v2.1.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.3 (2026-08-31) Padding and radius now honor the ruler unit. A selected text+shape group keeps its group and original shape. Padding is measured from the path instead of the stroke. The corner radius is capped at half the shorter side
 - v2.0.2 (2026-05-25)

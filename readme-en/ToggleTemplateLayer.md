@@ -23,7 +23,8 @@
 - v1.1 (20260601): Reorganized the temporary-action creation and execution into a standard pattern
 - v1.2 (20260601): Read the active layer name dynamically and inject it into parameter-3
 - v1.3 (20260601): Added template OFF, with a small dialog to choose ON/OFF
+- v1.3.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.3
+- Version: v1.3.2

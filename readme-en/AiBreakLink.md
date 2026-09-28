@@ -86,5 +86,6 @@ The defaults can be changed in the User settings section at the top of the scrip
 
 ## Update history
 
+- v1.2.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.1 (2026-08-01): Unified the break-result normalization and cleaned up the code
 - v1.0.0 (2026-05-04): Initial version

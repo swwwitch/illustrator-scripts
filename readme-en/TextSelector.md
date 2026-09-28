@@ -33,3 +33,4 @@ Selects text frames across the document by a combination of conditions.
 ### Update History
 
 - v1.2.5
+- v1.2.7 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

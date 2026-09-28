@@ -128,6 +128,7 @@ The artboard layout logic is ported from [AddArtboardPlus.jsx](https://github.co
 
 ## Update history
 
+- v1.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-05): Fixed the dialog settings never being remembered between runs (they are now kept on `$.global` in the persistent engine)
 - v1.0.0 (2026-07-29): Initial version

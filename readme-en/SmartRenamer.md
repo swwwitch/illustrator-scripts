@@ -54,7 +54,8 @@
     - v1.5.3 (20260508): On name collisions, the first occurrence now starts at "_1" (non-duplicates remain untouched)
     - v1.6.0 (20260511): Added item type switching (artboard / symbol / layer), dedicated filter panel, "Original Name" mode, search filter, regex shortcut buttons, find / replace (regex-capable), `{#N}` sequence tokens, Option-click isolate, post-Refresh re-baselining, immediate symbol/layer Refresh updates, and double-apply prevention when pressing OK without changes after Refresh
     - v1.6.2 (20260923): Row "New Name" edits now count as manual edits even when Refresh / OK is pressed without leaving the field. Fixed: manual checkbox changes under the search filter being overwritten by Refresh, the Range field re-enabling while the search filter is on, and `{#01}` sequences truncating to "00" from item 100. Reorder buttons are now disabled for symbols / graphic styles, which cannot be reordered (the reorder silently failed and other items got renamed). The list now shows 12 rows with a scrollbar (rows beyond the panel height used to be unreachable). OK with "Original Name" and no input is now treated as no input (duplicate names no longer get "_1") and warns before the dialog closes. Fixed: "Frontmost Text" being assigned to another artboard when artboards overlap, and temporary names being left behind when an artboard rect fails to restore
+    - v1.6.3 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.6.2
+- Version: v1.6.3

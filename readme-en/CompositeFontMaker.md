@@ -122,3 +122,5 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
   - Added Also create in InDesign, which creates the same composite font in the running InDesign
 - v1.2.0 (20260928):
   - Code cleanup (dialog and initial values split into functions, shared range parsing, fewer try blocks); no change in behavior
+- v1.2.1 (20260928):
+  - The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -37,3 +37,4 @@
 - v1.0.4 (20250617): Auto-select numeric column
 - v1.0.5 (20250617): Auto-detect header row
 - v1.0.6 (20250617): Allow incomplete tabs in header
+- v1.0.8 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

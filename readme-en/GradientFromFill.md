@@ -35,3 +35,4 @@ Creates a linear gradient on the selected filled objects, starting from their or
 ### Update History
 
 - v1.1.0
+- v1.1.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

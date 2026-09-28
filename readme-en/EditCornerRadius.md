@@ -62,6 +62,7 @@
 
 ### Update History
 
+- v1.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.0 (2026-09-28): With "Selected objects only", rectangles inside selected groups are included. When converting a compound shape, the Round Corners effect on released rectangles is removed and the same radius is built into the path
 - v1.4.0 (2026-09-28): Compound shapes are converted to a group with the Pathfinder Add effect so their rectangles can be changed (selection, artboard and document)
 - v1.3.0 (2026-09-28): Added support for callout shapes (rectangles with a tail on a side), rectangles inside compound paths, and directly selected rectangles inside compound shapes. Fixed the dialog widening from the skipped-objects text when nothing selected was a target
@@ -71,4 +72,4 @@
 
 ### Script info
 
-- Version: v1.5.0
+- Version: v1.5.1

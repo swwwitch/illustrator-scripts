@@ -19,7 +19,7 @@
 - Split position: Balance sets the width and share (%) of each half with fields and a slider. Turn on Square to split where that side becomes a square.
 - Fills: choose whether each half is filled and pick its color. Clicking a swatch opens a color picker with white, black, RGB, CMYK and grayscale. By default the left (top) half is light gray (RGB 220) and the right (bottom) half dark gray (RGB 128).
 - Strokes: add an outer frame around the whole shape and a divider along the split, with their weight and color.
-- Corners: round each of the four corners on its own, or turn on Pill shape to make both ends semicircles. With Link on, the top-left setting applies to all four corners.
+- Corners: round each of the four corners on its own, or turn on Pill shape to make both ends semicircles. With Link (the link icon) on, the top-left setting applies to all four corners.
 - Accurate measuring: text is measured from an outlined duplicate, so side bearings do not shift the background (the duplicate is deleted right away). Clip groups are measured by their mask.
 - Placement: the result goes on the layer that held the original object. Fills go to the back of the layer and the frame and divider to the front; with Group items on they are grouped together, and the group sits at the front of the layer.
 
@@ -36,7 +36,7 @@
 - Square: splits where that side becomes a square
 - Fill: turns Left and Right (Top and Bottom for a top/bottom split) on or off and sets their colors
 - Stroke: Outer frame and Divider (also toggled with the F and D keys), Stroke width (in the preference's stroke unit) and Color. Stroke width and Color are dimmed when neither the frame nor the divider is in use
-- Corner radius: Pill shape, Link, and TL / BL / TR / BR with their radius (ruler units)
+- Corner radius: Pill shape, TL / BL / TR / BR with their radius (ruler units), and Link (the link icon between the two columns)
 - Group items: groups the resulting objects together (on by default)
 - In the number fields, the stepper buttons on the left or Up/Down step to the next whole number (1.5 → 2), with Shift to the next multiple of 10, and with Option by ±0.1
 
@@ -57,3 +57,4 @@
 - v2.9.2 (20260314): Updated the version string and the update date.
 - v2.9.4 (20260922): Fixed tooltips that showed internal names such as "tipColorType". Fixed Cancel still moving the original object to the front and dropping the selection. Fixed the object's layer being switched to Print. Fixed preview layers piling up and staying behind for objects on sublayers; the group is now created on the original object's layer. Fixed the default stroke becoming 0 with inch or cm stroke units, which kept the preview from appearing. Fixed the preview disappearing when the stroke width was blank even though neither the frame nor the divider was in use; OK with an invalid stroke width while the frame or divider is on now returns to that field. Fixed the Balance width and percent fields not accepting a decimal point, and Shift+Up/Down not moving the slider left (up) of center. Fixed values typed into the color picker fields not being applied. Fixed an error on whitespace-only text, and misbehavior when run with one character selected while editing text. Fixed the last values getting mixed with SplitBackgroundForTwo, which used the same #targetengine. Fixed "Bottom:" being cut off in English after switching to a top/bottom split, and field labels now end with a colon. Clip groups are now measured by their mask. Rounding now follows the unit size (1 decimal for pt, 2 for mm, 3 for in, cm and larger units), and the last values are kept in pt so they survive a unit change. The color picker position is now kept until Illustrator quits. The object is measured once when the dialog opens, which speeds up the preview. Internal cleanup
 - v2.10.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v2.10.1 (20260928): Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

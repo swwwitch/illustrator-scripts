@@ -40,6 +40,7 @@ The style names have to match the names registered in the source AI file.
 
 ### Update History
 
+- v1.6.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.6.0 (20260701): Removed search, add and the candidate list (ListBox / category selection). The script now imports the graphic style chosen by radio button (white text / frame only) when needed and applies it to the selection
 - v1.5.0 (20260701): Structured the localization (nested LABELS plus a dotted lookup), wrapped everything in an IIFE, added a shared panel helper, tidied variable and function names, split the import flow into functions, and removed duplicated code and unnecessary `try` blocks
 - v1.4 (20250815): Switched to a standard ListBox (two-column header), dropped the delete option, added category radios and a search button, unified the paste target to `// _imported`, and refreshed the documentation
@@ -50,4 +51,4 @@ The style names have to match the names registered in the source AI file.
 
 ### Script info
 
-- Version: v1.6.0
+- Version: v1.6.2

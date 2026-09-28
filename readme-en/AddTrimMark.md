@@ -36,3 +36,4 @@
 
 - v1.2.0 (20260401): Initial release
 - v1.2.1 (20260831): Restore the preference, active layer, and layer visibility after the run; make the rectangle tolerance check effective and reject degenerate zero-area paths; stop accumulating duplicate layers on the All Artboards run
+- v1.2.3 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -86,6 +86,7 @@ The up/down buttons to the left of each number field work the same way as the ar
 
 ### Update history
 
+- v1.2.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927) : Added stepper buttons to the left of the number fields. The arrow keys now share the steppers' logic, Up / Down moves to the next whole number (1.5 → 2) and Shift + Up / Down to the next multiple of ten
 - v1.1.0 (20260927) : The cut-edge shape radio buttons are now icon buttons that show each shape
 - v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now laid out in two rows of two

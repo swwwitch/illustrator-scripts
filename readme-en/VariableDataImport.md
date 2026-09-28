@@ -145,6 +145,7 @@ Both are created next to the original document, which stays unchanged. The previ
 
 ## Changelog
 
+- v1.6.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.6.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.0 (2026-08-25): Added match-by-column-name and manual mapping modes, sample values and dimming of used columns in the mapping dropdowns, consumption-tax derivation, an explicit column count, file-name settings, and keyboard stepping for numeric fields
 - v1.4.1 (2026-05-18): Stability improvements

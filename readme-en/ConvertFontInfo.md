@@ -32,7 +32,8 @@
 - v1.1.0 (20260428): Expanded conversion formats and added actual font preview, keyboard shortcuts, and final reapply on OK
 - v1.1.1 (20260608): Allow running from a partial character selection (TextRange), made OK the default button, internal refactor
 - v1.1.2 (20260611): Removed the redundant re-apply on OK to avoid crashes (commit the previewed state as-is)
+- v1.1.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.1.2
+- Version: v1.1.4

@@ -20,7 +20,7 @@
 
 - Choose the tiling direction: horizontal or vertical
 - Split into rows (horizontal) or columns (vertical)
-- Separate horizontal and vertical spacing ("Link" applies the horizontal value to both)
+- Separate horizontal and vertical spacing (the link icon applies the horizontal value to both)
 - Follows the ruler unit (mm, pt, px, Q/H, …)
 - Grid layout: cells sized to the largest object, so every cell shares the same width and height
 - Vertical alignment (top / middle / bottom / none) and horizontal alignment (left / center / right / none)
@@ -45,7 +45,7 @@
 - **Use preview bounds**: ON uses visibleBounds (stroke and effects included), OFF uses geometricBounds. Illustrator's preference is toggled while the dialog is open and restored on both OK and Cancel.
 - **Grid**: places objects on a grid whose cell matches the largest object. Turning it on defaults both axes to centered.
 - **Random**: shuffles the order. The top-left corner of the block stays put.
-- **Link**: applies the horizontal spacing to the vertical one (the V field is dimmed while it is on).
+- **Link** (the link icon to the right of the fields): applies the horizontal spacing to the vertical one (the V field is dimmed while it is on).
 
 ### Notes
 
@@ -69,6 +69,8 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Update History
 
+- v2.1.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v2.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.0 (2026-09-06): Merged `SmartAlignAndTile-yoko` (v1.7.1) and `SmartAlignAndTile-tate` (v1.8) into one script with a direction switch. The key object now acts as the origin of the layout, "None" was added to both alignment rows, and the lane band is unified on the largest item size. Also fixed the Shift+Down snap, the row/column count clamping, the lane distribution (the requested count is always used) and the preference restore.
 
@@ -76,4 +78,4 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Script info
 
-- Version: v2.0.0
+- Version: v2.1.1

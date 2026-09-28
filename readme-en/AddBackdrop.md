@@ -50,7 +50,7 @@ With either of these selections, the script treats the shape as the existing bac
 | Scale: Size | Size of the shape relative to the base bounds, in percent. Defaults to 90%. Fixed at 100% for rectangles (except squares) |
 | Scale: Single Character | Draws a circle whose diameter is 1.5 times the font size. Turned on automatically for text with a single non-space character |
 | Margin: Vertical / Horizontal | Space added above/below and left/right of the base bounds. Defaults to a quarter of the short side on first use |
-| Margin: Link | Uses the vertical value for the horizontal margin too |
+| Margin: Link (link icon) | Uses the vertical value for the horizontal margin too |
 | Margin: Square | Makes a square whose side equals the circle's diameter |
 | Round | Corner radius, applied with the Round Corners live effect. Defaults to a fifth of the short side on first use |
 | Pill shape | Uses half the height as the radius so both ends become semicircles |
@@ -87,6 +87,8 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v1.7.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.4 (2026-09-23): Revised UI wording (title, panel names, label colons, tooltips); split the button row and added a Show Transparency Grid button
 - v1.6.3 (2026-09-23): Fixed typed stroke weight and CMYK values not being clamped, the previous corner radius not being restored when rounding was on, and the message shown with no document open. Internal cleanup

@@ -28,7 +28,8 @@
 - v1.6.0 (2026-04-27): Separated the UI structure, reorganized unit handling, added safe-operation helpers, cleaned up naming, and added a dedicated output layer
 - v1.6.5 (2026-04-27): Improved the UI structure (added a post-processing panel, reorganized options, improved labels) and refined the output layer design
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.7.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.7.0
+- Version: v1.7.1

@@ -73,6 +73,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.2 (2026-09-19): Run placement after the dialog closes, add the row count readout, move Scale to its own Options panel, remove duplicate page measurement, fix restoring the crop preference
 - v1.1.1 (2026-06-14): Internal restructuring

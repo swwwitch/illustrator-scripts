@@ -33,6 +33,7 @@ https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 - v1.0.1: Show Japanese font names in the confirmation dialog, order entries by canvas position (top to bottom), align the arrows by fixing the "before" column width, drop the version from the title, and adjust the side margins
 - v1.1.0: Expanded the convertible families (Tsukushi series, UD faces, Fontworks-derived designs, and so on)
 - v1.1.1: Added AXIS (Type Project) faces, with dedicated handling that preserves the width (Basic/Cond/Comp) and Joyo and switches only N and Std/Pro; the Max and MaxN presets always move them to ProN
+- v1.1.3: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Article
 
@@ -40,4 +41,4 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 
 ### Script info
 
-- Version: v1.1.1
+- Version: v1.1.3

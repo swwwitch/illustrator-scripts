@@ -95,6 +95,7 @@ https://note.com/dtp_tranist/n/ndb9bee6b7a2e
 
 ### Change log
 
+- v1.3.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.0 (2026-09-24): Added Mask to Options (off: no clip group; turns off automatically when Extra tiers is set to 0)
 - v1.1.1 (2026-09-24): Added periods to the dummy text (kinsoku set to None); widened the label column so long labels are not clipped

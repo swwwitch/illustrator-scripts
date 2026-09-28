@@ -36,7 +36,8 @@
 - v1.0 (20250710) : Initial version
 - v1.1 (20250710) : Added option to remove objects outside artboards, options for locked/hidden objects
 - v1.2.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.2.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1

@@ -33,5 +33,6 @@ https://note.com/dtp_tranist/n/na4c70c5acd60
 
 ### Update History
 
+- v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.1 (2026-09-18)
 - v1.0 (2026-04-14)

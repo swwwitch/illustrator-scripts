@@ -18,8 +18,8 @@ Randomizes the position, scale, rotation, opacity, and fill color of the selecte
 
 ### Features
 
-- Move distance set separately for the horizontal and vertical axes, or kept identical with "Link" (values are in pt)
-- Scale (width and height) in %, also with a "Link" option
+- Move distance set separately for the horizontal and vertical axes, or kept identical with the link icon (values are in pt)
+- Scale (width and height) in %, also with the link icon
 - Rotation (0-180 deg) and opacity (0-100%) set with a slider or by typing
 - Fill color "Shuffle" (swap the colors within the selection) and "Full Shuffle" (generate random colors)
 - "Gather to Center" collects the selected objects at the center of their combined bounds
@@ -59,3 +59,5 @@ https://note.com/dtp_tranist/n/nba8235fe91b2
 - v2.2 (20260305): Extracted the "avoid overlap" placement logic into a general-purpose function other scripts can reuse
 - v2.2.1 (20260819): Bug fixes - rotation and scale previews now really are undone by Cancel and Reset (the old code restored a `matrix` property that PageItem does not have; the applied transforms are now undone in reverse order, and the stopgap that straightened rectangles is gone, so a rectangle you drew rotated stays rotated); the rotation field syncs to its slider again; rotation is capped at the slider maximum (180 degrees); scale [Link] reuses one random factor for width and height, so linked scaling keeps the aspect ratio; toggling distance [Link] refreshes the preview; Reset rebuilds the preview base, so a previous "Gather to Center" no longer comes back; "Avoid Overlap" keeps its placement instead of losing it on the next preview, puts the objects back when it fails, leaves the distance fields alone on failure, and writes back the range it actually used when the fields were empty; closing with the title-bar button restores the artwork and the Live Corner Annotator like Cancel does; and running the script with characters selected by the type tool no longer throws. The sliders also reset to 0 along with the fields. Housekeeping: wrapped the whole script in an IIFE, trimmed the header to an overview + README pointer, added the basic-info block (README links and the article URL), split user settings from layout constants, categorized LABELS and unified lookups on `getLabel()`, deduplicated the UI with helpers (setupPanel/setupRow/addPanel/addNumericFieldRow) and a shared builder for the distance and scale panels, split state capture / preview / panel building / dialog wiring into smaller functions, added JSDoc to every function, aligned names with the naming rules, and removed dead code
 - v2.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v2.3.1 (20260928): Replaced the Link checkbox with a link icon
+- v2.3.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

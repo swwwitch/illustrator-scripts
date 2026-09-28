@@ -262,6 +262,7 @@ Change these in the User settings block at the top of the script.
 
 ## Changelog
 
+- v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-27): Added an English UI and a tooltip; tidied the code
 - v1.0.1 (2026-08-16): Support a tab-separated heading row and value row
 - v1.0.0 (2026-08-16): Initial release

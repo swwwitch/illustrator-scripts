@@ -33,3 +33,4 @@
 - v1.0.0 (20250615): Initial version
 - v1.1.0 (20250616): Added radio button state retention
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

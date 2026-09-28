@@ -35,3 +35,4 @@
 - v1.0 (20250606) : Initial release
 - v1.1 (20250607) : Stabilization and adjustments
 - v1.2 (20250717) : Comments refactored
+- v1.2.3 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

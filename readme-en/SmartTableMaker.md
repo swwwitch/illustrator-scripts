@@ -32,7 +32,8 @@ In the height (%), stroke weight, corner radius and Width fields, the stepper bu
 - v1.1 (20260126): Added Balance (None / Left / Right) and Width so the left/right ratio can be tuned; Width takes the inter-object gap as its maximum and supports slider, numeric input and arrow keys
 - v1.2 (20260131): Introduced a PreviewManager based on `app.undo()` so the preview does not pollute the Undo history; on OK the preview is rolled back and the real run happens once, so a single Ctrl+Z reverts it
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.1
+- Version: v1.2.1

@@ -76,6 +76,7 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 
 ## Changelog
 
+- v2.0.2 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.0.1 (20260927): With only a caret placed in text (no characters selected), the clipboard is now inserted at the caret with Paste without Formatting instead of replacing the whole text frame
 - v2.0.0 (20260927): Renamed from `ReplaceTextWithPaste.jsx` to `ReplaceWithPaste.jsx`. Added support for non-text clipboard contents: each selected object is replaced with the pasted contents, matched in center and stacking position (with nothing selected, the contents are pasted as usual). Sizing is Keep Size, Fit Long Side, or Fit Short Side, chosen in a dialog with a live preview or fixed with the `SHOW_SIZE_DIALOG` and `DEFAULT_SIZE_MODE` user settings
 - v1.1.4 (20260825): Spelled out in the overview that a new text frame lands at the center of the view, and noted that the derived `ReplaceTextWithPasteSequential.jsx` now pastes the clipboard at the center of the artboard when nothing is selected (the behavior of this script is unchanged)

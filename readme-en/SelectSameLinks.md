@@ -17,6 +17,10 @@
 - Matching: same path (absolute path) / same filename (path ignored)
 - Action: select the matching links / delete the linked images only / delete them together with their clip groups
 
+### Update History
+
+- v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+
 ### Script info
 
-- Version: v1.1
+- Version: v1.1.2

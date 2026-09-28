@@ -65,3 +65,4 @@ The defaults live in the User Settings block at the top of the script.
 
 - v1.0 (2025-04-06) : Initial release
 - v1.0.1 (2026-08-31) : Replaced the 3x3 radio buttons with an onDraw nine-point widget and reorganized the button row into left/right groups. Also trimmed the header to an overview plus a README pointer, added the article URL to the basic info block, split the user settings and layout blocks, restructured LABELS into nested categories, added JSDoc to every function, folded the per-direction if-chains into lookup tables, merged the duplicated guide-search checks, and moved the preview and arrow-key stepping into an alignment session
+- v1.0.3 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

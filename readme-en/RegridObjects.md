@@ -18,7 +18,7 @@
 - Existing groups (including clip groups) are treated as a single object with one bounding box, rather than being broken apart.
 - Objects are not grouped automatically afterwards; they simply stay selected.
 - The dialog switches between Japanese and English automatically (`$.locale`).
-- Link mirrors the horizontal value into the vertical one.
+- The link icon to the right of the fields mirrors the horizontal value into the vertical one.
 - Brick: offsets every other row horizontally by half a pitch.
 - Honeycomb: used together with Brick, it shifts odd rows by half of (width + horizontal spacing) and scales the row height to 0.75, producing a honeycomb layout (the vertical value still applies).
 - Force Grid: instead of inferring columns and rows from proximity, it assigns (row, column) top to bottom and left to right.
@@ -28,6 +28,8 @@
 
 ### Update History
 
+- v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v1.7.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.2 (2026-09-25): Fixed Force Grid moving objects to the top of the artboard, renamed the dialog to "Regrid Objects", clarified the message shown when transposing puts two objects in one cell, and tidied the code
 - v1.6.0 (2026-07-08): Added Center (a sub-option of Force grid), made Transpose a toggle that reverts when off, added ruler-unit input (mm / pt / px, converted to points internally), and tidied the apply functions and their naming
@@ -39,4 +41,4 @@ https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Script info
 
-- Version: v1.6.2
+- Version: v1.7.1

@@ -33,3 +33,4 @@ Swaps the appearance, or the text content, between two selected objects.
 ### Update History
 
 - v1.1.0 (2026-05-23)
+- v1.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

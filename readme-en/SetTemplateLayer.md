@@ -26,3 +26,4 @@ Turns a chosen layer into a template layer and prefixes its name.
 ### Update History
 
 - v1.0
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

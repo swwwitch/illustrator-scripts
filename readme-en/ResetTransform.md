@@ -45,6 +45,7 @@ Noriaki Fujita
 
 ### Update History
 
+- v1.7.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.1 (20260911): Fixed rectangle correction to use the smallest rotation (width and height are no longer swapped), fixed Shift+Down stalling on multiples of 10, fixed very small scales collapsing to 0%, and clip groups without a placed image are now reported as not resettable; internal cleanup (merged duplicate logic, split the dialog builder, revised naming, added JSDoc)
 - v1.6.0 (20260708): Dropped the 0.1 arrow-key step in favour of integers only, lowered the scale floor to 20%, widened the rectangle rotation correction to 44° and added a bounding-box reset, restored the original selection after running, and added a guard for when no document is open
@@ -57,5 +58,5 @@ https://note.com/dtp_tranist/n/n52f6b645bc70
 
 ### Script info
 
-- Version: v1.7.0
-- Last updated: 2026-09-12
+- Version: v1.7.1
+- Last updated: 2026-09-28

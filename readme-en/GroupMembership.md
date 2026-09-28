@@ -42,3 +42,4 @@
 ### Change Log
 
 - v1.0.0 (20260922): Initial release
+- v1.0.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

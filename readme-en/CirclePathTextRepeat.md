@@ -28,3 +28,4 @@
 - v1.0.0 (2026-06-12) : Initial release
 - v1.0.1 (2026-09-07) : Separator scale and baseline are now applied by position instead of by character content (identical characters inside the source text are no longer affected). Esc and Enter now trigger Cancel and OK. Font size is clamped to Illustrator's limits. Line breaks in the source text are replaced with spaces. UI wording adjusted to match the actual behavior ("Circumference correction" is now "Correction", and the separator fields name the separator explicitly), and the arrow-key stepping is documented in every number field's tooltip. Naming, JSDoc, and layout aligned with the house rules
 - v1.1.0 (2026-09-27) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.1.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

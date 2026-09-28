@@ -40,6 +40,7 @@ https://note.com/dtp_tranist/n/n95a285784495 (Japanese)
 
 ### Update History
 
+- v1.5.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.4 (2026-09-23) Rebuilt the auto line detection for more accurate baseline, mean line and descender. Fixed the baseline landing mid-letter when the text has no descenders, the ascender and mean line being pulled by accents, dots and quotation marks, and the baseline floating on small text
 - v1.4.2 (2026-09-17) Preview is now on by default. Reorganized the internal naming and functions, and added tooltips. Fixed Highlight Bounds being missed because of rounding, the target layer being left behind on Cancel, and the conversion of stroke widths given in H/Q

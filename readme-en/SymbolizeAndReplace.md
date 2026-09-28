@@ -27,6 +27,10 @@ Converts the selected object into a symbol and replaces matching items in the do
 
 https://note.com/dtp_tranist/n/n650a4b91329d
 
+### Update History
+
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2

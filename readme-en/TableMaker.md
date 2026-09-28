@@ -38,3 +38,4 @@ https://note.com/dtp_tranist/n/n4eaa14098858
 - v1.0 (2026-01-24)
 - v1.0.2 (2026-09-22): Fixed the stroke width not being converted, so no rules were created, when the ruler unit was H, ft and similar units. Fixed Vertical rules skipping some columns when a paragraph had a tab stop at 0. Internal cleanup
 - v1.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

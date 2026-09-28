@@ -36,5 +36,6 @@ Keeps only the active artboard, or removes every empty artboard in one pass.
 
 ### Update History
 
+- v1.2.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.1: Absorbed RemoveOtherArtboards.jsx and RemoveEmptyArtboards.jsx; the artboards to remove are now chosen in a dialog
 - v1.2: Initial version

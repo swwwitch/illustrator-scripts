@@ -21,4 +21,8 @@ The original text path shape is duplicated, and stroke attributes (1pt black, or
 
 ### Script info
 
-- Version: v1.0.6
+- Version: v1.0.8
+
+### Update History
+
+- v1.0.8 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

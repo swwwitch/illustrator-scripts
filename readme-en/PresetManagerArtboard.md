@@ -33,5 +33,6 @@ Switches the artboard-name and artboard-border display preferences from a dialog
 
 ### Update History
 
+- v1.0.2 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.1 (2026-09-19) Merged the palette variant PresetManager-artboards.jsx
 - v1.0.0 (2026-03-23)

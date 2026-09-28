@@ -150,6 +150,7 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.3.4 (2026-09-22): Cleaned up the code (shared shape settings, smaller functions). Added tooltips to the fields, checkboxes and shortcuts. Fixed `F` / `R` switching the end style while `▶` / `➡` was selected, which then carried over to other shapes. Inset now stops at 80% of the width when stepped with the arrow keys too. Renamed settings variables (`TRI_CORNER_RADIUS_RATIO` → `TRIANGLE_CORNER_RADIUS_RATIO`, `ARROW3_HEIGHT_TO_STROKE_RATIO` → `SOLID_ARROW_HEIGHT_TO_STROKE_RATIO`)
 - v1.3.3 (2026-09-19): Moved unit conversion to the shared unit table (no change in behavior)

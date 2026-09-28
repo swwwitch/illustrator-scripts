@@ -27,3 +27,4 @@ Picks a symbol from the ones registered in the document and replaces the selecte
 ### Update History
 
 - v0.5.0
+- v0.5.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

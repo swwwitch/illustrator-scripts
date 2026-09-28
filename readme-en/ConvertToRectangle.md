@@ -28,7 +28,8 @@
 
 - v1.1.1 (2026-09-19) Merged the overlapping `長方形に変換.jsx`; this script is a superset
 - v1.2.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.2.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1

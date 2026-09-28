@@ -35,6 +35,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.0.0 (2026-05-09): Initial release
 - v1.2.3 (2026-09-16): Code cleanup (shared helpers, split functions, fewer try blocks, clearer names). A corrupted saved setting now falls back to its default individually. The caption position default is unified to Bottom.
 - v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.3.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 
 ### Article
 
@@ -42,4 +43,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.3.1

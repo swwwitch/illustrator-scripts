@@ -51,6 +51,7 @@
 - v1.7.1 (20260408) : 対象外UIの自動ディム表示、一括切替の有効項目限定、skipLockedLayers / skipHiddenLayers のサブレイヤーまでの一貫適用、ガイド panel 初期化の明確化、概要とコメントの更新
 - v1.7.3 (20260413) : 除外レイヤー名を「bg」のみに変更（「背景」「background」を削除）
 - v1.7.4 (20260415) : 除外レイヤー内のガイドをガイドレイヤーへ移動するオプションを追加（「別レイヤーに移動」選択時、デフォルトON）
+- v1.7.6 (20260928) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 
 Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally
@@ -61,4 +62,4 @@ or move to another layer.
 
 ### スクリプト情報
 
-- バージョン: v1.7.4
+- バージョン: v1.7.6
