@@ -48,6 +48,7 @@
 
 - しぶやみゃむさんのスクリプトをベースに、機能追加とリファクタリングを行っています。
 - https://note.com/shibumi/n/n5229b4357dd3
+- 紹介記事：https://note.com/dtp_tranist/n/n81ee3a9e09b4
 
 ### 更新履歴
 

@@ -10,7 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 通常モードでは滑らかなグラデーション、セパレートモードでは色が混ざらない縞模様グラデーションを生成します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/convert2separategradient.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Convert2SeparateGradient.md
 
 ### Overview
 
@@ -18,21 +18,21 @@ Adds a given number of intermediate color stops to the gradient on the selected 
 The normal mode produces a smooth gradient, while the separate mode produces hard-edged bands.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/convert2separategradient.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Convert2SeparateGradient.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "convert2separategradient";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_NAME     = "Convert2SeparateGradient";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/convert2separategradient.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/convert2separategradient.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Convert2SeparateGradient.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Convert2SeparateGradient.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

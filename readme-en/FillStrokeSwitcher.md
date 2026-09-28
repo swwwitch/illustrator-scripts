@@ -47,6 +47,7 @@
 
 - Based on a script by しぶやみゃむさん, with added features and refactoring.
 - https://note.com/shibumi/n/n5229b4357dd3
+- Article: https://note.com/dtp_tranist/n/n81ee3a9e09b4
 
 ### Update History
 

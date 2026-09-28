@@ -13,6 +13,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md
 
 note記事も参照してください。
+https://note.com/dtp_tranist/n/n81ee3a9e09b4
+
+参照（しぶやみゃむ さんの記事）：
 https://note.com/shibumi/n/n5229b4357dd3
 
 ### Overview
@@ -31,12 +34,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStroke
 var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介記事 / article URL */
+var SCRIPT_README_JA     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
+var SCRIPT_README_EN     = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL   = "https://note.com/dtp_tranist/n/n81ee3a9e09b4"; /* 紹介記事 / article URL */
+var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* 参照記事（しぶやみゃむ） / reference article */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

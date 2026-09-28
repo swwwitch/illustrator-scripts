@@ -1,8 +1,8 @@
 # Convert a gradient into a separated, striped gradient
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-convert2separategradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/convert2separategradient.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-Convert2SeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/Convert2SeparateGradient.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/convert2separategradient.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Convert2SeparateGradient.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -16,10 +16,11 @@ Spot colors are automatically converted to the document color mode.
 
 ### Script info
 
-- Version: v1.1.3
+- Version: v1.1.4
 
 ### Update History
 
+- v1.1.4 (2026-09-29): Renamed the file from `convert2separategradient.jsx` to `Convert2SeparateGradient.jsx`
 - v1.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.2 (2026-09-28): The button row is now built with the shared part
 - v1.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
