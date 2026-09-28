@@ -6,14 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択中のオブジェクトを並び順で数え、奇数番目または偶数番目だけを互い違いに選択し直します。数える方向は垂直・水平から選べます。
+選択中のオブジェクトを並び順で数え、奇数番目または偶数番目だけを互い違いに選択し直します。数える順は垂直・水平・重ね順から選べます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nbad562738e70
+
 ### Overview
 
-Counts the selected objects in order and reselects only the odd- or even-numbered ones. The counting direction can be set to vertical or horizontal.
+Counts the selected objects in order and reselects only the odd- or even-numbered ones. The counting order can be vertical, horizontal, or stacking order.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md
@@ -24,18 +27,35 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlte
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectAlternateItems";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbad562738e70"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 数える順の自動判定のしきい値（1.20 = 縦横の広がりに20%以上の差があれば切り替える）
+       Threshold for auto-detecting the order (1.20 = switch only when one spread is 20% larger) */
+    var ORDER_DETECT_THRESHOLD = 1.20;
+
+    /* 保存値が無いときの既定値 / Defaults used when nothing has been saved */
+    var DEFAULT_SETTINGS = { orderMode: "vertical" };
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var PANEL_MARGINS = [15, 20, 15, 10];  /* パネルの余白 / panel margins */
 
     // =========================================
     // ローカライズ / Localization
@@ -137,6 +157,47 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "互い違いに選択", en: "Select Alternate Items" }
+        },
+        panel: {
+            parity: { ja: "選択", en: "Select" },
+            order: { ja: "数える順", en: "Count Order" }
+        },
+        radio: {
+            odd: { ja: "奇数番目", en: "Odd" },
+            even: { ja: "偶数番目", en: "Even" },
+            vertical: { ja: "垂直", en: "Vertical" },
+            horizontal: { ja: "水平", en: "Horizontal" },
+            stackingOrder: { ja: "重ね順", en: "Stacking Order" }
+        },
+        tooltip: {
+            odd: { ja: "1番目から1つおきに選択します", en: "Selects every other object starting from the first" },
+            even: { ja: "2番目から1つおきに選択します", en: "Selects every other object starting from the second" },
+            vertical: { ja: "上から下の順に数えます", en: "Counts the objects from top to bottom" },
+            horizontal: { ja: "左から右の順に数えます", en: "Counts the objects from left to right" },
+            stackingOrder: {
+                ja: "背面から前面の順に数えます。位置ではなく重ね順で選びます",
+                en: "Counts the objects from back to front, by stacking order rather than position"
+            }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
+            noValidItems: {
+                ja: "選択できるオブジェクトがありません（ロック・非表示のものは除きます）。",
+                en: "No selectable objects (locked or hidden objects are skipped)."
+            },
+            previewError: { ja: "プレビューエラー：", en: "Preview error: " }
+        }
+    };
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
@@ -374,220 +435,544 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-      dialog: {
-        title: { ja: "互い違いに選択", en: "Alternate Select" }
-      },
-      panel: {
-        select: { ja: "選択", en: "Selection" },
-        direction: { ja: "方向", en: "Direction" }
-      },
-      radio: {
-        odd: { ja: "奇数", en: "Odd" },
-        even: { ja: "偶数", en: "Even" },
-        vertical: { ja: "垂直", en: "Vertical" },
-        horizontal: { ja: "水平", en: "Horizontal" },
-        zOrder: { ja: "重ね順", en: "Z-order" }
-      },
-      tooltip: {
-        odd: { ja: "並びの1番目から1つおきに選びます。", en: "Selects every other object starting from the first." },
-        even: { ja: "並びの2番目から1つおきに選びます。", en: "Selects every other object starting from the second." },
-        vertical: { ja: "上から下の並び順で数えます。", en: "Counts the objects from top to bottom." },
-        horizontal: { ja: "左から右の並び順で数えます。", en: "Counts the objects from left to right." },
-        zOrder: { ja: "重ね順（背面から前面）で数えます。位置ではなく前後関係で選びます。", en: "Counts the objects by stacking order, from back to front, rather than by position." }
-      },
-      button: {
-        ok: { ja: "OK", en: "OK" },
-        cancel: { ja: "キャンセル", en: "Cancel" }
-      },
-      /* エラー／ログ文言 / Error and log messages */
-      alert: {
-        noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-        noSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
-        noValidItems: { ja: "有効なオブジェクトが選択されていません。", en: "No valid objects are selected." },
-        preview: { ja: "プレビューエラー：", en: "Preview Error: " },
-        prefix: { ja: "エラー：", en: "Error: " },
-        debugPrefix: { ja: "デバッグ：", en: "Debug: " }
-      }
-    };
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+    //
+    // 【移植手順 / How to port】
+    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    //    識別子は SETTINGS_STORE_* / createSettingsStore / readSettingsLegacyFile / readSettingsLegacyPreference / settingsStore*
+    // 2. 寿命は今のスクリプトに合わせて選ぶ。
+    //      "session"    … $.global に置く。Illustrator を終了するまで残る。#targetengine が必須（無いと毎回消える）
+    //      "persistent" … Folder.userData/illustrator-scripts/<storeName>.json に書く。再起動しても残る
+    //    storeName はふつう SCRIPT_NAME。ダイアログの位置は DialogPosition の部品が持つので、ここには入れない
+    // 3. 既定値を1か所にまとめ、load で受け取る。戻り値は毎回新しいオブジェクト（書き換えても保存されない）
+    //      var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
+    //      var DEFAULT_SETTINGS = { widthPt: 10, addFrame: true, modeKey: "fit", corners: { tl: 0, tr: 0 } };
+    //      var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
+    //      …OK で閉じたら…
+    //      settingsStore.save({ widthPt: …, addFrame: …, modeKey: …, corners: { tl: …, tr: … } });
+    //    型は既定値に合わせる（数値の既定値には "12" も 12 として読む。真偽は "1"/"0"/"true"/"false" も読む）。
+    //    合わない値・既定値に無い項目は捨てて既定値を使う。{} と null の既定値は中身を問わずそのまま受け取る
+    //    （名前をキーにしたプリセット集など）。配列は配列ならそのまま受け取る
+    // 4. 保存できるのは文字列・数値・真偽・null と、その配列・入れ子のオブジェクトだけ。
+    //    DOM オブジェクト・File・関数は入れない（パスは fsName の文字列で持つ）。長さは pt で持つ
+    // 5. 旧形式の設定を読み継ぐときは、3つ目の引数に legacy 関数を渡す。
+    //    新しい保存が1度も無いとき（ファイルが無い・$.global に無い）だけ呼ばれ、戻り値を保存値として既定値と突き合わせる。
+    //    旧ファイル・旧キーは消さない。キー名が変わったときは legacy の中で詰め替える
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyFile(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");  … key=value / toSource / JSON を自動判別
+    //      } });
+    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
+    //          return readSettingsLegacyPreference("SmartTextFindReplace/settings");  … app.preferences の文字列
+    //      } });
+    // 6. clear() は保存を消す。legacy を渡したストアでは空の保存（{}）を書き、旧設定が戻ってこないようにする
+    // 7. 失敗は例外にせず、load は既定値、save は false を返す（$.writeln に理由を出す）
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
-    function getErrorMessage(key, detail) {
-      var message = getLabel("alert." + key);
-      if (detail !== undefined && detail !== null && String(detail) !== "") {
-        message += String(detail);
-      }
-      return message;
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
     }
 
-    function showError(key, detail) {
-      alert(getErrorMessage(key, detail));
-    }
-
-    /* プレビュー管理 / Preview manager
-       - 選択のプレビューは通常 Undo 履歴に乗らないため、選択はスナップショット復元
-       - ドキュメント変更を伴う場合のみ app.undo() を使って巻き戻せるようにする
-    */
-    function PreviewManager() {
-      this.undoDepth = 0; // Undoable step count during preview
-      this.selectionSnapshot = null; // Original selection snapshot
-
-      /* 選択状態を退避 / Capture selection */
-      this.captureSelection = function (doc) {
-        var snap = [];
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
         try {
-          var currentSelection = doc.selection;
-          if (currentSelection && currentSelection.length) {
-            for (var selectionIndex = 0; selectionIndex < currentSelection.length; selectionIndex++) {
-              snap.push(currentSelection[selectionIndex]);
-            }
-          }
-        } catch (e) { }
-        this.selectionSnapshot = snap;
-      };
-
-      /* 選択状態を復元 / Restore selection */
-      this.restoreSelection = function (doc) {
-        try {
-          doc.selection = null;
-          if (this.selectionSnapshot && this.selectionSnapshot.length) {
-            for (var snapshotIndex = 0; snapshotIndex < this.selectionSnapshot.length; snapshotIndex++) {
-              try { this.selectionSnapshot[snapshotIndex].selected = true; } catch (e) { }
-            }
-          }
-          app.redraw();
-        } catch (e) { }
-      };
-
-      /**
-       * 変更操作を実行し、必要なら履歴としてカウント / Run step and optionally count as undoable
-       * @param {Function} func - 実行処理 / action
-       * @param {Boolean} [undoable=false] - Undo 対象なら true / true if it creates undo history
-       */
-      this.addStep = function (func, undoable) {
-        try {
-          func();
-          if (undoable) this.undoDepth++;
-          app.redraw();
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
         } catch (e) {
-          showError("preview", e);
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
         }
-      };
-
-      /* プレビュー分の変更を巻き戻し / Rollback preview changes */
-      this.rollback = function (doc) {
-        // Undoable steps rollback
-        while (this.undoDepth > 0) {
-          try { app.undo(); } catch (e) { break; }
-          this.undoDepth--;
-        }
-        // Selection rollback (always)
-        this.restoreSelection(doc);
-      };
-
-      /**
-       * 確定 / Confirm
-       * @param {Document} doc
-       * @param {Function} [finalAction] - 一度戻してから本番処理 / optional final action
-       */
-      this.confirm = function (doc, finalAction) {
-        if (finalAction) {
-          this.rollback(doc);
-          finalAction();
-          this.undoDepth = 0;
-          this.captureSelection(doc); // keep current as baseline
-        } else {
-          this.undoDepth = 0;
-          this.captureSelection(doc); // keep current as baseline
-        }
-      };
     }
 
-    /* 方向推定の設定 / Direction detection settings */
-    var DIRECTION_THRESHOLD = 1.20; // しきい値（1.20 = 20%差） / Threshold ratio
-    var PREF_KEY_LAST_DIR = "AlternateSelect.LastDirectionMode";
-
-    /* 前回の方向モードを取得 / Load last direction mode (custom options)
-       - 取得できない場合は null を返す
-       - mode: "vertical" | "horizontal" | "zorder"
-    */
-    function loadLastDirectionMode() {
-      try {
-        var desc = app.getCustomOptions(PREF_KEY_LAST_DIR);
-        if (desc && desc.hasKey(stringIDToTypeID("mode"))) {
-          return desc.getString(stringIDToTypeID("mode"));
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
         }
-      } catch (e) { }
-      return null;
     }
 
-    /* 前回の方向モードを保存 / Save last direction mode (custom options) */
-    function saveLastDirectionMode(mode) {
-      try {
-        var m = String(mode);
-        if (m !== "vertical" && m !== "horizontal" && m !== "zorder") return;
-        var desc = new ActionDescriptor();
-        desc.putString(stringIDToTypeID("mode"), m);
-        app.putCustomOptions(PREF_KEY_LAST_DIR, desc, true);
-      } catch (e) { }
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^﻿/, "");
+        } finally {
+            textFile.close();
+        }
     }
 
-    /* 方向の自動推定 / Auto detect direction (initial)
-       - 中心点のX/Yレンジで判定（外れ値耐性あり）
-       - rangeX が rangeY の DIRECTION_THRESHOLD 倍より大きい → "horizontal"
-       - rangeY が rangeX の DIRECTION_THRESHOLD 倍より大きい → "vertical"
-       - それ以外（僅差/グリッド等）は「前回mode優先（fallback）」を返す
-    */
-    function guessInitialDirectionMode(items, fallbackMode) {
-      var fallbackDirectionMode = (fallbackMode !== undefined && fallbackMode !== null) ? String(fallbackMode) : "vertical";
-      if (fallbackDirectionMode !== "vertical" && fallbackDirectionMode !== "horizontal" && fallbackDirectionMode !== "zorder") fallbackDirectionMode = "vertical";
-
-      if (!items || items.length < 2) return fallbackDirectionMode;
-
-      var xs = [];
-      var ys = [];
-
-      for (var i = 0; i < items.length; i++) {
-        var candidateItem = items[i];
-        if (!candidateItem) continue;
-
-        // geometricBounds: [left, top, right, bottom]
-        var geometricBounds;
-        try { geometricBounds = candidateItem.geometricBounds; } catch (e) { continue; }
-        if (!geometricBounds || geometricBounds.length < 4) continue;
-
-        var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
-        var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
-        xs.push(centerX);
-        ys.push(centerY);
-      }
-
-      if (xs.length < 2 || ys.length < 2) return fallbackDirectionMode;
-
-      xs.sort(function (firstItem, secondItem) { return firstItem - secondItem; });
-      ys.sort(function (firstItem, secondItem) { return firstItem - secondItem; });
-
-      // 外れ値耐性：両端を少し落としてレンジを取る（nが大きいほど効果）
-      var n = xs.length;
-      var trim = 0;
-      if (n >= 10) trim = Math.floor(n * 0.10); // 10% trimming
-      else if (n >= 6) trim = 1;
-
-      var minX = xs[trim];
-      var maxX = xs[n - 1 - trim];
-      var minY = ys[trim];
-      var maxY = ys[n - 1 - trim];
-
-      var rangeX = maxX - minX;
-      var rangeY = maxY - minY;
-
-      // しきい値判定（明確な差があるときだけ自動切替）
-      if (rangeX > rangeY * DIRECTION_THRESHOLD) return "horizontal";
-      if (rangeY > rangeX * DIRECTION_THRESHOLD) return "vertical";
-
-      // 僅差（グリッド等）は前回mode優先
-      return fallbackDirectionMode;
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
     }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^﻿/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -743,215 +1128,343 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    (function () {
-      /* ドキュメント確認 / Check document */
-      if (app.documents.length === 0) {
-        showError("noDocument");
-        return;
-      }
+    // =========================================
+    // 並び順と選択 / Ordering and selection
+    // =========================================
 
-      var doc = app.activeDocument;
+    /* 数える順のモード / Order modes */
+    var ORDER_MODES = { vertical: true, horizontal: true, stackingOrder: true };
 
-      /* プレビューマネージャ / Preview manager */
-      var previewMgr = new PreviewManager();
-      previewMgr.captureSelection(doc);
+    /* 並べ替えキーの桁と下駄（負の座標も正の整数にそろえる）/ Sort key width and offset (makes negative coordinates positive) */
+    var SORT_KEY_OFFSET = 1e12;
+    var SORT_KEY_DIGITS = 14;
+    var SORT_INDEX_DIGITS = 10;
 
-      var originalSelection = doc.selection;
+    /**
+     * 数値を桁数そろえの文字列にする（引数なし sort() で数値順に並ぶ）
+     * @param {number} value - 数値（小数第3位まで見る）
+     * @param {number} digitCount - 桁数
+     * @returns {string} ゼロ埋めした文字列
+     */
+    function padSortNumber(value, digitCount) {
+        var paddedText = String(value);
+        while (paddedText.length < digitCount) paddedText = "0" + paddedText;
+        return paddedText;
+    }
 
-      /* 選択確認 / Check selection */
-      if (!originalSelection || originalSelection.length === 0) {
-        showError("noSelection");
-        return;
-      }
-
-      /* 有効なオブジェクト抽出 / Collect valid items */
-      var items = [];
-      for (var selectionIndex = 0; selectionIndex < originalSelection.length; selectionIndex++) {
-        var selectedItem = originalSelection[selectionIndex];
-        if (!selectedItem.locked && !selectedItem.hidden) {
-          items.push(selectedItem);
+    /**
+     * 配列を数値のキーの昇順に並べた新しい配列を返す。同じキーは元の順を保つ
+     * 比較関数つき sort() は数千件で遅いので、文字列キーを作って引数なしの sort() で並べる
+     * @param {Array} entries - 並べる要素
+     * @param {Function} getSortValue - 要素から数値のキーを返す関数
+     * @returns {Array} 並べ替えた新しい配列
+     */
+    function sortByNumericKey(entries, getSortValue) {
+        var sortKeys = [];
+        for (var i = 0; i < entries.length; i++) {
+            var scaledValue = Math.round(getSortValue(entries[i]) * 1000) + SORT_KEY_OFFSET;
+            sortKeys.push(padSortNumber(scaledValue, SORT_KEY_DIGITS) + "\u0001" + padSortNumber(i, SORT_INDEX_DIGITS));
         }
-      }
+        sortKeys.sort();
+        var sortedEntries = [];
+        for (var j = 0; j < sortKeys.length; j++) {
+            sortedEntries.push(entries[parseInt(sortKeys[j].split("\u0001")[1], 10)]);
+        }
+        return sortedEntries;
+    }
 
-      if (items.length === 0) {
-        showError("noValidItems");
-        return;
-      }
+    /**
+     * 選択を配列に写す。文字カーソルの選択（TextRange）は対象外として空配列を返す
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {PageItem[]} 選択中のオブジェクト（前面から背面の順）
+     */
+    function copySelection(doc) {
+        var rawSelection = doc.selection;
+        var selectionCopy = [];
+        if (!(rawSelection instanceof Array)) return selectionCopy;
+        for (var i = 0; i < rawSelection.length; i++) selectionCopy.push(rawSelection[i]);
+        return selectionCopy;
+    }
 
-      function applySelectionPreview() {
-        // まず前回プレビューを巻き戻す（選択はスナップショットで復元）
-        previewMgr.rollback(doc);
-
-        // 今回のプレビューを適用（選択変更は通常 Undoable ではないので undoable=false）
-        previewMgr.addStep(function () {
-          var selectOdd = oddRadio.value;
-          var mode = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
-
-          /* 並び順ソート / Sort order */
-          if (mode === "vertical") {
-            /* 垂直：Y降順（上→下） / Vertical: Y desc (top to bottom) */
-            items.sort(function (firstItem, secondItem) { return secondItem.position[1] - firstItem.position[1]; });
-          } else if (mode === "horizontal") {
-            /* 水平：X昇順（左→右） / Horizontal: X asc (left to right) */
-            items.sort(function (firstItem, secondItem) { return firstItem.position[0] - secondItem.position[0]; });
-          } else {
-            /* 重ね順：zOrderPosition 昇順 / Z-order: zOrderPosition asc */
-            items.sort(function (firstItem, secondItem) {
-              var firstZOrderPosition = 0, secondZOrderPosition = 0;
-              try { firstZOrderPosition = firstItem.zOrderPosition; } catch (e) { firstZOrderPosition = 0; }
-              try { secondZOrderPosition = secondItem.zOrderPosition; } catch (e) { secondZOrderPosition = 0; }
-              return firstZOrderPosition - secondZOrderPosition;
+    /**
+     * ロック・非表示を除いたオブジェクトを、並べ替えに使う値と一緒に集める
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト（前面から背面の順）
+     * @returns {Object[]} { item, left, top, centerX, centerY, backToFrontIndex } の配列
+     */
+    function collectItemRecords(selectedItems) {
+        var itemRecords = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (selectedItem.locked || selectedItem.hidden) continue;
+            var itemPosition = selectedItem.position;
+            var itemBounds = selectedItem.geometricBounds; /* [left, top, right, bottom] */
+            itemRecords.push({
+                item: selectedItem,
+                left: itemPosition[0],
+                top: itemPosition[1],
+                centerX: (itemBounds[0] + itemBounds[2]) / 2,
+                centerY: (itemBounds[1] + itemBounds[3]) / 2,
+                /* 選択は前面から並ぶので、逆にすれば背面からの順 / Selection runs front to back, so reverse it */
+                backToFrontIndex: selectedItems.length - 1 - i
             });
-          }
+        }
+        return itemRecords;
+    }
 
-          /* 互い違い選択 / Alternate selection */
-          doc.selection = null;
-          for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-            var isOddIndex = (itemIndex % 2 === 0); // 0,2,4... => 1,3,5...
-            if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
-              items[itemIndex].selected = true;
-            }
-          }
-        }, false);
-      }
+    /**
+     * 数値の配列の両端を少し落とした広がりを返す（外れ値の影響を抑える）
+     * @param {number[]} values - 数値
+     * @returns {number} 最大と最小の差
+     */
+    function getTrimmedSpread(values) {
+        var sortedValues = sortByNumericKey(values, function (value) { return value; });
+        var valueCount = sortedValues.length;
+        var trimCount = 0;
+        if (valueCount >= 10) trimCount = Math.floor(valueCount * 0.10);
+        else if (valueCount >= 6) trimCount = 1;
+        return sortedValues[valueCount - 1 - trimCount] - sortedValues[trimCount];
+    }
 
-      /* ダイアログボックス / Dialog box */
-      var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-      dialog.orientation = "column";
-      dialog.alignChildren = "left";
+    /**
+     * 中心点の縦横の広がりから、数える順を推定する
+     * 広がりに ORDER_DETECT_THRESHOLD 倍以上の差があるときだけ垂直・水平を返し、僅差なら前回の順を使う
+     * @param {Object[]} itemRecords - collectItemRecords() の結果
+     * @param {string} fallbackMode - 前回の順
+     * @returns {string} "vertical" / "horizontal" / "stackingOrder"
+     */
+    function guessInitialOrderMode(itemRecords, fallbackMode) {
+        var fallbackOrderMode = ORDER_MODES[fallbackMode] ? fallbackMode : DEFAULT_SETTINGS.orderMode;
+        if (itemRecords.length < 2) return fallbackOrderMode;
 
-      var selectionPanel = dialog.add("panel", undefined, getLabel("panel.select"));
-      selectionPanel.margins = [15, 20, 15, 10];
-      selectionPanel.orientation = "column";
-      selectionPanel.alignChildren = "left";
+        var centerXs = [];
+        var centerYs = [];
+        for (var i = 0; i < itemRecords.length; i++) {
+            centerXs.push(itemRecords[i].centerX);
+            centerYs.push(itemRecords[i].centerY);
+        }
+        var spreadX = getTrimmedSpread(centerXs);
+        var spreadY = getTrimmedSpread(centerYs);
 
-      var selectGroup = selectionPanel.add("group");
-      selectGroup.orientation = "row";
-      selectGroup.alignChildren = "left";
+        if (spreadX > spreadY * ORDER_DETECT_THRESHOLD) return "horizontal";
+        if (spreadY > spreadX * ORDER_DETECT_THRESHOLD) return "vertical";
+        return fallbackOrderMode;
+    }
 
-      var oddRadio = selectGroup.add("radiobutton", undefined, getLabel("radio.odd"));
-      oddRadio.helpTip = getLabel("tooltip.odd");
-      var evenRadio = selectGroup.add("radiobutton", undefined, getLabel("radio.even"));
-      evenRadio.helpTip = getLabel("tooltip.even");
-      oddRadio.value = true; // デフォルトは奇数 / Default is odd
-
-      function setAlternateSelectionMode(selectionMode) {
-        oddRadio.value = (selectionMode === "odd");
-        evenRadio.value = (selectionMode === "even");
-        applySelectionPreview();
-      }
-
-      /* 方向パネル / Direction panel */
-      var dirPanel = dialog.add("panel", undefined, getLabel("panel.direction"));
-      dirPanel.margins = [15, 20, 15, 10];
-      dirPanel.orientation = "column";
-      dirPanel.alignChildren = "left";
-
-      var dirGroup = dirPanel.add("group");
-      dirGroup.orientation = "row";
-      dirGroup.alignChildren = "left";
-
-      var verticalRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.vertical"));
-      verticalRadio.helpTip = getLabel("tooltip.vertical");
-      var horizontalRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.horizontal"));
-      horizontalRadio.helpTip = getLabel("tooltip.horizontal");
-      var zOrderRadio = dirGroup.add("radiobutton", undefined, getLabel("radio.zOrder"));
-      zOrderRadio.helpTip = getLabel("tooltip.zOrder");
-
-      function setDirectionMode(directionMode) {
-        verticalRadio.value = (directionMode === "vertical");
-        horizontalRadio.value = (directionMode === "horizontal");
-        zOrderRadio.value = (directionMode === "zorder");
-        saveLastDirectionMode(directionMode);
-        applySelectionPreview();
-      }
-      // 前回値を基本にし、差が明確なときだけ自動切替 / Prefer last value; auto-switch only if clear
-      var lastMode = loadLastDirectionMode();
-      if (lastMode === null) lastMode = "vertical";
-
-      var initialMode = guessInitialDirectionMode(items, lastMode);
-      verticalRadio.value = (initialMode === "vertical");
-      horizontalRadio.value = (initialMode === "horizontal");
-      zOrderRadio.value = (initialMode === "zorder");
-
-      var buttonGroup = dialog.add("group");
-      buttonGroup.alignment = "center";
-      var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"));
-      var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"));
-
-      oddRadio.onClick = function () {
-        setAlternateSelectionMode("odd");
-      };
-      evenRadio.onClick = function () {
-        setAlternateSelectionMode("even");
-      };
-      verticalRadio.onClick = function () {
-        setDirectionMode("vertical");
-      };
-      horizontalRadio.onClick = function () {
-        setDirectionMode("horizontal");
-      };
-      zOrderRadio.onClick = function () {
-        setDirectionMode("zorder");
-      };
-
-      /* キー入力でラジオ切替 / Keyboard shortcuts for the radio buttons
-         Odd: O / Even: E / Vertical: V / Horizontal: H / Z-Order: A */
-      addKeyShortcuts(dialog, {
-        "O": oddRadio,
-        "E": evenRadio,
-        "V": verticalRadio,
-        "H": horizontalRadio,
-        "A": zOrderRadio
-      });
-
-      /* ボタン動作 / Button handlers */
-      cancelBtn.onClick = function () {
-        // キャンセル：プレビューを巻き戻して閉じる / Cancel: rollback and close
-        previewMgr.rollback(doc);
-        dialog.close(0);
-      };
-
-      okBtn.onClick = function () {
-        // OK：Undo を綺麗にするため「一度戻して再実行」 / OK: rollback then re-apply once
-        previewMgr.confirm(doc, function () {
-          // 最終適用（1回） / Final apply (single step)
-          var selectOdd = oddRadio.value;
-          var mode = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
-
-          if (mode === "vertical") {
-            items.sort(function (firstItem, secondItem) { return secondItem.position[1] - firstItem.position[1]; });
-          } else if (mode === "horizontal") {
-            items.sort(function (firstItem, secondItem) { return firstItem.position[0] - secondItem.position[0]; });
-          } else {
-            items.sort(function (firstItem, secondItem) {
-              var firstZOrderPosition = 0, secondZOrderPosition = 0;
-              try { firstZOrderPosition = firstItem.zOrderPosition; } catch (e) { firstZOrderPosition = 0; }
-              try { secondZOrderPosition = secondItem.zOrderPosition; } catch (e) { secondZOrderPosition = 0; }
-              return firstZOrderPosition - secondZOrderPosition;
-            });
-          }
-
-          doc.selection = null;
-          for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
-            var isOddIndex = (itemIndex % 2 === 0);
-            if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
-              items[itemIndex].selected = true;
-            }
-          }
-          app.redraw();
+    /**
+     * 数える順に並べたオブジェクトを返す
+     * @param {Object[]} itemRecords - collectItemRecords() の結果
+     * @param {string} orderMode - "vertical"（上→下）/ "horizontal"（左→右）/ "stackingOrder"（背面→前面）
+     * @returns {Object[]} 並べ替えた itemRecords
+     */
+    function sortItemRecords(itemRecords, orderMode) {
+        return sortByNumericKey(itemRecords, function (itemRecord) {
+            if (orderMode === "vertical") return -itemRecord.top;
+            if (orderMode === "horizontal") return itemRecord.left;
+            return itemRecord.backToFrontIndex;
         });
-        var modeToSave = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
-        saveLastDirectionMode(modeToSave);
-        dialog.close(1);
-      };
+    }
 
-      // 初期状態をプレビュー反映（ダイアログ表示直後に選択を更新） / Initial preview
-      applySelectionPreview();
+    /**
+     * 並べた順で奇数番目または偶数番目だけを選択する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Object[]} itemRecords - collectItemRecords() の結果
+     * @param {boolean} selectOdd - 奇数番目なら true、偶数番目なら false
+     * @param {string} orderMode - 数える順
+     * @returns {void}
+     */
+    function selectAlternateItems(doc, itemRecords, selectOdd, orderMode) {
+        var orderedRecords = sortItemRecords(itemRecords, orderMode);
+        var firstIndex = selectOdd ? 0 : 1; /* 添字 0 が1番目 / index 0 is the first */
+        doc.selection = null;
+        for (var i = firstIndex; i < orderedRecords.length; i += 2) {
+            orderedRecords[i].item.selected = true;
+        }
+        app.redraw();
+    }
 
-      // ダイアログ表示 / Show dialog
-      prepareDialogWindow(dialog, SCRIPT_NAME);
-      dialog.show();
-    })();
+    /**
+     * 選択を元に戻す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {PageItem[]} originalSelection - 元の選択
+     * @returns {void}
+     */
+    function restoreSelection(doc, originalSelection) {
+        doc.selection = null;
+        for (var i = 0; i < originalSelection.length; i++) originalSelection[i].selected = true;
+        app.redraw();
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ラジオを並べるパネルを作る
+     * @param {Window} parentWindow - ダイアログ
+     * @param {string} titleKey - パネル名の LABELS のパス
+     * @returns {Group} ラジオを入れる横並びのグループ
+     */
+    function addRadioPanel(parentWindow, titleKey) {
+        var radioPanel = parentWindow.add("panel", undefined, getLabel(titleKey));
+        radioPanel.margins = PANEL_MARGINS;
+        radioPanel.orientation = "column";
+        radioPanel.alignChildren = "left";
+        var radioRowGroup = radioPanel.add("group");
+        radioRowGroup.orientation = "row";
+        radioRowGroup.alignChildren = "left";
+        return radioRowGroup;
+    }
+
+    /**
+     * ツールチップ付きのラジオを足す
+     * @param {Group} radioRowGroup - 入れるグループ
+     * @param {string} labelKey - radio と tooltip で共通のキー
+     * @returns {RadioButton} 作ったラジオ
+     */
+    function addRadioWithTip(radioRowGroup, labelKey) {
+        var radioControl = radioRowGroup.add("radiobutton", undefined, getLabel("radio." + labelKey));
+        radioControl.helpTip = getLabel("tooltip." + labelKey);
+        return radioControl;
+    }
+
+    /**
+     * ダイアログを組み立てる（イベントは付けない）
+     * @param {string} initialOrderMode - 最初に選んでおく数える順
+     * @returns {Object} ダイアログとコントロール
+     */
+    function buildAlternateDialog(initialOrderMode) {
+        var alternateDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        alternateDialog.orientation = "column";
+        alternateDialog.alignChildren = "left";
+
+        var parityRadioGroup = addRadioPanel(alternateDialog, "panel.parity");
+        var oddRadio = addRadioWithTip(parityRadioGroup, "odd");
+        var evenRadio = addRadioWithTip(parityRadioGroup, "even");
+        oddRadio.value = true;
+
+        var orderRadioGroup = addRadioPanel(alternateDialog, "panel.order");
+        var orderRadios = {
+            vertical: addRadioWithTip(orderRadioGroup, "vertical"),
+            horizontal: addRadioWithTip(orderRadioGroup, "horizontal"),
+            stackingOrder: addRadioWithTip(orderRadioGroup, "stackingOrder")
+        };
+        orderRadios[initialOrderMode].value = true;
+
+        var buttonRowGroup = alternateDialog.add("group");
+        buttonRowGroup.alignment = "center";
+        var btnCancel = buttonRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOk = buttonRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return {
+            dialog: alternateDialog,
+            oddRadio: oddRadio,
+            evenRadio: evenRadio,
+            orderRadios: orderRadios,
+            btnCancel: btnCancel,
+            btnOk: btnOk
+        };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
+
+    /**
+     * 選択を確かめてダイアログを開き、OK なら選択を確定、それ以外は元に戻す
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+        var doc = app.activeDocument;
+        var originalSelection = copySelection(doc);
+        if (originalSelection.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+        var itemRecords = collectItemRecords(originalSelection);
+        if (itemRecords.length === 0) {
+            alert(getLabel("alert.noValidItems"));
+            return;
+        }
+
+        /* 前回の順を基本にし、差が明確なときだけ自動で切り替える / Prefer the last order; auto-switch only when clear */
+        var savedSettings = settingsStore.load(DEFAULT_SETTINGS);
+        /* 表示前のラジオの value は読み戻せないことがあるので、選んだ値は変数で持つ
+           Radio values may not read back before show(), so keep the choice in variables */
+        var dialogChoice = {
+            selectOdd: true,
+            orderMode: guessInitialOrderMode(itemRecords, savedSettings.orderMode)
+        };
+        var dialogParts = buildAlternateDialog(dialogChoice.orderMode);
+
+        /**
+         * 今の選択肢で選択をプレビューする
+         * @returns {void}
+         */
+        function updatePreview() {
+            try {
+                selectAlternateItems(doc, itemRecords, dialogChoice.selectOdd, dialogChoice.orderMode);
+            } catch (e) {
+                alert(getLabel("alert.previewError") + e);
+            }
+        }
+
+        /**
+         * 奇数・偶数のラジオの onClick を作る
+         * @param {boolean} selectOdd - 奇数番目なら true
+         * @returns {Function} onClick
+         */
+        function createParityHandler(selectOdd) {
+            return function () {
+                dialogChoice.selectOdd = selectOdd;
+                updatePreview();
+            };
+        }
+
+        /**
+         * 数える順のラジオの onClick を作る
+         * @param {string} orderMode - 数える順
+         * @returns {Function} onClick
+         */
+        function createOrderHandler(orderMode) {
+            return function () {
+                dialogChoice.orderMode = orderMode;
+                updatePreview();
+            };
+        }
+
+        dialogParts.oddRadio.onClick = createParityHandler(true);
+        dialogParts.evenRadio.onClick = createParityHandler(false);
+        for (var orderMode in dialogParts.orderRadios) {
+            if (dialogParts.orderRadios.hasOwnProperty(orderMode)) dialogParts.orderRadios[orderMode].onClick = createOrderHandler(orderMode);
+        }
+        dialogParts.btnCancel.onClick = function () { dialogParts.dialog.close(0); };
+        dialogParts.btnOk.onClick = function () { dialogParts.dialog.close(1); };
+
+        addKeyShortcuts(dialogParts.dialog, {
+            "O": dialogParts.oddRadio,
+            "E": dialogParts.evenRadio,
+            "V": dialogParts.orderRadios.vertical,
+            "H": dialogParts.orderRadios.horizontal,
+            "A": dialogParts.orderRadios.stackingOrder
+        }, { showInTip: true });
+
+        updatePreview();
+        prepareDialogWindow(dialogParts.dialog, SCRIPT_NAME);
+
+        /* OK 以外（キャンセル・Esc・閉じるボタン）は選択を戻す / Anything but OK restores the selection */
+        if (dialogParts.dialog.show() === 1) {
+            settingsStore.save({ orderMode: dialogChoice.orderMode });
+        } else {
+            restoreSelection(doc, originalSelection);
+        }
+    }
+
+    main();
 
 })();
