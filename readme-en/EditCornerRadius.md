@@ -42,7 +42,7 @@
 - Rectangles inside compound paths are included (select the compound path to change them). Round Corners effect measurement and conversion are not applied to callout shapes or inside compound paths
 - Rectangles inside compound shapes are included only when selected directly with the Direct Selection tool (not when the whole compound shape is selected, nor with the artboard or document target). While previewing, the original path is edited in place and restored on close. Round Corners effect measurement and conversion are not applied
 - With "Selected objects only", select rectangles inside groups directly, for example with the Direct Selection tool
-- With "Selected objects only", the dialog shows how many selected objects are skipped
+- With "Selected objects only", the dialog shows how many selected objects are skipped. When nothing selected can be changed (for example, a whole compound shape), it shows "Nothing selected can be changed"
 - OK is unavailable when the target has no rectangles
 - The initial radius is the average of the rounded corners (zero radii excluded) in the target chosen when the dialog opens
 - Values over half the shorter side are limited to half of it (for callout shapes, also to the distance to the base of the tail)

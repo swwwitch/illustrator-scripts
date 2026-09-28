@@ -643,6 +643,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "水平・垂直の長方形（吹き出し形状・複合パスの中を含む）のみ変更します。複合シェイプの中はダイレクト選択してください",
                 en: "Only axis-aligned rectangles (including callout shapes and those in compound paths) are changed. Select rectangles in compound shapes directly"
             },
+            noTargetInSelection: {
+                ja: "複合シェイプの中の長方形は、ダイレクト選択ツールで選んでください",
+                en: "Select rectangles inside compound shapes with the Direct Selection tool"
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -658,7 +662,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             skippedCount: {
                 ja: "対象外のオブジェクト：{count} 個",
                 en: "Skipped objects: {count}"
-            }
+            },
+            noTargetInSelection: { ja: "選択に対象がありません", en: "Nothing selected can be changed" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -1128,13 +1133,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 複合シェイプの中のパスかを返す（ダイレクト選択したときだけ選択に入り、PluginItem の中のグループに属する）
+     * 複合シェイプの中のパスかを返す（ダイレクト選択したときだけ選択に入る）
+     * 中のパスは PluginItem 直下の見えないグループに属し、さらにサブグループや入れ子の複合シェイプの中にも置ける
      * @param {PathItem} pathItem - 判定するパス
      * @returns {boolean} 複合シェイプの中のパスなら true
      */
     function isCompoundShapeMember(pathItem) {
-        var parentItem = pathItem.parent;
-        return parentItem.typename === "GroupItem" && parentItem.parent.typename === "PluginItem";
+        for (var ancestorItem = pathItem.parent; ancestorItem.typename === "GroupItem"; ancestorItem = ancestorItem.parent) {
+            if (ancestorItem.parent.typename === "PluginItem") return true;
+        }
+        return false;
     }
 
     /**
@@ -1888,6 +1896,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (hasSelection && skippedCount > 0) {
             skippedText = radiusDialog.add("statictext", undefined, skippedLabel);
             skippedText.helpTip = getLabel("tooltip.skippedCount");
+        } else if (!hasSelection && skippedCount > 0) {
+            /* 選択はあるが対象が無い（複合シェイプ全体を選んだときなど）。対象を切り替えても出したままにする
+               Something is selected but nothing qualifies (e.g. a whole compound shape); keep it across scopes */
+            var noTargetText = radiusDialog.add("statictext", undefined, getLabel("status.noTargetInSelection"));
+            noTargetText.helpTip = getLabel("tooltip.noTargetInSelection");
+            noTargetText.alignment = ["center", "top"];
         }
 
         var previewCheckbox = addOptionCheckbox(radiusDialog, "preview", PREVIEW_DEFAULT);
