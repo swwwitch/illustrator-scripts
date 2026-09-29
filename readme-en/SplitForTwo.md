@@ -62,3 +62,4 @@
 - v2.10.3 (20260929): The swatches now open Illustrator's standard color picker instead of the script's own dialog
 - v2.10.4 (20260929): Dialog opacity changed to 98%
 - v2.10.5 (20260930): Fixed an error when running with characters selected by the Type tool
+- v2.10.6 (20260930): Button rows with only right-side buttons are now centered

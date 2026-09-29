@@ -47,7 +47,8 @@ Last updated: 2025-11-09
 - v1.7.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/DrawRectangleBehindSelectedObject.json). Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held). Clip groups are now measured by their mask
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.7.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
 
 ### Script info
 
-- Version: v1.7.3
+- Version: v1.7.5

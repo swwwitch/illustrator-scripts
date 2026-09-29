@@ -29,6 +29,7 @@
 
 ### Update History
 
+- v1.7.6 (20260930): Button rows with only right-side buttons are now centered
 - v1.7.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.7.4 (20260929): Dialog opacity changed to 98%
 - v1.7.3 (20260928): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/ImportGraphicStyles.json)
@@ -43,4 +44,4 @@
 
 ### Script info
 
-- Version: v1.7.4
+- Version: v1.7.6

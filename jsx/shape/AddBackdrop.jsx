@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBackdrop";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -57,8 +57,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var DIALOG_OFFSET_X         = 300;               /* 表示時の横方向のずらし量 / Horizontal shift on show */
-    var DIALOG_OFFSET_Y         = 0;                 /* 表示時の縦方向のずらし量 / Vertical shift on show */
     var PANEL_MARGINS           = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] / Panel margins [left, top, right, bottom] */
     var FIELD_CHARS             = 4;                 /* 数値欄の文字数 / Characters of numeric fields */
     var SHAPE_ROW_BOTTOM_MARGIN = 5;                 /* 形状ラジオの下の余白 / Space below the shape radios */
@@ -1551,6 +1549,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         btnRightGroup.spacing = BUTTON_ROW_SPACING;
 
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
@@ -4037,8 +4052,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         };
 
         ui.dialog.onShow = function () {
-            var location = ui.dialog.location;
-            ui.dialog.location = [location[0] + DIALOG_OFFSET_X, location[1] + DIALOG_OFFSET_Y];
             ui.scaleInput.active = true;
             if (!hadSavedState) {
                 /* 計測に失敗しても初期値のまま開く / Keep the stock values if measuring fails */

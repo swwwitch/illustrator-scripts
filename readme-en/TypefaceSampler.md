@@ -117,3 +117,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.4.3 (20260928): The button row is now built with the shared part
 - v1.4.4 (20260929): Dialog opacity changed to 98%
 - v1.4.5 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.4.6 (20260930): Button rows with only right-side buttons are now centered

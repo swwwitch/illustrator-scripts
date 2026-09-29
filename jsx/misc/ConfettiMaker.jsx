@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -92,8 +92,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var SLIDER_WIDTH           = 240;              /* スライダーの幅 / slider width */
     var NARROW_SLIDER_WIDTH    = 200;              /* 補助スライダーの幅 / width of a secondary slider */
     var SYMBOL_DROPDOWN_WIDTH  = 120;              /* シンボル選択の幅 / width of the symbol dropdown */
-    var DIALOG_OFFSET_X        = 300;              /* ダイアログの横方向オフセット / horizontal offset of the dialog */
-    var DIALOG_OFFSET_Y        = 0;                /* ダイアログの縦方向オフセット / vertical offset of the dialog */
 
     /**
      * ダイアログ全体の並びと余白を設定する
@@ -743,17 +741,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     // =========================================
 
     /**
-     * ダイアログの表示位置をずらす
-     * @param {Window} targetWindow - 対象ウィンドウ
-     * @param {number} dx - 横方向の移動量
-     * @param {number} dy - 縦方向の移動量
-     * @returns {void}
-     */
-    function shiftDialogPosition(targetWindow, dx, dy) {
-        targetWindow.location = [targetWindow.location[0] + dx, targetWindow.location[1] + dy];
-    }
-
-    /**
      * 「基本設定」パネル（基準サイズ・生成数・マスク処理・マージン・分布）を作る
      * @param {Window} parentWindow - 追加先のダイアログ
      * @param {Object} dialogUI - 作ったコントロールを書き込む先
@@ -943,6 +930,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     /**
@@ -970,6 +974,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         var buttonRow = addButtonRow(confettiDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         confettiDialog.defaultElement = btnOK;
         return dialogUI;
     }
@@ -2566,7 +2571,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         });
 
         dialogUI.dialog.onShow = function () {
-            shiftDialogPosition(dialogUI.dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
             refreshSymbolDropdown();
             applyMarginMaxToUI();
             dialogUI.zoomControls.syncFromView();

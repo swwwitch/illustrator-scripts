@@ -45,6 +45,7 @@ Noriaki Fujita
 
 ### Update History
 
+- v1.7.5 (20260930): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
 - v1.7.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.7.3 (20260929): Dialog opacity changed to 98%
 - v1.7.2 (20260928): The button row is now built with the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
@@ -61,5 +62,5 @@ https://note.com/dtp_tranist/n/n52f6b645bc70
 
 ### Script info
 
-- Version: v1.7.3
-- Last updated: 2026-09-28
+- Version: v1.7.5
+- Last updated: 2026-09-30

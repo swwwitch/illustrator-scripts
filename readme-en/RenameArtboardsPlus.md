@@ -99,6 +99,7 @@ Paste the exported text into `BUILTIN_NAMING_PRESETS` in the script to add it as
 
 ## Update History
 
+- v1.3.7 (2026-09-30): Button rows with only right-side buttons are now centered
 - v1.3.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.5 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.4 (2026-09-28): The button row is now built with the shared part

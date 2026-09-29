@@ -26,6 +26,7 @@ https://note.com/dtp_tranist/n/ne7a198a4f527
 
 ### Update history
 
+- v1.0.7 (2026-09-30): Button rows with only right-side buttons are now centered
 - v1.0.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.0.5 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.4 (2026-09-28): The button row is now built with the shared part
@@ -33,6 +34,6 @@ https://note.com/dtp_tranist/n/ne7a198a4f527
 
 ### Script info
 
-- Version: v1.0.5
+- Version: v1.0.7
 - First release: 2026-06-22
 - Last updated: 2026-09-28

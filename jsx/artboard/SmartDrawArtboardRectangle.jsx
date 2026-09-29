@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -62,10 +62,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-
-    /* 初回表示時のダイアログ位置（画面中央からのずれ） / First-run dialog position (offset from center) */
-    var DIALOG_OFFSET_X = 300;  /* 右(+)／左(-) / shift right (+) / left (-) */
-    var DIALOG_OFFSET_Y = 0;    /* 下(+)／上(-) / shift down (+) / up (-) */
 
     /* 余白と間隔 / Margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] */
@@ -1930,9 +1926,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         dialogButtons.btnCancel.onClick = function () { closeWithCleanup(0); };
 
         settingsDialog.onShow = function () {
-            /* 初回は画面中央からずらす。前回の位置があれば prepareDialogWindow が上書きする
-               First run: offset from the center; prepareDialogWindow overrides it with the last location */
-            settingsDialog.location = [settingsDialog.location[0] + DIALOG_OFFSET_X, settingsDialog.location[1] + DIALOG_OFFSET_Y];
             dialogControls.offset.initFieldState();
             try { dialogControls.offset.offsetInput.active = true; } catch (e) { }
             PreviewHistory.start(); /* プレビューのUndoカウンタを初期化 */

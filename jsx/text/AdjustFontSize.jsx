@@ -44,11 +44,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 (function () {
 
     // =========================================
-    // ユーザー設定 / User settings
-    // =========================================
-    var DIALOG_OFFSET_X = 0;     /* 表示位置の横オフセット / horizontal offset on show */
-
-    // =========================================
     // レイアウト / Layout
     // =========================================
     var PANEL_MARGINS = [16, 20, 16, 12];  /* パネル余白 / panel margins */
@@ -727,6 +722,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     var LABELS = {
@@ -1255,13 +1267,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         };
 
         adjustDialog.onShow = function () {
-            adjustDialog.location = [adjustDialog.location[0] + DIALOG_OFFSET_X, adjustDialog.location[1]];
             scaleInput.active = true;
         };
 
         /* 開いた時点では何も適用しない（現在の状態をそのまま保持）。値を変更したときだけプレビュー適用
            apply nothing on open (keep the current state as-is); preview only kicks in once a value changes */
         loadValuesFromSelection();
+        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(adjustDialog, SCRIPT_NAME);
         adjustDialog.show();
     }

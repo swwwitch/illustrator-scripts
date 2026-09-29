@@ -55,3 +55,4 @@
 - v1.5.2: The button row is now built with the shared part
 - v1.5.3: Dialog opacity changed to 98%
 - v1.5.4: Fixed an error when running with characters selected by the Type tool
+- v1.5.5: Button rows with only right-side buttons are now centered

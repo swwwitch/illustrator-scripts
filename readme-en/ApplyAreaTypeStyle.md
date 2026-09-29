@@ -40,6 +40,7 @@ The style names have to match the names registered in the source AI file.
 
 ### Update History
 
+- v1.6.6 (20260930): Button rows with only right-side buttons are now centered
 - v1.6.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.6.4 (20260929): Dialog opacity changed to 98%
 - v1.6.3 (20260928): The button row is now built with the shared part
@@ -54,4 +55,4 @@ The style names have to match the names registered in the source AI file.
 
 ### Script info
 
-- Version: v1.6.4
+- Version: v1.6.6

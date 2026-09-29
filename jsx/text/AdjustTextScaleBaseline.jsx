@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustText
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustTextScaleBaseline";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -41,7 +41,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var DIALOG_OFFSET_X = 300;               /* ダイアログを右へずらす量 / Horizontal dialog offset */
     var COLUMN_SPACING = 20;                 /* 左右の列と左列内の間隔 / Spacing of the columns and inside the left column */
     var ADJUST_PANEL_MARGINS = [15, 10, 15, 10]; /* ［調整］パネルの余白 / Margins of the Adjust panel */
     var TARGET_CHAR_INPUT_CHARACTERS = 10;   /* 対象文字欄の幅（文字数）/ Width of the target character field */
@@ -1342,8 +1341,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         adjustDialog.onShow = function () {
-            var dialogLocation = adjustDialog.location;
-            adjustDialog.location = [dialogLocation[0] + DIALOG_OFFSET_X, dialogLocation[1]];
             hScaleInput.active = true;
         };
 

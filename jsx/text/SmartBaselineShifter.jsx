@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -63,7 +63,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     var REFERENCE_INPUT_CHARACTERS = 3;               /* 基準文字の欄の幅（文字数）/ Width of the reference field */
     var CALCULATE_BUTTON_BOUNDS    = [0, 0, 60, 25];  /* 計算ボタンの大きさ / Calculate button bounds */
     var BUTTON_SPACER_BOUNDS       = [0, 0, 0, 30];   /* キャンセルとリセットの間隔 / Gap between Cancel and Reset */
-    var DIALOG_OFFSET_X            = 300;             /* ダイアログを右へずらす量 / Horizontal dialog offset */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1494,9 +1493,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         var shiftDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         shiftDialog.orientation = "column";
         shiftDialog.alignChildren = "left";
-        shiftDialog.onShow = function () {
-            shiftDialog.location = [shiftDialog.location[0] + DIALOG_OFFSET_X, shiftDialog.location[1]];
-        };
 
         var columnsGroup = shiftDialog.add("group");
         columnsGroup.orientation = "row";

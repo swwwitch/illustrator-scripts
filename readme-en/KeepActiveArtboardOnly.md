@@ -36,6 +36,7 @@ Keeps only the active artboard, or removes every empty artboard in one pass.
 
 ### Update History
 
+- v1.2.6: Button rows with only right-side buttons are now centered
 - v1.2.5: Fixed an error when running with characters selected by the Type tool
 - v1.2.4: Dialog opacity changed to 98%
 - v1.2.3: The button row is now built with the shared part

@@ -48,3 +48,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - v2.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.3.2 (20260929): Dialog opacity changed to 98%
 - v2.3.3 (20260930): Fixed an error when running with characters selected by the Type tool
+- v2.3.4 (20260930): Dropped the script's own rightward shift of the dialog on first open

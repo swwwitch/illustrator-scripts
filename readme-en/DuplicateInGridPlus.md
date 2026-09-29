@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
 - v2.1.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v2.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v2.1.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)

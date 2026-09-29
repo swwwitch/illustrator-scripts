@@ -27,6 +27,7 @@ Merges several text objects into a single area text, or splits one back out.
 
 ### Update History
 
+- v1.2.5 (2026-09-30): Button rows with only right-side buttons are now centered
 - v1.2.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.2.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.2.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part

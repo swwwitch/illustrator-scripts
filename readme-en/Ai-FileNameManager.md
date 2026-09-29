@@ -212,6 +212,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 - v1.3.10 (2026-09-28) The button row is now built with the shared part. Settings are now saved through the shared part (stored in `Folder.userData/illustrator-scripts/Ai-FileNameManager.json`)
 - v1.3.11 (2026-09-29) Dialog opacity changed to 98%
 - v1.3.12 (2026-09-30) Fixed an error when running with characters selected by the Type tool
+- v1.3.13 (2026-09-30) Button rows with only right-side buttons are now centered
 
 ### Article
 

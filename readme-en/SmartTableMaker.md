@@ -36,7 +36,8 @@ In the height (%), stroke weight, corner radius and Width fields, the stepper bu
 - v1.2.2 (20260928): The button row is now built with the shared part
 - v1.2.3 (20260929): Dialog opacity changed to 98%
 - v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.2.5 (20260930): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
 
 ### Script info
 
-- Version: v1.2.3
+- Version: v1.2.5

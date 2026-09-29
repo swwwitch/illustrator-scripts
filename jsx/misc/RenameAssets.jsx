@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameAsse
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RenameAssets";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -43,8 +43,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var DIALOG_MARGINS = 16;                  /* ダイアログの余白 / Dialog margins */
     var DIALOG_SPACING = 12;                  /* ダイアログの要素間隔 / Dialog spacing */
-    var DIALOG_OFFSET_X = 300;                /* 表示位置を右へずらす量 / Horizontal shift of the dialog */
-    var DIALOG_OFFSET_Y = 0;                  /* 表示位置を下へずらす量 / Vertical shift of the dialog */
     var PANEL_MARGINS = [15, 20, 15, 10];     /* パネル余白 [左,上,右,下] / Panel margins [L,T,R,B] */
     var PANEL_SPACING = 16;                   /* パネル内の要素間隔 / Panel spacing */
     var FIELD_LABEL_WIDTH = 120;              /* 項目名の幅（揃える） / Width of the field labels */
@@ -535,21 +533,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * ダイアログを開いたときに表示位置をずらす
-     * @param {Window} targetDialog - 対象ダイアログ
-     * @param {number} offsetX - 右へずらす量
-     * @param {number} offsetY - 下へずらす量
-     * @returns {void}
-     */
-    function shiftDialogPosition(targetDialog, offsetX, offsetY) {
-        targetDialog.onShow = function () {
-            var currentX = targetDialog.location[0];
-            var currentY = targetDialog.location[1];
-            targetDialog.location = [currentX + offsetX, currentY + offsetY];
-        };
-    }
-
-    /**
      * タイトル付きのパネルを追加する
      * @param {Object} parentGroup - 追加先のコンテナ
      * @param {string} title - パネルのタイトル
@@ -733,6 +716,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // =========================================
@@ -745,7 +745,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function showDialog() {
         var renameDialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
-        shiftDialogPosition(renameDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
         renameDialog.orientation = "column";
         renameDialog.alignChildren = ["fill", "top"];
         renameDialog.margins = DIALOG_MARGINS;
@@ -896,6 +895,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         findInput.active = true;
 
+        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(renameDialog, SCRIPT_NAME);
         renameDialog.show();
 

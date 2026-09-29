@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackg
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitBackgroundForTwo";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.10.4";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.10.5";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -59,8 +59,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     // =========================================
 
     var DIALOG_MARGINS = 18;               /* ダイアログ外周の余白 / dialog margins */
-    var DIALOG_OFFSET_X = 300;             /* 表示位置の横のずらし量 / horizontal dialog offset */
-    var DIALOG_OFFSET_Y = 0;               /* 表示位置の縦のずらし量 / vertical dialog offset */
     var PANEL_MARGINS = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] / panel margins */
     var COLUMN_SPACING = 12;               /* 2カラムの間隔 / column gutter */
     var BALANCE_SPACING = 6;               /* 幅の入力欄とスライダーの間隔 / gap between the width field and slider */
@@ -686,6 +684,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         btnRightGroup.spacing = BUTTON_ROW_SPACING;
 
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
@@ -1407,21 +1422,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     // =========================================
     // ダイアログ共通 / Dialog helpers
     // =========================================
-
-    /**
-     * ダイアログの表示位置をずらす（既存の onShow は先に呼ぶ）
-     * @param {Window} dialog - 対象のダイアログ
-     * @param {number} offsetX - 横のずらし量
-     * @param {number} offsetY - 縦のずらし量
-     * @returns {void}
-     */
-    function shiftDialogPosition(dialog, offsetX, offsetY) {
-        var previousOnShow = dialog.onShow;
-        dialog.onShow = function () {
-            if (typeof previousOnShow === "function") previousOnShow();
-            dialog.location = [dialog.location[0] + offsetX, dialog.location[1] + offsetY];
-        };
-    }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -2471,6 +2471,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var buttonRow = addButtonRow(dialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         controls.btnCancel = btnCancel;
         controls.btnOK = btnOK;
         dialog.defaultElement = controls.btnOK;
@@ -2731,7 +2732,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         controls.btnCancel.onClick = function () { controls.dialog.close(0); };
 
         controls.dialog.onShow = refresh;
-        shiftDialogPosition(controls.dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
         updateEnabledStates(controls);
     }
 

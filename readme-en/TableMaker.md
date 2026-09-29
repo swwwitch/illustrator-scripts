@@ -42,3 +42,4 @@ https://note.com/dtp_tranist/n/n4eaa14098858
 - v1.1.2 (2026-09-28): The button row is now built with the shared part
 - v1.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.1.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered

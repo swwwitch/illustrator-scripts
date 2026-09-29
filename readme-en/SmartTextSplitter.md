@@ -29,3 +29,4 @@ Splits the selected text frame into one text frame per character, preserving the
 - v2.0.3 (2026-09-28): The button row is now built with the shared part
 - v2.0.4 (2026-09-29): Dialog opacity changed to 98%
 - v2.0.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v2.0.6 (2026-09-30): Button rows with only right-side buttons are now centered

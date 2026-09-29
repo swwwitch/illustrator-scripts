@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -90,8 +90,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     var SIZE_RADIO_WIDTH   = { ja: 60, en: 88 }; /* 倍率・横幅ラジオのラベル幅 / label width of the scale rows */
     var MARGIN_CELL_WIDTH  = { ja: 66, en: 82 }; /* マージン3×3グリッドの1マス幅 / cell width of the 3x3 margin grid */
     var FILENAME_ROW_HEIGHT = 22;              /* ファイル名プレビューの行高（ディセンダー切れ防止）/ row height of the filename preview */
-
-    var DIALOG_OFFSET_X = 300;                 /* 初回表示時の画面中央からの横オフセット / first-run horizontal offset from the screen center */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1510,6 +1508,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         btnRightGroup.spacing = BUTTON_ROW_SPACING;
 
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
@@ -3482,11 +3497,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
         exportDialog.onShow = function() {
             updateFileNamePreview();
-            /* 初回は画面中央から横にずらす。前回の位置があれば prepareDialogWindow が上書きする
-               First run: offset from the center; prepareDialogWindow overrides it with the last location */
-            exportDialog.location = [exportDialog.location[0] + DIALOG_OFFSET_X, exportDialog.location[1]];
         };
 
+        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(exportDialog, SCRIPT_NAME);
         var dialogResult = exportDialog.show();
 

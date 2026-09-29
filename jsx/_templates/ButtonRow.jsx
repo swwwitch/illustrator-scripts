@@ -19,10 +19,10 @@ The same function also builds a centered row.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ButtonRow";                    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -31,14 +31,19 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 
     // 【移植手順 / How to port】
     // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
-    //    識別子は BUTTON_ROW_* / addButtonRow
+    //    識別子は BUTTON_ROW_* / addButtonRow / centerButtonRowIfRightOnly
     // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
     //      var buttonRow = addButtonRow(dialog);
     //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
     //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
     //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
     //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
-    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
+    // 3. ボタンをすべて足したあと、show() の前に centerButtonRowIfRightOnly(buttonRow) を呼ぶ。
+    //    左のグループにボタンが無い（キャンセル・OK だけの）ときは、行が左右中央に並ぶ。左にボタンがあれば左右分割のまま
+    //      centerButtonRowIfRightOnly(buttonRow);
+    //      prepareDialogWindow(dialog, SCRIPT_NAME);
+    //      dialog.show();
+    // 4. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -81,6 +86,23 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
         btnRightGroup.spacing = BUTTON_ROW_SPACING;
 
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
@@ -136,6 +158,8 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         btnPreferences.onClick = function () { alert(getLabel(LABELS.button.preferences)); };
+        /* 左に［設定…］があるので左右分割のまま。外すと中央に並ぶ / Stays split because of the left button; remove it to see the row centered */
+        centerButtonRowIfRightOnly(buttonRow);
 
         demoDialog.show();
     }

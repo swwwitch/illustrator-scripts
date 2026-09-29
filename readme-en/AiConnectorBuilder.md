@@ -138,3 +138,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.1.2 (20260928): Clip groups are now measured by their mask
 - v1.1.3 (20260929): Dialog opacity changed to 98%
 - v1.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.1.5 (20260930): Button rows with only right-side buttons are now centered

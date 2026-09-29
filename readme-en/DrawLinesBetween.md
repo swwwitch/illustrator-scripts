@@ -25,6 +25,7 @@ Sorts the selected objects (shapes or text) from top to bottom and draws a horiz
 
 ### Update History
 
+- v1.1.5 (20260930): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
 - v1.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.1.3 (20260929): Dialog opacity changed to 98%
 - v1.1.2 (20260928): The button row is now built with the shared part. Fixed the line weight, extension and cap never being remembered (the script used a Photoshop-only API that Illustrator lacks; now stored in `~/Library/Application Support/illustrator-scripts/DrawLinesBetween.json`)

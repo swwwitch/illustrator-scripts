@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRati
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -79,7 +79,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     var FIELD_CHARACTERS    = 5;                 /* 数値欄の幅（文字数）/ Numeric field width */
     var CUSTOM_RATIO_CHARS  = 3;                 /* カスタム比の欄の幅（文字数）/ Custom ratio field width */
     var PERCENT_CHARS       = 4;                 /* ％の欄の幅（文字数）/ Percent field width */
-    var DIALOG_OFFSET_X     = 300;               /* ダイアログを右へずらす量 / Horizontal dialog offset */
     var CUSTOM_RATIO_INDENT = 14;                /* カスタム比の欄の左インデント（約1文字）/ Left indent of the custom ratio fields (about one character) */
     var ORIENT_BUTTON_SIZE  = 36;                /* 向きアイコンのボタンの大きさ / Size of an orientation icon button */
     var ORIENT_FRAME_LONG   = 30;                /* 向きアイコンの枠の長辺 / Long side of the orientation icon frame */
@@ -124,19 +123,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         rowGroup.alignment = ["left", "top"];
         rowGroup.alignChildren = ["left", "center"];
         return rowGroup;
-    }
-
-    /**
-     * ダイアログを表示時に横へずらす
-     * @param {Window} dialog - 対象のダイアログ
-     * @param {number} offsetX - 横方向のずらし量
-     * @param {number} offsetY - 縦方向のずらし量
-     * @returns {void}
-     */
-    function shiftDialogPosition(dialog, offsetX, offsetY) {
-        dialog.onShow = function () {
-            dialog.location = [dialog.location[0] + offsetX, dialog.location[1] + offsetY];
-        };
     }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -1288,6 +1274,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // =========================================
@@ -1706,7 +1709,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      */
     function createDialog() {
         var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        shiftDialogPosition(dialog, DIALOG_OFFSET_X, 0);
         dialog.alignChildren = ["fill", "top"];
 
         var columnsGroup = dialog.add("group");

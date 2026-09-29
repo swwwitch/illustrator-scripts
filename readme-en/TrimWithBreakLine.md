@@ -86,6 +86,7 @@ The up/down buttons to the left of each number field work the same way as the ar
 
 ### Update history
 
+- v1.2.5 (20260930) : Button rows with only right-side buttons are now centered
 - v1.2.4 (20260930) : Fixed an error when running with characters selected by the Type tool
 - v1.2.3 (20260929) : Dialog opacity changed to 98%
 - v1.2.2 (20260928) : The button row is now built with the shared part. Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`; the old `TrimWithBreakLine/settings.txt` is carried over once). When the artwork is a clip group, the cut direction and position are now based on the mask

@@ -46,3 +46,4 @@
 - v1.0.2 (20260928): The button row is now built with the shared part
 - v1.0.3 (20260929): Dialog opacity changed to 98%
 - v1.0.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.0.5 (20260930): Button rows with only right-side buttons are now centered

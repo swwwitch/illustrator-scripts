@@ -30,3 +30,4 @@ Applies the Effect > Stylize > Feather live effect to the current selection.
 - v1.1.2 (2026-09-28): Fixed the radius unit label (H instead of Q for the ha ruler unit; feet, meters and yards were treated as points). Inches now shown as "in". The button row is now built with the shared part
 - v1.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.1.5 (2026-09-30): Button rows with only right-side buttons are now centered

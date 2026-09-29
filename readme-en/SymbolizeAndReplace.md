@@ -33,7 +33,8 @@ https://note.com/dtp_tranist/n/n650a4b91329d
 - v1.0.3 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
 - v1.0.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.6 (2026-09-30): Button rows with only right-side buttons are now centered
 
 ### Script info
 
-- Version: v1.0.4
+- Version: v1.0.6

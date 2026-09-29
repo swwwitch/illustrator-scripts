@@ -37,7 +37,8 @@
 - v1.1.5 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.1.6 (20260929): Dialog opacity changed to 98%
 - v1.1.7 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.1.8 (20260930): Button rows with only right-side buttons are now centered
 
 ### Script info
 
-- Version: v1.1.6
+- Version: v1.1.8

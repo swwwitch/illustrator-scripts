@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportStyl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportStyles";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -58,9 +58,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
     /* 貼り付け先レイヤー名 / Destination layer name */
     var IMPORT_LAYER_NAME = "// _imported";
-
-    /* ダイアログの初期表示位置を右へずらす量（px）/ Horizontal offset for the dialog position */
-    var DIALOG_OFFSET_X = 300;
 
     // =========================================
     // ローカライズ / Localization
@@ -1566,9 +1563,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     function showStyleLibraryDialog() {
         var libraryWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(libraryWindow);
-        libraryWindow.onShow = function() {
-            libraryWindow.location = [libraryWindow.location[0] + DIALOG_OFFSET_X, libraryWindow.location[1]];
-        };
 
         var categoryFilter = buildCategoryFilterRow(libraryWindow);
         var search = buildSearchRow(libraryWindow);

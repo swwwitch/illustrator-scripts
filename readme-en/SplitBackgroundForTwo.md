@@ -73,3 +73,4 @@
 - v2.10.2 (20260928): Clip groups are now measured by their mask
 - v2.10.3 (20260929): Dialog opacity changed to 98%
 - v2.10.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v2.10.5 (20260930): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
