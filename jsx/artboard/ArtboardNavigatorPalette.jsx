@@ -1117,8 +1117,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nee7de364c3dc"; /* ç´¹ä
             var isLightNow = isLightUI();
             if (isLightNow !== useLightButtons) {
                 useLightButtons = isLightNow;
-                for (var i = 0; i < navButtonRow.children.length; i++) {
-                    navButtonRow.children[i].notify("onDraw");
+                try {
+                    for (var i = 0; i < navButtonRow.children.length; i++) {
+                        navButtonRow.children[i].notify("onDraw");
+                    }
+                } catch (redrawError) {
                 }
             }
             refreshArtboardList();
@@ -1440,7 +1443,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nee7de364c3dc"; /* ç´¹ä
             return;
         }
         navButton.enabled = isEnabled;
-        navButton.notify("onDraw");
+        try {
+            navButton.notify("onDraw");
+        } catch (e) {
+        }
     }
 
     /**
