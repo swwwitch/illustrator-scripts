@@ -39,3 +39,4 @@
 - v1.1.6 (20260928): The button row is now built with the shared part
 - v1.1.6 (20260928): Target collection now uses the shared part
 - v1.1.7 (20260929): Dialog opacity changed to 98%
+- v1.1.8 (20260930): Fixed an error when running with characters selected by the Type tool

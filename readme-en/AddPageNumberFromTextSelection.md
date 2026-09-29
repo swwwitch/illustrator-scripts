@@ -68,6 +68,7 @@ Z and A do not toggle while the prefix or suffix field has focus — typing take
 
 ### Update History
 
+- v2.2.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v2.2.3 (2026-09-29): Dialog opacity changed to 98%
 - v2.2.2 (2026-09-28): The button row is now built with the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v2.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

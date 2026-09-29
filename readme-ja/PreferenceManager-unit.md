@@ -40,6 +40,7 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.3.1 (2026-09-28): ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた / The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.2 (2026-09-28): ボタン行を共通の部品で組むようにした / The button row is now built with the shared part
 - v1.3.3 (2026-09-29): ダイアログの不透明度を98%に変更
+- v1.3.4 (2026-09-30): 文字ツールで文字を選択して実行するとエラーになる不具合を修正
 
 ### スクリプト情報
 

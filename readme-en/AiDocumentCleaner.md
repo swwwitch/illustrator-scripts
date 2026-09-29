@@ -109,6 +109,7 @@ Option/alt-clicking a checkbox sets every checkbox in that panel to the clicked 
 
 ### Update History
 
+- v1.1.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.1.5 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.4 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure; in Japanese, the result counts now use a full-width colon
 - v1.1.4 (2026-09-28): The button row is now built with the shared part

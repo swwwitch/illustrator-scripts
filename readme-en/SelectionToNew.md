@@ -128,6 +128,7 @@ The artboard layout logic is ported from [AddArtboardPlus.jsx](https://github.co
 
 ## Update history
 
+- v1.1.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.1.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.1.2 (2026-09-28): The button row is now built with the shared part

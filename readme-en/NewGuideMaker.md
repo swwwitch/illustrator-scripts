@@ -41,4 +41,5 @@
 - v1.3.2 (20260928): The button row is now built with the shared part
 - v1.3.2 (20260928): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.3.3 (20260929): Dialog opacity changed to 98%
+- v1.3.4 (20260930): Fixed an error when running with characters selected by the Type tool
 

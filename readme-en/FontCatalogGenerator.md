@@ -30,6 +30,7 @@ Lists the fonts installed on the system and generates a specimen sheet for them 
 
 ### Update History
 
+- v1.7.5 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
 - v1.7.4 (2026-09-29) : Dialog opacity changed to 98%
 - v1.7.3 (2026-09-29) : When the type unit is Q, the unit now reads "Q" instead of "Q/H" (unit handling now goes through the shared table)
 - v1.7.2 (2026-09-28) : English field labels now end in ":" without a trailing space. The button row is now built with the shared part

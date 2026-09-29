@@ -116,3 +116,4 @@ When on, red frames (no fill, 10 pt stroke, 50% opacity) show where the groups w
 - v1.0.9 (20260928): The button row is now built with the shared part
 - v1.0.9 (20260928): Clip groups are now measured by their mask (affects clustering and the preview frames)
 - v1.0.10 (20260929): Dialog opacity changed to 98%
+- v1.0.11 (20260930): Fixed an error when running with characters selected by the Type tool

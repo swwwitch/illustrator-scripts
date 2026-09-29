@@ -33,6 +33,7 @@ Depending on the selection it converts to area type automatically and opens the 
 
 ### Update history
 
+- v1.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.1.3 (20260929): Dialog opacity changed to 98%
 - v1.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
 - v1.1.1 (20260928): Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -73,6 +73,7 @@ https://note.com/dtp_tranist/n/n5a41fb524a5a
 
 ### Update History
 
+- v1.7.9 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v1.7.8 (2026-09-29) Dialog opacity changed to 98%
 - v1.7.7 (2026-09-28) The button row is now built with the shared part. Clip groups are now measured by their mask (text masks included)
 - v1.7.6 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -36,3 +36,4 @@ Takes pairs of adjacent anchor points from the paths in the selection — groups
 - v1.1.1 (2026-09-28) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.2 (2026-09-28) : The button row is now built with the shared part. Clip groups are now measured by their mask
 - v1.1.3 (2026-09-29) : Dialog opacity changed to 98%
+- v1.1.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool

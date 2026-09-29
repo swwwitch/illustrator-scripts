@@ -46,6 +46,7 @@ Last updated: 2025-11-09
 - v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/DrawRectangleBehindSelectedObject.json). Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held). Clip groups are now measured by their mask
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 

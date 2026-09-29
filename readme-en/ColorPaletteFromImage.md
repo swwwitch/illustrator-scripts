@@ -90,6 +90,7 @@ The buttons sit in a single row at the bottom of the dialog: "Reselect" on the l
 
 ## Changelog
 
+- v1.7.9 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.7.8 (20260929): Dialog opacity changed to 98%
 - v1.7.7 (20260928): The button row is now built with the shared part
 - v1.7.7 (20260928): Clip groups are now measured by their mask (text and compound-path masks and clip groups nested in groups included), which affects where the palette is placed and how the view is fitted

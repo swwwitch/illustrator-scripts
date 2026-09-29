@@ -33,6 +33,7 @@
 - v1.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure; the failure alert now reads "Could not run the action."
 - v1.1.2 (20260928): The button row is now built with the shared part
 - v1.1.3 (20260929): Dialog opacity changed to 98%
+- v1.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 

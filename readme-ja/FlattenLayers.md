@@ -54,6 +54,7 @@
 - v1.7.6 (20260928) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.7.7 (20260928) : ボタン行を共通の部品で組むようにした
 - v1.7.8 (20260929) : ダイアログの不透明度を98%に変更
+- v1.7.9 (20260930) : 文字ツールで文字を選択して実行するとエラーになる不具合を修正
 
 Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally

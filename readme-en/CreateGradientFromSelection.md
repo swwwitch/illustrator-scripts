@@ -53,3 +53,4 @@
 - v1.9.5 (20260928): The button row is now built with the shared part
 - v1.9.5 (20260928): Clip groups are now measured by their mask (affects where the rectangle is placed)
 - v1.10.0 (20260929): Merged CreateGradientFromSelection-Blend.jsx and added Blend duplicates (blends duplicates of the selected objects, leaving the originals as they are). Dialog opacity changed to 98%
+- v1.10.1 (20260930): Merged CreateGradientFromSelection-Blend.jsx and added Blend duplicates (blends duplicates of the selected objects, leaving the originals as they are). Fixed an error when running with characters selected by the Type tool

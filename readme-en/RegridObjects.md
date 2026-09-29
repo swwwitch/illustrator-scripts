@@ -33,6 +33,7 @@ Example with objects of different sizes and shapes (sample text and font names s
 
 ### Update History
 
+- v1.8.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.8.0 (2026-09-29): Rows and columns are now detected from overlapping extents, so objects of different sizes and shapes no longer break the grid. Center in Cell became Align in Cell (a 3×3 picker) and works without Force Grid. A non-numeric gap reverts to the previous value; the V label also dims while Link is on; code cleanup
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.2 (2026-09-28): The button row is now built with the shared part

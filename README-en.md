@@ -67,7 +67,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Sort numbers, letters or Japanese numerals and renumber them in sequence](readme-en/SmartRenumber.md)
 - [Create and adjust area type in one flow](readme-en/AreaTypeToolkit.md)
 - [Replace the selection with the clipboard contents (text or objects)](readme-en/ReplaceWithPaste.md)
-- [Remove, replace and clean up text](readme-en/SmartTextFindReplace.md)
+- [Find, replace and clean up text](readme-en/SmartTextFindReplace.md)
 - [Unified type panel](readme-en/UnifiedTypePalette.md)
 - [Outline text and restore it later](readme-en/AiTextOutlineRestorePalette.md)
 - [Adjust font size and horizontal / vertical scale](readme-en/AdjustFontSize.md)

@@ -131,7 +131,8 @@ var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last update
             if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
             var targetDoc = app.activeDocument;
             var selectedItems = targetDoc.selection;
-            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
             var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
             var spanLeft = Infinity;
             var spanRight = -Infinity;

@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextLineEd
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextLineEditor";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextLineEditor.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextLineEditor.md"; /* README (English) */
@@ -122,77 +122,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21bb9a835075"; /* 紹�
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "行の並び替えと編集",
-            en: "Reorder and Edit Lines"
+        dialog: {
+            title: { ja: "行の並び替えと編集", en: "Reorder and Edit Lines" },
+            instruction: { ja: "行を選択して、並び替えや編集をしてください。", en: "Select a line to reorder or edit it." }
         },
-        noDocument: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
+        button: {
+            moveUp: { ja: "上へ", en: "Up" },
+            moveDown: { ja: "下へ", en: "Down" },
+            addLine: { ja: "追加", en: "Add" },
+            editLine: { ja: "編集", en: "Edit" },
+            removeLine: { ja: "削除", en: "Delete" },
+            removeEmptyLines: { ja: "空行を削除", en: "Remove Empty Lines" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        selectOneText: {
-            ja: "テキストオブジェクトを1つだけ選択してください。",
-            en: "Please select exactly one text object."
+        tooltip: {
+            lineList: { ja: "ダブルクリックで行を編集", en: "Double-click a line to edit it" },
+            addLine: { ja: "末尾に行を追加", en: "Add a line at the end" },
+            removeEmptyLines: { ja: "空の行をすべて削除", en: "Remove all empty lines" }
         },
-        selectText: {
-            ja: "テキストオブジェクトを選択してください。",
-            en: "Please select a text object."
+        prompt: {
+            addLine: { ja: "追加する行を入力してください。", en: "Enter the line to add." },
+            editLine: { ja: "行を編集してください。", en: "Edit the selected line." }
         },
-        emptyText: {
-            ja: "テキストが空です。",
-            en: "The text is empty."
-        },
-        needMultipleLines: {
-            ja: "複数行のテキストを選択してください。",
-            en: "Please select multi-line text."
-        },
-        instruction: {
-            ja: "行を選択して順番を変更してください",
-            en: "Select a line and change its order."
-        },
-        up: {
-            ja: "上へ",
-            en: "Up"
-        },
-        down: {
-            ja: "下へ",
-            en: "Down"
-        },
-        add: {
-            ja: "追加",
-            en: "Add"
-        },
-        edit: {
-            ja: "編集",
-            en: "Edit"
-        },
-        deleteLabel: {
-            ja: "削除",
-            en: "Delete"
-        },
-        removeEmpty: {
-            ja: "空行削除",
-            en: "Remove Empty Lines"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        promptAdd: {
-            ja: "追加する行を入力してください",
-            en: "Enter the line to add."
-        },
-        promptEdit: {
-            ja: "行を編集してください",
-            en: "Edit the selected line."
-        },
-        confirmDelete: {
-            ja: "選択した行を削除しますか？",
-            en: "Delete the selected line?"
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectOneText: { ja: "テキストオブジェクトを1つだけ選択してください。", en: "Please select exactly one text object." },
+            selectText: { ja: "テキストオブジェクトを選択してください。", en: "Please select a text object." },
+            emptyText: { ja: "テキストが空です。", en: "The text is empty." },
+            needMultipleLines: { ja: "複数行のテキストを選択してください。", en: "Please select multi-line text." },
+            confirmRemoveLine: { ja: "選択した行を削除しますか？", en: "Delete the selected line?" }
         }
     };
 
@@ -278,7 +237,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21bb9a835075"; /* 紹�
             if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
             var targetDoc = app.activeDocument;
             var selectedItems = targetDoc.selection;
-            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
             var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
             var spanLeft = Infinity;
             var spanRight = -Infinity;
@@ -376,246 +336,251 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n21bb9a835075"; /* 紹�
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
-    /* メイン処理 / Main process */
-    (function () {
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var LIST_MIN_WIDTH = 200;      /* 行一覧の最小幅 / min width of the line list */
+    var LIST_MIN_HEIGHT = 260;     /* 行一覧の最小の高さ / min height of the line list */
+    var LIST_MAX_WIDTH = 720;      /* 行一覧の最大幅 / max width of the line list */
+    var LIST_MAX_HEIGHT = 520;     /* 行一覧の最大の高さ / max height of the line list */
+    var LIST_CHAR_WIDTH = 9;       /* 1文字あたりの見積もり幅 / estimated width per character */
+    var LIST_ROW_HEIGHT = 18;      /* 1行あたりの見積もりの高さ / estimated height per row */
+    var LIST_PADDING = 40;         /* 行一覧の見積もりに足す余白 / padding added to the list estimate */
+    var LIST_COLUMN_INSET = 24;    /* 列幅を一覧の幅から差し引く量 / column width inset from the list width */
+
+    /**
+     * 選択中のテキストフレームを1つ返す。条件に合わなければ警告を出して null を返す
+     * @returns {TextFrame|null} 対象のテキストフレーム
+     */
+    function getTargetTextFrame() {
         if (app.documents.length === 0) {
-            alert(getLabel("noDocument"));
-            return;
+            alert(getLabel("alert.noDocument"));
+            return null;
         }
-
-        if (app.selection.length !== 1) {
-            alert(getLabel("selectOneText"));
-            return;
+        var selectedItems = app.activeDocument.selection;
+        if (selectedItems.length !== 1) {
+            alert(getLabel("alert.selectOneText"));
+            return null;
         }
-
-        var item = app.selection[0];
-        if (!(item.typename === "TextFrame")) {
-            alert(getLabel("selectText"));
-            return;
+        if (selectedItems[0].typename !== "TextFrame") {
+            alert(getLabel("alert.selectText"));
+            return null;
         }
+        return selectedItems[0];
+    }
 
-        var originalText = item.contents;
-        if (!originalText || originalText === "") {
-            alert(getLabel("emptyText"));
-            return;
-        }
+    /**
+     * テキストを行に分ける（段落改行 \r・強制改行 \u0003・\n・\r\n のいずれでも区切る）
+     * @param {string} sourceText - 元のテキスト
+     * @returns {string[]} 行の配列
+     */
+    function splitTextIntoLines(sourceText) {
+        return sourceText.replace(/\r\n|\n|\u0003/g, "\r").split("\r");
+    }
 
-        /* 改行コードを統一（段落改行 \r と強制改行 \u0003 の両対応） / Normalize line breaks (supports both paragraph breaks \r and forced line breaks \u0003) */
-        var normalized = originalText
-            .replace(/\r\n/g, "\r")
-            .replace(/\n/g, "\r")
-            .replace(/\u0003/g, "\r");
+    /**
+     * 行の一覧で並べ替え・編集するダイアログを表示する
+     * @param {string[]} initialLines - 元の行
+     * @returns {string[]|null} 編集後の行。キャンセルしたときは null
+     */
+    function showLineEditorDialog(initialLines) {
+        var lineTexts = initialLines.slice(0);
 
-        var lines = normalized.split("\r");
+        var lineEditorDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        lineEditorDialog.orientation = "column";
+        lineEditorDialog.alignChildren = ["fill", "top"];
+        lineEditorDialog.spacing = 10;
+        lineEditorDialog.margins = 16;
 
-        if (lines.length <= 1) {
-            alert(getLabel("needMultipleLines"));
-            return;
-        }
+        lineEditorDialog.add("statictext", undefined, getLabel("dialog.instruction"));
 
-        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        win.orientation = "column";
-        win.alignChildren = ["fill", "top"];
-        win.spacing = 10;
-        win.margins = 16;
+        var editorRowGroup = lineEditorDialog.add("group");
+        editorRowGroup.orientation = "row";
+        editorRowGroup.alignChildren = ["fill", "fill"];
+        editorRowGroup.spacing = 15;
 
-        win.add("statictext", undefined, getLabel("instruction"));
-
-        var mainGroup = win.add("group");
-        mainGroup.orientation = "row";
-        mainGroup.alignChildren = ["fill", "fill"];
-        mainGroup.spacing = 15;
-
-        var listBox = mainGroup.add("listbox", undefined, [], {
+        var lineListBox = editorRowGroup.add("listbox", undefined, [], {
             multiselect: false,
             numberOfColumns: 1,
             showHeaders: false,
             columnTitles: [""]
         });
+        lineListBox.preferredSize = estimateLineListSize(lineTexts);
+        lineListBox.helpTip = getLabel("tooltip.lineList");
 
-        /* リストボックスの最小サイズを基準に、内容に応じて自動調整する / Auto-size the list box based on content while keeping a minimum size */
-        var minListWidth = 200;
-        var minListHeight = 260;
-        var maxListWidth = 720;
-        var maxListHeight = 520;
+        /* 行を操作するボタンの列 / Column of line operation buttons */
+        var lineButtonGroup = editorRowGroup.add("group");
+        lineButtonGroup.orientation = "column";
+        lineButtonGroup.alignment = ["center", "top"];
+        lineButtonGroup.alignChildren = ["center", "top"];
+        lineButtonGroup.spacing = 8;
 
-        var longestLen = 0;
-        for (var i = 0; i < lines.length; i++) {
-            if (lines[i].length > longestLen) longestLen = lines[i].length;
+        var btnMoveUp = lineButtonGroup.add("button", undefined, getLabel("button.moveUp"));
+        var btnMoveDown = lineButtonGroup.add("button", undefined, getLabel("button.moveDown"));
+
+        /* 並べ替えと編集のボタンを離す / Separate the reorder buttons from the edit buttons */
+        var buttonSeparatorSpacer = lineButtonGroup.add("group");
+        buttonSeparatorSpacer.minimumSize.height = 10;
+
+        var btnAddLine = lineButtonGroup.add("button", undefined, getLabel("button.addLine"));
+        btnAddLine.helpTip = getLabel("tooltip.addLine");
+        var btnEditLine = lineButtonGroup.add("button", undefined, getLabel("button.editLine"));
+        var btnRemoveLine = lineButtonGroup.add("button", undefined, getLabel("button.removeLine"));
+        var btnRemoveEmptyLines = lineButtonGroup.add("button", undefined, getLabel("button.removeEmptyLines"));
+        btnRemoveEmptyLines.helpTip = getLabel("tooltip.removeEmptyLines");
+
+        var buttonRow = addButtonRow(lineEditorDialog, { centered: true });
+        buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        /* 選択中の行番号（未選択は -1） / Index of the selected line (-1 when none) */
+        function getSelectedLineIndex() {
+            return lineListBox.selection ? lineListBox.selection.index : -1;
         }
-
-        /* ScriptUI では文字幅を正確に測れないため、1文字あたりのおおよその幅で見積もる / Estimate width per character because ScriptUI cannot measure text width accurately */
-        var estimatedWidth = Math.max(minListWidth, Math.min(maxListWidth, 40 + longestLen * 9));
-        var estimatedHeight = Math.max(minListHeight, Math.min(maxListHeight, 40 + lines.length * 18));
-
-        listBox.preferredSize = [estimatedWidth, estimatedHeight];
-        listBox.columnWidths = [estimatedWidth - 24];
-
-        /* ボタンエリア / Button area */
-        var buttonArea = mainGroup.add("group");
-        buttonArea.orientation = "row";
-        buttonArea.alignment = ["center", "fill"];
-        buttonArea.alignChildren = ["center", "top"];
-
-        /* ボタン列 / Button column */
-        var btnGroup = buttonArea.add("group");
-        btnGroup.orientation = "column";
-        btnGroup.alignChildren = ["center", "top"];
-        btnGroup.spacing = 8;
-
-        var upBtn = btnGroup.add("button", undefined, getLabel("up"));
-        var downBtn = btnGroup.add("button", undefined, getLabel("down"));
-
-        /* スペーサー（上下操作と編集操作を分離） / Spacer to separate move operations from edit operations */
-        var spacer = btnGroup.add("group");
-        spacer.minimumSize.height = 10;
-
-        var addBtn = btnGroup.add("button", undefined, getLabel("add"));
-        var editBtn = btnGroup.add("button", undefined, getLabel("edit"));
-        var deleteBtn = btnGroup.add("button", undefined, getLabel("deleteLabel"));
-        var removeEmptyBtn = btnGroup.add("button", undefined, getLabel("removeEmpty"));
-
-        /* 下部ボタンエリア / Bottom button area */
-        var buttonRow = addButtonRow(win, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         /* ボタンの有効 / 無効を更新 / Update button enabled states */
-        function updateButtonState() {
-            var hasSelection = !!listBox.selection;
-            var idx = hasSelection ? listBox.selection.index : -1;
+        function updateLineButtonStates() {
+            var selectedIndex = getSelectedLineIndex();
+            var hasSelection = selectedIndex >= 0;
+            btnMoveUp.enabled = selectedIndex > 0;
+            btnMoveDown.enabled = hasSelection && selectedIndex < lineTexts.length - 1;
+            btnEditLine.enabled = hasSelection;
+            btnRemoveLine.enabled = hasSelection && lineTexts.length > 1;
+            btnRemoveEmptyLines.enabled = hasEmptyLine(lineTexts);
+        }
 
-            upBtn.enabled = hasSelection && idx > 0;
-            downBtn.enabled = hasSelection && idx >= 0 && idx < lines.length - 1;
-            editBtn.enabled = hasSelection;
-            deleteBtn.enabled = hasSelection && lines.length > 1;
-
-            var hasEmptyLine = false;
-            for (var i = 0; i < lines.length; i++) {
-                if (lines[i] === "") {
-                    hasEmptyLine = true;
-                    break;
-                }
+        /* 一覧を作り直して、指定した行を選択する / Rebuild the list and select the given line */
+        function refreshLineList(selectIndex) {
+            lineListBox.removeAll();
+            lineListBox.columnWidths = [lineListBox.preferredSize[0] - LIST_COLUMN_INSET];
+            for (var i = 0; i < lineTexts.length; i++) {
+                lineListBox.add("item", lineTexts[i]);
             }
-            removeEmptyBtn.enabled = hasEmptyLine;
+            lineListBox.selection = lineTexts.length > 0
+                ? Math.max(0, Math.min(selectIndex, lineTexts.length - 1))
+                : null;
+            updateLineButtonStates();
         }
 
-        /* リスト表示を更新 / Refresh the list display */
-        function refreshList(selectIndex) {
-            listBox.removeAll();
-            listBox.columnWidths = [listBox.preferredSize[0] - 24];
-            for (var i = 0; i < lines.length; i++) {
-                listBox.add("item", lines[i]);
-            }
-            if (lines.length > 0) {
-                if (selectIndex < 0) selectIndex = 0;
-                if (selectIndex >= lines.length) selectIndex = lines.length - 1;
-                listBox.selection = selectIndex;
-            } else {
-                listBox.selection = null;
-            }
-            updateButtonState();
+        /* 選択行を offset 行ぶん動かす（-1 で上、1 で下） / Move the selected line by offset (-1 up, 1 down) */
+        function moveSelectedLine(offset) {
+            var selectedIndex = getSelectedLineIndex();
+            var targetIndex = selectedIndex + offset;
+            if (selectedIndex < 0 || targetIndex < 0 || targetIndex >= lineTexts.length) return;
+            var movingLine = lineTexts[selectedIndex];
+            lineTexts[selectedIndex] = lineTexts[targetIndex];
+            lineTexts[targetIndex] = movingLine;
+            refreshLineList(targetIndex);
         }
 
-        /* 選択行を上へ移動 / Move the selected line up */
-        function moveUp() {
-            if (!listBox.selection) return;
-            var idx = listBox.selection.index;
-            if (idx <= 0) return;
-
-            var tmp = lines[idx];
-            lines[idx] = lines[idx - 1];
-            lines[idx - 1] = tmp;
-
-            refreshList(idx - 1);
-        }
-
-        /* 選択行を下へ移動 / Move the selected line down */
-        function moveDown() {
-            if (!listBox.selection) return;
-            var idx = listBox.selection.index;
-            if (idx >= lines.length - 1) return;
-
-            var tmp = lines[idx];
-            lines[idx] = lines[idx + 1];
-            lines[idx + 1] = tmp;
-
-            refreshList(idx + 1);
-        }
-
-        /* 行を追加 / Add a line */
+        /* 末尾に行を追加 / Add a line at the end */
         function addLine() {
-            var result = prompt(getLabel("promptAdd"), "");
-            if (result === null) return;
-            lines.push(result);
-            refreshList(lines.length - 1);
+            var inputText = prompt(getLabel("prompt.addLine"), "");
+            if (inputText === null) return;
+            lineTexts.push(inputText);
+            refreshLineList(lineTexts.length - 1);
         }
 
         /* 選択行を編集 / Edit the selected line */
-        function editLine() {
-            if (!listBox.selection) return;
-            var idx = listBox.selection.index;
-            var result = prompt(getLabel("promptEdit"), lines[idx]);
-            if (result === null) return;
-            lines[idx] = result;
-            refreshList(idx);
+        function editSelectedLine() {
+            var selectedIndex = getSelectedLineIndex();
+            if (selectedIndex < 0) return;
+            var inputText = prompt(getLabel("prompt.editLine"), lineTexts[selectedIndex]);
+            if (inputText === null) return;
+            lineTexts[selectedIndex] = inputText;
+            refreshLineList(selectedIndex);
         }
 
         /* 選択行を削除 / Delete the selected line */
-        function deleteLine() {
-            if (!listBox.selection) return;
-            if (lines.length <= 1) return;
-            var idx = listBox.selection.index;
-            if (!confirm(getLabel("confirmDelete"))) return;
-            lines.splice(idx, 1);
-            refreshList(idx);
+        function removeSelectedLine() {
+            var selectedIndex = getSelectedLineIndex();
+            if (selectedIndex < 0 || lineTexts.length <= 1) return;
+            if (!confirm(getLabel("alert.confirmRemoveLine"))) return;
+            lineTexts.splice(selectedIndex, 1);
+            refreshLineList(selectedIndex);
         }
-        /* 空行を削除 / Remove empty lines */
+
+        /* 空行をすべて削除 / Remove all empty lines */
         function removeEmptyLines() {
-            var filtered = [];
-            for (var i = 0; i < lines.length; i++) {
-                if (lines[i] !== "") {
-                    filtered.push(lines[i]);
-                }
+            var nonEmptyLines = [];
+            for (var i = 0; i < lineTexts.length; i++) {
+                if (lineTexts[i] !== "") nonEmptyLines.push(lineTexts[i]);
             }
-            if (filtered.length === 0) return;
-            lines = filtered;
-            refreshList(0);
+            if (nonEmptyLines.length === 0) return;
+            lineTexts = nonEmptyLines;
+            refreshLineList(0);
         }
 
-        /* ボタンイベントを関連付ける / Bind button events */
-        upBtn.onClick = moveUp;
-        downBtn.onClick = moveDown;
-        addBtn.onClick = addLine;
-        editBtn.onClick = editLine;
-        deleteBtn.onClick = deleteLine;
-        removeEmptyBtn.onClick = removeEmptyLines;
+        btnMoveUp.onClick = function () { moveSelectedLine(-1); };
+        btnMoveDown.onClick = function () { moveSelectedLine(1); };
+        btnAddLine.onClick = addLine;
+        btnEditLine.onClick = editSelectedLine;
+        btnRemoveLine.onClick = removeSelectedLine;
+        btnRemoveEmptyLines.onClick = removeEmptyLines;
+        lineListBox.onChange = updateLineButtonStates;
+        lineListBox.onDoubleClick = editSelectedLine;
 
-        /* リストボックスイベント / List box events */
-        listBox.onChange = function () {
-            updateButtonState();
-        };
+        refreshLineList(0);
 
-        listBox.onDoubleClick = function () {
-            if (!editBtn.enabled) return;
-            editLine();
-        };
+        prepareDialogWindow(lineEditorDialog, SCRIPT_NAME);
+        if (lineEditorDialog.show() !== 1) return null;
+        return lineTexts;
+    }
 
-        /* 初期表示を構築 / Build the initial UI state */
-        refreshList(0);
+    /**
+     * 行の一覧の大きさを、行数と最長の行の文字数から見積もる。
+     * ScriptUI では文字幅を正確に測れないため、1文字あたりのおおよその幅で見積もる
+     * @param {string[]} lineTexts - 行の配列
+     * @returns {number[]} [幅, 高さ]
+     */
+    function estimateLineListSize(lineTexts) {
+        var longestLineLength = 0;
+        for (var i = 0; i < lineTexts.length; i++) {
+            if (lineTexts[i].length > longestLineLength) longestLineLength = lineTexts[i].length;
+        }
+        var listWidth = Math.max(LIST_MIN_WIDTH, Math.min(LIST_MAX_WIDTH, LIST_PADDING + longestLineLength * LIST_CHAR_WIDTH));
+        var listHeight = Math.max(LIST_MIN_HEIGHT, Math.min(LIST_MAX_HEIGHT, LIST_PADDING + lineTexts.length * LIST_ROW_HEIGHT));
+        return [listWidth, listHeight];
+    }
 
-        /* ダイアログを表示 / Show the dialog */
-        prepareDialogWindow(win, SCRIPT_NAME);
-        var result = win.show();
-        if (result !== 1) {
+    /**
+     * 空の行が含まれるかを返す
+     * @param {string[]} lineTexts - 行の配列
+     * @returns {boolean} 空の行があれば true
+     */
+    function hasEmptyLine(lineTexts) {
+        for (var i = 0; i < lineTexts.length; i++) {
+            if (lineTexts[i] === "") return true;
+        }
+        return false;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+    function main() {
+        var targetFrame = getTargetTextFrame();
+        if (!targetFrame) return;
+
+        var originalText = targetFrame.contents;
+        if (!originalText) {
+            alert(getLabel("alert.emptyText"));
             return;
         }
 
-        /* 編集結果をテキストフレームへ反映 / Apply the edited result to the text frame */
-        item.contents = lines.join("\r");
+        var sourceLines = splitTextIntoLines(originalText);
+        if (sourceLines.length <= 1) {
+            alert(getLabel("alert.needMultipleLines"));
+            return;
+        }
 
-        /* 完了メッセージ（必要に応じて使用） / Completion message (enable if needed) */
-        // alert("並び替えを反映しました。");
-    })();
+        var editedLines = showLineEditorDialog(sourceLines);
+        if (!editedLines) return;
+
+        /* 編集結果をテキストフレームへ反映 / Apply the edited lines to the text frame */
+        targetFrame.contents = editedLines.join("\r");
+    }
+
+    main();
 
 })();

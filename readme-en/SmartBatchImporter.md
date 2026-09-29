@@ -42,3 +42,4 @@
 - v1.4.2 (20260928): The button row is now built with the shared part
 - v1.4.2 (20260928): Clip groups are now measured by their mask (affects the position within the artboard and the cell size)
 - v1.4.3 (20260929): Dialog opacity changed to 98%
+- v1.4.4 (20260930): Fixed an error when running with characters selected by the Type tool

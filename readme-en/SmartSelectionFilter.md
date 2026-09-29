@@ -54,3 +54,4 @@
 - v1.0.3 (2026-09-28): The button row is now built with the shared part
 - v1.0.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.1.0 (2026-09-29): Added the "Selection Scope" panel (Selected objects only / Include objects inside groups). Clipping mask paths are now excluded. Merged SmartSelectionFilterSimple.jsx
+- v1.1.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool

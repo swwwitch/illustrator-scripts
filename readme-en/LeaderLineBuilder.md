@@ -65,6 +65,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Changelog
 
+- v1.6.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
 - v1.6.3 (2026-09-29) : Dialog opacity changed to 98%
 - v1.6.2 (2026-09-28) : Clip groups are now measured by their mask
 - v1.6.2 (2026-09-28) : The button row is now built with the shared part

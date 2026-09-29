@@ -30,6 +30,7 @@
 - v1.1.2 (2026-09-28) : Fixed the offset unit label (H instead of Q for the ha ruler unit; feet, meters and yards were treated as points). Inches now shown as "in"
 - v1.1.2 (2026-09-28) : The button row is now built with the shared part
 - v1.1.3 (2026-09-29) : Dialog opacity changed to 98%
+- v1.1.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 

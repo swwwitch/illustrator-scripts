@@ -133,6 +133,7 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ## Update History
 
+- v1.0.8 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.0.7 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.6 (2026-09-28): The button row is now built with the shared part
 - v1.0.5 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

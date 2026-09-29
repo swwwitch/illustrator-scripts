@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-テキストから文字列をまとめて削除・置換し（7つまで、正規表現も可）、英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行います。
-残った文字の書式は変わりません。
+テキストから文字列をまとめて検索・削除・置換し（5つまで、正規表現も可）、一致した文字をカンバス上で選択することもできます。
+英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行い、残った文字の書式は変わりません。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/nec5dfffce709
 
 ### Overview
 
-Removes or replaces up to seven strings in text (regular expressions allowed), and also changes letter case and tidies spaces, symbols, kana and digits.
-The formatting of the remaining text is kept.
+Finds, removes or replaces up to five strings in text (regular expressions allowed), and can select the matching characters on the canvas.
+It also changes letter case and tidies spaces, symbols, kana and digits, keeping the formatting of the remaining text.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
@@ -46,13 +46,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
-    var SEARCH_FIELD_COUNT = 7;             /* 削除・置換する文字列の入力欄の数 / number of search fields */
+    var SEARCH_FIELD_COUNT = 5;             /* 削除・置換する文字列の入力欄の数 / number of search fields */
     var DEFAULT_USE_REGEX = false;          /* 正規表現（初期値）/ regular expression (initial value) */
     var DEFAULT_MATCH_CASE = true;          /* 大文字と小文字を区別（初期値）/ match case (initial value) */
+    var DEFAULT_DELETE_EMPTY_LINES = true;  /* 空になった行を削除（初期値）/ delete emptied lines (initial value) */
     var DEFAULT_DELETE_EMPTY_FRAMES = true; /* 空になったフレームを削除（初期値）/ delete emptied frames (initial value) */
     var DEFAULT_INCLUDE_HIDDEN = false;     /* 非表示のレイヤーを検索（初期値）/ search hidden layers (initial value) */
     var DEFAULT_INCLUDE_LOCKED = false;     /* ロックされたレイヤーを検索（初期値）/ search locked layers (initial value) */
     var DEFAULT_INCLUDE_SYMBOLS = true;     /* シンボルも検索（初期値）/ search symbols too (initial value) */
+    var DEFAULT_ZOOM_TO_MATCH = true;       /* 選択時に拡大表示（初期値）/ zoom on select (initial value) */
+    var MATCH_ZOOM_FILL_RATIO = 0.8;        /* 大きく表示するとき、テキストが画面に占める割合 / share of the window the zoomed text fills */
+    var MATCH_ZOOM_MAX = 4;                 /* 大きく表示するときの最大の表示倍率（4 = 400%）/ maximum zoom when zooming to the text (4 = 400%) */
 
     // =========================================
     // 改行の記号 / Break tokens
@@ -594,14 +598,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         scope: "",
         useRegex: DEFAULT_USE_REGEX,
         matchCase: DEFAULT_MATCH_CASE,
+        deleteEmptyLines: DEFAULT_DELETE_EMPTY_LINES,
         deleteEmptyFrames: DEFAULT_DELETE_EMPTY_FRAMES,
+        zoomToMatch: DEFAULT_ZOOM_TO_MATCH,
         includeHidden: DEFAULT_INCLUDE_HIDDEN,
         includeLocked: DEFAULT_INCLUDE_LOCKED,
         includeSymbols: DEFAULT_INCLUDE_SYMBOLS
     };
 
     /**
-     * 前回［実行］したとき・閉じたときの設定を読み込む
+     * 前回［すべてを置換］したとき・閉じたときの設定を読み込む
      * @returns {Object} 保存した設定（無い項目は既定値）
      */
     function loadSettings() {
@@ -627,6 +633,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     var INPUT_CHARACTERS = 18;              /* 入力欄の幅（文字数）/ input width in characters */
     var REPLACE_INPUT_CHARACTERS = 12;      /* 置換欄の幅（文字数）/ replace field width in characters */
     var MATCH_COUNT_WIDTH = 24;             /* 一致数の表示幅（2桁ほど）/ width of the match count, about two digits */
+    var ROW_MARKER_TEXT = "\u25B6";          /* 目印の文字（▶）/ marker character */
+    var SEARCH_OPTIONS_ROW_TOP_MARGIN = 10; /* チェックボックスとボタンの行の上余白 / top margin above the row of checkboxes and buttons */
     var SEARCH_OPTIONS_TOP_MARGIN = 5;      /* 正規表現などの上余白 / top margin above the search options */
     var INSERT_BUTTON_HEIGHT = 20;          /* 挿入ボタンの高さ / height of the insert buttons */
     var INSERT_BUTTON_FONT_SHRINK = 2;      /* 挿入ボタンの文字を小さくする量（pt）/ how much smaller the insert button font is (pt) */
@@ -735,22 +743,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
 
     var LABELS = {
         dialog: {
-            title: { ja: "テキストの削除・置換・整形", en: "Remove, Replace & Clean Up Text" }
+            title: { ja: "テキストの検索・置換・整形", en: "Find, Replace & Clean Up Text" }
         },
         tab: {
-            findReplace: { ja: "削除・置換", en: "Remove / Replace" },
+            findReplace: { ja: "検索・置換", en: "Find / Replace" },
             englishText: { ja: "英文", en: "English" },
             cleanup: { ja: "整形", en: "Cleanup" }
         },
         panel: {
-            findReplace: { ja: "削除・置換する文字列", en: "Text to Remove / Replace" },
+            findReplace: { ja: "検索・置換する文字列", en: "Text to Find / Replace" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" },
-            letterCase: { ja: "大文字/小文字", en: "Letter Case" },
+            letterCase: { ja: "大文字・小文字", en: "Letter Case" },
             kanaDigitConversion: { ja: "かな・数字の変換", en: "Kana & Digits" },
             tabCharacter: { ja: "タブ", en: "Tabs" },
-            removeSpace: { ja: "スペース削除", en: "Remove Spaces" },
-            addSpace: { ja: "スペース追加", en: "Add Spaces" },
+            removeSpace: { ja: "スペースの削除", en: "Remove Spaces" },
+            addSpace: { ja: "スペースの追加", en: "Add Spaces" },
             symbolConversion: { ja: "スペースや記号の変換", en: "Convert Spaces & Symbols" },
             symbolBefore: { ja: "変換前", en: "Before" },
             symbolAfter: { ja: "変換後", en: "After" },
@@ -760,10 +768,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             preview: { ja: "プレビュー", en: "Preview" },
             useRegex: { ja: "正規表現", en: "Regular expression" },
             matchCase: { ja: "大文字と小文字を区別", en: "Match case" },
+            deleteEmptyLines: { ja: "空になった行を削除", en: "Delete emptied lines" },
             deleteEmptyFrames: { ja: "空になったテキストを削除", en: "Delete emptied text" },
             includeHidden: { ja: "非表示のレイヤーを検索", en: "Check hidden layers" },
             includeLocked: { ja: "ロックされたレイヤーを検索", en: "Check locked layers" },
-            includeSymbols: { ja: "シンボルを検索", en: "Check symbols" }
+            includeSymbols: { ja: "シンボルを検索", en: "Check symbols" },
+            zoomToMatch: { ja: "選択時に拡大表示", en: "Zoom on select" }
         },
         radio: {
             selection: { ja: "選択中のオブジェクト", en: "Selected objects" },
@@ -775,8 +785,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         },
         tooltip: {
             searchText: {
-                ja: "一致する部分をすべて削除します（右の欄に入力すると置換）。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
-                en: "Removes every match (or replaces it when the field on the right is filled). Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
+                ja: "検索する文字列。右の欄が空なら［すべてを置換］で削除、入力すると置換します。［次を選択］［すべてを選択］にも使います。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
+                en: "Text to find. Replace All removes each match when the field on the right is empty, or replaces it with that text. Select Next and Select All use it too. Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
             },
             replaceText: {
                 ja: "一致した部分をこの文字列に置き換えます。空欄なら削除します。正規表現のときは $1・\\1 や $&・\\0 で一致した部分を参照できます",
@@ -812,6 +822,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             },
             selection: { ja: "グループ内のテキストも対象になります", en: "Includes text inside groups" },
             artboard: { ja: "アートボードに一部でも重なるテキストが対象になります", en: "Includes text that partly overlaps the artboard" },
+            deleteEmptyLines: {
+                ja: "削除で段落が空になったら、その改行も削除して空行を残しません。元から空の行は残します",
+                en: "When removing leaves a paragraph empty, also removes its break so no blank line is left. Lines that were already empty are kept"
+            },
             deleteEmptyFrames: {
                 ja: "今回の削除で空になったテキストだけを削除します。元から空のテキストと、スレッドテキスト（連結）は残します",
                 en: "Deletes only text emptied by this run. Text that was already empty and threaded text are kept"
@@ -829,13 +843,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
                 en: "Rewrites the definitions of symbols in the scope. Instances outside the scope change too, and symbol options such as the registration point are reset"
             },
             selectionUnavailable: { ja: "オブジェクトが選択されていないため選べません", en: "Unavailable because nothing is selected" },
+            rowMarker: {
+                ja: "［次を選択］［すべてを選択］は、▶ の行の文字列で選択します",
+                en: "Select Next and Select All use the text in the row marked ▶"
+            },
+            selectNext: {
+                ja: "カーソルのある行の文字列に次に一致する文字を選択します。最後まで行くと最初に戻ります。非表示・ロックされたテキストとシンボル内は飛ばします",
+                en: "Selects the next characters matching the row with the cursor, wrapping around at the end. Hidden or locked text and text in symbols are skipped"
+            },
+            zoomToMatch: {
+                ja: "［次を選択］で選んだ文字を含むテキストが画面に大きく収まるように、表示倍率と位置を変えます",
+                en: "Changes the zoom and position so the text containing the characters picked by Select Next fills the window"
+            },
+            selectAll: {
+                ja: "カーソルのある行の文字列に一致する文字を含むテキストオブジェクトを、すべて選択します。非表示・ロックされたテキストとシンボル内は選択しません",
+                en: "Selects every text object containing a match for the row with the cursor. Hidden or locked text and text in symbols are not selected"
+            },
             reset: {
                 ja: "入力欄を空にし、対象とオプションを初期値に戻します（プレビューの ON／OFF はそのまま）",
                 en: "Clears the fields and restores the scope and options to their defaults (the preview setting is kept)"
             },
-            apply: {
-                ja: "対象の範囲で削除・置換します（Enter）。ダイアログは閉じないので、続けて別の文字列を処理できます",
-                en: "Removes or replaces in the scope (Enter). The dialog stays open so you can continue with other text"
+            replaceAll: {
+                ja: "対象の範囲で一致する部分をすべて置換します。置換欄が空なら削除します（Enter）。ダイアログは閉じないので、続けて別の文字列を処理できます",
+                en: "Replaces every match in the scope, or removes it when the replacement is empty (Enter). The dialog stays open so you can continue with other text"
             },
             caseWord: { ja: "単語ごとに先頭を大文字、残りを小文字にします", en: "Capitalizes the first letter of each word and lowercases the rest" },
             caseSentence: { ja: "文の先頭だけを大文字にし、残りを小文字にします", en: "Capitalizes only the first letter of each sentence" },
@@ -857,7 +887,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             },
             collapseSpaces: { ja: "連続したスペースを1つにまとめます", en: "Collapses consecutive spaces into one" },
             cleanupSpaces: {
-                ja: "行頭行末・連続・和欧間のスペースをまとめて処理します",
+                ja: "行頭・行末、連続、和欧間のスペースをまとめて処理します",
                 en: "Applies Leading/Trailing, Consecutive and Between CJK and Latin in one step"
             },
             spaceAfterPunct: { ja: "半角ピリオド・カンマの直後にスペースを挿入します", en: "Inserts a space right after a period or comma" },
@@ -896,7 +926,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             toFullDigit: { ja: "全角数字", en: "Fullwidth Digits" },
             removeTabs: { ja: "削除", en: "Remove" },
             tabsToSpaces: { ja: "スペースに", en: "To Spaces" },
-            trimSpaces: { ja: "行頭行末", en: "Leading/Trailing" },
+            trimSpaces: { ja: "行頭・行末", en: "Leading/Trailing" },
             cjkLatinSpaces: { ja: "和欧間", en: "Between CJK and Latin" },
             collapseSpaces: { ja: "連続", en: "Consecutive" },
             cleanupSpaces: { ja: "まとめて", en: "All at Once" },
@@ -904,8 +934,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             convertSymbol: { ja: "変換", en: "Convert" },
             bulletList: { ja: "箇条書き", en: "Bullets" },
             numberList: { ja: "番号リスト", en: "Numbers" },
-            reset: { ja: "リセット", en: "Reset" },
-            apply: { ja: "実行", en: "Apply" },
+            reset: { ja: "条件をリセット", en: "Reset Criteria" },
+            selectNext: { ja: "次を選択", en: "Select Next" },
+            selectAll: { ja: "すべてを選択", en: "Select All" },
+            replaceAll: { ja: "すべてを置換", en: "Replace All" },
             close: { ja: "閉じる", en: "Close" }
         },
         alert: {
@@ -995,7 +1027,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
             var targetDoc = app.activeDocument;
             var selectedItems = targetDoc.selection;
-            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
             var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
             var spanLeft = Infinity;
             var spanRight = -Infinity;
@@ -1119,6 +1152,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         var hasShownPreview = false;
         /* 箇条書きの変換で選択を使ったか / Whether converting list styles changed the selection */
         var hasChangedSelection = false;
+        /* ［次を選択］［すべてを選択］の処理 / Select Next and Select All */
+        var matchSelector = createMatchSelector(doc, collectRowMatches);
         var isPreviewOn = false;
         /* 入力が有効か（有効なパターンがあり、誤った正規表現が無い）/ Whether the input is valid */
         var isInputValid = false;
@@ -1130,7 +1165,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
 
         /* 入力欄から検索エントリーを作る / Build the search entries from the fields */
         function readSearchEntries() {
-            return getSearchEntries(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState.values.useRegex, dialogState.values.matchCase);
+            return getSearchEntries(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState.values.useRegex, dialogState.values.matchCase, dialogState.values.deleteEmptyLines);
         }
 
         /* プレビューを消して元に戻す / Remove the preview and restore the originals */
@@ -1163,8 +1198,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             return contentsCache[cacheKey];
         }
 
-        /* 一致数と［実行］の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は押せない）
-           Update match counts, Apply and the preview; disable Apply when no pattern is given or a regular expression is invalid */
+        /* 行の検索文字列に一致する、選択できるテキストと一致箇所を集める / Collect the selectable matches for a row */
+        function collectRowMatches(rowIndex) {
+            var searchPattern = createSearchPattern(searchInputs[rowIndex].text, dialogState.values.useRegex, dialogState.values.matchCase);
+            if (!searchPattern) return [];
+            /* プレビューの複製を拾わないよう、先に消す / Clear the preview first so its duplicates are not picked */
+            clearPreview();
+            return findSelectableMatches(collectTargetFrames(doc, dialogState.scope, getLayerOptions(), selectedItems), searchPattern);
+        }
+
+        /* 対象範囲のテキストフレームとシンボル（シンボルは［シンボルを検索］が ON のときだけ）/ Text frames and symbols in the scope; symbols only with Check symbols on */
+        function collectEditTargets() {
+            var layerOptions = getLayerOptions();
+            return {
+                textFrames: collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems),
+                symbols: dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : []
+            };
+        }
+
+        /* 内容が変わったので、集め直して一致数を数え直す / The contents changed, so collect and count again */
+        function refreshAfterEdit() {
+            contentsCache = {};
+            app.redraw();
+            refreshDialogState();
+        }
+
+        /* 入力欄をすべて空にする / Clear all fields */
+        function clearAllInputs() {
+            for (var i = 0; i < searchInputs.length; i++) {
+                searchInputs[i].text = "";
+                replaceInputs[i].text = "";
+            }
+        }
+
+        /* 一致数と［すべてを置換］の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は押せない）
+           Update match counts, Replace All and the preview; disable Replace All when no pattern is given or a regular expression is invalid */
         function refreshDialogState() {
             /* プレビューの複製が数に入らないよう、先に消す / Clear the preview first so its duplicates are not counted */
             clearPreview();
@@ -1186,7 +1254,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
                 findReplaceControls.matchCountLabels[i].text = matchCountText;
             }
             isInputValid = hasPattern && !hasInvalidPattern;
-            findReplaceControls.btnApply.enabled = isInputValid;
+            findReplaceControls.btnReplaceAll.enabled = isInputValid;
+            /* 選択は有効な行だけで働くので、誤った正規表現があっても押せる / Selecting works per row, so an invalid row elsewhere does not block it */
+            findReplaceControls.btnSelectNext.enabled = hasPattern;
+            findReplaceControls.btnSelectAll.enabled = hasPattern;
+            matchSelector.resetCursor();
             findReplaceControls.referenceButtonGroup.enabled = dialogState.values.useRegex;
             updatePreview();
         }
@@ -1195,64 +1267,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         function runConversion(convertText, conversionKey) {
             /* プレビューの複製ではなく元を変換する / Convert the originals, not the preview duplicates */
             clearPreview();
-            var layerOptions = getLayerOptions();
-            var targetFrames = collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems);
-            var targetSymbols = dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : [];
+            var editTargets = collectEditTargets();
+            var prepareFrame = null;
             if (conversionKey === "bulletList" || conversionKey === "numberList") {
                 /* 箇条書き機能の記号を本文にしてから取り除く（選択を使うので、閉じたあとに選択を戻す）
                    Turn list markers into text first; this uses the selection, so restore it after closing */
                 hasChangedSelection = true;
-                var convertListStyle = function (textFrame) {
+                prepareFrame = function (textFrame) {
                     convertListStyleToText(doc, textFrame);
                 };
-                convertTextInFrames(targetFrames, convertText, convertListStyle);
-                convertTextInSymbols(doc, targetSymbols, convertText, convertListStyle);
-            } else {
-                convertTextInFrames(targetFrames, convertText, null);
-                convertTextInSymbols(doc, targetSymbols, convertText, null);
             }
-            /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
-            contentsCache = {};
-            app.redraw();
-            refreshDialogState();
+            convertTextInFrames(editTargets.textFrames, convertText, prepareFrame);
+            convertTextInSymbols(doc, editTargets.symbols, convertText, prepareFrame);
+            refreshAfterEdit();
         }
 
         /* 対象範囲のテキストを削除・置換する（ダイアログは閉じない）/ Remove or replace in the scope, keeping the dialog open */
         function runReplace() {
-            /* Enter は表示中のタブにかかわらず既定のボタンを押すので、削除・置換タブのときだけ実行する
-               Enter presses the default button on any tab, so run only on the Remove / Replace tab */
+            /* Enter は表示中のタブにかかわらず既定のボタンを押すので、検索・置換タブのときだけ実行する
+               Enter presses the default button on any tab, so run only on the Find / Replace tab */
             if (dialogControls.modeTabbedPanel.selection !== dialogControls.findReplaceTab || !isInputValid) return;
             /* プレビューの複製ではなく元を処理する / Process the originals, not the preview duplicates */
             clearPreview();
             var searchTexts = readInputTexts(searchInputs);
             var replaceTexts = readInputTexts(replaceInputs);
             saveDialogSettings(searchTexts, replaceTexts, dialogState);
-            var searchEntries = getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase);
-            var layerOptions = getLayerOptions();
-            var targetFrames = collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems);
-            /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルは先に集める
-               Collect symbols first, as deleting emptied frames leaves invalid references in selectedItems */
-            var targetSymbols = dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : [];
-            var replaceResult = replaceTextInFrames(targetFrames, searchEntries, dialogState.values.deleteEmptyFrames);
-            replaceTextInSymbols(doc, targetSymbols, searchEntries, replaceResult.processedCounts);
+            var searchEntries = getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase, dialogState.values.deleteEmptyLines);
+            /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルも先に集める
+               Collect symbols up front too, as deleting emptied frames leaves invalid references in selectedItems */
+            var editTargets = collectEditTargets();
+            var replaceResult = replaceTextInFrames(editTargets.textFrames, searchEntries, dialogState.values.deleteEmptyFrames);
+            replaceTextInSymbols(doc, editTargets.symbols, searchEntries, replaceResult.processedCounts);
             /* 次の実行や閉じたあとの選択の復元で使わないよう、削除したフレームを取り除く
                Drop the deleted frames so later runs and the selection restore do not touch them */
             for (var i = selectedItems.length - 1; i >= 0; i--) {
                 if (indexOfItem(replaceResult.deletedFrames, selectedItems[i]) !== -1) selectedItems.splice(i, 1);
             }
-            /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
-            contentsCache = {};
-            app.redraw();
-            refreshDialogState();
+            refreshAfterEdit();
         }
 
         /* 入力欄を空にし、対象とオプションを初期値に戻す（プレビューの ON/OFF はそのまま）
            Clear the fields and restore the scope and options to their defaults, keeping the preview setting */
         function resetDialog() {
-            for (var i = 0; i < searchInputs.length; i++) {
-                searchInputs[i].text = "";
-                replaceInputs[i].text = "";
-            }
+            clearAllInputs();
             for (var j = 0; j < dialogState.settingControls.length; j++) {
                 var settingControl = dialogState.settingControls[j];
                 settingControl.checkbox.value = settingControl.defaultValue;
@@ -1268,9 +1325,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             searchInputs[i].onChanging = refreshDialogState;
             replaceInputs[i].onChanging = updatePreview;
         }
+        /* 文字ツールで文字を選択していたら、1行目の検索する文字列にする（ほかの欄は空にする）
+           Characters selected with the Type tool become the first text to find; the other fields are cleared */
+        /* まだ何も変換していないので、範囲は有効で例外にならない / Nothing has been converted yet, so the range is still valid */
+        if (selectedTextRange && selectedTextRange.contents !== "") {
+            clearAllInputs();
+            searchInputs[0].text = convertTextToQuery(selectedTextRange.contents, dialogState.values.useRegex);
+        }
+
         dialogState.onSettingChange = refreshDialogState;
+        findReplaceControls.btnSelectNext.onClick = function () {
+            matchSelector.selectNext(findReplaceControls.getActiveRowIndex(), dialogState.values.zoomToMatch);
+        };
+        findReplaceControls.btnSelectAll.onClick = function () {
+            matchSelector.selectAllFrames(findReplaceControls.getActiveRowIndex());
+        };
         findReplaceControls.btnReset.onClick = resetDialog;
-        findReplaceControls.btnApply.onClick = runReplace;
+        findReplaceControls.btnReplaceAll.onClick = runReplace;
         findReplaceControls.previewCheckbox.onClick = function () {
             isPreviewOn = this.value;
             updatePreview();
@@ -1281,7 +1352,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         prepareDialogWindow(dialogControls.mainDialog, SCRIPT_NAME);
         dialogControls.mainDialog.show();
         clearPreview();
-        if (hasShownPreview || hasChangedSelection) {
+        /* ［次を選択］［すべてを選択］で選択したときは、その選択を残す / Keep the selection made by Select Next or Select All */
+        if ((hasShownPreview || hasChangedSelection) && !matchSelector.hasSelected()) {
             /* 戻せない選択（ロック・非表示になったものなど）は例外になるので無視する / Ignore a selection that can no longer be restored */
             try {
                 doc.selection = (selectedItems.length > 0) ? selectedItems : null;
@@ -1289,6 +1361,78 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         }
         /* 閉じたときの入力内容と設定も次回に引き継ぐ / Keep the entries and settings at closing for the next run */
         saveDialogSettings(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState);
+    }
+
+    /**
+     * ［次を選択］［すべてを選択］の処理を用意する（次に選ぶ一致の位置を行ごとに持つ）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Function} collectRowMatches - (rowIndex) を受け取り、findSelectableMatches() の結果を返す処理
+     * @returns {Object} { selectNext: Function, selectAllFrames: Function, resetCursor: Function, hasSelected: Function }
+     *   selectNext(rowIndex, shouldZoom) で次の一致を選択し、selectAllFrames(rowIndex) で一致を含むテキストをすべて選択する
+     */
+    function createMatchSelector(doc, collectRowMatches) {
+        /* 次に選ぶ一致の番号と、その行（行や検索の条件が変わったら最初に戻す）/ Index of the next match and its row; reset when the row or the search changes */
+        var nextMatchIndex = 0;
+        var nextMatchRowIndex = -1;
+        /* 選択したか（閉じたあとも選択を残す）/ Whether anything was selected; that selection is kept after closing */
+        var hasSelectedMatch = false;
+
+        return {
+            selectNext: function (rowIndex, shouldZoom) {
+                if (rowIndex !== nextMatchRowIndex) {
+                    nextMatchIndex = 0;
+                    nextMatchRowIndex = rowIndex;
+                }
+                var matchRecords = collectRowMatches(rowIndex);
+                if (matchRecords.length === 0) return;
+                if (nextMatchIndex >= matchRecords.length) nextMatchIndex = 0;
+                var matchRecord = matchRecords[nextMatchIndex];
+                /* select() は今の選択に足されるので、先に解除して一致した文字だけを選択する
+                   select() adds to the current selection, so clear it first to select only the match */
+                doc.selection = null;
+                selectTextSpan(matchRecord.textFrame, matchRecord.start, matchRecord.length);
+                if (shouldZoom) zoomToItem(doc, matchRecord.textFrame);
+                hasSelectedMatch = true;
+                nextMatchIndex++;
+                app.redraw();
+            },
+            selectAllFrames: function (rowIndex) {
+                var matchRecords = collectRowMatches(rowIndex);
+                var matchingFrames = [];
+                for (var i = 0; i < matchRecords.length; i++) {
+                    if (indexOfItem(matchingFrames, matchRecords[i].textFrame) === -1) matchingFrames.push(matchRecords[i].textFrame);
+                }
+                doc.selection = (matchingFrames.length > 0) ? matchingFrames : null;
+                hasSelectedMatch = true;
+                nextMatchIndex = 0;
+                app.redraw();
+            },
+            resetCursor: function () {
+                nextMatchIndex = 0;
+            },
+            hasSelected: function () {
+                return hasSelectedMatch;
+            }
+        };
+    }
+
+    /**
+     * 選択できるテキスト（表示中でロックされていないもの）から、一致箇所を集める
+     * @param {TextFrame[]} targetFrames - 対象のテキストフレーム
+     * @param {RegExp} searchPattern - g フラグ付きの検索パターン
+     * @returns {Object[]} { textFrame: TextFrame, start: number, length: number } の配列（フレーム順・位置順）
+     */
+    function findSelectableMatches(targetFrames, searchPattern) {
+        var visibleOnly = { includeHidden: false, includeLocked: false };
+        var matchRecords = [];
+        for (var i = 0; i < targetFrames.length; i++) {
+            if (!isSearchableItem(targetFrames[i], visibleOnly)) continue;
+            var frameMatches = findMatches(targetFrames[i].contents, searchPattern);
+            for (var j = 0; j < frameMatches.length; j++) {
+                matchRecords.push({ textFrame: targetFrames[i], start: frameMatches[j].start, length: frameMatches[j].length });
+            }
+        }
+        return matchRecords;
     }
 
     /**
@@ -1304,7 +1448,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         mainDialog.orientation = "column";
         mainDialog.alignChildren = ["fill", "top"];
 
-        /* 「削除・置換」「英文」「整形」をタブで切り替える / Switch between the remove/replace, English and cleanup tabs */
+        /* 「検索・置換」「英文」「整形」をタブで切り替える / Switch between the find/replace, English and cleanup tabs */
         var modeTabbedPanel = mainDialog.add("tabbedpanel");
         modeTabbedPanel.alignChildren = ["fill", "top"];
         var findReplaceTab = addDialogTab(modeTabbedPanel, LABELS.tab.findReplace);
@@ -1329,8 +1473,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         var buttonRow = addButtonRow(mainDialog);
         /* name を cancel にして Esc でも閉じる / Named cancel so Esc also closes */
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
-        /* Enter で［実行］を押す（削除・置換タブ以外では runReplace() が何もしない）/ Enter presses Apply; runReplace() ignores it on other tabs */
-        mainDialog.defaultElement = findReplaceControls.btnApply;
+        /* Enter で［すべてを置換］を押す（検索・置換タブ以外では runReplace() が何もしない）/ Enter presses Replace All; runReplace() ignores it on other tabs */
+        mainDialog.defaultElement = findReplaceControls.btnReplaceAll;
 
         return {
             mainDialog: mainDialog,
@@ -1431,46 +1575,99 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     }
 
     /**
-     * 「削除・置換する文字列」パネルを作る（入力欄・挿入ボタン・正規表現や空になったテキストの削除などのチェックボックス・プレビュー・リセット・実行）
+     * 「検索・置換する文字列」パネルを作る（入力欄の行・挿入ボタンの行・チェックボックスとボタンの行）
      * @param {Tab} parentTab - 追加先のタブ
      * @param {Object} savedSettings - loadSettings() の結果
      * @param {Object} dialogState - showFindReplaceDialog() の状態
-     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, previewCheckbox: Checkbox, btnReset: Button, btnApply: Button, focusFirstInput: Function }
+     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, previewCheckbox: Checkbox, btnSelectNext: Button, btnSelectAll: Button, btnReset: Button, btnReplaceAll: Button, focusFirstInput: Function, getActiveRowIndex: Function }
      */
     function buildFindReplacePanel(parentTab, savedSettings, dialogState) {
-        var savedSearchTexts = savedSettings.searchTexts || [];
-        var savedReplaceTexts = savedSettings.replaceTexts || [];
         var findReplacePanel = parentTab.add("panel", undefined, getLabel(LABELS.panel.findReplace));
         setupPanel(findReplacePanel);
+        var fieldRows = addSearchFieldRows(findReplacePanel, savedSettings, dialogState);
+        var referenceButtonGroup = addInsertButtonRow(findReplacePanel, fieldRows.getLastActiveInput);
+        var searchOptionsControls = addSearchOptionsRow(findReplacePanel, savedSettings, dialogState);
+        return {
+            searchInputs: fieldRows.searchInputs,
+            replaceInputs: fieldRows.replaceInputs,
+            matchCountLabels: fieldRows.matchCountLabels,
+            referenceButtonGroup: referenceButtonGroup,
+            previewCheckbox: searchOptionsControls.previewCheckbox,
+            btnSelectNext: searchOptionsControls.btnSelectNext,
+            btnSelectAll: searchOptionsControls.btnSelectAll,
+            btnReset: searchOptionsControls.btnReset,
+            btnReplaceAll: searchOptionsControls.btnReplaceAll,
+            focusFirstInput: fieldRows.focusFirstInput,
+            getActiveRowIndex: fieldRows.getActiveRowIndex
+        };
+    }
 
+    /**
+     * 検索・置換の入力欄を行ごとに並べる（行頭の目印・検索欄・置換欄・一致数）。カーソルのある欄を記録し、その行に目印を出す
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Object} savedSettings - loadSettings() の結果
+     * @param {Object} dialogState - showFindReplaceDialog() の状態
+     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], focusFirstInput: Function, getActiveRowIndex: Function, getLastActiveInput: Function }
+     */
+    function addSearchFieldRows(findReplacePanel, savedSettings, dialogState) {
+        var savedSearchTexts = savedSettings.searchTexts || [];
+        var savedReplaceTexts = savedSettings.replaceTexts || [];
         var searchInputs = [];
         var replaceInputs = [];
         var matchCountLabels = [];
-        /* 最後にカーソルがあった入力欄（挿入ボタンの挿入先）/ Field that last had the cursor, where the insert buttons insert */
+        var rowMarkers = [];
+        /* 最後にカーソルがあった入力欄（挿入ボタンの挿入先・選択の対象の行）/ Field that last had the cursor: where insert buttons insert, and the row selecting uses */
         var lastActiveInput = null;
-        /* ボタンを押すと入力欄のカーソルが失われるので、押し下げた時点の位置を控える / Clicking a button loses the caret, so keep its position from the mouse down */
-        var savedCaret = null;
 
         /* 入力欄に、挿入先の記録とショートカットを付ける / Track the cursor field and add the shortcuts */
         function setupShortcutInput(targetInput) {
             targetInput.onActivate = function () {
                 lastActiveInput = this;
+                updateRowMarkers();
             };
             targetInput.addEventListener("keydown", function (keyEvent) {
                 var insertedToken = getShortcutToken(keyEvent.keyName, ScriptUI.environment.keyboardState, dialogState.values.useRegex);
                 if (!insertedToken) return;
-                /* Enter で［実行］が押されたり、option＋数字で記号が入ったりしないよう止める
-                   Keep Enter from pressing Apply and option+digit from typing a symbol */
+                /* Enter で［すべてを置換］が押されたり、option＋数字で記号が入ったりしないよう止める
+                   Keep Enter from pressing Replace All and option+digit from typing a symbol */
                 keyEvent.preventDefault();
                 this.textselection = insertedToken;
                 if (this.onChanging) this.onChanging();
             });
         }
 
+        /* カーソルのある行の番号（置換欄にあるときもその行）/ Row index of the field with the cursor, including the replace fields */
+        function getActiveRowIndex() {
+            for (var i = 0; i < searchInputs.length; i++) {
+                if (lastActiveInput === searchInputs[i] || lastActiveInput === replaceInputs[i]) return i;
+            }
+            return 0;
+        }
+
+        /* カーソルのある行にだけ目印を出す / Show the marker only on the row with the cursor */
+        function updateRowMarkers() {
+            var activeRowIndex = getActiveRowIndex();
+            for (var i = 0; i < rowMarkers.length; i++) {
+                rowMarkers[i].visible = (i === activeRowIndex);
+            }
+        }
+
+        /* 先頭の入力欄にカーソルを置く / Put the cursor in the first field */
+        function focusFirstInput() {
+            lastActiveInput = searchInputs[0];
+            searchInputs[0].active = true;
+            updateRowMarkers();
+        }
+
         for (var i = 0; i < SEARCH_FIELD_COUNT; i++) {
             var fieldRowGroup = findReplacePanel.add("group");
             fieldRowGroup.orientation = "row";
             fieldRowGroup.alignChildren = ["left", "center"];
+            /* ［次を選択］などの対象になる行の目印 / Marker of the row Select Next and Select All work on */
+            /* 空にすると表示前の配置で幅が縮んで欄がずれるので、記号は入れたまま visible で出し分ける
+               Emptying it shrinks the width before layout and shifts the fields, so keep the marker and toggle visible */
+            var rowMarker = fieldRowGroup.add("statictext", undefined, ROW_MARKER_TEXT);
+            rowMarker.helpTip = getLabel(LABELS.tooltip.rowMarker);
             var searchInput = fieldRowGroup.add("edittext", undefined, savedSearchTexts[i] || "");
             searchInput.characters = INPUT_CHARACTERS;
             searchInput.helpTip = getLabel(LABELS.tooltip.searchText);
@@ -1484,19 +1681,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             matchCountLabel.preferredSize.width = MATCH_COUNT_WIDTH;
             matchCountLabel.justify = "right";
             matchCountLabel.helpTip = getLabel(LABELS.tooltip.matchCount);
+            rowMarkers.push(rowMarker);
             searchInputs.push(searchInput);
             replaceInputs.push(replaceInput);
             matchCountLabels.push(matchCountLabel);
         }
-
-        /* 先頭の入力欄にカーソルを置く / Put the cursor in the first field */
-        function focusFirstInput() {
-            lastActiveInput = searchInputs[0];
-            searchInputs[0].active = true;
-        }
         focusFirstInput();
 
-        /* 挿入ボタンの行（左・スペーサー・右の3カラム）/ Row of insert buttons: left, spacer and right columns */
+        return {
+            searchInputs: searchInputs,
+            replaceInputs: replaceInputs,
+            matchCountLabels: matchCountLabels,
+            focusFirstInput: focusFirstInput,
+            getActiveRowIndex: getActiveRowIndex,
+            getLastActiveInput: function () {
+                return lastActiveInput;
+            }
+        };
+    }
+
+    /**
+     * 挿入ボタンの行を作る（左に改行、右に正規表現の検索結果の参照）
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Function} getLastActiveInput - 挿入先の入力欄を返す処理
+     * @returns {Group} 検索結果の参照ボタンのグループ（正規表現のときだけ使えるようにする）
+     */
+    function addInsertButtonRow(findReplacePanel, getLastActiveInput) {
+        /* ボタンを押すと入力欄のカーソルが失われるので、押し下げた時点の位置を控える / Clicking a button loses the caret, so keep its position from the mouse down */
+        var savedCaret = null;
         var insertButtonRowGroup = findReplacePanel.add("group");
         insertButtonRowGroup.orientation = "row";
         insertButtonRowGroup.alignment = ["fill", "top"];
@@ -1508,11 +1720,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             var insertButton = addSmallButton(parentGroup, labelKey);
             /* クリックが確定する前（押し下げた時点）にカーソル位置を読む / Read the caret on mouse down, before the click completes */
             insertButton.addEventListener("mousedown", function () {
-                savedCaret = captureCaret(lastActiveInput);
+                savedCaret = captureCaret(getLastActiveInput());
             });
             insertButton.onClick = function () {
-                insertTokenAtCaret(lastActiveInput, insertedToken, savedCaret);
-                if (lastActiveInput.onChanging) lastActiveInput.onChanging();
+                var targetInput = getLastActiveInput();
+                insertTokenAtCaret(targetInput, insertedToken, savedCaret);
+                if (targetInput.onChanging) targetInput.onChanging();
             };
         }
 
@@ -1522,9 +1735,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         addInsertButton(breakButtonGroup, "lineBreak", LINE_BREAK_TOKEN);
 
         /* 中央：スペーサー（伸縮）/ Center: spacer (stretchable) */
-        var insertButtonSpacer = insertButtonRowGroup.add("group");
-        insertButtonSpacer.alignment = ["fill", "fill"];
-        insertButtonSpacer.minimumSize.width = 0;
+        addStretchSpacer(insertButtonRowGroup);
 
         /* 右：検索結果の参照（正規表現のときだけ使える）。1行目に「検索結果すべて」、2行目に「検索結果1」「検索結果2」
            Right: match references, available with regular expressions only. Whole match on the first line, groups 1 and 2 on the second */
@@ -1538,12 +1749,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         var groupReferenceButtonGroup = addButtonRowGroup(referenceButtonGroup);
         addInsertButton(groupReferenceButtonGroup, "group1", "\\1");
         addInsertButton(groupReferenceButtonGroup, "group2", "\\2");
+        return referenceButtonGroup;
+    }
 
-        /* 左に正規表現などのチェックボックスとプレビュー、右下にリセットと実行 / Checkboxes and Preview on the left, Reset and Apply at the bottom right */
+    /**
+     * チェックボックスとボタンの行を作る（左に正規表現などのチェックボックスとプレビュー、右下に選択・リセット・すべてを置換）
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Object} savedSettings - loadSettings() の結果
+     * @param {Object} dialogState - showFindReplaceDialog() の状態
+     * @returns {Object} { previewCheckbox: Checkbox, btnSelectNext: Button, btnSelectAll: Button, btnReset: Button, btnReplaceAll: Button }
+     */
+    function addSearchOptionsRow(findReplacePanel, savedSettings, dialogState) {
         var searchOptionsRowGroup = findReplacePanel.add("group");
         searchOptionsRowGroup.orientation = "row";
         searchOptionsRowGroup.alignment = ["fill", "top"];
         searchOptionsRowGroup.alignChildren = ["left", "bottom"];
+        searchOptionsRowGroup.margins = [0, SEARCH_OPTIONS_ROW_TOP_MARGIN, 0, 0];
         var searchOptionsGroup = searchOptionsRowGroup.add("group");
         searchOptionsGroup.orientation = "column";
         searchOptionsGroup.alignChildren = ["left", "top"];
@@ -1551,31 +1772,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         searchOptionsGroup.spacing = PANEL_SPACING;
         addSettingCheckbox(searchOptionsGroup, "useRegex", DEFAULT_USE_REGEX, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "matchCase", DEFAULT_MATCH_CASE, savedSettings, dialogState);
+        addSettingCheckbox(searchOptionsGroup, "deleteEmptyLines", DEFAULT_DELETE_EMPTY_LINES, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "deleteEmptyFrames", DEFAULT_DELETE_EMPTY_FRAMES, savedSettings, dialogState);
+        addSettingCheckbox(searchOptionsGroup, "zoomToMatch", DEFAULT_ZOOM_TO_MATCH, savedSettings, dialogState);
         var previewCheckbox = searchOptionsGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        /* プレビューは保存せず、開くときは常に OFF / Preview is not saved and always starts off */
+        previewCheckbox.value = false;
         previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
-        var searchOptionsSpacer = searchOptionsRowGroup.add("group");
-        searchOptionsSpacer.alignment = ["fill", "fill"];
-        searchOptionsSpacer.minimumSize.width = 0;
+        addStretchSpacer(searchOptionsRowGroup);
         var actionButtonGroup = searchOptionsRowGroup.add("group");
         actionButtonGroup.orientation = "column";
         actionButtonGroup.alignment = ["right", "bottom"];
         actionButtonGroup.alignChildren = ["fill", "top"];
-        var btnReset = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.reset));
-        btnReset.helpTip = getLabel(LABELS.tooltip.reset);
-        var btnApply = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.apply));
-        btnApply.helpTip = getLabel(LABELS.tooltip.apply);
+
+        /* ツールチップ付きのボタンを追加する / Add a button with its tooltip */
+        function addActionButton(labelKey) {
+            var actionButton = actionButtonGroup.add("button", undefined, getLabel(LABELS.button[labelKey]));
+            actionButton.helpTip = getLabel(LABELS.tooltip[labelKey]);
+            return actionButton;
+        }
 
         return {
-            searchInputs: searchInputs,
-            replaceInputs: replaceInputs,
-            matchCountLabels: matchCountLabels,
-            referenceButtonGroup: referenceButtonGroup,
             previewCheckbox: previewCheckbox,
-            btnReset: btnReset,
-            btnApply: btnApply,
-            focusFirstInput: focusFirstInput
+            btnSelectNext: addActionButton("selectNext"),
+            btnSelectAll: addActionButton("selectAll"),
+            btnReset: addActionButton("reset"),
+            btnReplaceAll: addActionButton("replaceAll")
         };
+    }
+
+    /**
+     * 行の中で伸び縮みするスペーサーを追加する（左右のコントロールを両端に寄せる）
+     * @param {Group} rowGroup - 追加先の行
+     * @returns {Group} 追加したスペーサー
+     */
+    function addStretchSpacer(rowGroup) {
+        var spacerGroup = rowGroup.add("group");
+        spacerGroup.alignment = ["fill", "fill"];
+        spacerGroup.minimumSize.width = 0;
+        return spacerGroup;
     }
 
     /**
@@ -1793,6 +2028,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             if (selectedItems[i]) collectItemsOfType(selectedItems[i], "TextFrame", selectedFrames);
         }
         return getFirstNonEmptyText(getFrameContents(selectedFrames));
+    }
+
+    /**
+     * 文字列を検索欄に入れる形にする（改行は記号に、正規表現のときは記号の意味を消す）
+     * @param {string} text - 元の文字列
+     * @param {boolean} useRegex - 正規表現として扱うか
+     * @returns {string} 検索欄に入れる文字列
+     */
+    function convertTextToQuery(text, useRegex) {
+        var queryText = useRegex ? text.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&") : text;
+        return queryText.split("\r").join(PARAGRAPH_BREAK_TOKEN).split("\x03").join(LINE_BREAK_TOKEN);
     }
 
     /**
@@ -2086,16 +2332,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      * @param {string[]} replaceTexts - 置換欄の文字列（空欄は削除）
      * @param {boolean} useRegex - 正規表現として扱うか
      * @param {boolean} matchCase - 大文字と小文字を区別するか
-     * @returns {Object[]} { text: string, pattern: RegExp, replaceText: string, useRegex: boolean } の配列
+     * @param {boolean} deleteEmptyLines - 削除で空になった段落の改行も削除するか
+     * @returns {Object[]} { text: string, pattern: RegExp, replaceText: string, useRegex: boolean, deleteEmptyLines: boolean } の配列
      */
-    function getSearchEntries(searchTexts, replaceTexts, useRegex, matchCase) {
+    function getSearchEntries(searchTexts, replaceTexts, useRegex, matchCase, deleteEmptyLines) {
         var searchEntries = [];
         for (var i = 0; i < searchTexts.length; i++) {
             var searchPattern = createSearchPattern(searchTexts[i], useRegex, matchCase);
             if (searchPattern) {
                 /* 正規表現の置換欄は getReplacementText() で改行の記号を展開する / Regex replacements expand the break tokens in getReplacementText() */
                 var replaceText = replaceTexts[i] || "";
-                searchEntries.push({ text: searchTexts[i], pattern: searchPattern, replaceText: useRegex ? replaceText : expandBreakTokens(replaceText), useRegex: useRegex });
+                searchEntries.push({ text: searchTexts[i], pattern: searchPattern, replaceText: useRegex ? replaceText : expandBreakTokens(replaceText), useRegex: useRegex, deleteEmptyLines: deleteEmptyLines });
             }
         }
         return searchEntries;
@@ -2381,6 +2628,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     /**
      * 一致箇所を右から削除・置換する（contents を書き戻さないので文字ごとの書式が残る）
      * 置換は先頭の1文字だけ残して contents を差し替えるので、置換後の文字はその文字の書式になる
+     * 空になった行の削除が有効なら、削除で空になった段落の改行もあわせて削除する
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Object[]} matches - findMatches() の結果（昇順）
      * @param {Object} searchEntry - getSearchEntries() の要素
@@ -2388,14 +2636,111 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function replaceMatchesKeepingFormat(textFrame, matches, searchEntry) {
         var frameCharacters = textFrame.characters;
-        for (var i = matches.length - 1; i >= 0; i--) {
-            var newText = getReplacementText(searchEntry, matches[i].captures);
-            var keptCount = (newText === "") ? 0 : 1;
-            for (var j = matches[i].start + matches[i].length - 1; j >= matches[i].start + keptCount; j--) {
+        var newTexts = [];
+        for (var i = 0; i < matches.length; i++) {
+            newTexts.push(getReplacementText(searchEntry, matches[i].captures));
+        }
+        /* 削除する改行（降順）。一致箇所とは重ならない / Breaks to remove, in descending order; they never overlap a match */
+        var breakIndices = searchEntry.deleteEmptyLines ? findEmptiedLineBreaks(textFrame.contents, matches, newTexts) : [];
+        var breakCursor = 0;
+        for (var k = matches.length - 1; k >= 0; k--) {
+            /* 右から処理するので、この一致より後ろの改行を先に消す / Working from the right, remove the breaks after this match first */
+            while (breakCursor < breakIndices.length && breakIndices[breakCursor] > matches[k].start) {
+                frameCharacters[breakIndices[breakCursor]].remove();
+                breakCursor++;
+            }
+            var keptCount = (newTexts[k] === "") ? 0 : 1;
+            for (var j = matches[k].start + matches[k].length - 1; j >= matches[k].start + keptCount; j--) {
                 frameCharacters[j].remove();
             }
-            if (keptCount > 0) frameCharacters[matches[i].start].contents = newText;
+            if (keptCount > 0) frameCharacters[matches[k].start].contents = newTexts[k];
         }
+        for (; breakCursor < breakIndices.length; breakCursor++) {
+            frameCharacters[breakIndices[breakCursor]].remove();
+        }
+    }
+
+    /**
+     * テキストフレームの指定した範囲の文字を選択する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} start - 先頭の文字の番号（contents と1対1）
+     * @param {number} length - 文字数
+     * @returns {void}
+     */
+    function selectTextSpan(textFrame, start, length) {
+        /* characterOffset への代入は範囲が崩れるので、先頭の1文字から length を伸ばす（実測済み）
+           Assigning characterOffset breaks the range, so extend the length from the first character (tested) */
+        var textSpan = textFrame.characters[start];
+        textSpan.length = length;
+        textSpan.select();
+    }
+
+    /**
+     * アイテムが画面に大きく収まるように、表示倍率と中心を変える（MATCH_ZOOM_MAX を超えては拡大しない）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} item - 表示するアイテム
+     * @returns {void}
+     */
+    function zoomToItem(doc, item) {
+        var activeView = doc.activeView;
+        var itemBounds = item.visibleBounds;
+        var itemWidth = Math.max(itemBounds[2] - itemBounds[0], 1);
+        var itemHeight = Math.max(itemBounds[1] - itemBounds[3], 1);
+        /* 画面の大きさ（画面上の長さ）は、見えている範囲に今の倍率を掛けて求める / The window size in screen units is the visible area times the current zoom */
+        var viewBounds = activeView.bounds;
+        var windowWidth = (viewBounds[2] - viewBounds[0]) * activeView.zoom;
+        var windowHeight = (viewBounds[1] - viewBounds[3]) * activeView.zoom;
+        var fitZoom = Math.min(windowWidth / itemWidth, windowHeight / itemHeight) * MATCH_ZOOM_FILL_RATIO;
+        activeView.zoom = Math.min(fitZoom, MATCH_ZOOM_MAX);
+        activeView.centerPoint = [(itemBounds[0] + itemBounds[2]) / 2, (itemBounds[1] + itemBounds[3]) / 2];
+    }
+
+    /**
+     * 削除で空になる段落を探し、あわせて消す改行の位置を返す
+     * 空になった段落は後ろの改行を消す。末尾から続けて空になった段落は、後ろに改行が無いので前の改行を消す
+     * 元から空の段落は対象にしない
+     * @param {string} text - 削除・置換する前の contents
+     * @param {Object[]} matches - findMatches() の結果（昇順）
+     * @param {string[]} newTexts - 一致箇所ごとの置換後の文字列（空なら削除）
+     * @returns {number[]} 消す改行の位置（降順）
+     */
+    function findEmptiedLineBreaks(text, matches, newTexts) {
+        /* 文字ごとに、一致箇所に含まれるか / Whether each character is inside a match */
+        var isMatched = [];
+        /* 置換で文字が入る位置 / Positions where a replacement puts text */
+        var hasNewText = [];
+        for (var i = 0; i < matches.length; i++) {
+            for (var j = matches[i].start; j < matches[i].start + matches[i].length; j++) isMatched[j] = true;
+            if (newTexts[i] !== "") hasNewText[matches[i].start] = true;
+        }
+        /* 残る改行で区切った段落ごとに、元の文字があったか・結果が空か / Per paragraph split by the surviving breaks: had text, and ends up empty */
+        var lineRecords = [];
+        var currentLine = { previousBreak: -1, nextBreak: -1, hadText: false, isEmptied: true };
+        for (var k = 0; k < text.length; k++) {
+            if (text.charAt(k) === "\r" && !isMatched[k]) {
+                currentLine.nextBreak = k;
+                lineRecords.push(currentLine);
+                currentLine = { previousBreak: k, nextBreak: -1, hadText: false, isEmptied: true };
+                continue;
+            }
+            currentLine.hadText = true;
+            if (!isMatched[k] || hasNewText[k]) currentLine.isEmptied = false;
+        }
+        lineRecords.push(currentLine);
+
+        var breakIndices = [];
+        /* 末尾から続く空になった段落か / Whether the paragraphs so far, from the end, were all emptied */
+        var isTrailing = true;
+        for (var lineIndex = lineRecords.length - 1; lineIndex >= 0; lineIndex--) {
+            var lineRecord = lineRecords[lineIndex];
+            if (!lineRecord.hadText || !lineRecord.isEmptied) {
+                isTrailing = false;
+                continue;
+            }
+            var breakIndex = isTrailing ? lineRecord.previousBreak : lineRecord.nextBreak;
+            if (breakIndex >= 0) breakIndices.push(breakIndex);
+        }
+        return breakIndices;
     }
 
     /**

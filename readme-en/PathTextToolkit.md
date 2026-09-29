@@ -23,6 +23,7 @@ A toolkit that creates, detaches and adjusts point type and type on a path.
 - v1.4.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.2 (20260928) : The button row is now built with the shared part
 - v1.4.3 (20260929) : Dialog opacity changed to 98%
+- v1.4.4 (20260930) : Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 

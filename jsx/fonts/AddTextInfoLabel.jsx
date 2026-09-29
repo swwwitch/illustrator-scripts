@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInf
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddTextInfoLabel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTextInfoLabel.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInfoLabel.md"; /* README (English) */
@@ -150,7 +150,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
             if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
             var targetDoc = app.activeDocument;
             var selectedItems = targetDoc.selection;
-            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
             var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
             var spanLeft = Infinity;
             var spanRight = -Infinity;

@@ -37,3 +37,4 @@
 - v1.2.2 (20260928): The spacing unit now follows the ruler-unit preference (rulerType). H, feet, yards and meters convert correctly, and inches show as "in"
 - v1.2.2 (20260928): The button row is now built with the shared part
 - v1.2.3 (20260929): Dialog opacity changed to 98%
+- v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool

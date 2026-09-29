@@ -39,3 +39,4 @@
 - v1.5.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.2 (20260929): Dialog opacity changed to 98%
+- v1.5.3 (20260930): Fixed an error when running with characters selected by the Type tool

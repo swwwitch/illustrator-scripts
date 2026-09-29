@@ -82,6 +82,7 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Changelog
 
+- v1.3.2 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.1 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.0 (2026-09-29): Merged in PDFAISpreadImporter.jsx: spread splitting (with the even-page side set from the binding direction), crop box selection and placing into a new document
 - v1.2.2 (2026-09-28): The button row is now built with the shared part

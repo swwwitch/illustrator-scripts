@@ -29,11 +29,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboar
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddArtboardPlus";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Takeshi Umeda (noellabo)";     /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md"; /* README (English) */
@@ -196,7 +196,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
             if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
             var targetDoc = app.activeDocument;
             var selectedItems = targetDoc.selection;
-            if (!selectedItems || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
             var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
             var spanLeft = Infinity;
             var spanRight = -Infinity;
