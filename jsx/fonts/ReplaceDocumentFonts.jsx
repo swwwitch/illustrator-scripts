@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ドキュメントで使用中のフォントをファミリー／スタイル単位で一覧し、
+ドキュメント（または選択範囲）で使用中のフォントをファミリー／スタイル単位で一覧し、
 選んだフォントを別のフォントへまとめて置き換えます。
 
 詳細は README を参照してください。
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/ncc9330ba1f7d
 
 ### Overview
 
-Lists the fonts used in the document by family and style, and replaces
-the selected ones with another font in a single pass.
+Lists the fonts used in the document (or the selection) by family and style,
+and replaces the selected ones with another font in a single pass.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceDocumentFonts.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceDoc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceDocumentFonts";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -56,14 +56,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     /* ソートの初期状態（"name"：名前順／"countDesc"：使用数の降順／"countAsc"：使用数の昇順）/ Initial sort order ("name", "countDesc" or "countAsc") */
     var SORT_MODE_DEFAULT = "name";
 
-    /* 対象の初期状態（"document"：ドキュメント全体／"selection"：選択範囲のみ）/ Initial scope ("document" or "selection") */
-    var SCOPE_DEFAULT = "document";
-
     /* 文字・段落スタイルのフォントも置換するかの初期状態 / Initial state of replacing fonts in character and paragraph styles */
     var REPLACE_STYLE_FONTS_DEFAULT = true;
 
-    /* 置換先にドキュメントで使っていないスタイルも出すかの初期状態 / Initial state of listing unused styles in the target list */
+    /* 置換先にドキュメントで使っていないスタイルも出すかの初期状態（記憶せず毎回これで開く）/ Initial state of listing unused styles in the target list (not remembered; every run starts here) */
     var SHOW_ALL_TARGET_STYLES_DEFAULT = false;
+
+    /* リストの幅をフォント名に合わせるかの初期状態（OFF は固定幅の簡易表示）/ Initial state of fitting the list width to the font names (off: compact fixed width) */
+    var FIT_LIST_WIDTH_DEFAULT = false;
 
     // =========================================
     // レイアウト / Layout
@@ -74,11 +74,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     var COLUMN_SPACING        = 10;   /* 2カラムの間隔 / spacing between the two lists */
     var LIST_LABEL_SPACING    = 6;    /* 見出しとリストの間隔 / spacing between a label and its list */
     var LIST_TOP_MARGIN       = 10;   /* リストの行の上の余白 / top margin above the list row */
+    var LIST_BOTTOM_MARGIN    = 10;   /* リストと下のパネルのあいだに足す余白 / extra space between a list and the panel below */
     var OPTION_PANEL_MARGINS  = [15, 20, 15, 10]; /* オプションパネルの内側の余白 / option panel margins */
-    var SORT_CHOICE_SPACING   = 4;    /* ソートのラジオの縦の間隔 / vertical spacing between sort radios */
     var LISTBOX_HEIGHT        = 300;  /* リストの高さ / list height */
     var LISTBOX_WIDTH_MIN     = 200;  /* リスト幅の下限 / minimum list width */
     var LISTBOX_WIDTH_MAX     = 600;  /* リスト幅の上限 / maximum list width */
+    var LISTBOX_WIDTH_COMPACT = 240;  /* 簡易表示のリスト幅 / list width in the compact view */
     var LISTBOX_CHAR_WIDTH    = 9;    /* 1文字あたりの概算幅 / approximate width per character */
     var LISTBOX_WIDTH_PADDING = 5;    /* リスト幅の余裕 / extra width added to the list */
 
@@ -850,6 +851,211 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
+
     var LABELS = {
         dialog: {
             title: { ja: "ドキュメントフォントを置換", en: "Replace Document Fonts" }
@@ -857,46 +1063,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         fieldLabel: {
             sourceFonts: { ja: "置換元フォント（複数選択可）", en: "Source Fonts (Multiple Selection)" },
             targetFont: { ja: "置換先フォント", en: "Target Font" },
-            sort: { ja: "ソート", en: "Sort" },
+            sort: { ja: "並び順", en: "Sort" },
             scope: { ja: "対象", en: "Scope" }
         },
         checkbox: {
-            postScriptName: { ja: "PostScript名で表示", en: "Show PostScript names" },
+            postScriptName: { ja: "フォント名をPostScript名で表示", en: "Show font names as PostScript names" },
+            fitListWidth: { ja: "リストの幅をフォント名に合わせる", en: "Fit list width to font names" },
             replaceStyleFonts: { ja: "文字・段落スタイルも置換", en: "Also replace in styles" },
-            showAllTargetStyles: { ja: "使っていないスタイルも表示", en: "Show unused styles" }
+            showAllTargetStyles: { ja: "使っていないフォントスタイルも表示", en: "Show unused font styles" }
         },
         panel: {
-            options: { ja: "オプション", en: "Options" },
+            options: { ja: "表示", en: "Display" },
             replaceOptions: { ja: "置換オプション", en: "Replace Options" }
         },
+        dropdown: {
+            sortMode: {
+                name: { ja: "名前順", en: "Name" },
+                countDesc: { ja: "使用数の多い順", en: "Most Used" },
+                countAsc: { ja: "使用数の少ない順", en: "Least Used" }
+            }
+        },
         radio: {
-            sortByName: { ja: "名前順", en: "Name" },
-            sortByCountDesc: { ja: "使用数（降順）", en: "Most Used" },
-            sortByCountAsc: { ja: "使用数（昇順）", en: "Least Used" },
             scopeDocument: { ja: "ドキュメント全体", en: "Entire Document" },
             scopeSelection: { ja: "選択範囲のみ", en: "Selection Only" }
         },
         button: {
             close: { ja: "閉じる", en: "Close" },
-            replaceAll: { ja: "全置換", en: "Replace All" },
+            replaceAll: { ja: "すべて置換", en: "Replace All" },
             replace: { ja: "フォントを置換", en: "Replace Fonts" }
         },
         tooltip: {
             sourceFonts: {
-                ja: "置換元のフォントを選びます。ファミリー名の行を選ぶと、そのファミリーのスタイルがすべて選ばれます。",
-                en: "Pick the fonts to replace. Selecting a family row selects every style in that family."
+                ja: "置換元のフォントを選びます。ファミリー名の行を選ぶと、そのファミリーのスタイルがすべて選ばれます。（ ）内は、そのフォントを使っているテキストオブジェクトの数です。",
+                en: "Pick the fonts to replace. Selecting a family row selects every style in that family. The number in parentheses is how many text objects use the font."
             },
             targetFont: {
-                ja: "置換先のフォントを選びます。ファミリー名の行は選べません。",
-                en: "Pick the font to replace them with. Family rows cannot be selected."
+                ja: "置換先のフォントを選びます。ファミリー名の行は選べません。（ ）が付いていないスタイルは、ドキュメントで使っていないものです。",
+                en: "Pick the font to replace them with. Family rows cannot be selected. Styles without a number in parentheses are not used in the document."
             },
             postScriptName: {
                 ja: "ファミリー名とスタイル名の代わりに、PostScript名で一覧します。",
                 en: "List the fonts by PostScript name instead of family and style."
             },
-            sort: {
-                ja: "リストの並び順を選びます。使用数で並べるとき、ファミリーはスタイルの使用数の合計で並べます。",
-                en: "Choose the list order. When sorting by count, families are ordered by the total count of their styles."
+            fitListWidth: {
+                ja: "フォント名が見切れないよう、リストの幅をいちばん長い名前に合わせます。OFFのときは固定幅で表示します。",
+                en: "Widen the lists to the longest font name so no name is cut off. When off, the lists use a fixed width."
+            },
+            scope: {
+                ja: "置換する範囲を選びます。",
+                en: "Choose which text to replace in."
             },
             scopeDocument: {
                 ja: "ドキュメント内のすべてのテキストを対象にします。",
@@ -914,20 +1129,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
                 ja: "置換先のリストに、同じファミリーでドキュメントに使っていないスタイルも並べます（件数なしで表示）。",
                 en: "Also list the styles of each family that the document does not use (shown without a count)."
             },
-            sortByName: {
-                ja: "ファミリー名、スタイル名の順に名前で並べます。",
-                en: "Sort by family name, then by style name."
-            },
-            sortByCountDesc: {
-                ja: "使用数の多い順に並べます。ファミリーはスタイルの使用数の合計で並べます。",
-                en: "Sort from most to least used. Families are ordered by the total count of their styles."
-            },
-            sortByCountAsc: {
-                ja: "使用数の少ない順に並べます。ファミリーはスタイルの使用数の合計で並べます。",
-                en: "Sort from least to most used. Families are ordered by the total count of their styles."
+            sort: {
+                ja: "リストの並び順を選びます。名前順はファミリー名、スタイル名の順に並べます。使用数で並べるとき、ファミリーはスタイルの使用数の合計で並べます。",
+                en: "Choose the list order. Name sorts by family, then by style. When sorting by count, families are ordered by the total count of their styles."
             },
             replaceAll: {
-                ja: "使用中のすべてのフォントを置換先フォントに置き換えます。置換先を選んでいないときは、置換元の1つ目のフォントに揃えます。",
+                ja: "使用中のすべてのフォントを置換先フォントに置き換えます。置換先を選んでいないときは、置換元の1つ目のフォントにそろえます。",
                 en: "Replace every font in use with the target font. With no target selected, the first source font is used instead."
             },
             replace: {
@@ -953,12 +1160,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
                 en: "Please select a target font."
             },
             selectFonts: {
-                ja: "置換先または置換元フォントを選択してください。\n（または、置換元だけ選んで全置換することも可能です）",
-                en: "Please select either a target font or source fonts.\n(Alternatively, select only the source fonts to replace all.)"
+                ja: "置換先フォントを選択してください。置換元だけを選んだときは、1つ目の置換元フォントにそろえます。",
+                en: "Please select a target font. With only source fonts selected, everything is unified on the first source font."
             },
             targetNotFound: {
-                ja: "置換先フォントが見つかりません（%1）。",
-                en: "Target font not found (%1)."
+                ja: "フォントが見つかりません（%1）。",
+                en: "Font not found (%1)."
             }
         }
     };
@@ -981,6 +1188,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     var sourceFontListBox = null;
     var targetFontListBox = null;
     var postScriptNameCheckbox = null;
+    var fitListWidthCheckbox = null;
+    var scopeDocumentRadio = null;
+    var scopeSelectionRadio = null;
+
+    /* ソートの種類（ポップアップの並び順）/ Sort modes, in popup order */
+    var SORT_MODES = ["name", "countDesc", "countAsc"];
 
     /* ソートキーの桁数と、降順キーを作るときの上限 / Digits in a sort key, and the ceiling used to build descending keys */
     var SORT_KEY_DIGITS = 9;
@@ -992,12 +1205,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     /* 画面の状態（ラジオ・チェックの値は表示前に読み戻せないので控えておく）/ UI state, kept here because radio / checkbox values cannot be read back before show() */
     var currentSortMode = SORT_MODE_DEFAULT;
     var showsPostScriptName = SHOW_POSTSCRIPT_NAME_DEFAULT;
-    var currentScope = SCOPE_DEFAULT;
+    var currentScope = "document";
     var replacesStyleFonts = REPLACE_STYLE_FONTS_DEFAULT;
     var showsAllTargetStyles = SHOW_ALL_TARGET_STYLES_DEFAULT;
+    var fitsListWidth = FIT_LIST_WIDTH_DEFAULT;
     var showAllTargetStylesCheckbox = null;
 
-    /* 実行時に選択していたテキストフレーム（ハイライトで選択が変わるので最初に控える）/ Text frames selected at launch, captured first because highlighting changes the selection */
+    /* 実行時に選択していたテキストフレーム / Text frames selected at launch */
     var selectedTextFrames = [];
     var replaceStyleFontsCheckbox = null;
 
@@ -1431,7 +1645,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     // =========================================
 
     /**
-     * 置換元リストの選択を整え、該当テキストをハイライトする
+     * 置換元リストの選択を整える（見出し行はファミリー内の全スタイルに展開）
      * @returns {void}
      */
     function handleSourceFontSelection() {
@@ -1468,26 +1682,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
             if (lastStyleIndex !== -1) sourceFontListBox.revealItem(sourceFontListBox.items[lastStyleIndex]);
             sourceFontListBox.revealItem(sourceFontListBox.items[headerIndex]);
         }
-
-        selectTextOfSelectedFonts(expandedSelection);
-    }
-
-    /**
-     * 選択中のフォントを使っているテキストをドキュメント上で選択する
-     * @param {Array<ListItem>} selectedItems - 置換元リストで選択中の項目
-     * @returns {void}
-     */
-    function selectTextOfSelectedFonts(selectedItems) {
-        doc.selection = null;
-
-        for (var i = 0; i < selectedItems.length; i++) {
-            var fontName = flatFontList[selectedItems[i].index].name;
-            for (var j = 0; j < textRangeList.length; j++) {
-                if (textRangeList[j].fontName === fontName) {
-                    textRangeList[j].range.selected = true;
-                }
-            }
-        }
     }
 
     /**
@@ -1502,7 +1696,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * ［PostScript名で表示］：表示形式を切り替えてリストを作り直す
+     * ［フォント名をPostScript名で表示］：表示形式を切り替えてリストを作り直す
      * @returns {void}
      */
     function handleDisplayModeChange() {
@@ -1511,7 +1705,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * 対象のラジオ：対象を切り替えてリストを作り直し、ハイライトし直す
+     * option＋Tab：置換元リストと置換先リストのあいだでフォーカスを移す
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {void}
+     */
+    function switchFontListFocus(keyEvent) {
+        var nextListBox = (keyEvent.target === sourceFontListBox) ? targetFontListBox : sourceFontListBox;
+        nextListBox.active = true;
+    }
+
+    /**
+     * ［リストの幅をフォント名に合わせる］：リストの幅を変えてダイアログを配置し直す
+     * @returns {void}
+     */
+    function handleFitListWidthClick() {
+        fitsListWidth = fitListWidthCheckbox.value;
+        var listBoxWidth = getListBoxWidth();
+        var listBoxes = [sourceFontListBox, targetFontListBox];
+        /* 配置済みのコントロールは size も入れないと幅が変わらない / A laid-out control keeps its size unless size is set too */
+        for (var i = 0; i < listBoxes.length; i++) {
+            listBoxes[i].preferredSize.width = listBoxWidth;
+            listBoxes[i].size = [listBoxWidth, listBoxes[i].size.height];
+        }
+        mainDialog.layout.layout(true);
+
+        /* 狭めたときはウィンドウが縮まないので、計算し直した大きさを入れて中身を合わせる / The window does not shrink on its own, so apply the recalculated size and refit the contents */
+        mainDialog.size = [mainDialog.preferredSize.width, mainDialog.preferredSize.height];
+        mainDialog.layout.resize();
+    }
+
+    /**
+     * 対象のラジオ：対象を切り替えてリストを作り直す
      * @param {string} scope - "document" または "selection"
      * @returns {void}
      */
@@ -1520,7 +1744,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         currentScope = scope;
         replaceStyleFontsCheckbox.enabled = (getEffectiveScope() === "document");
         refreshFontList();
-        selectTextOfSelectedFonts(sourceFontListBox.selection || []);
     }
 
     /**
@@ -1545,7 +1768,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * ソートのラジオ：並べ替えてリストを作り直す
+     * ソートのポップアップ：並べ替えてリストを作り直す
      * @param {string} sortMode - "name"・"countDesc"・"countAsc"
      * @returns {void}
      */
@@ -1609,20 +1832,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
      * @param {object} labelSet - 見出しのラベル（ja/en）
      * @param {object} tooltipSet - ツールチップのラベル（ja/en）
      * @param {boolean} allowsMultiple - 複数選択を許可するか
-     * @returns {ListBox} 追加したリストボックス
+     * @returns {{group: Group, listBox: ListBox}} カラムのグループ（下にパネルを足す先）と、追加したリストボックス
      */
     function addFontListColumn(parent, labelSet, tooltipSet, allowsMultiple) {
         var columnGroup = parent.add("group");
         columnGroup.orientation = "column";
         columnGroup.alignChildren = ["fill", "top"];
-        columnGroup.spacing = LIST_LABEL_SPACING;
-        columnGroup.add("statictext", undefined, labelText(labelSet));
 
-        var fontListBox = columnGroup.add("listbox", undefined, [], { multiselect: allowsMultiple });
+        /* 見出しとリストは詰め、下のパネルとは LIST_BOTTOM_MARGIN だけ離す / Keep the label close to the list and push the panel below away */
+        var listBlock = columnGroup.add("group");
+        listBlock.orientation = "column";
+        listBlock.alignChildren = ["fill", "top"];
+        listBlock.spacing = LIST_LABEL_SPACING;
+        listBlock.margins = [0, 0, 0, LIST_BOTTOM_MARGIN];
+        listBlock.add("statictext", undefined, labelText(labelSet));
+
+        var fontListBox = listBlock.add("listbox", undefined, [], { multiselect: allowsMultiple });
         fontListBox.preferredSize.height = LISTBOX_HEIGHT;
         fontListBox.tabEnabled = true;
         fontListBox.helpTip = getLabel(tooltipSet);
-        return fontListBox;
+        return { group: columnGroup, listBox: fontListBox };
     }
 
     /**
@@ -1643,17 +1872,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * ソートのラジオボタンを1つ追加する
+     * ソートのポップアップを追加する
      * @param {Group} parent - 追加先のグループ
-     * @param {string} sortMode - このラジオが表すソート
-     * @param {object} labelSet - ラベル（ja/en）
-     * @param {object} tooltipSet - ツールチップ（ja/en）
-     * @returns {RadioButton} 追加したラジオボタン
+     * @returns {DropDownList} 追加したポップアップ
      */
-    function addSortRadio(parent, sortMode, labelSet, tooltipSet) {
-        return addChoiceRadio(parent, sortMode === currentSortMode, labelSet, tooltipSet, function() {
-            handleSortModeChange(sortMode);
-        });
+    function addSortDropdown(parent) {
+        var sortLabels = [];
+        var selectedIndex = 0;
+        for (var i = 0; i < SORT_MODES.length; i++) {
+            sortLabels.push(getLabel(LABELS.dropdown.sortMode[SORT_MODES[i]]));
+            if (SORT_MODES[i] === currentSortMode) selectedIndex = i;
+        }
+        var sortDropdown = parent.add("dropdownlist", undefined, sortLabels);
+        sortDropdown.selection = selectedIndex;
+        sortDropdown.helpTip = getLabel(LABELS.tooltip.sort);
+        sortDropdown.onChange = function() {
+            if (sortDropdown.selection) handleSortModeChange(SORT_MODES[sortDropdown.selection.index]);
+        };
+        return sortDropdown;
     }
 
     /**
@@ -1671,21 +1907,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         postScriptNameCheckbox.value = showsPostScriptName;
         postScriptNameCheckbox.helpTip = getLabel(LABELS.tooltip.postScriptName);
 
-        /* ソート（ラジオは縦に並べてダイアログを広げない）/ Sort, stacked vertically so the dialog does not widen */
+        fitListWidthCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.fitListWidth));
+        fitListWidthCheckbox.value = fitsListWidth;
+        fitListWidthCheckbox.helpTip = getLabel(LABELS.tooltip.fitListWidth);
+
+        /* ソート（ポップアップ）/ Sort popup */
         var sortRow = optionPanel.add("group");
         sortRow.orientation = "row";
         sortRow.alignment = ["left", "top"];
-        sortRow.alignChildren = ["left", "top"];
+        sortRow.alignChildren = ["left", "center"];
         var sortLabel = sortRow.add("statictext", undefined, labelText(LABELS.fieldLabel.sort));
         sortLabel.helpTip = getLabel(LABELS.tooltip.sort);
-
-        var sortChoiceGroup = sortRow.add("group");
-        sortChoiceGroup.orientation = "column";
-        sortChoiceGroup.alignChildren = ["left", "top"];
-        sortChoiceGroup.spacing = SORT_CHOICE_SPACING;
-        addSortRadio(sortChoiceGroup, "name", LABELS.radio.sortByName, LABELS.tooltip.sortByName);
-        addSortRadio(sortChoiceGroup, "countDesc", LABELS.radio.sortByCountDesc, LABELS.tooltip.sortByCountDesc);
-        addSortRadio(sortChoiceGroup, "countAsc", LABELS.radio.sortByCountAsc, LABELS.tooltip.sortByCountAsc);
+        addSortDropdown(sortRow);
         return optionPanel;
     }
 
@@ -1705,12 +1938,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         scopeRow.orientation = "row";
         scopeRow.alignment = ["center", "top"];
         scopeRow.alignChildren = ["left", "center"];
-        scopeRow.add("statictext", undefined, labelText(LABELS.fieldLabel.scope));
+        var scopeLabel = scopeRow.add("statictext", undefined, labelText(LABELS.fieldLabel.scope));
+        scopeLabel.helpTip = getLabel(LABELS.tooltip.scope);
         var effectiveScope = getEffectiveScope();
-        addChoiceRadio(scopeRow, effectiveScope === "document", LABELS.radio.scopeDocument, LABELS.tooltip.scopeDocument, function() {
+        scopeDocumentRadio = addChoiceRadio(scopeRow, effectiveScope === "document", LABELS.radio.scopeDocument, LABELS.tooltip.scopeDocument, function() {
             handleScopeChange("document");
         });
-        var scopeSelectionRadio = addChoiceRadio(scopeRow, effectiveScope === "selection", LABELS.radio.scopeSelection, LABELS.tooltip.scopeSelection, function() {
+        scopeSelectionRadio = addChoiceRadio(scopeRow, effectiveScope === "selection", LABELS.radio.scopeSelection, LABELS.tooltip.scopeSelection, function() {
             handleScopeChange("selection");
         });
         scopeSelectionRadio.enabled = (selectedTextFrames.length > 0);
@@ -1721,11 +1955,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         listGroup.spacing = COLUMN_SPACING;
         listGroup.margins = [0, LIST_TOP_MARGIN, 0, 0];
 
-        sourceFontListBox = addFontListColumn(listGroup, LABELS.fieldLabel.sourceFonts, LABELS.tooltip.sourceFonts, true);
-        addOptionPanel(sourceFontListBox.parent);
-        targetFontListBox = addFontListColumn(listGroup, LABELS.fieldLabel.targetFont, LABELS.tooltip.targetFont, false);
+        var sourceColumn = addFontListColumn(listGroup, LABELS.fieldLabel.sourceFonts, LABELS.tooltip.sourceFonts, true);
+        sourceFontListBox = sourceColumn.listBox;
+        addOptionPanel(sourceColumn.group);
+        var targetColumn = addFontListColumn(listGroup, LABELS.fieldLabel.targetFont, LABELS.tooltip.targetFont, false);
+        targetFontListBox = targetColumn.listBox;
         /* 置換オプション / Replace options */
-        var replaceOptionPanel = targetFontListBox.parent.add("panel", undefined, getLabel(LABELS.panel.replaceOptions));
+        var replaceOptionPanel = targetColumn.group.add("panel", undefined, getLabel(LABELS.panel.replaceOptions));
         replaceOptionPanel.orientation = "column";
         replaceOptionPanel.alignChildren = ["left", "top"];
         replaceOptionPanel.margins = OPTION_PANEL_MARGINS;
@@ -1740,9 +1976,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         replaceStyleFontsCheckbox.enabled = (effectiveScope === "document");
         replaceStyleFontsCheckbox.helpTip = getLabel(LABELS.tooltip.replaceStyleFonts);
 
-        /* ボタンエリア（右側に閉じる→置換系）/ Button row: Close, then replace buttons, on the right */
+        /* ボタンエリア（左端に閉じる、右側に置換系）/ Button row: Close on the far left, replace buttons on the right */
         var buttonRow = addButtonRow(mainDialog);
-        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
+        var btnClose = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
         var btnReplaceAll = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replaceAll));
         var btnReplace = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replace), { name: "ok" });
         btnReplaceAll.helpTip = getLabel(LABELS.tooltip.replaceAll);
@@ -1751,10 +1987,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         sourceFontListBox.onChange = handleSourceFontSelection;
         targetFontListBox.onChange = handleTargetFontSelection;
         postScriptNameCheckbox.onClick = handleDisplayModeChange;
+        fitListWidthCheckbox.onClick = handleFitListWidthClick;
         replaceStyleFontsCheckbox.onClick = handleReplaceStyleFontsClick;
         showAllTargetStylesCheckbox.onClick = handleShowAllTargetStylesClick;
         btnReplaceAll.onClick = handleReplaceAllClick;
         btnReplace.onClick = handleReplaceClick;
+
+        addKeyShortcuts(mainDialog, {
+            /* どれもリストにフォーカスがあっても効かせる / All of these work while a list has focus */
+            "Alt+D": { target: scopeDocumentRadio, inFields: true },
+            "Alt+S": { target: scopeSelectionRadio, inFields: true },
+            "Alt+P": { target: postScriptNameCheckbox, inFields: true },
+            "Alt+L": { target: fitListWidthCheckbox, inFields: true },
+            "Alt+Tab": { target: switchFontListFocus, inFields: true }
+        }, { showInTip: true });
     }
 
     /**
@@ -1762,7 +2008,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
      * @returns {void}
      */
     function populateFontListBoxes() {
-        var listBoxWidth = Math.max(calculateListBoxWidth(flatFontList), calculateListBoxWidth(targetFontList));
+        var listBoxWidth = getListBoxWidth();
 
         isUpdatingSelection = true;
         sourceFontListBox.removeAll();
@@ -1813,6 +2059,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
+     * 今の表示方法でのリストの幅を返す（簡易表示は固定幅、合わせるときは長い方のリストに）
+     * @returns {number} リストの幅（px）
+     */
+    function getListBoxWidth() {
+        if (!fitsListWidth) return LISTBOX_WIDTH_COMPACT;
+        return Math.max(calculateListBoxWidth(flatFontList), calculateListBoxWidth(targetFontList));
+    }
+
+    /**
      * いちばん長いラベルからリストの幅を見積もる
      * @param {Array<object>} fontList - リストに並べるフォント
      * @returns {number} リストの幅（px）
@@ -1843,6 +2098,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
 
         loadSettings();
         selectedTextFrames = collectSelectedTextFrames(doc.selection);
+        /* テキストを選択して実行したときは［選択範囲のみ］で開く / Open in Selection Only when text is selected at launch */
+        currentScope = (selectedTextFrames.length > 0) ? "selection" : "document";
 
         lastUsedFontMap = collectUsedFonts();
         flatFontList = buildFlatFontList(lastUsedFontMap);
@@ -1862,7 +2119,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         buildDialog();
         populateFontListBoxes();
 
-        /* 先頭のフォントを選び、該当テキストをハイライトしておく / Preselect the first font and highlight its text */
+        /* 先頭のフォントを選んでおく / Preselect the first font */
         sourceFontListBox.selection = 0;
         targetFontListBox.selection = 0;
         handleSourceFontSelection();
@@ -1880,31 +2137,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         var savedSettings = settingsStore.load({
             showPostScriptName: SHOW_POSTSCRIPT_NAME_DEFAULT,
             sortMode: SORT_MODE_DEFAULT,
-            scope: SCOPE_DEFAULT,
             replaceStyleFonts: REPLACE_STYLE_FONTS_DEFAULT,
-            showAllTargetStyles: SHOW_ALL_TARGET_STYLES_DEFAULT
+            fitListWidth: FIT_LIST_WIDTH_DEFAULT
         });
         showsPostScriptName = savedSettings.showPostScriptName;
         replacesStyleFonts = savedSettings.replaceStyleFonts;
-        showsAllTargetStyles = savedSettings.showAllTargetStyles;
+        fitsListWidth = savedSettings.fitListWidth;
 
         /* 知らない値は初期状態に戻す / Unknown values fall back to the defaults */
         var sortMode = savedSettings.sortMode;
-        currentSortMode = (sortMode === "name" || sortMode === "countDesc" || sortMode === "countAsc") ? sortMode : SORT_MODE_DEFAULT;
-        currentScope = (savedSettings.scope === "selection") ? "selection" : "document";
+        currentSortMode = SORT_MODE_DEFAULT;
+        for (var i = 0; i < SORT_MODES.length; i++) {
+            if (SORT_MODES[i] === sortMode) currentSortMode = sortMode;
+        }
     }
 
     /**
-     * 今の画面の状態を保存する（対象は選んだ値のまま残し、選択が無くて使えなかった回も上書きしない）
+     * 今の画面の状態を保存する（対象は実行時の選択で決まり、［使っていないスタイルも表示］は毎回 OFF で開くので保存しない）
      * @returns {void}
      */
     function saveSettings() {
         settingsStore.save({
             showPostScriptName: showsPostScriptName,
             sortMode: currentSortMode,
-            scope: currentScope,
             replaceStyleFonts: replacesStyleFonts,
-            showAllTargetStyles: showsAllTargetStyles
+            fitListWidth: fitsListWidth
         });
     }
 
