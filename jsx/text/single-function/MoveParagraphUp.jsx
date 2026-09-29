@@ -6,18 +6,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カーソルのある段落を、ひとつ上の段落と入れ替えます。
-sky-chaser-high 氏の moveLineUp.jsx（Visual Studio Code の「行を上へ移動」相当）を、
-表示行ではなく段落単位で動かすように改変したものです。
+カーソルのある段落を、ひとつ上の段落と入れ替えます（変数 MOVE_BY_PARAGRAPH を 0 にすると行単位）。
+sky-chaser-high 氏の moveLineUp.jsx を、段落単位でも動かせるように改変したものです。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphUp.md
 
 ### Overview
 
-Swaps the paragraph containing the cursor with the paragraph above it.
-A paragraph-based variant of moveLineUp.jsx by sky-chaser-high,
-which reproduces Visual Studio Code's "Move Line Up".
+Swaps the paragraph containing the cursor with the paragraph above it (set MOVE_BY_PARAGRAPH to 0 to move lines instead).
+A variant of moveLineUp.jsx by sky-chaser-high that can also move whole paragraphs.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MoveParagraphUp.md

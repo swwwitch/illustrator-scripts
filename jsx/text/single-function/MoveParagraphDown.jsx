@@ -6,18 +6,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カーソルのある段落を、ひとつ下の段落と入れ替えます。
-sky-chaser-high 氏の moveLineDown.jsx（Visual Studio Code の「行を下へ移動」相当）を、
-表示行ではなく段落単位で動かすように改変したものです。
+カーソルのある段落を、ひとつ下の段落と入れ替えます（変数 MOVE_BY_PARAGRAPH を 0 にすると行単位）。
+sky-chaser-high 氏の moveLineDown.jsx を、段落単位でも動かせるように改変したものです。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MoveParagraphDown.md
 
 ### Overview
 
-Swaps the paragraph containing the cursor with the paragraph below it.
-A paragraph-based variant of moveLineDown.jsx by sky-chaser-high,
-which reproduces Visual Studio Code's "Move Line Down".
+Swaps the paragraph containing the cursor with the paragraph below it (set MOVE_BY_PARAGRAPH to 0 to move lines instead).
+A variant of moveLineDown.jsx by sky-chaser-high that can also move whole paragraphs.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MoveParagraphDown.md
