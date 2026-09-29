@@ -55,6 +55,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_SCALE_PERCENT = 100; /* スケールの初期値（%） / initial scale (%) */
     var MIN_SCALE_PERCENT = 0.1;     /* 受け付けるスケールの下限（%） / smallest scale accepted (%) */
     var DEFAULT_ANCHOR = "center";   /* 基準点の初期値 / initial reference point */
+    var MIN_TARGET_LENGTH = 0.01;    /* ∧∨で下げられる幅・高さの下限（定規の単位） / smallest width or height the steppers reach (ruler units) */
 
     /* スケールのボタン（右カラムに上から並ぶ）。setTo は値そのもの、stepBy は今の値への加減（%）。
        内側の配列が1つのまとまりで、±10% のまとまりだけ上下に余白を取る
@@ -74,11 +75,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var SCALE_PRESET_BUTTON_WIDTH = 60;   /* スケールのボタンの幅 / width of a scale button */
     var PRESET_BUTTON_SPACING = 4;        /* スケールのボタンどうしの間隔 / spacing between scale buttons */
     var PRESET_STEP10_MARGIN = 10;        /* ±10% のまとまりの上下の余白 / top and bottom margin of the ±10% block */
+    var RELATIVE_STEP_TOP_MARGIN = 10;    /* ［相対］の上の余白 / top margin of the Relative checkbox */
     var SIZE_LABEL_WIDTH = 64;            /* スケール・幅・高さの項目名の幅 / width of the scale, width and height labels */
     var SIZE_FIELD_CHARACTERS = 6;        /* 幅・高さの入力欄の幅（文字数） / width of the width and height fields in characters */
     var CURRENT_SIZE_WIDTH = 64;          /* 今の幅・高さの表示の幅 / width of the current size text */
     var PANEL_MARGINS = [15, 20, 15, 10]; /* パネルの余白 / panel margins */
-    var PIN_OPTIONS_INDENT = 18; /* ［個別に］のオプションの字下げ / indent of the Each Object options */
+    var PIN_OPTIONS_INDENT = 18;          /* ［個別に］のオプションの字下げ / indent of the Each Object options */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -648,7 +650,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             gradient: { ja: "グラデーション", en: "Gradients" },
             preview: { ja: "プレビュー", en: "Preview" },
             pinHorizontal: { ja: "左右の両端", en: "Left & Right Edges" },
-            pinVertical: { ja: "上下の両端", en: "Top & Bottom Edges" }
+            pinVertical: { ja: "上下の両端", en: "Top & Bottom Edges" },
+            relativeStep: { ja: "相対", en: "Relative" }
         },
         tooltip: {
             scale: {
@@ -673,12 +676,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             },
             presetSetTo: { ja: "スケールを{value}%にします", en: "Sets the scale to {value}%" },
             presetStepUp: {
-                ja: "今の倍率に{value}%を足します（幅と高さが連動していないときは、それぞれの倍率に足します）",
-                en: "Adds {value}% to the current scale (to each of width and height when they are not linked)"
+                ja: "スケールを{value}%増やします。［相対］が OFF なら元の大きさに対して足し（100→110→120）、ON なら今の倍率に掛けます（100→110→121）",
+                en: "Increases the scale by {value}%. With Relative off it adds to the original size (100→110→120); with it on it multiplies the current scale (100→110→121)"
             },
             presetStepDown: {
-                ja: "今の倍率から{value}%を引きます（幅と高さが連動していないときは、それぞれの倍率から引きます）",
-                en: "Subtracts {value}% from the current scale (from each of width and height when they are not linked)"
+                ja: "スケールを{value}%減らします。［相対］が OFF なら元の大きさに対して引き（100→90→80）、ON なら今の倍率に掛けます（100→90→81）",
+                en: "Decreases the scale by {value}%. With Relative off it subtracts from the original size (100→90→80); with it on it multiplies the current scale (100→90→81)"
+            },
+            relativeStep: {
+                ja: "ON にすると、±のボタンで今の倍率に掛けて増減します（-10% を2回で 100→90→81）。OFF なら元の大きさに対して足し引きします（100→90→80）",
+                en: "When on, the ± buttons multiply the current scale (-10% twice: 100→90→81). When off, they add to or subtract from the original size (100→90→80)"
             },
             scaleCorners: { ja: "角丸の半径も拡大・縮小します", en: "Also scales the radius of rounded corners" },
             strokeWidth: {
@@ -693,6 +700,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             },
             reset: { ja: "スケールを100%に戻し、すべての設定を初期値に戻します", en: "Returns the scale to 100% and every setting to its default" },
             apply: { ja: "選択中のオブジェクトを拡大・縮小します", en: "Scales the selected objects" },
+            close: { ja: "パレットを閉じます（Esc）", en: "Closes the palette (Esc)" },
+            commit: { ja: "プレビューの結果で確定し、パレットを閉じます", en: "Commits the previewed result and closes the palette" },
             linkToggle: {
                 ja: "幅と高さの比率を保つ（クリックで切り替え）。OFF のときは幅と高さを別々に拡大・縮小します。",
                 en: "Keep the width-to-height ratio (click to toggle). When off, width and height scale separately."
@@ -721,7 +730,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         button: {
             reset: { ja: "リセット", en: "Reset" },
             close: { ja: "閉じる", en: "Close" },
-            apply: { ja: "適用", en: "Apply" }
+            apply: { ja: "適用", en: "Apply" },
+            commit: { ja: "確定", en: "Commit" }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -769,8 +779,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 範囲の中で、割合 [横, 縦] にあたる点の座標 / Coordinates of the point at ratios [x, y] within bounds */
-    function workerAnchorPoint(bounds, anchorRatio) {
-        return [bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0], bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]];
+    function workerAnchorPoint(areaBounds, anchorRatio) {
+        return [areaBounds[0] + (areaBounds[2] - areaBounds[0]) * anchorRatio[0], areaBounds[1] + (areaBounds[3] - areaBounds[1]) * anchorRatio[1]];
     };
 
     /* 全体の外形を保つための、オブジェクトごとの基準の割合 [横, 縦]。全体の余白のうち、左側（上側）にある割合を使う
@@ -790,17 +800,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        changeLineWidths は真偽値ではなく線幅の倍率（%）。縦横で違うときは相乗平均
        Scale the items as one around the reference point: scale each at its center, move it so its distance from the
        reference point follows the scale, then realign the reference point. changeLineWidths is a percentage, not a boolean */
-    function workerScaleAsOne(pageItems, settings, anchorRatio) {
-        var lineWidthPercent = settings.scaleStrokes ? Math.sqrt(settings.scaleX * settings.scaleY) : 100;
-        var anchorBefore = workerAnchorPoint(workerUnionBounds(pageItems, settings.useVisibleBounds), anchorRatio);
+    function workerScaleAsOne(pageItems, scaleSettings, anchorRatio) {
+        var lineWidthPercent = scaleSettings.scaleStrokes ? Math.sqrt(scaleSettings.scaleX * scaleSettings.scaleY) : 100;
+        var anchorBefore = workerAnchorPoint(workerUnionBounds(pageItems, scaleSettings.useVisibleBounds), anchorRatio);
         for (var i = 0; i < pageItems.length; i++) {
             var geometricBounds = pageItems[i].geometricBounds;
             var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
             var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
-            pageItems[i].resize(settings.scaleX, settings.scaleY, true, settings.scalePatterns, settings.scaleGradients, settings.scalePatterns, lineWidthPercent, Transformation.CENTER);
-            pageItems[i].translate((centerX - anchorBefore[0]) * (settings.scaleX / 100 - 1), (centerY - anchorBefore[1]) * (settings.scaleY / 100 - 1), true, true, true, true);
+            pageItems[i].resize(scaleSettings.scaleX, scaleSettings.scaleY, true, scaleSettings.scalePatterns, scaleSettings.scaleGradients, scaleSettings.scalePatterns, lineWidthPercent, Transformation.CENTER);
+            pageItems[i].translate((centerX - anchorBefore[0]) * (scaleSettings.scaleX / 100 - 1), (centerY - anchorBefore[1]) * (scaleSettings.scaleY / 100 - 1), true, true, true, true);
         };
-        var anchorAfter = workerAnchorPoint(workerUnionBounds(pageItems, settings.useVisibleBounds), anchorRatio);
+        var anchorAfter = workerAnchorPoint(workerUnionBounds(pageItems, scaleSettings.useVisibleBounds), anchorRatio);
         var offsetX = anchorBefore[0] - anchorAfter[0];
         var offsetY = anchorBefore[1] - anchorAfter[1];
         if (offsetX === 0 && offsetY === 0) { return; };
@@ -814,30 +824,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        Clear the preview: remove the copies, show the originals again and reselect them unless the user picked something else.
        The state lives on $.global of the main engine */
     function workerClearPreview() {
-        var state = $.global.__smartScalePreviewState;
-        if (!state) { return "OK"; };
+        var previewState = $.global.__smartScalePreviewState;
+        if (!previewState) { return "OK"; };
         $.global.__smartScalePreviewState = null;
         var keepUserSelection = false;
         try {
-            var currentSelection = state.doc.selection;
+            var currentSelection = previewState.doc.selection;
             if (currentSelection instanceof Array && currentSelection.length > 0) {
                 keepUserSelection = true;
                 for (var i = 0; i < currentSelection.length; i++) {
-                    for (var j = 0; j < state.copies.length; j++) {
-                        if (currentSelection[i] === state.copies[j]) { keepUserSelection = false; };
+                    for (var j = 0; j < previewState.copies.length; j++) {
+                        if (currentSelection[i] === previewState.copies[j]) { keepUserSelection = false; };
                     };
                 };
             };
         } catch (selectionError) {};
-        for (var k = 0; k < state.copies.length; k++) {
-            try { state.copies[k].remove(); } catch (removeError) {};
+        for (var k = 0; k < previewState.copies.length; k++) {
+            try { previewState.copies[k].remove(); } catch (removeError) {};
         };
         var restoredItems = [];
-        for (var m = 0; m < state.items.length; m++) {
-            try { state.items[m].hidden = false; restoredItems.push(state.items[m]); } catch (unhideError) {};
+        for (var m = 0; m < previewState.items.length; m++) {
+            try { previewState.items[m].hidden = false; restoredItems.push(previewState.items[m]); } catch (unhideError) {};
         };
         if (keepUserSelection || restoredItems.length === 0) { return "OK"; };
-        try { state.doc.selection = restoredItems; } catch (reselectError) {};
+        try { previewState.doc.selection = restoredItems; } catch (reselectError) {};
         return "OK";
     };
 
@@ -849,8 +859,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             workerClearPreview();
             var pageItems = workerCollectItems();
             if (pageItems.length === 0) { return "NOSEL"; };
-            var bounds = workerUnionBounds(pageItems, app.preferences.getBooleanPreference("includeStrokeInBounds"));
-            return "OK:" + (bounds[2] - bounds[0]) + "," + (bounds[1] - bounds[3]);
+            var selectionBounds = workerUnionBounds(pageItems, app.preferences.getBooleanPreference("includeStrokeInBounds"));
+            return "OK:" + (selectionBounds[2] - selectionBounds[0]) + "," + (selectionBounds[1] - selectionBounds[3]);
         } catch (e) {
             return "ERR:" + e;
         };
@@ -858,44 +868,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* モードに合わせて拡大・縮小する。個別に両端を固定するときは全体の外形を先に測り、固定する向きの基準をオブジェクトごとに決める
        Scale by mode; when pinning edges per item, measure the overall bounds first and pick each item's anchor on the pinned axes */
-    function workerScaleByMode(pageItems, settings) {
-        var anchorRatio = workerAnchorRatio(settings.anchorIndex);
-        if (settings.mode === "asGroup") { workerScaleAsOne(pageItems, settings, anchorRatio); return; };
-        var unionBounds = (settings.pinHorizontal || settings.pinVertical) ? workerUnionBounds(pageItems, settings.useVisibleBounds) : null;
+    function workerScaleByMode(pageItems, scaleSettings) {
+        var anchorRatio = workerAnchorRatio(scaleSettings.anchorIndex);
+        if (scaleSettings.mode === "asGroup") { workerScaleAsOne(pageItems, scaleSettings, anchorRatio); return; };
+        var unionBounds = (scaleSettings.pinHorizontal || scaleSettings.pinVertical) ? workerUnionBounds(pageItems, scaleSettings.useVisibleBounds) : null;
         for (var i = 0; i < pageItems.length; i++) {
             var itemRatio = anchorRatio;
             if (unionBounds) {
-                var itemBounds = settings.useVisibleBounds ? pageItems[i].visibleBounds : pageItems[i].geometricBounds;
+                var itemBounds = scaleSettings.useVisibleBounds ? pageItems[i].visibleBounds : pageItems[i].geometricBounds;
                 var keepRatio = workerKeepBoundsRatio(itemBounds, unionBounds);
-                itemRatio = [settings.pinHorizontal ? keepRatio[0] : anchorRatio[0], settings.pinVertical ? keepRatio[1] : anchorRatio[1]];
+                itemRatio = [scaleSettings.pinHorizontal ? keepRatio[0] : anchorRatio[0], scaleSettings.pinVertical ? keepRatio[1] : anchorRatio[1]];
             };
-            workerScaleAsOne([pageItems[i]], settings, itemRatio);
+            workerScaleAsOne([pageItems[i]], scaleSettings, itemRatio);
         };
     };
 
     /* オブジェクトを拡大・縮小する。角と線幅・効果は環境設定に従うので、実行中だけ切り替えて元に戻す
        Scale the items; corners and strokes/effects follow preferences, so switch them only while scaling */
-    function workerScaleItems(pageItems, settings) {
-        settings.useVisibleBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
+    function workerScaleItems(pageItems, scaleSettings) {
+        scaleSettings.useVisibleBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
         var originalScaleLineWeight = app.preferences.getBooleanPreference("scaleLineWeight");
         var originalCornerPolicy = app.preferences.getIntegerPreference("policyForPreservingCorners");
-        app.preferences.setBooleanPreference("scaleLineWeight", settings.scaleStrokes);
-        app.preferences.setIntegerPreference("policyForPreservingCorners", settings.scaleCorners ? 1 : 2);
-        var result = "OK";
+        app.preferences.setBooleanPreference("scaleLineWeight", scaleSettings.scaleStrokes);
+        app.preferences.setIntegerPreference("policyForPreservingCorners", scaleSettings.scaleCorners ? 1 : 2);
+        var scaleResult = "OK";
         try {
-            workerScaleByMode(pageItems, settings);
+            workerScaleByMode(pageItems, scaleSettings);
             app.redraw();
         } catch (e) {
-            result = "ERR:" + e;
+            scaleResult = "ERR:" + e;
         };
         app.preferences.setBooleanPreference("scaleLineWeight", originalScaleLineWeight);
         app.preferences.setIntegerPreference("policyForPreservingCorners", originalCornerPolicy);
-        return result;
+        return scaleResult;
     };
 
     /* プレビューを作り直す。選択の複製を拡大・縮小し、元は隠して選択を外す（複製は元を隠す前に作る）
        Rebuild the preview: scale copies of the selection, then hide and deselect the originals (copy before hiding) */
-    function workerPreview(settings) {
+    function workerPreview(scaleSettings) {
         if (app.documents.length === 0) { return "NODOC"; };
         var pageItems;
         try {
@@ -903,25 +913,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pageItems = workerCollectItems();
         } catch (collectError) { return "ERR:" + collectError; };
         if (pageItems.length === 0) { return "NOSEL"; };
-        var state = { doc: app.activeDocument, items: pageItems, copies: [] };
-        $.global.__smartScalePreviewState = state;
+        var previewState = { doc: app.activeDocument, items: pageItems, copies: [] };
+        $.global.__smartScalePreviewState = previewState;
         try {
             for (var i = 0; i < pageItems.length; i++) {
-                state.copies.push(pageItems[i].duplicate(pageItems[i], ElementPlacement.PLACEBEFORE));
+                previewState.copies.push(pageItems[i].duplicate(pageItems[i], ElementPlacement.PLACEBEFORE));
             };
             for (var j = 0; j < pageItems.length; j++) { pageItems[j].hidden = true; };
-            state.doc.selection = null;
+            previewState.doc.selection = null;
         } catch (e) {
             workerClearPreview();
             return "ERR:" + e;
         };
-        var result = workerScaleItems(state.copies, settings);
-        if (result !== "OK") { workerClearPreview(); };
-        return result;
+        var scaleResult = workerScaleItems(previewState.copies, scaleSettings);
+        if (scaleResult !== "OK") { workerClearPreview(); };
+        return scaleResult;
     };
 
     /* プレビューを片付けてから、選択そのものを拡大・縮小する / Clear the preview, then scale the selection itself */
-    function workerApplyScale(settings) {
+    function workerApplyScale(scaleSettings) {
         if (app.documents.length === 0) { return "NODOC"; };
         var pageItems;
         try {
@@ -929,7 +939,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pageItems = workerCollectItems();
         } catch (collectError) { return "ERR:" + collectError; };
         if (pageItems.length === 0) { return "NOSEL"; };
-        return workerScaleItems(pageItems, settings);
+        return workerScaleItems(pageItems, scaleSettings);
     };
 
     /* 委譲する worker 関数の全登録（追加漏れ防止） / All worker functions to delegate */
@@ -976,30 +986,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * メインエンジンへ本文を送って同期実行する（BridgeTalk が使えないときはこのエンジンで評価する）
+     * メインエンジンへ本文を送って同期実行する
      * @param {string} callExpression - メインエンジンで評価する呼び出し式
      * @returns {string} 結果マーカー（"OK…" / "NODOC" / "NOSEL" / "ERR:…"）
      */
     function sendToMainEngine(callExpression) {
-        var bodyCode = buildWorkerBody(callExpression);
         var resultHolder = { result: "ERR:timeout" };
-        try {
-            var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
-            bridge.body = bodyCode;
-            bridge.onResult = function (message) { resultHolder.result = String(message.body); };
-            bridge.onError = function (message) { resultHolder.result = "ERR:" + String(message.body); };
-            bridge.send(10); /* 完了まで待つ / wait for completion */
-        } catch (bridgeError) {
-            try {
-                var evalResult = eval(bodyCode);
-                resultHolder.result = (evalResult === undefined) ? "OK" : String(evalResult);
-            } catch (evalError) {
-                resultHolder.result = "ERR:" + evalError;
-            }
-        }
+        var bridgeMessage = new BridgeTalk();
+        bridgeMessage.target = "illustrator";
+        bridgeMessage.body = buildWorkerBody(callExpression);
+        bridgeMessage.onResult = function (message) { resultHolder.result = String(message.body); };
+        bridgeMessage.onError = function (message) { resultHolder.result = "ERR:" + String(message.body); };
+        bridgeMessage.send(10); /* 完了まで待つ / wait for completion */
         return resultHolder.result;
     }
+
 
     /**
      * 選択全体の大きさを測る
@@ -1060,12 +1061,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sendToMainEngine("workerClearPreview()");
             return;
         }
-        try {
-            var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
-            bridge.body = buildWorkerBody("workerClearPreview()");
-            bridge.send();
-        } catch (bridgeError) {}
+        var bridgeMessage = new BridgeTalk();
+        bridgeMessage.target = "illustrator";
+        bridgeMessage.body = buildWorkerBody("workerClearPreview()");
+        bridgeMessage.send();
     }
 
     /**
@@ -1253,10 +1252,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
        Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
        Disabled colors are translucent versions so they sink into any background */
-    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 1]   : [0.6, 0.6, 0.6, 1];  /* 枠線・ケイ線 / rules */
-    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 1]      : [0.4, 0.4, 0.4, 1];  /* 選択セルの塗り / selected fill */
-    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 0.4] : [0.6, 0.6, 0.6, 0.4];  /* 無効時の枠線 / rules when disabled */
-    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 0.3]    : [0.4, 0.4, 0.4, 0.3];  /* 無効時の塗り / fill when disabled */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 1]     : [0.42, 0.42, 0.42, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 1]     : [0.27, 0.27, 0.27, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 0.4]   : [0.42, 0.42, 0.42, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 0.3]   : [0.27, 0.27, 0.27, 0.3];  /* 無効時の塗り / fill when disabled */
 
     // -----------------------------------------
     // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
@@ -2256,7 +2255,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * スケールのボタンを縦に並べて追加する
      * @param {Group} parent - 追加先（縦並びのグループ）
      * @param {Function} onPresetClick - クリックで呼ぶ関数（引数はボタンの設定）
-     * @returns {void}
+     * @returns {Checkbox} ［相対］のチェックボックス
      */
     function addScalePresetButtons(parent, onPresetClick) {
         for (var i = 0; i < SCALE_PRESET_BUTTONS.length; i++) {
@@ -2275,6 +2274,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 presetButton.onClick = createScalePresetHandler(presetBlock[j], onPresetClick);
             }
         }
+        /* ±のボタンを今の倍率に掛けるか / whether the ± buttons multiply the current scale */
+        var relativeStepGroup = parent.add("group");
+        relativeStepGroup.alignment = ["center", "top"];
+        relativeStepGroup.margins = [0, RELATIVE_STEP_TOP_MARGIN, 0, 0];
+        var relativeStepCheckbox = relativeStepGroup.add("checkbox", undefined, getLabel("checkbox.relativeStep"));
+        relativeStepCheckbox.helpTip = getLabel("tooltip.relativeStep");
+        return relativeStepCheckbox;
     }
 
     /**
@@ -2288,17 +2294,260 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * スケールのボタンを今の倍率に当てはめる。stepBy は縦横それぞれに足す
+     * スケールのボタンを今の倍率に当てはめる。stepBy は縦横それぞれに、足すか（元の大きさに対して）掛けるか（相対）で当てる
      * @param {Object} presetButton - setTo か stepBy を持つ設定
      * @param {{x: number, y: number}} scalePercent - 今の横・縦の拡大・縮小率（%）
+     * @param {boolean} isRelative - true なら今の倍率に (100 + stepBy)% を掛ける
      * @returns {{x: number, y: number}} 新しい横・縦の拡大・縮小率（%）
      */
-    function applyScalePreset(presetButton, scalePercent) {
+    function applyScalePreset(presetButton, scalePercent, isRelative) {
         if (presetButton.setTo !== undefined) return { x: presetButton.setTo, y: presetButton.setTo };
-        /* 小数の足し算の誤差を丸める / round away floating-point noise */
-        var nextX = Math.round((scalePercent.x + presetButton.stepBy) * 1000) / 1000;
-        var nextY = Math.round((scalePercent.y + presetButton.stepBy) * 1000) / 1000;
-        return { x: Math.max(MIN_SCALE_PERCENT, nextX), y: Math.max(MIN_SCALE_PERCENT, nextY) };
+
+        /**
+         * 1つの向きの倍率を増減する（小数の誤差を丸め、下限で止める）
+         * @param {number} axisPercent - 今の倍率（%）
+         * @returns {number} 新しい倍率（%）
+         */
+        function stepAxis(axisPercent) {
+            var nextPercent = isRelative
+                ? axisPercent * (100 + presetButton.stepBy) / 100
+                : axisPercent + presetButton.stepBy;
+            return Math.max(MIN_SCALE_PERCENT, Math.round(nextPercent * 1000) / 1000);
+        }
+
+        return { x: stepAxis(scalePercent.x), y: stepAxis(scalePercent.y) };
+    }
+
+
+    /**
+     * 子を横に並べ、天地中央にそろえる行を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @returns {Group} 行の group
+     */
+    function addRowGroup(parent) {
+        var rowGroup = parent.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
+    }
+
+    /**
+     * スケール・幅・高さの項目名を、幅をそろえて右揃えで追加する
+     * @param {Group} parent - 追加先の行
+     * @param {string} labelPath - 項目名の LABELS のパス
+     * @returns {StaticText} 項目名
+     */
+    function addSizeFieldLabel(parent, labelPath) {
+        var fieldLabel = parent.add("statictext", undefined, labelText(labelPath));
+        fieldLabel.preferredSize.width = SIZE_LABEL_WIDTH;
+        fieldLabel.justify = "right";
+        return fieldLabel;
+    }
+
+    /**
+     * ∧∨と入力欄を隙間なく並べて追加する。↑↓キーも∧∨と同じ処理で増減する
+     * @param {Group} parent - 追加先の行
+     * @param {string} initialText - 入力欄の最初の値
+     * @param {number} fieldCharacters - 入力欄の幅（文字数）
+     * @param {Object} stepOptions - addStepper() に渡す設定（min / onStep など）
+     * @returns {EditText} 入力欄（∧∨は .stepperGroup で参照できる）
+     */
+    function addStepperInput(parent, initialText, fieldCharacters, stepOptions) {
+        var stepperInputGroup = parent.add("group");
+        stepperInputGroup.orientation = "row";
+        stepperInputGroup.alignChildren = ["left", "center"];
+        stepperInputGroup.spacing = 0; /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+        stepperInputGroup.margins = 0;
+        var numberInput;
+        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, stepOptions);
+        numberInput = stepperInputGroup.add("edittext", undefined, initialText);
+        numberInput.characters = fieldCharacters;
+        numberInput.stepperGroup = stepperGroup;
+        bindSteppedArrowKeys(numberInput, stepperGroup);
+        return numberInput;
+    }
+
+    /**
+     * 「スケール：[∧∨][100] %」の行を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {Function} onScaleEdited - 値を変えたときに呼ぶ関数
+     * @returns {EditText} スケールの入力欄
+     */
+    function addScaleRow(parent, onScaleEdited) {
+        var scaleRowGroup = addRowGroup(parent);
+        addSizeFieldLabel(scaleRowGroup, "fieldLabel.scale");
+        var scaleInput = addStepperInput(scaleRowGroup, String(DEFAULT_SCALE_PERCENT), SCALE_FIELD_CHARACTERS, {
+            min: MIN_SCALE_PERCENT,
+            onStep: function () { onScaleEdited(); }
+        });
+        scaleInput.helpTip = getLabel("tooltip.scale");
+        scaleInput.onChanging = function () { onScaleEdited(); };
+        scaleRowGroup.add("statictext", undefined, getLabel("fieldLabel.percentUnit"));
+        return scaleInput;
+    }
+
+    /**
+     * 「幅：230 → [∧∨][230] mm」の行を追加する（単位は入力欄の右だけ）
+     * @param {Group} parent - 追加先
+     * @param {string} labelPath - 項目名の LABELS のパス
+     * @param {string} scaleAxis - この欄が決める倍率の向き（"x" / "y"）
+     * @param {string} unitLabel - 定規の単位の表示
+     * @param {Function} onSizeEdited - 値を変えたときに呼ぶ関数（引数は入力欄）
+     * @returns {EditText} 目標の長さの入力欄（今の長さの表示は .currentSizeText、項目名は .fieldLabel）
+     */
+    function addSizeRow(parent, labelPath, scaleAxis, unitLabel, onSizeEdited) {
+        var sizeRowGroup = addRowGroup(parent);
+        var sizeLabel = addSizeFieldLabel(sizeRowGroup, labelPath);
+        var currentSizeText = sizeRowGroup.add("statictext", undefined, getLabel("fieldLabel.noSize"));
+        currentSizeText.preferredSize.width = CURRENT_SIZE_WIDTH;
+        currentSizeText.justify = "right";
+        currentSizeText.helpTip = getLabel(scaleAxis === "x" ? "tooltip.currentWidth" : "tooltip.currentHeight");
+        sizeRowGroup.add("statictext", undefined, getLabel("fieldLabel.sizeArrow"));
+
+        var sizeInput = addStepperInput(sizeRowGroup, "", SIZE_FIELD_CHARACTERS, {
+            min: MIN_TARGET_LENGTH,
+            onStep: function () { onSizeEdited(sizeInput); }
+        });
+        sizeInput.helpTip = getLabel("tooltip.sizeField");
+        sizeInput.sourceLength = 0;
+        sizeInput.scaleAxis = scaleAxis;
+        sizeInput.currentSizeText = currentSizeText;
+        sizeInput.fieldLabel = sizeLabel;
+        sizeInput.onChanging = function () { onSizeEdited(sizeInput); };
+        sizeRowGroup.add("statictext", undefined, unitLabel);
+        return sizeInput;
+    }
+
+    /**
+     * 「サイズ」パネル（スケール・幅・高さと連動ボタン）を追加する
+     * @param {Group} parent - 追加先
+     * @param {string} unitLabel - 定規の単位の表示
+     * @param {Object} sizeHandlers - onScaleEdited() / onSizeEdited(sizeInput) / onLinkToggled()
+     * @returns {{scaleInput: EditText, widthInput: EditText, heightInput: EditText, linkToggle: Group}} 作ったコントロール
+     */
+    function buildSizePanel(parent, unitLabel, sizeHandlers) {
+        var sizePanel = parent.add("panel", undefined, getLabel("panel.size"));
+        sizePanel.orientation = "column";
+        sizePanel.alignChildren = ["left", "center"];
+        sizePanel.margins = PANEL_MARGINS;
+        var scaleInput = addScaleRow(sizePanel, sizeHandlers.onScaleEdited);
+
+        /* 幅・高さ（今の大きさ → 目標の大きさ）と連動ボタン / Width and height (current -> target) with the link toggle */
+        var sizeLinkRowGroup = addRowGroup(sizePanel);
+        var sizeFieldsColumn = sizeLinkRowGroup.add("group");
+        sizeFieldsColumn.orientation = "column";
+        sizeFieldsColumn.alignChildren = ["left", "top"];
+        var widthInput = addSizeRow(sizeFieldsColumn, "fieldLabel.width", "x", unitLabel, sizeHandlers.onSizeEdited);
+        var heightInput = addSizeRow(sizeFieldsColumn, "fieldLabel.height", "y", unitLabel, sizeHandlers.onSizeEdited);
+        var linkToggle = addLinkToggle(sizeLinkRowGroup, true, sizeHandlers.onLinkToggled);
+        linkToggle.helpTip = getLabel("tooltip.linkToggle");
+        return { scaleInput: scaleInput, widthInput: widthInput, heightInput: heightInput, linkToggle: linkToggle };
+    }
+
+    /**
+     * 「モード」パネルを追加する。［個別に］の下に、両端を固定するオプションを字下げして置く
+     * @param {Group} parent - 追加先
+     * @returns {{asGroupRadio: RadioButton, perItemRadio: RadioButton, pinOptionsGroup: Group, pinHorizontalCheckbox: Checkbox, pinVerticalCheckbox: Checkbox}} 作ったコントロール
+     */
+    function buildModePanel(parent) {
+        var modeRadios = addRadioPanel(parent, getLabel("panel.mode"), [getLabel("radio.asGroup"), getLabel("radio.perItem")]);
+        var asGroupRadio = modeRadios[0];
+        var perItemRadio = modeRadios[1];
+        asGroupRadio.helpTip = getLabel("tooltip.asGroup");
+        perItemRadio.helpTip = getLabel("tooltip.perItem");
+
+        var pinOptionsGroup = perItemRadio.parent.add("group");
+        pinOptionsGroup.orientation = "column";
+        pinOptionsGroup.alignChildren = ["left", "center"];
+        pinOptionsGroup.margins = [PIN_OPTIONS_INDENT, 0, 0, 0];
+        var pinHorizontalCheckbox = pinOptionsGroup.add("checkbox", undefined, getLabel("checkbox.pinHorizontal"));
+        var pinVerticalCheckbox = pinOptionsGroup.add("checkbox", undefined, getLabel("checkbox.pinVertical"));
+        pinHorizontalCheckbox.helpTip = getLabel("tooltip.pinHorizontal");
+        pinVerticalCheckbox.helpTip = getLabel("tooltip.pinVertical");
+        return {
+            asGroupRadio: asGroupRadio,
+            perItemRadio: perItemRadio,
+            pinOptionsGroup: pinOptionsGroup,
+            pinHorizontalCheckbox: pinHorizontalCheckbox,
+            pinVerticalCheckbox: pinVerticalCheckbox
+        };
+    }
+
+    /**
+     * 「基準点」パネルを追加する
+     * @param {Group} parent - 追加先
+     * @param {Function} onAnchorChange - セルを選んだときに呼ぶ関数
+     * @returns {Button} 基準点ウィジェット
+     */
+    function buildAnchorPanel(parent, onAnchorChange) {
+        var anchorPanel = parent.add("panel", undefined, getLabel("panel.anchor"));
+        anchorPanel.alignChildren = ["center", "center"];
+        anchorPanel.margins = PANEL_MARGINS;
+        var anchorWidget = addAnchorWidget(anchorPanel, DEFAULT_ANCHOR, onAnchorChange);
+        anchorWidget.helpTip = getLabel("tooltip.anchor");
+        return anchorWidget;
+    }
+
+    /**
+     * 「オプション」パネルを追加する
+     * @param {Group} parent - 追加先
+     * @returns {{scaleCornersCheckbox: Checkbox, scaleStrokeCheckbox: Checkbox, scalePatternCheckbox: Checkbox, scaleGradientCheckbox: Checkbox}} 作ったチェックボックス
+     */
+    function buildOptionsPanel(parent) {
+        var optionsPanel = parent.add("panel", undefined, getLabel("panel.options"));
+        optionsPanel.orientation = "column";
+        optionsPanel.alignChildren = ["left", "center"];
+        optionsPanel.margins = PANEL_MARGINS;
+
+        /**
+         * ツールチップ付きのチェックボックスを追加する
+         * @param {string} labelKey - LABELS.checkbox と LABELS.tooltip で共通のキー
+         * @returns {Checkbox} 追加したチェックボックス
+         */
+        function addOptionCheckbox(labelKey) {
+            var optionCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox." + labelKey));
+            optionCheckbox.helpTip = getLabel("tooltip." + labelKey);
+            return optionCheckbox;
+        }
+
+        return {
+            scaleCornersCheckbox: addOptionCheckbox("scaleCorners"),
+            scaleStrokeCheckbox: addOptionCheckbox("strokeWidth"),
+            scalePatternCheckbox: addOptionCheckbox("pattern"),
+            scaleGradientCheckbox: addOptionCheckbox("gradient")
+        };
+    }
+
+    /**
+     * 2つのラベルのうち、文字数の多いほうを返す（あとで文言を切り替えるコントロールの幅を確保する）
+     * @param {string} firstLabelPath - 1つ目の LABELS のパス
+     * @param {string} secondLabelPath - 2つ目の LABELS のパス
+     * @returns {string} 長いほうの文言
+     */
+    function getLongerLabel(firstLabelPath, secondLabelPath) {
+        var firstLabel = getLabel(firstLabelPath);
+        var secondLabel = getLabel(secondLabelPath);
+        return (secondLabel.length > firstLabel.length) ? secondLabel : firstLabel;
+    }
+
+    /**
+     * 下部のボタン行（左：閉じる・リセット、右：プレビュー・適用）を追加する
+     * @param {Window} targetWindow - 追加先のパレット
+     * @returns {{btnReset: Button, previewCheckbox: Checkbox, btnClose: Button, btnApply: Button}} 作ったコントロール
+     */
+    function buildPaletteButtons(targetWindow) {
+        var buttonRow = addButtonRow(targetWindow);
+        var btnClose = buttonRow.leftGroup.add("button", undefined, getLabel("button.close"));
+        btnClose.helpTip = getLabel("tooltip.close");
+        var btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
+        btnReset.helpTip = getLabel("tooltip.reset");
+        /* ［プレビュー］は［適用］の前に結果を見るものなので、［適用］と並べる / Preview sits next to Apply, whose result it shows */
+        var previewCheckbox = buttonRow.rightGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+        previewCheckbox.helpTip = getLabel("tooltip.preview");
+        /* 文言は［プレビュー］に合わせて［適用］／［確定］を切り替える。作成後は幅が広がらないので、長いほうの文言で作る
+           The label switches between Apply and Commit; buttons do not grow after creation, so start with the longer one */
+        var btnApply = buttonRow.rightGroup.add("button", undefined, getLongerLabel("button.apply", "button.commit"));
+        return { btnReset: btnReset, previewCheckbox: previewCheckbox, btnClose: btnClose, btnApply: btnApply };
     }
 
     /**
@@ -2312,114 +2561,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 左カラム：設定、右カラム：スケールのボタン。［適用］などのボタン行はその下
            Left column: settings; right column: scale buttons; the Apply/Close row sits below */
-        var columnsGroup = scalePalette.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignChildren = ["fill", "top"];
-        var settingsColumn = columnsGroup.add("group");
+        var paletteColumnsGroup = scalePalette.add("group");
+        paletteColumnsGroup.orientation = "row";
+        paletteColumnsGroup.alignChildren = ["fill", "top"];
+        var settingsColumn = paletteColumnsGroup.add("group");
         settingsColumn.orientation = "column";
         settingsColumn.alignChildren = ["fill", "top"];
-        var presetColumn = columnsGroup.add("group");
+        var presetColumn = paletteColumnsGroup.add("group");
         presetColumn.orientation = "column";
         presetColumn.alignChildren = ["fill", "top"];
         presetColumn.spacing = PRESET_BUTTON_SPACING;
 
-        /* サイズ（スケール・幅・高さ） / Size (scale, width, height) */
-        var sizePanel = settingsColumn.add("panel", undefined, getLabel("panel.size"));
-        sizePanel.orientation = "column";
-        sizePanel.alignChildren = ["left", "center"];
-        sizePanel.margins = PANEL_MARGINS;
-
-        var scaleRowGroup = sizePanel.add("group");
-        scaleRowGroup.orientation = "row";
-        scaleRowGroup.alignChildren = ["left", "center"];
-        var scaleLabel = scaleRowGroup.add("statictext", undefined, labelText("fieldLabel.scale"));
-        scaleLabel.preferredSize.width = SIZE_LABEL_WIDTH;
-        scaleLabel.justify = "right";
-
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var scaleFieldGroup = scaleRowGroup.add("group");
-        scaleFieldGroup.orientation = "row";
-        scaleFieldGroup.alignChildren = ["left", "center"];
-        scaleFieldGroup.spacing = 0;
-        scaleFieldGroup.margins = 0;
-        var scaleInput;
-        var scaleStepper = addStepper(scaleFieldGroup, function () { return scaleInput; }, {
-            min: MIN_SCALE_PERCENT,
-            onStep: function () { onScaleTyped(); }
-        });
-        scaleInput = scaleFieldGroup.add("edittext", undefined, String(DEFAULT_SCALE_PERCENT));
-        scaleInput.helpTip = getLabel("tooltip.scale");
-        scaleInput.characters = SCALE_FIELD_CHARACTERS;
-        bindSteppedArrowKeys(scaleInput, scaleStepper); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
-        scaleRowGroup.add("statictext", undefined, getLabel("fieldLabel.percentUnit"));
-        addScalePresetButtons(presetColumn, onPresetClick);
-
-        /* 幅・高さ（今の大きさ → 目標の大きさ）と連動ボタン / Width and height (current -> target) with the link toggle */
         var rulerUnit = getUnitInfo("rulerType");
-        var sizeLinkRowGroup = sizePanel.add("group");
-        sizeLinkRowGroup.orientation = "row";
-        sizeLinkRowGroup.alignChildren = ["left", "center"];
-        var sizeFieldsColumn = sizeLinkRowGroup.add("group");
-        sizeFieldsColumn.orientation = "column";
-        sizeFieldsColumn.alignChildren = ["left", "top"];
-        var widthInput = addSizeRow(sizeFieldsColumn, "fieldLabel.width", "x");
-        var heightInput = addSizeRow(sizeFieldsColumn, "fieldLabel.height", "y");
-        var linkToggle = addLinkToggle(sizeLinkRowGroup, true, onLinkToggled);
-        linkToggle.helpTip = getLabel("tooltip.linkToggle");
+        var sizeControls = buildSizePanel(settingsColumn, rulerUnit.label, {
+            onScaleEdited: onScaleTyped,
+            onSizeEdited: onSizeEdited,
+            onLinkToggled: onLinkToggled
+        });
+        var scaleInput = sizeControls.scaleInput;
+        var widthInput = sizeControls.widthInput;
+        var heightInput = sizeControls.heightInput;
+        var linkToggle = sizeControls.linkToggle;
+        var sizeInputs = [widthInput, heightInput];
+        var relativeStepCheckbox = addScalePresetButtons(presetColumn, onPresetClick);
+
+        /* モード・基準点・オプションは横に3つ並べる / mode, anchor and options in three columns */
+        var panelColumnsGroup = settingsColumn.add("group");
+        panelColumnsGroup.orientation = "row";
+        panelColumnsGroup.alignChildren = ["fill", "fill"];
+        var modeControls = buildModePanel(panelColumnsGroup);
+        var asGroupRadio = modeControls.asGroupRadio;
+        var perItemRadio = modeControls.perItemRadio;
+        var pinHorizontalCheckbox = modeControls.pinHorizontalCheckbox;
+        var pinVerticalCheckbox = modeControls.pinVerticalCheckbox;
+        var anchorWidget = buildAnchorPanel(panelColumnsGroup, function () { updatePreview(); });
+        var optionCheckboxes = buildOptionsPanel(panelColumnsGroup);
+        var paletteButtons = buildPaletteButtons(scalePalette);
+        var previewCheckbox = paletteButtons.previewCheckbox;
 
         /* 横・縦の倍率は丸めずに持つ（欄の表示は丸める） / keep the unrounded x and y scale (fields show rounded values) */
         var currentScale = { x: DEFAULT_SCALE_PERCENT, y: DEFAULT_SCALE_PERCENT };
         /* 最後に値を入れた幅・高さの欄。測り直したとき、その大きさになる倍率を求め直す
            The width or height field edited last; after re-measuring, the scale is recomputed to reach that size */
         var lastEditedSizeInput = null;
-        var isBusy = false; /* 委譲の再入防止 / re-entrancy guard for delegation */
+        var isBusy = false;          /* 委譲の再入防止 / re-entrancy guard for delegation */
         var hasPendingScale = false; /* 倍率を変えてから、まだ適用していない / the scale changed and is not applied yet */
-        var isPreviewShown = false; /* プレビューの複製がある / preview copies exist */
-
-        /**
-         * 「幅：230 → [∧∨][230] mm」の行を追加する（単位は入力欄の右だけ）
-         * @param {Group} parent - 追加先
-         * @param {string} labelPath - 項目名の LABELS のパス
-         * @param {string} scaleAxis - この欄が決める倍率の向き（"x" / "y"）
-         * @returns {EditText} 目標の長さの入力欄（今の長さの表示は .currentSizeText）
-         */
-        function addSizeRow(parent, labelPath, scaleAxis) {
-            var sizeRowGroup = parent.add("group");
-            sizeRowGroup.orientation = "row";
-            sizeRowGroup.alignChildren = ["left", "center"];
-            var sizeLabel = sizeRowGroup.add("statictext", undefined, labelText(labelPath));
-            sizeLabel.preferredSize.width = SIZE_LABEL_WIDTH;
-            sizeLabel.justify = "right";
-            var currentSizeText = sizeRowGroup.add("statictext", undefined, getLabel("fieldLabel.noSize"));
-            currentSizeText.preferredSize.width = CURRENT_SIZE_WIDTH;
-            currentSizeText.justify = "right";
-            currentSizeText.helpTip = getLabel(scaleAxis === "x" ? "tooltip.currentWidth" : "tooltip.currentHeight");
-            sizeRowGroup.add("statictext", undefined, getLabel("fieldLabel.sizeArrow"));
-
-            /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-            var sizeFieldGroup = sizeRowGroup.add("group");
-            sizeFieldGroup.orientation = "row";
-            sizeFieldGroup.alignChildren = ["left", "center"];
-            sizeFieldGroup.spacing = 0;
-            sizeFieldGroup.margins = 0;
-            var sizeInput;
-            var sizeStepper = addStepper(sizeFieldGroup, function () { return sizeInput; }, {
-                min: 0.01,
-                onStep: function () { onSizeEdited(sizeInput); }
-            });
-            sizeInput = sizeFieldGroup.add("edittext", undefined, "");
-            sizeInput.characters = SIZE_FIELD_CHARACTERS;
-            sizeInput.helpTip = getLabel("tooltip.sizeField");
-            sizeInput.sourceLength = 0;
-            sizeInput.scaleAxis = scaleAxis;
-            sizeInput.currentSizeText = currentSizeText;
-            sizeInput.fieldLabel = sizeLabel;
-            sizeInput.stepperGroup = sizeStepper;
-            bindSteppedArrowKeys(sizeInput, sizeStepper);
-            sizeRowGroup.add("statictext", undefined, rulerUnit.label);
-            sizeInput.onChanging = function () { onSizeEdited(sizeInput); };
-            return sizeInput;
-        }
+        var isPreviewShown = false;  /* プレビューの複製がある / preview copies exist */
 
         /**
          * 倍率に合わせて、スケール・幅・高さの欄を書き直す。縦横の倍率が違うときスケール欄は空にする
@@ -2430,7 +2617,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (editedInput !== scaleInput) {
                 scaleInput.text = (currentScale.x === currentScale.y) ? formatRounded(currentScale.x, 3) : "";
             }
-            var sizeInputs = [widthInput, heightInput];
             for (var i = 0; i < sizeInputs.length; i++) {
                 if (sizeInputs[i] === editedInput) continue;
                 if (sizeInputs[i].sourceLength <= 0) {
@@ -2454,6 +2640,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
+         * 操作で倍率を変えたとき：欄を合わせ、未適用の印を付けてプレビューを更新する
+         * @param {{x: number, y: number}} nextScale - 新しい横・縦の拡大・縮小率（%）
+         * @param {EditText|null} editedInput - 入力中の欄（書き直さない）
+         * @returns {void}
+         */
+        function changeScaleByUser(nextScale, editedInput) {
+            setCurrentScale(nextScale, editedInput);
+            hasPendingScale = true;
+            updatePreview();
+        }
+
+        /**
          * スケール欄を変えたとき：縦横とも同じ倍率にする（数値でない・下限未満の間は何もしない）
          * @returns {void}
          */
@@ -2461,9 +2659,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var scalePercent = parseFloat(scaleInput.text);
             if (isNaN(scalePercent) || scalePercent < MIN_SCALE_PERCENT) return;
             lastEditedSizeInput = null;
-            setCurrentScale({ x: scalePercent, y: scalePercent }, scaleInput);
-            hasPendingScale = true;
-            updatePreview();
+            changeScaleByUser({ x: scalePercent, y: scalePercent }, scaleInput);
         }
 
         /**
@@ -2473,9 +2669,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function onPresetClick(presetButton) {
             lastEditedSizeInput = null;
-            setCurrentScale(applyScalePreset(presetButton, currentScale), null);
-            hasPendingScale = true;
-            updatePreview();
+            changeScaleByUser(applyScalePreset(presetButton, currentScale, relativeStepCheckbox.value), null);
         }
 
         /**
@@ -2491,7 +2685,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
-         * 幅・高さを変えたとき：その向きの倍率を求める。連動中は縦横とも同じ倍率にする
+         * 幅・高さの欄が決めた倍率から、横・縦の倍率を作る。連動中は縦横とも同じ倍率にする
+         * @param {EditText} sizeInput - 幅・高さの欄
+         * @param {number} axisPercent - その欄の向きの倍率（%）
+         * @returns {{x: number, y: number}} 横・縦の拡大・縮小率（%）
+         */
+        function buildScaleFromSize(sizeInput, axisPercent) {
+            var nextScale = linkToggle.value ? { x: axisPercent, y: axisPercent } : { x: currentScale.x, y: currentScale.y };
+            nextScale[sizeInput.scaleAxis] = axisPercent;
+            return nextScale;
+        }
+
+        /**
+         * 幅・高さを変えたとき：その向きの倍率を求める
          * @param {EditText} sizeInput - 変えた欄
          * @returns {void}
          */
@@ -2499,11 +2705,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var axisPercent = getAxisPercentFromSize(sizeInput);
             if (axisPercent === null) return;
             lastEditedSizeInput = sizeInput;
-            var nextScale = linkToggle.value ? { x: axisPercent, y: axisPercent } : { x: currentScale.x, y: currentScale.y };
-            nextScale[sizeInput.scaleAxis] = axisPercent;
-            setCurrentScale(nextScale, sizeInput);
-            hasPendingScale = true;
-            updatePreview();
+            changeScaleByUser(buildScaleFromSize(sizeInput, axisPercent), sizeInput);
         }
 
         /**
@@ -2512,23 +2714,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function onLinkToggled() {
             if (!linkToggle.value || currentScale.x === currentScale.y) return;
-            setCurrentScale({ x: currentScale.x, y: currentScale.x }, null);
-            hasPendingScale = true;
-            updatePreview();
+            changeScaleByUser({ x: currentScale.x, y: currentScale.x }, null);
         }
 
         /**
-         * 選択全体の大きさを測り直し、今の幅・高さの表示と目標の欄を更新する。
-         * 最後に幅・高さの欄へ値を入れていたときは、その大きさになる倍率を求め直す
-         * @returns {string} 計測の結果マーカー
+         * 測った大きさを、今の幅・高さの表示に入れる。長さが無い向きの欄は無効にする
+         * @param {{status: string, width: number, height: number}} measureResult - measureSelection() の結果
+         * @returns {void}
          */
-        function refreshSelectionSize() {
-            var measured = measureSelection(); /* 測る前にプレビューは片付く / measuring clears the preview */
-            isPreviewShown = false;
-            var hasSize = measured.status === "OK";
-            widthInput.sourceLength = hasSize ? measured.width : 0;
-            heightInput.sourceLength = hasSize ? measured.height : 0;
-            var sizeInputs = [widthInput, heightInput];
+        function showMeasuredSize(measureResult) {
+            var hasSize = measureResult.status === "OK";
+            widthInput.sourceLength = hasSize ? measureResult.width : 0;
+            heightInput.sourceLength = hasSize ? measureResult.height : 0;
             for (var i = 0; i < sizeInputs.length; i++) {
                 var sourceLength = sizeInputs[i].sourceLength;
                 sizeInputs[i].currentSizeText.text = (sourceLength > 0)
@@ -2537,59 +2734,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 /* 選択が無いときや長さ0（水平・垂直の直線など）は比率を求められない / no ratio without a selection or with zero length */
                 setSteppedFieldEnabled(sizeInputs[i], sourceLength > 0);
             }
-            if (lastEditedSizeInput) {
-                var axisPercent = getAxisPercentFromSize(lastEditedSizeInput);
-                if (axisPercent !== null) {
-                    var nextScale = linkToggle.value ? { x: axisPercent, y: axisPercent } : { x: currentScale.x, y: currentScale.y };
-                    nextScale[lastEditedSizeInput.scaleAxis] = axisPercent;
-                    setCurrentScale(nextScale, lastEditedSizeInput);
-                    return measured.status;
-                }
-            }
-            syncScaleFields(null);
-            return measured.status;
         }
 
-        /* モード・基準点・オプションは横に3つ並べる / mode, anchor and options in three columns */
-        var panelColumnsGroup = settingsColumn.add("group");
-        panelColumnsGroup.orientation = "row";
-        panelColumnsGroup.alignChildren = ["fill", "fill"];
-
-        /* モード。［個別に］の下に、両端を固定するオプションを字下げして置く
-           Mode; the edge-pinning options sit indented under Each Object */
-        var modeRadios = addRadioPanel(panelColumnsGroup, getLabel("panel.mode"), [getLabel("radio.asGroup"), getLabel("radio.perItem")]);
-        var asGroupRadio = modeRadios[0];
-        var perItemRadio = modeRadios[1];
-        asGroupRadio.helpTip = getLabel("tooltip.asGroup");
-        perItemRadio.helpTip = getLabel("tooltip.perItem");
-        var pinOptionsGroup = perItemRadio.parent.add("group");
-        pinOptionsGroup.orientation = "column";
-        pinOptionsGroup.alignChildren = ["left", "center"];
-        pinOptionsGroup.margins = [PIN_OPTIONS_INDENT, 0, 0, 0];
-        var pinHorizontalCheckbox = pinOptionsGroup.add("checkbox", undefined, getLabel("checkbox.pinHorizontal"));
-        var pinVerticalCheckbox = pinOptionsGroup.add("checkbox", undefined, getLabel("checkbox.pinVertical"));
-        pinHorizontalCheckbox.helpTip = getLabel("tooltip.pinHorizontal");
-        pinVerticalCheckbox.helpTip = getLabel("tooltip.pinVertical");
-        asGroupRadio.onClick = onModeOptionChanged;
-        perItemRadio.onClick = onModeOptionChanged;
-        pinHorizontalCheckbox.onClick = onModeOptionChanged;
-        pinVerticalCheckbox.onClick = onModeOptionChanged;
-
-        /* 基準点 / Anchor */
-        var anchorPanel = panelColumnsGroup.add("panel", undefined, getLabel("panel.anchor"));
-        anchorPanel.alignChildren = ["center", "center"];
-        anchorPanel.margins = PANEL_MARGINS;
-        var anchorWidget = addAnchorWidget(anchorPanel, DEFAULT_ANCHOR, function () { updatePreview(); });
+        /**
+         * 選択全体の大きさを測り直し、今の幅・高さの表示と目標の欄を更新する。
+         * 最後に幅・高さの欄へ値を入れていたときは、その大きさになる倍率を求め直す
+         * @returns {string} 計測の結果マーカー
+         */
+        function refreshSelectionSize() {
+            var measureResult = measureSelection(); /* 測る前にプレビューは片付く / measuring clears the preview */
+            isPreviewShown = false;
+            showMeasuredSize(measureResult);
+            var axisPercent = lastEditedSizeInput ? getAxisPercentFromSize(lastEditedSizeInput) : null;
+            if (axisPercent !== null) {
+                setCurrentScale(buildScaleFromSize(lastEditedSizeInput, axisPercent), lastEditedSizeInput);
+            } else {
+                syncScaleFields(null);
+            }
+            return measureResult.status;
+        }
 
         /**
          * モードに合わせて、両端のオプションと基準点の有効／無効をそろえる。
-         * 両端のオプションは［個別に］のときだけ、基準点は左右・上下とも固定したときは使わない
+         * 両端のオプションは［個別に］のときだけ、基準点は左右・上下とも固定したときは使わない。
+         * 表示前は代入した value を読み戻せないので、値は呼び出し側から渡す
+         * @param {boolean} isPerItem - ［個別に］なら true
+         * @param {boolean} isFullyPinned - ［左右の両端］［上下の両端］がともに ON なら true
          * @returns {void}
          */
-        function syncModeControls() {
-            pinOptionsGroup.enabled = perItemRadio.value;
-            var isFullyPinned = perItemRadio.value && pinHorizontalCheckbox.value && pinVerticalCheckbox.value;
-            setAnchorWidgetEnabled(anchorWidget, !isFullyPinned);
+        function syncModeControls(isPerItem, isFullyPinned) {
+            modeControls.pinOptionsGroup.enabled = isPerItem;
+            setAnchorWidgetEnabled(anchorWidget, !(isPerItem && isFullyPinned));
         }
 
         /**
@@ -2597,28 +2772,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function onModeOptionChanged() {
-            syncModeControls();
+            syncModeControls(perItemRadio.value, pinHorizontalCheckbox.value && pinVerticalCheckbox.value);
             updatePreview();
         }
-        anchorWidget.helpTip = getLabel("tooltip.anchor");
-
-        /* オプション / Options */
-        var optionsPanel = panelColumnsGroup.add("panel", undefined, getLabel("panel.options"));
-        optionsPanel.orientation = "column";
-        optionsPanel.alignChildren = ["left", "center"];
-        optionsPanel.margins = PANEL_MARGINS;
-        var scaleCornersCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.scaleCorners"));
-        var scaleStrokeCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.strokeWidth"));
-        var scalePatternCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.pattern"));
-        var scaleGradientCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.gradient"));
-        scaleCornersCheckbox.helpTip = getLabel("tooltip.scaleCorners");
-        scaleStrokeCheckbox.helpTip = getLabel("tooltip.strokeWidth");
-        scalePatternCheckbox.helpTip = getLabel("tooltip.pattern");
-        scaleGradientCheckbox.helpTip = getLabel("tooltip.gradient");
-        scaleCornersCheckbox.onClick = updatePreview;
-        scaleStrokeCheckbox.onClick = updatePreview;
-        scalePatternCheckbox.onClick = updatePreview;
-        scaleGradientCheckbox.onClick = updatePreview;
 
         /**
          * 各コントロールを既定の値にする
@@ -2635,12 +2791,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinHorizontalCheckbox.value = false;
             pinVerticalCheckbox.value = false;
             setAnchorWidgetValue(anchorWidget, DEFAULT_ANCHOR);
-            syncModeControls();
-            scaleCornersCheckbox.value = true;
-            scaleStrokeCheckbox.value = true;
-            scalePatternCheckbox.value = true;
-            scaleGradientCheckbox.value = true;
+            syncModeControls(true, false);
+            optionCheckboxes.scaleCornersCheckbox.value = true;
+            optionCheckboxes.scaleStrokeCheckbox.value = true;
+            optionCheckboxes.scalePatternCheckbox.value = true;
+            optionCheckboxes.scaleGradientCheckbox.value = true;
             previewCheckbox.value = true;
+            syncApplyButton(true);
+            relativeStepCheckbox.value = false;
         }
 
         /**
@@ -2655,11 +2813,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pinHorizontal: perItemRadio.value && pinHorizontalCheckbox.value,
                 pinVertical: perItemRadio.value && pinVerticalCheckbox.value,
                 anchorIndex: getAnchorWidgetIndex(anchorWidget),
-                scaleCorners: scaleCornersCheckbox.value,
-                scaleStrokes: scaleStrokeCheckbox.value,
-                scalePatterns: scalePatternCheckbox.value,
-                scaleGradients: scaleGradientCheckbox.value
+                scaleCorners: optionCheckboxes.scaleCornersCheckbox.value,
+                scaleStrokes: optionCheckboxes.scaleStrokeCheckbox.value,
+                scalePatterns: optionCheckboxes.scalePatternCheckbox.value,
+                scaleGradients: optionCheckboxes.scaleGradientCheckbox.value
             };
+        }
+
+        /**
+         * 委譲中でなければ処理を実行する（委譲の途中で別の操作が割り込まないようにする）
+         * @param {Function} delegatedTask - 実行する処理
+         * @returns {void}
+         */
+        function runWhenIdle(delegatedTask) {
+            if (isBusy) return;
+            isBusy = true;
+            try {
+                delegatedTask();
+            } finally {
+                isBusy = false;
+            }
         }
 
         /**
@@ -2680,80 +2853,93 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
-         * 値やボタンの操作に合わせてプレビューを更新する（委譲中は何もしない）
+         * 値やボタンの操作に合わせてプレビューを更新する
          * @returns {void}
          */
         function updatePreview() {
-            if (isBusy) return;
-            isBusy = true;
-            try {
-                renderPreview();
-            } finally {
-                isBusy = false;
-            }
+            runWhenIdle(renderPreview);
         }
 
         /**
          * 選択を測り直してから、今の設定で拡大・縮小する
-         * @returns {void}
+         * @returns {boolean} 拡大・縮小した（100% で何もしなかったときも含む）なら true、選択が無い・失敗したなら false
          */
         function applyCurrentScale() {
-            if (isBusy) return;
-            isBusy = true;
-            try {
-                var measureStatus = refreshSelectionSize();
-                if (measureStatus !== "OK") {
-                    alertForResult(measureStatus);
-                    return;
-                }
-                if (isOriginalScale(currentScale)) return;
-                var applyResult = applyScaleToSelection(collectScaleSettings());
-                hasPendingScale = false;
-                alertForResult(applyResult);
-                refreshSelectionSize();
-            } finally {
-                isBusy = false;
+            var measureStatus = refreshSelectionSize();
+            if (measureStatus !== "OK") {
+                alertForResult(measureStatus);
+                return false;
             }
+            if (isOriginalScale(currentScale)) return true;
+            var applyResult = applyScaleToSelection(collectScaleSettings());
+            hasPendingScale = false;
+            alertForResult(applyResult);
+            refreshSelectionSize();
+            return applyResult.indexOf("OK") === 0;
         }
 
-        scaleInput.onChanging = onScaleTyped;
+        /**
+         * ［適用］／［確定］を押したとき。［確定］（［プレビュー］が ON）なら、拡大・縮小できたらそのまま閉じる
+         * @returns {void}
+         */
+        function onApplyClick() {
+            var isCommit = previewCheckbox.value;
+            var isApplied = false;
+            runWhenIdle(function () { isApplied = applyCurrentScale(); });
+            if (isCommit && isApplied) closePalette();
+        }
 
-        var buttonRow = addButtonRow(scalePalette);
-        var btnReset = buttonRow.leftGroup.add("button", undefined, getLabel("button.reset"));
-        btnReset.helpTip = getLabel("tooltip.reset");
-        var previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
-        previewCheckbox.helpTip = getLabel("tooltip.preview");
-        previewCheckbox.onClick = updatePreview;
-        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel("button.close"));
-        var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel("button.apply"));
-        btnApply.helpTip = getLabel("tooltip.apply");
-        btnReset.onClick = function () {
-            setDefaultValues();
-            updatePreview();
-        };
-        btnApply.onClick = applyCurrentScale;
-        btnClose.onClick = function () {
+        /**
+         * ［プレビュー］に合わせて、［適用］を［確定］に切り替える。
+         * 表示前は代入した value を読み戻せないので、値は呼び出し側から渡す
+         * @param {boolean} isPreviewOn - ［プレビュー］が ON なら true
+         * @returns {void}
+         */
+        function syncApplyButton(isPreviewOn) {
+            paletteButtons.btnApply.text = getLabel(isPreviewOn ? "button.commit" : "button.apply");
+            paletteButtons.btnApply.helpTip = getLabel(isPreviewOn ? "tooltip.commit" : "tooltip.apply");
+        }
+
+        /**
+         * プレビューを片付けてからパレットを閉じる
+         * @returns {void}
+         */
+        function closePalette() {
             if (isPreviewShown) clearScalePreview(false);
             isPreviewShown = false;
             scalePalette.close();
+        }
+
+        asGroupRadio.onClick = onModeOptionChanged;
+        perItemRadio.onClick = onModeOptionChanged;
+        pinHorizontalCheckbox.onClick = onModeOptionChanged;
+        pinVerticalCheckbox.onClick = onModeOptionChanged;
+        for (var optionKey in optionCheckboxes) {
+            if (optionCheckboxes.hasOwnProperty(optionKey)) optionCheckboxes[optionKey].onClick = updatePreview;
+        }
+        previewCheckbox.onClick = function () {
+            syncApplyButton(previewCheckbox.value);
+            updatePreview();
         };
+        paletteButtons.btnReset.onClick = function () {
+            setDefaultValues();
+            updatePreview();
+        };
+        paletteButtons.btnApply.onClick = onApplyClick;
+        paletteButtons.btnClose.onClick = closePalette;
         /* パレットは Esc で閉じないので、［閉じる］と同じ処理を割り当てる（入力中も効かせる）
            Palettes do not close on Esc by themselves; map it to Close, also while typing */
         addKeyShortcuts(scalePalette, {
-            "Escape": { target: function () { btnClose.onClick(); }, inFields: true }
+            "Escape": { target: closePalette, inFields: true }
         });
 
         /* パレットに戻ったときに選択を測り直し、プレビューを作り直す（Illustrator には常駐タイマーが無い）
            Re-measure the selection and rebuild the preview when the palette is activated (Illustrator has no idle timer) */
         scalePalette.onActivate = function () {
-            if (isBusy) return;
-            isBusy = true;
-            try {
+            runWhenIdle(function () {
                 refreshSelectionSize();
                 renderPreview();
-            } finally {
-                isBusy = false;
-            }
+            });
         };
         /* 閉じるときは DOM に触れない（触ると落ちる）。プレビューが残っていれば、待たずに片付けを頼む
            Do not touch the DOM while closing (it crashes); ask the main engine to clear a leftover preview without waiting */

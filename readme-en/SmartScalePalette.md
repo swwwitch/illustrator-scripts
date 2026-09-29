@@ -25,7 +25,7 @@
   - The current size is measured again when you return to the palette and right before Apply
   - When a width or height was entered last, the scale is recomputed from the new measurement to reach that size
   - With the link toggle on the right the aspect ratio is kept; when off, width and height scale separately (the scale field stays empty while they differ)
-- Buttons in the right column: 50%, 100% and 200% set the value; +10%, -10%, +1% and -1% add to the current scale
+- Buttons in the right column: 50%, 100% and 200% set the value; +10%, -10%, +1% and -1% add to the current scale. With Relative off they add to or subtract from the original size (-10% twice: 100→90→80); with it on they multiply the current scale (100→90→81)
 
 #### Mode, Anchor and Options
 
@@ -36,10 +36,10 @@
 
 #### Buttons
 
+- Close: closes the palette (Esc)
 - Reset: returns the scale to 100% and every setting to its default
 - Preview: shows the result as you change values or click buttons (nothing is committed until Apply)
-- Close: closes the palette
-- Apply: scales the selected objects
+- Apply: scales the selected objects (reads Commit while Preview is on, and commits the previewed result and closes the palette)
 
 ### Process Flow
 
@@ -55,7 +55,7 @@
 
 - v1.0 (20250831) : Initial version
 - v1.1.0 (20260929) : Added to the repository. Fixed stroke widths getting thinner even when enlarging. "As a group" no longer groups temporarily, so stacking order and hierarchy stay intact. Added stepper buttons to the number field. "Stroke Width" renamed "Strokes & Effects" and now scales effects too. Added "Corners". Added scale buttons (50%, 100%, 200%, ±10%, ±1%) in a right column. Buttons moved into one row at the bottom. Added a Size panel holding the scale plus width and height fields with a link toggle. Removed "Use preview bounds"; the preference is followed instead. The Target, Reference Point and Options panels sit side by side in three columns. The target choices were renamed Each Object / As a Whole, the anchor panel was renamed Reference Point, and the scale field shows %. Added tooltips. The anchor now offers all nine reference points instead of top left or center. Turned into a persistent palette and renamed from SmartScale.jsx to SmartScalePalette.jsx (the preview was dropped; Apply runs the scaling). The palette reopens where it was last closed. Title changed to "Smart Scale"
-- v1.2.0 (20260929) : Added Preview (shows the result as you change values or click buttons). Renamed the Target panel to Mode and added Left & Right Edges and Top & Bottom Edges as Each Object options (scale each object while the edges of the whole selection stay put). Esc now closes the palette. Fixed an error when enabling or disabling the width and height fields
+- v1.2.0 (20260929) : Added Preview (shows the result as you change values or click buttons). Renamed the Target panel to Mode and added Left & Right Edges and Top & Bottom Edges as Each Object options (scale each object while the edges of the whole selection stay put). Added Relative, which makes the ± buttons multiply the current scale. Esc now closes the palette. Fixed an error when enabling or disabling the width and height fields
 
 ### Script info
 
