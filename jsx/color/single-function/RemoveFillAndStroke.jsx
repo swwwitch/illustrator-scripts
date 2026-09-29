@@ -42,9 +42,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
     // ローカライズ / Localization
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -121,9 +119,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         return labelString;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {

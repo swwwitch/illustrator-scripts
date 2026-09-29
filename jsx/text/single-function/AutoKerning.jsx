@@ -51,9 +51,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -130,9 +128,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         return labelString;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -243,9 +239,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
             setKerningAttributes(textRanges[i], kerningMethod, useProportionalMetrics);
         }
     }
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
     var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
@@ -378,17 +372,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         return null;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // UI構築 / Build UI
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ボタン行（再利用パーツ） / Button row (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
@@ -431,9 +421,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * ダイアログを組み立てて参照を返す（イベントは未接続）

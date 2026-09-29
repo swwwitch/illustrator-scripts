@@ -105,9 +105,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
     // 設定の保存 / Stored settings
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 設定の保存（再利用パーツ） / Settings store (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
     var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
@@ -610,9 +608,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return defaultValue;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 再起動しても残す（Folder.userData/illustrator-scripts/AiFileFinder.json）。一覧はどれも配列で保存する。
        null は「未設定」（初期値を使う）。全部消した一覧は空の配列として残る
@@ -919,9 +915,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return spacer;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ボタン行（再利用パーツ） / Button row (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
@@ -964,9 +958,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * ボタンに並べた文字の幅を概算する
@@ -1163,9 +1155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return clearButton;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
     var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
@@ -1298,17 +1288,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return null;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ラベル定義 / Labels
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -1385,9 +1371,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         return labelString;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     var LABELS = {
         dialog: {

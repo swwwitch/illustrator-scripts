@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -54,6 +54,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     var TOLERANCE_AUTO_MARGIN_RATIO  = 1.1; /* 自動計算値に掛ける倍率 / multiplier applied to the auto value */
     var TOLERANCE_AUTO_MARGIN_POINTS = 2;   /* 最小差に加えるマージン（pt） / margin added to the smallest gap (pt) */
     var TOLERANCE_FALLBACK_POINTS    = 5;   /* 上辺に差がないときの既定値（pt） / fallback when all top edges match (pt) */
+    var TOLERANCE_MAX_HEIGHT_RATIO   = 0.5; /* 初期値の上限（最も低いアートボードの高さに対する比） / cap relative to the shortest artboard height */
 
     /* 再配置ダイアログの初期値と下限 / Initial values and minimums for the rearrange settings */
     var DEFAULT_COLUMN_COUNT = 4;   /* 列数 / column count */
@@ -64,6 +65,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     /* byName 再配置で例外領域（未指定／重複）の境界に適用するギャップ倍率
      * Gap multiplier applied at the boundary into the unspecified/duplicate exception area in byName mode. */
     var EXCEPTION_BOUNDARY_GAP_MULTIPLIER = 3;
+
+    /* カンバスの一辺（pt）。再配置後の位置をカンバス内に収める判定に使う / Canvas side length (pt), used to keep the layout on the canvas */
+    var CANVAS_SIZE_POINTS = 16383;
 
     /* 複製対象のアートボードプロパティ / Artboard properties to copy when duplicating */
     var ARTBOARD_COPYABLE_PROPS = ["name", "rulerOrigin", "rulerPAR", "showCenter", "showCrossHairs", "showSafeAreas"];
@@ -154,9 +158,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         columnsRowGroup.spacing = COLUMN_SPACING;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
@@ -173,13 +175,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         }
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -563,13 +561,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // リンクアイコン（再利用パーツ） / Link toggle (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // リンクアイコンの寸法 / Link toggle metrics
@@ -958,13 +952,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         return rotated;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
     var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
@@ -1097,17 +1087,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         return null;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -1184,9 +1170,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         return labelString;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -1314,6 +1298,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
+
     /**
      * @typedef {Object} ArtboardEntry
      * @property {string} name - アートボード名
@@ -1344,14 +1329,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             return;
         }
 
-        var previewContext = buildPreviewContext(doc);
-        var dialogUI = buildDialogUI(previewContext.defaultTolerance, previewContext.sliderMax);
+        /* 座標はドキュメント基準で読み書きする。アートボード基準だと原点が作業中のアートボードに付いて動き、
+         * 再配置の前後で座標が食い違う（カンバスの外への代入で 'CoOA' エラー）。設定はアプリ全体に残るので最後に戻す
+         * Work in document coordinates: with artboard coordinates the origin follows the active artboard, so
+         * rects read before and after the rearrange disagree. The setting is app-wide, so restore it at the end */
+        var savedCoordinateSystem = app.coordinateSystem;
+        app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+        try {
+            var previewContext = buildPreviewContext(doc);
+            var dialogUI = buildDialogUI(previewContext.defaultTolerance, previewContext.sliderMax);
 
-        bindEvents(doc, previewContext, dialogUI);
+            bindEvents(doc, previewContext, dialogUI);
 
-        dialogUI.reorderDialog.center();
-        prepareDialogWindow(dialogUI.reorderDialog, SCRIPT_NAME);
-        dialogUI.reorderDialog.show();
+            dialogUI.reorderDialog.center();
+            prepareDialogWindow(dialogUI.reorderDialog, SCRIPT_NAME);
+            dialogUI.reorderDialog.show();
+        } finally {
+            app.coordinateSystem = savedCoordinateSystem;
+        }
     }
 
     /**
@@ -1371,17 +1366,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
         /* スライダー最大値をアートボードの最大高さに設定 / Use the tallest artboard as the slider maximum */
         var maxHeight = 0;
+        var minHeight = Infinity;
         for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
             var artboardRect = artboardEntries[entryIndex].artboardRect;
             var artboardHeight = Math.abs(artboardRect[1] - artboardRect[3]);
             if (artboardHeight > maxHeight) maxHeight = artboardHeight;
+            if (artboardHeight < minHeight) minHeight = artboardHeight;
         }
         var sliderMax = Math.round(maxHeight);
 
         /* スライダー初期値を自動計算値にマージンを掛けて設定 / Seed the slider with the auto value plus a margin */
         var autoTolerance = calculateAutoTolerance(artboardEntries);
         var defaultTolerance = Math.round(autoTolerance * TOLERANCE_AUTO_MARGIN_RATIO);
-        defaultTolerance = Math.min(defaultTolerance, sliderMax);
+        /* 上辺がそろった並びでは最小の差が行の間隔そのものになり、行がまとまってしまう。
+         * 重ならない行の間隔は上の行の高さ以上なので、最も低いアートボードの高さの半分で止める
+         * With aligned rows the smallest gap is the row pitch itself; rows that do not overlap are at least
+         * one artboard height apart, so cap at half the shortest height to keep them separate */
+        defaultTolerance = Math.min(defaultTolerance, Math.floor(minHeight * TOLERANCE_MAX_HEIGHT_RATIO), sliderMax);
 
         return {
             artboardEntries: artboardEntries,
@@ -1489,12 +1490,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         dialogUI.naming.source.fromPosition.onClick = syncToleranceEnabled;
         dialogUI.naming.source.fromExisting.onClick = syncToleranceEnabled;
 
+        /* 再配置の設定が変わったら、再配置後の並びでプレビューを出し直す（既存のハンドラーのあとに呼ぶ）
+         * Refresh the preview when the rearrange settings change, after the existing handlers */
+        var rearrangeUI = dialogUI.rearrange;
+        appendHandler(rearrangeUI.modeChecks.byColumns, "onClick", syncSortMode);
+        appendHandler(rearrangeUI.modeChecks.byName, "onClick", syncSortMode);
+        appendHandler(rearrangeUI.columnsInput, "onChange", syncSortMode);
+        appendHandler(rearrangeUI.duplicateRadios.append, "onClick", syncSortMode);
+        appendHandler(rearrangeUI.duplicateRadios.groupLast, "onClick", syncSortMode);
+
         dialogUI.buttons.btnOK.onClick = function () {
             executeReorder(doc, dialogUI);
         };
 
         dialogUI.buttons.btnCancel.onClick = function () {
             dialogUI.reorderDialog.close(-1);
+        };
+    }
+
+    /**
+     * コントロールの既存のハンドラーのあとに、別の処理を足す
+     * @param {Object} control - 対象のコントロール
+     * @param {string} handlerName - "onClick" / "onChange" など
+     * @param {Function} extraHandler - 足す処理
+     * @returns {void}
+     */
+    function appendHandler(control, handlerName, extraHandler) {
+        var previousHandler = control[handlerName];
+        control[handlerName] = function () {
+            if (previousHandler) previousHandler.apply(this, arguments);
+            extraHandler();
         };
     }
 
@@ -1527,12 +1552,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             return;
         }
 
-        /* 位置順モード: 行ごとにまとめて表示 / Position mode: show one row per line */
-        var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
-        var sortedEntries = previewContext.artboardEntries.slice();
-        sortArtboardsTopLeftWithTolerance(sortedEntries, decimalPlaces, tolerance);
-
-        var rowGroups = groupSortedIntoRows(sortedEntries);
+        /* 位置順モード: 行ごとにまとめて表示。再配置がオンなら再配置後の並びを出す
+         * Position mode: show one row per line, as it will be after the rearrange when that is on */
+        var rowGroups = buildRearrangedPreviewRows(previewContext, dialogUI);
+        if (!rowGroups) {
+            var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
+            var sortedEntries = previewContext.artboardEntries.slice();
+            sortArtboardsTopLeftWithTolerance(sortedEntries, decimalPlaces, tolerance);
+            rowGroups = groupSortedIntoRows(sortedEntries);
+        }
         for (var rowIndex = 0; rowIndex < rowGroups.length; rowIndex++) {
             var rowNames = [];
             for (var columnIndex = 0; columnIndex < rowGroups[rowIndex].length; columnIndex++) {
@@ -1540,6 +1568,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             }
             reorderList.add("item", rowNames.join(" | "));
         }
+    }
+
+    /**
+     * 再配置後のカンバス上の行を、ドキュメントに触れずに組み立てる
+     * @param {PreviewContext} previewContext - プレビュー用のコンテキスト
+     * @param {Object} dialogUI - buildDialogUI() が返すUI参照
+     * @returns {Array<ArtboardEntry[]>|null} 行ごとにまとめた配列。再配置しない・名前が解析できないときは null
+     */
+    function buildRearrangedPreviewRows(previewContext, dialogUI) {
+        var modeChecks = dialogUI.rearrange.modeChecks;
+        var artboardEntries = previewContext.artboardEntries;
+        var rowGroups = [];
+
+        /* 列数指定: パネル順に列数ずつ折り返す / By columns: wrap the panel order at the column count */
+        if (modeChecks.byColumns.value) {
+            var columns = parseColumnCount(dialogUI.rearrange.columnsInput.text);
+            for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
+                if (entryIndex % columns === 0) rowGroups.push([]);
+                rowGroups[rowGroups.length - 1].push(artboardEntries[entryIndex]);
+            }
+            return rowGroups;
+        }
+        if (!modeChecks.byName.value) return null;
+
+        /* アートボード名: 実行時と同じ割り当てで行と列を決める / By name: same slot assignment as the real run */
+        var placementContext = parseArtboardNamePlacements(artboardEntries);
+        if (!placementContext.hasMatchedArtboard) return null;
+        var exceptionMode = dialogUI.rearrange.duplicateRadios.groupLast.value ? 'lastRow' : 'rowEnd';
+        assignArtboardPlacementSlots(placementContext, exceptionMode);
+
+        var placementsByRow = {};
+        var placementItems = placementContext.placementItems;
+        for (var itemIndex = 0; itemIndex < placementItems.length; itemIndex++) {
+            var rowKey = placementItems[itemIndex].assignedRow;
+            if (!placementsByRow[rowKey]) placementsByRow[rowKey] = [];
+            placementsByRow[rowKey].push(placementItems[itemIndex]);
+        }
+        var rowNumbers = collectSortedNumericKeys(placementsByRow);
+        for (var rowIndex = 0; rowIndex < rowNumbers.length; rowIndex++) {
+            var rowPlacements = placementsByRow[rowNumbers[rowIndex]];
+            rowPlacements.sort(function (firstItem, secondItem) {
+                return firstItem.assignedColumn - secondItem.assignedColumn;
+            });
+            var rowEntries = [];
+            for (var columnIndex = 0; columnIndex < rowPlacements.length; columnIndex++) {
+                rowEntries.push(rowPlacements[columnIndex].artboard);
+            }
+            rowGroups.push(rowEntries);
+        }
+        return rowGroups;
     }
 
     /**
@@ -1556,8 +1634,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var rearrangeResult = applyCanvasRearrange(doc, dialogUI);
         if (!rearrangeResult.ok) return;
 
-        applyPanelReorder(doc, dialogUI, tolerance);
-        applyArtboardRenaming(doc, dialogUI, tolerance);
+        /* 再配置は済んでいるので、ここで失敗してもダイアログは閉じる（開いたままだと再実行で二重に動かしてしまう）
+         * The rearrange is already applied, so close even on failure; a second OK would move everything again */
+        try {
+            applyPanelReorder(doc, dialogUI, tolerance);
+            applyArtboardRenaming(doc, dialogUI, tolerance);
+        } catch (reorderError) {
+            alert(getLabel("alert.errorPrefix") + reorderError.message);
+        }
 
         dialogUI.reorderDialog.close(1);
 
@@ -1601,14 +1685,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     }
 
     /**
+     * 列数の文字列を数値にし、下限でクランプする
+     * @param {string} columnsText - 列数の入力値
+     * @returns {number} 1 以上の列数
+     */
+    function parseColumnCount(columnsText) {
+        var columns = parseInt(columnsText, 10);
+        if (isNaN(columns)) columns = DEFAULT_COLUMN_COUNT;
+        if (columns < MIN_COLUMN_COUNT) columns = MIN_COLUMN_COUNT;
+        return columns;
+    }
+
+    /**
      * 列数入力を読み取り、下限でクランプする
      * @param {EditText} columnsInput - 列数の入力欄
      * @returns {number} 1 以上の列数
      */
     function readColumnCount(columnsInput) {
-        var columns = parseInt(columnsInput.text, 10);
-        if (isNaN(columns)) columns = DEFAULT_COLUMN_COUNT;
-        if (columns < MIN_COLUMN_COUNT) columns = MIN_COLUMN_COUNT;
+        var columns = parseColumnCount(columnsInput.text);
         columnsInput.text = columns;
         return columns;
     }
@@ -1863,7 +1957,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function bindGapLinkControls(parentRow, columnGapInput, rowGapInput, rowGapControlRow) {
         var gapLinkToggle = addLinkToggle(parentRow, true, function () {
-            if (gapLinkToggle.value) rowGapInput.text = columnGapInput.text;
+            if (gapLinkToggle.value) copyGapText(columnGapInput, rowGapInput);
             syncRowGapEnabled();
         });
         gapLinkToggle.helpTip = getLabel("tooltip.gapLink");
@@ -1877,11 +1971,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             redrawSteppersIn(rowGapControlRow);
         }
 
+        /**
+         * 入力欄の値をもう一方へ写す（直前の正しい値としても控える）
+         * @param {EditText} sourceInput - 写す元
+         * @param {EditText} targetInput - 写す先
+         * @returns {void}
+         */
+        function copyGapText(sourceInput, targetInput) {
+            targetInput.text = sourceInput.text;
+            targetInput.lastValidText = sourceInput.text;
+        }
+
         columnGapInput.onChange = function () {
-            if (gapLinkToggle.value) rowGapInput.text = columnGapInput.text;
+            normalizeLabeledInput(columnGapInput);
+            if (gapLinkToggle.value) copyGapText(columnGapInput, rowGapInput);
         };
         rowGapInput.onChange = function () {
-            if (gapLinkToggle.value) columnGapInput.text = rowGapInput.text;
+            normalizeLabeledInput(rowGapInput);
+            if (gapLinkToggle.value) copyGapText(rowGapInput, columnGapInput);
         };
 
         syncRowGapEnabled();
@@ -2057,7 +2164,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         fieldInput = stepperInputGroup.add("edittext", undefined, defaultValue);
         fieldInput.characters = FIELD_INPUT_CHARS;
         bindSteppedArrowKeys(fieldInput, stepperGroup);
+
+        /* 直接入力も整数化・下限でそろえる（onChange を差し替える側も normalizeLabeledInput() を呼ぶ）
+         * Normalize typed values too; handlers that replace onChange call normalizeLabeledInput() themselves */
+        fieldInput.stepOptions = stepOptions;
+        fieldInput.lastValidText = fieldInput.text;
+        fieldInput.onChange = function () { normalizeLabeledInput(fieldInput); };
         return { row: labeledRow, input: fieldInput };
+    }
+
+    /**
+     * 入力欄の値を整数化・下限でそろえる。数値でなければ直前の値に戻す
+     * @param {EditText} fieldInput - addLabeledInput() で作った入力欄
+     * @returns {void}
+     */
+    function normalizeLabeledInput(fieldInput) {
+        var value = parseFloat(fieldInput.text);
+        if (isNaN(value)) {
+            fieldInput.text = fieldInput.lastValidText;
+            return;
+        }
+        writeSteppedValue(fieldInput, value, fieldInput.stepOptions);
     }
 
     // =========================================
@@ -2202,13 +2329,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function sortArtboardsByName(artboardEntries) {
-        artboardEntries.sort(function (firstEntry, secondEntry) {
-            var firstName = padNumbersForNaturalSort((firstEntry.name || "").toLowerCase());
-            var secondName = padNumbersForNaturalSort((secondEntry.name || "").toLowerCase());
-            if (firstName < secondName) return -1;
-            if (firstName > secondName) return 1;
-            return 0;
-        });
+        /* 比較関数つき sort() は遅いので、「整えた名前＋区切り＋元の位置」の文字列を引数なしの sort() で並べる。
+         * 区切りの \u0001 は名前に使う文字より小さいので、前方一致の短い名前が先に来る。同名は元の順を保つ
+         * sort() with a comparator is slow, so sort plain "key + \u0001 + index" strings instead;
+         * \u0001 sorts before any name character, and equal names keep their original order */
+        var indexDigits = 6;
+        var sortKeys = [];
+        for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
+            var naturalKey = padNumbersForNaturalSort((artboardEntries[entryIndex].name || "").toLowerCase());
+            sortKeys.push(naturalKey + "\u0001" + padNumber(entryIndex, indexDigits));
+        }
+        sortKeys.sort();
+
+        var originalEntries = artboardEntries.slice();
+        for (var sortedIndex = 0; sortedIndex < sortKeys.length; sortedIndex++) {
+            artboardEntries[sortedIndex] = originalEntries[parseInt(sortKeys[sortedIndex].slice(-indexDigits), 10)];
+        }
     }
 
     /**
@@ -2253,38 +2389,133 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function rearrangeArtboardsWithGaps(doc, columns, columnGapPoints, rowGapPoints) {
+        /* rearrangeArtboards() はカンバスの左上から並べるので、元の並びの中心を控えて最後に戻す
+         * rearrangeArtboards() lays out from the canvas top-left, so remember the original center and move back to it */
+        var originalRects = [];
+        for (var originalIndex = 0; originalIndex < doc.artboards.length; originalIndex++) {
+            originalRects.push(doc.artboards[originalIndex].artboardRect);
+        }
+        var originalCenter = getRectsBoundsCenter(originalRects);
+
         doc.rearrangeArtboards(DocumentArtboardLayout.GridByRow, columns, columnGapPoints, true);
-
-        var artboardCount = doc.artboards.length;
-        var rowCount = Math.ceil(artboardCount / columns);
-        if (rowCount <= 1) return;
-
-        var extraRowGap = rowGapPoints - columnGapPoints;
-        if (extraRowGap === 0) return;
 
         /* 各アートボードの追加シフト量を placements として組み立てる
          * Build placements: each artboard gets deltaY = -row * extraRowGap (Y up). */
+        var extraRowGap = rowGapPoints - columnGapPoints;
         var placements = [];
-        for (var artboardIndex = 0; artboardIndex < artboardCount; artboardIndex++) {
+        for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var rect = doc.artboards[artboardIndex].artboardRect;
             var rowShift = Math.floor(artboardIndex / columns) * extraRowGap;
             placements.push({
                 artboard: doc.artboards[artboardIndex],
                 oldRect: [rect[0], rect[1], rect[2], rect[3]],
+                newRect: [rect[0], rect[1] - rowShift, rect[2], rect[3] - rowShift],
                 deltaX: 0,
                 deltaY: -rowShift
             });
         }
+        /* rearrangeArtboards() はカンバスの左上端に並べるので、その位置からカンバスの範囲を割り出す。
+         * 元の並びがカンバスの端にあると、中心に合わせたときにはみ出して 'CoOA' エラーになるため、範囲内に収める
+         * rearrangeArtboards() puts the layout at the canvas top-left, which tells us the canvas extent; clamp to it,
+         * since centering on artboards that sit at the canvas edge would push the layout off the canvas ('CoOA') */
+        var nativeRects = [];
+        for (var nativeIndex = 0; nativeIndex < placements.length; nativeIndex++) {
+            nativeRects.push(placements[nativeIndex].oldRect);
+        }
+        var nativeBounds = getRectsBounds(nativeRects);
+        var canvasBounds = [nativeBounds[0], nativeBounds[1], nativeBounds[0] + CANVAS_SIZE_POINTS, nativeBounds[1] - CANVAS_SIZE_POINTS];
+        centerPlacementsOn(placements, originalCenter, canvasBounds);
 
-        /* アートボード上のアイテムを共通 helper で移動 / Translate items via shared helper */
+        /* アートボードを先に動かし、成功してからアイテムを移動する / Move the artboards first, then the items */
+        applyPlacementRects(placements);
         applyItemTranslations(doc, placements);
+    }
 
-        /* アートボードの rect 自体を下方向にシフト / Shift artboard rects down */
+    /**
+     * 矩形をすべて囲む範囲を返す
+     * @param {Array<number[]>} rects - [左, 上, 右, 下] の配列
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getRectsBounds(rects) {
+        var bounds = [Infinity, -Infinity, -Infinity, Infinity];
+        for (var rectIndex = 0; rectIndex < rects.length; rectIndex++) {
+            var rect = rects[rectIndex];
+            if (rect[0] < bounds[0]) bounds[0] = rect[0];
+            if (rect[1] > bounds[1]) bounds[1] = rect[1];
+            if (rect[2] > bounds[2]) bounds[2] = rect[2];
+            if (rect[3] < bounds[3]) bounds[3] = rect[3];
+        }
+        return bounds;
+    }
+
+    /**
+     * 矩形をすべて囲む範囲の中心を返す
+     * @param {Array<number[]>} rects - [左, 上, 右, 下] の配列
+     * @returns {number[]} [x, y]
+     */
+    function getRectsBoundsCenter(rects) {
+        var bounds = getRectsBounds(rects);
+        return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+    }
+
+    /**
+     * 移動量を下限・上限の範囲に収める。範囲が成り立たない（収まりきらない）ときは動かさない
+     * @param {number} shift - 移動量
+     * @param {number} minShift - 下限
+     * @param {number} maxShift - 上限
+     * @returns {number} 収めた移動量
+     */
+    function clampShift(shift, minShift, maxShift) {
+        if (minShift > maxShift) return 0;
+        return Math.min(Math.max(shift, minShift), maxShift);
+    }
+
+    /**
+     * 並べ終えた配置全体を、中心が targetCenter に来るよう平行移動する（移動量は整数に丸める）
+     * @param {Array<{newRect: number[], deltaX: number, deltaY: number}>} placements - 配置情報（newRect と移動量を書き換える）
+     * @param {number[]} targetCenter - 合わせる中心 [x, y]
+     * @param {number[]} [limitBounds] - はみ出させない範囲 [左, 上, 右, 下]（省略時は制限しない）
+     * @returns {void}
+     */
+    function centerPlacementsOn(placements, targetCenter, limitBounds) {
+        var newRects = [];
         for (var placementIndex = 0; placementIndex < placements.length; placementIndex++) {
-            var deltaY = placements[placementIndex].deltaY;
-            if (deltaY === 0) continue;
-            var oldRect = placements[placementIndex].oldRect;
-            placements[placementIndex].artboard.artboardRect = [oldRect[0], oldRect[1] + deltaY, oldRect[2], oldRect[3] + deltaY];
+            newRects.push(placements[placementIndex].newRect);
+        }
+        var layoutBounds = getRectsBounds(newRects);
+        var shiftX = Math.round(targetCenter[0] - (layoutBounds[0] + layoutBounds[2]) / 2);
+        var shiftY = Math.round(targetCenter[1] - (layoutBounds[1] + layoutBounds[3]) / 2);
+        if (limitBounds) {
+            /* Y は上が正なので、上端は上限・下端は下限になる / Y points up: the top edge caps the shift, the bottom floors it */
+            shiftX = clampShift(shiftX, Math.ceil(limitBounds[0] - layoutBounds[0]), Math.floor(limitBounds[2] - layoutBounds[2]));
+            shiftY = clampShift(shiftY, Math.ceil(limitBounds[3] - layoutBounds[3]), Math.floor(limitBounds[1] - layoutBounds[1]));
+        }
+        for (var shiftIndex = 0; shiftIndex < placements.length; shiftIndex++) {
+            var placement = placements[shiftIndex];
+            var newRect = placement.newRect;
+            placement.newRect = [newRect[0] + shiftX, newRect[1] + shiftY, newRect[2] + shiftX, newRect[3] + shiftY];
+            placement.deltaX += shiftX;
+            placement.deltaY += shiftY;
+        }
+    }
+
+    /**
+     * 各アートボードに newRect を代入する。途中で失敗したら代入済みの分を oldRect に戻して例外を投げ直す
+     * @param {Array<{artboard: Artboard, oldRect: number[], newRect: number[]}>} placements - 配置情報
+     * @returns {void}
+     */
+    function applyPlacementRects(placements) {
+        var appliedCount = 0;
+        try {
+            for (; appliedCount < placements.length; appliedCount++) {
+                placements[appliedCount].artboard.artboardRect = placements[appliedCount].newRect;
+            }
+        } catch (rectError) {
+            /* カンバスの外に出るときなど。中途半端な配置を残さない / e.g. beyond the canvas; leave no half-applied layout */
+            for (var rollbackIndex = appliedCount - 1; rollbackIndex >= 0; rollbackIndex--) {
+                placements[rollbackIndex].artboard.artboardRect = placements[rollbackIndex].oldRect;
+            }
+            throw rectError;
         }
     }
 
@@ -2325,6 +2556,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         assignArtboardPlacementSlots(placementContext, exceptionMode);
         var placementMetrics = collectPlacementMetrics(placementContext.placementItems);
         computePlacementOffsets(placementContext, placementMetrics, columnGapPoints, rowGapPoints);
+
+        /* 並べ終えた全体の中心を、元の並びの中心に合わせる / Keep the layout centered where the artboards were */
+        var originalRects = [];
+        for (var itemIndex = 0; itemIndex < placementContext.placementItems.length; itemIndex++) {
+            originalRects.push(placementContext.placementItems[itemIndex].oldRect);
+        }
+        centerPlacementsOn(placementContext.placementItems, getRectsBoundsCenter(originalRects));
+
         applyComputedArtboardPositions(doc, placementContext.placementItems);
         return true;
     }
@@ -2401,12 +2640,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {boolean} 反映できたら true
      */
     function applyRowColumnNameMatch(placementItem, artboardName) {
-        var rowColumnMatch = artboardName.match(/^(\d+)[-_x](\d+)$/i);
+        var rowColumnMatch = artboardName.match(/^(\d+)([-_x])(\d+)$/i);
         if (!rowColumnMatch) return false;
 
         placementItem.rowNumber = parseInt(rowColumnMatch[1], 10);
-        placementItem.columnNumber = parseInt(rowColumnMatch[2], 10);
+        placementItem.columnNumber = parseInt(rowColumnMatch[3], 10);
         if (placementItem.rowNumber < 1 || placementItem.columnNumber < 1) return false;
+        /* 「1920x1080」のようなサイズ名は行列として読まない / Size names such as 1920x1080 are not row-column */
+        if (isArtboardSizeName(rowColumnMatch[2], placementItem.rowNumber, placementItem.columnNumber, placementItem.width, placementItem.height)) return false;
 
         placementItem.matched = true;
         placementItem.matchType = 'rowColumn';
@@ -2422,7 +2663,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {boolean} 反映できたら true
      */
     function applyPrefixNumberNameMatch(placementItem, artboardName, prefixOrder, prefixRowOffsetByName) {
-        var prefixNumberMatch = artboardName.match(/^(.+?)[-_x](\d+)$/i);
+        /* x は英字の直後では区切りとみなさない（「index2」を接頭辞「inde」と読まない）
+         * x counts as a separator only after a non-letter, so "index2" is not read as prefix "inde" */
+        var prefixNumberMatch = artboardName.match(/^(.+?)[-_](\d+)$/) || artboardName.match(/^(.*[^a-z])x(\d+)$/i);
         if (!prefixNumberMatch || /^\d+$/.test(prefixNumberMatch[1])) return false;
 
         placementItem.prefixName = prefixNumberMatch[1].toLowerCase();
@@ -2436,6 +2679,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             prefixOrder.push(placementItem.prefixName);
         }
         return true;
+    }
+
+    /**
+     * 「数値x数値」の名前が、そのアートボードの幅×高さを表しているかを判定する（pt／px と定規の単位で比べる）
+     * @param {string} separator - 名前の区切り文字（x のときだけ判定する）
+     * @param {number} firstNumber - 区切りの前の数値
+     * @param {number} secondNumber - 区切りの後の数値
+     * @param {number} artboardWidth - アートボードの幅（pt）
+     * @param {number} artboardHeight - アートボードの高さ（pt）
+     * @returns {boolean} サイズ名なら true
+     */
+    function isArtboardSizeName(separator, firstNumber, secondNumber, artboardWidth, artboardHeight) {
+        if (separator.toLowerCase() !== "x") return false;
+        var pointsPerUnitList = [1, getUnitInfo().pointsPerUnit];
+        for (var unitIndex = 0; unitIndex < pointsPerUnitList.length; unitIndex++) {
+            var pointsPerUnit = pointsPerUnitList[unitIndex];
+            if (Math.round(artboardWidth / pointsPerUnit) === firstNumber &&
+                Math.round(artboardHeight / pointsPerUnit) === secondNumber) return true;
+        }
+        return false;
     }
 
     /**
@@ -2594,8 +2857,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             var newLeft = originX + columnOffsetByNumber[placeItem.assignedColumn];
             var newTop = originY - rowOffsetByNumber[placeItem.assignedRow];
             placeItem.oldRect = oldRect;
-            placeItem.newLeft = newLeft;
-            placeItem.newTop = newTop;
+            placeItem.newRect = [newLeft, newTop, newLeft + placeItem.width, newTop - placeItem.height];
             placeItem.deltaX = newLeft - oldRect[0];
             placeItem.deltaY = newTop - oldRect[1];
         }
@@ -2632,14 +2894,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function applyComputedArtboardPositions(doc, placementItems) {
+        /* アートボードを先に動かし、成功してからアイテムを移動する / Move the artboards first, then the items */
+        applyPlacementRects(placementItems);
         applyItemTranslations(doc, placementItems);
-
-        for (var applyIndex = 0; applyIndex < placementItems.length; applyIndex++) {
-            var applyItem = placementItems[applyIndex];
-            var newRight = applyItem.newLeft + applyItem.width;
-            var newBottom = applyItem.newTop - applyItem.height;
-            applyItem.artboard.artboardRect = [applyItem.newLeft, applyItem.newTop, newRight, newBottom];
-        }
     }
 
     // =========================================
@@ -2653,14 +2910,80 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function applyItemTranslations(doc, placements) {
-        var itemTranslations = [];
-        appendItemTranslations(doc.layers, placements, itemTranslations);
-        for (var translateIndex = 0; translateIndex < itemTranslations.length; translateIndex++) {
-            var pendingMove = itemTranslations[translateIndex];
-            if (pendingMove.deltaX === 0 && pendingMove.deltaY === 0) continue;
+        /* ロック・非表示のレイヤーとアイテムは動かせないので、一時的に解除して最後に戻す。
+         * 飛ばすとアートボードだけが動き、アートワークが置き去りになる
+         * Locked or hidden layers and items cannot be moved, so release them temporarily and restore afterwards;
+         * skipping them would leave the artwork behind while the artboard moves */
+        var releasedStates = [];
+        try {
+            releaseLayerLocks(doc.layers, releasedStates);
+            var itemTranslations = [];
+            appendItemTranslations(doc.layers, placements, itemTranslations);
+            for (var translateIndex = 0; translateIndex < itemTranslations.length; translateIndex++) {
+                var pendingMove = itemTranslations[translateIndex];
+                if (pendingMove.deltaX === 0 && pendingMove.deltaY === 0) continue;
+                releaseItemLock(pendingMove.item, releasedStates);
+                try {
+                    pendingMove.item.translate(pendingMove.deltaX, pendingMove.deltaY);
+                } catch (translateError) { /* 念のためのフォールバック / Defensive fallback */ }
+            }
+        } finally {
+            restoreReleasedStates(releasedStates);
+        }
+    }
+
+    /**
+     * レイヤーとサブレイヤーのロック・非表示を解除し、元の状態を控える
+     * @param {Layers} layerCollection - 対象のレイヤーコレクション
+     * @param {Array<{target: Object, locked: boolean, hidden: boolean}>} releasedStates - 控えの追加先
+     * @returns {void}
+     */
+    function releaseLayerLocks(layerCollection, releasedStates) {
+        for (var layerIndex = 0; layerIndex < layerCollection.length; layerIndex++) {
+            var layer = layerCollection[layerIndex];
+            /* 親を先に解除しないと、子レイヤーの状態を変えられない / Release the parent before its sublayers */
+            if (layer.locked || !layer.visible) {
+                releasedStates.push({ target: layer, locked: layer.locked, hidden: !layer.visible });
+                layer.visible = true;
+                layer.locked = false;
+            }
+            if (layer.layers.length > 0) releaseLayerLocks(layer.layers, releasedStates);
+        }
+    }
+
+    /**
+     * アイテムのロック・非表示を解除し、元の状態を控える
+     * @param {PageItem} pageItem - 対象アイテム
+     * @param {Array<{target: Object, locked: boolean, hidden: boolean}>} releasedStates - 控えの追加先
+     * @returns {void}
+     */
+    function releaseItemLock(pageItem, releasedStates) {
+        try {
+            if (!pageItem.locked && !pageItem.hidden) return;
+            releasedStates.push({ target: pageItem, locked: pageItem.locked, hidden: pageItem.hidden });
+            pageItem.hidden = false;
+            pageItem.locked = false;
+        } catch (lockError) { /* 読み書きできないアイテムはそのまま移動を試す / Try moving it as is */ }
+    }
+
+    /**
+     * 解除したロック・非表示を元に戻す（子から親の順に戻すため、控えた順の逆にたどる）
+     * @param {Array<{target: Object, locked: boolean, hidden: boolean}>} releasedStates - 控え
+     * @returns {void}
+     */
+    function restoreReleasedStates(releasedStates) {
+        for (var stateIndex = releasedStates.length - 1; stateIndex >= 0; stateIndex--) {
+            var releasedState = releasedStates[stateIndex];
+            var target = releasedState.target;
             try {
-                pendingMove.item.translate(pendingMove.deltaX, pendingMove.deltaY);
-            } catch (translateError) { /* 念のためのフォールバック / Defensive fallback */ }
+                /* ロックを先に戻すと非表示にできないので、非表示を先に戻す / Hide before locking */
+                if (target.typename === "Layer") {
+                    if (releasedState.hidden) target.visible = false;
+                } else if (releasedState.hidden) {
+                    target.hidden = true;
+                }
+                if (releasedState.locked) target.locked = true;
+            } catch (restoreError) { /* 戻せなくても処理は続ける / Keep going */ }
         }
     }
 
@@ -2678,10 +3001,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
                 var pageItem = layer.pageItems[itemIndex];
                 /* サブレイヤーやグループの中身は親側で移動するのでスキップ / Sublayer and group children move with their parent */
                 if (pageItem.parent !== layer) continue;
-                /* ロックされたアイテムはスキップ / Skip locked items */
-                try {
-                    if (pageItem.locked) continue;
-                } catch (lockedReadError) { /* プロパティが取得不能なら通常通り扱う / Treat as unlocked when unreadable */ }
                 appendTranslationForItem(pageItem, placementItems, itemTranslations);
             }
             if (layer.layers && layer.layers.length > 0) {
@@ -2801,11 +3120,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     function renameArtboardsFromExistingNames(doc, separator, padWidth) {
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var artboard = doc.artboards[artboardIndex];
-            var nameMatch = artboard.name.match(/^(\d+)[-_x](\d+)(.*)$/i);
+            var nameMatch = artboard.name.match(/^(\d+)([-_x])(\d+)(.*)$/i);
             if (!nameMatch) continue;
             var rowNumber = parseInt(nameMatch[1], 10);
-            var columnNumber = parseInt(nameMatch[2], 10);
-            var trailingText = nameMatch[3] || "";
+            var columnNumber = parseInt(nameMatch[3], 10);
+            var trailingText = nameMatch[4] || "";
+            /* 「1920x1080」のようなサイズ名は書き換えない / Leave size names such as 1920x1080 alone */
+            var artboardRect = artboard.artboardRect;
+            if (isArtboardSizeName(nameMatch[2], rowNumber, columnNumber, artboardRect[2] - artboardRect[0], artboardRect[1] - artboardRect[3])) continue;
             artboard.name = formatRowColumnName(rowNumber, columnNumber, separator, padWidth) + trailingText;
         }
     }

@@ -30,7 +30,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 (function () {
 
     // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
+    // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
     //    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
     //    workerLoadTemporaryActionSet / workerRunTemporaryAction。一覧は TEMPORARY_ACTION_WORKER_FUNCS
     //    パレット側だけで使うのは buildTemporaryActionWorkerArg / buildTemporaryActionWorkerCall
@@ -53,9 +53,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
     //    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
      * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
@@ -150,9 +148,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     /* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
     var TEMPORARY_ACTION_WORKER_END = true;
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ローカライズ / Localization

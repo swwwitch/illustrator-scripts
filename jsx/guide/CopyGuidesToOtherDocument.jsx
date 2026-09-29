@@ -52,9 +52,7 @@ var LABELS = {
     }
 };
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // ローカライズ（再利用パーツ） / Localization (reusable)
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 /**
  * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -131,9 +129,7 @@ function fillLabelPlaceholders(labelString, placeholderValues) {
     return labelString;
 }
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 (function () {
     /**

@@ -49,9 +49,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6909b836221a"; /* 紹�
  * ローカライズ / Localization
  * ============================================================ */
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // ローカライズ（再利用パーツ） / Localization (reusable)
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 /**
  * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -128,13 +126,9 @@ function fillLabelPlaceholders(labelString, placeholderValues) {
     return labelString;
 }
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
 var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
@@ -337,9 +331,7 @@ function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
     return bindingTable;
 }
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 var LABELS = {
     dialog: {
@@ -504,9 +496,7 @@ var PATHFINDER_MODES = [
     { command: 4, icon: "minusBack", labelKey: "pathfinder.minusBack", unpainted: false }
 ];
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 /**
  * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
@@ -601,9 +591,7 @@ function workerRunTemporaryAction(actionSource, setName, actionName) {
 /* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
 var TEMPORARY_ACTION_WORKER_END = true;
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 /* ============================================================
  * worker 関数（メインエンジンで実行）/ Worker functions (run in main engine)

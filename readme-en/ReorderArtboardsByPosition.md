@@ -49,3 +49,4 @@
 - v1.5.1 (20260928): Replaced the Link checkbox with a link icon
 - v1.5.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.2 (20260929): Dialog opacity changed to 98%
+- v1.5.3 (20260929): Fixed the default tolerance sometimes merging rows into one. Locked or hidden objects and layers now move along when rearranging. Typed column/row gaps are clamped to the minimum. A failed rearrange now restores the original layout. Faster by-name sorting. Rearranging now keeps the artboards centered where they were (by column count used to push them to the canvas top-left; coordinates are now handled in document space, and the layout is kept on the canvas). Names that state the artboard size, such as 1920x1080, are no longer read as row-column, and an x right after a letter (as in "index2") is no longer a separator. With rearranging on, the preview shows the order after the rearrange

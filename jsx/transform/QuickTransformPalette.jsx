@@ -87,9 +87,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     	// ローカライズ / Localization
     	// =========================================
 
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     	// ローカライズ（再利用パーツ） / Localization (reusable)
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     	/**
     	 * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -166,9 +164,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     	    return labelString;
     	}
 
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     	// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     	var LABELS = {
     		dialog: {
@@ -1082,9 +1078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		} catch (e) {}
     	}
 
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     	// UI の明暗（再利用パーツ） / UI theme (reusable)
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     	/**
     	 * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
@@ -1101,13 +1095,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     	    }
     	}
 
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     	// UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     	// 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     	// -----------------------------------------
     	// 基準点ウィジェットの寸法 / Anchor widget metrics
@@ -1448,13 +1438,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		anchorWidget.show();
     	}
 
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     	// 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     	// ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     	// -----------------------------------------
     	// ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -1838,9 +1824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     	    targetGroup.show();
     	}
 
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     	// ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     	// =========================================
     	// パネル構築 / Panel builders

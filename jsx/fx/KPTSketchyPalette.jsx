@@ -458,9 +458,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
         // ローカライズ / Localization
         // =========================================
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // ローカライズ（再利用パーツ） / Localization (reusable)
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         /**
          * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -537,9 +535,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             return labelString;
         }
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
@@ -953,9 +949,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             redrawSteppersIn(inputField.stepperGroup);
         }
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // UI の明暗（再利用パーツ） / UI theme (reusable)
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         /**
          * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
@@ -972,13 +966,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             }
         }
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         // -----------------------------------------
         // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -1362,9 +1352,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             targetGroup.show();
         }
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // =========================================
         // 入力値の読み取り / Reading the input values

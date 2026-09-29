@@ -38,9 +38,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     var DEMO_INPUT_CHARS = 6;   /* デモの入力欄の文字数 / field characters in the demo */
 
     // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
+    // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、コピー先の IIFE 内に貼る。
     //    識別子はすべて LINK_* / *LinkToggle* / *Link* の名前か、描画の下請け関数（buildArcPoints など）
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の部品も貼っておく）
     // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数) で作る。helpTip はコピー先で付ける
     //      var linkToggle = addLinkToggle(fieldsRowGroup, true, function () { syncFields(); });
     //      linkToggle.helpTip = getLabel(LABELS.tooltip.linkToggle);
@@ -49,9 +49,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 5. 2つの入力欄の右に置くときは、行 group の中に「入力欄を縦に積んだ group」とアイコンを並べ、
     //    行 group の alignChildren を ["left", "center"] にすると上下の中央に来る
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // リンクアイコン（再利用パーツ） / Link toggle (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // リンクアイコンの寸法 / Link toggle metrics
@@ -440,9 +438,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
         return rotated;
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * デモ用：UI がダークテーマかどうか（本番では UITheme の部品を貼る）

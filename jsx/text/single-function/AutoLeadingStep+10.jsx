@@ -46,9 +46,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // ローカライズ（再利用パーツ） / Localization (reusable)
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         /**
          * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
@@ -125,9 +123,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return labelString;
         }
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         var LABELS = {
             alert: {
@@ -169,9 +165,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
         }
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */
         var SELECTION_ITEMS_TOLERANCE = 0.001;
@@ -570,9 +564,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return true;
         }
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         // 選択の収集と境界（再利用パーツ）ここまで / End of the reusable selection items and bounds
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         /* 実行中スクリプトのファイル名末尾の符号付き整数をステップ数として取得（読めなければ既定値）
            Read the trailing signed integer of the running script's file name as the step (fallback to default)

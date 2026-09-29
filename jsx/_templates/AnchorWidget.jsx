@@ -30,11 +30,11 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 (function () {
 
     // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
+    // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
     //    識別子は ANCHOR_WIDGET_* / *AnchorWidget* / getAnchor* の名前。貼る前に、コピー先にある旧版の
     //    ANCHOR_WIDGET_SIZE・ANCHOR_CELL_*・ANCHOR_CONNECTIONS・ANCHOR_*_COLOR / FILL・addAnchorWidget・drawAnchorWidget・
     //    drawAnchorCell・redrawAnchorWidget・initAnchorColors（9軸の配色だけを決めているもの）・clampGridIndex を消す
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
+    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の部品も貼っておく）
     // 2. ウィジェットを作る。初期値は 0〜8（0=左上, 4=中央, 8=右下）か名前（"topLeft" / "top" / "topRight" /
     //    "left" / "center" / "right" / "bottomLeft" / "bottom" / "bottomRight"）
     //      var anchorWidget = addAnchorWidget(anchorPanel, "center", function (anchorIndex) { updatePreview(); });
@@ -54,9 +54,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    パネル・行など親の enabled を切り替えたときは、そのあとで redrawAnchorWidgetsIn(親) を呼ぶ
     //    （親の無効化は子の enabled に出ないので、描画とクリックの判定は親までたどる）
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // 基準点ウィジェットの寸法 / Anchor widget metrics
@@ -397,9 +395,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
         anchorWidget.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * デモ用：UI がダークテーマかどうか（本番では UITheme の部品を貼る）
