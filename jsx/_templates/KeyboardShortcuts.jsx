@@ -60,6 +60,12 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
     // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
     //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
+    // 9. パレット（new Window("palette")）は、ダイアログと違って Esc では閉じない。パレットには必ず Esc を割り当てる。
+    //    ［閉じる］ボタンがあればそれと同じ処理（プレビューの片付けなど）を呼び、入力中も効かせる
+    //      addKeyShortcuts(palette, {
+    //          "Escape": { target: function () { btnClose.onClick(); }, inFields: true }
+    //      });
+    //    後片付けを onClose に置くときは DOM に触れない（常駐パレットの onClose で DOM に触ると落ちる）
 
     // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
 

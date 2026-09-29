@@ -68,6 +68,7 @@ https://note.com/yukifurushima/n/n9f2078dc156f
 
 ### Update History
 
+- v1.2.11 (2026-09-29) Esc now closes the palette (also while typing)
 - v1.2.10 (2026-09-29) Code cleanup. Field labels now end with a colon, the checkbox is renamed "Show artboard list", and the fit-all tooltip reads "Fit all artboards in the window"
 - v1.2.9 (2026-09-29) Fixed a bug where the palette opened but the buttons and list no longer moved the view
 - v1.2.8 (2026-09-28) Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/ArtboardNavigatorPalette.json`; the old settings are carried over once)

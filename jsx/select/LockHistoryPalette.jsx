@@ -39,7 +39,7 @@ palette. Objects locked with command+2 are not recorded.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LockHistoryPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -998,7 +998,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
     }
 
     /**
-     * option＋L で［ロック］を実行できるようにする
+     * option＋L で［ロック］を、Esc でパレットを閉じる操作を実行できるようにする
      * @param {Window} targetPalette - 対象のパレット
      * @returns {void}
      */
@@ -1010,6 +1010,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
             if (!LOCK_SHORTCUT_KEYS.hasOwnProperty(shortcutKey)) continue;
             shortcutMap["Alt+" + shortcutKey] = { target: lockSelectionAsEntry, inFields: true };
         }
+        /* パレットは Esc で閉じないので、閉じる処理を割り当てる（一覧にフォーカスがあっても効かせる）
+           / Palettes do not close on Esc by themselves; map it to close, also while the list has focus */
+        shortcutMap["Escape"] = { target: function () { targetPalette.close(); }, inFields: true };
         addKeyShortcuts(targetPalette, shortcutMap);
     }
 
