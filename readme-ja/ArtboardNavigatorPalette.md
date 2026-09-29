@@ -111,9 +111,10 @@ https://note.com/yukifurushima/n/n9f2078dc156f
 
 ### note
 
-- [記事URL]
+- https://note.com/dtp_tranist/n/nee7de364c3dc
 
 ### 更新履歴
 
+- v1.2.9（2026-09-29）パレットは開くがボタン・一覧で移動しなくなっていた不具合を修正
 - v1.2.8（2026-09-28）設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/ArtboardNavigatorPalette.json`。旧版の設定は最初の1回だけ読み継ぐ）
 - v1.2.7（2026-09-26）ファイル名を `ArtboardNavigator.jsx` から `ArtboardNavigatorPalette.jsx` に変更。

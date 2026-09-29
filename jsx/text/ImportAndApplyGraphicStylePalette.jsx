@@ -1727,7 +1727,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textFile.encoding = "UTF-8";
         if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
         try {
-            return textFile.read().replace(/^﻿/, "");
+            return textFile.read().replace(/^\uFEFF/, "");
         } finally {
             textFile.close();
         }
@@ -1998,7 +1998,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object|null} 読み込んだ値
      */
     function settingsStoreParseLegacyText(legacyText) {
-        var trimmedText = legacyText.replace(/^﻿/, "").replace(/^\s+|\s+$/g, "");
+        var trimmedText = legacyText.replace(/^\uFEFF/, "").replace(/^\s+|\s+$/g, "");
         if (trimmedText === "") return null;
         if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
         var keyValues = {};
