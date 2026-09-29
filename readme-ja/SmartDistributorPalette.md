@@ -27,6 +27,7 @@ DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレ�
 
 ### 更新履歴
 
+- v1.1.2（2026-09-29）メインエンジンへ送るワーカーのソースを終わりの目印で切り詰めるようにした（前にコードを足すと送信本文が壊れて動かなくなるのを防ぐ）
 - v1.1.1（2026-09-28）設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/SmartDistributorPalette.json`。旧版の設定は最初の1回だけ読み継ぐ）
 - v1.1.0（2026-09-27）移動距離「カスタム」の数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.0.3（2026-09-26）ファイル名を `SmartDistributor.jsx` から `SmartDistributorPalette.jsx` に変更。

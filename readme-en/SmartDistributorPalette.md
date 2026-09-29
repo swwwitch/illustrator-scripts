@@ -27,6 +27,7 @@ Each press of the cross buttons (↑ / ← 0 → / ↓) applies one step to what
 
 ### Update History
 
+- v1.1.2 (2026-09-29) The worker source sent to the main engine is now trimmed at an end marker, so adding code before it can no longer break the script
 - v1.1.1 (2026-09-28) Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/SmartDistributorPalette.json`; the old settings are carried over once)
 - v1.1.0 (2026-09-27) Added stepper buttons to the Custom distance field. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.3 (2026-09-26) Renamed the file from `SmartDistributor.jsx` to `SmartDistributorPalette.jsx`.

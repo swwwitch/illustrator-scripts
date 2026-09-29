@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDistributorPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributorPalette.md"; /* README (English) */
@@ -1658,13 +1658,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function installWorker() {
         var bridgeTalk = createIllustratorBridgeTalk();
-        bridgeTalk.body = "$.global.smartDistributorWorker = (" + adjustSelectionWorker.toString() + ");";
+        bridgeTalk.body = "$.global.smartDistributorWorker = (" + getWorkerSource() + ");";
         bridgeTalk.onResult = function () { removePendingJob(bridgeTalk); };
         bridgeTalk.onError = function () { removePendingJob(bridgeTalk); };
         $.global.smartDistributorJobs.push(bridgeTalk);
         trimPendingJobs();
         bridgeTalk.send();
         workerInstalled = true;
+    }
+
+    /**
+     * ワーカー関数のソースを返す（toString() が関数の後ろのコメントまで取り込むので、終わりの目印で切り詰める）
+     * @returns {string} 送信する関数のソース
+     */
+    function getWorkerSource() {
+        var workerSource = adjustSelectionWorker.toString();
+        var endMarkerIndex = workerSource.indexOf("/* @@smart-distributor-worker-end@@ */");
+        if (endMarkerIndex < 0) {
+            return workerSource;
+        }
+        return workerSource.substring(0, endMarkerIndex) + "}";
     }
 
     /**
@@ -1731,6 +1744,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ※ 外側の変数を参照せず、引数とアプリ DOM だけで完結させる
     // ※ toString() で送るため JSDoc を付けず、関数内のコメントは /* */ だけにする
     //    Sent through toString(): no JSDoc, and only block comments inside
+    // ※ toString() は関数の後ろのコメントまで取り込むので、末尾の目印 @@smart-distributor-worker-end@@ で切り詰めて送る（消さないこと）
     // =========================================
 
     /* 選択の間隔・行送りを1ステップ調整する / Adjust the spacing or leading of the selection by one step
@@ -1873,6 +1887,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {
             return "error: " + e.message;
         }
+        /* @@smart-distributor-worker-end@@ */
     }
 
     // =========================================
