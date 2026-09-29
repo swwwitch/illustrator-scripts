@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択中のオブジェクトを拡大・縮小する常駐パレットです。％のほか幅・高さでも指定でき、個別に／全体で、基準点（9軸）、角・線幅と効果・パターン・グラデーションの扱いを選べます。
+選択中のオブジェクトを、％または仕上がりの幅・高さで拡大・縮小する常駐パレットです。プレビューで確かめてから確定でき、個別に拡大・縮小しながら選択全体の端を固定することもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartScalePalette.md
 
 ### Overview
 
-A persistent palette that scales the selected objects, by percentage or by target width and height. Choose each object or as a whole, the reference point (any of nine), and whether corners, strokes & effects, patterns and gradients scale.
+A persistent palette that scales the selected objects by percentage or to a finished width and height. Check the preview before committing, and scale objects individually while the edges of the whole selection stay put.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartScalePalette.md

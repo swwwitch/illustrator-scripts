@@ -27,6 +27,10 @@ Reorders and edits the lines of the selected text object from a list.
 
 - Multi-line text is required; empty or single-line text produces a warning.
 
+### Article
+
+https://note.com/dtp_tranist/n/n21bb9a835075
+
 ### Update History
 
 - v1.0

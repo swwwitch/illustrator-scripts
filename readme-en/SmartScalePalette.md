@@ -10,8 +10,10 @@
 
 ### Overview
 
-- A persistent palette that scales the selected objects. Keep it open, change the selection and Apply as often as you like.
+- A persistent palette that scales the selected objects.
 - Specify a percentage or the finished width and height.
+- With Preview on, the result shows as you go and Commit applies it and closes the palette. With Preview off, Apply scales the objects and the palette stays open, so you can change the selection and run it again.
+- With Each Object, objects scale individually while the left/right and top/bottom edges of the whole selection stay put.
 
 ### Main Features
 
@@ -45,17 +47,18 @@
 
 1. Run the script to open the palette
 2. Select objects and set the scale (or width and height), mode, reference point and options
-3. Check the preview, then Apply scales them (undo with Illustrator's Undo)
+3. Check the preview, then Commit (Apply when Preview is off) scales them (undo with Illustrator's Undo)
 
 ### Notes
 
+- The preview uses copies of the selection and hides the originals for the time being. Each preview update adds steps to Illustrator's undo history
 - After editing the script, close the open palette before running it again (otherwise the old code keeps running)
 
 ### Update History
 
 - v1.0 (20250831) : Initial version
 - v1.1.0 (20260929) : Added to the repository. Fixed stroke widths getting thinner even when enlarging. "As a group" no longer groups temporarily, so stacking order and hierarchy stay intact. Added stepper buttons to the number field. "Stroke Width" renamed "Strokes & Effects" and now scales effects too. Added "Corners". Added scale buttons (50%, 100%, 200%, ±10%, ±1%) in a right column. Buttons moved into one row at the bottom. Added a Size panel holding the scale plus width and height fields with a link toggle. Removed "Use preview bounds"; the preference is followed instead. The Target, Reference Point and Options panels sit side by side in three columns. The target choices were renamed Each Object / As a Whole, the anchor panel was renamed Reference Point, and the scale field shows %. Added tooltips. The anchor now offers all nine reference points instead of top left or center. Turned into a persistent palette and renamed from SmartScale.jsx to SmartScalePalette.jsx (the preview was dropped; Apply runs the scaling). The palette reopens where it was last closed. Title changed to "Smart Scale"
-- v1.2.0 (20260929) : Added Preview (shows the result as you change values or click buttons). Renamed the Target panel to Mode and added Left & Right Edges and Top & Bottom Edges as Each Object options (scale each object while the edges of the whole selection stay put). Added Relative, which makes the ± buttons multiply the current scale. Esc now closes the palette. Fixed an error when enabling or disabling the width and height fields
+- v1.2.0 (20260929) : Added Preview (shows the result as you change values or click buttons). Renamed the Target panel to Mode and added Left & Right Edges and Top & Bottom Edges as Each Object options (scale each object while the edges of the whole selection stay put). Added Relative, which makes the ± buttons multiply the current scale. With Preview on, Apply reads Commit and closes the palette after committing. The button row now has Close and Reset on the left, Preview and Apply on the right. Esc now closes the palette. The reference point widget is drawn darker. Fixed an error when enabling or disabling the width and height fields
 
 ### Script info
 
