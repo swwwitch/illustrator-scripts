@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n3230f35844b2
+
 ### Overview
 
 Reorders the stacking order of the selected objects according to a chosen criterion.
@@ -24,13 +27,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSort
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ZIndexSorter";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3230f35844b2"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -177,27 +181,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             title: { ja: "重ね順ソート", en: "Z-Index Sorter" }
         },
         panel: {
-            sortMethod: { ja: "ソート方法", en: "Sort Method" },
-            orderMethod: { ja: "並び順", en: "Order" }
+            sortBasis: { ja: "並べ替えの基準", en: "Sort By" },
+            sortOrder: { ja: "並び順", en: "Order" }
         },
         radio: {
-            zOrder: { ja: "現在の重ね順", en: "Current Z-Order" },
-            xAxis: { ja: "X軸", en: "X Axis" },
-            yAxis: { ja: "Y軸", en: "Y Axis" },
+            zOrder: { ja: "元の重ね順", en: "Original Stacking Order" },
+            xAxis: { ja: "X座標（左端）", en: "X Position (Left Edge)" },
+            yAxis: { ja: "Y座標（上端）", en: "Y Position (Top Edge)" },
             asc: { ja: "昇順", en: "Ascending" },
             desc: { ja: "降順", en: "Descending" },
             random: { ja: "ランダム", en: "Random" }
         },
         tooltip: {
             zOrder: {
-                ja: "いまの重ね順をそのまま基準にします。並び順だけを変えたいときに使います。",
-                en: "Uses the current stacking order as the basis. Pick this when only the direction should change."
+                ja: "ダイアログを開いたときの重ね順を基準にします。昇順で元のまま、降順で反転します。",
+                en: "Uses the stacking order at the time the dialog opened. Ascending keeps it; Descending reverses it."
             },
-            xAxis: { ja: "X座標を基準に重ね順を組み直します。", en: "Restacks the objects by their X position." },
-            yAxis: { ja: "Y座標を基準に重ね順を組み直します。", en: "Restacks the objects by their Y position." },
-            asc: { ja: "基準の値が小さいものほど背面にします。", en: "Puts objects with smaller values further back." },
-            desc: { ja: "基準の値が大きいものほど背面にします。", en: "Puts objects with larger values further back." },
-            random: { ja: "基準と関係なく、重ね順をシャッフルします。", en: "Shuffles the stacking order regardless of the basis." }
+            xAxis: { ja: "左端の位置で重ね順を組み直します。", en: "Restacks the objects by their left edge." },
+            yAxis: { ja: "上端の位置で重ね順を組み直します。", en: "Restacks the objects by their top edge." },
+            asc: {
+                ja: "X座標は左、Y座標は上にあるものほど背面にします。",
+                en: "Objects further left (X) or higher up (Y) go further back."
+            },
+            desc: {
+                ja: "X座標は右、Y座標は下にあるものほど背面にします。",
+                en: "Objects further right (X) or lower down (Y) go further back."
+            },
+            random: { ja: "基準に関係なく、重ね順をシャッフルします。", en: "Shuffles the stacking order regardless of the basis." }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -213,31 +223,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 重ね順 / Stacking order
     // =========================================
 
+    var SORT_KEY_SCALE = 1000; /* 座標を 0.001pt 単位の整数にして並べ替えキーにする / coordinates become integer keys in 0.001pt */
+    var SORT_KEY_DIGITS = 12;  /* 並べ替えキーの桁数 / digits of a sort key */
+
     /**
      * 先頭のオブジェクトの前面へ、末尾から順に移す（配列の先頭ほど背面になる）
-     * @param {PageItem[]} orderedItems - 並べたい順のオブジェクト
+     * @param {PageItem[]} backToFrontItems - 背面から前面の順に並べたオブジェクト
      * @returns {void}
      */
-    function reorderItems(orderedItems) {
-        var baseItem = orderedItems[0];
-        for (var j = orderedItems.length - 1; j >= 0; j--) {
-            if (orderedItems[j] !== baseItem) {
-                orderedItems[j].move(baseItem, ElementPlacement.PLACEBEFORE);
-            }
+    function restackItems(backToFrontItems) {
+        var baseItem = backToFrontItems[0];
+        for (var j = backToFrontItems.length - 1; j >= 1; j--) {
+            backToFrontItems[j].move(baseItem, ElementPlacement.PLACEBEFORE);
         }
     }
 
     /**
-     * 選択を JavaScript の配列に写す
-     * @param {PageItem[]} docSelection - 選択オブジェクト
-     * @returns {PageItem[]} 写した配列
+     * 選択を JavaScript の配列に写す（選択は前面から背面の順）
+     * @param {Object} docSelection - ドキュメントの選択
+     * @returns {PageItem[]} 前面から背面の順の配列
      */
-    function copyItems(docSelection) {
-        var copiedItems = [];
+    function selectionToArray(docSelection) {
+        var selectedItems = [];
         for (var i = 0; i < docSelection.length; i++) {
-            copiedItems.push(docSelection[i]);
+            selectedItems.push(docSelection[i]);
         }
-        return copiedItems;
+        return selectedItems;
     }
 
     /**
@@ -255,32 +266,74 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * X 座標または Y 座標（上端）で並べ替えて重ね順を組み直す
-     * @param {PageItem[]} docSelection - 選択オブジェクト（2つ以上）
-     * @param {string} axis - "x" / "y"
-     * @param {string} order - "asc" / "desc" / "rand"
-     * @returns {void}
+     * 数値を指定の桁数になるよう左をゼロで埋める
+     * @param {number} value - 0以上の整数
+     * @param {number} digits - 桁数
+     * @returns {string} ゼロ埋めした文字列
      */
-    function sortByAxis(docSelection, axis, order) {
-        var targetItems = copyItems(docSelection);
-        if (order === "rand") {
-            shuffleItems(targetItems);
-        } else {
-            var boundsIndex = (axis === "x") ? 0 : 1;
-            /* Y は上ほど値が大きいので、X と昇順・降順を逆にする / Y grows upward, so flip the direction for Y */
-            var numericAscending = (axis === "y") ? (order === "desc") : (order !== "desc");
-            targetItems.sort(function (a, b) {
-                var aValue = a.geometricBounds[boundsIndex];
-                var bValue = b.geometricBounds[boundsIndex];
-                return numericAscending ? aValue - bValue : bValue - aValue;
-            });
+    function padWithZeros(value, digits) {
+        var paddedText = String(value);
+        while (paddedText.length < digits) paddedText = "0" + paddedText;
+        return paddedText;
+    }
+
+    /**
+     * 左端または上端の値が小さい順に並べた配列を返す。
+     * 比較関数つきの sort() は並びが狂うことがあるため、ゼロ埋めした文字列キーを引数なしの sort() で並べる
+     * @param {PageItem[]} targetItems - 対象のオブジェクト
+     * @param {number} boundsIndex - geometricBounds の添字（0 = 左端、1 = 上端）
+     * @returns {PageItem[]} 並べ替えた新しい配列
+     */
+    function sortItemsByBounds(targetItems, boundsIndex) {
+        var edgeValues = [];
+        var minValue = Infinity;
+        for (var i = 0; i < targetItems.length; i++) {
+            edgeValues.push(targetItems[i].geometricBounds[boundsIndex]);
+            if (edgeValues[i] < minValue) minValue = edgeValues[i];
         }
-        reorderItems(targetItems);
+        /* 最小値を0にずらして負の座標もそのまま並ぶようにし、末尾に元の番号を付ける
+           Shift so the minimum is 0 (negative coordinates sort correctly) and append the original index */
+        var sortKeys = [];
+        for (var j = 0; j < targetItems.length; j++) {
+            var scaledValue = Math.round((edgeValues[j] - minValue) * SORT_KEY_SCALE);
+            sortKeys.push(padWithZeros(scaledValue, SORT_KEY_DIGITS) + ":" + j);
+        }
+        sortKeys.sort();
+        var sortedItems = [];
+        for (var k = 0; k < sortKeys.length; k++) {
+            sortedItems.push(targetItems[Number(sortKeys[k].split(":")[1])]);
+        }
+        return sortedItems;
+    }
+
+    /**
+     * 基準と並び順から、背面から前面の順に並べた配列を作る
+     * @param {PageItem[]} originalItems - ダイアログを開いたときの選択（前面から背面の順）
+     * @param {string} sortBasis - "zOrder" / "xAxis" / "yAxis"
+     * @param {string} sortOrder - "asc" / "desc" / "random"
+     * @returns {PageItem[]} 背面から前面の順の配列
+     */
+    function buildStackOrder(originalItems, sortBasis, sortOrder) {
+        var orderedItems = originalItems.slice();
+        if (sortOrder === "random") {
+            shuffleItems(orderedItems);
+            return orderedItems;
+        }
+        var isDescending = (sortOrder === "desc");
+        if (sortBasis === "zOrder") {
+            /* 元の配列は前面から背面の順なので、昇順（元のまま）は反転して背面からにする
+               The original array runs front to back, so Ascending (unchanged) reverses it to run back to front */
+            return isDescending ? orderedItems : orderedItems.reverse();
+        }
+        var isYAxis = (sortBasis === "yAxis");
+        orderedItems = sortItemsByBounds(orderedItems, isYAxis ? 1 : 0);
+        /* Y は上ほど値が大きいので、X と昇順・降順を逆にする / Y grows upward, so flip the direction for Y */
+        return (isYAxis !== isDescending) ? orderedItems.reverse() : orderedItems;
     }
 
     /**
      * 有効な選択を返す。ドキュメントが無い、または2つ未満なら知らせて null
-     * @returns {PageItem[]|null} 選択オブジェクト
+     * @returns {PageItem[]|null} 前面から背面の順の選択オブジェクト
      */
     function getValidSelection() {
         if (app.documents.length === 0) {
@@ -288,11 +341,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return null;
         }
         var docSelection = app.activeDocument.selection;
-        if (!docSelection || docSelection.length < 2) {
+        /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / A text selection returns a TextRange, which has no [0] */
+        if (!docSelection || docSelection.typename === "TextRange" || docSelection.length < 2) {
             alert(getLabel("alert.selectMore"));
             return null;
         }
-        return docSelection;
+        return selectionToArray(docSelection);
     }
 
     // =========================================

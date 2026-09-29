@@ -24,3 +24,4 @@ Enters mask-edit mode when the selection is a clipping group, and otherwise buil
 ### Update History
 
 - v1.0
+- v1.0.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool

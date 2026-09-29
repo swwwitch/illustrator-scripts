@@ -28,14 +28,14 @@ Find
 - Shows the number of matches in the scope for each field (updated as you type or change the scope)
 - Regular expressions and case-sensitive or case-insensitive search
 - `\n` for a paragraph break and `@#` for a forced line break (inserted at the cursor with buttons or shortcuts)
-- Running with characters selected by the Type tool puts them in the first field
+- Running with characters selected by the Type tool puts them in the first field (or, with a single text object selected with the Selection tool, its first line)
 
 Remove / Replace
 
 - A replacement for each field (empty to remove; with regular expressions, `$1` / `\1`, `$&` / `\0` etc. refer to the match)
 - Buttons and shortcuts that insert the match references `\0`, `\1` and `\2`
 - Deletes lines (paragraphs) and text left empty by the removal
-- Preview the result without closing the dialog
+- Preview the result without closing the dialog (with regular expressions)
 
 Select
 
@@ -76,11 +76,11 @@ To remove or replace
 
 1. Select the target, or run the script with nothing selected
 2. Enter strings in the left fields under "Text to Find / Replace" (to replace, also fill in the field right of "→"; the match count appears at the right end)
-3. Choose the scope and options, check the result with Preview if needed, then click Replace All (or press Enter). The dialog stays open so you can continue; click Close when done
+3. Choose the scope and options, with regular expressions, check the result with Preview if needed, then click Replace All (or press Enter). The dialog stays open so you can continue; click Close when done
 
 To find and select
 
-1. Select the characters to find with the Type tool and run the script (they go into the first field), or type a string into a field
+1. Select the characters to find with the Type tool, or select a single text object, and run the script (the text goes into the first field), or type a string into a field
 2. Put the cursor in the row to search (a ▶ appears at the left) and click Select Next to select each match in turn, or Select All to select them all
 3. Close the dialog with Close; the selection is kept
 
@@ -95,11 +95,11 @@ To find and select
 | Whole Match | Inserts `\0` (the whole match) into the field with the cursor. Option (Alt) + 0 does the same. Available with regular expressions only |
 | Group 1 / Group 2 | Inserts `\1` / `\2` (the text matched by the first / second `( )`) into the field with the cursor. Option (Alt) + 1 / 2 does the same. Available with regular expressions only |
 | Regular expression | Treats the input as JavaScript regular expressions. `^` and `$` match the start and end of each paragraph. Replacements can use `$1`–`$99`, `$&` and `$$`, as well as `\0` (whole match), `\1`–`\9` (groups) and `\\` (a literal `\`) |
+| Preview | Available with regular expressions only. While on, shows the result without closing the dialog and updates it as the input, scope or options change. Not saved; always off when the dialog opens. Turning Regular expression off turns Preview off too |
 | Match case | When on, upper- and lowercase letters are treated as different. When off, they are treated as the same |
 | Delete emptied lines | When removing leaves a paragraph empty, also removes its break so no blank line is left. Lines that were already empty are kept. On by default |
 | Delete emptied text | Deletes text frames emptied by this run. Frames that were already empty and threaded text frames are kept |
 | Zoom on select | Changes the zoom and position so the text containing the characters picked by Select Next fills the window (up to 400%). On by default |
-| Preview | While on, shows the result without closing the dialog and updates it as the input, scope or options change. Not saved; always off when the dialog opens |
 | Select Next | Selects the next characters matching the text in the ▶ row, wrapping around at the end. Hidden or locked text and text in symbols are skipped |
 | Select All | Selects every text object containing a match for the ▶ row. Hidden or locked text and text in symbols are not selected |
 | Reset Criteria | Clears the fields and restores the scope and options to their defaults. The preview setting is kept |
@@ -119,7 +119,7 @@ To find and select
 - Replaced text is searched by the fields below.
 - Replaced text takes the formatting of the first character of the match. Mixed formatting within a match becomes a single format.
 - In the search and replace fields, `\n` means a paragraph break and `@#` a forced line break, with or without regular expressions. To find a backslash followed by `n` with regular expressions, write `\\n`.
-- When characters selected with the Type tool go into the first field, the previous entries are cleared. With Regular expression on, symbols such as `.` and `(` are escaped with `\` so they are searched literally.
+- When selected characters (or the first line of a single selected text object) go into the first field, the previous entries are cleared. Nothing is put in when several objects are selected. With Regular expression on, symbols such as `.` and `(` are escaped with `\` so they are searched literally.
 - Select Next and Select All select only visible, unlocked text. Text in symbols cannot be selected.
 - A selection made with Select Next or Select All is kept after the dialog closes.
 - Clicking Select Next or Select All clears the preview on screen. It comes back when you change the input or scope.
@@ -149,3 +149,4 @@ To find and select
 - v1.4.2 (20260928) : The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/SmartTextFindReplace.json)
 - v1.4.3 (20260929) : Dialog opacity changed to 98%
 - v1.5.0 (20260930) : Renamed the dialog to "Find, Replace & Clean Up Text" and the Remove / Replace tab to Find / Replace. Added Select Next, Select All, "Zoom on select" and "Delete emptied lines" to Find / Replace. Running with characters selected by the Type tool puts them in the first field. Reduced the fields from seven to five. Renamed Apply to Replace All and Reset to Reset Criteria. Fixed an error when running with characters selected
+- v1.5.1 (20260930) : Preview is now available with regular expressions only and sits right below Regular expression. Running with a single text object selected with the Selection tool now also puts its first line in the first field. Fixed Preview sometimes starting on, and an error when running with characters selected and the scope set to Selected objects

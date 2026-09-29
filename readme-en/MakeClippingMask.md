@@ -28,3 +28,4 @@ Creates or releases a clipping mask, depending on what is selected.
 ### Update History
 
 - v1.0 (2025-04-03)
+- v1.0.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool

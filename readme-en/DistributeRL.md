@@ -20,4 +20,8 @@
 ### Notes
 
 - The step comes from the Keyboard Increment preference (`cursorKeyLength`), stored in points, so no unit conversion is needed.
-- Does nothing when fewer than two objects are selected.
+- Does nothing when fewer than two objects are selected, or when characters are selected with the Type tool.
+
+### Changelog
+
+- v1.3.2 (2026-09-30): Fixed an error when running with characters selected by the Type tool

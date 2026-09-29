@@ -15,5 +15,9 @@
 
 ### Usage
 
-1. Select the target text objects
+1. Select the target text objects (with characters selected by the Type tool, only those characters)
 2. Run the script
+
+### Changelog
+
+- v1.0.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool (the setting now applies to them). Non-text objects in the selection no longer stop the script

@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSq
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipWithSquare";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipWithSquare.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSquare.md"; /* README (English) */
@@ -131,7 +131,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!app.documents.length) return;
         var doc = app.activeDocument;
         var selectedItems = doc.selection;
-        if (!selectedItems.length) return;
+        /* 文字ツールで文字を選択しているときは TextRange が返り、length は文字数になる / With characters selected by the Type tool, selection is a TextRange whose length is the character count */
+        if (selectedItems.typename === "TextRange" || !selectedItems.length) return;
 
         /* 作ったグループだけが選択に残るよう、先に選択を解除 / Clear the selection first so only new groups end up selected */
         doc.selection = null;

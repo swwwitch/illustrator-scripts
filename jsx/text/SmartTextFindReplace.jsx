@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -904,8 +904,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
                 en: "Removes leading numbers (1. ① a. etc.). Illustrator numbered lists are converted to text first, then removed"
             },
             preview: {
-                ja: "ダイアログを閉じずに結果を表示し、入力や対象の変更に合わせて更新します。シンボル内・非表示・ロック中・スレッドテキスト（連結）のテキストは表示しません",
-                en: "Shows the result without closing the dialog, updating as the input or scope changes. Text in symbols, hidden, locked or threaded text is not previewed"
+                ja: "正規表現のときだけ使えます。ダイアログを閉じずに結果を表示し、入力や対象の変更に合わせて更新します。シンボル内・非表示・ロック中・スレッドテキスト（連結）のテキストは表示しません",
+                en: "Available with regular expressions only. Shows the result without closing the dialog, updating as the input or scope changes. Text in symbols, hidden, locked or threaded text is not previewed"
             }
         },
         button: {
@@ -1102,15 +1102,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     }
 
     /**
-     * 選択（配列でない TextRange などを含む）をアイテムの配列にする
+     * 選択をアイテムの配列にする。文字ツールで文字を選択しているときは、その文字を含むストーリーのテキストフレームにする
      * @param {Object} currentSelection - doc.selection
      * @returns {PageItem[]} アイテムの配列。選択が無ければ空
      */
     function toItemArray(currentSelection) {
         var itemArray = [];
-        if (!currentSelection || !currentSelection.length) return itemArray;
-        for (var i = 0; i < currentSelection.length; i++) {
-            itemArray.push(currentSelection[i]);
+        if (!currentSelection) return itemArray;
+        /* TextRange の length は文字数で、[i] は undefined になる / A TextRange's length is its character count, and [i] is undefined */
+        var sourceItems = (currentSelection.typename === "TextRange") ? currentSelection.story.textFrames : currentSelection;
+        for (var i = 0; i < sourceItems.length; i++) {
+            itemArray.push(sourceItems[i]);
         }
         return itemArray;
     }
@@ -1260,6 +1262,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             findReplaceControls.btnSelectAll.enabled = hasPattern;
             matchSelector.resetCursor();
             findReplaceControls.referenceButtonGroup.enabled = dialogState.values.useRegex;
+            /* プレビューは正規表現のときだけ使える。OFF にしたら外す / Preview works only with regular expressions; turning them off turns it off */
+            findReplaceControls.previewCheckbox.enabled = dialogState.values.useRegex;
+            if (!dialogState.values.useRegex) {
+                findReplaceControls.previewCheckbox.value = false;
+                isPreviewOn = false;
+            }
             updatePreview();
         }
 
@@ -1325,12 +1333,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             searchInputs[i].onChanging = refreshDialogState;
             replaceInputs[i].onChanging = updatePreview;
         }
-        /* 文字ツールで文字を選択していたら、1行目の検索する文字列にする（ほかの欄は空にする）
-           Characters selected with the Type tool become the first text to find; the other fields are cleared */
-        /* まだ何も変換していないので、範囲は有効で例外にならない / Nothing has been converted yet, so the range is still valid */
-        if (selectedTextRange && selectedTextRange.contents !== "") {
+        /* 選択している文字列を1行目の検索する文字列にする（ほかの欄は空にする）
+           The selected text becomes the first text to find; the other fields are cleared */
+        var selectedQueryText = getSelectedQueryText(selectedTextRange, selectedItems);
+        if (selectedQueryText !== "") {
             clearAllInputs();
-            searchInputs[0].text = convertTextToQuery(selectedTextRange.contents, dialogState.values.useRegex);
+            searchInputs[0].text = convertTextToQuery(selectedQueryText, dialogState.values.useRegex);
         }
 
         dialogState.onSettingChange = refreshDialogState;
@@ -1349,6 +1357,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
 
         refreshDialogState();
 
+        /* show() 前に入れた値は効かないことがあるので、表示してからもプレビューを OFF にする
+           A value set before show() may not stick, so turn Preview off again once shown */
+        dialogControls.mainDialog.onShow = function () {
+            findReplaceControls.previewCheckbox.value = false;
+            isPreviewOn = false;
+        };
         prepareDialogWindow(dialogControls.mainDialog, SCRIPT_NAME);
         dialogControls.mainDialog.show();
         clearPreview();
@@ -1771,14 +1785,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         searchOptionsGroup.margins = [0, SEARCH_OPTIONS_TOP_MARGIN, 0, 0];
         searchOptionsGroup.spacing = PANEL_SPACING;
         addSettingCheckbox(searchOptionsGroup, "useRegex", DEFAULT_USE_REGEX, savedSettings, dialogState);
+        /* プレビューは正規表現のときだけ使うので、そのすぐ下に置く。保存せず、開くときは常に OFF
+           Preview is for regular expressions only, so it sits right below; not saved, and always starts off */
+        var previewCheckbox = searchOptionsGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        previewCheckbox.value = false;
+        previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
         addSettingCheckbox(searchOptionsGroup, "matchCase", DEFAULT_MATCH_CASE, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "deleteEmptyLines", DEFAULT_DELETE_EMPTY_LINES, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "deleteEmptyFrames", DEFAULT_DELETE_EMPTY_FRAMES, savedSettings, dialogState);
         addSettingCheckbox(searchOptionsGroup, "zoomToMatch", DEFAULT_ZOOM_TO_MATCH, savedSettings, dialogState);
-        var previewCheckbox = searchOptionsGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
-        /* プレビューは保存せず、開くときは常に OFF / Preview is not saved and always starts off */
-        previewCheckbox.value = false;
-        previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
         addStretchSpacer(searchOptionsRowGroup);
         var actionButtonGroup = searchOptionsRowGroup.add("group");
         actionButtonGroup.orientation = "column";
@@ -2028,6 +2043,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             if (selectedItems[i]) collectItemsOfType(selectedItems[i], "TextFrame", selectedFrames);
         }
         return getFirstNonEmptyText(getFrameContents(selectedFrames));
+    }
+
+    /**
+     * 検索する文字列に入れる、選択している文字列を返す
+     * 文字ツールで選択した文字、無ければ選択ツールで1つだけ選んだテキストオブジェクトの1行目（複数選んでいるときは入れない）
+     * @param {TextRange|null} selectedTextRange - 文字ツールで選択した文字（まだ何も変換していないので読める）
+     * @param {PageItem[]} selectedItems - 実行時に選択していたアイテム
+     * @returns {string} 選択している文字列。無ければ空文字列
+     */
+    function getSelectedQueryText(selectedTextRange, selectedItems) {
+        if (selectedTextRange) return selectedTextRange.contents;
+        /* 最初の改行・強制改行までを1行目とする / The first line runs up to the first paragraph or forced line break */
+        if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") return selectedItems[0].contents.split(/[\r\x03]/)[0];
+        return "";
     }
 
     /**
@@ -3358,7 +3387,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      * @returns {void}
      */
     function withSymbolWorkLayer(doc, workCallback) {
-        var savedSelection = toItemArray(doc.selection);
+        /* 文字ツールで選択した文字は、フレームではなく文字の範囲として戻す / Restore characters selected with the Type tool as a text range, not as frames */
+        var savedTextRange = (doc.selection && doc.selection.typename === "TextRange") ? doc.selection : null;
+        var savedSelection = savedTextRange ? [] : toItemArray(doc.selection);
         var savedActiveLayer = doc.activeLayer;
         var workLayer = doc.layers.add();
         try {
@@ -3367,6 +3398,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
             workLayer.remove();
             doc.activeLayer = savedActiveLayer;
             doc.selection = (savedSelection.length > 0) ? savedSelection : null;
+            if (savedTextRange) savedTextRange.select();
         }
     }
 

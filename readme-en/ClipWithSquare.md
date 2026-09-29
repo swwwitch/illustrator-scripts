@@ -30,6 +30,7 @@
 
 - v1.0 (20231126): Initial version
 - v1.1 (20250813): Stabilized the release-and-rebuild of clipping masks, and tidied the comments
+- v1.1.1 (20260930): Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 
