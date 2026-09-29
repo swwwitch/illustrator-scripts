@@ -36,9 +36,6 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     // =========================================
     var DEMO_LABEL_WIDTH = 60; /* デモの項目名の幅 / label width in the demo */
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
     //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
@@ -63,6 +60,9 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
     // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
     // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------

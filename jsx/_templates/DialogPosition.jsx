@@ -34,9 +34,6 @@ var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last update
 
 (function () {
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
     //    識別子は DIALOG_* / prepareDialogWindow / *DialogLeft* / getSelectionViewSpan の名前
@@ -51,6 +48,9 @@ var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last update
     // 4. 初めて開くとき（記録が無いとき）は、スクリプト側の配置（中央・オフセットなど）がそのまま効く
     // 5. 開く位置が選択中のオブジェクトに重なりそうなら左右の反対側へずらす（Illustrator のみ）。
     //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */

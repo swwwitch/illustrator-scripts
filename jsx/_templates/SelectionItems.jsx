@@ -30,9 +30,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 
 (function () {
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。使わない関数も消さずに残してよい（互いに呼び合う）。
     //    識別子は SELECTION_ITEMS_TOLERANCE / normalizeSelectionItems / resolveTextRangeFrame /
@@ -56,6 +53,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    （書き換えても元のオブジェクトに影響しない）。測れないときは null
     // 7. 座標の一致・前後の判定は isNearlySameCoordinate / areBoundsNearlyEqual で許容値を挟む
     //    （吸着させた辺とガイドは 1e-12 ほどずれる）
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */

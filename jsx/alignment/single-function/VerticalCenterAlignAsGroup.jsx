@@ -96,20 +96,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -231,23 +217,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 一時アクション（再利用パーツ） / Temporary action (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
-    // 2. アクション定義は配列＋join("\n") で組み立てる（''' は ES3 の構文エラー）。
-    //    セット名・アクション名は英数字にする。/name [ n 16進 ] は buildActionNameLines で作るとバイト数がずれない
-    //      var actionSource = [
-    //          "/version 3"
-    //      ].concat(buildActionNameLines("", "MySet"), [
-    //          "/isOpen 1", "/actionCount 1", "/action-1 {"
-    //      ], buildActionNameLines("\t", "myAction"), [ … ]).join("\n");
-    // 3. 1回だけ実行するとき:
-    //      if (!runTemporaryAction(actionSource, "MySet", "myAction")) alert(getLabel("alert.actionFailed"));
-    //    何度も実行するとき（オブジェクトごとなど）は、読み込み・解除を1回ずつにする:
-    //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
-    //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
-    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -347,30 +316,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 選択の収集と境界（再利用パーツ） / Selection items and bounds (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。使わない関数も消さずに残してよい（互いに呼び合う）。
-    //    識別子は SELECTION_ITEMS_TOLERANCE / normalizeSelectionItems / resolveTextRangeFrame /
-    //    collectSelectionItems / getTextFrameKindKey / collectSelectionTextFrames / collectSelectionPathItems /
-    //    isClipMaskItem / getClipMaskItem / hasClippedDescendant / readUsePreviewBoundsPreference /
-    //    getClipAwareBounds / filterMeasurableChildren / getClipAwareUnionBounds / isNearlySameCoordinate / areBoundsNearlyEqual
-    // 2. 選択は normalizeSelectionItems(doc.selection) で配列にする。文字カーソルの選択（TextRange）は
-    //    配列ではなく1個で返り、しかも .length（文字数）を持つので、length だけで配列と見なさない
-    // 3. テキストフレーム:
-    //      var frames = collectSelectionTextFrames(doc.selection);                           // 全種類
-    //      var frames = collectSelectionTextFrames(doc.selection, { kinds: ["point", "path"] });
-    //    パス:
-    //      var paths = collectSelectionPathItems(doc.selection);                             // 複合パスは中のパスへ
-    //      var paths = collectSelectionPathItems(doc.selection, { compoundPaths: "whole", skipClipMasks: true });
-    //    それ以外は collectSelectionItems(source, { accept: function (item) { … } }) で条件を書く
-    // 4. 並びは選択と同じ前面→背面（グループの中も pageItems の順）。重なり順を使う処理はこの順を前提にしてよい
-    // 5. doc.selection に代入し直す配列は skipLocked / skipHidden を true にする。
-    //    ロック・非表示を選択に代入すると例外になり、中の子が選択に残る
-    // 6. 境界は getClipAwareBounds(item, usePreviewBounds) / getClipAwareUnionBounds(items, usePreviewBounds)。
-    //    usePreviewBounds を省くと環境設定の［プレビュー境界を使用］に従う。返り値は [左, 上, 右, 下] の新しい配列
-    //    （書き換えても元のオブジェクトに影響しない）。測れないときは null
-    // 7. 座標の一致・前後の判定は isNearlySameCoordinate / areBoundsNearlyEqual で許容値を挟む
-    //    （吸着させた辺とガイドは 1e-12 ほどずれる）
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /* 座標を同じと見なす許容値（pt） / Tolerance for treating coordinates as equal, in points */

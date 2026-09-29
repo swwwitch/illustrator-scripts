@@ -119,11 +119,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
-    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
-    //      var MY_UI_DARK = isDarkUI();
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -147,31 +142,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
@@ -566,20 +536,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**

@@ -92,11 +92,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
-    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
-    //      var MY_UI_DARK = isDarkUI();
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -120,31 +115,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
@@ -549,20 +519,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -840,30 +796,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
-    //    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
-    //    workerLoadTemporaryActionSet / workerRunTemporaryAction。一覧は TEMPORARY_ACTION_WORKER_FUNCS
-    //    パレット側だけで使うのは buildTemporaryActionWorkerArg / buildTemporaryActionWorkerCall
-    // 2. 送る関数の一覧に連結する（var の代入順に注意。このパーツより後ろで連結する）
-    //      var WORKER_FUNCS = [workerA, workerB].concat(TEMPORARY_ACTION_WORKER_FUNCS);
-    //      （push 方式なら WORKER_FUNCS.push.apply(WORKER_FUNCS, TEMPORARY_ACTION_WORKER_FUNCS);）
-    // 3. ワーカー内で使う（アクション定義もワーカー内で組むとき）:
-    //      function workerDoSomething() {
-    //          var src = ["/version 3"].concat(workerBuildActionNameLines("", "MySet"), [ … ]).join(String.fromCharCode(10));
-    //          return workerRunTemporaryAction(src, "MySet", "myAction") ? "OK" : "ERR:action";
-    //      }
-    //    パレット側で組んで送るとき（定義に \n \t や日本語があっても壊れない）:
-    //      delegate(buildTemporaryActionWorkerCall(actionSource, "MySet", "myAction") + ' ? "OK" : "ERR:action"');
-    //    何度も実行するとき: workerLoadTemporaryActionSet → try { app.doScript(…) } finally { workerUnloadTemporaryActionSet }
-    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。戻り値はマーカー文字列にして返すこと
-    //    （BridgeTalk の戻り値は文字列。true/false は "true"/"false" で届く）
-    // 5. ワーカー関数を書き換えるときの決まり（toString() で送るため）:
-    //    JSDoc・コメントを本体にも直前直後にも置かない（直後のコメントは取り込まれ、改行が落ちると後ろを潰す）。
-    //    各文はセミコロンで終える。ASCII のみ（日本語は化ける）。文字列に \ を書かない（タブは String.fromCharCode(9)）。
-    //    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
-    //    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -1670,36 +1602,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 設定の保存（再利用パーツ） / Settings store (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は SETTINGS_STORE_* / createSettingsStore / readSettingsLegacyFile / readSettingsLegacyPreference / settingsStore*
-    // 2. 寿命は今のスクリプトに合わせて選ぶ。
-    //      "session"    … $.global に置く。Illustrator を終了するまで残る。#targetengine が必須（無いと毎回消える）
-    //      "persistent" … Folder.userData/illustrator-scripts/<storeName>.json に書く。再起動しても残る
-    //    storeName はふつう SCRIPT_NAME。ダイアログの位置は DialogPosition の部品が持つので、ここには入れない
-    // 3. 既定値を1か所にまとめ、load で受け取る。戻り値は毎回新しいオブジェクト（書き換えても保存されない）
-    //      var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
-    //      var DEFAULT_SETTINGS = { widthPt: 10, addFrame: true, modeKey: "fit", corners: { tl: 0, tr: 0 } };
-    //      var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
-    //      …OK で閉じたら…
-    //      settingsStore.save({ widthPt: …, addFrame: …, modeKey: …, corners: { tl: …, tr: … } });
-    //    型は既定値に合わせる（数値の既定値には "12" も 12 として読む。真偽は "1"/"0"/"true"/"false" も読む）。
-    //    合わない値・既定値に無い項目は捨てて既定値を使う。{} と null の既定値は中身を問わずそのまま受け取る
-    //    （名前をキーにしたプリセット集など）。配列は配列ならそのまま受け取る
-    // 4. 保存できるのは文字列・数値・真偽・null と、その配列・入れ子のオブジェクトだけ。
-    //    DOM オブジェクト・File・関数は入れない（パスは fsName の文字列で持つ）。長さは pt で持つ
-    // 5. 旧形式の設定を読み継ぐときは、3つ目の引数に legacy 関数を渡す。
-    //    新しい保存が1度も無いとき（ファイルが無い・$.global に無い）だけ呼ばれ、戻り値を保存値として既定値と突き合わせる。
-    //    旧ファイル・旧キーは消さない。キー名が変わったときは legacy の中で詰め替える
-    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
-    //          return readSettingsLegacyFile(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");  … key=value / toSource / JSON を自動判別
-    //      } });
-    //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
-    //          return readSettingsLegacyPreference("SmartTextFindReplace/settings");  … app.preferences の文字列
-    //      } });
-    // 6. clear() は保存を消す。legacy を渡したストアでは空の保存（{}）を書き、旧設定が戻ってこないようにする
-    // 7. 失敗は例外にせず、load は既定値、save は false を返す（$.writeln に理由を出す）
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */

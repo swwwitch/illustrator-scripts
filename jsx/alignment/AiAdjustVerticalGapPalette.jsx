@@ -89,11 +89,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
-    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
-    //      var MY_UI_DARK = isDarkUI();
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -117,31 +112,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の ▼〜▲ も貼っておく）
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
@@ -543,20 +513,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -640,33 +596,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（uiLang の定義より後、ダイアログを作る関数より前）に貼る。
-    //    識別子はすべて KEY_SHORTCUT_* / *KeyShortcut* の名前。uiLang はコピー先のものをそのまま使う
-    // 2. コントロールをすべて作り、onClick を付けたあとで1回だけ呼ぶ（keydown はウィンドウに1つ）
-    //      addKeyShortcuts(dialog, {
-    //          "L": alignLeftRadio,                    … ラジオ：選んで onClick
-    //          "P": previewCheckbox,                   … チェックボックス：反転して onClick
-    //          "Shift+R": btnReset,                    … ボタン：onClick（無ければ notify）
-    //          "G": function () { toggleGuides(); },   … 関数：呼ぶだけ
-    //          "Escape": { target: function () { palette.close(); }, inFields: true }
-    //      }, { numericFields: [widthInput, heightInput], afterKey: updatePreview });
-    //    キーは keyName と同じ綴り（"A"〜"Z"・"1"・"Semicolon"・"Escape" など。大小文字は区別しない）。
-    //    修飾キーは "Shift+" / "Alt+"（option）/ "Cmd+"（⌘、Windows は Ctrl）を前に付ける
-    // 3. 修飾キーは完全一致。"R" は Shift・option・⌘ を押しながらでは効かない（⌘C などを横取りしない）。
-    //    Shift＋R に別の動作を付けるときは "Shift+R" を並べる
-    // 4. 入力欄（edittext）・ドロップダウン・リストにフォーカスがあるときは効かない（文字は普通に入る）。
-    //    数値だけの欄で効かせたいときは options.numericFields に並べる（押した文字は欄に入らない）。
-    //    入力中でも効かせたいキーは { target: …, inFields: true } にする（Esc で閉じる、option＋数字など）
-    // 5. 無効・非表示のコントロールは、親のパネルやグループが無効なときも含めて何もしない
-    //    （親を無効にしても子の enabled は true のまま、のため親までたどる）
-    // 6. 関数の戻り値：false はこのキーを使わない（文字をそのまま通す）。コントロールを返すと、そのコントロールを
-    //    押したことにする（向きによってラジオが変わるときなど）。それ以外は処理済み
-    // 7. ツールチップへのキー表記は options.showInTip: true で「…（L）」「… (L)」を末尾に足す。
-    //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
-    // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
-    //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */

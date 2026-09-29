@@ -135,20 +135,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -676,21 +662,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は DIALOG_* / prepareDialogWindow / *DialogLeft* / getSelectionViewSpan の名前
-    // 2. スクリプトの先頭（#target の次の行）に #targetengine "<SCRIPT_NAME>Engine" を置く。
-    //    #targetengine が無いと $.global が実行ごとに消え、位置を覚えられない。すでにあればそのまま使う
-    // 3. ダイアログの show() の直前で prepareDialogWindow(dialog, SCRIPT_NAME) を呼ぶ。
-    //    それまでに入れた onShow / onMove / onClose はそのまま生かし、あとに位置の復元・記録をつなぐ
-    //      prepareDialogWindow(mainDialog, SCRIPT_NAME);
-    //      var dialogResult = mainDialog.show();
-    //    同じスクリプトで複数のダイアログを開くときは、2つ目以降のキーを変える（SCRIPT_NAME + "_colorPicker" など）
-    //    同じダイアログを何度も開くときも、毎回 show() の直前で呼んでよい（2回目からは選択範囲を測り直すだけ）
-    // 4. 初めて開くとき（記録が無いとき）は、スクリプト側の配置（中央・オフセットなど）がそのまま効く
-    // 5. 開く位置が選択中のオブジェクトに重なりそうなら左右の反対側へずらす（Illustrator のみ）。
-    //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -834,11 +805,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // UI の明暗（再利用パーツ） / UI theme (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る（StepperButtons・LinkToggle の部品より前）。識別子は isDarkUI
-    // 2. 配色を明暗で切り替えるときは isDarkUI() を1回だけ呼んで定数に控える
-    //      var MY_UI_DARK = isDarkUI();
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -970,17 +936,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ボタン行（再利用パーツ） / Button row (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
-    //    識別子は BUTTON_ROW_* / addButtonRow
-    // 2. ダイアログの最後で行を作り、ボタンは btn 接頭辞の変数で左右のグループに足す（キャンセル → OK の順）
-    //      var buttonRow = addButtonRow(dialog);
-    //      var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
-    //      var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    //      var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-    //    左右中央に並べるときは addButtonRow(dialog, { centered: true }) にして、buttonRow.rowGroup に直接足す
-    // 3. 行の上の余白は BUTTON_ROW_TOP_MARGIN で決める。左右の余白はダイアログの margins に任せる
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */

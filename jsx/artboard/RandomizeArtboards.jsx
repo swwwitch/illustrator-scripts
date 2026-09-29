@@ -8,28 +8,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 すべてのアートボードを、指定した列数のグリッドへランダムな順序で並べ替えます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/randomizeArtboards.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeArtboards.md
 
 ### Overview
 
 Shuffles all artboards into a grid with a fixed number of columns.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeArtboards.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeArtboards.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "randomizeArtboards";           /* スクリプト名 / script name */
+var SCRIPT_NAME     = "RandomizeArtboards";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/randomizeArtboards.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeArtboards.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeArtboards.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeArtboards.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -48,20 +48,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -224,24 +210,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function assignItemsToArtboards(doc, artboardEntries) {
-        for (var itemIndex = 0; itemIndex < doc.pageItems.length; itemIndex++) {
-            var pageItem = doc.pageItems[itemIndex];
+        var pageItems = doc.pageItems;
+        var pageItemCount = pageItems.length;
+        for (var itemIndex = 0; itemIndex < pageItemCount; itemIndex++) {
+            var pageItem = pageItems[itemIndex];
             /* 入れ子のアイテムは親（グループ等）の移動で連動するためスキップ / Nested items move with their parent */
             if (pageItem.parent.typename !== "Layer") continue;
             if (pageItem.locked || pageItem.hidden) continue;
-            if (pageItem.parent.locked || pageItem.parent.visible === false) continue;
+            if (pageItem.parent.locked || !pageItem.parent.visible) continue;
 
             var itemBounds = pageItem.geometricBounds;
             var centerX = (itemBounds[0] + itemBounds[2]) / 2;
             var centerY = (itemBounds[1] + itemBounds[3]) / 2;
 
             for (var artboardIndex = 0; artboardIndex < artboardEntries.length; artboardIndex++) {
+                /* artboardRect は [左, 上, 右, 下]（上 > 下）/ artboardRect is [left, top, right, bottom] with top > bottom */
                 var artboardRect = artboardEntries[artboardIndex].rect;
-                var minX = Math.min(artboardRect[0], artboardRect[2]);
-                var maxX = Math.max(artboardRect[0], artboardRect[2]);
-                var minY = Math.min(artboardRect[1], artboardRect[3]);
-                var maxY = Math.max(artboardRect[1], artboardRect[3]);
-                if (centerX >= minX && centerX <= maxX && centerY >= minY && centerY <= maxY) {
+                if (centerX >= artboardRect[0] && centerX <= artboardRect[2] &&
+                    centerY <= artboardRect[1] && centerY >= artboardRect[3]) {
                     artboardEntries[artboardIndex].items.push(pageItem);
                     break;
                 }
@@ -265,28 +251,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var maxWidth = 0, maxHeight = 0;
         for (var i = 0; i < artboardEntries.length; i++) {
             var entryRect = artboardEntries[i].rect;
-            var entryWidth = entryRect[2] - entryRect[0];
-            var entryHeight = Math.abs(entryRect[3] - entryRect[1]);
-            if (entryWidth > maxWidth) maxWidth = entryWidth;
-            if (entryHeight > maxHeight) maxHeight = entryHeight;
+            maxWidth = Math.max(maxWidth, entryRect[2] - entryRect[0]);
+            maxHeight = Math.max(maxHeight, entryRect[1] - entryRect[3]);
         }
 
         var cellWidth = maxWidth + gap;
         var cellHeight = maxHeight + gap;
-
-        /* y 軸の向き（top と bottom の大小関係から判定）/ Direction of the y axis */
-        var referenceRect = artboardEntries[0].rect;
-        var verticalDirection = (referenceRect[3] > referenceRect[1]) ? 1 : -1;
 
         for (var j = 0; j < artboardEntries.length; j++) {
             var columnIndex = j % columns;
             var rowIndex = Math.floor(j / columns);
             var oldRect = artboardEntries[j].rect;
             var artboardWidth = oldRect[2] - oldRect[0];
-            var artboardHeight = oldRect[3] - oldRect[1];
+            var artboardHeight = oldRect[1] - oldRect[3];
 
+            /* 行は下へ進む（Illustrator の y は上が大きい）/ Rows go downward (y grows upward in Illustrator) */
             var newLeft = anchorLeft + columnIndex * cellWidth;
-            var newTop = anchorTop + rowIndex * cellHeight * verticalDirection;
+            var newTop = anchorTop - rowIndex * cellHeight;
 
             var deltaX = newLeft - oldRect[0];
             var deltaY = newTop - oldRect[1];
@@ -294,13 +275,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* 所属アイテムを同じ移動量で平行移動 / Move member items by the same amount */
             var memberItems = artboardEntries[j].items;
             for (var itemIndex = 0; itemIndex < memberItems.length; itemIndex++) {
-                /* 動かせないアイテムは飛ばして続行 / Skip items that cannot be moved */
+                /* サブレイヤーは親レイヤーのロックが自分の locked に出ないため、動かせないものは飛ばす / A sublayer's locked does not reflect its parent layer's lock, so skip items that cannot be moved */
                 try {
                     memberItems[itemIndex].translate(deltaX, deltaY);
                 } catch (e) { }
             }
 
-            artboardEntries[j].rect = [newLeft, newTop, newLeft + artboardWidth, newTop + artboardHeight];
+            artboardEntries[j].rect = [newLeft, newTop, newLeft + artboardWidth, newTop - artboardHeight];
         }
     }
 

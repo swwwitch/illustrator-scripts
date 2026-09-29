@@ -58,20 +58,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ローカライズ（再利用パーツ） / Localization (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-    //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-    // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-    //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-    // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-    //      getLabel("dialog.title")        … パス
-    //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-    //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-    //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-    // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -840,30 +826,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
-    //    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
-    //    workerLoadTemporaryActionSet / workerRunTemporaryAction。一覧は TEMPORARY_ACTION_WORKER_FUNCS
-    //    パレット側だけで使うのは buildTemporaryActionWorkerArg / buildTemporaryActionWorkerCall
-    // 2. 送る関数の一覧に連結する（var の代入順に注意。このパーツより後ろで連結する）
-    //      var WORKER_FUNCS = [workerA, workerB].concat(TEMPORARY_ACTION_WORKER_FUNCS);
-    //      （push 方式なら WORKER_FUNCS.push.apply(WORKER_FUNCS, TEMPORARY_ACTION_WORKER_FUNCS);）
-    // 3. ワーカー内で使う（アクション定義もワーカー内で組むとき）:
-    //      function workerDoSomething() {
-    //          var src = ["/version 3"].concat(workerBuildActionNameLines("", "MySet"), [ … ]).join(String.fromCharCode(10));
-    //          return workerRunTemporaryAction(src, "MySet", "myAction") ? "OK" : "ERR:action";
-    //      }
-    //    パレット側で組んで送るとき（定義に \n \t や日本語があっても壊れない）:
-    //      delegate(buildTemporaryActionWorkerCall(actionSource, "MySet", "myAction") + ' ? "OK" : "ERR:action"');
-    //    何度も実行するとき: workerLoadTemporaryActionSet → try { app.doScript(…) } finally { workerUnloadTemporaryActionSet }
-    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。戻り値はマーカー文字列にして返すこと
-    //    （BridgeTalk の戻り値は文字列。true/false は "true"/"false" で届く）
-    // 5. ワーカー関数を書き換えるときの決まり（toString() で送るため）:
-    //    JSDoc・コメントを本体にも直前直後にも置かない（直後のコメントは取り込まれ、改行が落ちると後ろを潰す）。
-    //    各文はセミコロンで終える。ASCII のみ（日本語は化ける）。文字列に \ を書かない（タブは String.fromCharCode(9)）。
-    //    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
-    //    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
@@ -2944,21 +2906,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は DIALOG_* / prepareDialogWindow / *DialogLeft* / getSelectionViewSpan の名前
-    // 2. スクリプトの先頭（#target の次の行）に #targetengine "<SCRIPT_NAME>Engine" を置く。
-    //    #targetengine が無いと $.global が実行ごとに消え、位置を覚えられない。すでにあればそのまま使う
-    // 3. ダイアログの show() の直前で prepareDialogWindow(dialog, SCRIPT_NAME) を呼ぶ。
-    //    それまでに入れた onShow / onMove / onClose はそのまま生かし、あとに位置の復元・記録をつなぐ
-    //      prepareDialogWindow(mainDialog, SCRIPT_NAME);
-    //      var dialogResult = mainDialog.show();
-    //    同じスクリプトで複数のダイアログを開くときは、2つ目以降のキーを変える（SCRIPT_NAME + "_colorPicker" など）
-    //    同じダイアログを何度も開くときも、毎回 show() の直前で呼んでよい（2回目からは選択範囲を測り直すだけ）
-    // 4. 初めて開くとき（記録が無いとき）は、スクリプト側の配置（中央・オフセットなど）がそのまま効く
-    // 5. 開く位置が選択中のオブジェクトに重なりそうなら左右の反対側へずらす（Illustrator のみ）。
-    //    ずらした位置は記録せず、ユーザーが動かしたときだけ記録する
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */

@@ -118,20 +118,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // ローカライズ（再利用パーツ） / Localization (reusable)
-        //
-        // 【移植手順 / How to port】
-        // 1. ▼〜▲ をまるごと、コピー先の IIFE 内のローカライズ節（LABELS の直前）に貼る。
-        //    uiLang を使うコード（StepperButtons・LinkToggle の部品など）より前に置く
-        // 2. 識別子は uiLang / getCurrentLang / getLabel / labelText / labelValueText / fillLabelPlaceholders。
-        //    同じ役割の既存の関数・変数（getCurrentLanguage、currentLanguage、formatLabel など）は消して、これに寄せる
-        // 3. 呼び出しはどちらの形でもよい（混ぜてもよい）
-        //      getLabel("dialog.title")        … パス
-        //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
-        //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
-        //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-        //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-        //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
-        // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         /**
@@ -296,36 +282,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // 設定の保存（再利用パーツ） / Settings store (reusable)
-        //
-        // 【移植手順 / How to port】
-        // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-        //    識別子は SETTINGS_STORE_* / createSettingsStore / readSettingsLegacyFile / readSettingsLegacyPreference / settingsStore*
-        // 2. 寿命は今のスクリプトに合わせて選ぶ。
-        //      "session"    … $.global に置く。Illustrator を終了するまで残る。#targetengine が必須（無いと毎回消える）
-        //      "persistent" … Folder.userData/illustrator-scripts/<storeName>.json に書く。再起動しても残る
-        //    storeName はふつう SCRIPT_NAME。ダイアログの位置は DialogPosition の部品が持つので、ここには入れない
-        // 3. 既定値を1か所にまとめ、load で受け取る。戻り値は毎回新しいオブジェクト（書き換えても保存されない）
-        //      var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent");
-        //      var DEFAULT_SETTINGS = { widthPt: 10, addFrame: true, modeKey: "fit", corners: { tl: 0, tr: 0 } };
-        //      var dialogSettings = settingsStore.load(DEFAULT_SETTINGS);
-        //      …OK で閉じたら…
-        //      settingsStore.save({ widthPt: …, addFrame: …, modeKey: …, corners: { tl: …, tr: … } });
-        //    型は既定値に合わせる（数値の既定値には "12" も 12 として読む。真偽は "1"/"0"/"true"/"false" も読む）。
-        //    合わない値・既定値に無い項目は捨てて既定値を使う。{} と null の既定値は中身を問わずそのまま受け取る
-        //    （名前をキーにしたプリセット集など）。配列は配列ならそのまま受け取る
-        // 4. 保存できるのは文字列・数値・真偽・null と、その配列・入れ子のオブジェクトだけ。
-        //    DOM オブジェクト・File・関数は入れない（パスは fsName の文字列で持つ）。長さは pt で持つ
-        // 5. 旧形式の設定を読み継ぐときは、3つ目の引数に legacy 関数を渡す。
-        //    新しい保存が1度も無いとき（ファイルが無い・$.global に無い）だけ呼ばれ、戻り値を保存値として既定値と突き合わせる。
-        //    旧ファイル・旧キーは消さない。キー名が変わったときは legacy の中で詰め替える
-        //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
-        //          return readSettingsLegacyFile(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");  … key=value / toSource / JSON を自動判別
-        //      } });
-        //      createSettingsStore(SCRIPT_NAME, "persistent", { legacy: function () {
-        //          return readSettingsLegacyPreference("SmartTextFindReplace/settings");  … app.preferences の文字列
-        //      } });
-        // 6. clear() は保存を消す。legacy を渡したストアでは空の保存（{}）を書き、旧設定が戻ってこないようにする
-        // 7. 失敗は例外にせず、load は既定値、save は false を返す（$.writeln に理由を出す）
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
         var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */

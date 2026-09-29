@@ -29,9 +29,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 
 (function () {
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 一時アクション（再利用パーツ） / Temporary action (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
     //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
@@ -48,6 +45,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
     //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
     // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**

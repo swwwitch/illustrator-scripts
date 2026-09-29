@@ -128,23 +128,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 一時アクション（再利用パーツ） / Temporary action (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内に貼る。
-    //    識別子は runTemporaryAction / loadTemporaryActionSet / unloadTemporaryActionSet / toActionHex / buildActionNameLines
-    // 2. アクション定義は配列＋join("\n") で組み立てる（''' は ES3 の構文エラー）。
-    //    セット名・アクション名は英数字にする。/name [ n 16進 ] は buildActionNameLines で作るとバイト数がずれない
-    //      var actionSource = [
-    //          "/version 3"
-    //      ].concat(buildActionNameLines("", "MySet"), [
-    //          "/isOpen 1", "/actionCount 1", "/action-1 {"
-    //      ], buildActionNameLines("\t", "myAction"), [ … ]).join("\n");
-    // 3. 1回だけ実行するとき:
-    //      if (!runTemporaryAction(actionSource, "MySet", "myAction")) alert(getLabel("alert.actionFailed"));
-    //    何度も実行するとき（オブジェクトごとなど）は、読み込み・解除を1回ずつにする:
-    //      if (!loadTemporaryActionSet(actionSource, "MySet")) { alert(…); return; }
-    //      try { for (…) app.doScript("myAction", "MySet"); } finally { unloadTemporaryActionSet("MySet"); }
-    // 4. 失敗は例外にせず false で返す（$.writeln に理由を出す）。警告を出すかはコピー先で決める
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**

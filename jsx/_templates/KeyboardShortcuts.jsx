@@ -34,9 +34,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // =========================================
     var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（uiLang の定義より後、ダイアログを作る関数より前）に貼る。
     //    識別子はすべて KEY_SHORTCUT_* / *KeyShortcut* の名前。uiLang はコピー先のものをそのまま使う
@@ -63,6 +60,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    LABELS の tooltip にすでにキーを書いてあるスクリプトでは付けない（同じキーが書いてあれば二重には足さない）
     // 8. 既存の keydown 処理（bindKeyboardShortcuts・addAlignKeyHandler など）と入力欄の focus／blur による抑止は消して、これに寄せる。
     //    ↑↓キー（StepperButtons の bindSteppedArrowKeys）はそのまま残す
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */

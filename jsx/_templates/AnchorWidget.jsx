@@ -29,9 +29,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 
 (function () {
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ダイアログを作る関数より前）に貼る。
     //    識別子は ANCHOR_WIDGET_* / *AnchorWidget* / getAnchor* の名前。貼る前に、コピー先にある旧版の
@@ -56,6 +53,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 5. 有効／無効は setAnchorWidgetEnabled(anchorWidget, isEnabled)（薄い色で描き直し、クリックも無視）。
     //    パネル・行など親の enabled を切り替えたときは、そのあとで redrawAnchorWidgetsIn(親) を呼ぶ
     //    （親の無効化は子の enabled に出ないので、描画とクリックの判定は親までたどる）
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------

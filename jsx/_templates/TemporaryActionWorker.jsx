@@ -29,9 +29,6 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
 
 (function () {
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
-    //
     // 【移植手順 / How to port】
     // 1. ▼〜▲ をまるごと、パレットのワーカー関数の並びの「前」（WORKER_FUNCS を定義する位置より前）に貼る。
     //    ワーカー識別子は workerToActionHex / workerBuildActionNameLines / workerUnloadTemporaryActionSet /
@@ -55,6 +52,9 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //    各文はセミコロンで終える。ASCII のみ（日本語は化ける）。文字列に \ を書かない（タブは String.fromCharCode(9)）。
     //    ほかの関数を呼ぶのは同じ一覧のワーカー関数だけ。関数の終わりの } は単独の行に置く。
     //    パーツ前後の var 文は、コメントがワーカーに取り込まれないための区切りを兼ねる
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     /**
