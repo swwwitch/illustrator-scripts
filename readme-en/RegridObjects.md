@@ -8,7 +8,7 @@
 
 ---
 
-<img alt="Regrid Objects dialog" src="../png/ss-458-720-144-20260925-172312.png" width="40%" />
+<img alt="Regrid Objects dialog" src="../png/ss-446-920-144-20260929-193008.png" width="40%" />
 
 ### Overview
 
