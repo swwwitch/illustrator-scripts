@@ -37,6 +37,7 @@
 
 - **Show font names as PostScript names**: drop the family / style nesting and list one row per font by PostScript name
 - **Fit list width to font names**: when on, the lists widen to the longest font name so nothing is cut off; when off, they use a compact fixed width
+- **Composite fonts only**: list only composite fonts in both the source and target lists; Replace All then affects composite fonts only. Unavailable when no composite font is in use (always starts off)
 - **Sort**: choose Name, Most Used, or Least Used. Families are ordered by the total count of their styles; ties fall back to the name
 
 #### Replace Options (right panel)
@@ -58,6 +59,7 @@
 | Option+S | Switch to Selection Only |
 | Option+P | Toggle "Show font names as PostScript names" |
 | Option+L | Toggle "Fit list width to font names" |
+| Option+C | Toggle "Composite fonts only" |
 | Option+Tab | Move focus between the source and target lists |
 
 #### Other
@@ -94,6 +96,7 @@ https://note.com/dtp_tranist/n/ncc9330ba1f7d (Japanese)
 
 ### Update History
 
+- v2.2.0 (2026-09-29) Added "Composite fonts only" to the Display panel (limits the source and target lists to composite fonts; Option+C)
 - v2.1.1 (2026-09-29) Removed highlighting of the text matching the source selection. Running the script with text selected now opens Scope in Selection Only (Scope is no longer remembered). Added "Fit list width to font names" (off: compact fixed width). "Show unused font styles" (formerly "Show unused styles") is no longer remembered and always starts off. "Show PostScript names" renamed to "Show font names as PostScript names". Sort is now a popup menu instead of radio buttons. The left panel is renamed "Display". Alert messages reworded and tooltips expanded. Added keyboard shortcuts (Option+D / S / P / L / Tab). Close moved to the far left
 - v2.1.0 (2026-09-29) Added Scope (entire document / selection only), Sort (name / most used / least used), "Show unused styles" for the target list, and "Also replace in styles". "Show PostScript names" and Sort now sit in an Options panel on the left, and the two target options in a Replace Options panel on the right. Family rows show the total count of their styles. Settings are remembered. The list no longer jumps when a family row is selected. Dialog title changed to "Replace Document Fonts"
 - v2.0.3 (2026-09-29) Dialog opacity changed to 98%

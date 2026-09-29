@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceDoc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceDocumentFonts";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -61,6 +61,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
 
     /* 置換先にドキュメントで使っていないスタイルも出すかの初期状態（記憶せず毎回これで開く）/ Initial state of listing unused styles in the target list (not remembered; every run starts here) */
     var SHOW_ALL_TARGET_STYLES_DEFAULT = false;
+
+    /* 置換元を合成フォントだけに絞るかの初期状態（記憶せず毎回これで開く）/ Initial state of listing only composite fonts as sources (not remembered; every run starts here) */
+    var COMPOSITE_FONTS_ONLY_DEFAULT = false;
 
     /* リストの幅をフォント名に合わせるかの初期状態（OFF は固定幅の簡易表示）/ Initial state of fitting the list width to the font names (off: compact fixed width) */
     var FIT_LIST_WIDTH_DEFAULT = false;
@@ -1069,6 +1072,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         checkbox: {
             postScriptName: { ja: "フォント名をPostScript名で表示", en: "Show font names as PostScript names" },
             fitListWidth: { ja: "リストの幅をフォント名に合わせる", en: "Fit list width to font names" },
+            compositeFontsOnly: { ja: "合成フォントのみ", en: "Composite fonts only" },
             replaceStyleFonts: { ja: "文字・段落スタイルも置換", en: "Also replace in styles" },
             showAllTargetStyles: { ja: "使っていないフォントスタイルも表示", en: "Show unused font styles" }
         },
@@ -1108,6 +1112,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
             fitListWidth: {
                 ja: "フォント名が見切れないよう、リストの幅をいちばん長い名前に合わせます。OFFのときは固定幅で表示します。",
                 en: "Widen the lists to the longest font name so no name is cut off. When off, the lists use a fixed width."
+            },
+            compositeFontsOnly: {
+                ja: "置換元と置換先のリストに、合成フォントだけを並べます。［すべて置換］も合成フォントだけが対象になります。合成フォントを使っていないときは選べません。",
+                en: "List only composite fonts in both the source and target lists. Replace All then affects composite fonts only. Unavailable when no composite font is in use."
             },
             scope: {
                 ja: "置換する範囲を選びます。",
@@ -1209,6 +1217,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     var replacesStyleFonts = REPLACE_STYLE_FONTS_DEFAULT;
     var showsAllTargetStyles = SHOW_ALL_TARGET_STYLES_DEFAULT;
     var fitsListWidth = FIT_LIST_WIDTH_DEFAULT;
+    var showsCompositeFontsOnly = COMPOSITE_FONTS_ONLY_DEFAULT;
+    var compositeFontsOnlyCheckbox = null;
     var showAllTargetStylesCheckbox = null;
 
     /* 実行時に選択していたテキストフレーム / Text frames selected at launch */
@@ -1429,11 +1439,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * 置換先リストの並びを作る（オプションが ON なら、使っていないスタイルも足す）
+     * 合成フォントかを返す（合成フォントの名前は「ATC-」＋合成フォント名の16進表記）
+     * @param {string} fontName - フォント名（PostScript名）
+     * @returns {boolean} 合成フォントなら true
+     */
+    function isCompositeFontName(fontName) {
+        return fontName.indexOf("ATC-") === 0;
+    }
+
+    /**
+     * 使用中フォントに合成フォントが含まれるかを返す
+     * @param {object} usedFontMap - collectUsedFonts() が返したマップ
+     * @returns {boolean} 1つでもあれば true
+     */
+    function hasCompositeFont(usedFontMap) {
+        for (var family in usedFontMap) {
+            for (var fontName in usedFontMap[family]) {
+                if (isCompositeFontName(fontName)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ［合成フォントのみ］が ON なら、使用中フォントを合成フォントだけに絞る
+     * @param {object} usedFontMap - collectUsedFonts() が返したマップ
+     * @returns {object} 同じ形のマップ（OFF のときは渡したマップそのもの）
+     */
+    function filterCompositeFonts(usedFontMap) {
+        if (!showsCompositeFontsOnly) return usedFontMap;
+
+        var compositeFontMap = {};
+        for (var family in usedFontMap) {
+            for (var fontName in usedFontMap[family]) {
+                if (!isCompositeFontName(fontName)) continue;
+                if (!compositeFontMap[family]) compositeFontMap[family] = {};
+                compositeFontMap[family][fontName] = usedFontMap[family][fontName];
+            }
+        }
+        return compositeFontMap;
+    }
+
+    /**
+     * 置換元リストの並びを作る（オプションが ON なら合成フォントだけ）
+     * @param {object} usedFontMap - collectUsedFonts() が返したマップ
+     * @returns {Array<object>} 置換元リストに並べる配列
+     */
+    function buildSourceFontList(usedFontMap) {
+        return buildFlatFontList(filterCompositeFonts(usedFontMap));
+    }
+
+    /**
+     * ［合成フォントのみ］を、合成フォントを使っているときだけ選べるようにする（使っていなければ OFF に戻す）
+     * @returns {void}
+     */
+    function updateCompositeFontsOnlyAvailability() {
+        var isAvailable = hasCompositeFont(lastUsedFontMap);
+        if (!isAvailable) showsCompositeFontsOnly = false;
+        if (!compositeFontsOnlyCheckbox) return;
+        compositeFontsOnlyCheckbox.enabled = isAvailable;
+        compositeFontsOnlyCheckbox.value = showsCompositeFontsOnly;
+    }
+
+    /**
+     * 置換先リストの並びを作る（オプションが ON なら合成フォントだけにし、使っていないスタイルも足す）
      * @param {object} usedFontMap - collectUsedFonts() が返したマップ
      * @returns {Array<object>} 置換先リストに並べる配列
      */
     function buildTargetFontList(usedFontMap) {
+        usedFontMap = filterCompositeFonts(usedFontMap);
         if (!showsAllTargetStyles) return buildFlatFontList(usedFontMap);
 
         var installedFonts = getInstalledFontsByFamily();
@@ -1501,7 +1575,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         var previousTargetFontName = getSelectedTargetFontName();
 
         lastUsedFontMap = collectUsedFonts();
-        flatFontList = buildFlatFontList(lastUsedFontMap);
+        updateCompositeFontsOnlyAvailability();
+        flatFontList = buildSourceFontList(lastUsedFontMap);
         targetFontList = buildTargetFontList(lastUsedFontMap);
         populateFontListBoxes();
         restoreSelection(previousSourceFontNames, previousTargetFontName);
@@ -1705,6 +1780,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
+     * ［合成フォントのみ］：2つのリストを作り直す（ドキュメントは走査し直さない）
+     * @returns {void}
+     */
+    function handleCompositeFontsOnlyClick() {
+        var previousSourceFontNames = getSelectedSourceFontNames();
+        var previousTargetFontName = getSelectedTargetFontName();
+        showsCompositeFontsOnly = compositeFontsOnlyCheckbox.value;
+        flatFontList = buildSourceFontList(lastUsedFontMap);
+        targetFontList = buildTargetFontList(lastUsedFontMap);
+        populateFontListBoxes();
+        restoreSelection(previousSourceFontNames, previousTargetFontName);
+    }
+
+    /**
      * option＋Tab：置換元リストと置換先リストのあいだでフォーカスを移す
      * @param {Object} keyEvent - keydown イベント
      * @returns {void}
@@ -1893,7 +1982,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * 置換元リストの下に「オプション」パネルを作る（PostScript名・ソート）
+     * 置換元リストの下に「表示」パネルを作る（PostScript名・リストの幅・合成フォントのみ・ソート）
      * @param {Group} parent - 置換元リストのカラム
      * @returns {Panel} 追加したパネル
      */
@@ -1910,6 +1999,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         fitListWidthCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.fitListWidth));
         fitListWidthCheckbox.value = fitsListWidth;
         fitListWidthCheckbox.helpTip = getLabel(LABELS.tooltip.fitListWidth);
+
+        compositeFontsOnlyCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.compositeFontsOnly));
+        compositeFontsOnlyCheckbox.helpTip = getLabel(LABELS.tooltip.compositeFontsOnly);
+        updateCompositeFontsOnlyAvailability();
 
         /* ソート（ポップアップ）/ Sort popup */
         var sortRow = optionPanel.add("group");
@@ -1988,6 +2081,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
         targetFontListBox.onChange = handleTargetFontSelection;
         postScriptNameCheckbox.onClick = handleDisplayModeChange;
         fitListWidthCheckbox.onClick = handleFitListWidthClick;
+        compositeFontsOnlyCheckbox.onClick = handleCompositeFontsOnlyClick;
         replaceStyleFontsCheckbox.onClick = handleReplaceStyleFontsClick;
         showAllTargetStylesCheckbox.onClick = handleShowAllTargetStylesClick;
         btnReplaceAll.onClick = handleReplaceAllClick;
@@ -1999,6 +2093,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
             "Alt+S": { target: scopeSelectionRadio, inFields: true },
             "Alt+P": { target: postScriptNameCheckbox, inFields: true },
             "Alt+L": { target: fitListWidthCheckbox, inFields: true },
+            "Alt+C": { target: compositeFontsOnlyCheckbox, inFields: true },
             "Alt+Tab": { target: switchFontListFocus, inFields: true }
         }, { showInTip: true });
     }
@@ -2153,7 +2248,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     }
 
     /**
-     * 今の画面の状態を保存する（対象は実行時の選択で決まり、［使っていないスタイルも表示］は毎回 OFF で開くので保存しない）
+     * 今の画面の状態を保存する（対象は実行時の選択で決まり、［合成フォントのみ］［使っていないスタイルも表示］は毎回 OFF で開くので保存しない）
      * @returns {void}
      */
     function saveSettings() {
