@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObje
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
@@ -46,12 +46,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     // =========================================
     // ユーザー設定 / User settings
     // =========================================
-
-    /* 行列入れ替えで「同じ列」とみなす左端Xの許容差（pt）/ Tolerance for treating lefts as one column when transposing (pt) */
-    var TRANSPOSE_SNAP_X_TOLERANCE = 8.0;
-
-    /* 行列入れ替えで「同じ行」とみなす上端Yの許容差（pt）/ Tolerance for treating tops as one row when transposing (pt) */
-    var TRANSPOSE_SNAP_Y_TOLERANCE = 8.0;
 
     /* ハニカムの行送りに掛ける係数（通常・レンガ状は 1.0）/ Row-step factor for the honeycomb layout (normal and brick use 1.0) */
     var HONEYCOMB_ROW_STEP_FACTOR = 0.75;
@@ -904,6 +898,349 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
 
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 1]   : [0.6, 0.6, 0.6, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 1]      : [0.4, 0.4, 0.4, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.55, 0.55, 0.55, 0.4] : [0.6, 0.6, 0.6, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.8, 0.8, 0.8, 0.3]    : [0.4, 0.4, 0.4, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
+     */
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
+    }
+
+    /**
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
+    }
+
+    /**
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
+
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
+            } else {
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
+        }
+    }
+
+    /**
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
+
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -1597,8 +1934,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     var settingsStore = createSettingsStore(SCRIPT_NAME, "session");
 
     var DEFAULT_SETTINGS = {
-        forceGrid: false,     /* 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog) */
-        centerInCell: false   /* 中央揃え：各セルの天地左右中央に整列（強制グリッドのサブオプション）/ Center each object in its cell (sub-option of Force Grid) */
+        forceGrid: false,       /* 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog) */
+        cellAnchor: "topLeft"   /* セル内の揃え（"topLeft" 〜 "bottomRight"）/ alignment within each cell */
     };
 
     /* 今回の設定（レイアウト処理もここを見る）/ Current settings, also read by the layout code */
@@ -1766,7 +2103,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         },
         panel: {
             spacing: { ja: "間隔", en: "Spacing" },
-            options: { ja: "オプション", en: "Options" }
+            options: { ja: "オプション", en: "Options" },
+            cellAlign: { ja: "セル内の揃え", en: "Align in Cell" }
         },
         fieldLabel: {
             horizontal: { ja: "左右", en: "H" },
@@ -1776,7 +2114,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             brick: { ja: "レンガ状", en: "Brick" },
             honeycomb: { ja: "ハニカム", en: "Honeycomb" },
             forceGrid: { ja: "強制グリッド", en: "Force Grid" },
-            centerInCell: { ja: "中央揃え", en: "Center in Cell" },
             transpose: { ja: "行列入れ替え", en: "Swap Rows/Columns" }
         },
         button: {
@@ -1802,15 +2139,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             },
             honeycomb: {
                 ja: "レンガ状に加えて行送りを詰め、六角形に近い並びにします。",
-                en: "Adds to the brick offset a tighter row step, giving a honeycomb-like arrangement."
+                en: "On top of the brick offset, tightens the row step for a honeycomb-like arrangement."
             },
             forceGrid: {
                 ja: "歯抜けや行ごとの個数違いがあっても、行数・列数をそろえた格子として並べ直します。",
                 en: "Rebuilds the layout as an even grid even when rows have gaps or different counts."
             },
-            centerInCell: {
-                ja: "各セルの中でオブジェクトを天地左右中央にそろえます（強制グリッドのときだけ使えます）。",
-                en: "Centers each object inside its cell. Available only with Force Grid."
+            cellAlign: {
+                ja: "大きさの違うオブジェクトを、セル（列の最大幅×行の最大高さ）の中のどこにそろえるかを選びます。",
+                en: "Where objects of different sizes sit inside their cell (column width × row height)."
             },
             transpose: {
                 ja: "行と列を入れ替えて並べ直します。歯抜けのある配置にも対応します。",
@@ -1843,49 +2180,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     // =========================================
 
     /**
-     * 項目名と間隔の入力欄を1行追加する
+     * 項目名と間隔の入力欄（∧∨つき）を1行追加する
      * @param {Group} parentGroup - 追加先
      * @param {string} labelPath - 項目名のラベルのパス
      * @param {string} initialText - 入力欄の初期値
      * @param {string} tooltipPath - 入力欄の tooltip のラベルのパス
-     * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup で参照できる）
+     * @returns {EditText} 追加した入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
      */
     function addGapField(parentGroup, labelPath, initialText, tooltipPath) {
-        var gapRow = parentGroup.add('group');
-        gapRow.add('statictext', undefined, labelText(labelPath));
-
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperInputGroup = gapRow.add('group');
-        stepperInputGroup.orientation = 'row';
-        stepperInputGroup.alignChildren = ['left', 'center'];
-        stepperInputGroup.spacing = 0;
-        stepperInputGroup.margins = 0;
-
-        var gapInput;
-        /* 増減後は手入力と同じくプレビューを更新する（onChanging は bindDialogEvents() で結線）
-           after stepping, refresh the preview just like typing does */
-        var stepperGroup = addStepper(stepperInputGroup, function () { return gapInput; }, {
+        var gapInput = addSteppedField(parentGroup, {
+            label: labelText(labelPath),
+            text: initialText,
+            characters: GAP_INPUT_CHARS,
+            /* 増減後は手入力と同じくプレビューを更新する（onChanging は bindDialogEvents() で結線）
+               after stepping, refresh the preview just like typing does */
             onStep: function (numberInput) { if (numberInput.onChanging) numberInput.onChanging(); }
         });
-        gapInput = stepperInputGroup.add('edittext', undefined, initialText);
         gapInput.helpTip = getLabel(tooltipPath);
-        gapInput.characters = GAP_INPUT_CHARS;
-        gapInput.stepperGroup = stepperGroup;
-        /* ↑↓キーも∧∨と同じ処理で増減する / arrow keys share the stepper's logic */
-        bindSteppedArrowKeys(gapInput, stepperGroup);
         return gapInput;
-    }
-
-    /**
-     * 間隔の入力欄の有効／無効を、∧∨ごとまとめて切り替える
-     * @param {EditText} gapInput - addGapField() で作った入力欄
-     * @param {boolean} isEnabled - 有効にするなら true
-     * @returns {void}
-     */
-    function setGapFieldEnabled(gapInput, isEnabled) {
-        gapInput.enabled = isEnabled;
-        gapInput.stepperGroup.enabled = isEnabled;
-        redrawSteppersIn(gapInput.stepperGroup);
     }
 
     /**
@@ -1954,19 +2266,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var honeycombCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.honeycomb', 'tooltip.honeycomb', true);
         honeycombCheckbox.enabled = false;
 
-        // 強制グリッド／中央揃え（強制グリッドのサブオプション）/ Force Grid and Center in cell (sub-option of Force Grid)
+        // 強制グリッド / Force Grid
         var forceGridCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.forceGrid', 'tooltip.forceGrid', false);
         forceGridCheckbox.value = !!regridSettings.forceGrid;
-        var centerInCellCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.centerInCell', 'tooltip.centerInCell', true);
-        centerInCellCheckbox.value = !!regridSettings.centerInCell;
-        centerInCellCheckbox.enabled = forceGridCheckbox.value;
 
         // 行列入れ替え / Swap rows/columns
         var transposeCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.transpose', 'tooltip.transpose', false);
 
+        // セル内の揃え（9軸。クリック後の処理は bindDialogEvents() で onAnchorChange に入れる）
+        // Alignment in cell (3x3 picker); its handler is set later in bindDialogEvents()
+        var cellAlignPanel = spacingDialog.add('panel', undefined, getLabel('panel.cellAlign'));
+        setupPanel(cellAlignPanel);
+        cellAlignPanel.alignChildren = ['center', 'top'];
+        var cellAnchorWidget = addAnchorWidget(cellAlignPanel, regridSettings.cellAnchor, function () {
+            if (cellAnchorWidget.onAnchorChange) cellAnchorWidget.onAnchorChange();
+        });
+        cellAnchorWidget.helpTip = getLabel('tooltip.cellAlign');
+
         // 初期状態 / initial state
         horizontalGapInput.active = true;
-        setGapFieldEnabled(verticalGapInput, false);
+        setSteppedFieldEnabled(verticalGapInput, false);
 
         // ボタン行（パネル外・中央寄せ、いっぱいに広げない）/ buttons (outside panels, centered, not stretched)
         var buttonRow = addButtonRow(spacingDialog, { centered: true });
@@ -1981,7 +2300,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
             brickCheckbox: brickCheckbox,
             honeycombCheckbox: honeycombCheckbox,
             forceGridCheckbox: forceGridCheckbox,
-            centerInCellCheckbox: centerInCellCheckbox,
+            cellAnchorWidget: cellAnchorWidget,
             transposeCheckbox: transposeCheckbox
         };
     }
@@ -2030,6 +2349,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
+     * 確定時の値の整え（addSteppedField() の onChange）のあとにもプレビューを描き直す。
+     * 数値でない入力を直前の値へ戻したときに、プレビューが入力中の値のまま残らないようにする
+     * @param {EditText} gapInput - addGapField() で作った入力欄
+     * @param {Function} updatePreview - プレビューを描き直す関数
+     * @returns {void}
+     */
+    function refreshPreviewAfterNormalize(gapInput, updatePreview) {
+        var normalizeGapText = gapInput.onChange;
+        gapInput.onChange = function () {
+            normalizeGapText();
+            updatePreview();
+        };
+    }
+
+    /**
      * ダイアログのイベントを結線する
      * @param {object} dialogControls - buildGridSpacingDialog() の戻り値
      * @param {Function} updatePreview - プレビューを描き直す関数
@@ -2041,15 +2375,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var linkToggle = dialogControls.linkToggle;
         var brickCheckbox = dialogControls.brickCheckbox;
         var honeycombCheckbox = dialogControls.honeycombCheckbox;
-        var forceGridCheckbox = dialogControls.forceGridCheckbox;
-        var centerInCellCheckbox = dialogControls.centerInCellCheckbox;
 
         horizontalGapInput.onChanging = updatePreview;
         // 連動ON中の上下欄は無効なので、ここに来るのは連動OFFのときだけ / only reachable with Link off (the field is disabled otherwise)
         verticalGapInput.onChanging = updatePreview;
+        refreshPreviewAfterNormalize(horizontalGapInput, updatePreview);
+        refreshPreviewAfterNormalize(verticalGapInput, updatePreview);
 
         linkToggle.onLinkToggle = function () {
-            setGapFieldEnabled(verticalGapInput, !linkToggle.value);
+            setSteppedFieldEnabled(verticalGapInput, !linkToggle.value);
             updatePreview();
         };
 
@@ -2061,13 +2395,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         };
         honeycombCheckbox.onClick = updatePreview;
 
-        // 強制グリッドOFFで中央揃えも解除 / Force Grid off also clears Center in Cell
-        forceGridCheckbox.onClick = function () {
-            centerInCellCheckbox.enabled = forceGridCheckbox.value;
-            if (!forceGridCheckbox.value) centerInCellCheckbox.value = false;
-            updatePreview();
-        };
-        centerInCellCheckbox.onClick = updatePreview;
+        dialogControls.forceGridCheckbox.onClick = updatePreview;
+        dialogControls.cellAnchorWidget.onAnchorChange = updatePreview;
 
         // 行列入れ替えはトグル：ONで転置、OFFで転置前に戻す。連動OFFなら左右・上下の値も入れ替える
         // Toggle: ON transposes, OFF reverts. With Link off, the H/V values are swapped too
@@ -2100,9 +2429,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
          */
         function updatePreview() {
             PreviewHistory.undo();
-            // 強制グリッド／中央揃えの状態をグローバルに反映 / store Force Grid / Center in Cell globally
+            // 強制グリッド／セル内の揃えを設定に反映（レイアウト処理もここを見る）/ store Force Grid and the cell alignment
             regridSettings.forceGrid = !!dialogControls.forceGridCheckbox.value;
-            regridSettings.centerInCell = !!dialogControls.centerInCellCheckbox.value;
+            regridSettings.cellAnchor = getAnchorWidgetName(dialogControls.cellAnchorWidget);
             settingsStore.save(regridSettings);
             // Undo後の現在位置を基準に作り直す / rebuild the baseline from the post-undo positions
             layoutActions.resetBaselineToCurrent();
@@ -2208,105 +2537,107 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
-     * 選択の並びから左右間隔の初期値を測る（上→下、同じ行は左→右で並べた先頭2つの間隔）
-     * @param {PageItem[]} selectedItems - 対象のオブジェクト（2つ以上）
-     * @returns {number} 左右間隔（pt）。負の値は 0
-     */
-    function measureInitialGapX(selectedItems) {
-        // 上端の降順、同じ行（差1pt未満）は左端の昇順 / Sort by top descending and left ascending within same row
-        var sortedByPosition = selectedItems.slice().sort(function (itemA, itemB) {
-            var boundsA = getLayoutBounds(itemA);
-            var boundsB = getLayoutBounds(itemB);
-            if (Math.abs(boundsA[1] - boundsB[1]) < 1) {
-                return boundsA[0] - boundsB[0]; // same row → compare left
-            }
-            return boundsB[1] - boundsA[1]; // sort by top descending
-        });
-
-        var firstBounds = getLayoutBounds(sortedByPosition[0]);
-        var secondBounds = getLayoutBounds(sortedByPosition[1]);
-        // ダイアログ初期値では負の値を使わない / no negative value in the dialog
-        var initialGapX = secondBounds[0] - firstBounds[2];
-        return (initialGapX < 0) ? 0 : initialGapX;
-    }
-
-    /**
-     * 昇順に並んだ数値配列の、隣接する差分の中央値を返す
-     * @param {number[]} sortedAsc - 昇順に並んだ数値配列
-     * @returns {number} 隣接差分の中央値。要素が2未満なら0
-     */
-    function medianAdjacentDiff(sortedAsc) {
-        if (!sortedAsc || sortedAsc.length < 2) return 0;
-        var diffs = [];
-        for (var i = 1; i < sortedAsc.length; i++) {
-            diffs.push(Math.abs(sortedAsc[i] - sortedAsc[i - 1]));
-        }
-        diffs.sort(function (a, b) { return a - b; });
-        return diffs[Math.floor(diffs.length / 2)];
-    }
-
-    /**
-     * 選択オブジェクトの外接境界一覧と、最小の幅・高さを収集する
-     * （buildLayoutInfo / buildLayoutInfoForceGrid の共通前処理）
+     * 選択オブジェクトの外接境界を集める
      * @param {PageItem[]} selectedItems - 対象のオブジェクト
-     * @returns {{boundsList: Array, minWidth: number, minHeight: number}} {item, bounds} の配列と、最小の幅・高さ
+     * @returns {Array<Object>} {item, bounds} の配列（bounds は [left, top, right, bottom]）
      */
     function collectBoundsList(selectedItems) {
         var boundsList = [];
-        var minWidth = Number.MAX_VALUE;
-        var minHeight = Number.MAX_VALUE;
-
-        for (var j = 0; j < selectedItems.length; j++) {
-            var itemBounds = getLayoutBounds(selectedItems[j]);
-            var itemWidth = itemBounds[2] - itemBounds[0];
-            var itemHeight = itemBounds[1] - itemBounds[3];
-            if (itemWidth < minWidth) minWidth = itemWidth;
-            if (itemHeight < minHeight) minHeight = itemHeight;
-            boundsList.push({ item: selectedItems[j], bounds: itemBounds });
+        for (var i = 0; i < selectedItems.length; i++) {
+            boundsList.push({ item: selectedItems[i], bounds: getLayoutBounds(selectedItems[i]) });
         }
-        return { boundsList: boundsList, minWidth: minWidth, minHeight: minHeight };
+        return boundsList;
+    }
+
+    /* 範囲が接しているだけのときは重なりとみなさない許容差（pt。吸着した辺は 1e-12 ほどずれる）/ touching edges are not an overlap */
+    var CLUSTER_EPSILON = 0.001;
+
+    /**
+     * 外接境界の、指定した向きの範囲を返す。縦は上から下へ増えるよう符号を反転する
+     * @param {number[]} bounds - [left, top, right, bottom]
+     * @param {string} axis - "x"（左右）または "y"（上下）
+     * @returns {number[]} [始まり, 終わり]（始まり ≦ 終わり）
+     */
+    function getAxisRange(bounds, axis) {
+        return (axis === "x") ? [bounds[0], bounds[2]] : [-bounds[1], -bounds[3]];
     }
 
     /**
-     * 行・列をまとめる許容差を返す（最小の幅・高さの半分。1pt 未満にはしない）
-     * @param {number} minSize - 選択中の最小の幅または高さ
-     * @returns {number} 許容差（pt）
+     * 2つの範囲が重なる長さを返す（接しているだけなら 0 以下）
+     * @param {number[]} rangeA - [始まり, 終わり]
+     * @param {number[]} rangeB - [始まり, 終わり]
+     * @returns {number} 重なりの長さ（重ならなければ 0 以下）
      */
-    function getClusterTolerance(minSize) {
-        var tolerance = minSize * 0.5;
-        return (tolerance < 1) ? 1 : tolerance;
+    function getRangeOverlap(rangeA, rangeB) {
+        return Math.min(rangeA[1], rangeB[1]) - Math.max(rangeA[0], rangeB[0]);
     }
 
     /**
-     * 並べ済みの境界レコードを、座標の近いものどうしでまとめる。
-     * 既存のまとまりに入るたびに、まとまりの座標を平均へ更新する
-     * @param {Array<Object>} sortedRecords - {item, bounds} の配列（まとめる順に並べたもの）
-     * @param {number} boundsIndex - 比べる境界の要素（0 = 左端、1 = 上端）
-     * @param {string} centerKey - まとまりの座標を入れるキー（"x" / "y"）
-     * @param {number} tolerance - 同じまとまりとみなす許容差
-     * @returns {Array<Object>} まとまり（centerKey の座標と members）の配列
+     * 範囲の重なりで、同じ列（axis = "x"）または同じ行（axis = "y"）のオブジェクトをまとめる。
+     * まとまりの範囲と少しでも重なれば同じまとまりの候補にし、いちばん重なりの大きいものに入れる。
+     * ただし、同じ行の中で左右に重なる（同じ列の中で上下に重なる）メンバーがいるまとまりには入れない。
+     * 端の座標では比べないので、大きさや形が違うオブジェクトが混ざっても行・列が割れず、
+     * ハニカムのように行どうしが上下に重なる並びでも、隣の行とは混ざらない
+     * @param {Array<Object>} boundsList - {item, bounds} の配列
+     * @param {string} axis - "x"（列をまとめる）または "y"（行をまとめる）
+     * @returns {Array<Object>} start / end（範囲）と members を持つまとまりの配列（左→右、上→下の順）
      */
-    function clusterBoundsRecords(sortedRecords, boundsIndex, centerKey, tolerance) {
+    function clusterByOverlap(boundsList, axis) {
+        var crossAxis = (axis === "x") ? "y" : "x";
+        var sortedRecords = boundsList.slice().sort(function (recordA, recordB) {
+            return getAxisRange(recordA.bounds, axis)[0] - getAxisRange(recordB.bounds, axis)[0];
+        });
         var clusters = [];
         for (var i = 0; i < sortedRecords.length; i++) {
-            var boundsRecord = sortedRecords[i];
-            var coordinate = boundsRecord.bounds[boundsIndex];
-            var isMerged = false;
-            for (var c = 0; c < clusters.length; c++) {
-                if (Math.abs(clusters[c][centerKey] - coordinate) <= tolerance) {
-                    clusters[c].members.push(boundsRecord);
-                    clusters[c][centerKey] = (clusters[c][centerKey] * (clusters[c].members.length - 1) + coordinate) / clusters[c].members.length;
-                    isMerged = true;
-                    break;
+            var itemRange = getAxisRange(sortedRecords[i].bounds, axis);
+            var itemCrossRange = getAxisRange(sortedRecords[i].bounds, crossAxis);
+            var targetCluster = null;
+            var bestOverlap = CLUSTER_EPSILON;
+            for (var j = 0; j < clusters.length; j++) {
+                var overlap = getRangeOverlap(itemRange, [clusters[j].start, clusters[j].end]);
+                if (overlap > bestOverlap && !hasCrossOverlap(clusters[j], itemCrossRange, crossAxis)) {
+                    targetCluster = clusters[j];
+                    bestOverlap = overlap;
                 }
             }
-            if (!isMerged) {
-                var newCluster = { members: [boundsRecord] };
-                newCluster[centerKey] = coordinate;
-                clusters.push(newCluster);
+            if (targetCluster) {
+                if (itemRange[1] > targetCluster.end) targetCluster.end = itemRange[1];
+            } else {
+                /* 始まりの昇順に見ているので、新しいまとまりは常に後ろに付く / records come in start order, so new clusters append in order */
+                targetCluster = { start: itemRange[0], end: itemRange[1], members: [] };
+                clusters.push(targetCluster);
             }
+            targetCluster.members.push(sortedRecords[i]);
         }
         return clusters;
+    }
+
+    /**
+     * まとまりの中に、交差する向きで範囲が重なるメンバーがいるかを返す（同じ行に左右で重なるものは置けない）
+     * @param {Object} cluster - clusterByOverlap() のまとまり
+     * @param {number[]} crossRange - 調べるオブジェクトの、交差する向きの範囲
+     * @param {string} crossAxis - 交差する向き（"x" / "y"）
+     * @returns {boolean} 重なるメンバーがいれば true
+     */
+    function hasCrossOverlap(cluster, crossRange, crossAxis) {
+        for (var i = 0; i < cluster.members.length; i++) {
+            if (getRangeOverlap(crossRange, getAxisRange(cluster.members[i].bounds, crossAxis)) > CLUSTER_EPSILON) return true;
+        }
+        return false;
+    }
+
+    /**
+     * まとまりの順番を、各メンバーの行番号・列番号として書き込む
+     * @param {Array<Object>} clusters - clusterByOverlap() の戻り値
+     * @param {string} indexKey - 書き込むキー（"rowIndex" / "colIndex"）
+     * @returns {void}
+     */
+    function assignClusterIndex(clusters, indexKey) {
+        for (var i = 0; i < clusters.length; i++) {
+            for (var j = 0; j < clusters[i].members.length; j++) {
+                clusters[i].members[j][indexKey] = i;
+            }
+        }
     }
 
     /**
@@ -2326,109 +2657,108 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
-     * 選択オブジェクトの現在位置から、行と列の構成を推定する
+     * まとまりごとの最大の幅または高さを返す
+     * @param {Array<Object>} clusters - clusterByOverlap() の戻り値
+     * @param {boolean} measureWidth - true なら幅、false なら高さ
+     * @returns {number[]} まとまりごとの最大値
+     */
+    function getClusterExtents(clusters, measureWidth) {
+        var extents = [];
+        for (var i = 0; i < clusters.length; i++) extents.push(getMaxExtent(clusters[i].members, measureWidth));
+        return extents;
+    }
+
+    /**
+     * 選択の並びから左右間隔の初期値を測る（1列目の右端から2列目の左端まで）
+     * @param {PageItem[]} selectedItems - 対象のオブジェクト（2つ以上）
+     * @returns {number} 左右間隔（pt）。列が1つしかないときや負の値は 0
+     */
+    function measureInitialGapX(selectedItems) {
+        var colClusters = clusterByOverlap(collectBoundsList(selectedItems), "x");
+        if (colClusters.length < 2) return 0;
+        // ダイアログ初期値では負の値を使わない / no negative value in the dialog
+        var initialGapX = colClusters[1].start - colClusters[0].end;
+        return (initialGapX < 0) ? 0 : initialGapX;
+    }
+
+    /**
+     * 昇順に並んだ数値配列の、隣接する差分の中央値を返す
+     * @param {number[]} sortedAsc - 昇順に並んだ数値配列
+     * @returns {number} 隣接差分の中央値。要素が2未満なら0
+     */
+    function medianAdjacentDiff(sortedAsc) {
+        if (!sortedAsc || sortedAsc.length < 2) return 0;
+        var diffs = [];
+        for (var i = 1; i < sortedAsc.length; i++) {
+            diffs.push(Math.abs(sortedAsc[i] - sortedAsc[i - 1]));
+        }
+        diffs.sort(function (a, b) { return a - b; });
+        return diffs[Math.floor(diffs.length / 2)];
+    }
+
+    /**
+     * 選択オブジェクトの現在位置から、行と列の構成を推定する（行・列は範囲の重なりでまとめる）
      * @param {PageItem[]} selectedItems - 対象のオブジェクト
-     * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
+     * @returns {Object} 各オブジェクトの行列位置と、列幅・行高さ・基準位置を持つレイアウト情報
      */
     function buildLayoutInfo(selectedItems) {
-        var collectedBounds = collectBoundsList(selectedItems);
-        var boundsList = collectedBounds.boundsList;
+        var boundsList = collectBoundsList(selectedItems);
+        var colClusters = clusterByOverlap(boundsList, "x");
+        var rowClusters = clusterByOverlap(boundsList, "y");
+        assignClusterIndex(colClusters, "colIndex");
+        assignClusterIndex(rowClusters, "rowIndex");
 
-        // 列まとめ（左→右）/ group columns (left -> right)
-        boundsList.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
-        var colCenters = clusterBoundsRecords(boundsList, 0, "x", getClusterTolerance(collectedBounds.minWidth));
-
-        // 行まとめ（上→下）/ group rows (top -> bottom)
-        var boundsSortedByTop = boundsList.slice().sort(function (recordA, recordB) { return recordB.bounds[1] - recordA.bounds[1]; });
-        var rowCenters = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collectedBounds.minHeight));
-
-        // 並び順の確定 / sort
-        colCenters.sort(function (a, b) { return a.x - b.x; });
-        rowCenters.sort(function (a, b) { return b.y - a.y; });
-
-        // 各列の最大幅・各行の最大高さ / max width per column, max height per row
-        var colWidths = [];
-        for (var i = 0; i < colCenters.length; i++) colWidths.push(getMaxExtent(colCenters[i].members, true));
-        var rowHeights = [];
-        for (var j = 0; j < rowCenters.length; j++) rowHeights.push(getMaxExtent(rowCenters[j].members, false));
+        var colLefts = [];
+        for (var i = 0; i < colClusters.length; i++) colLefts.push(colClusters[i].start);
 
         return {
             boundsList: boundsList,
-            colCenters: colCenters,
-            rowCenters: rowCenters,
-            colWidths: colWidths,
-            rowHeights: rowHeights,
-            baseX: colCenters[0].x,
-            baseY: rowCenters[0].y
+            colLefts: colLefts,
+            colWidths: getClusterExtents(colClusters, true),
+            rowHeights: getClusterExtents(rowClusters, false),
+            baseX: colClusters[0].start,
+            baseY: -rowClusters[0].start
         };
     }
 
     /**
      * 選択オブジェクトを強制的に格子とみなして、行と列の構成を組み立てる。
-     * 行ごと（上→下）に左→右で(行,列)を割り当てる：行は上端Yの近さでまとめ、各行の中は左端Xで並べる。
+     * 行は範囲の重なりでまとめ、各行の中は左端Xの順に列を割り当てる。
      * 欠け（歯抜け）は許容する（行ごとに列数が異なってよい）
      * @param {PageItem[]} selectedItems - 対象のオブジェクト
-     * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
+     * @returns {Object} 各オブジェクトの行列位置と、列幅・行高さ・基準位置を持つレイアウト情報
      */
     function buildLayoutInfoForceGrid(selectedItems) {
-        var collectedBounds = collectBoundsList(selectedItems);
-        var boundsList = collectedBounds.boundsList;
+        var boundsList = collectBoundsList(selectedItems);
+        var rowClusters = clusterByOverlap(boundsList, "y");
+        assignClusterIndex(rowClusters, "rowIndex");
 
-        // 行まとめ（上→下）/ group rows (top -> bottom)
-        var boundsSortedByTop = boundsList.slice().sort(function (recordA, recordB) { return recordB.bounds[1] - recordA.bounds[1]; });
-        var rowClusters = clusterBoundsRecords(boundsSortedByTop, 1, "y", getClusterTolerance(collectedBounds.minHeight));
-        rowClusters.sort(function (a, b) { return b.y - a.y; });
-
-        // 各行の中を左→右で確定し、rowIndex/colIndexを付与 / sort within row and assign indices
-        var maxCols = 0;
-        for (var r = 0; r < rowClusters.length; r++) {
-            var rowMembers = rowClusters[r].members;
-            rowMembers.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
-            if (rowMembers.length > maxCols) maxCols = rowMembers.length;
-            for (var c = 0; c < rowMembers.length; c++) {
-                rowMembers[c].rowIndex = r;
-                rowMembers[c].colIndex = c;
-            }
-        }
-
-        // 列番号ごとの最大幅・行ごとの最大高さ / max width per column index, max height per row
+        // 各行の中を左→右で並べて列番号を付け、列番号ごとの最大幅を取る / number columns left to right within each row
         var colWidths = [];
-        for (var colIndex = 0; colIndex < maxCols; colIndex++) {
-            var maxWidth = 0;
-            for (var rowIndex = 0; rowIndex < rowClusters.length; rowIndex++) {
-                var memberInColumn = rowClusters[rowIndex].members[colIndex];
-                if (memberInColumn) {
-                    var memberWidth = memberInColumn.bounds[2] - memberInColumn.bounds[0];
-                    if (memberWidth > maxWidth) maxWidth = memberWidth;
-                }
+        for (var i = 0; i < rowClusters.length; i++) {
+            var rowMembers = rowClusters[i].members;
+            rowMembers.sort(function (recordA, recordB) { return recordA.bounds[0] - recordB.bounds[0]; });
+            for (var j = 0; j < rowMembers.length; j++) {
+                rowMembers[j].colIndex = j;
+                var memberWidth = rowMembers[j].bounds[2] - rowMembers[j].bounds[0];
+                if (colWidths.length <= j) colWidths.push(0);
+                if (memberWidth > colWidths[j]) colWidths[j] = memberWidth;
             }
-            colWidths.push(maxWidth);
         }
-        var rowHeights = [];
-        for (var i = 0; i < rowClusters.length; i++) rowHeights.push(getMaxExtent(rowClusters[i].members, false));
 
         // 基準は最も左の左端と最も上の上端 / origin = leftmost left and topmost top
-        // （Illustratorの座標はアートボードより下で負になるので、上端の初期値は -MAX_VALUE）
-        // (y is negative below the artboard origin, so start the top at -MAX_VALUE)
         var baseX = Number.MAX_VALUE;
-        var baseY = -Number.MAX_VALUE;
-        for (var j = 0; j < boundsList.length; j++) {
-            if (boundsList[j].bounds[0] < baseX) baseX = boundsList[j].bounds[0];
-            if (boundsList[j].bounds[1] > baseY) baseY = boundsList[j].bounds[1];
+        for (var k = 0; k < boundsList.length; k++) {
+            if (boundsList[k].bounds[0] < baseX) baseX = boundsList[k].bounds[0];
         }
-
-        // 列・行センター（列は割り当て済みの colIndex を使うのでダミー）/ centers (columns are dummies; colIndex is pre-assigned)
-        var colCenters = [];
-        for (var k = 0; k < maxCols; k++) colCenters.push({ x: baseX, members: [] });
 
         return {
             boundsList: boundsList,
-            colCenters: colCenters,
-            rowCenters: rowClusters,
+            colLefts: [], /* 列の位置は並び順で決めるので、半ピッチの推定には使わない / columns come from order, not position */
             colWidths: colWidths,
-            rowHeights: rowHeights,
+            rowHeights: getClusterExtents(rowClusters, false),
             baseX: baseX,
-            baseY: baseY
+            baseY: -rowClusters[0].start
         };
     }
 
@@ -2442,69 +2772,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
-     * 対象の列・行インデックスを解決する。
-     * Force Grid で事前割り当て済み（colIndex/rowIndex）ならそれを優先し、
-     * なければ列／行センターへの最近傍で推定する
-     * @param {object} currentEntry - layoutInfo.boundsList の要素
-     * @param {Array} colCenters - 列センター配列
-     * @param {Array} rowCenters - 行センター配列
-     * @returns {{col: number, row: number}} 列・行インデックス
-     */
-    function resolveColRow(currentEntry, colCenters, rowCenters) {
-        var colIndex = (typeof currentEntry.colIndex === 'number') ? currentEntry.colIndex : null;
-        var rowIndex = (typeof currentEntry.rowIndex === 'number') ? currentEntry.rowIndex : null;
-
-        if (colIndex === null) {
-            colIndex = 0;
-            var minDistanceX = Number.MAX_VALUE;
-            for (var c = 0; c < colCenters.length; c++) {
-                var dx = Math.abs(colCenters[c].x - currentEntry.bounds[0]);
-                if (dx < minDistanceX) { minDistanceX = dx; colIndex = c; }
-            }
-        }
-
-        if (rowIndex === null) {
-            rowIndex = 0;
-            var minDistanceY = Number.MAX_VALUE;
-            for (var r = 0; r < rowCenters.length; r++) {
-                var dy = Math.abs(rowCenters[r].y - currentEntry.bounds[1]);
-                if (dy < minDistanceY) { minDistanceY = dy; rowIndex = r; }
-            }
-        }
-
-        return { col: colIndex, row: rowIndex };
-    }
-
-    /**
      * レンガ／ハニカムで使う半ピッチを算出する。
-     * 目標列ピッチ＝中央値幅 + gapX。推定できない場合は列センター間隔の中央値を使う
+     * 目標列ピッチ＝中央値幅 + gapX。推定できない場合は列の左端の間隔の中央値を使う
      * @param {number[]} colWidths - 列ごとの最大幅
-     * @param {Array} colCenters - 列センター配列
+     * @param {number[]} colLefts - 列ごとの左端（左→右）
      * @param {number} gapX - 左右間隔
      * @returns {number} 半ピッチ（pitch / 2）
      */
-    function computeHalfPitch(colWidths, colCenters, gapX) {
-        var sortedColWidths = [];
-        if (colWidths && colWidths.length > 0) {
-            for (var i = 0; i < colWidths.length; i++) sortedColWidths.push(colWidths[i]);
-            sortedColWidths.sort(function (a, b) { return a - b; });
-        }
+    function computeHalfPitch(colWidths, colLefts, gapX) {
+        var sortedColWidths = (colWidths || []).slice().sort(function (a, b) { return a - b; });
         var medianColWidth = (sortedColWidths.length > 0) ? sortedColWidths[Math.floor(sortedColWidths.length / 2)] : 0; // median width
         var pitch = (medianColWidth > 0) ? (medianColWidth + gapX) : 0;
 
-        // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current centers diff
-        if (pitch === 0) {
-            var colLefts = [];
-            for (var j = 0; j < colCenters.length; j++) colLefts.push(colCenters[j].x);
-            colLefts.sort(function (a, b) { return a - b; });
-            pitch = medianAdjacentDiff(colLefts);
-        }
+        // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current column positions
+        if (pitch === 0) pitch = medianAdjacentDiff(colLefts);
         return pitch / 2.0;
     }
 
     /**
      * グリッド配置を適用する共通処理。通常／レンガ／ハニカムを引数で切り替える。
      * 直前にプレビュー基準位置へ戻してから、列幅・行高さの累積で再配置する。
+     * セルの大きさは列の最大幅×行の最大高さで、その中の位置は［セル内の揃え］で決める。
      * layoutInfo は baselinePositions と同時に作るので、boundsList の左上がそのまま基準位置になる
      * @param {Object} layoutInfo - レイアウト情報
      * @param {Array<Object>} baselinePositions - プレビュー基準の位置情報
@@ -2521,40 +2809,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var boundsList = layoutInfo.boundsList;
         var colWidths = layoutInfo.colWidths;
         var rowHeights = layoutInfo.rowHeights;
-
-        var halfPitch = isBrick ? computeHalfPitch(colWidths, layoutInfo.colCenters, gapX) : 0;
-
-        // 中央揃え：各セルの天地左右中央に整列（強制グリッドのサブオプションなので Force Grid 時のみ有効）
-        // Center each object within its cell (sub-option of Force Grid, so only when Force Grid is on)
-        var centerInCell = !!regridSettings.centerInCell && !!regridSettings.forceGrid;
+        var halfPitch = isBrick ? computeHalfPitch(colWidths, layoutInfo.colLefts, gapX) : 0;
+        /* セル内の揃え（左・上が 0、中央が 0.5、右・下が 1）/ alignment within the cell as ratios */
+        var alignRatio = getAnchorRatio(regridSettings.cellAnchor);
 
         for (var i = 0; i < boundsList.length; i++) {
             var currentEntry = boundsList[i];
-
-            var cellIndex = resolveColRow(currentEntry, layoutInfo.colCenters, layoutInfo.rowCenters);
-            var colIndex = cellIndex.col;
-            var rowIndex = cellIndex.row;
+            var colIndex = currentEntry.colIndex;
+            var rowIndex = currentEntry.rowIndex;
 
             // 新しいX（セル左端）/ new X (cell left)
             var newX = layoutInfo.baseX;
-            for (var c = 0; c < colIndex; c++) {
-                newX += colWidths[c] + gapX;
+            for (var j = 0; j < colIndex; j++) {
+                newX += colWidths[j] + gapX;
             }
 
             // 新しいY（セル上端）/ new Y (cell top)
             var newY = layoutInfo.baseY;
-            for (var r = 0; r < rowIndex; r++) {
-                newY -= (rowHeights[r] * rowStepFactor) + gapY;
+            for (var k = 0; k < rowIndex; k++) {
+                newY -= (rowHeights[k] * rowStepFactor) + gapY;
             }
 
-            // 中央揃え：セル内でオブジェクトを左右・天地中央へ寄せる
-            // Center within the cell (cell size = column width × row height)
-            if (centerInCell) {
-                var itemWidth = currentEntry.bounds[2] - currentEntry.bounds[0];
-                var itemHeight = currentEntry.bounds[1] - currentEntry.bounds[3];
-                newX += (colWidths[colIndex] - itemWidth) / 2;
-                newY -= (rowHeights[rowIndex] - itemHeight) / 2;
-            }
+            // セル内の揃え：列幅・行高さとの差を割合で振り分ける / distribute the slack in the cell by the alignment ratio
+            var itemWidth = currentEntry.bounds[2] - currentEntry.bounds[0];
+            var itemHeight = currentEntry.bounds[1] - currentEntry.bounds[3];
+            newX += (colWidths[colIndex] - itemWidth) * alignRatio[0];
+            newY -= (rowHeights[rowIndex] - itemHeight) * alignRatio[1];
 
             // レンガ状：奇数行を半ピッチずらす / Brick: shift odd rows by half pitch
             if (isBrick && halfPitch !== 0 && (rowIndex % 2 === 1)) {
@@ -2570,146 +2850,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
     // =========================================
     // 行列入れ替え / Transpose
-    // getLayoutBounds() の left/top を基準に、行・列をクラスタリングして推定し、
-    // 推定したピッチ（隣接差の中央値）で左上基準に再配置する（歯抜け対応）。
+    // 行・列は配置と同じく範囲の重なりでまとめる（大きさの違うオブジェクト・歯抜けに対応）。
     // グループは中身を見ず、グループ全体の外接 bbox（クリップグループはクリップパス）で1オブジェクトとして扱う。
-    // 1行→1列 / 1列→1行 も対応（ピッチ流用）
+    // 入れ替えたあとの間隔は、呼び出し側が基準を取り直してから適用する
     // =========================================
 
     /**
-     * 近い値どうしをまとめて、クラスタの中心値の配列を作る（coordinateValues は昇順に並べ替わる）
-     * @param {number[]} coordinateValues - まとめる対象の値
-     * @param {number} tolerance - 同じクラスタとみなす許容差
-     * @returns {number[]} 昇順に並べたクラスタ中心値の配列
+     * 同じセル（行・列）に2つ以上のオブジェクトが入っていないか調べ、入っていればアラートを出す
+     * @param {Array<Object>} boundsList - rowIndex / colIndex を書き込んだ {item, bounds} の配列
+     * @returns {boolean} 衝突していれば true
      */
-    function clusterValues(coordinateValues, tolerance) {
-        coordinateValues.sort(function (a, b) { return a - b; });
-        var clusterCenters = [];
-        for (var i = 0; i < coordinateValues.length; i++) {
-            var coordinate = coordinateValues[i];
-            var foundIndex = -1;
-            for (var c = 0; c < clusterCenters.length; c++) {
-                if (Math.abs(coordinate - clusterCenters[c]) <= tolerance) { foundIndex = c; break; }
-            }
-            if (foundIndex < 0) clusterCenters.push(coordinate);
-            else clusterCenters[foundIndex] = (clusterCenters[foundIndex] + coordinate) / 2.0;
-        }
-        clusterCenters.sort(function (a, b) { return a - b; });
-        return clusterCenters;
-    }
-
-    /**
-     * 中心値の配列から、指定した値に最も近い要素の位置を返す
-     * @param {number[]} sortedCenters - 並べた中心値の配列
-     * @param {number} coordinate - 探す値
-     * @returns {number} 最も近い要素のインデックス
-     */
-    function findNearestIndex(sortedCenters, coordinate) {
-        var bestIndex = 0;
-        var bestDistance = Math.abs(coordinate - sortedCenters[0]);
-        for (var i = 1; i < sortedCenters.length; i++) {
-            var distance = Math.abs(coordinate - sortedCenters[i]);
-            if (distance < bestDistance) { bestDistance = distance; bestIndex = i; }
-        }
-        return bestIndex;
-    }
-
-    /**
-     * 各オブジェクトを(行,列)に割り当てる。同じセルに2つ入ったらアラートを出して中止する
-     * @param {PageItem[]} selectedItems - 対象のオブジェクト
-     * @param {number[]} rowClusters - 行の中心値（上→下）
-     * @param {number[]} colClusters - 列の中心値（左→右）
-     * @returns {Array<Object>|null} {item, row, col} の配列。衝突したら null
-     */
-    function mapItemsToCells(selectedItems, rowClusters, colClusters) {
-        var occupiedCells = {}; // cellKey "row,col" -> item
-        var cellMapping = [];
-        for (var i = 0; i < selectedItems.length; i++) {
-            var targetItem = selectedItems[i];
-            var itemBounds = getLayoutBounds(targetItem);
-            var rowIndex = findNearestIndex(rowClusters, itemBounds[1]);
-            var colIndex = findNearestIndex(colClusters, itemBounds[0]);
-            var cellKey = rowIndex + "," + colIndex;
+    function alertCellConflict(boundsList) {
+        var occupiedCells = {}; // cellKey "row,col" -> true
+        for (var i = 0; i < boundsList.length; i++) {
+            var cellKey = boundsList[i].rowIndex + "," + boundsList[i].colIndex;
             if (occupiedCells[cellKey]) {
                 // 行・列は1から数えて表示 / show row and column counting from 1
-                alert(getLabel('alert.cellConflict').replace("{row}", rowIndex + 1).replace("{col}", colIndex + 1));
-                return null;
+                alert(getLabel('alert.cellConflict', { row: boundsList[i].rowIndex + 1, col: boundsList[i].colIndex + 1 }));
+                return true;
             }
-            occupiedCells[cellKey] = targetItem;
-            cellMapping.push({ item: targetItem, row: rowIndex, col: colIndex });
+            occupiedCells[cellKey] = true;
         }
-        return cellMapping;
+        return false;
     }
 
     /**
-     * 転置後に使う横・縦のピッチを求める（元の列・行の隣接差の中央値）。
-     * 1行しかないときは横ピッチを縦にも、1列しかないときは縦ピッチを横にも流用する
-     * @param {number[]} rowClusters - 行の中心値
-     * @param {number[]} colClusters - 列の中心値
-     * @returns {{x: number, y: number}|null} ピッチ。推定できなければ null
-     */
-    function getTransposePitch(rowClusters, colClusters) {
-        var rowCount = rowClusters.length;
-        var colCount = colClusters.length;
-        // ※行や列が1つしかない場合は0になる / 0 when there is only one row or column
-        var pitchX = (colCount >= 2) ? medianAdjacentDiff(colClusters) : 0;
-        var pitchY = (rowCount >= 2) ? medianAdjacentDiff(rowClusters) : 0;
-
-        // ほぼ重なり等で1セル扱いになったケース / everything collapsed into one cell
-        if (rowCount === 1 && colCount === 1) return null;
-
-        if (rowCount === 1 && colCount > 1) {
-            // 1行 → 1列：横ピッチを縦へ流用 / one row -> one column
-            return (pitchX === 0) ? null : { x: pitchX, y: pitchX };
-        }
-        if (colCount === 1 && rowCount > 1) {
-            // 1列 → 1行：縦ピッチを横へ流用 / one column -> one row
-            return (pitchY === 0) ? null : { x: pitchY, y: pitchY };
-        }
-        // 通常（2行以上 かつ 2列以上）/ two or more rows and columns
-        return (pitchX === 0 || pitchY === 0) ? null : { x: pitchX, y: pitchY };
-    }
-
-    /**
-     * 歯抜けを許容したままグリッドを転置（行⇄列）する
+     * 歯抜けを許容したままグリッドを転置（行⇄列）する。
+     * いちばん大きいオブジェクトが入る升目に、左上をそろえて並べ直す（間隔はあとで適用する）
      * @param {PageItem[]} selectedItems - 対象のオブジェクト
      * @returns {void}
      */
     function transposeGridWithHoles(selectedItems) {
-        if (!selectedItems || selectedItems.length < 1) return;
+        var boundsList = collectBoundsList(selectedItems);
+        var colClusters = clusterByOverlap(boundsList, "x");
+        var rowClusters = clusterByOverlap(boundsList, "y");
+        // ほぼ重なり等で1セル扱いになったケース / everything collapsed into one cell
+        if (colClusters.length === 1 && rowClusters.length === 1) return;
+        assignClusterIndex(colClusters, "colIndex");
+        assignClusterIndex(rowClusters, "rowIndex");
+        if (alertCellConflict(boundsList)) return;
 
-        // left/top を集める / collect left/top
-        var leftValues = [], topValues = [];
-        for (var i = 0; i < selectedItems.length; i++) {
-            var itemBounds = getLayoutBounds(selectedItems[i]);
-            leftValues.push(itemBounds[0]);
-            topValues.push(itemBounds[1]);
-        }
-
-        var colClusters = clusterValues(leftValues, TRANSPOSE_SNAP_X_TOLERANCE); // left -> right
-        var rowClusters = clusterValues(topValues, TRANSPOSE_SNAP_Y_TOLERANCE); // will sort top -> bottom next
-
-        // Illustrator座標では上ほどYが大きいことが多いので「上→下」/ sort top -> bottom
-        rowClusters.sort(function (a, b) { return b - a; });
-
-        var cellMapping = mapItemsToCells(selectedItems, rowClusters, colClusters);
-        if (!cellMapping) return;
-
-        var pitch = getTransposePitch(rowClusters, colClusters);
-        if (!pitch) return;
-
-        // 転置後グリッドの基準（左上固定）/ origin at top-left
-        var originLeft = colClusters[0];
-        var originTop = rowClusters[0];
+        /* 升目は隣と接しないよう 1pt 足す（接すると取り直すときに隣の行・列とまとまる）
+           add 1pt so neighbouring cells never touch and merge when the layout is measured again */
+        var pitchX = getMaxExtent(boundsList, true) + 1;
+        var pitchY = getMaxExtent(boundsList, false) + 1;
+        var originLeft = colClusters[0].start;
+        var originTop = -rowClusters[0].start;
 
         // 転置: 新しい列 = 元の行、新しい行 = 元の列 / newCol = oldRow, newRow = oldCol
-        for (var j = 0; j < cellMapping.length; j++) {
-            var mappedItem = cellMapping[j].item;
-            var targetLeft = originLeft + cellMapping[j].row * pitch.x;
-            var targetTop = originTop - cellMapping[j].col * pitch.y;
-
-            var currentBounds = getLayoutBounds(mappedItem);
-            mappedItem.translate(targetLeft - currentBounds[0], targetTop - currentBounds[1]);
+        for (var i = 0; i < boundsList.length; i++) {
+            var cellEntry = boundsList[i];
+            var targetLeft = originLeft + cellEntry.rowIndex * pitchX;
+            var targetTop = originTop - cellEntry.colIndex * pitchY;
+            cellEntry.item.translate(targetLeft - cellEntry.bounds[0], targetTop - cellEntry.bounds[1]);
         }
 
         app.redraw();
