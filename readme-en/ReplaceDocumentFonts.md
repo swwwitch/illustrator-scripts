@@ -16,6 +16,8 @@
 - Selecting a source font highlights the matching text in the document, so you can see what is about to change before replacing it.
 - The dialog stays open after a replacement and the list is rebuilt automatically, so you can keep replacing.
 
+<img alt="The Replace Document Fonts dialog" src="../png/ss-1540-1184-144-20260929-202832.png" width="70%" />
+
 ### Main Features
 
 - **Scope**: switch between Entire Document and Selection Only. Selection Only targets the text selected when the script starts (including inside groups; while editing text, that story). It is unavailable when no text is selected
