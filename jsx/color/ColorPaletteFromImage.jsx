@@ -1898,6 +1898,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* ç´¹ä
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnCancel.preferredSize = DIALOG_BUTTON_SIZE;
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         btnOK.preferredSize = DIALOG_BUTTON_SIZE;
 
         btnRetry.onClick = function () {
@@ -2078,7 +2079,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* ç´¹ä
         isInitializing = false;
         notifyPreviewChange();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(outputDialog, SCRIPT_NAME);
         var dialogResult = outputDialog.show();
 

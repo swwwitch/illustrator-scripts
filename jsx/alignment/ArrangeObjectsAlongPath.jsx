@@ -1594,7 +1594,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         updateRotationUI();
         updateSpacingUI();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(arrangeDialog, SCRIPT_NAME);
         var dialogResult = arrangeDialog.show();
 
@@ -1697,6 +1696,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
             var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
+            centerButtonRowIfRightOnly(buttonRow);
             /* キャンセルで必ず閉じる / Always close on Cancel */
             btnCancel.onClick = function () {
                 arrangeDialog.close(0);

@@ -2563,6 +2563,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             dialog: mainDialog,
@@ -2790,7 +2791,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         updateEnabledState();
         /* 既定でONなので、ダイアログを開く前に描いておく / Preview is on by default, so draw it up front */
         refreshPreview();
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(mainDialog, SCRIPT_NAME);
         var dialogResult = mainDialog.show();
 

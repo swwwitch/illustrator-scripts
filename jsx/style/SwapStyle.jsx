@@ -479,6 +479,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 右：キャンセル／OK / Right: Cancel / OK */
         var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
         var btnOK = buttonRow.rightGroup.add('button', undefined, 'OK', { name: 'ok' });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             group: buttonRow.rowGroup,
@@ -748,7 +749,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cleanupPreview(previewState, app.activeDocument);
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         return dialog.show() === 1;
     }

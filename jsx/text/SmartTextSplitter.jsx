@@ -446,6 +446,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(splitDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             splitDialog: splitDialog,
@@ -508,7 +509,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             splitDialog.close(0);
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(splitDialog, SCRIPT_NAME);
         splitDialog.show();
     }

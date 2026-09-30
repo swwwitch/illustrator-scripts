@@ -2348,6 +2348,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* ç´¹ä
 
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return { btnRandom: btnRandom, btnReset: btnReset, btnCancel: btnCancel, btnOK: btnOK };
     }
@@ -2655,7 +2656,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* ç´¹ä
         applyCheckboxStates(dialogControls);
         syncSliders(dialogControls);
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialogWindow, SCRIPT_NAME);
         dialogWindow.show();
     }

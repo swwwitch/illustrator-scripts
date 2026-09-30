@@ -2092,6 +2092,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* ç´¹ä
         var btnClose = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
         var btnReplaceAll = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replaceAll));
         var btnReplace = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.replace), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         btnReplaceAll.helpTip = getLabel(LABELS.tooltip.replaceAll);
         btnReplace.helpTip = getLabel(LABELS.tooltip.replace);
 
@@ -2237,7 +2238,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* ç´¹ä
         targetFontListBox.selection = 0;
         handleSourceFontSelection();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(mainDialog, SCRIPT_NAME);
         mainDialog.show();
         saveSettings();

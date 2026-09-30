@@ -3293,6 +3293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* ç´¹ä
         setTooltip([previewCheckbox], LABELS.tooltip.preview);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             presetDropdown: preset.presetDropdown,
@@ -3653,7 +3654,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* ç´¹ä
         updateDialogState(controls);
         refreshPreview();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         var dialogResult = dialog.show();
 

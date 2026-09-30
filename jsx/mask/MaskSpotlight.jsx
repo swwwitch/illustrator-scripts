@@ -2429,6 +2429,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* ç´¹ä
         previewCheckbox.value = true;
         var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             preset: presetControls,
@@ -2759,7 +2760,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* ç´¹ä
         applyPreset(presetList[findDefaultPresetIndex(presetList)]);
         updateControlStates();
         refreshPreview();
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         dialog.show();
     }

@@ -20,8 +20,8 @@ Finds the digits, letters, dates or times in the selected text frame and duplica
 - When there is more than one candidate, radio buttons let you choose which one to increment (`Num1` / `Num2` / `Alpha1`, …)
 - Start value override and zero padding (the width grows automatically when the last value needs another digit)
 - Optionally merges the copies into a single text object on OK (leading = font size + gap)
-- Arrow keys change the values (Shift for 10, Option for 0.1)
-- Remembers the last dialog position
+- Stepper buttons (up/down chevrons) and the arrow keys change the numeric fields (Shift snaps to multiples of 10; Option steps the gap by 0.1)
+- Reopens the dialog where it was last closed (until Illustrator quits), moving it aside when it would cover the selection
 
 ### Usage
 
@@ -38,9 +38,9 @@ Finds the digits, letters, dates or times in the selected text frame and duplica
 | Step | Amount added at each step (negative values count down) |
 | Gap | Space between copies, added on top of the font size |
 | Target | Which part of the text to increment |
-| Start value | Starts from the value you enter instead of the one in the original text |
-| Zero pad | Pads with leading zeros to match the original width, widening it when the last value needs another digit |
-| Merge into one text | Joins the copies into a single text object when you press OK |
+| Start value | Replaces the value in the original text and counts on from it (a single letter when a letter is the target) |
+| Pad with zeros | Pads with leading zeros to match the original width, widening it when the last value needs another digit |
+| Merge into one text object | Joins the copies to the original text with line breaks when you press OK (leading = font size + gap) |
 
 ### Notes
 
@@ -55,3 +55,4 @@ Finds the digits, letters, dates or times in the selected text frame and duplica
 
 - v2.0.0
 - v2.0.2 (20260920) : Renamed the fields to Gap / Start value / Merge into one text, fixed zero padding for negative values, dropped the increment-target row when there is nothing to choose, and disabled OK while the start value is invalid
+- v2.0.3 (20260930) : Added stepper buttons to the numeric fields, with the arrow keys sharing the same stepping. Moved the dialog position, opacity, button row and spacing to the shared parts (the position is kept until Illustrator quits). Fixed an error when run with characters selected by the Type tool. Reworded the alerts and tooltips, and renamed Zero pad / Merge into one text to Pad with zeros / Merge into one text object

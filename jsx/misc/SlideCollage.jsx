@@ -2210,6 +2210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* ç´¹ä
         dialogControls.fitViewControls.checkbox.helpTip = getLabel("tooltip.fitView");
         dialogControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         dialogControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         return dialogControls;
     }
 
@@ -2875,7 +2876,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f8c7370f4e5"; /* ç´¹ä
         useSelectedPlacedFile();
         if (sourceFile) setDefaultEvenShift();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialogControls.dialog, SCRIPT_NAME);
         if (dialogControls.dialog.show() === 1) {
             finalizePreview();

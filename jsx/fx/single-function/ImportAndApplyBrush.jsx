@@ -1032,6 +1032,7 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         btnCancel.helpTip = getLabel('tooltip.cancel');
         var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel('button.apply'), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         btnApply.helpTip = getLabel('tooltip.apply');
 
         /* ［適用］：選んだブラシを選択したパスすべてに適用する / Apply: put the chosen brush on every selected path */
@@ -1099,7 +1100,6 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         }
 
         var brushDialog = createBrushDialog(doc, libraryBrushNames, targetPaths);
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(brushDialog, SCRIPT_NAME);
         brushDialog.show();
     }

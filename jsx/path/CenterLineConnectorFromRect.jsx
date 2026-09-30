@@ -1301,6 +1301,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         var btnOutlineToggle = buttonRow.leftGroup.add("button", undefined, getLabel('btnOutlineOn'));
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel('btnOk'), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         var snapshotSelection = [];
         for (var ssi = 0; ssi < app.activeDocument.selection.length; ssi++) {
@@ -1521,7 +1522,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0a1c70def387"; /* 紹�
         /* 初期状態の同期 / Synchronize initial UI state */
         initializeOptionDialogState(ui);
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         var dialogResult = dialog.show();
 

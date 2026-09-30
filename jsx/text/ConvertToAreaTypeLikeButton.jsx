@@ -2139,6 +2139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(adjustDialog);
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel("button.close"), { name: "cancel" });
         var btnRun = buttonRow.rightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             adjustDialog: adjustDialog,
@@ -2435,7 +2436,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 開いたらプレビュー実行（常時ON）/ Run preview on open (always on) */
         updatePreview();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(adjustDialog, SCRIPT_NAME);
         adjustDialog.show();
     }

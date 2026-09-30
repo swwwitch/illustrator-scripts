@@ -2331,6 +2331,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* ç´¹ä
         dialogControls.previewCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         dialogControls.btnOK = btnOK;
         return dialogControls;
     }
@@ -2858,7 +2859,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* ç´¹ä
         markDialog.layout.layout(true);
         markDialog.layout.resize();
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(markDialog, SCRIPT_NAME);
         markDialog.show();
     }

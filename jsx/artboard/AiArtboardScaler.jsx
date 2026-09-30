@@ -1216,6 +1216,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(resizeDialog);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
         var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
+        centerButtonRowIfRightOnly(buttonRow);
 
         return resizeDialog;
     }
@@ -2115,7 +2116,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resizeDialog.scaleInput.active = true;
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(resizeDialog, SCRIPT_NAME);
         if (resizeDialog.show() !== 1) {
             /* キャンセル：矩形を復元（失敗は通知）し、選択・アクティブアートボードを戻す / Cancel: restore rects (notify on failure), restore selection & active artboard */

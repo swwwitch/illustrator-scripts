@@ -1718,6 +1718,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(dialogControls.window);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return dialogControls;
     }
@@ -2208,7 +2209,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rulerUnit = getUnitInfo("rulerType");
 
         var dialogControls = buildDialog(selectedItems, rulerUnit.label, heightOnly);
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialogControls.window, SCRIPT_NAME);
         if (dialogControls.window.show() !== 1) return;
         var dialogSettings = readDialogSettings(dialogControls);

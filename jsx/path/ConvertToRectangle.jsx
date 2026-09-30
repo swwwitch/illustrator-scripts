@@ -1617,6 +1617,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         previewCheck.helpTip = getLabel("previewTip");
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         ui.buttons = {
             previewCheck: previewCheck,
             cancelButton: btnCancel,
@@ -1656,7 +1657,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dialog.close();
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dialog, SCRIPT_NAME);
         dialog.show();
         return dialogResult;

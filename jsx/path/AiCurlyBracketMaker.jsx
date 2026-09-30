@@ -2981,6 +2981,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         btnCancel.helpTip = getLabel('tooltip.cancel');
         var btnCreate = buttonRow.rightGroup.add("button", undefined, getLabel('button.create'), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         btnCreate.helpTip = getLabel('tooltip.create');
 
         /* ［作成］：プレビューをそのまま成果物として残す / Create: keep the preview as the result */
@@ -3061,7 +3062,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         }
 
         var bracketDialog = createBracketDialog(doc);
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(bracketDialog, SCRIPT_NAME);
         bracketDialog.show();
     }

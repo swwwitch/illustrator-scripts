@@ -628,6 +628,7 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         btnCancel.helpTip = getLabel('tooltip.cancel');
         var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel('button.apply'), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
         btnApply.helpTip = getLabel('tooltip.apply');
 
         /* ［適用］：選んだスタイルを選択したオブジェクトすべてに適用する / Apply: put the chosen style on every selected object */
@@ -701,7 +702,6 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         }
 
         var styleDialog = createGraphicStyleDialog(doc, libraryStyleNames, targetItems);
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(styleDialog, SCRIPT_NAME);
         styleDialog.show();
     }

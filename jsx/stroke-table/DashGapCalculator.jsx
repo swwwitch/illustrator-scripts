@@ -1440,6 +1440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* ç´¹ä
         btnClearDash.helpTip = getLabel(LABELS.tooltip.clearDash);
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             dialog: dashDialog,
@@ -2680,7 +2681,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* ç´¹ä
             else txtSegments.active = true;
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(dashDialog, SCRIPT_NAME);
         dashDialog.show();
     }
