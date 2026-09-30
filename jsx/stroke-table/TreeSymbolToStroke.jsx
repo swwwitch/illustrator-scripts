@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したテキストのツリー記号（├─・└─・│ や tree コマンドの ├── など）をパスの罫線に変換し、字下げと名前・説明のあいだの空きをタブにします。
-罫線とタブストップの位置は、プレビューを見ながら調整できます。
+各行を囲み罫で囲むこともでき、罫線・タブストップ・囲み罫はプレビューを見ながら調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TreeSymbolToStroke.md
@@ -18,7 +18,8 @@ https://note.com/dtp_tranist/n/nc961754b7cad
 ### Overview
 
 Converts the tree symbols (├─, └─, │, the ├── from the tree command and so on) in the selected text into stroked paths,
-and turns indents and the gaps between names and descriptions into tabs. The line and tab stop positions are adjusted with a live preview.
+and turns indents and the gaps between names and descriptions into tabs. Each line can also be boxed; the lines, tab stops
+and boxes are adjusted with a live preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TreeSymbolToStroke.md
@@ -29,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TreeSymbol
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TreeSymbolToStroke";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -54,6 +55,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     var LINK_LEVELS_EVENLY      = false;          /* レベルの［均等に連動］の初期値 / default of the even level link */
     var LINK_STEMS_EVENLY       = false;          /* 縦罫の［均等に連動］の初期値 / default of the even stem link */
     var CONVERT_SPACE_RUNS      = true;           /* ［連続したスペースをタブに変換］の初期値 / default of the space-run option */
+    var DRAW_BOX                = false;          /* ［囲み罫］の初期値 / default of the box option */
+    var BOX_MARGIN_SIZE_RATIO   = 1 / 8;          /* 囲み罫のマージン（左右・上下）の初期値。文字サイズに掛ける割合 / default box margins as a share of the type size */
+    var LINK_BOX_MARGINS        = true;           /* 囲み罫のマージンの［連動］の初期値 / default of the margin link */
+    var ATTACH_ARMS_TO_BOX      = true;           /* ［横線を囲み罫につなげる］の初期値 / default of attaching the arms to the boxes */
+    var ALIGN_BOX_RIGHT         = true;           /* ［右端を揃える］の初期値 / default of the right-edge alignment of the boxes */
+    var SPLIT_BOXED_LINES       = false;          /* ［行ごとに分割］の初期値 / default of splitting the boxed lines */
 
     // =========================================
     // レイアウト / Layout
@@ -250,7 +257,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             leading: { ja: "行送り", en: "Leading" },
             levelStop: { ja: "レベル %1", en: "Level %1" },
             descriptionStop: { ja: "説明", en: "Description" },
-            stemPosition: { ja: "縦罫 %1", en: "Rule %1" }
+            stemPosition: { ja: "縦罫 %1", en: "Rule %1" },
+            boxMarginX: { ja: "左右", en: "Left/Right" },
+            boxMarginY: { ja: "上下", en: "Top/Bottom" }
         },
         radio: {
             roundCap: { ja: "丸型", en: "Round" },
@@ -258,7 +267,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         },
         checkbox: {
             convertIndents: { ja: "行頭の字下げをタブに変換", en: "Convert indents to tabs" },
-            convertSpaceRuns: { ja: "連続したスペースをタブに変換", en: "Convert space runs to tabs" }
+            convertSpaceRuns: { ja: "連続したスペースをタブに変換", en: "Convert space runs to tabs" },
+            drawBox: { ja: "囲み罫", en: "Box" },
+            attachArmsToBox: { ja: "横線を囲み罫につなげる", en: "Connect arms to boxes" },
+            alignBoxRight: { ja: "右端を揃える", en: "Align right edges" },
+            splitBoxedLines: { ja: "行ごとに分割", en: "Split into lines" }
         },
         tooltip: {
             leading: {
@@ -317,6 +330,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             convertSpaceRuns: {
                 ja: "文字のあとに続く2つ以上の半角スペースをタブにし、説明がそろう位置（いちばん右の説明）にタブストップを置きます。",
                 en: "Turns two or more spaces after text into a tab, with a tab stop that lines up the descriptions at the rightmost one."
+            },
+            drawBox: {
+                ja: "各行を長方形の罫線で囲みます。線幅・線端・カラーは罫線と同じです。横線は囲みの左辺で止めます。",
+                en: "Surrounds each line with a rectangle in the same weight, cap and color as the lines. The arms stop at the box."
+            },
+            boxMarginX: {
+                ja: "文字から囲み罫の左右の辺までの間隔です。",
+                en: "Distance from the characters to the left and right sides of the box."
+            },
+            boxMarginY: {
+                ja: "文字から囲み罫の上下の辺までの間隔です。",
+                en: "Distance from the characters to the top and bottom of the box."
+            },
+            linkBoxMargins: {
+                ja: "連動：オンにすると、左右と上下のマージンを同じ値にします。",
+                en: "Link: when on, the left/right and top/bottom margins share one value."
+            },
+            attachArmsToBox: {
+                ja: "オンにすると、横線を囲み罫の左辺まで伸ばしてつなげます。［テキスト］の［囲み罫］がオンのときに使えます。",
+                en: "When on, the arms run all the way to the left side of the boxes. Available when Box is on in the Text panel."
+            },
+            alignBoxRight: {
+                ja: "オンにすると、囲み罫の右端をいちばん長い行にそろえます。オフのときは行ごとの文字の右端で囲みます。",
+                en: "When on, every box extends to the longest line. When off, each box ends at its own line."
+            },
+            splitBoxedLines: {
+                ja: "テキストを行ごとに分割し、それぞれの囲み罫とグループ化します。",
+                en: "Splits the text into lines and groups each line with its box."
             },
             strokeWidth: {
                 ja: "描く罫線の線幅です。単位は環境設定の［単位］の［線］に従います。",
@@ -1994,6 +2035,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         }
         /* 名前を深さごとにそろえて右へ動かした分だけ、横線を伸ばす / extend the arm to follow a name moved to its depth's position */
         if (symbol.armExtension) lineRight += symbol.armExtension;
+        /* 囲み罫があるときは、その左辺で止める（つなげるときは左辺の位置そのもの） / stop at the box's left edge (or end exactly on it) */
+        if (symbol.armTrim) lineRight -= symbol.armTrim;
+        if (symbol.armEnd !== undefined) lineRight = symbol.armEnd;
         /* 角の記号の右端は文字枠の右端なので、縦線はそこから半文字戻った位置 / the stem sits half a cell left of the corner's right edge */
         var stemX = glyphRight - cellWidth / 2;
 
@@ -2063,12 +2107,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     }
 
     /**
-     * 縦線の上端が上の行の縦線に続いていなければ、上にある前のレベルの横線まで伸ばしてつなぐ
-     * （子の └ が親の ├─ の横線から下りる形にする）
+     * 縦線の上端が上の行の縦線に続いていなければ、上にある前のレベルの横線か、上の行（囲み罫）の下辺まで伸ばしてつなぐ
+     * （子の └ が親の ├─ の横線から下りる形にする。いちばん上の縦線は最初の項目から下ろす）
      * @param {Object[]} symbolShapes - { kind, lines }（lines は buildSymbolLines() の戻り値）の配列。点をその場で書き換える
+     * @param {number[][]} lineBoxes - 囲み罫（囲み罫が無いときは行）の範囲 [左, 上, 右, 下] の配列
      * @returns {void}
      */
-    function connectStemsToParentArms(symbolShapes) {
+    function connectStemsToParentArms(symbolShapes, lineBoxes) {
         var stems = [];
         var arms = [];
         var i, k;
@@ -2095,6 +2140,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             for (k = 0; k < arms.length; k++) {
                 var crossesStem = arms[k].left - STEM_JOIN_TOLERANCE_PT < stemX && stemX < arms[k].right + STEM_JOIN_TOLERANCE_PT;
                 if (crossesStem && arms[k].y > stemTop && (parentArmY === null || arms[k].y < parentArmY)) parentArmY = arms[k].y;
+            }
+            /* 横線より近くに上の行（囲み罫）があれば、その下辺で止める / a line or box nearer than any arm takes the stem instead */
+            for (k = 0; k < lineBoxes.length; k++) {
+                var boxCoversStem = lineBoxes[k][0] < stemX && stemX < lineBoxes[k][2];
+                var boxBottom = lineBoxes[k][3];
+                if (boxCoversStem && boxBottom > stemTop - STEM_JOIN_TOLERANCE_PT && (parentArmY === null || boxBottom < parentArmY)) parentArmY = boxBottom;
             }
             if (parentArmY !== null) stems[i].topPoint[1] = parentArmY;
         }
@@ -2124,13 +2175,142 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     function addLinePath(lineGroup, points, lineStyle) {
         var linePath = lineGroup.pathItems.add();
         linePath.setEntirePath(points);
-        linePath.filled = false;
-        linePath.stroked = true;
-        linePath.strokeWidth = lineStyle.strokeWidth;
-        linePath.strokeColor = lineStyle.strokeColor;
-        linePath.strokeCap = lineStyle.strokeCap;
-        linePath.strokeJoin = lineStyle.strokeJoin;
+        applyLineStyle(linePath, lineStyle);
         return linePath;
+    }
+
+    /**
+     * 長方形の罫線（囲み罫）を作る
+     * @param {GroupItem} lineGroup - 追加先のグループ
+     * @param {number[]} boxBounds - 長方形の範囲 [左, 上, 右, 下]（pt）
+     * @param {Object} lineStyle - strokeWidth（pt）/ strokeColor / strokeCap / strokeJoin
+     * @returns {PathItem} 作ったパス
+     */
+    function addBoxPath(lineGroup, boxBounds, lineStyle) {
+        var boxPath = lineGroup.pathItems.rectangle(boxBounds[1], boxBounds[0], boxBounds[2] - boxBounds[0], boxBounds[1] - boxBounds[3]);
+        applyLineStyle(boxPath, lineStyle);
+        return boxPath;
+    }
+
+    /**
+     * 行ごとの字形の範囲を拾う（前から順。字形の無い行は firstGlyph が -1）
+     * @param {string} textContents - テキストフレームの contents
+     * @returns {Object[]} { start, firstGlyph, lastGlyph } の配列
+     */
+    function listTextLines(textContents) {
+        var textLines = [];
+        var currentLine = { start: 0, firstGlyph: -1, lastGlyph: -1 };
+        for (var i = 0; i < textContents.length; i++) {
+            var oneChar = textContents.charAt(i);
+            if (isLineBreakChar(oneChar)) {
+                textLines.push(currentLine);
+                currentLine = { start: i + 1, firstGlyph: -1, lastGlyph: -1 };
+                continue;
+            }
+            if (isBlankChar(oneChar)) continue;
+            if (currentLine.firstGlyph < 0) currentLine.firstGlyph = i;
+            currentLine.lastGlyph = i;
+        }
+        textLines.push(currentLine);
+        return textLines;
+    }
+
+    /**
+     * 範囲をマージンの分だけ広げる
+     * @param {number[]} bounds - [左, 上, 右, 下]（pt）
+     * @param {Object} margins - x（左右 pt）/ y（上下 pt）
+     * @returns {number[]} 広げた範囲
+     */
+    function expandBounds(bounds, margins) {
+        return [bounds[0] - margins.x, bounds[1] + margins.y, bounds[2] + margins.x, bounds[3] - margins.y];
+    }
+
+    /**
+     * 変換したあとのテキストの各行を囲む、囲み罫の範囲を決める。
+     * 横は行の最初と最後の字形、縦はポイント文字の外形を行送りで行ごとに分けた高さ（1行の仮想ボディ）で囲む。
+     * ポイント文字以外は行の位置を出せないので、テキスト全体を1つで囲む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Object} boxOptions - margins（x / y、pt）/ alignRight（右端をいちばん長い行にそろえる）
+     * @returns {number[][]} 囲み罫の範囲 [左, 上, 右, 下]（マージン込み、pt）の配列（上の行から順）
+     */
+    function measureLineBoxes(textFrame, boxOptions) {
+        var frameBounds = textFrame.geometricBounds;
+        if (textFrame.kind !== TextType.POINTTEXT) return [expandBounds(frameBounds, boxOptions.margins)];
+        var textContents = textFrame.contents;
+        var textLines = listTextLines(textContents);
+        var wantedIndices = {};
+        var i;
+        for (i = 0; i < textLines.length; i++) {
+            if (textLines[i].firstGlyph < 0) continue;
+            wantedIndices[textLines[i].firstGlyph] = true;
+            wantedIndices[textLines[i].lastGlyph] = true;
+        }
+        var boundsByIndex = measureGlyphBounds(textFrame, wantedIndices);
+        if (!boundsByIndex) return [expandBounds(frameBounds, boxOptions.margins)];
+
+        /* 各行の上端は、外形の上端から前の行までの行送りを引いた位置。行送りは行頭の文字のもの
+           each line's top is the frame top minus the leading of the lines above, read from each line's first character */
+        var lineTops = [frameBounds[1]];
+        var leadingTotal = 0;
+        for (i = 1; i < textLines.length; i++) {
+            var lineHeadIndex = Math.min(textLines[i].start, textContents.length - 1);
+            leadingTotal += readCellMetrics(textFrame.characters[lineHeadIndex]).leading;
+            lineTops.push(frameBounds[1] - leadingTotal);
+        }
+        /* 外形の高さから行送りの合計を引いた残りが1行の高さ / the frame height minus the leadings is one line's height */
+        var lineHeight = (frameBounds[1] - frameBounds[3]) - leadingTotal;
+
+        var alignedRight = -Infinity;
+        for (i = 0; i < textLines.length; i++) {
+            if (textLines[i].firstGlyph >= 0) alignedRight = Math.max(alignedRight, boundsByIndex[textLines[i].lastGlyph][2]);
+        }
+        var lineBoxes = [];
+        for (i = 0; i < textLines.length; i++) {
+            if (textLines[i].firstGlyph < 0) continue;
+            var boxRight = boxOptions.alignRight ? alignedRight : boundsByIndex[textLines[i].lastGlyph][2];
+            lineBoxes.push(expandBounds([boundsByIndex[textLines[i].firstGlyph][0], lineTops[i], boxRight, lineTops[i] - lineHeight], boxOptions.margins));
+        }
+        return lineBoxes;
+    }
+
+    /**
+     * 名前が続く角の記号の横線を、囲み罫の左辺で止めるよう短くする量を決める。
+     * つなげるときは、名前の位置を測れた記号の横線を囲み罫の左辺（名前の左端 − マージン）で終える
+     * @param {Object[]} symbols - findTreeSymbols() の戻り値。armTrim か armEnd を足す
+     * @param {string} textContents - 書き換える前の contents
+     * @param {Object} symbolIndices - 記号の文字の番号をキーにしたオブジェクト
+     * @param {number} marginPt - 囲み罫の左右のマージン（pt）
+     * @param {boolean} attachArms - 横線を囲み罫につなげるなら true
+     * @returns {void}
+     */
+    function trimArmsForBoxes(symbols, textContents, symbolIndices, marginPt, attachArms) {
+        for (var i = 0; i < symbols.length; i++) {
+            if (symbols[i].kind === "vertical") continue;
+            /* 同じ行の後ろに名前（字形）があるときだけ、その行の囲みに届く / only when a name follows on the same line */
+            for (var k = symbols[i].index + symbols[i].length; k < textContents.length; k++) {
+                var nextChar = textContents.charAt(k);
+                if (isLineBreakChar(nextChar)) break;
+                if (symbolIndices[k] || isBlankChar(nextChar)) continue;
+                if (attachArms && symbols[i].nameLeft !== undefined) symbols[i].armEnd = symbols[i].nameLeft - marginPt;
+                else symbols[i].armTrim = marginPt;
+                break;
+            }
+        }
+    }
+
+    /**
+     * パスを塗りなし・罫線の線にする
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {Object} lineStyle - strokeWidth（pt）/ strokeColor / strokeCap / strokeJoin
+     * @returns {void}
+     */
+    function applyLineStyle(pathItem, lineStyle) {
+        pathItem.filled = false;
+        pathItem.stroked = true;
+        pathItem.strokeWidth = lineStyle.strokeWidth;
+        pathItem.strokeColor = lineStyle.strokeColor;
+        pathItem.strokeCap = lineStyle.strokeCap;
+        pathItem.strokeJoin = lineStyle.strokeJoin;
     }
 
     /**
@@ -2768,7 +2948,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Object} framePlan - planFrameEdits() の戻り値（assignTabTargets() 済み）
      * @param {Object[]} textEdits - 行った書き換え（番号の読み替えに使う）
-     * @returns {void} 角の記号に armExtension を足す
+     * @returns {void} 角の記号に armExtension と nameLeft（名前の左端 pt）を足す
      */
     function measureArmExtensions(textFrame, framePlan, textEdits) {
         var wantedIndices = {};
@@ -2785,7 +2965,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         if (!boundsByIndex) return;
         for (i = 0; i < armRegions.length; i++) {
             var nameBounds = boundsByIndex[armRegions[i].shiftedNameIndex];
-            if (nameBounds) armRegions[i].cornerSymbol.armExtension = nameBounds[0] - armRegions[i].originalX;
+            if (!nameBounds) continue;
+            armRegions[i].cornerSymbol.armExtension = nameBounds[0] - armRegions[i].originalX;
+            armRegions[i].cornerSymbol.nameLeft = nameBounds[0];
         }
     }
 
@@ -2811,10 +2993,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Function} getLineGroup - 罫線を入れるグループを返す関数（最初の罫線を描くときに作る）
      * @param {Object} lineStyle - strokeWidth（pt）/ strokeColor / strokeCap / strokeJoin
-     * @param {Object} conversionSettings - leadingPt / convertIndents / convertSpaceRuns / tabStopOverrides / stemOverrides
+     * @param {Object} conversionSettings - leadingPt / convertIndents / convertSpaceRuns / drawBox / boxMarginXPt / boxMarginYPt / alignBoxRight / attachArmsToBox /
+     *     tabStopOverrides / stemOverrides
      * @param {Object} levelPositions - 深さのキー → 置いたタブストップの位置（pt）。ここに足す
      * @param {Object} stemPositions - 列のキー → そろえた縦罫の位置（pt）。ここに足す
-     * @returns {{symbolCount: number, indentCount: number, spaceRunCount: number}|null} 変換した数（位置を測れなければ null）
+     * @returns {{symbolCount: number, indentCount: number, spaceRunCount: number, boxPaths: PathItem[]}|null} 変換した数と描いた囲み罫（位置を測れなければ null）
      */
     function convertTextFrame(textFrame, getLineGroup, lineStyle, conversionSettings, levelPositions, stemPositions) {
         /* 行送りは記号の位置を動かすので、測る前に当てる / leading moves the symbols, so apply it before measuring */
@@ -2823,8 +3006,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         var textContents = textFrame.contents;
         var symbols = findTreeSymbols(textContents);
         var framePlan = planFrameEdits(textContents, symbols, conversionSettings);
-        var frameCounts = { symbolCount: symbols.length, indentCount: framePlan.indentRegions.length, spaceRunCount: framePlan.spaceRuns.length };
-        if (symbols.length === 0 && framePlan.spaceRuns.length === 0) return frameCounts;
+        var frameCounts = { symbolCount: symbols.length, indentCount: framePlan.indentRegions.length, spaceRunCount: framePlan.spaceRuns.length, boxPaths: [] };
+        if (symbols.length === 0 && framePlan.spaceRuns.length === 0) {
+            drawBoxes(textFrame, getLineGroup, lineStyle, conversionSettings, frameCounts.boxPaths);
+            return frameCounts;
+        }
 
         var boundsByIndex = measureGlyphBounds(textFrame, collectWantedIndices(symbols, framePlan));
         if (!boundsByIndex) return null;
@@ -2844,14 +3030,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         recordLevelPositions(paragraphList, levelPositions);
 
         measureArmExtensions(textFrame, framePlan, textEdits);
+        if (conversionSettings.drawBox) trimArmsForBoxes(symbols, textContents, framePlan.symbolIndices, conversionSettings.boxMarginXPt, conversionSettings.attachArmsToBox);
+        /* 囲み罫は変換したあとの文字の位置で決め、縦線をつなぐ先にも使う。囲み罫が無いときも、行の範囲（マージンなし）を
+           つなぐ先にして、いちばん上の縦線を最初の項目まで伸ばす
+           boxes follow the converted text and also anchor the stems; without boxes the bare line bounds anchor them,
+           so the topmost stem still reaches the first item */
+        var lineBoxes = conversionSettings.drawBox
+            ? drawBoxes(textFrame, getLineGroup, lineStyle, conversionSettings, frameCounts.boxPaths)
+            : measureLineBoxes(textFrame, { margins: { x: 0, y: 0 }, alignRight: true });
         drawTreeLines(symbols, boundsByIndex, textContents, {
             originX: originX,
             stemOverrides: conversionSettings.stemOverrides,
             stemPositions: stemPositions,
+            lineBoxes: lineBoxes,
             getLineGroup: getLineGroup,
             lineStyle: lineStyle
         });
         return frameCounts;
+    }
+
+    /**
+     * ［囲み罫］がオンなら、変換したあとのテキストの各行を囲む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Function} getLineGroup - 罫線を入れるグループを返す関数
+     * @param {Object} lineStyle - strokeWidth（pt）/ strokeColor / strokeCap / strokeJoin
+     * @param {Object} conversionSettings - drawBox / boxMarginXPt / boxMarginYPt / alignBoxRight
+     * @param {PathItem[]} boxPaths - 描いた囲み罫のパス。ここに足す（上の行から順）
+     * @returns {number[][]} 描いた囲み罫の範囲（オフなら空）
+     */
+    function drawBoxes(textFrame, getLineGroup, lineStyle, conversionSettings, boxPaths) {
+        if (!conversionSettings.drawBox) return [];
+        var lineBoxes = measureLineBoxes(textFrame, {
+            margins: { x: conversionSettings.boxMarginXPt, y: conversionSettings.boxMarginYPt },
+            alignRight: conversionSettings.alignBoxRight
+        });
+        for (var i = 0; i < lineBoxes.length; i++) boxPaths.push(addBoxPath(getLineGroup(), lineBoxes[i], lineStyle));
+        return lineBoxes;
     }
 
     /**
@@ -2890,11 +3104,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     }
 
     /**
-     * ツリー記号の罫線を描く。縦線は列ごとにそろえ、上が途切れた縦線は前のレベルの横線までつなぐ
+     * ツリー記号の罫線を描く。縦線は列ごとにそろえ、上が途切れた縦線は前のレベルの横線か囲み罫までつなぐ
      * @param {Object[]} symbols - rememberGlyphInfo() 済みの記号
      * @param {Object} boundsByIndex - 書き換える前の字形の境界
      * @param {string} textContents - 書き換える前の contents
-     * @param {Object} drawOptions - originX / stemOverrides / stemPositions（ここに足す）/ getLineGroup / lineStyle
+     * @param {Object} drawOptions - originX / stemOverrides / stemPositions（ここに足す）/ lineBoxes / getLineGroup / lineStyle
      * @returns {void}
      */
     function drawTreeLines(symbols, boundsByIndex, textContents, drawOptions) {
@@ -2907,7 +3121,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             });
         }
         alignStemsByColumn(symbolShapes, drawOptions.originX, drawOptions.stemOverrides, drawOptions.stemPositions);
-        connectStemsToParentArms(symbolShapes);
+        connectStemsToParentArms(symbolShapes, drawOptions.lineBoxes);
         for (i = 0; i < symbolShapes.length; i++) {
             for (var j = 0; j < symbolShapes[i].lines.length; j++) addLinePath(drawOptions.getLineGroup(), symbolShapes[i].lines[j], drawOptions.lineStyle);
         }
@@ -2918,11 +3132,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
      * @param {Document} doc - 対象のドキュメント
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @param {Object} conversionSettings - strokeWidthPt / strokeColor / roundCap / leadingPt / convertIndents / convertSpaceRuns /
-     *     tabStopOverrides / stemOverrides
+     *     drawBox / boxMarginXPt / boxMarginYPt / alignBoxRight / attachArmsToBox / tabStopOverrides / stemOverrides
      * @param {PageItem[]} [createdItems] - 罫線のグループを作ったらすぐここに足す（途中で例外になっても片付けられるように）
      * @returns {Object} symbolCount / indentCount / spaceRunCount / failedFrameCount（位置を測れなかったテキスト）/
      *     levelPositions（深さのキー → タブストップの位置 pt）/ stemPositions（列のキー → 縦罫の位置 pt）/
-     *     lineGroup（作った罫線のグループ。無ければ null）
+     *     lineGroup（作った罫線のグループ。無ければ null）/ boxedFrames（囲み罫を描いたテキストごとの { textFrame, boxPaths }）
      */
     function convertTextFrames(doc, textFrames, conversionSettings, createdItems) {
         /* 角の形状は線端に連動させる（丸型 → ラウンド、なし → マイター） / the join follows the cap */
@@ -2932,7 +3146,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             strokeCap: conversionSettings.roundCap ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP,
             strokeJoin: conversionSettings.roundCap ? StrokeJoin.ROUNDENDJOIN : StrokeJoin.MITERENDJOIN
         };
-        var conversionResult = { symbolCount: 0, indentCount: 0, spaceRunCount: 0, failedFrameCount: 0, levelPositions: {}, stemPositions: {}, lineGroup: null };
+        var conversionResult = { symbolCount: 0, indentCount: 0, spaceRunCount: 0, failedFrameCount: 0, levelPositions: {}, stemPositions: {}, lineGroup: null, boxedFrames: [] };
 
         /**
          * 罫線のグループを返す（最初に呼ばれたときに作る）
@@ -2956,8 +3170,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             conversionResult.symbolCount += frameCounts.symbolCount;
             conversionResult.indentCount += frameCounts.indentCount;
             conversionResult.spaceRunCount += frameCounts.spaceRunCount;
+            if (frameCounts.boxPaths.length > 0) conversionResult.boxedFrames.push({ textFrame: textFrames[i], boxPaths: frameCounts.boxPaths });
         }
         return conversionResult;
+    }
+
+    // =========================================
+    // 行ごとの分割 / Split into lines
+    // =========================================
+
+    /**
+     * アイテムを1つのグループにまとめ、基準のアイテムの位置（重なり順）に置く
+     * @param {PageItem} anchorItem - 置く位置の基準
+     * @param {PageItem[]} items - まとめるアイテム（前面から順）
+     * @returns {GroupItem} 作ったグループ
+     */
+    function groupItemsAt(anchorItem, items) {
+        var itemGroup = anchorItem.parent.groupItems.add();
+        itemGroup.move(anchorItem, ElementPlacement.PLACEBEFORE);
+        for (var i = 0; i < items.length; i++) items[i].move(itemGroup, ElementPlacement.PLACEATEND);
+        return itemGroup;
+    }
+
+    /**
+     * 囲み罫を描いたテキストを行ごとのポイント文字に分け、行と囲み罫を1つずつグループにする。
+     * 分けた行は、前の行を消して上がった分（行送りの合計）だけ下げて元の位置に戻す。
+     * ポイント文字以外や、行と囲み罫の数が合わないときは分けずに、テキストと囲み罫をまとめる
+     * @param {TextFrame} textFrame - 変換したテキスト（分けたら削除する）
+     * @param {PathItem[]} boxPaths - そのテキストの囲み罫（上の行から順）
+     * @returns {void}
+     */
+    function splitBoxedLines(textFrame, boxPaths) {
+        var textContents = textFrame.contents;
+        var textLines = listTextLines(textContents);
+        var glyphLines = [];
+        var leadingTotal = 0;
+        for (var i = 0; i < textLines.length; i++) {
+            var lineHead = textFrame.characters[Math.min(textLines[i].start, textContents.length - 1)];
+            if (i > 0) leadingTotal += readCellMetrics(lineHead).leading;
+            if (textLines[i].firstGlyph < 0) continue;
+            /* 段落の書式は前の段落を消すと入れ替わりうるので、控えて当て直す / paragraph settings may change when earlier paragraphs go, so keep them */
+            var lineParagraph = lineHead.paragraphAttributes;
+            glyphLines.push({
+                start: textLines[i].start,
+                end: (i + 1 < textLines.length) ? textLines[i + 1].start - 1 : textContents.length,
+                offsetY: leadingTotal,
+                tabStops: lineParagraph.tabStops,
+                justification: lineParagraph.justification
+            });
+        }
+        if (textFrame.kind !== TextType.POINTTEXT || glyphLines.length < 2 || glyphLines.length !== boxPaths.length) {
+            groupItemsAt(textFrame, [textFrame].concat(boxPaths));
+            return;
+        }
+        for (i = 0; i < glyphLines.length; i++) {
+            var glyphLine = glyphLines[i];
+            var lineFrame = textFrame.duplicate();
+            var lineEdits = [];
+            if (glyphLine.end < textContents.length) lineEdits.push({ start: glyphLine.end, end: textContents.length, replacement: "" });
+            if (glyphLine.start > 0) lineEdits.push({ start: 0, end: glyphLine.start, replacement: "" });
+            applyTextEdits(lineFrame, lineEdits);
+            var lineAttributes = lineFrame.textRange.paragraphAttributes;
+            if (glyphLine.tabStops.length > 0) lineAttributes.tabStops = glyphLine.tabStops;
+            lineAttributes.justification = glyphLine.justification;
+            lineFrame.translate(0, -glyphLine.offsetY);
+            groupItemsAt(textFrame, [lineFrame, boxPaths[i]]);
+        }
+        textFrame.remove();
+    }
+
+    /**
+     * 変換結果の囲み罫を描いたテキストを、すべて行ごとに分けてグループにする。罫線のグループが空になったら消す
+     * @param {Object} conversionResult - convertTextFrames() の戻り値
+     * @returns {void}
+     */
+    function splitAllBoxedLines(conversionResult) {
+        for (var i = 0; i < conversionResult.boxedFrames.length; i++) {
+            splitBoxedLines(conversionResult.boxedFrames[i].textFrame, conversionResult.boxedFrames[i].boxPaths);
+        }
+        var lineGroup = conversionResult.lineGroup;
+        if (lineGroup && lineGroup.pageItems.length === 0) lineGroup.remove();
     }
 
     // 画面にフィット（再利用パーツ、_templates/FitViewToItems.jsx） / Fit view to items (reusable)
@@ -3211,7 +3503,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             isShowing = true;
             /* 変換の前に控え、途中で例外になっても複製と罫線を片付けて元を表示に戻す
                record the items before converting so a failure still cleans them up and shows the originals again */
-            previewItems = previewFrames;
+            /* 罫線のグループは previewItems に足されるので、変換中の previewFrames とは別の配列にする
+               line groups get pushed to previewItems, so keep it a separate array from the frames being converted */
+            previewItems = previewFrames.slice();
             var conversionResult;
             try {
                 conversionResult = convertTextFrames(doc, previewFrames, conversionSettings, previewItems);
@@ -3500,10 +3794,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     }
 
     /**
-     * ［罫線］パネル（線幅・線端・カラー）を作る
+     * ［罫線］パネル（線幅・線端・カラー・横線を囲み罫につなげる）を作る
      * @param {Group} parent - 追加先
      * @param {Function} onChanged - 値が変わったときの処理
-     * @returns {{focusInput: EditText, readSettings: Function}} 最初に選ぶ欄と、設定を書き込む関数 readSettings(conversionSettings)
+     * @returns {{focusInput: EditText, attachArmsCheckbox: Checkbox, readSettings: Function}} 最初に選ぶ欄・横線をつなげるチェックボックスと、
+     *     設定を書き込む関数 readSettings(conversionSettings)
      */
     function buildLinesPanel(parent, onChanged) {
         var strokeUnit = getUnitInfo("strokeUnits");
@@ -3546,6 +3841,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         colorHexInput.helpTip = getLabel("tooltip.lineColorHex");
         showLineColor();
 
+        /* 横線を囲み罫につなげる（項目名の幅だけ字下げ） / attach the arms to the boxes, indented past the labels */
+        var attachArmsGroup = linesPanel.add("group");
+        attachArmsGroup.margins = [FIELD_LABEL_WIDTH + STEPPER_FIELD_SPACING, 0, 0, 0];
+        var attachArmsCheckbox = attachArmsGroup.add("checkbox", undefined, getLabel("checkbox.attachArmsToBox"));
+        attachArmsCheckbox.value = ATTACH_ARMS_TO_BOX;
+        attachArmsCheckbox.helpTip = getLabel("tooltip.attachArmsToBox");
+        attachArmsCheckbox.onClick = onChanged;
+
         /**
          * 罫線の色を、色見本と16進数の欄に表示する
          * @returns {void}
@@ -3581,8 +3884,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
 
         return {
             focusInput: strokeWidthInput,
+            attachArmsCheckbox: attachArmsCheckbox,
             /**
-             * 線幅・色・線端を設定に書き込む
+             * 線幅・色・線端・横線のつなげ方を設定に書き込む
              * @param {Object} conversionSettings - 書き込む先
              * @returns {void}
              */
@@ -3591,17 +3895,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
                 conversionSettings.strokeWidthPt = (strokeWidthValue > 0) ? strokeWidthValue * strokeUnit.pointsPerUnit : DEFAULT_STROKE_WIDTH_PT;
                 conversionSettings.strokeColor = lineColor;
                 conversionSettings.roundCap = roundCapRadio.value;
+                conversionSettings.attachArmsToBox = attachArmsCheckbox.value;
             }
         };
     }
 
     /**
-     * ［テキスト］パネル（行送り・タブ変換）を作る
+     * ［テキスト］パネル（行送り・タブ変換・囲み罫）を作る
      * @param {Group} parent - 追加先
      * @param {TextFrame} firstTextFrame - 行送りの初期値を読むテキスト
-     * @param {Function} onChanged - 行送りが変わったときの処理
+     * @param {Function} onChanged - 行送り・囲み罫が変わったときの処理
      * @param {Function} onTabOptionChanged - タブ変換のチェックを切り替えたときの処理
-     * @returns {{indentCheckbox: Checkbox, spaceRunCheckbox: Checkbox, readSettings: Function}} チェックボックスと、
+     * @returns {{indentCheckbox: Checkbox, spaceRunCheckbox: Checkbox, boxCheckbox: Checkbox, readSettings: Function}} チェックボックスと、
      *     設定を書き込む関数 readSettings(conversionSettings, enableAll)
      */
     function buildTextPanel(parent, firstTextFrame, onChanged, onTabOptionChanged) {
@@ -3638,12 +3943,119 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
         spaceRunCheckbox.helpTip = getLabel("tooltip.convertSpaceRuns");
         indentCheckbox.onClick = onTabOptionChanged;
         spaceRunCheckbox.onClick = onTabOptionChanged;
+        var boxCheckbox = tabOptionGroup.add("checkbox", undefined, getLabel("checkbox.drawBox"));
+        boxCheckbox.value = DRAW_BOX;
+        boxCheckbox.helpTip = getLabel("tooltip.drawBox");
+
+        /* マージンは定規の単位で入れる。左右・上下の2欄を縦に積み、右に連動アイコンを置く
+           the margins are in ruler units; the two fields are stacked with the link icon on their right */
+        var boxMarginUnit = getUnitInfo("rulerType");
+        /* 初期値は先頭の文字の文字サイズから決める / the default follows the size of the first character */
+        var defaultBoxMarginPt = firstTextFrame.characters[0].characterAttributes.size * BOX_MARGIN_SIZE_RATIO;
+        var boxMarginRow = textPanel.add("group");
+        boxMarginRow.orientation = "row";
+        boxMarginRow.alignChildren = ["left", "center"];
+        boxMarginRow.spacing = STEPPER_FIELD_SPACING;
+        var boxMarginColumn = boxMarginRow.add("group");
+        boxMarginColumn.orientation = "column";
+        boxMarginColumn.alignChildren = ["left", "top"];
+        boxMarginColumn.spacing = CHECKBOX_SPACING;
+        var boxMarginXInput = addBoxMarginField(boxMarginColumn, "fieldLabel.boxMarginX", "tooltip.boxMarginX");
+        var boxMarginYInput = addBoxMarginField(boxMarginColumn, "fieldLabel.boxMarginY", "tooltip.boxMarginY");
+        boxMarginXInput.linkedInput = boxMarginYInput;
+        boxMarginYInput.linkedInput = boxMarginXInput;
+        var boxMarginLink = addLinkToggle(boxMarginRow, LINK_BOX_MARGINS, function () {
+            /* 連動にしたときは左右の値を上下へ写す / when linked, copy left/right to top/bottom */
+            if (boxMarginLink.value) syncBoxMargin(boxMarginXInput);
+            onChanged();
+        });
+        boxMarginLink.helpTip = getLabel("tooltip.linkBoxMargins");
+
+        /**
+         * マージンの欄を1つ追加する（連動中は、もう一方の欄にも同じ値を入れる）
+         * @param {Group} parent - 追加先
+         * @param {string} labelPath - 項目名の LABELS のパス
+         * @param {string} tooltipPath - ツールチップの LABELS のパス
+         * @returns {EditText} 入力欄
+         */
+        function addBoxMarginField(parent, labelPath, tooltipPath) {
+            var marginOptions = { label: labelText(labelPath), labelWidth: FIELD_LABEL_WIDTH, characters: NUMBER_FIELD_CHARS, step: 1, min: 0, unit: " " + boxMarginUnit.label };
+            marginOptions.text = formatSteppedValue(defaultBoxMarginPt / boxMarginUnit.pointsPerUnit, marginOptions);
+            var marginInput;
+            marginOptions.onStep = function () { onBoxMarginChanged(marginInput); };
+            marginInput = addSteppedField(parent, marginOptions);
+            marginInput.helpTip = getLabel(tooltipPath);
+            marginInput.stepOptions = marginOptions;
+            chainFieldChange(marginInput, function () { onBoxMarginChanged(marginInput); });
+            return marginInput;
+        }
+
+        /**
+         * マージンが変わったとき、連動中ならもう一方へ写して描き直す
+         * @param {EditText} changedInput - 値が変わった欄
+         * @returns {void}
+         */
+        function onBoxMarginChanged(changedInput) {
+            if (boxMarginLink.value) syncBoxMargin(changedInput);
+            onChanged();
+        }
+
+        /**
+         * 欄の値を、もう一方の欄に写す
+         * @param {EditText} sourceInput - 写す元の欄
+         * @returns {void}
+         */
+        function syncBoxMargin(sourceInput) {
+            writeSteppedValue(sourceInput.linkedInput, parseFloat(sourceInput.text), sourceInput.linkedInput.stepOptions);
+        }
+
+        /**
+         * マージンの欄を pt で読む（読めなければ初期値）
+         * @param {EditText} marginInput - マージンの欄
+         * @returns {number} マージン（pt）
+         */
+        function readBoxMarginPt(marginInput) {
+            var marginValue = parseFloat(marginInput.text);
+            return (marginValue >= 0) ? marginValue * boxMarginUnit.pointsPerUnit : defaultBoxMarginPt;
+        }
+        /* マージンの欄の下に字下げして置く / indented under the margin fields */
+        var boxOptionGroup = textPanel.add("group");
+        boxOptionGroup.orientation = "column";
+        boxOptionGroup.alignChildren = ["left", "top"];
+        boxOptionGroup.spacing = CHECKBOX_SPACING;
+        boxOptionGroup.margins = [FIELD_LABEL_WIDTH + STEPPER_FIELD_SPACING, 0, 0, 0];
+        var alignBoxRightCheckbox = boxOptionGroup.add("checkbox", undefined, getLabel("checkbox.alignBoxRight"));
+        alignBoxRightCheckbox.value = ALIGN_BOX_RIGHT;
+        alignBoxRightCheckbox.helpTip = getLabel("tooltip.alignBoxRight");
+        alignBoxRightCheckbox.onClick = onChanged;
+        /* 分割は OK のあとに行うので、プレビューは描き直さない / the split happens after OK, so no redraw */
+        var splitLinesCheckbox = boxOptionGroup.add("checkbox", undefined, getLabel("checkbox.splitBoxedLines"));
+        splitLinesCheckbox.value = SPLIT_BOXED_LINES;
+        splitLinesCheckbox.helpTip = getLabel("tooltip.splitBoxedLines");
+
+        /**
+         * マージン・右端の揃え・分割を、囲み罫のオン／オフに合わせて有効／無効にする
+         * @returns {void}
+         */
+        function updateBoxEnabled() {
+            setSteppedFieldEnabled(boxMarginXInput, boxCheckbox.value);
+            setSteppedFieldEnabled(boxMarginYInput, boxCheckbox.value);
+            setLinkToggleEnabled(boxMarginLink, boxCheckbox.value);
+            alignBoxRightCheckbox.enabled = boxCheckbox.value;
+            splitLinesCheckbox.enabled = boxCheckbox.value;
+        }
+        updateBoxEnabled();
+        boxCheckbox.onClick = function () {
+            updateBoxEnabled();
+            onChanged();
+        };
 
         return {
             indentCheckbox: indentCheckbox,
             spaceRunCheckbox: spaceRunCheckbox,
+            boxCheckbox: boxCheckbox,
             /**
-             * 行送りとタブ変換を設定に書き込む
+             * 行送り・タブ変換・囲み罫を設定に書き込む
              * @param {Object} conversionSettings - 書き込む先
              * @param {boolean} [enableAll] - true なら字下げ・スペースの変換をどちらも有効にする（最初のプレビュー用）
              * @returns {void}
@@ -3652,6 +4064,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
                 conversionSettings.leadingPt = leadingOverridePt;
                 conversionSettings.convertIndents = enableAll || indentCheckbox.value;
                 conversionSettings.convertSpaceRuns = enableAll || spaceRunCheckbox.value;
+                conversionSettings.drawBox = boxCheckbox.value;
+                conversionSettings.alignBoxRight = alignBoxRightCheckbox.value;
+                conversionSettings.splitBoxedLines = boxCheckbox.value && splitLinesCheckbox.value;
+                conversionSettings.boxMarginXPt = readBoxMarginPt(boxMarginXInput);
+                conversionSettings.boxMarginYPt = readBoxMarginPt(boxMarginYInput);
             }
         };
     }
@@ -3718,7 +4135,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
     }
 
     /**
-     * 線幅・線端・カラー・行送り・タブ変換・タブストップ・縦罫を指定するダイアログを表示する（プレビューは常に表示）
+     * 線幅・線端・カラー・行送り・タブ変換・囲み罫・タブストップ・縦罫を指定するダイアログを表示する（プレビューは常に表示）
      * @param {Document} doc - 対象のドキュメント
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @returns {Object|null} convertTextFrames() に渡す設定。キャンセルなら null
@@ -3743,6 +4160,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
             if (tabStopEditor) tabStopEditor.updateEnabled();
             refreshPreview();
         });
+        /* ［横線を囲み罫につなげる］は［囲み罫］がオンのときだけ使える / the arm option needs Box */
+        var onBoxClicked = textControls.boxCheckbox.onClick;
+        textControls.boxCheckbox.onClick = function () {
+            linesControls.attachArmsCheckbox.enabled = textControls.boxCheckbox.value;
+            onBoxClicked();
+        };
+        linesControls.attachArmsCheckbox.enabled = textControls.boxCheckbox.value;
 
         /* 自動で決めた位置を知るために、すべて有効にして一度プレビューする / preview once with everything on to learn the automatic positions */
         var initialPreviewResult = textPreview.show(readSettings(true));
@@ -3892,6 +4316,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc961754b7cad"; /* 紹�
 
         /* 成功したときは知らせない。位置を測れなかったテキストがあるときだけ伝える / only report the frames that could not be measured */
         var conversionResult = convertTextFrames(doc, textFrames, conversionSettings);
+        if (conversionSettings.splitBoxedLines) splitAllBoxedLines(conversionResult);
         if (conversionResult.failedFrameCount > 0) alert(getLabel("alert.measureFailed", [conversionResult.failedFrameCount]));
     }
 
