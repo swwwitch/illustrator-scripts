@@ -28,7 +28,7 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 - Adjust Stacking (on OK) rearranges the stacking to follow the new numbers; it sits under the sort orders and starts checked
 - Prefix and Suffix add text before and after the number
 - The start value defaults to the smallest value in the selection, in its own format
-- Up/Down keys step the value (digits: Shift for ±10 snapped to a multiple of ten, Option for ±0.1; letters and Japanese numerals step one at a time)
+- The stepper arrows next to the start value and the Up/Down keys step the value (numbers go to the next whole number, Shift snaps to a multiple of ten, Option steps by 0.1, and the typed width is kept; letters, Japanese, Roman and formal numerals step one at a time)
 - Tooltips on every option
 - Dialog with a live preview (Cancel restores the original text)
 - Japanese / English UI
@@ -60,8 +60,8 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 | Current Value Order | Ascending order of the current values; letters go alphabetically and Japanese numerals by their value |
 | Horizontal (Left to Right) | From the leftmost object to the right |
 | Vertical (Top to Bottom) | From the topmost object down |
-| Z-Pattern (Left-to-Right, Row-major) | Left to right within a row, then down to the next row |
-| N-Pattern (Top-to-Bottom, Column-major) | Top to bottom within a column, then right to the next column |
+| Z-Pattern (Left to Right, Top to Bottom) | Left to right within a row, then down to the next row |
+| N-Pattern (Top to Bottom, Left to Right) | Top to bottom within a column, then right to the next column |
 | Stacking Order (Front to Back) | From the frontmost object backward |
 
 ### Notes
@@ -84,5 +84,6 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 ### Changelog
 
+- v2.1.1 (2026-09-30): Added stepper arrows to the start value, sharing one routine with the Up/Down keys (numbers go to the next whole number, Shift snaps to 10s, Option steps by 0.1, a typed width such as `01` is kept; letters, Japanese, Roman and formal numerals step one at a time). Switched the dialog margins, the button row (now centered), and the remembered position and opacity to the shared parts. Reworded the English UI (the Add Text panel and the Z-/N-pattern radios) and the tooltips. Reorganised the internal naming and structure
 - v2.1.0 (2026-09-21): Added letters (A, B, C / a, b, c), Japanese numerals (一, 二, 三), Roman numerals (I, II, III) and formal numerals (壱, 弐, 参), and renamed Start Number to Start Value. Added an Options panel holding Reverse and Zero Padding, plus a new Adjust Stacking option under the sort orders (checked by default). Moved the start value into a Base Value panel with format radios (123 / ABC / abc / 一二三 / I II III / 壱弐参). Rebuilt the dialog as two columns with the buttons underneath. The width typed into the start value is now always kept, and Zero Padding is dimmed when the width would not change. Fixed the value being rewritten by keys other than Up/Down, arrow keys filling an empty field, Stacking Order following the selection order instead of the stacking order, and ragged zero padding for a negative start value. Replaced the app.undo() preview rollback with restoring the recorded strings, fixing text that could vanish while the start value was being edited. Reorganised the internal naming and structure
 - v2.0 (2026-01-09)
