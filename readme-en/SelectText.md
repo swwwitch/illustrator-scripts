@@ -31,3 +31,4 @@ Lists the text on the current artboard, or in the whole document, and copies it 
 - v1.0.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.0.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v1.0.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

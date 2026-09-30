@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.11 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.10 (2026-10-01): The Change Extension and Clip Group Delete dialogs now use the shared button row. Unified the window and panel margins and spacing with the shared layout part
 - v1.5.9 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.5.8 (2026-09-29): Dialog opacity changed to 98%

@@ -65,3 +65,4 @@ https://note.com/dtp_tranist/n/nba8235fe91b2
 - v2.3.3 (20260929): Dialog opacity changed to 98%
 - v2.3.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v2.3.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
+- v2.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

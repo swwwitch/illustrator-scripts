@@ -31,7 +31,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPreset
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontPresetPickerPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -151,6 +151,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var BUTTON_ROW_TOP_MARGIN = 5;                  /* ボタン行の上余白 / Top margin above the button row */
+    var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
     var LIST_WIDTH = 360;                           /* 一覧の幅（上下で共通）/ Width shared by both lists */
     var LIST_ROW_HEIGHT = 22;                       /* 一覧1行の高さの目安 / Estimated height of one list row */
     var LIST_FRAME_PADDING = 4;                     /* 一覧の枠ぶんの余白 / Padding for the list frame */
@@ -1450,7 +1451,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3d7f8b58ef88"; /* 紹�
     function buildActionButtons(paletteWindow) {
         var btnRowGroup = paletteWindow.add("group");
         setupRow(btnRowGroup, "right");
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
         var btnRemove = btnRowGroup.add("button", undefined, getLabel(LABELS.button.deletePreset));
         btnRemove.helpTip = getLabel(LABELS.tip.deletePreset);
         var btnOverwrite = btnRowGroup.add("button", undefined, getLabel(LABELS.button.overwritePreset));

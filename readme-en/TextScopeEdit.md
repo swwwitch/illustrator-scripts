@@ -76,4 +76,5 @@ https://note.com/dtp_tranist/n/nb845889dd553
   - Fixed the selection being cleared after export, and font selection matching fonts whose names only partly match
   - Removed the Preview option, and moved the edit options into an Options panel
   - Revised panel and option wording (Canvas tab → Text tab, and others)
+- v1.5.7 (2026-10-01)Added space below the button row to match Illustrator's own dialogs
 - v1.3.6 (2026-04-08)

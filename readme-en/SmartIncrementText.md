@@ -58,3 +58,4 @@ Finds the digits, letters, dates or times in the selected text frame and duplica
 - v2.0.3 (20260930) : Added stepper buttons to the numeric fields, with the arrow keys sharing the same stepping. Moved the dialog position, opacity, button row and spacing to the shared parts (the position is kept until Illustrator quits). Fixed an error when run with characters selected by the Type tool. Reworded the alerts and tooltips, and renamed Zero pad / Merge into one text to Pad with zeros / Merge into one text object
 - v2.0.4 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v2.0.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v2.0.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

@@ -32,7 +32,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStroke
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -1117,6 +1117,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
     // ボタン行（再利用パーツ） / Button row (reusable)
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
     var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
 
@@ -1131,7 +1132,7 @@ var SCRIPT_REFERENCE_URL = "https://note.com/shibumi/n/n5229b4357dd3";     /* �
         var isCentered = !!(rowOptions && rowOptions.centered);
         var btnRowGroup = parent.add("group");
         btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
         btnRowGroup.spacing = BUTTON_ROW_SPACING;
 
         if (isCentered) {

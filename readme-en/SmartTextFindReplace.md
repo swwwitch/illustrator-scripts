@@ -152,3 +152,4 @@ To find and select
 - v1.5.1 (20260930) : Preview is now available with regular expressions only and sits right below Regular expression. Running with a single text object selected with the Selection tool now also puts its first line in the first field. Fixed Preview sometimes starting on, and an error when running with characters selected and the scope set to Selected objects
 - v1.5.2 (20260930) : Button rows with only right-side buttons are now centered
 - v1.5.3 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v1.5.4 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

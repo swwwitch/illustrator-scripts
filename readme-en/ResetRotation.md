@@ -56,3 +56,4 @@
 - v1.4.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.4.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Removed the hand-written dialog centering; the shared part now handles the position. Unified the window and panel margins and spacing with the shared layout part
+- v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

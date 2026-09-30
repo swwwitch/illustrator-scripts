@@ -134,6 +134,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.5.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.2 (2026-10-01): The launcher and Preferences dialogs now open via the shared part (98% opacity, placement that avoids the selection, position memory within a run). Unified the window and panel margins and spacing with the shared layout part
 - v1.5.1 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/AiScriptLauncher.json)
 - v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

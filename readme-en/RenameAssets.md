@@ -43,6 +43,7 @@
 - v1.0.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.0.6 (20260930): Dropped the script's own rightward shift of the dialog on first open
 - v1.0.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
+- v1.0.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 
 ### Script info
 

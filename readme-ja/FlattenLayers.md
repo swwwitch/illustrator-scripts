@@ -56,6 +56,7 @@
 - v1.7.8 (20260929) : ダイアログの不透明度を98%に変更
 - v1.7.9 (20260930) : 文字ツールで文字を選択して実行するとエラーになる不具合を修正
 - v1.7.10（2026-10-01）常に左右中央だったボタン行を、ダイアログの内側の幅（左右の余白を除く）が 200px 以内なら中央、それより広ければ右揃えに変更。ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
+- v1.7.11（2026-10-01）ボタン行の下に余白を加え、Illustrator 標準のダイアログに合わせた
 
 Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally

@@ -58,6 +58,7 @@ Flow:
 
 ### Update History
 
+- v1.4.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.4.2 (2026-10-01) The button row at the bottom of the style panel now uses the shared part. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.1 (2026-09-28) Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure. Temporary actions on the BridgeTalk side now use the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json).
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).

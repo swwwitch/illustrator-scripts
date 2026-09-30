@@ -1372,8 +1372,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
         },
         fieldLabel: {
             width: { ja: "幅", en: "Width" },
-            height: { ja: "高さ", en: "Height" },
-            selected: { ja: "選択", en: "Selected" }
+            height: { ja: "高さ", en: "Height" }
         },
         checkbox: {
             enableControls: { ja: "有効", en: "Enabled" }
@@ -1457,7 +1456,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     }
 
     /**
-     * 「基準点」パネル（9軸と選択中のセルの表示）を追加する
+     * 「基準点」パネル（9軸）を追加する
      * @param {Group} parent - 追加先
      * @returns {Button} 基準点ウィジェット
      */
@@ -1466,19 +1465,8 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
         anchorPanel.orientation = "column";
         anchorPanel.alignChildren = ["center", "top"];
         anchorPanel.margins = DEMO_PANEL_MARGINS;
-        var anchorWidget = addAnchorWidget(anchorPanel, "center", function (anchorIndex, clickedWidget) {
-            selectedText.text = labelValueText("fieldLabel.selected", getAnchorWidgetName(clickedWidget));
-        });
+        var anchorWidget = addAnchorWidget(anchorPanel, "center");
         anchorWidget.helpTip = getLabel("tooltip.anchor");
-        var selectedText = anchorPanel.add("statictext", undefined, labelValueText("fieldLabel.selected", "center"));
-        /* 実行時に文字が変わるので、いちばん長い名前が収まる幅だけ確保する / reserve just enough width for the longest name */
-        var selectedTextWidth = 0;
-        for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
-            var nameWidth = selectedText.graphics.measureString(labelValueText("fieldLabel.selected", ANCHOR_WIDGET_NAMES[i]))[0];
-            if (nameWidth > selectedTextWidth) selectedTextWidth = nameWidth;
-        }
-        selectedText.preferredSize.width = Math.ceil(selectedTextWidth) + 4; /* 丸め誤差で切れないよう少し足す / small slack against clipping */
-        selectedText.justify = "center";
         return anchorWidget;
     }
 

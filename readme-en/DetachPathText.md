@@ -25,6 +25,7 @@ The original text path shape is duplicated, and stroke attributes (1pt black, or
 
 ### Update History
 
+- v1.0.15 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.0.14 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.0.13 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.0.12 (2026-09-30) Button rows with only right-side buttons are now centered

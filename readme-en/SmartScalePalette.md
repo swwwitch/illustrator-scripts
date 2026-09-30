@@ -61,6 +61,7 @@
 - v1.2.0 (20260929) : Added Preview (shows the result as you change values or click buttons). Renamed the Target panel to Mode and added Left & Right Edges and Top & Bottom Edges as Each Object options (scale each object while the edges of the whole selection stay put). Added Relative, which makes the ± buttons multiply the current scale. With Preview on, Apply reads Commit and closes the palette after committing. The button row now has Close and Reset on the left, Preview and Apply on the right. Esc now closes the palette. The reference point widget is drawn darker. Fixed an error when enabling or disabling the width and height fields
 - v1.2.1 (20260930) : Fixed an error when running with characters selected by the Type tool
 - v1.2.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v1.2.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 
 ### Script info
 

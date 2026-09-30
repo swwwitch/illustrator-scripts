@@ -17,7 +17,7 @@ A comparison template based on UIPartsUltraPlain.jsx with the margin, spacing, a
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UIPartsDefault";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -35,7 +35,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     // UIPartsUltraPlain.jsx から margins / spacing / alignment / alignChildren / preferredSize / characters / justify を外したもの
     //   orientation … 基準点の3行を縦に積む1か所だけ指定（ほかは初期値：Window・panel は column、group は row）
     //   幅          … 指定しないので、コントロールは最初の文字列に合わせた幅になる（あとから長い文字列を入れると切れる）
-    //   文言        … ローカライズせず日本語でベタ書き。コロンは半角
+    //   文言        … ローカライズせず日本語でベタ書き。コロンは半角。幅・高さの欄に項目名は付けない
     //   ボタン行    … group にボタンを足すだけ（左右分割・中央寄せの処理なし）
     //   ↑↓キー     … 増減なし（直接入力した値の整え方だけ残す）
 
@@ -48,8 +48,8 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     // サイズ / Size
     // =========================================
     var sizePanel = panelColumnsGroup.add("panel", undefined, "サイズ");
-    var widthInput = addNumberField(sizePanel, "幅:");
-    var heightInput = addNumberField(sizePanel, "高さ:");
+    var widthInput = addNumberField(sizePanel);
+    var heightInput = addNumberField(sizePanel);
     var linkToggle = sizePanel.add("checkbox", undefined, "連動");
     linkToggle.helpTip = "幅と高さを同じ値にそろえる（クリックで切り替え）";
     linkToggle.value = true;
@@ -100,12 +100,10 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
     // 関数 / Functions
     // =========================================
 
-    /* 「項目名・入力欄」の行を足す。確定時に「100 mm」の形へそろえ、数値でなければ直前の値に戻す
-       add a label + field row; normalize to "100 mm" on commit, revert non-numbers */
-    function addNumberField(parent, labelString) {
-        var fieldRowGroup = parent.add("group");
-        fieldRowGroup.add("statictext", undefined, labelString);
-        var numberInput = fieldRowGroup.add("edittext", undefined, "100 mm");
+    /* 入力欄を足す。確定時に「100 mm」の形へそろえ、数値でなければ直前の値に戻す
+       add a field; normalize to "100 mm" on commit, revert non-numbers */
+    function addNumberField(parent) {
+        var numberInput = parent.add("edittext", undefined, "100 mm");
         var lastValidText = numberInput.text;
         numberInput.onChange = function () {
             var value = parseFloat(numberInput.text);

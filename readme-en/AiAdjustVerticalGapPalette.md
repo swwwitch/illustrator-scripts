@@ -38,6 +38,7 @@ with a live preview that updates as you change the settings.
 
 ### Update History
 
+- v1.4.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.4.2 (2026-10-01) The Record/Apply button row now uses the shared part. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.1 (2026-09-29) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).

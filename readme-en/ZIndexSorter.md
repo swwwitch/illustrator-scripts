@@ -40,6 +40,7 @@
 - v1.0.7 (20260930): Cancel (including Esc and the close box) now puts every object back exactly where it was, including its position relative to unselected objects and its layer. Added keyboard shortcuts for the radio buttons (Z/X/Y, A/D/R). Dropped the script's own rightward shift on first open (the dialog still moves sideways to avoid the selection). Panel margins now follow the shared settings. Button rows with only right-side buttons are now centered
 - v1.0.8 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.0.9 (2026-10-01): Updated the shared layout part to the latest version (no visible change)
+- v1.0.10 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 
 ### Script info
 

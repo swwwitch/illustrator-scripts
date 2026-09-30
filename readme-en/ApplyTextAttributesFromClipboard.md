@@ -40,3 +40,4 @@ The values are read from `$.global.FontClipboard` in the persistent "FontClipboa
 - v1.3.5 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v1.3.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs

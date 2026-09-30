@@ -33,6 +33,7 @@
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
+- v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 
 ### Script info
 

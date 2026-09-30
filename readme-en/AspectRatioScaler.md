@@ -68,3 +68,4 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.8.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.8.5 (20260930): Dropped the script's own rightward shift of the dialog on first open
 - v1.8.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
+- v1.8.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

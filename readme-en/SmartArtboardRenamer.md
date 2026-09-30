@@ -86,3 +86,4 @@
 - v1.5.6 (20260928): Target collection now uses the shared part
 - v1.5.7 (20260929): Dialog opacity changed to 98%
 - v1.5.8 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.5.10 (20261001): Added space below the button row to match Illustrator's own dialogs

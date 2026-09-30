@@ -84,6 +84,7 @@ Sorts the selected text — digits, letters, or Japanese numerals — in a chose
 
 ### Changelog
 
+- v2.1.4 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v2.1.3 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v2.1.2 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v2.1.1 (2026-09-30): Added stepper arrows to the start value, sharing one routine with the Up/Down keys (numbers go to the next whole number, Shift snaps to 10s, Option steps by 0.1, a typed width such as `01` is kept; letters, Japanese, Roman and formal numerals step one at a time). Switched the dialog margins, the button row (now centered), and the remembered position and opacity to the shared parts. Reworded the English UI (the Add Text panel and the Z-/N-pattern radios) and the tooltips. Reorganised the internal naming and structure

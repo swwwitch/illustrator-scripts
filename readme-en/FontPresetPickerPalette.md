@@ -89,6 +89,7 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Release Notes
 
+- v1.1.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.1 (2026-09-26) Renamed the file from `FontPresetPicker.jsx` to `FontPresetPickerPalette.jsx`.
 - v1.1.0 (20260925) : Presets now hold space before and after paragraphs; added "Paragraph Spacing" to Settings to Apply

@@ -33,6 +33,7 @@ Example with objects of different sizes and shapes (sample text and font names s
 
 ### Update History
 
+- v1.8.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.2 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.8.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.8.0 (2026-09-29): Rows and columns are now detected from overlapping extents, so objects of different sizes and shapes no longer break the grid. Center in Cell became Align in Cell (a 3×3 picker) and works without Force Grid. A non-numeric gap reverts to the previous value; the V label also dims while Link is on; code cleanup

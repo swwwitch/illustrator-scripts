@@ -24,6 +24,7 @@ Edit `buildExportJobs()` to add or change rules. Returning an empty array exclud
 
 ### Update History
 
+- v1.1.2 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.1 (2026-10-01) The progress palette's Cancel button now uses the shared button-row part. Unified the window and panel margins and spacing with the shared layout part
 - v1.1.0 (2026-09-30) Choose the artboards to export in a dialog; the list shows the scale and background
 - v1.0.5 (2026-09-27) Alerts and the progress window now switch between Japanese and English

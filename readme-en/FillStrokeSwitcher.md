@@ -57,4 +57,5 @@
 - v1.1.3: The button row is now built with the shared part
 - v1.1.4: Dialog opacity changed to 98%
 - v1.1.5: Fixed an error when running with characters selected by the Type tool
+- v1.1.7 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
