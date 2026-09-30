@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CirclePath
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CirclePathTextRepeat";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -383,8 +383,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             repeatCount: { ja: "繰り返し数", en: "Repeat count" },
             separator:   { ja: "種類", en: "Type" },
             spaceCount:  { ja: "スペース数", en: "Spaces" },
-            scale:       { ja: "区切り文字の比率", en: "Separator scale" },
-            baseline:    { ja: "区切り文字のベースライン", en: "Separator baseline" },
+            scale:       { ja: "比率", en: "Scale" },
+            baseline:    { ja: "ベースライン", en: "Baseline" },
             correction:  { ja: "補正率", en: "Correction" },
             rotation:    { ja: "回転角度", en: "Rotation angle" }
         },
@@ -444,6 +444,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             arrowKeys: {
                 ja: "↑↓キーで増減できます（Shift+↑↓で10単位、Option+↑↓で0.1単位）。",
                 en: "Step with the Up/Down keys (Shift for 10, Option for 0.1)."
+            },
+            arrowKeysInteger: {
+                ja: "↑↓キーで増減できます（Shift+↑↓で10単位）。",
+                en: "Step with the Up/Down keys (Shift for 10)."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1360,6 +1364,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     }
 
     /**
+     * 円周に並べる文字列と、その区切り文字の情報を作る（末尾にも区切り文字を付け、円の継ぎ目の間隔もそろえる）
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {RepeatSettings} repeatSettings - 現在の設定
+     * @returns {{text: string, separatorInfo: SeparatorInfo}} 連結後の文字列と区切り文字の情報
+     */
+    function buildRepeatedContent(repeatJob, repeatSettings) {
+        var separatorInfo = buildSeparatorInfo(repeatSettings);
+        return {
+            text: buildRepeatedText(repeatJob.originalText, repeatSettings.repeatCount, separatorInfo.text, true),
+            separatorInfo: separatorInfo
+        };
+    }
+
+    /**
      * 円周に合う文字サイズを計算する（計測のため redraw を伴う）
      * @param {RepeatJob} repeatJob - 処理対象
      * @param {RepeatSettings} repeatSettings - 現在の設定
@@ -1368,9 +1386,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     function computeFittedFontSize(repeatJob, repeatSettings) {
         if (!repeatSettings.shouldFit) return null;
 
-        var separatorInfo = buildSeparatorInfo(repeatSettings);
-        var repeatedText = buildRepeatedText(repeatJob.originalText, repeatSettings.repeatCount, separatorInfo.text, true);
-        var measuredText = repeatJob.textMeasurer.measure(repeatedText);
+        var measuredText = repeatJob.textMeasurer.measure(buildRepeatedContent(repeatJob, repeatSettings).text);
         if (measuredText.width <= 0) return measuredText.fontSize;
 
         var perimeter = getEllipsePerimeter(repeatJob.circlePath);
@@ -1388,11 +1404,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      */
     function createPathTypeText(repeatJob, repeatSettings, fontSize, isPreview) {
         var circlePath = repeatJob.circlePath;
-        var separatorInfo = buildSeparatorInfo(repeatSettings);
-        var repeatedText = buildRepeatedText(repeatJob.originalText, repeatSettings.repeatCount, separatorInfo.text, true);
+        var repeatedContent = buildRepeatedContent(repeatJob, repeatSettings);
 
         var pathTypeFrame = repeatJob.activeDoc.textFrames.pathText(circlePath.duplicate());
-        pathTypeFrame.contents = repeatedText;
+        pathTypeFrame.contents = repeatedContent.text;
         copySourceAttributes(repeatJob.sourceTextFrame, pathTypeFrame);
 
         /* 事前計算したフィットサイズを適用（null はフィット OFF）/ Apply the precomputed fit size (null means fitting is off) */
@@ -1402,7 +1417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
         /* 区切り文字（スペース以外）のスケール・ベースラインを適用 / Apply scale and baseline to the separator's non-space characters */
         if (repeatSettings.separatorScale !== 100 || repeatSettings.baselineShiftPt !== 0) {
-            applySeparatorStyle(pathTypeFrame, separatorInfo, repeatJob.originalText.length, repeatSettings.repeatCount,
+            applySeparatorStyle(pathTypeFrame, repeatedContent.separatorInfo, repeatJob.originalText.length, repeatSettings.repeatCount,
                 repeatSettings.separatorScale, repeatSettings.baselineShiftPt);
         }
 
@@ -1441,7 +1456,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     }
 
     /**
-     * ラベル＋数値入力欄（必要なら単位表記）の行を追加する
+     * 項目名・∧∨・数値入力欄（必要なら単位表記）の行を追加する
      * @param {StaticText[]} rowLabels - 幅を揃える行ラベルの一覧
      * @param {Panel} parentPanel - 追加先のパネル
      * @param {string} labelKey - 項目名の LABELS キー
@@ -1450,50 +1465,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      * @param {string} tooltipKey - ツールチップの LABELS キー
      * @param {string} [suffixText] - 入力欄の右に添える単位表記
      * @param {Object} [stepOptions] - ∧∨の設定（min / integer。省略時は下限なし・小数あり）
-     * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup で参照できる）
+     * @returns {EditText} 追加した入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
      */
     function addNumberField(rowLabels, parentPanel, labelKey, defaultValue, fieldChars, tooltipKey, suffixText, stepOptions) {
-        var fieldRow = parentPanel.add("group");
-        setupRow(fieldRow);
-        addRowLabel(rowLabels, fieldRow, labelKey);
-
-        var fieldStepOptions = stepOptions || {};
+        var fieldOptions = stepOptions || {};
+        fieldOptions.label = labelText(labelKey);
+        fieldOptions.text = String(defaultValue);
+        fieldOptions.characters = fieldChars;
         /* .text への代入では onChanging が発火しないため、増減のたびに呼んでプレビューを更新する
            / Setting .text does not fire onChanging, so call it after each step to refresh the preview */
-        fieldStepOptions.onStep = function (steppedField) {
+        fieldOptions.onStep = function (steppedField) {
             if (typeof steppedField.onChanging === "function") steppedField.onChanging();
         };
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperFieldGroup = fieldRow.add("group");
-        stepperFieldGroup.orientation = "row";
-        stepperFieldGroup.alignChildren = ["left", "center"];
-        stepperFieldGroup.spacing = 0;
-        stepperFieldGroup.margins = 0;
-        var numberField;
-        var numberStepper = addStepper(stepperFieldGroup, function () { return numberField; }, fieldStepOptions);
-        numberField = stepperFieldGroup.add("edittext", undefined, String(defaultValue));
-        numberField.characters = fieldChars;
-        numberField.stepperGroup = numberStepper;
-        bindSteppedArrowKeys(numberField, numberStepper);
-        /* 数値欄は共通で ↑↓ 操作を案内する / Every number field documents the arrow-key stepping */
-        numberField.helpTip = getLabel(tooltipKey) + "\n" + getLabel("tooltip.arrowKeys");
+        var numberField = addSteppedField(parentPanel, fieldOptions);
+
+        /* 項目名は右揃えにして、ほかの行と幅を揃える / Right-align the label and align its width with the other rows */
+        numberField.fieldLabel.justify = "right";
+        rowLabels.push(numberField.fieldLabel);
+
+        /* 数値欄は共通で ↑↓ 操作を案内する（整数の欄に Option の0.1刻みは無い）/ Every number field documents the arrow keys (no 0.1 step on integer fields) */
+        var arrowKeysKey = fieldOptions.integer ? "tooltip.arrowKeysInteger" : "tooltip.arrowKeys";
+        numberField.helpTip = getLabel(tooltipKey) + "\n" + getLabel(arrowKeysKey);
 
         if (suffixText) {
-            fieldRow.add("statictext", undefined, suffixText);
+            numberField.fieldLabel.parent.add("statictext", undefined, suffixText);
         }
         return numberField;
-    }
-
-    /**
-     * 数値欄の有効／無効を∧∨ごと切り替える（∧∨は自作描画なので描き直してディム表示をそろえる）
-     * @param {EditText} numberField - addNumberField() で作った入力欄
-     * @param {boolean} isEnabled - 有効にするなら true
-     * @returns {void}
-     */
-    function setNumberFieldEnabled(numberField, isEnabled) {
-        numberField.enabled = isEnabled;
-        numberField.stepperGroup.enabled = isEnabled;
-        redrawSteppersIn(numberField.stepperGroup);
     }
 
     /**
@@ -1582,6 +1579,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         /* 右側グループ：ボタン2つ / Right-side group: two buttons */
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             dialog: repeatDialog,
@@ -1630,8 +1628,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     function updateSeparatorFields(dialogControls) {
         var isCharSelected = dialogControls.separatorCharRadio.value;
         dialogControls.separatorCharInput.enabled = isCharSelected;
-        setNumberFieldEnabled(dialogControls.scaleInput, isCharSelected);
-        setNumberFieldEnabled(dialogControls.baselineInput, isCharSelected);
+        setSteppedFieldEnabled(dialogControls.scaleInput, isCharSelected);
+        setSteppedFieldEnabled(dialogControls.baselineInput, isCharSelected);
+    }
+
+    // =========================================
+    // 確定と取り消し / Commit and cancel
+    // =========================================
+
+    /**
+     * 未適用のクリーンな状態から1回だけ生成し、元のテキストと円を削除して生成結果を選択する
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {RepeatSettings} repeatSettings - 検証済みの設定
+     * @returns {void}
+     */
+    function commitRepeatText(repeatJob, repeatSettings) {
+        var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
+        repeatJob.textMeasurer.dispose();   /* 計測フレームを片付けてから確定 / Clean up the measurement frame before committing */
+
+        var resultTextFrame = createPathTypeText(repeatJob, repeatSettings, fontSize, false);
+        repeatJob.sourceTextFrame.remove();
+        repeatJob.circlePath.remove();
+
+        repeatJob.activeDoc.selection = null;
+        resultTextFrame.selected = true;
+        app.redraw();
+    }
+
+    /**
+     * 計測フレームを片付け、元のテキストと円を選択し直す（プレビューは undo 済み）
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @returns {void}
+     */
+    function restoreOriginalSelection(repeatJob) {
+        repeatJob.textMeasurer.dispose();
+        repeatJob.activeDoc.selection = null;
+        repeatJob.sourceTextFrame.selected = true;
+        repeatJob.circlePath.selected = true;
+        app.redraw();
     }
 
     // =========================================
@@ -1647,9 +1681,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
      */
     function bindDialogEvents(dialogControls, repeatJob, textUnitInfo) {
         var repeatDialog = dialogControls.dialog;
-        var activeDoc = repeatJob.activeDoc;
-        var sourceTextFrame = repeatJob.sourceTextFrame;
-        var circlePath = repeatJob.circlePath;
         var isUpdatingPreview = false;
         var isPreviewApplied = false; /* 適用済みで undo が必要か / Whether an applied preview still needs undoing */
         var hasCommitted = false;     /* OK で確定したか / Whether OK has committed the result */
@@ -1668,7 +1699,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             isPreviewApplied = true;
 
             /* 仮アイテムで強制的に変化を起こし、undo の空振りを防ぐ。画面外に作り、変数にも保持しない（undo で消える）/ Force a change with an off-canvas dummy so undo cannot misfire (not kept in a variable since undo removes it) */
-            activeDoc.pathItems.rectangle(MEASURE_FRAME_OFFSET, MEASURE_FRAME_OFFSET, 1, 1);
+            repeatJob.activeDoc.pathItems.rectangle(MEASURE_FRAME_OFFSET, MEASURE_FRAME_OFFSET, 1, 1);
 
             createPathTypeText(repeatJob, repeatSettings, fontSize, true);
             app.redraw();   /* 見せる / show the applied result */
@@ -1694,34 +1725,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             isUpdatingPreview = false;
         }
 
-        dialogControls.repeatCountInput.onChanging = runPreview;
-        dialogControls.separatorCharInput.onChanging = runPreview;
-        dialogControls.spaceCountInput.onChanging = runPreview;
-        dialogControls.scaleInput.onChanging = runPreview;
-        dialogControls.baselineInput.onChanging = runPreview;
-        dialogControls.correctionInput.onChanging = runPreview;
-        dialogControls.rotationInput.onChanging = runPreview;
+        var previewInputs = [
+            dialogControls.repeatCountInput, dialogControls.separatorCharInput, dialogControls.spaceCountInput,
+            dialogControls.scaleInput, dialogControls.baselineInput, dialogControls.correctionInput, dialogControls.rotationInput
+        ];
+        for (var i = 0; i < previewInputs.length; i++) {
+            previewInputs[i].onChanging = runPreview;
+        }
 
         dialogControls.previewCheckbox.onClick = runPreview;
 
         dialogControls.fitSizeCheckbox.onClick = function () {
-            setNumberFieldEnabled(dialogControls.correctionInput, dialogControls.fitSizeCheckbox.value);
+            setSteppedFieldEnabled(dialogControls.correctionInput, dialogControls.fitSizeCheckbox.value);
             runPreview();
         };
 
         /* クリックした側を選択し、もう一方を解除（手動排他）/ Select the clicked radio and clear the other (manual exclusivity) */
-        dialogControls.separatorSpaceRadio.onClick = function () {
-            dialogControls.separatorSpaceRadio.value = true;
-            dialogControls.separatorCharRadio.value = false;
+        function selectSeparatorMode(useCharSeparator) {
+            dialogControls.separatorCharRadio.value = useCharSeparator;
+            dialogControls.separatorSpaceRadio.value = !useCharSeparator;
             updateSeparatorFields(dialogControls);
             runPreview();
-        };
-        dialogControls.separatorCharRadio.onClick = function () {
-            dialogControls.separatorCharRadio.value = true;
-            dialogControls.separatorSpaceRadio.value = false;
-            updateSeparatorFields(dialogControls);
-            runPreview();
-        };
+        }
+        dialogControls.separatorSpaceRadio.onClick = function () { selectSeparatorMode(false); };
+        dialogControls.separatorCharRadio.onClick = function () { selectSeparatorMode(true); };
 
         dialogControls.btnOK.onClick = function () {
             var repeatSettings = readSettings(dialogControls, textUnitInfo);
@@ -1731,30 +1758,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
                 return;
             }
 
-            /* 確定：未適用のクリーンな状態から1回だけ適用 / Commit: apply once from the clean state */
-            var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
-            repeatJob.textMeasurer.dispose();   /* 計測フレームを片付けてから確定 / Clean up the measurement frame before committing */
-
-            var resultTextFrame = createPathTypeText(repeatJob, repeatSettings, fontSize, false);
-
-            sourceTextFrame.remove();
-            circlePath.remove();
-
-            activeDoc.selection = null;
-            resultTextFrame.selected = true;
-
+            commitRepeatText(repeatJob, repeatSettings);
             hasCommitted = true;
-            app.redraw();
             repeatDialog.close();
         };
 
         dialogControls.btnCancel.onClick = function () {
-            /* 内部は undo 済み。計測フレームを片付け、元の選択へ戻して閉じる / Model already reverted; clean up the measurement frame, restore the selection, and close */
-            repeatJob.textMeasurer.dispose();
-            activeDoc.selection = null;
-            sourceTextFrame.selected = true;
-            circlePath.selected = true;
-            app.redraw();
+            restoreOriginalSelection(repeatJob);
             repeatDialog.close();
         };
 
@@ -1772,7 +1782,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         };
 
         /* 初期状態を反映 / Apply the initial state */
-        setNumberFieldEnabled(dialogControls.correctionInput, dialogControls.fitSizeCheckbox.value);
+        setSteppedFieldEnabled(dialogControls.correctionInput, dialogControls.fitSizeCheckbox.value);
         updateSeparatorFields(dialogControls);
     }
 
@@ -1793,13 +1803,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
         var activeDoc = app.activeDocument;
 
-        /* 選択数を確認（円とテキストの2つ）/ Ensure exactly two objects are selected */
-        if (activeDoc.selection.length !== 2) {
-            alert(getLabel("alert.needCircleAndText"));
-            return;
-        }
-
-        var selectedPair = findCircleAndText(activeDoc.selection);
+        /* 円とテキストの2つだけを選択しているか / Exactly one circle and one text frame must be selected */
+        /* 文字ツールで文字を選択しているときは TextRange が返る / Selecting characters returns a TextRange */
+        var selectedItems = activeDoc.selection;
+        var selectedPair = (selectedItems.typename !== "TextRange" && selectedItems.length === 2) ? findCircleAndText(selectedItems) : null;
         if (selectedPair === null) {
             alert(getLabel("alert.needCircleAndText"));
             return;

@@ -34,3 +34,4 @@
 - v1.1.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
 - v1.1.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
+- v1.1.7 (2026-10-01) Typed values in number fields are now rounded and clamped like the stepper, and non-numbers revert to the previous value. Disabled fields dim their labels too. Shortened "Separator scale/baseline" to "Scale/Baseline". Integer fields no longer mention the Option 0.1 step in their tooltips
