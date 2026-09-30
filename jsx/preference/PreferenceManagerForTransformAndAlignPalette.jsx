@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Preference
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManagerForTransformAndAlignPalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -995,6 +995,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         dialog.onClose = function () {
             $.global.__aiQuickPrefsPalette = null;
         };
+
+        /* パレットは Esc で閉じないので割り当てる / Palettes do not close on Esc by themselves */
+        dialog.addEventListener('keydown', function (event) {
+            if (event.keyName === 'Escape') dialog.close();
+        });
 
         var mainGroup = dialog.add('group');
         mainGroup.orientation = 'column';

@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartScale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartScalePalette";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-31";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -3029,10 +3029,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
         paletteButtons.btnApply.onClick = onApplyClick;
         paletteButtons.btnClose.onClick = closePalette;
-        /* パレットは Esc で閉じないので、［閉じる］と同じ処理を割り当てる（入力中も効かせる）
-           Palettes do not close on Esc by themselves; map it to Close, also while typing */
+        /* パレットは Esc で閉じないので割り当てる（入力中も効かせる）。keydown の中から完了待ちの BridgeTalk を
+           送ると閉じられないため、プレビューの片付けは onClose の非同期側に任せる
+           Palettes do not close on Esc by themselves; map it, also while typing. A blocking BridgeTalk inside keydown
+           keeps the palette open, so leave the preview cleanup to the async path in onClose */
         addKeyShortcuts(scalePalette, {
-            "Escape": { target: closePalette, inFields: true }
+            "Escape": { target: function () { scalePalette.close(); }, inFields: true }
         });
 
         /* パレットに戻ったときに選択を測り直し、プレビューを作り直す（Illustrator には常駐タイマーが無い）
