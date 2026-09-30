@@ -1487,7 +1487,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         var buttonRow = addButtonRow(mainDialog);
         /* name を cancel にして Esc でも閉じる / Named cancel so Esc also closes */
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
-        centerButtonRowIfRightOnly(buttonRow);
+        alignRightOnlyButtonRow(buttonRow);
         /* Enter で［すべてを置換］を押す（検索・置換タブ以外では runReplace() が何もしない）/ Enter presses Replace All; runReplace() ignores it on other tabs */
         mainDialog.defaultElement = findReplaceControls.btnReplaceAll;
 
@@ -2165,6 +2165,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
 
     /**
      * ダイアログ下部のボタン行を作る。
@@ -2205,20 +2206,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     }
 
     /**
-     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+     * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+     * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
      * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
      * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
      * @returns {void}
      */
-    function centerButtonRowIfRightOnly(buttonRow) {
+    function alignRightOnlyButtonRow(buttonRow) {
         if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
-        var btnRowGroup = buttonRow.rowGroup;
-        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
-        btnRowGroup.remove(buttonRow.leftGroup);
-        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
-        btnRowGroup.alignment = ["center", "bottom"];
-        btnRowGroup.alignChildren = ["center", "center"];
-        buttonRow.leftGroup = null;
+        var dialogWindow = buttonRow.rowGroup.window;
+        dialogWindow.addEventListener("show", function () {
+            if (!buttonRow.leftGroup) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+            if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+            dialogWindow.layout.layout(true);
+        });
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row

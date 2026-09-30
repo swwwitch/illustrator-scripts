@@ -25,6 +25,7 @@ The original text path shape is duplicated, and stroke attributes (1pt black, or
 
 ### Update History
 
+- v1.0.13 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.0.12 (2026-09-30) Button rows with only right-side buttons are now centered
 - v1.0.11 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v1.0.10 (2026-09-29) Dialog opacity changed to 98%

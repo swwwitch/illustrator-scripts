@@ -114,6 +114,7 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
 
 - v1.0.0 (20260927): Initial release
 - v1.0.1 (20260927):
+- v1.2.6 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
   - Reads a single line by character type (Japanese, Kana, Roman)
   - When Kana or Roman has several settings, uses the one with the most characters
   - Kana is picked up only when its setting differs from Japanese

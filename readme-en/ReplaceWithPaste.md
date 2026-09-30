@@ -76,6 +76,7 @@ To run from a keyboard shortcut without the dialog, set `SHOW_SIZE_DIALOG` to `f
 
 ## Changelog
 
+- v2.0.7 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v2.0.6 (20260930): Button rows with only right-side buttons are now centered
 - v2.0.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v2.0.4 (20260929): Dialog opacity changed to 98%

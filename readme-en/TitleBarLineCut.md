@@ -31,6 +31,7 @@ With one text frame and one rectangle path selected, builds a title bar whose ru
 
 ### Update History
 
+- v1.2.6 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.2.5 (2026-09-30) Button rows with only right-side buttons are now centered
 - v1.2.4 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v1.2.3 (2026-09-29) Dialog opacity changed to 98%

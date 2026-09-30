@@ -40,6 +40,7 @@ The style names have to match the names registered in the source AI file.
 
 ### Update History
 
+- v1.6.7 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.6.6 (20260930): Button rows with only right-side buttons are now centered
 - v1.6.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.6.4 (20260929): Dialog opacity changed to 98%

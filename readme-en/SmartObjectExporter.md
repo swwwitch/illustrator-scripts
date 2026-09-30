@@ -72,6 +72,7 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.1.7 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.1.6 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
 - v1.1.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.1.4 (2026-09-29): Dialog opacity changed to 98%

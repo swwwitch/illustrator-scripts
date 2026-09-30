@@ -39,3 +39,4 @@ They are stored in `$.global.FontClipboard` inside the persistent "FontClipboard
 - v1.3.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.6 (2026-09-30): Button rows with only right-side buttons are now centered
+- v1.3.7 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones

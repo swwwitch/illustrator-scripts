@@ -38,6 +38,7 @@
 - v1.0.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.0.6 (20260930): "Original Stacking Order" no longer flips on every click: Ascending keeps the order, Descending reverses it, Random shuffles it. Fixed Cancel restoring the order reversed, and an error when running with no document open. Position sorting is now reliable. Revised labels and tooltips
 - v1.0.7 (20260930): Cancel (including Esc and the close box) now puts every object back exactly where it was, including its position relative to unselected objects and its layer. Added keyboard shortcuts for the radio buttons (Z/X/Y, A/D/R). Dropped the script's own rightward shift on first open (the dialog still moves sideways to avoid the selection). Panel margins now follow the shared settings. Button rows with only right-side buttons are now centered
+- v1.0.8 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 ### Script info
 
