@@ -234,7 +234,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 ## Document
 
 - [Switch between documents](readme-en/SmartSwitchDocs.md)
-- [Rename and save](readme-en/Ai-FileNameManager.md)
+- [Rename and save](readme-en/AiFileNameManager.md)
 - [An InDesign script that creates a duplicate document c…](readme-en/CloneDocSelectedOnly.md)
 
 

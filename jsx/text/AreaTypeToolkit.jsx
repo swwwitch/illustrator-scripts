@@ -3862,7 +3862,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         dialogControls.etHeight = heightRow.field;
         /* 高さの下に自動サイズ調整（heightRow の外に置く。ONのあいだ heightRow はディムするため）
            Auto-size sits under the height (outside heightRow, which gets dimmed while it is on) */
-        dialogControls.chkAutoSize = frameSizePanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
+        var autoSizeGroup = frameSizePanel.add("group");
+        autoSizeGroup.margins = [0, 5, 0, 0]; /* 高さ欄との間を空ける / space below the height row */
+        dialogControls.chkAutoSize = autoSizeGroup.add("checkbox", undefined, getLabel("checkbox.autoSize"));
         dialogControls.chkAutoSize.helpTip = getLabel("tooltip.autoSize");
         /* 英語UIでは字詰めの計算が不正確なため使用不可にする / Chars per line is disabled in the English UI, where it is inaccurate */
         if (uiLang !== "ja") {

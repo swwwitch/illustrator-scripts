@@ -10,7 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 保存形式は常に Illustrator 形式（.ai）なので、.ai 以外の書類では「別名で保存」だけが使えます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Ai-FileNameManager.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileNameManager.md
 
 note記事も参照してください。
 https://note.com/dtp_tranist/n/nc88dd887eb1c
@@ -21,21 +21,21 @@ Reassembles the active document's filename from its segments — base, title, st
 The output is always Illustrator format (.ai), so only "Save As" is available for a non-.ai document.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Ai-FileNameManager.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileNameManager.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "Ai-FileNameManager";           /* スクリプト名 / script name */
+var SCRIPT_NAME     = "AiFileNameManager";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.3.16";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Ai-FileNameManager.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Ai-FileNameManager.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileNameManager.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileNameManager.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
@@ -2098,9 +2098,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
     // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
 
     /* プリセットの保存先は Folder.userData/illustrator-scripts/Ai-FileNameManager.json。
-       旧版の FileNameManager-prefs.txt は最初の1回だけ読み継ぐ
+       旧名のまま据え置き（改名で既存のプリセットを失わないため）。旧版の FileNameManager-prefs.txt は最初の1回だけ読み継ぐ
        Presets live in illustrator-scripts/Ai-FileNameManager.json; the old FileNameManager-prefs.txt is read once */
-    var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent", {
+    var settingsStore = createSettingsStore("Ai-FileNameManager", "persistent", {
         legacy: function () {
             return readSettingsLegacyFile(Folder.userData.fsName + '/FileNameManager-prefs.txt');
         }

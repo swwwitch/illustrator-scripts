@@ -249,7 +249,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## ドキュメント
 
 - [ドキュメントの切替](readme-ja/SmartSwitchDocs.md)
-- [ファイル名を変更して保存](readme-ja/Ai-FileNameManager.md)
+- [ファイル名を変更して保存](readme-ja/AiFileNameManager.md)
 - [選択オブジェクトのみを残した複製ドキュメントを作成するInDesign用スクリプトです](readme-ja/CloneDocSelectedOnly.md)
 
 
