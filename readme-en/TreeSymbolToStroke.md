@@ -60,6 +60,10 @@ The lines are created as a group named "Tree Lines" on the current layer.
 - Text whose glyph count does not match its characters (ligatures and the like) cannot be measured and is skipped; the count is reported at the end.
 - With large text, redrawing the preview after a change can take a while.
 
+### Article
+
+- [Converting the tree symbols in text into stroked paths (Japanese)](https://note.com/dtp_tranist/n/nc961754b7cad)
+
 ### Update History
 
 - v1.0.0 (2026-10-01) Initial release
