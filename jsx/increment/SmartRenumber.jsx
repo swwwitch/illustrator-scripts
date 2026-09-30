@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した数字・英字・漢数字のテキストを、指定した並び順でソートして連番を振り直します。
-書式は［基準となる値］のラジオで選び（123／ABC／abc／一二三／I II III／壱弐参）、ゼロ埋め、接頭辞・接尾辞の追加、番号順への重ね順の並べ替えにも対応します。
+選択した数字・英字・漢数字のテキストを、位置・重ね順・現在の値などの並び順でソートして連番を振り直します。
+書式と開始値はプレビューを見ながら指定できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md
@@ -16,8 +16,8 @@ https://note.com/dtp_tranist/n/nf3b6601cd165
 
 ### Overview
 
-Sorts the selected text — digits, letters, or Japanese numerals — in a chosen order and renumbers it as a sequence.
-Radios pick the format (123 / ABC / abc / 一二三 / I II III / 壱弐参), with optional zero padding, a prefix or suffix, and restacking to match the new numbers.
+Sorts the selected text — digits, letters, or Japanese numerals — by position, stacking, or current value and renumbers it as a sequence.
+The format and start value can be set while watching the preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md

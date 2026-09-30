@@ -1537,6 +1537,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonRow = addButtonRow(selectorControls.selectorDialog);
         selectorControls.btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         selectorControls.btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return selectorControls;
     }
@@ -1681,7 +1682,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             selectorControls.selectorDialog.close();
         };
 
-        centerButtonRowIfRightOnly(buttonRow);
         prepareDialogWindow(selectorControls.selectorDialog, SCRIPT_NAME);
         selectorControls.selectorDialog.show();
     }
