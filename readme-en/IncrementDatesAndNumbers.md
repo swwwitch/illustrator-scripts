@@ -16,7 +16,7 @@
 
 ### Main Features
 
-- **Increment / Value**: the amount to add or subtract (integers only, default 1). Arrow keys adjust the value (Shift = 10, Option = 0.1); 0 leaves the text unchanged
+- **Step / Amount**: the amount to add or subtract (integers only, negatives allowed, default 1). The ∧∨ buttons to the left of the field and the Up/Down arrow keys change it by 1 (Shift-click / Shift+arrow snaps to the next multiple of 10); 0 leaves the text unchanged
 - **Target**: shown only for texts containing a year/month/day, using the actual values as radio labels (e.g. "2025", "11", "21"). Choose which part to shift (day by default); switching resets the step value to 1
 - **Type**: shown only for two-part dot patterns like "12.1", to choose between Number (default) and Date interpretation
 - The original and the result are previewed live at the top of the dialog (numeric cases also show the computed value)
@@ -48,3 +48,4 @@
 ### Update History
 
 - v1.2 (20251118): Public release
+- v1.2.2 (20260930): Added stepper buttons (∧∨) to the amount field; the arrow keys now step the same way as the buttons (whole numbers only). Layout, button row, and dialog position/opacity now use the shared parts. Renamed the dialog to "Increment Dates and Numbers" and the panel/field to "Step" / "Amount:", and revised the tooltips for Type, Target, and the result
