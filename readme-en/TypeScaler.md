@@ -27,6 +27,7 @@
 - v1.3.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.2 (20260929): Dialog opacity changed to 98%
 - v1.3.3 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.3.4 (2026-10-01): The button row now uses the shared part, and the dialog position is left to the shared part. Unified the window and panel margins and spacing with the shared layout part
 
 ### Script info
 

@@ -69,6 +69,7 @@
 - v1.5.2 (20260508): Refresh now commits right-column manual name edits and reorder changes
 - v1.5.3 (20260508): On name collisions, the first occurrence now starts at "_1" (non-duplicates remain untouched)
 - v1.5.4 (20260807): Unified the preview and rename logic, and cleaned up naming, layout, and comments
+- v1.5.9 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
     - Fixed reordering being applied twice on Refresh then OK, which reverted the names of non-target artboards
     - Fixed the right column showing mismatched original names and previews after reordering and refreshing
     - Fixed checked rows targeting the wrong artboards after a reorder

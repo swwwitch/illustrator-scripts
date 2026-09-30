@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManagerArtboard";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerArtboard.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerArtboard.md"; /* README (English) */
@@ -213,7 +213,85 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // UIレイアウトの共通設定 / Shared UI layout
     // =========================================
 
-    var PANEL_MARGINS = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / panel margins */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var PRESET_ROW_BOTTOM_MARGIN = 5;     /* プリセット行の下余白 / preset row bottom margin */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
@@ -543,6 +621,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       Build main dialog / ダイアログ生成
     */
         var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
+        setupWindow(dlg);
         var mainGroup = dlg.add("group");
         mainGroup.orientation = "column";
         mainGroup.alignChildren = "left";
@@ -560,20 +639,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       Artboard panel / ［アートボード］
     */
         var panelArtboard = mainGroup.add("panel", undefined, getLabel("panelArtboardTitle"));
-        panelArtboard.orientation = "column";
-        panelArtboard.alignChildren = ["fill", "top"];
-        panelArtboard.alignment = ["fill", "top"];
-        panelArtboard.margins = PANEL_MARGINS;
+        setupPanel(panelArtboard);
 
         var cbShowArtboardName = panelArtboard.add("checkbox", undefined, getLabel("cbShowArtboardName"));
         cbShowArtboardName.helpTip = LABELS.cbShowArtboardName.ja + " / " + LABELS.cbShowArtboardName.en;
 
         // Artboard border panel / アートボードの枠線パネル
         var panelArtboardBorder = panelArtboard.add("panel", undefined, getLabel("panelArtboardBorderTitle"));
-        panelArtboardBorder.orientation = "column";
-        panelArtboardBorder.alignChildren = ["fill", "top"];
-        panelArtboardBorder.alignment = ["fill", "top"];
-        panelArtboardBorder.margins = PANEL_MARGINS;
+        setupPanel(panelArtboardBorder);
 
         // Stroke color (dropdown) / ストロークのカラー（ドロップダウン）
         var strokeColorRow = panelArtboardBorder.add("group");
@@ -595,7 +668,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
 
         /* 下部ボタン行（左：ビデオ定規／右：閉じる）/ Bottom button row (left: Video Ruler, right: Close) */
-        var buttonRow = addButtonRow(mainGroup);
+        var buttonRow = addButtonRow(dlg);
         var btnVideoRuler = buttonRow.leftGroup.add("button", undefined, getLabel("VideoRuler"));
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("OK"), { name: "ok" });
 
@@ -672,7 +745,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dlg.close();
         };
 
-        dlg.center();
         prepareDialogWindow(dlg, SCRIPT_NAME);
         dlg.show();
     }

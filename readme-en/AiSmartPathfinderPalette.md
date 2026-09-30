@@ -33,6 +33,7 @@ Clicking an icon delegates the operation to the main engine and runs it immediat
 
 ### Update History
 
+- v1.1.4 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.3 (2026-09-28) In Japanese, the status shown after applying now uses a full-width colon. Temporary actions on the BridgeTalk side now use the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.1.2 (2026-09-26) Renamed the file from `AiSmartPathfinder.jsx` to `AiSmartPathfinderPalette.jsx`.
 - v1.1.0

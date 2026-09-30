@@ -30,10 +30,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboar
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitArtboardWithMargin";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.4";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.5";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md"; /* README (English) */
@@ -65,25 +65,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-
-    /* 初回表示時の画面中央からの横オフセット / First-run offset from screen center */
-    var DIALOG_FIRST_RUN_OFFSET_X = 300;
-
-    /* 行ラベルの幅（言語別） / Row label widths per language */
-    var BASIS_LABEL_WIDTHS = { ja: 40, en: 76 };    /* 調整基準パネル / adjustment basis panel */
-    var MARGIN_LABEL_WIDTHS = { ja: 32, en: 62 };   /* マージンパネル / margin panel */
-
-    /* マージン入力欄の桁数 / Margin field width in characters */
-    var MARGIN_FIELD_CHARACTERS = 4;
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウの共通設定を適用する
+     * ウィンドウの共通設定
      * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
@@ -96,7 +89,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     }
 
     /**
-     * パネルの共通設定を適用する
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
@@ -110,17 +103,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     }
 
     /**
-     * 横並びの行グループ（ボタン列など）の共通設定を適用する
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
      * @param {Group} rowGroup - 対象のグループ
-     * @param {string} [alignment] - グループ自身の配置（省略時は "left"）
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(rowGroup, alignment, spacing) {
+    function setupRow(rowGroup, rowAlignment, spacing) {
         rowGroup.orientation = "row";
-        rowGroup.alignment = alignment || "left";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
         rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* 行ラベルの幅（言語別） / Row label widths per language */
+    var BASIS_LABEL_WIDTHS = { ja: 40, en: 76 };    /* 調整基準パネル / adjustment basis panel */
+    var MARGIN_LABEL_WIDTHS = { ja: 32, en: 62 };   /* マージンパネル / margin panel */
+
+    /* マージン入力欄の桁数 / Margin field width in characters */
+    var MARGIN_FIELD_CHARACTERS = 4;
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -2825,7 +2854,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
      */
     function buildBasisPanel(marginDialog, initialSettings, dialogControls) {
         var basisPanel = marginDialog.add("panel", undefined, getLabel(LABELS.panel.adjustmentBasis));
-        setupPanel(basisPanel);
+        setupPanel(basisPanel, 6);
 
         /* 操作：オブジェクトに合わせる / アートボードを拡張（ラジオは縦並び） / Operation group (vertical radios) */
         var operationGroup = addBasisRow(basisPanel, LABELS.fieldLabel.operation, "column");
@@ -2957,7 +2986,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
      */
     function buildFineTuningPanel(marginDialog, initialSettings, dialogControls) {
         var fineTuningPanel = marginDialog.add("panel", undefined, getLabel(LABELS.panel.fineTuning));
-        setupPanel(fineTuningPanel);
+        setupPanel(fineTuningPanel, 6);
 
         var roundModeGroup = fineTuningPanel.add("group");
         roundModeGroup.orientation = "column";
@@ -3099,10 +3128,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         var marginDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
 
         setupWindow(marginDialog);
-        // 初めて開くときは中央から横にずらす（前回の位置があれば prepareDialogWindow が上書き） / first run: offset from center
-        marginDialog.onShow = function () {
-            marginDialog.location = [marginDialog.location[0] + DIALOG_FIRST_RUN_OFFSET_X, marginDialog.location[1]];
-        };
 
         // 保存済み設定（セッション内）から初期値を解決 / resolve initial values from stored settings
         var initialSettings = resolveInitialSettings(defaultMargin, artboardCount, hasSelection);
@@ -3111,10 +3136,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         buildBasisPanel(marginDialog, initialSettings, dialogControls);
         buildMarginPanel(marginDialog, rulerUnit, initialSettings, dialogControls);
         buildFineTuningPanel(marginDialog, initialSettings, dialogControls);
-        /* ボタン行（左右中央：Cancel → OK の順）/ Button row (centered: Cancel, OK) */
-        var buttonRow = addButtonRow(marginDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        /* ボタン行（キャンセル → OK の順）/ Button row (Cancel, OK) */
+        var buttonRow = addButtonRow(marginDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
         dialogControls.btnCancel = btnCancel;
         dialogControls.btnOK = btnOK;
         refreshScopeState(dialogControls, hasSelection);

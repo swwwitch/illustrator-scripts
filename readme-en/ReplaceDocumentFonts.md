@@ -96,6 +96,7 @@ https://note.com/dtp_tranist/n/ncc9330ba1f7d (Japanese)
 
 ### Update History
 
+- v2.2.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v2.2.1 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v2.2.0 (2026-09-29) Added "Composite fonts only" to the Display panel (limits the source and target lists to composite fonts; Option+C)
 - v2.1.1 (2026-09-29) Removed highlighting of the text matching the source selection. Running the script with text selected now opens Scope in Selection Only (Scope is no longer remembered). Added "Fit list width to font names" (off: compact fixed width). "Show unused font styles" (formerly "Show unused styles") is no longer remembered and always starts off. "Show PostScript names" renamed to "Show font names as PostScript names". Sort is now a popup menu instead of radio buttons. The left panel is renamed "Display". Alert messages reworded and tooltips expanded. Added keyboard shortcuts (Option+D / S / P / L / Tab). Close moved to the far left

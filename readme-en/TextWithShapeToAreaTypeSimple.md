@@ -43,6 +43,7 @@ Flow:
 
 ### Update History
 
+- v1.4.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.4.6 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.4.5 (2026-09-30): Button rows with only right-side buttons are now centered
 - v1.4.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool

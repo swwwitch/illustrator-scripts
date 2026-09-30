@@ -31,3 +31,4 @@ Picks a symbol from the ones registered in the document and replaces the selecte
 - v0.5.2 (2026-09-28): Removed the trailing space after the colon in English field labels ("Symbol: " -> "Symbol:"). The button row is now built with the shared part. Fixed the dialog failing to open because it was shown before LABELS were set, and the title showing version 0.5.0
 - v0.5.3 (2026-09-29): Dialog opacity changed to 98%
 - v0.5.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v0.5.5 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

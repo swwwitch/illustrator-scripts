@@ -37,3 +37,4 @@
 - v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.2 (20260929): Dialog opacity changed to 98%
 - v1.1.3 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.1.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

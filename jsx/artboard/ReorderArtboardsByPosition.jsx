@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md"; /* README (English) */
@@ -76,38 +76,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-    var DENSE_SPACING  = 6;                  /* ラジオを並べる密なパネルの間隔 / spacing for dense radio panels */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-
-    /* コントロールの寸法 / Control metrics */
-    var FIELD_LABEL_WIDTH   = 50;  /* 入力欄ラベルの幅 / labeled field label width */
-    var FIELD_INPUT_CHARS   = 5;   /* 入力欄の文字数 / edittext width in characters */
-    var SLIDER_WIDTH        = 250; /* 許容差スライダーの幅 / tolerance slider width */
-    var SLIDER_HEIGHT       = 20;  /* 許容差スライダーの高さ / tolerance slider height */
-    var PREVIEW_LIST_WIDTH  = 160; /* 並び順リストの幅 / reorder list width */
-    var PREVIEW_LIST_HEIGHT = 120; /* 並び順リストの最小高さ / reorder list minimum height */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウの共通設定を適用する
-     * @param {Window} targetWindow - 対象ウィンドウ
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
     function setupWindow(targetWindow, spacing) {
         targetWindow.orientation = "column";
-        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.alignChildren = "fill";
         targetWindow.margins = WINDOW_MARGINS;
         targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネルの共通設定を適用する
-     * @param {Panel} targetPanel - 対象パネル
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -120,18 +114,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     }
 
     /**
-     * 行グループの共通設定を適用する
-     * @param {Group} rowGroup - 対象グループ
-     * @param {string|Array} [alignment] - 配置（省略時は "left"）
-     * @param {number} [spacing] - 要素間隔（省略時は ScriptUI 既定値）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
      * @returns {void}
      */
-    function setupRow(rowGroup, alignment, spacing) {
-        rowGroup.orientation = "row";
-        rowGroup.alignChildren = ["left", "center"];
-        rowGroup.alignment = alignment || "left";
-        if (typeof spacing === "number") rowGroup.spacing = spacing;
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
     }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* コントロールの寸法 / Control metrics */
+    var FIELD_LABEL_WIDTH   = 50;  /* 入力欄ラベルの幅 / labeled field label width */
+    var FIELD_INPUT_CHARS   = 5;   /* 入力欄の文字数 / edittext width in characters */
+    var SLIDER_WIDTH        = 250; /* 許容差スライダーの幅 / tolerance slider width */
+    var SLIDER_HEIGHT       = 20;  /* 許容差スライダーの高さ / tolerance slider height */
+    var PREVIEW_LIST_WIDTH  = 160; /* 並び順リストの幅 / reorder list width */
+    var PREVIEW_LIST_HEIGHT = 120; /* 並び順リストの最小高さ / reorder list minimum height */
 
     /**
      * 列グループの共通設定を適用する
@@ -1090,6 +1120,78 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+     * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+     * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function alignRightOnlyButtonRow(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var dialogWindow = buttonRow.rowGroup.window;
+        dialogWindow.addEventListener("show", function () {
+            if (!buttonRow.leftGroup) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+            if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+            dialogWindow.layout.layout(true);
+        });
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -1299,7 +1401,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
-
     /**
      * @typedef {Object} ArtboardEntry
      * @property {string} name - アートボード名
@@ -1342,7 +1443,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
             bindEvents(doc, previewContext, dialogUI);
 
-            dialogUI.reorderDialog.center();
             prepareDialogWindow(dialogUI.reorderDialog, SCRIPT_NAME);
             dialogUI.reorderDialog.show();
         } finally {
@@ -1802,7 +1902,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function buildPreviewPanel(parentContainer, defaultTolerance, sliderMax) {
         var reorderPanel = parentContainer.add("panel", undefined, getLabel("panel.reorder"));
-        setupPanel(reorderPanel, DENSE_SPACING);
+        setupPanel(reorderPanel, 6);
 
         /* 名前順（ラジオ） / Radio "By name" */
         var byNameRow = reorderPanel.add("group");
@@ -2003,7 +2103,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function buildDuplicateHandlingPanel(parentContainer) {
         var duplicatePanel = parentContainer.add("panel", undefined, getLabel("panel.duplicateHandling"));
-        setupPanel(duplicatePanel, DENSE_SPACING);
+        setupPanel(duplicatePanel, 6);
 
         var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio.duplicateAppendToRowEnd"));
         duplicateAppendRadio.helpTip = getLabel("tooltip.duplicateAppendToRowEnd");
@@ -2101,7 +2201,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      */
     function buildOptionRadioPanel(parentContainer, panelLabel, optionLabels, optionTooltip) {
         var optionPanel = parentContainer.add("panel", undefined, panelLabel);
-        setupPanel(optionPanel, DENSE_SPACING);
+        setupPanel(optionPanel, 6);
 
         var optionGroup = optionPanel.add("group");
         setupColumn(optionGroup, ["left", "top"]);
@@ -2122,15 +2222,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {{btnCancel: Button, btnOK: Button}} 各ボタンの参照
      */
     function buildDialogButtons(parentWindow) {
-        var btnRowGroup = parentWindow.add("group");
-        setupRow(btnRowGroup, ["right", "bottom"]);
-
-        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
-        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"));
+        var buttonRow = addButtonRow(parentWindow);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         var buttonWidth = Math.max(btnOK.preferredSize.width, btnCancel.preferredSize.width);
         btnOK.preferredSize.width = buttonWidth;
         btnCancel.preferredSize.width = buttonWidth;
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             btnCancel: btnCancel,

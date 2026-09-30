@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridTextLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridTextLayout";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridTextLayout.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridTextLayout.md"; /* README (English) */
@@ -61,8 +61,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var PANEL_MARGINS = [15, 20, 15, 10];     /* パネル余白 [左,上,右,下] / panel margins */
-    var GUTTER_PANEL_MARGINS = [15, 20, 15, 5]; /* ［ガター］だけ下を詰める / the Gutter panel has a tighter bottom */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var GUTTER_PANEL_MARGINS = [16, 20, 16, 5]; /* ［ガター］だけ下を詰める / the Gutter panel has a tighter bottom */
     var SIZE_LABEL_WIDTH = 30;                /* 幅・高さラベルの共通幅 / common width of the size labels */
     var TOLERANCE_INPUT_CHARS = 3;
     var GAP_INPUT_CHARS = 3;
@@ -1073,19 +1151,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
 
     /**
-     * 向き・子の揃え・余白を指定してパネルを追加する
+     * 共通設定のパネルを追加し、向き・子の揃えを指定する
      * @param {Window} parentWindow - 追加先
      * @param {string} panelTitle - パネル名
      * @param {string} orientation - "row" または "column"
      * @param {string|string[]} alignChildren - 子の揃え
-     * @param {number[]} margins - 余白 [左,上,右,下]
+     * @param {number[]} [margins] - 余白 [左,上,右,下]（省略時は PANEL_MARGINS）
      * @returns {Panel} 追加したパネル
      */
     function addDialogPanel(parentWindow, panelTitle, orientation, alignChildren, margins) {
         var dialogPanel = parentWindow.add("panel", undefined, panelTitle);
+        setupPanel(dialogPanel);
         dialogPanel.orientation = orientation;
         dialogPanel.alignChildren = alignChildren;
-        dialogPanel.margins = margins;
+        if (margins) dialogPanel.margins = margins;
         return dialogPanel;
     }
 
@@ -1531,11 +1610,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var currentUnitLabel = getUnitInfo().label;
 
         var gridDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        gridDialog.orientation = "column";
-        gridDialog.alignChildren = "left";
+        setupWindow(gridDialog);
 
         /* 判定 / Detection */
-        var detectionPanel = addDialogPanel(gridDialog, getLabel("panel.detection"), "row", ["left", "center"], PANEL_MARGINS);
+        var detectionPanel = addDialogPanel(gridDialog, getLabel("panel.detection"), "row", ["left", "center"]);
         var rowToleranceInput = addNumberField(detectionPanel, "fieldLabel.rowTolerance",
             String(DEFAULT_ROW_TOLERANCE), TOLERANCE_INPUT_CHARS, "tooltip.rowTolerance");
         var columnToleranceInput = addNumberField(detectionPanel, "fieldLabel.columnTolerance",
@@ -1564,14 +1642,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 全体サイズ / Overall size */
         var regionPanel = addDialogPanel(gridDialog, getLabel("panel.region") + "（" + currentUnitLabel + "）",
-            "row", "top", PANEL_MARGINS);
+            "row", "top");
         var widthInput = addNumberField(regionPanel.add("group"), "fieldLabel.width",
             String(Math.round(gridShape.unionBounds[2] - gridShape.unionBounds[0])), SIZE_INPUT_CHARS, "tooltip.width", SIZE_LABEL_WIDTH);
         var heightInput = addNumberField(regionPanel.add("group"), "fieldLabel.height",
             String(Math.round(gridShape.unionBounds[1] - gridShape.unionBounds[3])), SIZE_INPUT_CHARS, "tooltip.height", SIZE_LABEL_WIDTH);
 
         /* オプション / Options */
-        var optionPanel = addDialogPanel(gridDialog, getLabel("panel.option"), "column", "left", PANEL_MARGINS);
+        var optionPanel = addDialogPanel(gridDialog, getLabel("panel.option"), "column", "left");
 
         var deleteRectanglesCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.deleteRectangles"));
         deleteRectanglesCheckbox.helpTip = getLabel("tooltip.deleteRectangles");
@@ -1583,9 +1661,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         convertToAreaCheckbox.enabled = false;
 
         /* ボタンエリア / Button row */
-        var buttonRow = addButtonRow(gridDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(gridDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             gridDialog: gridDialog,

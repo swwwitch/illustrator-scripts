@@ -111,3 +111,4 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 - v1.4.2 (20260928): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/AdjustPairGap.json; mode and gap in $.global). Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held). Clip groups are measured by their masks, including text masks and clip groups nested inside groups
 - v1.4.3 (20260929): Dialog opacity changed to 98%
 - v1.4.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

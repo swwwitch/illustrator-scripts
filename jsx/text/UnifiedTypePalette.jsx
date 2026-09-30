@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTyp
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnifiedTypePalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePalette.md"; /* README (English) */
@@ -1631,18 +1631,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     // 行送り用の単位・選択肢ヘルパー / Leading: units and choices (palette side)
     // =========================================
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [10, 15, 10, 10];
-    var PANEL_SPACING = 8;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var GROUP_SPACING = 8; /* グループ内の要素間隔 / spacing inside groups */
 
     /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout */
     function setupGroup(group, orientation, spacing) {
@@ -1650,16 +1718,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         group.orientation = groupOrientation;
         group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
         group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        group.spacing = (typeof spacing === "number") ? spacing : GROUP_SPACING;
     }
 
-    /* タブを1枚追加して共通の体裁（縦積み・上左マージン15）を適用 / Add one tab with the shared layout (column, 15px top/left margins) */
+    /* タブを1枚追加して共通の体裁（setupTab）を適用 / Add one tab with the shared layout (setupTab) */
     function addTab(mainTabs, labelEntry) {
         var tab = mainTabs.add("tab", undefined, getLabel(labelEntry));
-        tab.orientation = "column";
-        tab.alignChildren = ["fill", "top"];
-        tab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
-        tab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
+        setupTab(tab);
         return tab;
     }
 
@@ -1667,11 +1732,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     var COMPACT_BUTTON_HEIGHT = 20;
 
     /* ボタンの高さを指定 px 詰める（レイアウト確定後に1回だけ呼ぶ）/ Trim a button's height by the given px (call once, after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) {}
-    }
 
     /* ボタンを共通の高さ（COMPACT_BUTTON_HEIGHT）に揃える / Fit a button to the shared compact height */
     function fitButtonHeight(button) {
@@ -2805,7 +2865,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // 方針：和文／欧文／和欧混在（横並び）。文字揃えと行送りの基準をまとめて適用（タイトルなしパネル）
         // Policy: Japanese / Western / Mixed (row). Applies char-alignment + leading-basis together (untitled panel)
         var policyPanel = topRow.add("panel", undefined, "");
-        setupPanel(policyPanel);
+        setupPanel(policyPanel, 6);
         policyPanel.margins.top = 7;
         policyPanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
         policyPanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
@@ -2830,7 +2890,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 種別（本文／見出し）：タイトルなしパネル / Type (Body / Heading): untitled panel
         var rolePanel = topRow.add("panel", undefined, "");
-        setupPanel(rolePanel);
+        setupPanel(rolePanel, 6);
         rolePanel.margins.top = 7;
         rolePanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
         rolePanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
@@ -3264,7 +3324,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     /* パレットを組み立てて参照を返す（イベント未接続）/ Build the palette and return references (events not wired yet) */
     function createPaletteUI(autoKernOptions, alignOptions, justifyOptions) {
         var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        palette.alignChildren = "fill";
+        setupWindow(palette);
 
         var textUnit = getUnitInfo("text/units");
         var leadingBasisChoices = getLeadingTypeChoices();

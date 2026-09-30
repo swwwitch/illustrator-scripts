@@ -51,3 +51,4 @@ https://note.com/dtp_tranist/n/na534a676fae2
 - v1.3.3 (20260928): The button row is now built with the shared part
 - v1.3.4 (20260929): Dialog opacity changed to 98%
 - v1.3.5 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.3.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

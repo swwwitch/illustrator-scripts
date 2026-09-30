@@ -50,3 +50,4 @@
 - v1.2 (20251118): Public release
 - v1.2.2 (20260930): Added stepper buttons (∧∨) to the amount field; the arrow keys now step the same way as the buttons (whole numbers only). Layout, button row, and dialog position/opacity now use the shared parts. Renamed the dialog to "Increment Dates and Numbers" and the panel/field to "Step" / "Amount:", and revised the tooltips for Type, Target, and the result
 - v1.2.3 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
+- v1.2.4 (2026-10-01): Removed the hand-written dialog centering; position and opacity now come from the shared part. Unified the window and panel margins and spacing with the shared layout part

@@ -46,6 +46,7 @@
 
 ### Update History
 
+- v1.0.6 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.0.5 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.0.4 (20260929): Dialog opacity changed to 98%
 - v1.0.3 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part

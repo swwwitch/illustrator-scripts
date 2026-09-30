@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontCatalogGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -114,6 +114,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // ローカライズ（再利用パーツ） / Localization (reusable)
 
@@ -1052,13 +1131,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         // --- ダイアログボックス / Dialog ---
         var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
+        setupWindow(dialog);
 
         // --- 2カラムレイアウト / Two-column layout ---
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
 
         var leftColumn = columnsGroup.add("group");
         leftColumn.orientation = "column";
@@ -1070,9 +1149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         // --- 表示 / Display ---
         var displayPanel = leftColumn.add("panel", undefined, getLabel("panelSampleSettings"));
-        displayPanel.orientation = "column";
-        displayPanel.alignChildren = ["fill", "top"];
-        displayPanel.margins = [15, 20, 15, 10];
+        setupPanel(displayPanel);
 
         var textInputGroup = displayPanel.add("group");
         textInputGroup.orientation = "column";
@@ -1108,9 +1185,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         // --- 表示オプション / Display options ---
         var displayOptionGroup = rightColumn.add("panel", undefined, getLabel("panelFontNameDisplay"));
-        displayOptionGroup.orientation = "column";
-        displayOptionGroup.alignChildren = ["left", "top"];
-        displayOptionGroup.margins = [15, 20, 15, 10];
+        setupPanel(displayOptionGroup, 6);
 
         var showFontNameCheckbox = displayOptionGroup.add(
             "checkbox",
@@ -1132,9 +1207,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         fullWidthGroup.alignChildren = ["fill", "top"];
 
         var excludeListPanel = fullWidthGroup.add("panel", undefined, getLabel("panelExcludeList"));
-        excludeListPanel.orientation = "column";
-        excludeListPanel.alignChildren = ["fill", "top"];
-        excludeListPanel.margins = [15, 20, 15, 10];
+        setupPanel(excludeListPanel);
 
         // --- 除外オプション（3カラム） / Exclusion options (3 columns) ---
         var excludeColumnsGroup = excludeListPanel.add("group");
@@ -1249,9 +1322,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         // --- 除外リスト / Exclude list ---
         var excludeOptionGroup = excludeCol3.add("panel", undefined, getLabel("panelExcludeAdd"));
-        excludeOptionGroup.orientation = "column";
-        excludeOptionGroup.alignChildren = ["left", "top"];
-        excludeOptionGroup.margins = [15, 20, 15, 10];
+        setupPanel(excludeOptionGroup, 6);
 
         var addSelectedFontToExcludeCheckbox = excludeOptionGroup.add(
             "checkbox",
@@ -1330,8 +1401,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         // --- 進捗表示（プログレスバー） / Progress bar ---
         var progressPalette = new Window("palette", getLabel("progressTitle"));
-        progressPalette.orientation = "column";
-        progressPalette.alignChildren = ["fill", "top"];
+        setupWindow(progressPalette);
 
         var progressLabel = progressPalette.add("statictext", undefined, "0 / " + fontCount);
 

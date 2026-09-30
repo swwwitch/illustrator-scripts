@@ -133,6 +133,7 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ## Update History
 
+- v1.0.9 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.0.8 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.0.7 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.6 (2026-09-28): The button row is now built with the shared part

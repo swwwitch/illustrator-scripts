@@ -35,7 +35,7 @@ The list is based on the font of the first character. Weights are judged the sam
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontWeightPicker";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -94,10 +94,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    var DIALOG_MARGINS        = 15;                /* ダイアログの余白 / dialog margins */
-    var PANEL_MARGINS         = [15, 20, 15, 10];  /* パネルの余白 / panel margins */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var FONT_PANEL_MARGINS    = [8, 20, 8, 10];    /* フォントパネルの余白（左右を詰める）/ font panel margins, narrower at the sides */
-    var PANEL_SPACING         = 6;                 /* ラジオボタンの間隔 / spacing between radio buttons */
     var FONT_LIST_SIZE        = [220, 260];        /* フォント一覧の寸法 / size of the font list */
     var WEIGHT_RADIO_WIDTH    = 90;                /* ウェイトのラジオボタンの最小幅 / minimum width of the weight radio buttons */
     var RADIO_CHAR_WIDTH      = 7;                 /* ラジオの幅を見積もる1文字あたりの幅 / estimated width per character */
@@ -2173,16 +2249,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹�
         var seriesByFamily = seriesLayout.seriesByFamily;
 
         var weightDialog = new Window("dialog", getLabel(LABELS.dialog.title));
-        weightDialog.orientation = "column";
-        weightDialog.alignChildren = ["fill", "top"];
-        weightDialog.margins = DIALOG_MARGINS;
+        setupWindow(weightDialog);
 
         var listColumnsGroup = weightDialog.add("group");
         listColumnsGroup.orientation = "row";
         listColumnsGroup.alignChildren = ["fill", "fill"];
+        listColumnsGroup.spacing = COLUMN_SPACING;
 
         /* 左：関連ファミリー / Left: related families */
         var fontPanel = listColumnsGroup.add("panel", undefined, getLabel(LABELS.panel.font));
+        setupPanel(fontPanel);
         fontPanel.margins = FONT_PANEL_MARGINS;
         var fontList = fontPanel.add("listbox", undefined, []);
         fontList.preferredSize = FONT_LIST_SIZE;
@@ -2190,10 +2266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹�
 
         /* 右：ウェイト（ラジオは同じ親に入れて排他にする）/ Right: weights, radios kept in one parent */
         var weightPanel = listColumnsGroup.add("panel", undefined, getLabel(LABELS.panel.weight));
-        weightPanel.orientation = "column";
-        weightPanel.alignChildren = ["left", "top"];
-        weightPanel.margins = PANEL_MARGINS;
-        weightPanel.spacing = PANEL_SPACING;
+        setupPanel(weightPanel, 6);
 
         /* ラジオは件数の最も多いファミリーに合わせて作り、ファミリーを替えるたびに文字と表示を入れ替える
            As many radios as the longest list; their labels and visibility change with the family */
@@ -2354,12 +2427,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹�
         var optionsGroup = weightDialog.add("group");
         optionsGroup.orientation = "row";
         optionsGroup.alignChildren = ["fill", "fill"];
+        optionsGroup.spacing = COLUMN_SPACING;
 
         var displayPanel = optionsGroup.add("panel", undefined, getLabel(LABELS.panel.display));
-        displayPanel.orientation = "column";
-        displayPanel.alignChildren = ["left", "top"];
-        displayPanel.margins = PANEL_MARGINS;
-        displayPanel.spacing = OPTION_ROW_SPACING;
+        setupPanel(displayPanel, 6);
 
         var showRelatedFamiliesCheckbox = displayPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.showRelatedFamilies));
         showRelatedFamiliesCheckbox.helpTip = getLabel(LABELS.tooltip.showRelatedFamilies);
@@ -2372,10 +2443,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n255437cfdba0"; /* 紹�
         showPostScriptNameCheckbox.onClick = fillFontList;
 
         var previewPanel = optionsGroup.add("panel", undefined, getLabel(LABELS.panel.preview));
-        previewPanel.orientation = "column";
-        previewPanel.alignChildren = ["left", "top"];
-        previewPanel.margins = PANEL_MARGINS;
-        previewPanel.spacing = OPTION_ROW_SPACING;
+        setupPanel(previewPanel, 6);
 
         var weightSamplesCheckbox = previewPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightSamples));
         weightSamplesCheckbox.helpTip = getLabel(LABELS.tooltip.weightSamples);

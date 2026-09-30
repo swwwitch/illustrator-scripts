@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalen
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md"; /* README (English) */
@@ -43,8 +43,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
 (function () {
 
-    var offsetX = 300;                          /* ダイアログ表示位置の横オフセット / Dialog X offset */
-    var offsetY = 0;                            /* ダイアログ表示位置の縦オフセット / Dialog Y offset */
     var __PREVIEW_DELAY_MS = 450;               /* プレビュー更新の遅延(ms) / Preview debounce delay (ms) */
     var PREVIEW_LAYER_NAME = "__CAL_PREVIEW__"; /* プレビュー用レイヤー名 / Preview layer name */
 
@@ -760,21 +758,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     // UIレイアウトの共通設定 / Shared UI layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
     var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
-    /* タブの共通設定 / Apply shared tab layout */
-    function setupTab(tab, spacing) {
-        tab.orientation = "column";
-        tab.alignChildren = "fill";
-        tab.margins = TAB_MARGINS;
-        if (typeof spacing === "number") tab.spacing = spacing;
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1534,21 +1595,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var today = new Date();
 
         var dlg = new Window("dialog", getLabel("dialog.title"));
-        /* ダイアログ表示位置をずらし初回プレビューを起動 / Offset the dialog and trigger the first preview */
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function () {
-                try {
-                    var currentX = dlg.location[0];
-                    var currentY = dlg.location[1];
-                    dlg.location = [currentX + offsetX, currentY + offsetY];
-                } catch (e) { }
-                try { refreshPreview(); } catch (e) { }
-            };
-        }
-
-        shiftDialogPosition(dlg, offsetX, offsetY);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
+        /* 表示したら初回プレビューを起動（位置は prepareDialogWindow に任せる）/ Trigger the first preview on show; the position is left to prepareDialogWindow */
+        dlg.onShow = function () {
+            try { refreshPreview(); } catch (e) { }
+        };
+        setupWindow(dlg);
 
         dlg.preferredSize.width = 320;
         dlg.minimumSize.width = 320;
@@ -1589,10 +1640,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== プリセット（「基本設定」タブ最下部・全幅）/ Preset (bottom of Basics tab, full width) =====
         var pnlPresetTop = tabGeneral.add("panel", undefined, getLabel("panel.preset"));
-        pnlPresetTop.orientation = "column";
-        pnlPresetTop.alignChildren = ["fill", "top"];
-        pnlPresetTop.alignment = "fill";
-        pnlPresetTop.margins = PANEL_MARGINS;
+        setupPanel(pnlPresetTop);
 
         var gPresetBtns = pnlPresetTop.add("group");
         gPresetBtns.orientation = "row";
@@ -1831,9 +1879,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 基本設定パネル =====
         var pnlBaseDate = gColL.add("panel", undefined, getLabel("panel.base"));
-        pnlBaseDate.orientation = "column";
+        setupPanel(pnlBaseDate);
         pnlBaseDate.alignChildren = "left";
-        pnlBaseDate.margins = PANEL_MARGINS;
 
         var gBaseDateRow = pnlBaseDate.add("group");
         gBaseDateRow.add("statictext", undefined, labelText("field.year"));
@@ -1946,9 +1993,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 日付（panel） =====
         var pnlDate = tabCell.add("panel", undefined, getLabel("panel.date"));
-        pnlDate.orientation = "column";
+        setupPanel(pnlDate);
         pnlDate.alignChildren = "left";
-        pnlDate.margins = PANEL_MARGINS;
 
         // ===== 揃え =====
         var gAlign = pnlDate.add("group");
@@ -1982,9 +2028,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 曜日表記（panel） =====
         var pnlWeekdayLabel = gOption.add("panel", undefined, getLabel("panel.weekday"));
-        pnlWeekdayLabel.orientation = "column";
+        setupPanel(pnlWeekdayLabel);
         pnlWeekdayLabel.alignChildren = "left";
-        pnlWeekdayLabel.margins = PANEL_MARGINS;
 
         // 週の始まり（ラベル + ラジオ）
         var gWeekStart = pnlWeekdayLabel.add("group");
@@ -2035,10 +2080,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 月パネル =====
         var pnlMonth = gOption.add("panel", undefined, getLabel("panel.month"));
-        pnlMonth.orientation = "column";
+        setupPanel(pnlMonth);
         pnlMonth.alignChildren = "left";
-        pnlMonth.margins = PANEL_MARGINS;
-        pnlMonth.alignment = "fill";
         pnlMonth.minimumSize.height = 44;
         pnlMonth.preferredSize.height = 44;
         pnlMonth.visible = true;
@@ -2068,9 +2111,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // 月タイトルの表記
         var pnlMonthFmt = pnlMonth.add("panel", undefined, getLabel("panel.notation"));
-        pnlMonthFmt.orientation = "column";
+        setupPanel(pnlMonthFmt);
         pnlMonthFmt.alignChildren = "left";
-        pnlMonthFmt.margins = PANEL_MARGINS;
 
         var gMonthFmt = pnlMonthFmt.add("group");
         gMonthFmt.orientation = "column";
@@ -2112,9 +2154,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 年パネル =====
         var pnlYear = gOption.add("panel", undefined, getLabel("panel.year"));
-        pnlYear.orientation = "column";
+        setupPanel(pnlYear);
         pnlYear.alignChildren = "left";
-        pnlYear.margins = PANEL_MARGINS;
 
         var gYear = pnlYear.add("group");
         gYear.orientation = "row";
@@ -2182,9 +2223,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== レイアウトパネル =====
         var pnlLayout = gColL.add("panel", undefined, getLabel("panel.layout"));
-        pnlLayout.orientation = "column";
+        setupPanel(pnlLayout);
         pnlLayout.alignChildren = "left";
-        pnlLayout.margins = PANEL_MARGINS;
 
         // 月数/列数
         var gCount = pnlLayout.add("group");
@@ -2208,9 +2248,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // 月（ユニット間マージン）panel
         var pnlMonthOuter = gCellMonth.add("panel", undefined, getLabel("panel.month") + "（" + unitLabel + "）");
-        pnlMonthOuter.orientation = "column";
+        setupPanel(pnlMonthOuter);
         pnlMonthOuter.alignChildren = "left";
-        pnlMonthOuter.margins = PANEL_MARGINS;
         pnlMonthOuter.enabled = false; // 月数=1 のときはディム（refreshPreviewで同期）
 
         // 横並びコンテナ
@@ -2273,9 +2312,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 画面表示（ズーム） =====
         var pnlView = gColL.add("panel", undefined, getLabel("panel.view"));
-        pnlView.orientation = "column";
+        setupPanel(pnlView);
         pnlView.alignChildren = "left";
-        pnlView.margins = PANEL_MARGINS;
 
         var gZoom = pnlView.add("group");
         gZoom.orientation = "row";
@@ -2341,9 +2379,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
         // セル（panel）
         var pnlCell = tabCell.add("panel", undefined, getLabel("panel.cell"));
-        pnlCell.orientation = "column";
+        setupPanel(pnlCell);
         pnlCell.alignChildren = "left";
-        pnlCell.margins = PANEL_MARGINS;
 
         // セル上段コンテナ（大きさ／セル間隔 横並び）
         var gCellTopRow = pnlCell.add("group");
@@ -2353,9 +2390,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // セル：大きさ（sub panel）
         var pnlCellSize = gCellTopRow.add("panel", undefined, "大きさ");
-        pnlCellSize.orientation = "column";
+        setupPanel(pnlCellSize);
         pnlCellSize.alignChildren = "left";
-        pnlCellSize.margins = PANEL_MARGINS;
 
         var gCellW = pnlCellSize.add("group");
         var stCellW = gCellW.add("statictext", undefined, labelText("layout.width"));
@@ -2388,9 +2424,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // セル：間隔（sub panel）
         var pnlCellGap = gCellTopRow.add("panel", undefined, "セル間隔（" + unitLabel + "）");
-        pnlCellGap.orientation = "column";
+        setupPanel(pnlCellGap);
         pnlCellGap.alignChildren = "left";
-        pnlCellGap.margins = PANEL_MARGINS;
 
         // 縦並び（左右 / 上下）
         var gCellGapRow = pnlCellGap.add("group");
@@ -2437,9 +2472,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // 罫線（panel）
         var pnlCellStroke = pnlCell.add("panel", undefined, "罫線");
-        pnlCellStroke.orientation = "column";
+        setupPanel(pnlCellStroke);
         pnlCellStroke.alignChildren = "left";
-        pnlCellStroke.margins = PANEL_MARGINS;
 
         // 罫線モード
         var gStrokeMode = pnlCellStroke.add("group");
@@ -2525,9 +2559,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== 書式パネル =====
         var pnlFormat = tabText.add("panel", undefined, getLabel("panel.font"));
-        pnlFormat.orientation = "column";
+        setupPanel(pnlFormat);
         pnlFormat.alignChildren = "left";
-        pnlFormat.margins = PANEL_MARGINS;
 
         // フォントサイズグリッド用変数宣言
         var inputFontSize;
@@ -2537,9 +2570,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // フォントサイズ（2行4列）
         var pnlFontSize = tabText.add("panel", undefined, getLabel("panel.fontSize") + "（" + textUnitLabel + "）");
-        pnlFontSize.orientation = "column";
+        setupPanel(pnlFontSize);
         pnlFontSize.alignChildren = "left";
-        pnlFontSize.margins = PANEL_MARGINS;
 
         // フォントサイズ（2行4列）
         var gFSGrid = pnlFontSize.add("group");
@@ -2764,9 +2796,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             // ===== 準備中プログレス（重い処理向け）=====
             function __createLoadingPalette(title, initialText, maxValue) {
                 var w = new Window("palette", title || getLabel("loading.title"));
-                w.orientation = "column";
-                w.alignChildren = "fill";
-                w.margins = 12;
+                setupWindow(w);
 
                 var msg = w.add("statictext", undefined, initialText || getLabel("loading.text"));
                 var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
@@ -2828,9 +2858,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (typeof __createLoadingPalette !== "function") {
                     var __createLoadingPalette = function (title, initialText, maxValue) {
                         var w = new Window("palette", title || getLabel("loading.title"));
-                        w.orientation = "column";
-                        w.alignChildren = "fill";
-                        w.margins = 12;
+                        setupWindow(w);
                         var msg = w.add("statictext", undefined, initialText || getLabel("loading.text"));
                         var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                         bar.preferredSize = [260, 14];

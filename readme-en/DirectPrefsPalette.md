@@ -20,6 +20,7 @@ See the README for details.
 
 ### Update History
 
+- v1.1.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.1 (2026-09-29) Esc now closes the palette (also while typing)
 - v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.3 (2026-09-26) Renamed the file from `DirectPrefs.jsx` to `DirectPrefsPalette.jsx`.

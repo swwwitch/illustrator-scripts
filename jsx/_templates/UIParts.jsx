@@ -20,10 +20,10 @@ Running it shows a demo dialog with every part.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UIParts";                      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -1209,6 +1209,7 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
     // ボタン行（再利用パーツ） / Button row (reusable)
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
     var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
     var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
 
@@ -1223,7 +1224,7 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         var isCentered = !!(rowOptions && rowOptions.centered);
         var btnRowGroup = parent.add("group");
         btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
         btnRowGroup.spacing = BUTTON_ROW_SPACING;
 
         if (isCentered) {
@@ -1470,7 +1471,13 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         });
         anchorWidget.helpTip = getLabel("tooltip.anchor");
         var selectedText = anchorPanel.add("statictext", undefined, labelValueText("fieldLabel.selected", "center"));
-        selectedText.preferredSize.width = 140; /* 実行時に文字を入れるので幅を確保 / reserve the width for runtime text */
+        /* 実行時に文字が変わるので、いちばん長い名前が収まる幅だけ確保する / reserve just enough width for the longest name */
+        var selectedTextWidth = 0;
+        for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+            var nameWidth = selectedText.graphics.measureString(labelValueText("fieldLabel.selected", ANCHOR_WIDGET_NAMES[i]))[0];
+            if (nameWidth > selectedTextWidth) selectedTextWidth = nameWidth;
+        }
+        selectedText.preferredSize.width = Math.ceil(selectedTextWidth) + 4; /* 丸め誤差で切れないよう少し足す / small slack against clipping */
         selectedText.justify = "center";
         return anchorWidget;
     }
@@ -1490,8 +1497,11 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
         var sizeControls = buildDemoSizePanel(panelColumnsGroup);
         var anchorWidget = buildDemoAnchorPanel(panelColumnsGroup);
 
+        /* ボタン行は3カラム：左に「有効」、中央のスペーサー、右にボタン / three columns: checkbox left, spacer, buttons right */
+        var buttonRow = addButtonRow(demoDialog);
+
         /* 有効／無効の切り替え（部品ごとの関数で、ディム表示とクリックの無効化をそろえる） / toggle with each part's own setter */
-        var enableCheckbox = demoDialog.add("checkbox", undefined, getLabel("checkbox.enableControls"));
+        var enableCheckbox = buttonRow.leftGroup.add("checkbox", undefined, getLabel("checkbox.enableControls"));
         enableCheckbox.helpTip = getLabel("tooltip.enableControls");
         enableCheckbox.value = true;
         enableCheckbox.onClick = function () {
@@ -1502,10 +1512,8 @@ var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last update
             setAnchorWidgetEnabled(anchorWidget, isEnabled);
         };
 
-        var buttonRow = addButtonRow(demoDialog);
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        alignRightOnlyButtonRow(buttonRow); /* 右のボタンだけなので中央に並ぶ / right-only, so the row is centered */
 
         demoDialog.show();
     }

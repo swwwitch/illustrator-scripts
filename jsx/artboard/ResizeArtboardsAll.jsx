@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeArtboardsAll.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtboardsAll.md"; /* README (English) */
@@ -41,18 +41,91 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var WINDOW_MARGINS = 15;                 /* ウィンドウ外周の余白 / window margin */
-    var PANEL_MARGINS  = [15, 20, 15, 10];   /* パネル余白 [左,上,右,下] / panel margins */
-    var COLUMN_SPACING = 15;                 /* 2カラムの間隔 / gap between columns */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var COLUMN_PANEL_SPACING = 10;           /* カラム内のパネル間隔 / gap between panels in a column */
     var SIZE_ROW_SPACING = 6;                /* 幅・高さの行間 / gap between the width and height rows */
     var ANCHOR_RADIO_SPACING = 12;           /* 基準点のラジオの間隔 / gap between the reference point radios */
     var SIZE_FIELD_CHARACTERS = 5;           /* 幅・高さ欄の桁数 / width & height field characters */
     var SPECIFY_FIELD_CHARACTERS = 12;       /* 番号指定欄の桁数 / artboard number field characters */
     var LABEL_WIDTH_PADDING = 6;             /* 項目名の幅に足す余白 / padding added to the measured label width */
-
-    /* 初回表示時の画面中央からの横オフセット / First-run offset from screen center */
-    var DIALOG_FIRST_RUN_OFFSET_X = 300;
 
     /* プレビューの再描画の最短間隔（ms） / Minimum interval between preview redraws (ms) */
     var REDRAW_INTERVAL_MS = 40;
@@ -1081,9 +1154,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addTitledPanel(parentGroup, panelTitle, childOrientation) {
         var titledPanel = parentGroup.add("panel", undefined, panelTitle);
-        titledPanel.orientation = "row";
-        titledPanel.alignChildren = ["left", "top"];
-        titledPanel.margins = PANEL_MARGINS;
+        setupPanel(titledPanel);
         var contentGroup = titledPanel.add("group");
         contentGroup.orientation = childOrientation;
         contentGroup.alignChildren = ["left", "center"];
@@ -1117,9 +1188,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var activeRect = originalRects[targetDocument.artboards.getActiveArtboardIndex()];
 
         var resizeDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        resizeDialog.orientation = "column";
-        resizeDialog.alignChildren = "fill";
-        resizeDialog.margins = WINDOW_MARGINS;
+        setupWindow(resizeDialog);
 
         var columnsGroup = resizeDialog.add("group");
         columnsGroup.orientation = "row";
@@ -1164,9 +1233,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ボタンエリア / Button row */
-        var buttonRow = addButtonRow(resizeDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        var buttonRow = addButtonRow(resizeDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         var lastRedrawTime = 0;
 
@@ -1265,9 +1335,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         resizeDialog.onShow = function () {
-            /* 初回は画面中央から横にずらす。前回の位置があれば prepareDialogWindow が上書きする
-               First run: offset from the center; prepareDialogWindow overrides it with the last location */
-            resizeDialog.location = [resizeDialog.location[0] + DIALOG_FIRST_RUN_OFFSET_X, resizeDialog.location[1]];
             /* 幅の欄にフォーカスを置く / Focus the width field */
             widthInput.active = true;
         };

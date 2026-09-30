@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitc
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSwitchDocs";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.5.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.5.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-03-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md"; /* README (English) */
@@ -53,9 +53,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var TARGET_PANEL_MARGINS   = [10, 15, 10, 10]; /* 切り替え先パネルの余白 [左,上,右,下] / Target panel margins */
-    var ORIGINAL_PANEL_MARGINS = [15, 20, 15, 15]; /* 元のドキュメントパネルの余白 [左,上,右,下] / Original document panel margins */
-    var DOC_LIST_SIZE          = [300, 150];       /* ドキュメント一覧の大きさ [幅,高さ] / Document list size */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
+    var DOC_LIST_SIZE = [300, 150];   /* ドキュメント一覧の大きさ [幅,高さ] / Document list size */
 
     // =========================================
     // ローカライズ / Localization
@@ -356,9 +435,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
      */
     function addOriginalDocPanel(switchDialog, originalDoc) {
         var originalDocPanel = switchDialog.add("panel", undefined, getLabel("panel.originalDoc"));
-        originalDocPanel.orientation = "column";
+        setupPanel(originalDocPanel);
         originalDocPanel.alignChildren = "left";
-        originalDocPanel.margins = ORIGINAL_PANEL_MARGINS;
         var originalDocText = originalDocPanel.add("statictext", undefined, originalDoc.name);
         originalDocText.helpTip = getLabel("tooltip.originalDoc");
     }
@@ -443,14 +521,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd9c7b7c077fb"; /* 紹�
      */
     function showSwitchDialog(originalDoc, targetDocs) {
         var switchDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        switchDialog.orientation = "column";
-        switchDialog.alignChildren = "fill";
+        setupWindow(switchDialog);
 
         /* 切り替え先パネル（元のドキュメントは除外）/ Target panel (original document excluded) */
         var targetDocPanel = switchDialog.add("panel", undefined, getLabel("panel.targetDoc"));
-        targetDocPanel.orientation = "column";
-        targetDocPanel.alignChildren = "fill";
-        targetDocPanel.margins = TARGET_PANEL_MARGINS;
+        setupPanel(targetDocPanel);
 
         /* ドキュメント一覧（multiselect: false は既定なので省略）/ Document list (multiselect: false is the default) */
         var targetDocList = targetDocPanel.add("listbox", undefined, getDocNames(targetDocs));

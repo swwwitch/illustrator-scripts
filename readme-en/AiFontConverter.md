@@ -36,6 +36,7 @@ https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 - v1.1.3: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.4: Dialog opacity changed to 98%
 - v1.1.5: Fixed an error when running with characters selected by the Type tool
+- v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 
 ### Article
 

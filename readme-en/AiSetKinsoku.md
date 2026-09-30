@@ -29,3 +29,4 @@ Applies a kinsoku (line-breaking) preset to the selected text.
 - v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.5 (2026-10-01) Replaced the button row with the shared part and removed the hand-written dialog centering. Unified the window and panel margins and spacing with the shared layout part

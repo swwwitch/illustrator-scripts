@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameArtb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RenameArtboardsPlus";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -87,21 +87,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-    var FIELD_SPACING  = 6;                  /* 入力欄が並ぶパネル内の間隔 / spacing inside input-heavy panels */
-
-    /* 入力欄の幅（文字数） / Input widths in characters */
-    var TEXT_FIELD_CHARACTERS = 16;          /* 接頭辞・接尾辞の文字列 / prefix & suffix text */
-    var NUMBER_FIELD_CHARACTERS = 5;         /* 開始番号・増分 / start number & increment */
-
-    /* プレビューパネルの大きさ / Preview panel size */
-    var PREVIEW_PANEL_WIDTH = 250;
-    var PREVIEW_PANEL_HEIGHT = 440;
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
      * ウィンドウの共通設定
@@ -117,7 +111,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     }
 
     /**
-     * パネルの共通設定
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
@@ -131,17 +125,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     }
 
     /**
-     * 行グループの共通設定（ボタン列など）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
      * @param {Group} rowGroup - 対象のグループ
-     * @param {string|Array} [alignment] - グループ自体の配置（省略時は "left"）。行の中で左右に寄せるときは ["right", "center"] のように2軸で指定する
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(rowGroup, alignment, spacing) {
+    function setupRow(rowGroup, rowAlignment, spacing) {
         rowGroup.orientation = "row";
-        rowGroup.alignment = alignment || "left";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
         rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var FIELD_SPACING = 6;                   /* 入力欄が並ぶパネル内の間隔 / spacing inside input-heavy panels */
+
+    /* 入力欄の幅（文字数） / Input widths in characters */
+    var TEXT_FIELD_CHARACTERS = 16;          /* 接頭辞・接尾辞の文字列 / prefix & suffix text */
+    var NUMBER_FIELD_CHARACTERS = 5;         /* 開始番号・増分 / start number & increment */
+
+    /* プレビューパネルの大きさ / Preview panel size */
+    var PREVIEW_PANEL_WIDTH = 250;
+    var PREVIEW_PANEL_HEIGHT = 440;
 
     /**
      * ラベル付きパネルを生成する（共通レイアウト適用）

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md"; /* README (English) */
@@ -83,7 +83,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    var PANEL_MARGINS = [15, 20, 15, 10];   /* パネル余白 [左,上,右,下] / panel margins */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* 入力欄の幅（文字数） / Width of the input fields, in characters */
     var FIELD_WIDTH = {
@@ -2522,14 +2599,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     // =========================================
 
     /**
-     * パネルの余白と並びを設定します。
+     * 共通設定のパネルを追加し、子要素の横方向の揃えを指定します。
      *
-     * @param {Panel} targetPanel - 対象のパネル。
-     * @param {string} horizontalAlign - 子要素の横方向の揃え。
-     * @returns {Panel} 設定したパネル。
+     * @param {Object} parentGroup - 追加先のコンテナ。
+     * @param {Object} titleLabel - パネル名のラベル。
+     * @param {string} [horizontalAlign] - 子要素の横方向の揃え（省略時は "left"）。
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）。
+     * @returns {Panel} 追加したパネル。
      */
-    function setupPanel(targetPanel, horizontalAlign) {
-        targetPanel.margins = PANEL_MARGINS;
+    function addDialogPanel(parentGroup, titleLabel, horizontalAlign, spacing) {
+        var targetPanel = parentGroup.add("panel", undefined, getLabel(titleLabel));
+        setupPanel(targetPanel, spacing);
         targetPanel.alignChildren = [horizontalAlign || "left", "top"];
         return targetPanel;
     }
@@ -2572,6 +2652,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         var columnsGroup = parentGroup.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
         return columnsGroup;
     }
 
@@ -2718,7 +2799,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {void}
      */
     function addCommonPanel(gridDialog, dialogUI) {
-        var commonPanel = setupPanel(gridDialog.add("panel", undefined, getLabel(LABELS.panel.common)), "fill");
+        var commonPanel = addDialogPanel(gridDialog, LABELS.panel.common, "fill");
         var commonColumns = addColumnsGroup(commonPanel);
         var commonLeftColumn = addColumn(commonColumns, "left");
         var commonRightColumn = addColumn(commonColumns, "left");
@@ -2751,7 +2832,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {void}
      */
     function addHorizontalPanel(parentColumn, dialogUI) {
-        var horizontalPanel = setupPanel(parentColumn.add("panel", undefined, getLabel(LABELS.panel.horizontal)));
+        var horizontalPanel = addDialogPanel(parentColumn, LABELS.panel.horizontal, "left", 6);
         dialogUI.horizontalPanel = horizontalPanel;
 
         dialogUI.widthScaleInput = addLabeledInput(horizontalPanel, LABELS.fieldLabel.widthScale, "140",
@@ -2766,7 +2847,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             LABELS.checkbox.extendLeft, LABELS.tooltip.extendLeft, false);
 
         /* ラインの決め方 / Line generation method */
-        var lineMethodPanel = setupPanel(horizontalPanel.add("panel", undefined, getLabel(LABELS.panel.lineMethod)));
+        var lineMethodPanel = addDialogPanel(horizontalPanel, LABELS.panel.lineMethod, "left", 6);
         lineMethodPanel.helpTip = getLabel(LABELS.tooltip.lineMethod);
 
         dialogUI.methodNoneRadio = addRadio(lineMethodPanel, LABELS.radio.lineNone, LABELS.tooltip.lineNone);
@@ -2788,7 +2869,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {void}
      */
     function addVerticalPanel(parentColumn, dialogUI) {
-        var verticalPanel = setupPanel(parentColumn.add("panel", undefined, getLabel(LABELS.panel.vertical)));
+        var verticalPanel = addDialogPanel(parentColumn, LABELS.panel.vertical, "left", 6);
         dialogUI.verticalPanel = verticalPanel;
 
         dialogUI.heightScaleInput = addLabeledInput(verticalPanel, LABELS.fieldLabel.heightScale, "200",
@@ -2803,7 +2884,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             LABELS.checkbox.extendUp, LABELS.tooltip.extendUp, false);
 
         /* オプション / Options */
-        var verticalOptionsPanel = setupPanel(verticalPanel.add("panel", undefined, getLabel(LABELS.panel.options)));
+        var verticalOptionsPanel = addDialogPanel(verticalPanel, LABELS.panel.options, "left", 6);
 
         var columnDivRow = addRow(verticalOptionsPanel);
         dialogUI.columnDivCheck = addCheckbox(columnDivRow, LABELS.checkbox.columnDiv, LABELS.tooltip.columnDiv, false);
@@ -2823,8 +2904,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      */
     function buildDialog() {
         var gridDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        gridDialog.orientation = "column";
-        gridDialog.alignChildren = ["fill", "top"];
+        setupWindow(gridDialog);
 
         var dialogUI = { dialog: gridDialog };
         addPresetRow(gridDialog, dialogUI);

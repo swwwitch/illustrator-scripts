@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardEx
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardExporter";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardExporter.md"; /* README (English) */
@@ -523,8 +523,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var PROGRESS_MARGINS    = [16, 16, 16, 16]; /* 進捗ウィンドウの余白 [左,上,右,下] / Progress window margins */
-    var PROGRESS_SPACING    = 10;               /* 進捗ウィンドウ内の間隔 / Progress window spacing */
     var PROGRESS_WIDTH      = 360;              /* 状況表示とバーの幅 / Width of the status text and bar */
     var PROGRESS_BAR_HEIGHT = 14;               /* バーの高さ / Bar height */
 
@@ -597,15 +595,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 横並びの行グループの共通設定（ボタン列など）
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
      * @param {Group} rowGroup - 対象のグループ
-     * @param {string|string[]} [rowAlignment] - alignment（省略時は "left"）
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupRow(rowGroup, rowAlignment, spacing) {
         rowGroup.orientation = "row";
-        rowGroup.alignment = rowAlignment || "left";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
         rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
@@ -1505,7 +1505,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 書き出し対象をまとめて決める / Set the export targets at once */
         var targetRow = listColumn.add("group");
         setupRow(targetRow);
-        targetRow.alignChildren = ["left", "center"];
         var btnTargetAll = targetRow.add("button", undefined, getLabel("button.targetAll"));
         btnTargetAll.helpTip = getLabel("tooltip.targetAll");
         var btnTargetActive = targetRow.add("button", undefined, getLabel("button.targetActive"));
@@ -1538,7 +1537,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 除外（前方一致）/ Exclusion by prefix */
         var excludeArtboardRow = listColumn.add("group");
         setupRow(excludeArtboardRow);
-        excludeArtboardRow.alignChildren = ["left", "center"];
         var chkExcludeArtboards = excludeArtboardRow.add("checkbox", undefined, labelText("checkbox.excludeArtboards"));
         chkExcludeArtboards.helpTip = getLabel("tooltip.excludeArtboards");
         var excludeArtboardPrefixField = excludeArtboardRow.add("edittext", undefined, initialOutput.excludeArtboardPrefix);
@@ -1547,7 +1545,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var excludeLayerRow = listColumn.add("group");
         setupRow(excludeLayerRow);
-        excludeLayerRow.alignChildren = ["left", "center"];
         var chkExcludeLayers = excludeLayerRow.add("checkbox", undefined, labelText("checkbox.excludeLayers"));
         chkExcludeLayers.helpTip = getLabel("tooltip.excludeLayers");
         var excludeLayerPrefixField = excludeLayerRow.add("edittext", undefined, initialOutput.excludeLayerPrefix);
@@ -1565,7 +1562,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var formatRow = settingsPanel.add("group");
         setupRow(formatRow);
-        formatRow.alignChildren = ["left", "center"];
         var formatLabel = formatRow.add("statictext", undefined, labelText("fieldLabel.format"));
         var formatRadios = [];
         for (var i = 0; i < EXPORT_FORMATS.length; i++) {
@@ -1575,7 +1571,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var scaleRow = settingsPanel.add("group");
         setupRow(scaleRow);
-        scaleRow.alignChildren = ["left", "center"];
         var scaleLabel = scaleRow.add("statictext", undefined, labelText("fieldLabel.scale"));
         var scaleField = scaleRow.add("edittext", undefined, "");
         scaleField.characters = SCALE_FIELD_CHARS;
@@ -1585,7 +1580,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 背景：ラジオボタンの右に色見本 / Background: a swatch right of each radio button */
         var backgroundRow = settingsPanel.add("group");
         setupRow(backgroundRow);
-        backgroundRow.alignChildren = ["left", "center"];
         var backgroundLabel = backgroundRow.add("statictext", undefined, labelText("fieldLabel.background"));
         var backgroundChoices = [];
         var backgroundKeys = ["white", "black", "transparent"];
@@ -1603,7 +1597,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var jpegQualityRow = settingsPanel.add("group");
         setupRow(jpegQualityRow);
-        jpegQualityRow.alignChildren = ["left", "center"];
         var jpegQualityLabel = jpegQualityRow.add("statictext", undefined, labelText("fieldLabel.jpegQuality"));
         var jpegQualityField = jpegQualityRow.add("edittext", undefined, "");
         jpegQualityField.characters = JPEG_QUALITY_FIELD_CHARS;
@@ -1611,7 +1604,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var pdfPresetRow = settingsPanel.add("group");
         setupRow(pdfPresetRow);
-        pdfPresetRow.alignChildren = ["left", "center"];
         var pdfPresetLabel = pdfPresetRow.add("statictext", undefined, labelText("fieldLabel.pdfPreset"));
         var pdfPresetDropdown = pdfPresetRow.add("dropdownlist");
         for (var p = 0; p < pdfPresetNames.length; p++) pdfPresetDropdown.add("item", pdfPresetNames[p]);
@@ -1631,7 +1623,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(fileNamePanel, 6);
         var fileNamePartsRow = fileNamePanel.add("group");
         setupRow(fileNamePartsRow);
-        fileNamePartsRow.alignChildren = ["left", "center"];
         var rbCombineParts = fileNamePartsRow.add("radiobutton", undefined, getLabel("radio.combineParts"));
         var chkDocumentName = fileNamePartsRow.add("checkbox", undefined, "");
         chkDocumentName.helpTip = getLabel("checkbox.documentName");
@@ -1663,7 +1654,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ［組み合わせ］と［書式］は別の行なので、排他は手で管理する / The radios sit in different rows, so exclusivity is handled by hand */
         var fileNameTemplateRow = fileNamePanel.add("group");
         setupRow(fileNameTemplateRow);
-        fileNameTemplateRow.alignChildren = ["left", "center"];
         var rbFileNameTemplate = fileNameTemplateRow.add("radiobutton", undefined, getLabel("radio.fileNameTemplate"));
         var fileNameTemplateField = fileNameTemplateRow.add("edittext", undefined, "");
         fileNameTemplateField.characters = FILE_NAME_TEMPLATE_CHARS;
@@ -1674,7 +1664,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 置き換え / Replacement */
         var replaceRow = fileNamePanel.add("group");
         setupRow(replaceRow);
-        replaceRow.alignChildren = ["left", "center"];
         replaceRow.add("statictext", undefined, labelText("fieldLabel.replaceChars") + " / \\ : * ? \" < > | ¥ →");
         var invalidReplacementDropdown = replaceRow.add("dropdownlist", undefined, SEPARATOR_CHOICES);
         invalidReplacementDropdown.helpTip = getLabel("tooltip.replaceChars");
@@ -1710,18 +1699,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(destinationPanel, 6);
         var destinationRadioRow = destinationPanel.add("group");
         setupRow(destinationRadioRow);
-        destinationRadioRow.alignChildren = ["left", "center"];
         var rbSameFolder = destinationRadioRow.add("radiobutton", undefined, getLabel("radio.sameFolder"));
         var rbCustomFolder = destinationRadioRow.add("radiobutton", undefined, getLabel("radio.customFolder"));
         var destinationPathRow = destinationPanel.add("group");
         setupRow(destinationPathRow);
-        destinationPathRow.alignChildren = ["left", "center"];
         var destinationPathText = destinationPathRow.add("statictext", undefined, "", { truncate: "middle" });
         destinationPathText.preferredSize.width = FOLDER_PATH_WIDTH;
         var btnChooseFolder = destinationPathRow.add("button", undefined, getLabel("button.chooseFolder"));
         var subfolderRow = destinationPanel.add("group");
         setupRow(subfolderRow);
-        subfolderRow.alignChildren = ["left", "center"];
         var chkCreateSubfolder = subfolderRow.add("checkbox", undefined, labelText("checkbox.createSubfolder"));
         var subfolderNameField = subfolderRow.add("edittext", undefined, initialOutput.subfolderName);
         subfolderNameField.characters = SUBFOLDER_NAME_CHARS;
@@ -2269,10 +2255,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function createProgressWindow(totalJobs) {
         var progressWin = new Window("palette", getLabel("dialog.progressTitle") + " " + SCRIPT_VERSION, undefined, { closeButton: false });
-        progressWin.orientation = "column";
-        progressWin.alignChildren = "fill";
-        progressWin.margins = PROGRESS_MARGINS;
-        progressWin.spacing = PROGRESS_SPACING;
+        setupWindow(progressWin);
 
         var statusText = progressWin.add("statictext", undefined, getLabel("status.preparing"));
         statusText.preferredSize.width = PROGRESS_WIDTH;
@@ -2282,15 +2265,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* キャンセルボタン（押下でフラグを立て、ループ側が中断）/ Cancel button (sets a flag that the export loop checks) */
         var cancelled = false;
-        var btnRowGroup = progressWin.add("group");
-        btnRowGroup.alignment = ["right", "top"];
-        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var buttonRow = addButtonRow(progressWin);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         btnCancel.onClick = function () {
             cancelled = true;
             btnCancel.enabled = false;
             statusText.text = getLabel("status.cancelling");
             progressWin.update();
         };
+        alignRightOnlyButtonRow(buttonRow);
 
         progressWin.show();
 

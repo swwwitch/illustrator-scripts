@@ -40,3 +40,4 @@ Creates a linear gradient on the selected filled objects, starting from their or
 - v1.1.3: Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.1.4: Dialog opacity changed to 98%
 - v1.1.5: Fixed an error when running with characters selected by the Type tool
+- v1.1.6 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part

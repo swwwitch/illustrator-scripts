@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPref
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DirectPrefsPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefsPalette.md"; /* README (English) */
@@ -59,16 +59,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
-    var INPUT_CHARS = 6;
-    var PRESET_BUTTON_WIDTH = 48;
-    var UNIT_LABEL_WIDTH = 32;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定をまとめて適用する
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
@@ -80,10 +97,57 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var GROUP_SPACING = 8; /* setupGroup() の既定の間隔 / default spacing of setupGroup() */
+    var INPUT_CHARS = 6;
+    var PRESET_BUTTON_WIDTH = 48;
+    var UNIT_LABEL_WIDTH = 32;
+
+    /**
      * グループの共通設定をまとめて適用する（row は縦中央、column は左揃え）
      * @param {Group} targetGroup - 対象のグループ
      * @param {string} [orientation] - "row" / "column"（省略時は "column"）
-     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * @param {number} [spacing] - 子どうしの間隔（省略時は GROUP_SPACING）
      * @returns {void}
      */
     function setupGroup(targetGroup, orientation, spacing) {
@@ -92,7 +156,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
         targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
         targetGroup.alignment = "fill";
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : GROUP_SPACING;
     }
 
     /**
@@ -1087,10 +1151,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildPalette() {
         var prefsPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        prefsPalette.orientation = "column";
-        prefsPalette.alignChildren = "fill";
-        prefsPalette.margins = 16;
-        prefsPalette.spacing = 12;
+        setupWindow(prefsPalette);
 
         /* 角度の制限を変更するパネル / Panel for changing the constrain angle */
         var constrainPanel = prefsPalette.add("panel", undefined, getLabel("panel.constrain"));

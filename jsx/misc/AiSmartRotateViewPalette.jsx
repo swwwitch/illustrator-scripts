@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRot
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartRotateViewPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateViewPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateViewPalette.md"; /* README (English) */
@@ -58,14 +58,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定をまとめて適用する
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
@@ -77,20 +96,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * グループの共通設定をまとめて適用する（row は縦中央、column は左揃え）
-     * @param {Group} targetGroup - 対象のグループ
-     * @param {string} [orientation] - "row" / "column"（省略時は "column"）
-     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
      * @returns {void}
      */
-    function setupGroup(targetGroup, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        targetGroup.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        targetGroup.alignment = "fill";
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
     }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var ROW_SPACING = 8; /* 横並びの行の間隔 / spacing inside a row */
 
     // 設定の保存（再利用パーツ） / Settings store (reusable)
 
@@ -1732,10 +1779,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildPalette() {
         var rotateViewPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        rotateViewPalette.orientation = "column";
-        rotateViewPalette.alignChildren = "fill";
-        rotateViewPalette.margins = 16;
-        rotateViewPalette.spacing = 12;
+        setupWindow(rotateViewPalette);
 
         /* ビューの回転角度を表示するパネル / Panel showing the view rotation angle */
         var viewRotationPanel = rotateViewPalette.add("panel", undefined, getLabel("panel.viewRotation"));
@@ -1743,7 +1787,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* アクティブビューの回転角度（パネルタイトルと重複するため内側ラベルは省略）/ Active view rotation angle (inner label omitted; the panel title already states it) */
         var rotationValueGroup = viewRotationPanel.add("group");
-        setupGroup(rotationValueGroup, "row");
+        setupRow(rotationValueGroup, "fill", ROW_SPACING);
         var rotationValue = rotationValueGroup.add("statictext", undefined, "—°");
         rotationValue.preferredSize.width = 50;
 
@@ -1764,7 +1808,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 角度の制限（編集可。入力の確定・↑↓キー・スライダー・プリセットのいずれでもその場で環境設定へ適用）
            / Constrain angle (editable; committing the field, the arrow keys, the slider, and the presets all apply it to the preference right away) */
         var constrainInputGroup = constrainPanel.add("group");
-        setupGroup(constrainInputGroup, "row");
+        setupRow(constrainInputGroup, "fill", ROW_SPACING);
         constrainInputGroup.add("statictext", undefined, labelText("fieldLabel.constrain"));
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var constrainStepperGroup = constrainInputGroup.add("group");
@@ -1793,8 +1837,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* よく使う角度をワンクリックで適用するプリセットボタン / Preset buttons that apply a common angle in one click */
         var constrainPresetGroup = constrainPanel.add("group");
-        setupGroup(constrainPresetGroup, "row");
-        constrainPresetGroup.alignment = "left";
+        setupRow(constrainPresetGroup, "left", ROW_SPACING);
 
         /* プリセットの角度とボタンの対（現在値と同じものをディムするために保持）/ Preset angle-button pairs (kept so the one matching the current value can be dimmed) */
         var constrainPresets = [];
@@ -1819,7 +1862,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 選択したオブジェクトの角度（表示）/ Selected object angle (display) */
         var selectionAngleGroup = selectionPanel.add("group");
-        setupGroup(selectionAngleGroup, "row");
+        setupRow(selectionAngleGroup, "fill", ROW_SPACING);
         selectionAngleGroup.add("statictext", undefined, labelText("fieldLabel.selectionAngle"));
         var selectionAngleValue = selectionAngleGroup.add("statictext", undefined, "—°");
         selectionAngleValue.preferredSize.width = 50;

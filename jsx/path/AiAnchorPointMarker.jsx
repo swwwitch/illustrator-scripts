@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAnchorPo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAnchorPointMarker";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAnchorPointMarker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAnchorPointMarker.md"; /* README (English) */
@@ -78,65 +78,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 10;                 /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 16;                 /* 2カラムの間隔 / gap between columns */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var WIDGET_SIZE    = 56;                 /* 9軸ウィジェットの一辺（px）/ edge size of the 9-axis widget */
     var SWATCH_SIZE    = 20;                 /* カラースウォッチの一辺（px）/ edge size of the color swatch */
-
-    /**
-     * ダイアログウィンドウの共通レイアウトを設定します。
-     * @param {Window} dialogWindow - 対象のダイアログ
-     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
-     * @returns {Window} 設定後のダイアログ
-     */
-    function setupWindow(dialogWindow, spacing) {
-        dialogWindow.orientation = "column";
-        dialogWindow.alignChildren = ["fill", "top"];
-        dialogWindow.margins = WINDOW_MARGINS;
-        dialogWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-        return dialogWindow;
-    }
-
-    /**
-     * パネルの共通レイアウトを設定します。
-     * @param {Panel} panel - 対象のパネル
-     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
-     * @returns {Panel} 設定後のパネル
-     */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-        return panel;
-    }
-
-    /**
-     * グループ／パネルを横並び（row）に設定します。
-     * @param {Group|Panel} container - 対象のグループまたはパネル
-     * @param {Array<string>} alignChildren - 子要素の整列（例 ["left", "top"]）
-     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
-     * @returns {Group|Panel} 設定後のコンテナ
-     */
-    function setupRow(container, alignChildren, spacing) {
-        container.orientation = "row";
-        container.alignChildren = alignChildren;
-        container.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-        return container;
-    }
-
-    /**
-     * 共通レイアウト済みのパネルを追加します。
-     * @param {Window|Group} parent - 追加先
-     * @param {string} labelText - パネルのタイトル
-     * @returns {Panel} 追加したパネル
-     */
-    function addPanel(parent, labelText) {
-        return setupPanel(parent.add("panel", undefined, labelText));
-    }
 
     /**
      * 縦並びのカラムグループを追加します。
@@ -1027,17 +1049,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         var symbolNames = getSymbolNames();
         var hasSymbols = symbolNames.length > 0;
 
-        var dialogWindow = setupWindow(new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION));
+        var dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow);
 
         // --- 追加するオブジェクト パネル / Object to Add panel ---
-        var objectSourcePanel = addPanel(dialogWindow, getLabel("panel.objectSource"));
+        var objectSourcePanel = dialogWindow.add("panel", undefined, getLabel("panel.objectSource"));
+        setupPanel(objectSourcePanel, 6);
 
         var autoGenerateRadio = objectSourcePanel.add("radiobutton", undefined, getLabel("radio.autoGenerate"));
         autoGenerateRadio.helpTip = getLabel("tooltip.autoGenerate");
         var frontObjectRadio = objectSourcePanel.add("radiobutton", undefined, getLabel("radio.frontObject"));
         frontObjectRadio.helpTip = getLabel("tooltip.frontObject");
 
-        var symbolSourceGroup = setupRow(objectSourcePanel.add("group"), ["left", "center"], 8);
+        var symbolSourceGroup = objectSourcePanel.add("group");
+        setupRow(symbolSourceGroup, "left", 8);
         var symbolRadio = symbolSourceGroup.add("radiobutton", undefined, labelText("radio.symbol"));
         symbolRadio.helpTip = getLabel("tooltip.symbol");
         var symbolDropdown = symbolSourceGroup.add("dropdownlist", undefined, symbolNames);
@@ -1057,8 +1082,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         symbolRadio.enabled = hasSymbols;
 
         // --- アンカーポイント パネル（2カラム：左＝大きさ・シンボル化 / 右＝カラー）---
-        var anchorPointPanel = addPanel(dialogWindow, getLabel("panel.anchorPoint"));
-        setupRow(anchorPointPanel, ["left", "top"], COLUMN_SPACING);
+        var anchorPointPanel = dialogWindow.add("panel", undefined, getLabel("panel.anchorPoint"));
+        setupPanel(anchorPointPanel);
+        /* 2カラムを横に並べる / Lay the two columns side by side */
+        anchorPointPanel.orientation = "row";
+        anchorPointPanel.alignChildren = ["left", "top"];
+        anchorPointPanel.spacing = COLUMN_SPACING;
 
         // 左カラム：大きさ・シンボル化 / Left column: size, symbolize
         var anchorLeft = addColumnGroup(anchorPointPanel);
@@ -1074,7 +1103,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         // OSのカラーパレットはモーダルを壊すため、自前のRGBダイアログを使う
         var anchorRight = addColumnGroup(anchorPointPanel, 0);
 
-        var colorRow = setupRow(anchorRight.add("group"), ["left", "center"], 8);
+        var colorRow = anchorRight.add("group");
+        setupRow(colorRow, "left", 8);
         colorRow.add("statictext", undefined, labelText("label.squareColor"));
         var colorSwatch = colorRow.add("panel");
         colorSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE]; /* 正方形・高さは短いまま / Square, keep the short height */
@@ -1098,8 +1128,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         };
 
         // --- オプション パネル（2カラム：左＝3設定 / 右＝9軸）/ Options panel (2 columns) ---
-        var optionsPanel = addPanel(dialogWindow, getLabel("panel.options"));
-        setupRow(optionsPanel, ["left", "top"], COLUMN_SPACING);
+        var optionsPanel = dialogWindow.add("panel", undefined, getLabel("panel.options"));
+        setupPanel(optionsPanel);
+        /* 2カラムを横に並べる / Lay the two columns side by side */
+        optionsPanel.orientation = "row";
+        optionsPanel.alignChildren = ["left", "top"];
+        optionsPanel.spacing = COLUMN_SPACING;
 
         // 左カラム：スケール・レイヤーに移動・グループ化 / Left column: scale, move-to-layer, group
         var optionsLeft = addColumnGroup(optionsPanel);
@@ -1259,7 +1293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         dialogWindow.layout.layout(true);
         trimButtonHeight(chooseColorButton, 2);
 
-        dialogWindow.center();
+        alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(dialogWindow, SCRIPT_NAME);
         dialogWindow.show();
         return dialogResult;
@@ -1281,7 +1315,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
      * @returns {EditText} 追加した入力欄（行は .fieldRow、∧∨は .stepperGroup で参照できる）
      */
     function addLabeledField(parentPanel, labelText, initialValue, charCount, unitText, onChange, labelWidth, minValue) {
-        var fieldRow = setupRow(parentPanel.add("group"), ["left", "center"], 8);
+        var fieldRow = parentPanel.add("group");
+        setupRow(fieldRow, "left", 8);
         var fieldLabel = fieldRow.add("statictext", undefined, labelText);
         if (labelWidth) {
             fieldLabel.preferredSize.width = labelWidth; /* 指定時のみ固定幅 / Fixed width only when given */
@@ -1338,14 +1373,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         var confirmed = false;
 
         var pickerWindow = new Window("dialog", getLabel("colorPicker.title"));
-        setupRow(pickerWindow, ["fill", "fill"], WINDOW_SPACING);
-        pickerWindow.margins = WINDOW_MARGINS;
+        setupWindow(pickerWindow);
 
-        var previewSwatch = pickerWindow.add("panel");
+        /* 上段：色見本と RGB 欄を横に並べる。ボタン行はその下 / Top row: swatch and RGB fields; the button row goes below */
+        var pickerBodyRow = pickerWindow.add("group");
+        pickerBodyRow.orientation = "row";
+        pickerBodyRow.alignChildren = ["fill", "fill"];
+        pickerBodyRow.spacing = WINDOW_SPACING;
+
+        var previewSwatch = pickerBodyRow.add("panel");
         previewSwatch.preferredSize = [64, 64];
         previewSwatch.onDraw = makeSwatchDrawer(previewSwatch, workingColor);
 
-        var fieldsColumn = addColumnGroup(pickerWindow, 6);
+        var fieldsColumn = addColumnGroup(pickerBodyRow, 6);
 
         /**
          * 3つの数値欄から作業色を読み直し、プレビューを再描画します。
@@ -1361,7 +1401,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         var greenInput = addColorChannelField(fieldsColumn, "G", workingColor.g, refreshFromFields);
         var blueInput = addColorChannelField(fieldsColumn, "B", workingColor.b, refreshFromFields);
 
-        var pickerButtonRow = addButtonRow(fieldsColumn);
+        var pickerButtonRow = addButtonRow(pickerWindow);
         var btnPickerCancel = pickerButtonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnPickerOK = pickerButtonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
@@ -1375,8 +1415,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
             confirmed = false;
             pickerWindow.close();
         };
+        alignRightOnlyButtonRow(pickerButtonRow);
 
-        pickerWindow.center();
         prepareDialogWindow(pickerWindow, SCRIPT_NAME + "_colorPicker");
         pickerWindow.show();
         return confirmed ? { r: workingColor.r, g: workingColor.g, b: workingColor.b } : null;
@@ -1391,7 +1431,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
      * @returns {EditText} 追加した入力欄
      */
     function addColorChannelField(parentGroup, channelLabel, initialValue, onChange) {
-        var channelRow = setupRow(parentGroup.add("group"), ["left", "center"], 6);
+        var channelRow = parentGroup.add("group");
+        setupRow(channelRow, "left", 6);
         var channelLabelText = channelRow.add("statictext", undefined, channelLabel);
         channelLabelText.preferredSize.width = 14;
         var channelSlider = channelRow.add("slider", undefined, initialValue, 0, 255);
@@ -1487,18 +1528,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
     function toggleCanvasHelpers() {
         app.executeMenuCommand('edge');
         app.executeMenuCommand('Live Corner Annotator');
-    }
-
-    /**
-     * ボタンの高さを指定 px 詰めます（レイアウト確定後に呼ぶ）。
-     * @param {Button} button - 対象のボタン
-     * @param {number} px - 詰める量（px）
-     * @returns {void}
-     */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) {}
     }
 
     /**

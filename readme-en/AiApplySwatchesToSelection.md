@@ -39,6 +39,7 @@ A modal dialog that applies swatches, or predefined colors, to the selected obje
 
 ### Update History
 
+- v1.8.8 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.8.7 (2026-09-30): Button rows with only right-side buttons are now centered
 - v1.8.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.8.5 (2026-09-29): Dialog opacity changed to 98%

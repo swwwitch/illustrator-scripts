@@ -34,6 +34,7 @@
 - v1.1.2 (2026-09-26) Renamed the file from `TextCountStats.jsx` to `TextCountStatsPalette.jsx`.
 - v1.1.3 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
 - v1.1.3 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
+- v1.1.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 
 ### Script info
 

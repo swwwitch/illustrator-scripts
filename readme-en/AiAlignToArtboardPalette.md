@@ -117,6 +117,7 @@ Arrow buttons:
 
 ### Changelog
 
+- v1.3.3 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.3.2 (20260929): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.3.1 (20260928): Replaced the Link checkbox with a link icon
 - v1.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

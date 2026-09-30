@@ -71,3 +71,4 @@ The defaults live in the User Settings block at the top of the script.
 - v1.0.4 (2026-09-28) : Clip groups are measured by their masks, now also when nested inside a group (hidden parts are left out)
 - v1.0.5 (2026-09-29) : Dialog opacity changed to 98%
 - v1.0.6 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
+- v1.0.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

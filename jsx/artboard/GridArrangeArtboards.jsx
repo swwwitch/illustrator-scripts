@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrang
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridArrangeArtboards";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -56,26 +56,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var DIALOG_MARGINS = 16;                    /* ダイアログ外周の余白 / dialog margins */
-    var PANEL_MARGINS = [15, 20, 15, 10];       /* パネルの余白 / panel margins */
-    var PANEL_SPACING = 6;                      /* パネル内の間隔 / spacing inside panels */
-    var SPACING_FIELD_CHARACTERS = 5;           /* 間隔欄の桁数 / width of the gap fields */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルを共通スタイルで初期化する
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 要素間隔（省略時は変更しない）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
         targetPanel.orientation = "column";
-        targetPanel.alignChildren = "left";
+        targetPanel.alignChildren = ["fill", "top"];
         targetPanel.alignment = "fill";
         targetPanel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            targetPanel.spacing = spacing;
-        }
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var SPACING_FIELD_CHARACTERS = 5;           /* 間隔欄の桁数 / width of the gap fields */
 
     // =========================================
     // ローカライズ / Localization
@@ -1368,15 +1428,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function showSettingsDialog(defaultSettings) {
         var settingsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        settingsDialog.orientation = 'column';
-        settingsDialog.alignChildren = 'fill';
-        settingsDialog.margins = DIALOG_MARGINS;
+        setupWindow(settingsDialog);
 
         var rulerUnitInfo = getUnitInfo();
 
         /* 間隔パネル（列間・行間と連動アイコン）/ Spacing panel (column/row gaps with the link icon) */
         var spacingPanel = settingsDialog.add('panel', undefined, getLabel('panel.spacing') + '（' + rulerUnitInfo.label + '）');
-        setupPanel(spacingPanel, PANEL_SPACING);
+        setupPanel(spacingPanel);
 
         /* 列間・行間の2行の右に連動アイコンを置く / Put the link icon to the right of the two gap rows */
         var spacingContentGroup = spacingPanel.add('group');
@@ -1386,7 +1444,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingInputColumn = spacingContentGroup.add('group');
         spacingInputColumn.orientation = 'column';
         spacingInputColumn.alignChildren = 'left';
-        spacingInputColumn.spacing = PANEL_SPACING;
+        spacingInputColumn.spacing = 6;
 
         /* 列間を増減したら、連動時は行間にもミラーする / mirror the column gap to the row gap when linked */
         var spacingXInput = addSpacingField(spacingInputColumn, 'fieldLabel.spacingX', 'tooltip.spacingX', defaultSettings.spacingX, rulerUnitInfo,
@@ -1415,13 +1473,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ロック／非表示の除外パネル / Locked / hidden exclusion panel */
         var exclusionPanel = settingsDialog.add('panel', undefined, getLabel('panel.exclusion'));
-        setupPanel(exclusionPanel, PANEL_SPACING);
+        setupPanel(exclusionPanel, 6);
         var excludeLayersCheckbox = addOptionCheckbox(exclusionPanel, 'checkbox.excludeLockedHiddenLayers', 'tooltip.excludeLayers', defaultSettings.excludeLockedHiddenLayers);
         var excludeItemsCheckbox = addOptionCheckbox(exclusionPanel, 'checkbox.excludeLockedHiddenItems', 'tooltip.excludeItems', defaultSettings.excludeLockedHiddenItems);
 
         /* 未指定／重複の扱いパネル / Unmatched / duplicate handling panel */
         var exceptionPanel = settingsDialog.add('panel', undefined, getLabel('panel.exception'));
-        setupPanel(exceptionPanel, PANEL_SPACING);
+        setupPanel(exceptionPanel, 6);
         var rowEndRadio = exceptionPanel.add('radiobutton', undefined, getLabel('radio.exceptionRowEnd'));
         rowEndRadio.helpTip = getLabel('tooltip.exceptionRowEnd');
         var lastRowRadio = exceptionPanel.add('radiobutton', undefined, getLabel('radio.exceptionLastRow'));
@@ -1434,7 +1492,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* オプションパネル / Options panel */
         var optionsPanel = settingsDialog.add('panel', undefined, getLabel('panel.options'));
-        setupPanel(optionsPanel, PANEL_SPACING);
+        setupPanel(optionsPanel, 6);
         var changeArtboardOrderCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.changeArtboardOrder', 'tooltip.changeArtboardOrder', defaultSettings.changeArtboardOrder);
 
         /* OK / キャンセルボタン / OK and Cancel buttons */

@@ -39,6 +39,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.3.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/SymbolListBuilder.json)
 - v1.3.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.3.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 
 ### Article
 

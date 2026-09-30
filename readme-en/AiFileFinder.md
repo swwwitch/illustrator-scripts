@@ -186,6 +186,7 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.0.7 (2026-10-01): Left the dialog positions to the shared part (removed the hand-written centering). Unified the window and panel margins and spacing with the shared layout part
 - v1.0.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.0.5 (2026-09-29): Dialog opacity changed to 98%
 - v1.0.4 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/AiFileFinder.json)

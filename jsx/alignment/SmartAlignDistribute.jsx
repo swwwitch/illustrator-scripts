@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlign
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
@@ -60,7 +60,85 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var PANEL_MARGINS = [15, 20, 15, 10];    /* パネルの余白 [左,上,右,下] / panel margins */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var OPTIONS_MARGINS = [15, 5, 15, 5];    /* オプション欄の余白 / options group margins */
     var SPACING_FIELD_CHARS = 3;             /* 間隔の入力欄の幅（文字数）/ width of the spacing field */
 
@@ -1917,9 +1995,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addDirectionPanel(parentDialog) {
         var directionPanel = parentDialog.add("panel", undefined, getLabel("panel.direction"));
+        setupPanel(directionPanel, 6);
         directionPanel.orientation = "row";
         directionPanel.alignChildren = ["center", "center"];
-        directionPanel.margins = PANEL_MARGINS;
         var directionRadios = {
             auto: addTooltipRadio(directionPanel, getLabel("radio.directionAuto"), getLabel("tooltip.directionAuto")),
             vertical: addTooltipRadio(directionPanel, getLabel("radio.directionVertical"), getLabel("tooltip.directionVertical")),
@@ -1950,9 +2028,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addSpacingPanel(parentDialog, onSpacingStep) {
         var spacingPanel = parentDialog.add("panel", undefined, getLabel("panel.spacing"));
-        spacingPanel.orientation = "column";
+        setupPanel(spacingPanel);
         spacingPanel.alignChildren = ["center", "center"];
-        spacingPanel.margins = PANEL_MARGINS;
         var spacingRowGroup = spacingPanel.add("group");
         spacingRowGroup.orientation = "row";
         spacingRowGroup.alignChildren = ["left", "center"];
@@ -2004,9 +2081,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addAlignPanel(parentDialog) {
         var alignPanel = parentDialog.add("panel", undefined, "");
-        alignPanel.orientation = "column";
+        setupPanel(alignPanel, 6);
         alignPanel.alignChildren = ["left", "center"];
-        alignPanel.margins = PANEL_MARGINS;
 
         /* 既定は「中央」/ Default to Center (Middle) */
         var horizontalRow = addAlignRadioRow(alignPanel, [
@@ -2082,8 +2158,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function showArrangeDialog() {
         var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        alignDialog.orientation = "column";
-        alignDialog.alignChildren = "fill";
+        setupWindow(alignDialog);
 
         /* キャンセル時に復元するため現在のプリファレンスを保存 / Preserve preference for cancel */
         var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
@@ -2098,9 +2173,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingInput = addSpacingPanel(alignDialog, requestPreviewUpdate);
         var alignControls = addAlignPanel(alignDialog);
         var optionCheckboxes = addOptionsGroup(alignDialog);
-        var buttonRow = addButtonRow(alignDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(alignDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         /* ---- 内部状態 / Internal state ---- */
         var randomOrderCache = null;

@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypeScaler";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler.md"; /* README (English) */
@@ -62,10 +62,88 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
     var SIZE_ROW_MARGINS = [0, 0, 0, 15];  /* 基準サイズの行の余白 / margins of the base size row */
-    var PANEL_MARGINS = [15, 20, 15, 10];  /* パネル余白 / panel margins */
     var SIZE_FIELD_CHARS = 4;              /* 基準サイズ欄の文字数 / base size field width */
     var SAMPLE_FIELD_CHARS = 20;           /* 見本の文字列欄の文字数 / sample text field width */
     var SIZE_LIST_SIZE = [85, 136];        /* サイズ一覧の大きさ / size list size */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // =========================================
     // セッション / Session
@@ -1377,6 +1455,78 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
 
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+     * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+     * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function alignRightOnlyButtonRow(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var dialogWindow = buttonRow.rowGroup.window;
+        dialogWindow.addEventListener("show", function () {
+            if (!buttonRow.leftGroup) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+            if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+            dialogWindow.layout.layout(true);
+        });
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
     var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
@@ -1520,8 +1670,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildTypeScaleDialog(textUnitLabel) {
         var typeScaleDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        typeScaleDialog.orientation = "column";
-        typeScaleDialog.alignChildren = "left";
+        setupWindow(typeScaleDialog);
 
         /* 基準サイズと倍率 / Base size and ratio */
         var sizeRow = typeScaleDialog.add("group");
@@ -1557,6 +1706,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var columnsGroup = typeScaleDialog.add("group");
         columnsGroup.orientation = "row";
+        columnsGroup.spacing = COLUMN_SPACING;
 
         /* 左カラム：サイズ一覧 / Left column: size list */
         var listColumn = columnsGroup.add("group");
@@ -1574,9 +1724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sampleColumn.alignChildren = "left";
 
         var samplePanel = sampleColumn.add("panel", undefined, getLabel("panel.sample"));
-        samplePanel.orientation = "column";
-        samplePanel.alignChildren = "left";
-        samplePanel.margins = PANEL_MARGINS;
+        setupPanel(samplePanel);
 
         var sampleInput = samplePanel.add("edittext", undefined, getLabel("defaultValue.sampleText"));
         sampleInput.characters = SAMPLE_FIELD_CHARS;
@@ -1588,12 +1736,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnCreateSample.alignment = "right";
         btnCreateSample.helpTip = getLabel("tooltip.createSample");
 
-        /* ボタンエリア / Button area */
-        var btnRowGroup = typeScaleDialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = "center";
-        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"));
-        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"));
+        /* ボタン行 / Button row */
+        var buttonRow = addButtonRow(typeScaleDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"));
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             typeScaleDialog: typeScaleDialog,
@@ -1694,7 +1841,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sizeList.enabled = false;
         }
 
-        typeScaleDialog.center();
         typeScaleDialog.onShow = function () {
             sizeInput.active = true;
         };

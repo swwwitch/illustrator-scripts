@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObj
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeObjectsAlongPath";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md"; /* README (English) */
@@ -66,9 +66,85 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var COLUMN_SPACING = 15;                        /* 左右カラムの間隔 / Gap between the columns */
-    var OUTER_PANEL_MARGINS = [15, 20, 15, 15];     /* 「対象パス」パネルの余白 / Margins of the Target Path panel */
-    var PANEL_MARGINS = [15, 20, 15, 10];           /* その他のパネルの余白 / Margins of the other panels */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var SLIDER_WIDTH = 180;                         /* スライダーの幅 / Slider width */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -688,16 +764,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * タイトル付きのパネルを追加する
      * @param {Group|Panel} parentContainer - 追加先
      * @param {string} titlePath - パネルタイトルの LABELS パス
-     * @param {string} orientation - "row" または "column"
-     * @param {string|string[]} childAlignment - alignChildren に入れる値
-     * @param {number[]} [panelMargins] - 余白（省略時は PANEL_MARGINS）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Panel} 追加したパネル
      */
-    function addOptionPanel(parentContainer, titlePath, orientation, childAlignment, panelMargins) {
+    function addOptionPanel(parentContainer, titlePath, spacing) {
         var optionPanel = parentContainer.add("panel", undefined, getLabel(titlePath));
-        optionPanel.orientation = orientation;
-        optionPanel.alignChildren = childAlignment;
-        optionPanel.margins = panelMargins || PANEL_MARGINS;
+        setupPanel(optionPanel, spacing);
         return optionPanel;
     }
 
@@ -1676,8 +1748,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          */
         function buildDialog() {
             var arrangeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-            arrangeDialog.orientation = "column";
-            arrangeDialog.alignChildren = "fill";
+            setupWindow(arrangeDialog);
 
             /* 2カラム / Two columns */
             var columnsGroup = arrangeDialog.add("group");
@@ -1690,7 +1761,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             addTargetPathPanel(leftColumn);
 
-            var placeObjectsPanel = addOptionPanel(rightColumn, "panel.placeObjects", "column", "fill");
+            var placeObjectsPanel = addOptionPanel(rightColumn, "panel.placeObjects");
             addDuplicatePanel(placeObjectsPanel);
             addRotationPanel(placeObjectsPanel);
             addOrderPanel(placeObjectsPanel);
@@ -1720,10 +1791,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function addTargetPathPanel(parentColumn) {
-            var targetPathPanel = addOptionPanel(parentColumn, "panel.targetPath", "column", "left", OUTER_PANEL_MARGINS);
+            var targetPathPanel = addOptionPanel(parentColumn, "panel.targetPath");
 
             /* 基準にするパス / Which path is the base */
-            var basePathRulePanel = addOptionPanel(targetPathPanel, "panel.basePathRule", "column", "left");
+            var basePathRulePanel = addOptionPanel(targetPathPanel, "panel.basePathRule", 6);
             basePathRulePanel.helpTip = getLabel("tooltip.basePathRule");
             rbAutoLargest = basePathRulePanel.add("radiobutton", undefined, getLabel("radio.autoLargest"));
             rbAutoLargest.helpTip = getLabel("tooltip.autoLargest");
@@ -1732,7 +1803,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rbAutoLargest.value = true;
 
             /* 基準パスの扱い / What to do with the base path */
-            var basePathHandlingPanel = addOptionPanel(targetPathPanel, "panel.basePathHandling", "column", "left");
+            var basePathHandlingPanel = addOptionPanel(targetPathPanel, "panel.basePathHandling", 6);
             basePathHandlingPanel.helpTip = getLabel("tooltip.basePathHandling");
             rbBasePathKeep = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeNone"));
             rbBasePathHide = basePathHandlingPanel.add("radiobutton", undefined, getLabel("radio.basePathModeHide"));
@@ -1746,7 +1817,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function addDuplicatePanel(parentPanel) {
-            var duplicatePanel = addOptionPanel(parentPanel, "panel.duplicate", "column", "fill");
+            var duplicatePanel = addOptionPanel(parentPanel, "panel.duplicate");
             duplicatePanel.helpTip = getLabel("tooltip.duplicateCount");
 
             var duplicateCountRow = duplicatePanel.add("group");
@@ -1793,7 +1864,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function addRotationPanel(parentPanel) {
-            var rotationPanel = addOptionPanel(parentPanel, "panel.rotation", "column", "left");
+            var rotationPanel = addOptionPanel(parentPanel, "panel.rotation", 6);
             rotationPanel.helpTip = getLabel("tooltip.rotation");
 
             /* 回転のラジオは1つのグループにまとめる（排他は setRotationMode で管理）/ One group for the rotation radios; exclusivity is handled in setRotationMode() */
@@ -1846,9 +1917,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function addOrderPanel(parentPanel) {
-            var orderPanel = addOptionPanel(parentPanel, "panel.order", "row", ["left", "center"]);
+            var orderPanel = addOptionPanel(parentPanel, "panel.order");
             orderPanel.helpTip = getLabel("tooltip.order");
-            orderPanel.spacing = 12;
+            /* ラジオボタンを横に並べる / Radio buttons side by side */
+            orderPanel.orientation = "row";
+            orderPanel.alignChildren = ["left", "center"];
 
             rbOrderCurrent = orderPanel.add("radiobutton", undefined, getLabel("radio.orderCurrent"));
             rbOrderCurrent.helpTip = getLabel("tooltip.orderCurrent");
@@ -1864,7 +1937,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function addSpacingPanel(parentPanel) {
-            var spacingPanel = addOptionPanel(parentPanel, "panel.spacing", "column", "fill");
+            var spacingPanel = addOptionPanel(parentPanel, "panel.spacing");
             spacingPanel.helpTip = getLabel("tooltip.spacing");
 
             var spacingRadioGroup = spacingPanel.add("group");

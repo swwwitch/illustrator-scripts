@@ -62,4 +62,5 @@ The palette position is saved to `Folder.userData` on every move and restored on
 
 ### Update History
 
+- v1.1.4 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.3 (2026-09-26) Renamed the file from `AutoKerningPanel.jsx` to `AutoKerningPalette.jsx`.

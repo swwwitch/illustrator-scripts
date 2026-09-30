@@ -79,6 +79,7 @@ Bullet and numbered lists made with Illustrator's Bullets and Numbering are turn
 
 ### Update History
 
+- v1.4.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.4.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.4.4 (2026-09-29): Dialog opacity changed to 98%
 - v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%

@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyLeadingPerTextFramePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFramePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFramePalette.md"; /* README (English) */
@@ -50,10 +50,85 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var PALETTE_MARGINS = 16;              /* パレットの余白 / Palette margins */
-    var PALETTE_SPACING = 12;              /* パネル同士の間隔 / Spacing between panels */
-    var PANEL_MARGINS = [15, 20, 15, 10];  /* パネルの余白 [左,上,右,下] / Panel margins */
-    var PANEL_SPACING = 8;                 /* パネル内の間隔 / Spacing inside panels */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var SHORT_INPUT_CHARACTERS = 3;        /* 行送り・自動行送り量の欄の幅（文字数）/ Width of the leading fields */
     var SPACE_INPUT_CHARACTERS = 4;        /* 段落前後のアキの欄の幅（文字数）/ Width of the paragraph spacing fields */
 
@@ -1082,17 +1157,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildPalette(initialSettings, textUnit) {
         var leadingPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-        leadingPalette.orientation = "column";
-        leadingPalette.alignChildren = "fill";
-        leadingPalette.margins = PALETTE_MARGINS;
-        leadingPalette.spacing = PALETTE_SPACING;
+        setupWindow(leadingPalette);
 
         /* 行送りパネル / Leading panel */
         var leadingPanel = leadingPalette.add("panel", undefined, getLabel("panel.leading"));
-        leadingPanel.orientation = "column";
-        leadingPanel.alignChildren = "left";
-        leadingPanel.margins = PANEL_MARGINS;
-        leadingPanel.spacing = PANEL_SPACING;
+        setupPanel(leadingPanel, 6);
+        leadingPanel.alignChildren = ["left", "top"];
 
         var contentGroup = leadingPanel.add("group");
         contentGroup.orientation = "row";
@@ -1143,14 +1213,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leadingTypeContainer;
         if (uiLang === "ja") {
             leadingTypeContainer = leadingPalette.add("panel", undefined, getLabel("panel.leadingType"));
-            leadingTypeContainer.margins = PANEL_MARGINS;
+            setupPanel(leadingTypeContainer, 6);
         } else {
             leadingTypeContainer = leadingPalette.add("group");
+            leadingTypeContainer.orientation = "column";
             leadingTypeContainer.margins = [0, 0, 0, 0];
+            leadingTypeContainer.spacing = 6;
         }
-        leadingTypeContainer.orientation = "column";
-        leadingTypeContainer.alignChildren = "left";
-        leadingTypeContainer.spacing = PANEL_SPACING;
+        leadingTypeContainer.alignChildren = ["left", "top"];
 
         var typeRadios = [];
         var initialTypeIndex = 0;
@@ -1162,10 +1232,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 段落前後のアキパネル / Paragraph spacing panel */
         var spacePanel = leadingPalette.add("panel", undefined, getLabel("panel.paragraphSpacing"));
-        spacePanel.orientation = "column";
-        spacePanel.alignChildren = "left";
-        spacePanel.margins = PANEL_MARGINS;
-        spacePanel.spacing = PANEL_SPACING;
+        setupPanel(spacePanel, 6);
+        spacePanel.alignChildren = ["left", "top"];
 
         var spaceBeforeInput = addSpaceRow(spacePanel, "fieldLabel.spaceBefore", initialSettings.spaceBefore, textUnit);
         var spaceAfterInput = addSpaceRow(spacePanel, "fieldLabel.spaceAfter", initialSettings.spaceAfter, textUnit);
@@ -1345,7 +1413,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         bindPaletteEvents(paletteControls, textUnit);
 
         $.global.__ALPTF_PALETTE__ = paletteControls.palette;
-        paletteControls.palette.center();
         paletteControls.palette.show();
     }
 

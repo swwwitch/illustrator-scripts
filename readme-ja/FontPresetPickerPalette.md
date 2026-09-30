@@ -89,6 +89,7 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### 更新履歴
 
+- v1.1.2（2026-10-01）ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v1.1.1（2026-09-26）ファイル名を `FontPresetPicker.jsx` から `FontPresetPickerPalette.jsx` に変更。
 - v1.1.0 (20260925) : 段落前のアキ・段落後のアキを定番に追加。［適用する設定］に「段落前後のアキ」を追加
 - v1.0.0 (20260917) : 初期バージョン。UnifiedTypePalette.jsx の「定番」タブを常駐パレットとして切り出し

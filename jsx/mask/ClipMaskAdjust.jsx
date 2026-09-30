@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAd
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipMaskAdjust";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v3.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskAdjust.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAdjust.md"; /* README (English) */
@@ -43,24 +43,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var DIALOG_SPACING = 15;               /* ダイアログ内の要素間隔 / Spacing inside the dialog */
-    var COLUMN_SPACING = 10;               /* カラムの間隔 / Spacing between columns */
-    var PANEL_MARGINS  = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / Panel margins */
-    var PANEL_SPACING  = 8;                /* パネル内の要素間隔 / Spacing inside panels */
-    var ROW_SPACING    = 5;                /* 行内の要素間隔 / Spacing inside rows */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} spacing - 要素間隔
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
         targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["left", "top"];
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
         targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = spacing;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var ROW_SPACING = 5;                   /* 行内の要素間隔 / Spacing inside rows */
 
     /**
      * 縦並びのカラムを追加する
@@ -82,8 +144,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addRow(parentContainer) {
         var rowGroup = parentContainer.add("group");
-        rowGroup.orientation = "row";
-        rowGroup.spacing = ROW_SPACING;
+        setupRow(rowGroup, "left", ROW_SPACING);
         return rowGroup;
     }
 
@@ -2362,9 +2423,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var unitLabel = getUnitInfo().label;
 
         var adjustDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        adjustDialog.orientation = "column";
-        adjustDialog.alignChildren = ["center", "top"];
-        adjustDialog.spacing = DIALOG_SPACING;
+        setupWindow(adjustDialog);
 
         var columnsGroup = adjustDialog.add("group");
         columnsGroup.orientation = "row";
@@ -2375,8 +2434,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var anchorColumn = addColumn(columnsGroup);
 
         var anchorPanel = anchorColumn.add("panel", undefined, getLabel(LABELS.panel.anchor));
-        anchorPanel.margins = PANEL_MARGINS;
-        anchorPanel.alignChildren = ["center", "center"];
+        setupPanel(anchorPanel);
+        anchorPanel.alignChildren = ["center", "center"]; /* 基準点は中央に置く / Center the anchor widget */
         /* 3×3 の基準点（中央から開始）。クリックで anchorWidget.onAnchorPicked() を呼ぶ（bindAdjustDialogEvents で設定）
            3x3 reference point starting at the center; a click calls anchorWidget.onAnchorPicked(), set in bindAdjustDialogEvents */
         var anchorWidget = addAnchorWidget(anchorPanel, 4, function (anchorIndex, clickedWidget) {
@@ -2391,7 +2450,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 中央カラム：フィットとスケール / Middle column: fit and scale */
         var fitPanel = columnsGroup.add("panel", undefined, getLabel(LABELS.panel.fitScale));
-        setupPanel(fitPanel, PANEL_SPACING);
+        setupPanel(fitPanel, 6);
         var radioCover = addRadio(fitPanel, LABELS.radio.cover, LABELS.tooltip.cover);
         var radioContain = addRadio(fitPanel, LABELS.radio.contain, LABELS.tooltip.contain);
         var radioKeepSize = addRadio(fitPanel, LABELS.radio.keepSize, LABELS.tooltip.keepSize);
@@ -2407,14 +2466,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var maskColumn = addColumn(columnsGroup);
 
         var maskPanel = maskColumn.add("panel", undefined, getLabel(LABELS.panel.maskPath));
-        setupPanel(maskPanel, PANEL_SPACING);
+        setupPanel(maskPanel, 6);
         var radioMaskUnchanged = addRadio(maskPanel, LABELS.radio.maskUnchanged, LABELS.tooltip.maskUnchanged);
         var radioFitFrame = addRadio(maskPanel, LABELS.radio.fitToContent, LABELS.tooltip.fitToContent);
         var radioSquare = addRadio(maskPanel, LABELS.radio.square, LABELS.tooltip.square);
         radioMaskUnchanged.value = true;
 
         var roundPanel = maskColumn.add("panel", undefined, getLabel(LABELS.panel.roundCorners));
-        setupPanel(roundPanel, PANEL_SPACING);
+        setupPanel(roundPanel, 6);
         var roundRowGroup = addRow(roundPanel);
         var checkboxRound = roundRowGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.roundCorners));
         checkboxRound.helpTip = getLabel(LABELS.tooltip.roundCorners);
@@ -2428,9 +2487,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         checkboxCircle.helpTip = getLabel(LABELS.tooltip.circle);
         checkboxCircle.value = false;
 
-        var buttonRow = addButtonRow(adjustDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        var buttonRow = addButtonRow(adjustDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             dialog: adjustDialog,

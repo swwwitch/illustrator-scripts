@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLine
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExtendLines";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExtendLines.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLines.md"; /* README (English) */
@@ -58,22 +58,87 @@ var SCRIPT_MARKER = "__ExtendLines__";
     // レイアウト / Layout
     // =========================================
 
-    var DIALOG_MARGINS = 15;                 /* ダイアログの余白 / dialog margins */
-    var PANEL_MARGINS = [15, 20, 15, 10];    /* パネルの余白 [左,上,右,下] / panel margins */
-    var COLUMN_SPACING = 10;                 /* 2カラムの間隔 / gap between the two columns */
-    var STROKE_ROW_SPACING = 6;              /* 線幅の行の間隔 / spacing in the stroke-width row */
-    var STROKE_INPUT_CHARS = 6;              /* 線幅の入力欄の幅（文字数）/ width of the stroke-width field */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルを縦並び・左揃えにして共通の余白を付ける
-     * @param {Panel} targetPanel - 対象のパネル
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function applyPanelLayout(targetPanel) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["left", "top"];
-        targetPanel.margins = PANEL_MARGINS;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var STROKE_ROW_SPACING = 6;              /* 線幅の行の間隔 / spacing in the stroke-width row */
+    var STROKE_INPUT_CHARS = 6;              /* 線幅の入力欄の幅（文字数）/ width of the stroke-width field */
 
     // =========================================
     // ローカライズ / Localization
@@ -1129,9 +1194,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
      */
     function buildDialog() {
         var extendDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        extendDialog.orientation = "column";
-        extendDialog.alignChildren = ["left", "top"];
-        extendDialog.margins = DIALOG_MARGINS;
+        setupWindow(extendDialog);
 
         /* 2カラムレイアウト / Two-column layout */
         var columnsGroup = extendDialog.add("group");
@@ -1142,7 +1205,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         /* 左カラム：補助線を描画 / Left column: draw construction lines */
         var auxLinesPanel = columnsGroup.add("panel", undefined, getLabel("panel.auxLines"));
-        applyPanelLayout(auxLinesPanel);
+        setupPanel(auxLinesPanel);
         auxLinesPanel.alignment = ["fill", "top"];
 
         var auxLinesGroup = auxLinesPanel.add("group");
@@ -1165,7 +1228,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         /* 円弧オプション（［円弧から円］がオフのときはディム）/ Arc options (dimmed while "arc to circle" is off) */
         var arcOptionsPanel = auxLinesGroup.add("panel", undefined, getLabel("panel.arcOptions"));
-        applyPanelLayout(arcOptionsPanel);
+        setupPanel(arcOptionsPanel, 6);
         arcOptionsPanel.helpTip = getLabel("tooltip.arcOptions");
 
         var arcFallbackGroup = arcOptionsPanel.add("group");
@@ -1217,7 +1280,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         /* 右カラム：オプション / Right column: options */
         var optionsPanel = columnsGroup.add("panel", undefined, getLabel("panel.options"));
-        applyPanelLayout(optionsPanel);
+        setupPanel(optionsPanel, 6);
         optionsPanel.alignment = ["fill", "top"];
 
         var groupCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.group"));
@@ -1235,7 +1298,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         dedupCheckbox.value = true; /* デフォルトON / on by default */
 
         /* 2カラムの下に余白 / Spacer below the two columns */
-        extendDialog.add("panel", undefined, undefined);
+        extendDialog.add("panel", undefined, undefined).alignment = "left";
 
         /* ボタンエリア（左：プレビュー／右：キャンセル・OK）/ Button row: preview on the left, Cancel/OK on the right */
         var buttonRow = addButtonRow(extendDialog);

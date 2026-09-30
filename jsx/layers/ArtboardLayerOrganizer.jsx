@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardLayerOrganizer";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardLayerOrganizer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLayerOrganizer.md"; /* README (English) */
@@ -77,32 +77,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     // レイアウト設定 / Layout Settings
     // =========================================
 
-    /* ダイアログ外周の余白 / Dialog margins */
-    var DIALOG_MARGINS = [15, 20, 15, 15];
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-    /* パネル共通の余白と行間 / Common panel margins and spacing */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
-    /* 「ロック」「非表示」サブパネル間の間隔 / Gap between the locked / hidden sub-panels */
-    var EXCLUSION_SUBPANEL_SPACING = 15;
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* レイヤー名プレビューの最大文字数（ダイアログ幅を広げないための上限） / Preview length cap, keeps the dialog from widening */
     var LAYER_NAME_PREVIEW_MAX_LENGTH = 16;
-
-    /**
-     * パネル共通の見た目をまとめて設定する
-     * @param {Panel} targetPanel - 対象パネル
-     * @param {string[]} [panelAlignment] - パネル自身の配置（省略時は横も縦も fill）
-     * @returns {void}
-     */
-    function applyPanelLayout(targetPanel, panelAlignment) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["fill", "top"];
-        targetPanel.alignment = panelAlignment || ["fill", "top"];
-        targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = PANEL_SPACING;
-    }
 
     /**
      * 横並びの行グループを追加する
@@ -534,18 +589,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function showOptionsDialog() {
         var optionsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        optionsDialog.orientation = "column";
-        optionsDialog.alignChildren = ["fill", "top"];
-        optionsDialog.margins = DIALOG_MARGINS;
+        setupWindow(optionsDialog);
 
         var targetControls = buildTargetArtboardPanel(optionsDialog);
         var layerNameControls = buildLayerNamePanel(optionsDialog);
         var exclusionControls = buildExclusionPanel(optionsDialog);
         var postProcessControls = buildPostProcessPanel(optionsDialog);
 
-        var buttonRow = addButtonRow(optionsDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(optionsDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
         optionsDialog.defaultElement = btnOK;
         optionsDialog.cancelElement = btnCancel;
 
@@ -577,7 +631,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function buildTargetArtboardPanel(parentDialog) {
         var targetArtboardPanel = parentDialog.add("panel", undefined, getLabel("panel.targetArtboards"));
-        applyPanelLayout(targetArtboardPanel);
+        setupPanel(targetArtboardPanel, 6);
 
         var artboardScopeRow = addRowGroup(targetArtboardPanel, "center");
         var currentArtboardOnlyRadio = artboardScopeRow.add("radiobutton", undefined, getLabel("radio.currentArtboardOnly"));
@@ -601,7 +655,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function buildLayerNamePanel(parentDialog) {
         var layerNamePanel = parentDialog.add("panel", undefined, getLabel("panel.layerName"));
-        applyPanelLayout(layerNamePanel);
+        setupPanel(layerNamePanel, 6);
 
         var artboardNumberCheckbox = layerNamePanel.add("checkbox", undefined, getLabel("checkbox.includeArtboardNumber"));
         artboardNumberCheckbox.value = DEFAULT_OPTIONS.includeArtboardNumber;
@@ -684,11 +738,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function buildExclusionPanel(parentDialog) {
         var exclusionPanel = parentDialog.add("panel", undefined, getLabel("panel.exclusion"));
-        applyPanelLayout(exclusionPanel);
+        setupPanel(exclusionPanel, 6);
         exclusionPanel.helpTip = getLabel("tooltip.exclusionPanel");
 
         var lockHiddenRow = addRowGroup(exclusionPanel, "left", "fill");
-        lockHiddenRow.spacing = EXCLUSION_SUBPANEL_SPACING;
+        lockHiddenRow.spacing = COLUMN_SPACING;
 
         var lockedControls = buildExclusionSubPanel(lockHiddenRow, "panel.locked", "tooltip.lockedExclusion", {
             layer: DEFAULT_OPTIONS.ignoreLockedLayers,
@@ -728,7 +782,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function buildExclusionSubPanel(parentGroup, titleLabelPath, tooltipLabelPath, defaultValues) {
         var exclusionSubPanel = parentGroup.add("panel", undefined, getLabel(titleLabelPath));
-        applyPanelLayout(exclusionSubPanel, ["left", "fill"]);
+        setupPanel(exclusionSubPanel, 6);
+        exclusionSubPanel.alignment = ["left", "fill"];
 
         var layerCheckbox = exclusionSubPanel.add("checkbox", undefined, getLabel("checkbox.excludeLayer"));
         layerCheckbox.value = defaultValues.layer;
@@ -748,7 +803,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function buildPostProcessPanel(parentDialog) {
         var postProcessPanel = parentDialog.add("panel", undefined, getLabel("panel.postProcess"));
-        applyPanelLayout(postProcessPanel);
+        setupPanel(postProcessPanel, 6);
         var removeEmptyLayersCheckbox = postProcessPanel.add("checkbox", undefined, getLabel("checkbox.removeEmpty"));
         removeEmptyLayersCheckbox.value = DEFAULT_OPTIONS.removeEmptyLayers;
         removeEmptyLayersCheckbox.helpTip = getLabel("tooltip.removeEmpty");

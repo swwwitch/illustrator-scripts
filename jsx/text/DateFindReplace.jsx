@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindRe
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DateFindReplace";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -43,8 +43,85 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var PANEL_MARGINS = [15, 20, 15, 10];  /* パネルの余白 [左,上,右,下] / Panel margins */
-    var PANEL_SPACING = 6;                 /* パネル内の間隔 / Spacing inside panels */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var FOUND_PANEL_MIN_WIDTH = 240;       /* ［見つかった日付］パネルの最小幅 / Minimum width of the found-dates panel */
     var DATE_ROW_INDENT = 20;              /* 日付行の左インデント / Left indent of the date rows */
     var DATE_CHECKBOX_WIDTH = 220;         /* 日付チェックボックスの幅（ラベル切れ対策）/ Width of the date checkboxes */
@@ -552,22 +629,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function formatErrorMessage(errorCount) {
         return getLabel(LABELS.alert.lockedErrors, [errorCount]);
-    }
-
-    /**
-     * パネルの共通設定
-     * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 要素間隔
-     * @returns {void}
-     */
-    function setupPanel(targetPanel, spacing) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = "left";
-        targetPanel.alignment = "fill";
-        targetPanel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            targetPanel.spacing = spacing;
-        }
     }
 
     /**
@@ -1741,7 +1802,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var artboardGroups = groupMatchesByArtboard(foundMatches);
 
         var foundDatesPanel = dateDialog.add("panel", undefined, getLabel(LABELS.panel.foundDates, [foundMatches.length]));
-        setupPanel(foundDatesPanel, PANEL_SPACING);
+        setupPanel(foundDatesPanel, 6);
+        foundDatesPanel.alignChildren = "left";
         foundDatesPanel.minimumSize.width = FOUND_PANEL_MIN_WIDTH;
 
         for (var keyIdx = 0; keyIdx < artboardGroups.artboardIndexes.length; keyIdx++) {
@@ -1918,8 +1980,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildDialog(doc, foundMatches) {
         var dateDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dateDialog.orientation = "column";
-        dateDialog.alignChildren = "fill";
+        setupWindow(dateDialog);
 
         var dateCheckboxes = [];
         if (foundMatches.length === 0) {
@@ -1931,7 +1992,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 置換後の日付入力パネル：［2026］年［5］月［8］日 形式。初期値は今日 */
         var today = new Date();
         var replacementPanel = dateDialog.add("panel", undefined, getLabel(LABELS.panel.replacement));
-        setupPanel(replacementPanel, PANEL_SPACING);
+        setupPanel(replacementPanel, 6);
+        replacementPanel.alignChildren = "left";
 
         var dateInputGroup = replacementPanel.add("group");
         dateInputGroup.orientation = "row";
@@ -1971,7 +2033,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 確認パネル：和暦・曜日・日数差のプレビュー（置換対象外） */
         var checkPanel = dateDialog.add("panel", undefined, getLabel(LABELS.panel.check));
-        setupPanel(checkPanel, PANEL_SPACING);
+        setupPanel(checkPanel, 6);
+        checkPanel.alignChildren = "left";
         var eraLabel = addCheckRow(checkPanel, LABELS.fieldLabel.era, 120);
         var weekdayLabel = addCheckRow(checkPanel, LABELS.fieldLabel.weekday, 80);
         var daysDiffLabel = addCheckRow(checkPanel, LABELS.fieldLabel.daysDiff, 120);

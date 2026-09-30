@@ -54,6 +54,7 @@
 
 ### 更新履歴
 
+- v1.4.2（2026-10-01）スタイルパネル下部のボタン行を共通部品にそろえた。ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v1.4.1（2026-09-28）一時アクションの一時ファイルを Folder.temp に置き、失敗してもアクションセットと一時ファイルが残らないようにした。BridgeTalk 側の一時アクションを共通の部品にした。設定の保存を共通の部品にした（保存先: Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json）。
 - v1.4.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）。
 - v1.3.2（2026-09-26）ファイル名を `ImportAndApplyGraphicStyle.jsx` から `ImportAndApplyGraphicStylePalette.jsx` に変更。

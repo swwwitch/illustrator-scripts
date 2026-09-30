@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSlice
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSliceWithPuzzlify";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md"; /* README (English) */
@@ -61,8 +61,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var MODE_ROW_MARGINS     = [10, 5, 10, 5];   /* 分割方法の行の余白 / margins of the mode row */
-    var PANEL_MARGINS        = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / panel margins */
     var SHAPE_ROW_MARGINS    = [0, 10, 0, 10];   /* 形状の行の余白 / margins of the shape row */
     var PROGRESS_ROW_MARGINS = [10, 0, 10, 0];   /* プログレスバーの行の余白 / margins of the progress row */
     var PROGRESS_BAR_SIZE    = [200, 7];         /* プログレスバーの寸法 / progress bar size */
@@ -1020,6 +1099,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     function buildModeRow(dlg, controls) {
         var modeRow = dlg.add("group");
         modeRow.orientation = "row";
+        modeRow.alignment = "center";
         modeRow.alignChildren = "left";
         modeRow.margins = MODE_ROW_MARGINS;
         modeRow.add("statictext", undefined, labelText("fieldLabel.mode"));
@@ -1039,9 +1119,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      */
     function buildSlicePanel(parentGroup, controls) {
         var slicePanel = parentGroup.add("panel", undefined, getLabel("panel.slice"));
-        slicePanel.orientation = "column";
+        setupPanel(slicePanel);
         slicePanel.alignChildren = "left";
-        slicePanel.margins = PANEL_MARGINS;
 
         var totalPiecesField = addNumberField(slicePanel, "totalPieces", DEFAULT_PIECES_PUZZLE, 4, "totalPieces", { integer: true, min: 1 });
         controls.totalPiecesLabel = totalPiecesField.label;
@@ -1081,9 +1160,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      */
     function buildOptionsPanel(parentGroup, controls) {
         var optionsPanel = parentGroup.add("panel", undefined, getLabel("panel.options"));
-        optionsPanel.orientation = "column";
+        setupPanel(optionsPanel, 6);
         optionsPanel.alignChildren = "left";
-        optionsPanel.margins = PANEL_MARGINS;
 
         controls.scatterRow = addCheckboxValueRow(optionsPanel, "scatter", DEFAULT_SCATTER, 4, "scatterDistance", { min: 0 });
 
@@ -1120,9 +1198,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         progressRow.visible = false;
         controls.progressRow = progressRow;
 
-        var buttonRow = addButtonRow(bottomStack, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(bottomStack);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
         btnOK.active = true;
         controls.btnCancel = btnCancel;
         controls.btnOK = btnOK;
@@ -1221,7 +1300,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
      */
     function buildDialog(artworkSize) {
         var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
+        setupWindow(dlg);
         var controls = { dialog: dlg };
 
         buildModeRow(dlg, controls);

@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/IncrementD
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IncrementDatesAndNumbers";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -96,15 +96,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 横並びの行グループの共通設定（ボタン列など）
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
      * @param {Group} rowGroup - 対象のグループ
-     * @param {string|string[]} [rowAlignment] - alignment（省略時は "left"）
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupRow(rowGroup, rowAlignment, spacing) {
         rowGroup.orientation = "row";
-        rowGroup.alignment = rowAlignment || "left";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
         rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
@@ -1769,7 +1771,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         incrementDialog.layout.layout(true);
-        incrementDialog.center();
         prepareDialogWindow(incrementDialog, SCRIPT_NAME);
         incrementDialog.show();
     }

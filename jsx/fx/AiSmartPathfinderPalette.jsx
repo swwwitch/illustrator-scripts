@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPat
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartPathfinderPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinderPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinderPalette.md"; /* README (English) */
@@ -2192,21 +2192,23 @@ function drawOperationIcon(control, iconType) {
 }
 
 /* ============================================================
- * UIレイアウトの共通設定 / Shared UI layout
+ * レイアウト / Layout
  * ============================================================ */
+
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
 
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-var ICON_PANEL_MARGINS = [8, 16, 8, 8];  /* アイコンボタンのみのパネルは余白を狭く / tighter margins for icon-only panels */
-var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する / apply shared window layout
- * @param {Window} targetWindow 対象ウィンドウ / target window
- * @param {number} [spacing] 要素間隔（省略時は WINDOW_SPACING）/ spacing override
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
 function setupWindow(targetWindow, spacing) {
@@ -2217,31 +2219,63 @@ function setupWindow(targetWindow, spacing) {
 }
 
 /**
- * パネルの共通設定を適用する / apply shared panel layout
- * @param {Panel} panel 対象パネル / target panel
- * @param {number} [spacing] 要素間隔（省略時は PANEL_SPACING）/ spacing override
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
-/* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
 /**
- * ボタンの高さを指定ピクセルぶん詰める
- * @param {Button} button - 対象のボタン
- * @param {number} px - 詰める量（px）
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
  * @returns {void}
  */
-function trimButtonHeight(button, px) {
-    try {
-        button.size = [button.size.width, button.size.height - px];
-    } catch (e) {}
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
 }
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+var ICON_PANEL_MARGINS = [8, 16, 8, 8];  /* アイコンボタンのみのパネルは余白を狭く / tighter margins for icon-only panels */
+var ICON_SPACING = 8;                    /* アイコンボタンどうしの間隔 / spacing between icon buttons */
 
 /* ============================================================
  * パレット UI / Palette UI
@@ -2316,7 +2350,7 @@ function unifyIconCellWidths(buttons) {
  */
 function buildModePanel(parentWindow) {
     var panel = parentWindow.add("panel", undefined, getLabel("panel.mode"));
-    setupPanel(panel);
+    setupPanel(panel, 6);
     var radios = {
         execute:  panel.add("radiobutton", undefined, getLabel("apply.execute")),
         compound: panel.add("radiobutton", undefined, getLabel("apply.compound")),
@@ -2341,10 +2375,10 @@ function buildModePanel(parentWindow) {
  */
 function buildShapeModePanel(parentWindow) {
     var panel = parentWindow.add("panel", undefined, getLabel("panel.shapeMode"));
+    setupPanel(panel, ICON_SPACING);
     panel.orientation = "row";
     panel.alignChildren = "center";
     panel.margins = ICON_PANEL_MARGINS;
-    panel.spacing = PANEL_SPACING;
     return panel;
 }
 
@@ -2355,15 +2389,14 @@ function buildShapeModePanel(parentWindow) {
  */
 function buildPathfinderRows(parentWindow) {
     var panel = parentWindow.add("panel", undefined, getLabel("panel.pathfinder"));
-    panel.orientation = "column";
+    setupPanel(panel, ICON_SPACING);
     panel.alignChildren = "center";
     panel.margins = ICON_PANEL_MARGINS;
-    panel.spacing = PANEL_SPACING;
     var rows = [panel.add("group"), panel.add("group")];
     for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         rows[rowIndex].orientation = "row";
         rows[rowIndex].alignChildren = "center";
-        rows[rowIndex].spacing = PANEL_SPACING;
+        rows[rowIndex].spacing = ICON_SPACING;
     }
     return rows;
 }
@@ -2378,13 +2411,10 @@ function buildPathfinderRows(parentWindow) {
  */
 function buildOptionPanel(parentWindow) {
     var panel = parentWindow.add("panel", undefined, getLabel("panel.option"));
-    setupPanel(panel);
+    setupPanel(panel, 6);
     /* 「余分なポイントを削除」と［強制］ボタンを同じ行に横並び / removePoints checkbox + Force button on one row */
     var removePointsRow = panel.add("group");
-    removePointsRow.orientation = "row";
-    removePointsRow.alignChildren = ["left", "center"];
-    removePointsRow.alignment = "left";
-    removePointsRow.spacing = PANEL_SPACING;
+    setupRow(removePointsRow, "left", 8);
     var controls = {
         removePoints:    removePointsRow.add("checkbox", undefined, getLabel("option.removePoints")),
         cleanup:         removePointsRow.add("button", undefined, getLabel("button.cleanup")),
@@ -2432,16 +2462,10 @@ function showPalette() {
     tabbedPanel.alignment = "fill";
 
     var basicTab = tabbedPanel.add("tab", undefined, getLabel("tab.basic"));
-    basicTab.orientation = "column";
-    basicTab.alignChildren = "fill";
-    basicTab.margins = [12, 14, 0, 12];
-    basicTab.spacing = WINDOW_SPACING;
+    setupTab(basicTab, WINDOW_SPACING);
 
     var specialTab = tabbedPanel.add("tab", undefined, getLabel("tab.special"));
-    specialTab.orientation = "column";
-    specialTab.alignChildren = "fill";
-    specialTab.margins = [12, 14, 0, 12];
-    specialTab.spacing = WINDOW_SPACING;
+    setupTab(specialTab, WINDOW_SPACING);
 
     tabbedPanel.selection = 0;
 
@@ -2474,7 +2498,7 @@ function showPalette() {
 
     /* その他タブ：マド埋め／変換／アピアランス／ツール、パネルを表示の4パネル / "Special" tab: four grouped panels */
     var fillHolesPanel = specialTab.add("panel", undefined, getLabel("panel.fillHoles"));
-    setupPanel(fillHolesPanel);
+    setupPanel(fillHolesPanel, 6);
     var fillHolesRow = fillHolesPanel.add("group");
     fillHolesRow.orientation = "column";
     fillHolesRow.alignment = "left";
@@ -2485,13 +2509,13 @@ function showPalette() {
     fillHolesEffectButton.helpTip = getLabel("tip.fillHolesEffect");
 
     var convertPanel = specialTab.add("panel", undefined, getLabel("panel.convert"));
-    setupPanel(convertPanel);
+    setupPanel(convertPanel, 6);
     var strokeToFillButton = convertPanel.add("button", undefined, getLabel("button.strokeToFill"));
     strokeToFillButton.helpTip = getLabel("tip.strokeToFill");
     strokeToFillButton.alignment = "left";
 
     var appearancePanel = specialTab.add("panel", undefined, getLabel("panel.appearance"));
-    setupPanel(appearancePanel);
+    setupPanel(appearancePanel, 6);
     var appearanceRow = appearancePanel.add("group");
     appearanceRow.orientation = "column";
     appearanceRow.alignment = "left";
@@ -2504,7 +2528,7 @@ function showPalette() {
     clearAppearanceButton.helpTip = getLabel("tip.clearAppearance");
 
     var showPanelPanel = specialTab.add("panel", undefined, getLabel("panel.showPanel"));
-    setupPanel(showPanelPanel);
+    setupPanel(showPanelPanel, 6);
     var appearanceButton = showPanelPanel.add("button", undefined, getLabel("button.appearance"));
     appearanceButton.helpTip = getLabel("tip.appearance");
     appearanceButton.alignment = "left";

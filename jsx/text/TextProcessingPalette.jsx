@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProces
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
@@ -71,9 +71,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    var PANEL_MARGINS       = [10, 18, 10, 8];   /* パネル余白 [左,上,右,下] */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* パレット固有の寸法 / Palette-specific sizes */
     var STATUS_MARGINS      = [50, 18, 50, 8];   /* ステータスパネル余白 */
-    var TAB_MARGINS         = [10, 20, 0, -10];  /* タブ余白 [左,上,右,下] */
     var TAB_SPACING         = 15;                /* タブ内の要素間隔 */
     var FOOTER_MARGINS      = [10, 10, 10, 0];   /* フッター余白 */
     var BUTTON_ROW_MARGINS  = [10, 0, 10, 8];    /* パネル内ボタン列の余白 */
@@ -85,18 +163,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     var CONVERT_PREVIEW_SIZE   = [120, 24];         /* 変換プレビューのサイズ */
 
     /**
-     * パネルへ共通のレイアウトを適用する
-     * @param {Panel} panel - 対象パネル
-     * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "center"]）
-     * @returns {void}
-     */
-    function setupPanel(panel, alignChildren) {
-        panel.margins = PANEL_MARGINS;
-        panel.alignment = ["fill", "top"];
-        panel.alignChildren = alignChildren || ["fill", "center"];
-    }
-
-    /**
      * ラベル付きパネルを生成し、共通レイアウトを適用する
      * @param {Window|Panel|Group} parent - 追加先のコンテナ
      * @param {string} titleText - パネルのタイトル
@@ -105,7 +171,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
      */
     function addPanel(parent, titleText, alignChildren) {
         var panel = parent.add("panel", undefined, titleText);
-        setupPanel(panel, alignChildren);
+        setupPanel(panel);
+        panel.alignment = ["fill", "top"];
+        panel.alignChildren = alignChildren || ["fill", "center"];
         return panel;
     }
 
@@ -123,15 +191,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     }
 
     /**
-     * タブへ共通のレイアウトを適用する
+     * タブへパレット用のレイアウトを適用する（余白は setupTab()、並びの向きと揃えはタブごと）
      * @param {Object} tab - 対象タブ
      * @param {string} orientation - "row" または "column"
      * @param {Array<string>} alignment - タブ自身の整列指定（省略時は ["fill", "top"]）
      * @returns {void}
      */
-    function setupTab(tab, orientation, alignment) {
-        tab.margins = TAB_MARGINS;
-        tab.spacing = TAB_SPACING;
+    function setupPaletteTab(tab, orientation, alignment) {
+        setupTab(tab, TAB_SPACING);
         tab.orientation = orientation;
         tab.alignment = alignment || ["fill", "top"];
         tab.alignChildren = ["fill", "top"];
@@ -3620,6 +3687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
          */
         function showPalette(selectedObjects) {
             var paletteWindow = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+            setupWindow(paletteWindow);
 
             /**
              * 処理をメインエンジンへ委譲し、結果のステータスで表示を更新する
@@ -3767,7 +3835,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
             /* === タブ1: 基本 === */
             var tabBasic = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.basic));
-            setupTab(tabBasic, "row", ["center", "top"]);
+            setupPaletteTab(tabBasic, "row", ["center", "top"]);
 
             /* 左カラム：改行 */
             var breakColumn = addColumnGroup(tabBasic);
@@ -3928,7 +3996,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
             /* === タブ2: 行の編集 === */
             var tabLineArrange = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.lineArrange));
-            setupTab(tabLineArrange, "row");
+            setupPaletteTab(tabLineArrange, "row");
 
             /* 左カラム：行リスト */
             var lineListColumn = addColumnGroup(tabLineArrange);
@@ -4098,7 +4166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
             /* === タブ3: 整形 === */
             var tabCleanup = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.cleanup));
-            setupTab(tabCleanup, "row");
+            setupPaletteTab(tabCleanup, "row");
 
             /* 左カラム：タブ・スペース */
             var spaceCleanupColumn = addColumnGroup(tabCleanup);
@@ -4250,7 +4318,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
             /* === タブ4: 変換 === */
             var tabConvert = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.convert));
-            setupTab(tabConvert, "column");
+            setupPaletteTab(tabConvert, "column");
 
             var panelLetterCase = addPanel(tabConvert, getLabel(LABELS.panel.letterCase), ["fill", "top"]);
 

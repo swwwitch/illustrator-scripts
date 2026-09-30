@@ -49,3 +49,4 @@ Full license: http://www.wundes.com/js4ai/copyright.txt
 - v0.1.2 (20260928): The button row is now built with the shared part
 - v0.1.3 (20260929): Dialog opacity changed to 98%
 - v0.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v0.1.5 (2026-10-01): Removed the hand-written dialog centering; the shared part now handles the position. Unified the window and panel margins and spacing with the shared layout part

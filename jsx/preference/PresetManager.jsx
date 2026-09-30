@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetMana
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManager";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -69,12 +69,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;                     /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                     /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];        /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING = 6;                       /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 12;                     /* 2カラムの間隔 / gap between columns */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var ROW_SPACING = 10;                        /* 行内の要素間隔 / spacing inside a row */
     var PRESET_ROW_MARGINS = [0, 10, 20, 20];    /* プリセット行の余白 / preset row margins */
     var ANCHOR_SLIDER_WIDTH = 110;               /* アンカーサイズのスライダー幅 / anchor size slider width */
@@ -83,45 +157,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     var HISTORY_INPUT_CHARS = 4;                 /* ヒストリー数の入力欄の桁数 / history field width (chars) */
     var BRIGHTNESS_SWATCH_SIZE = 23;             /* 明るさスウォッチの一辺(px) / brightness swatch side (px) */
     var BRIGHTNESS_SWATCH_SPACING = 8;           /* スウォッチの間隔 / gap between swatches */
-
-    /**
-     * ウィンドウの共通設定 / Apply shared window layout
-     * @param {Window} targetWindow - 対象のウィンドウ
-     * @returns {void}
-     */
-    function setupWindow(targetWindow) {
-        targetWindow.orientation = "column";
-        targetWindow.alignChildren = "fill";
-        targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = WINDOW_SPACING;
-    }
-
-    /**
-     * パネルの共通設定 / Apply shared panel layout
-     * @param {Panel} targetPanel - 対象のパネル
-     * @returns {void}
-     */
-    function setupPanel(targetPanel) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["fill", "top"];
-        targetPanel.alignment = "fill";
-        targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = PANEL_SPACING;
-    }
-
-    /**
-     * 行グループの共通設定（ラベル＋コントロールの横並び）/ Apply a horizontal row group
-     * @param {Group} targetGroup - 対象のグループ
-     * @param {string} [groupAlignment] - グループ自体の配置（省略時は "left"）
-     * @param {number} [controlSpacing] - 要素間隔（省略時は ROW_SPACING）
-     * @returns {void}
-     */
-    function setupRow(targetGroup, groupAlignment, controlSpacing) {
-        targetGroup.orientation = "row";
-        targetGroup.alignChildren = ["left", "center"];
-        targetGroup.alignment = groupAlignment || "left";
-        targetGroup.spacing = (typeof controlSpacing === "number") ? controlSpacing : ROW_SPACING;
-    }
 
     /**
      * ラベル付きチェックボックスを追加 / Add a labeled checkbox
@@ -144,7 +179,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      */
     function addPanel(parentColumn, labelPath) {
         var newPanel = parentColumn.add("panel", undefined, getLabel(labelPath));
-        setupPanel(newPanel);
+        setupPanel(newPanel, 6);
         return newPanel;
     }
 
@@ -169,7 +204,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
      */
     function addLabeledRow(parentContainer, labelPath, labelWidth) {
         var rowGroup = parentContainer.add("group");
-        setupRow(rowGroup);
+        setupRow(rowGroup, "left", ROW_SPACING);
         var rowLabel = rowGroup.add("statictext", undefined, labelText(labelPath));
         if (typeof labelWidth === "number") {
             rowLabel.preferredSize = [labelWidth, -1]; /* 高さは自動 / height stays automatic */
@@ -1567,7 +1602,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
 
         /* 最近使用したフォントの表示数（チェックOFFで0＝非表示）/ Recent font count (unchecked means 0 = hidden) */
         var recentFontsRow = textPanel.add("group");
-        setupRow(recentFontsRow);
+        setupRow(recentFontsRow, "left", ROW_SPACING);
         dialogControls.recentFontsCheckbox = addCheckbox(recentFontsRow, "checkbox.recentFonts", "tooltip.recentFonts");
         var recentFontsInput = addIntStepperInput(recentFontsRow, "0", RECENT_FONTS_INPUT_CHARS, NUMERIC_INPUT_RULES.recentFonts);
         recentFontsInput.helpTip = getLabel("tooltip.recentFonts");
@@ -2046,9 +2081,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         /* プリセット選択行（現在の設定 / デフォルト / プリセット1）/ Preset selector row (Current / Default / Preset 1) */
         var presetRow = dialogContentGroup.add("group");
         presetRow.margins = PRESET_ROW_MARGINS;
-        setupRow(presetRow, "center");
+        setupRow(presetRow, "center", ROW_SPACING);
         var presetSelectorGroup = presetRow.add("group");
-        setupRow(presetSelectorGroup);
+        setupRow(presetSelectorGroup, "left", ROW_SPACING);
         presetSelectorGroup.add("statictext", undefined, labelText("fieldLabel.preset"));
         var presetLabels = [];
         for (var i = 0; i < PRESET_CHOICES.length; i++) {

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md"; /* README (English) */
@@ -204,41 +204,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
     };
 
     // =========================================
-    // UIレイアウトの共通設定 / Shared UI layout
+    // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;               /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;               /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS  = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 8;                /* パネル内の要素間隔 / panel spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウに共通レイアウトを適用します。
-     * @param {Window} win - 対象のダイアログウィンドウ。
-     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）。
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネル（タブを含む）に共通レイアウトを適用します。
-     * @param {Panel} panel - 対象のパネル。
-     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）。
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -1937,7 +1983,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             setupWindow(dlg);
 
             var infoPanel = dlg.add('panel', undefined, getLabel('panel.info'));
-            setupPanel(infoPanel);
+            setupPanel(infoPanel, 6);
 
             /**
              * 情報パネルに「ラベル：値」の行を追加します。
@@ -2061,9 +2107,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
             // --- Tab 1: 削除対象 ---
             var tabProcess = tabbedPanel.add('tab', undefined, getLabel('tab.process'));
-            setupPanel(tabProcess);
-            /* タブ内の右余白を詰める（PANEL_MARGINS の右16→6）。サブプロパティ代入は反映されないため配列で上書き */
-            tabProcess.margins = [16, 20, 6, 12];
+            setupTab(tabProcess, 8);
 
             var removeSameAnchorsCheckbox = tabProcess.add('checkbox', undefined, getLabel('checkbox.removeSameAnchors'));
             removeSameAnchorsCheckbox.helpTip = getLabel('tooltip.removeSameAnchors');
@@ -2230,19 +2274,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
             // --- Tab 2: 変換 ---
             var tabOther = tabbedPanel.add('tab', undefined, getLabel('tab.other'));
-            setupPanel(tabOther);
-            /* タブ内の右余白を詰める（PANEL_MARGINS の右16→6）。サブプロパティ代入は反映されないため配列で上書き */
-            tabOther.margins = [16, 20, 6, 12];
+            setupTab(tabOther, 8);
 
             // パネル1：アンカーポイントを変換（スムーズ／コーナー）
             var convertPointsPanel = tabOther.add('panel', undefined, getLabel('panel.convertPoints'));
-            setupPanel(convertPointsPanel);
+            setupPanel(convertPointsPanel, 6);
             var smoothRadio = convertPointsPanel.add('radiobutton', undefined, getLabel('radio.convertSmooth'));
             var cornerRadio = convertPointsPanel.add('radiobutton', undefined, getLabel('radio.convertCorner'));
 
             // パネル2：アンカーポイントを追加（アンカー追加／極点追加）
             var addPointsPanel = tabOther.add('panel', undefined, getLabel('panel.addPoints'));
-            setupPanel(addPointsPanel);
+            setupPanel(addPointsPanel, 6);
             var addAnchorsRadio = addPointsPanel.add('radiobutton', undefined, getLabel('radio.addAnchors'));
             addAnchorsRadio.helpTip = getLabel('tooltip.addAnchors');
             var extremePointsRadio = addPointsPanel.add('radiobutton', undefined, getLabel('radio.addExtremePoints'));
@@ -2250,7 +2292,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
             // パネル3：その他（分割／マド埋め）
             var pathOpsPanel = tabOther.add('panel', undefined, getLabel('panel.pathOps'));
-            setupPanel(pathOpsPanel);
+            setupPanel(pathOpsPanel, 6);
             var splitRadio = pathOpsPanel.add('radiobutton', undefined, getLabel('radio.splitAtAnchors'));
             splitRadio.helpTip = getLabel('tooltip.splitAtAnchors');
             var fillHolesRadio = pathOpsPanel.add('radiobutton', undefined, getLabel('radio.fillHoles'));
@@ -2293,9 +2335,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
             tabbedPanel.selection = 0;
 
-            var buttonRow = addButtonRow(dlg, { centered: true });
-            var btnCancel = buttonRow.rowGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-            var btnOK = buttonRow.rowGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+            var buttonRow = addButtonRow(dlg);
+            var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+            var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+            alignRightOnlyButtonRow(buttonRow);
 
             /* ボタン生成前の予測表示では OK の状態を反映できないため、ここで一度反映する */
             updateOkEnabled();

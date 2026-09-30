@@ -49,5 +49,6 @@ the number of text frames that use the combination (a frame counts once).
 
 ### Update History
 
+- v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.6 (2026-09-26) Renamed the file from `DocumentFontListSelector.jsx` to `DocumentFontListSelectorPalette.jsx`.
 - v1.1.5 (2026-09-25) The palette reference is now kept in the persistent engine so CloseAllPalettes.jsx can close it.

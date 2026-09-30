@@ -41,3 +41,4 @@
 - v1.0.8 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.0.9 (20260929): Dialog opacity changed to 98%
 - v1.0.10 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.0.11 (2026-10-01): Moved the Move/Close buttons from a right-hand column to the standard button row at the bottom. Unified the window and panel margins and spacing with the shared layout part

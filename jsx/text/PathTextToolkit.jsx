@@ -24,7 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathTextTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathTextToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -40,9 +40,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var DIALOG_MARGINS        = [15, 20, 15, 15];  /* ダイアログの余白 / dialog margins */
-    var PANEL_MARGINS         = [15, 20, 15, 10];  /* パネルの余白 / panel margins */
-    var PANEL_SPACING         = 8;                 /* パネル内の間隔 / panel spacing */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var ARC_LABEL_WIDTH       = 70;                /* ［アーチ方向］の項目名の幅 / width of the arc direction label */
     var ARC_SLIDER_WIDTH      = 130;               /* ［まるみ］スライダーの幅 / width of the roundness slider */
     var FIT_PANEL_GAP         = 5;                 /* ［パス幅に合わせる］パネルの上の余白 / gap above the fit-to-path-width panel */
@@ -1385,20 +1462,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * パネルを縦並び・共通の余白と間隔で初期化する
-     * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 間隔（省略時は PANEL_SPACING）
-     * @returns {void}
-     */
-    function setupPanel(targetPanel, spacing) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["fill", "top"];
-        targetPanel.alignment = "fill";
-        targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
      * 横並び（左寄せ・上下中央）の行を追加する
      * @param {Object} parentContainer - 追加先
      * @returns {Group} 作成した行
@@ -1563,9 +1626,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     var pathTextDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-    pathTextDialog.orientation = "column";
-    pathTextDialog.alignChildren = ["fill", "top"];
-    pathTextDialog.margins = DIALOG_MARGINS;
+    setupWindow(pathTextDialog);
 
     /* 2カラムレイアウト / Two-column layout */
     var columnsRow = pathTextDialog.add("group");
@@ -1578,7 +1639,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 処理パネル（パス上文字にする / アーチ生成 / 正円生成） / Process panel */
     var pnlProcess = leftCol.add("panel", undefined, getLabel("panel.process"));
-    setupPanel(pnlProcess);
+    setupPanel(pnlProcess, 6);
 
     var rbToPathText = addRadio(pnlProcess, "radio.toPathText", "tooltip.toPathText");
     var rbGenArcPath = addRadio(pnlProcess, "radio.genArcPath", "tooltip.genArcPath");
@@ -1591,7 +1652,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 分離パネル（処理パネルの下） / Split panel (under Process) */
     var pnlSplit = leftCol.add("panel", undefined, getLabel("panel.split"));
-    setupPanel(pnlSplit);
+    setupPanel(pnlSplit, 6);
 
     var rbSplitTextAndPath = addRadio(pnlSplit, "radio.splitKeepFormat", "tooltip.splitKeepFormat");
     var rbSplitTextAndPathNoFormat = addRadio(pnlSplit, "radio.splitNoFormat", "tooltip.splitNoFormat");
@@ -1610,7 +1671,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* オプションパネル（右カラム） / Option panel (right column) */
     var pnlOption = rightCol.add("panel", undefined, getLabel("panel.option"));
-    setupPanel(pnlOption);
+    setupPanel(pnlOption, 6);
 
     var cbReverse = pnlOption.add("checkbox", undefined, getLabel("checkbox.reverse"));
     cbReverse.helpTip = getLabel("tooltip.reverse");
@@ -1638,7 +1699,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* パス幅に合わせるパネル（オプションパネル内の最下部） / Fit-to-path-width panel (bottom of the Options panel) */
     var pnlFitWidth = pnlOption.add("panel", undefined, getLabel("panel.fitWidth"));
-    setupPanel(pnlFitWidth);
+    setupPanel(pnlFitWidth, 6);
 
     var rbFitWidthNone = addRadio(pnlFitWidth, "radio.fitWidthNone", "tooltip.fitWidthNone");
     var rbFitWidthFontSize = addRadio(pnlFitWidth, "radio.fitWidthFontSize", "tooltip.fitWidthFontSize");
@@ -1648,13 +1709,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 全幅（2カラムの下）：効果 → 位置 → テキスト調整 / Full width: effect -> position -> text adjust */
     var fullWidthColumn = addFillGroup(pathTextDialog, "column");
 
-    /* 効果パネル：5項目を横並びにするため setupPanel（縦並び）は使わない / Effect panel (5 radios in a row) */
+    /* 効果パネル：5項目を横並びにする / Effect panel (5 radios in a row) */
     var pnlEffect = fullWidthColumn.add("panel", undefined, getLabel("panel.effect"));
+    setupPanel(pnlEffect, 6);
     pnlEffect.orientation = "row";
     pnlEffect.alignChildren = ["center", "center"];
-    pnlEffect.alignment = "fill";
-    pnlEffect.margins = PANEL_MARGINS;
-    pnlEffect.spacing = PANEL_SPACING;
 
     var rbEffectRainbow = addRadio(pnlEffect, "radio.effectRainbow", "tooltip.effectRainbow");
     var rbEffectDistort = addRadio(pnlEffect, "radio.effectDistort", "tooltip.effectDistort");
@@ -1669,7 +1728,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 位置（開始／終了）パネル / Position (start/end) panel */
     var pnlPosition = fullWidthColumn.add("panel", undefined, getLabel("panel.position"));
-    setupPanel(pnlPosition);
+    setupPanel(pnlPosition, 6);
 
     /* スライダーは t 値×100（開始 0.0〜4.0、終了 0.0〜5.0） / sliders hold t × 100 */
     /* ∧∨・↑↓キーで変えたらスライダーを追従させてプレビューを更新 / sync the slider and refresh the preview on each step */
@@ -1688,7 +1747,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* テキスト調整パネル / Text adjust panel */
     var pnlTextAdjust = fullWidthColumn.add("panel", undefined, getLabel("panel.textAdjust"));
-    setupPanel(pnlTextAdjust);
+    setupPanel(pnlTextAdjust, 6);
 
     /* 行揃え（パネル先頭の行） / Alignment (top row) */
     var alignRow = addRow(pnlTextAdjust);
@@ -2195,9 +2254,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function showTextEditDialog() {
         var textEditDialog = new Window("dialog", getLabel("dialog.textEditTitle"));
-        textEditDialog.orientation = "column";
-        textEditDialog.alignChildren = ["fill", "top"];
-        textEditDialog.margins = DIALOG_MARGINS;
+        setupWindow(textEditDialog);
 
         var hintLabel = textEditDialog.add("statictext", undefined, getLabel("dialog.textEditHint"), { multiline: true });
         hintLabel.preferredSize.width = EDIT_HINT_WIDTH;
@@ -2217,9 +2274,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var textEditInput = textEditDialog.add("edittext", undefined, initialText, { multiline: true });
         textEditInput.preferredSize = EDIT_FIELD_SIZE;
 
-        var editButtonRow = addButtonRow(textEditDialog, { centered: true });
-        var btnEditCancel = editButtonRow.rowGroup.add("button", undefined, getLabel("button.cancel"));
-        var btnEditOK = editButtonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var editButtonRow = addButtonRow(textEditDialog);
+        var btnEditCancel = editButtonRow.rightGroup.add("button", undefined, getLabel("button.cancel"));
+        var btnEditOK = editButtonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(editButtonRow);
 
         btnEditCancel.onClick = function () {
             textEditDialog.close(0);

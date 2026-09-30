@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenum
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartRenumber";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -114,15 +114,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf3b6601cd165"; /* 紹�
     }
 
     /**
-     * 横並びの行グループの共通設定（ボタン列など）
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
      * @param {Group} rowGroup - 対象のグループ
-     * @param {string|string[]} [rowAlignment] - alignment（省略時は "left"）
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupRow(rowGroup, rowAlignment, spacing) {
         rowGroup.orientation = "row";
-        rowGroup.alignment = rowAlignment || "left";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
         rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 

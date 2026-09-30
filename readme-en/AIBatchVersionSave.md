@@ -56,3 +56,4 @@
 - v1.5.3: Dialog opacity changed to 98%
 - v1.5.4: Fixed an error when running with characters selected by the Type tool
 - v1.5.5: Button rows with only right-side buttons are now centered
+- v1.5.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

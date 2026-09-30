@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLauncher.md"; /* README (English) */
@@ -931,12 +931,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* 密なパネル・行の間隔 / Spacing for dense panels and rows */
     var DENSE_SPACING      = 8;              /* パネル内を詰めるときの間隔 / dense panel spacing */
@@ -969,47 +1041,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var CLEAR_CIRCLE_INSET   = 2;            /* 円と外周の間隔 / inset of the circle */
     var CLEAR_GLYPH_INSET    = 6;            /* ×と外周の間隔 / inset of the × glyph */
     var CLEAR_STROKE_WIDTH   = 1.5;          /* 円と×の線幅 / stroke width */
-
-    /**
-     * ウィンドウの共通設定を適用する
-     * @param {Window} targetWindow - 対象ウィンドウ
-     * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING
-     * @returns {void}
-     */
-    function setupWindow(targetWindow, spacing) {
-        targetWindow.orientation = "column";
-        targetWindow.alignChildren = "fill";
-        targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
-
-    /**
-     * パネルの共通設定を適用する
-     * @param {Panel} targetPanel - 対象パネル
-     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
-     * @returns {void}
-     */
-    function setupPanel(targetPanel, spacing) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["fill", "top"];
-        targetPanel.alignment = "fill";
-        targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
-     * 行グループの共通設定を適用する（ボタン列など）
-     * @param {Group} rowGroup - 対象グループ
-     * @param {string} [alignment] - 配置。省略時は "left"
-     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
-     * @returns {void}
-     */
-    function setupRow(rowGroup, alignment, spacing) {
-        rowGroup.orientation = "row";
-        rowGroup.alignment = [alignment || "left", "center"];
-        rowGroup.alignChildren = ["left", "center"];
-        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
 
     /**
      * 見出し付きのリスト用カラムを作る
@@ -2178,6 +2209,142 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -2248,7 +2415,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         };
 
         var keywordButtonPanel = settingsDialog.add("panel", undefined, getLabel(LABELS.panel.keywordButtons));
-        setupPanel(keywordButtonPanel, DENSE_SPACING);
+        setupPanel(keywordButtonPanel, 6);
         var minCountInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.minCount, minCount,
             getLabel(LABELS.tooltip.minCount), { min: 1, integer: true });
         var maxButtonsInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.maxButtons, maxButtons,
@@ -2260,9 +2427,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
         applyButtonSize(btnOK, DIALOG_BUTTON_WIDTH);
+        alignRightOnlyButtonRow(buttonRow);
 
-        settingsDialog.center();
         minCountInput.active = true;
+        prepareDialogWindow(settingsDialog, SCRIPT_NAME + "_preferences");
         if (settingsDialog.show() !== 1) return null;
 
         return {
@@ -2299,7 +2467,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      */
     function buildKeywordPanel(parentWindow, initialKeyword, remembersSettings) {
         var keywordPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.keyword, [0]));
-        setupPanel(keywordPanel, DENSE_SPACING);
+        setupPanel(keywordPanel, 6);
 
         var keywordRow = keywordPanel.add("group");
         setupRow(keywordRow, "fill", DENSE_SPACING);
@@ -2347,7 +2515,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var showFullPath = readSessionState().showFullPath;
 
         var folderPanel = parentWindow.add("panel", undefined, getLabel(LABELS.panel.scriptFolder));
-        setupPanel(folderPanel, DENSE_SPACING);
+        setupPanel(folderPanel, 6);
 
         var pathRow = folderPanel.add("group");
         setupRow(pathRow, "fill", DENSE_SPACING);
@@ -2890,7 +3058,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         refreshFolderList();
         lastNormalizedQuery = splitSearchTerms(keywordInput.text).join(" ");
         updateClearButtonState();
-        launcherDialog.center();
 
         /* 検索欄を先頭の操作部品にしたうえで、表示時にも明示的にフォーカスする / Focus the keyword field on show */
         keywordInput.active = true;
@@ -2900,6 +3067,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         };
 
         isDialogShown = true;
+        prepareDialogWindow(launcherDialog, SCRIPT_NAME);
         launcherDialog.show();
         return dialogResult;
     }

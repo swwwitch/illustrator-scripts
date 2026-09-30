@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectSorter";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectSorter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectSorter.md"; /* README (English) */
@@ -1234,6 +1234,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
 
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -1273,15 +1352,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
      * 基準・ソート順のパネルを作る
      * @param {Group} parentGroup - 追加先のグループ
      * @param {string} titlePath - パネル名の LABELS パス
-     * @param {number} childSpacing - 項目の間隔
      * @returns {Panel} 作ったパネル
      */
-    function addOptionPanel(parentGroup, titlePath, childSpacing) {
+    function addOptionPanel(parentGroup, titlePath) {
         var optionPanel = parentGroup.add("panel", undefined, getLabel(titlePath));
-        optionPanel.orientation = "column";
-        optionPanel.alignChildren = "left";
-        optionPanel.spacing = childSpacing;
-        optionPanel.margins = [15, 20, 15, 10];
+        setupPanel(optionPanel, 6);
         return optionPanel;
     }
 
@@ -1293,9 +1368,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
      */
     function addRowPanel(parentPanel, titlePath) {
         var rowPanel = parentPanel.add("panel", undefined, getLabel(titlePath));
-        rowPanel.orientation = "row";
+        setupPanel(rowPanel);
+        rowPanel.orientation = "row"; /* 選択肢を横一列に並べる / choices in a single row */
         rowPanel.alignChildren = "center";
-        rowPanel.margins = [10, 20, 10, 10];
         return rowPanel;
     }
 
@@ -1350,9 +1425,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
      */
     function addSpacingPanel(parentPanel, titlePath, targetItems, isHorizontal) {
         var spacingPanel = parentPanel.add("panel", undefined, getLabel(titlePath));
-        spacingPanel.orientation = "column";
-        spacingPanel.alignChildren = "left";
-        spacingPanel.margins = [10, 20, 10, 10];
+        setupPanel(spacingPanel);
 
         var spacingRadioGroup = spacingPanel.add("group");
         spacingRadioGroup.orientation = "column";
@@ -1416,8 +1489,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
      */
     function addDirectionPanel(parentGroup, targetItems, isHorizontal) {
         var directionPanel = parentGroup.add("panel", undefined, getLabel(isHorizontal ? "panel.horizontal" : "panel.vertical"));
-        directionPanel.alignChildren = "fill";
-        directionPanel.margins = [10, 20, 10, 10];
+        setupPanel(directionPanel);
         if (isHorizontal) {
             addAlignPanel(directionPanel, "panel.alignHorizontal", [
                 { key: "top", label: "radio.alignTop" },
@@ -1449,8 +1521,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         var defaultSortKey = (defaultAlong === "y") ? "w" : "h";
 
         var sortDialog = new Window("dialog", getLabel("dialog.title"));
-        sortDialog.alignChildren = "left";
-        sortDialog.orientation = "column";
+        setupWindow(sortDialog);
 
         var alongGroup = sortDialog.add("group");
         alongGroup.alignment = "center";
@@ -1465,14 +1536,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         var columnsGroup = sortDialog.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
-        columnsGroup.spacing = 10;
+        columnsGroup.spacing = COLUMN_SPACING;
 
         var sortColumn = columnsGroup.add("group");
         sortColumn.orientation = "column";
         sortColumn.alignChildren = "fill";
         sortColumn.spacing = 10;
 
-        var sortKeyRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortKey", 10), [
+        var sortKeyRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortKey"), [
             { key: "h", label: "radio.byHeight" },
             { key: "w", label: "radio.byWidth" },
             { key: "o", label: "radio.byOpacity" },
@@ -1481,7 +1552,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             { key: "z", label: "radio.byZOrder" }
         ], defaultSortKey);
 
-        var sortOrderRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortOrder", 5), [
+        var sortOrderRadios = addChoiceRadios(addOptionPanel(sortColumn, "panel.sortOrder"), [
             { key: "s", label: "radio.ascending" },
             { key: "l", label: "radio.descending" },
             { key: "r", label: "radio.random" }
@@ -1521,7 +1592,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             app.redraw();
             sortDialog.close(0);
         };
-        sortDialog.center();
         alignRightOnlyButtonRow(buttonRow);
         prepareDialogWindow(sortDialog, SCRIPT_NAME);
         sortDialog.show();

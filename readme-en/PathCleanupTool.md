@@ -134,6 +134,7 @@ The dialog position is remembered only while Illustrator is running (position on
 
 ## Change log
 
+- v1.7.5 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.7.4 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v1.7.3 (2026-09-29) Dialog opacity changed to 98%
 - v1.7.2 (2026-09-28) The button row is now built with the shared part. Target collection now uses the shared part

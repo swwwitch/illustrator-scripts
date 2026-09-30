@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlign
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md"; /* README (English) */
@@ -63,29 +63,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    var WINDOW_MARGINS     = 16;               /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING     = 12;               /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between columns */
-    var FIELD_LABEL_WIDTH  = 40;               /* 項目名の幅 / width of a field label */
-    var FIELD_CHAR_WIDTH   = 3;                /* 数値欄の文字数 / character width of a numeric field */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウに共通レイアウトを適用する
-     * @param {Window} targetWindow - 対象ウィンドウ
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(targetWindow) {
+    function setupWindow(targetWindow, spacing) {
         targetWindow.orientation = "column";
-        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.alignChildren = "fill";
         targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = WINDOW_SPACING;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネルに共通レイアウトを適用する
-     * @param {Panel} targetPanel - 対象パネル
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -98,30 +101,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     }
 
     /**
-     * グループを横並びの行として設定する
-     * @param {Group} targetGroup - 対象グループ
-     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(targetGroup, horizontalAlign, spacing) {
-        targetGroup.orientation = "row";
-        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
-        targetGroup.alignment = [horizontalAlign || "left", "center"];
-        targetGroup.alignChildren = ["left", "center"];
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* 項目名と数値欄の寸法 / Field label and numeric field sizes */
+    var FIELD_LABEL_WIDTH  = 40;               /* 項目名の幅 / width of a field label */
+    var FIELD_CHAR_WIDTH   = 3;                /* 数値欄の文字数 / character width of a numeric field */
 
     /**
      * ラベル付きパネルを生成する（共通レイアウト適用）
      * @param {Window|Group} parentContainer - 追加先
      * @param {string} panelTitle - パネルの見出し
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parentContainer, panelTitle) {
+    function addPanel(parentContainer, panelTitle, spacing) {
         var createdPanel = parentContainer.add("panel");
         createdPanel.text = panelTitle;
-        setupPanel(createdPanel);
+        setupPanel(createdPanel, spacing);
         return createdPanel;
     }
 
@@ -2224,10 +2259,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
      */
     function buildArrangeDialogControls(dialogWindow, keyObject) {
         /* 方向パネル（並べる方向と行数／列数）/ Direction panel: tiling direction and lane count */
-        var directionPanel = addPanel(dialogWindow, getLabel("panel.direction"));
+        var directionPanel = addPanel(dialogWindow, getLabel("panel.direction"), 6);
 
         var directionRow = directionPanel.add("group");
-        setupRow(directionRow);
+        setupRow(directionRow, "left", 6);
         var horizontalRadio = directionRow.add("radiobutton", undefined, getLabel("radio.directionHorizontal"));
         horizontalRadio.helpTip = getLabel("tooltip.directionHorizontal");
         var verticalRadio = directionRow.add("radiobutton", undefined, getLabel("radio.directionVertical"));
@@ -2237,7 +2272,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
 
         /* 行数（横）／列数（縦）/ Row count (horizontal) or column count (vertical) */
         var laneCountRow = directionPanel.add("group");
-        setupRow(laneCountRow);
+        setupRow(laneCountRow, "left", 6);
         var laneCountLabel = addFieldLabel(laneCountRow, "");
         /* 1以上の整数 / integer of 1 or more */
         var laneCountInput = addStepperInput(laneCountRow, DEFAULT_LANE_COUNT, { step: 1, min: 1, integer: true });
@@ -2254,17 +2289,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var marginColumn = spacingRow.add("group");
         marginColumn.orientation = "column";
         marginColumn.alignChildren = ["left", "center"];
-        marginColumn.spacing = PANEL_SPACING;
+        marginColumn.spacing = 6;
 
         var hMarginRow = marginColumn.add("group");
-        setupRow(hMarginRow);
+        setupRow(hMarginRow, "left", 6);
         addFieldLabel(hMarginRow, labelText("fieldLabel.hMargin"));
         /* 負のアキも可 / negative gaps allowed */
         var hMarginInput = addStepperInput(hMarginRow, DEFAULT_MARGIN, { step: 1 });
         hMarginInput.helpTip = getLabel("tooltip.hMargin");
 
         var vMarginRow = marginColumn.add("group");
-        setupRow(vMarginRow);
+        setupRow(vMarginRow, "left", 6);
         addFieldLabel(vMarginRow, labelText("fieldLabel.vMargin"));
         var vMarginInput = addStepperInput(vMarginRow, DEFAULT_MARGIN, { step: 1 });
         vMarginInput.helpTip = getLabel("tooltip.vMargin");
@@ -2281,10 +2316,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         }
 
         /* 揃えパネル（上段＝上下、下段＝左右）/ Align panel: vertical row on top, horizontal row below */
-        var alignmentPanel = addPanel(dialogWindow, getLabel("panel.alignment"));
+        var alignmentPanel = addPanel(dialogWindow, getLabel("panel.alignment"), 6);
 
         var vAlignRow = alignmentPanel.add("group");
-        setupRow(vAlignRow);
+        setupRow(vAlignRow, "left", 6);
         var vAlignTopRadio = vAlignRow.add("radiobutton", undefined, getLabel("radio.alignTop"));
         var vAlignMiddleRadio = vAlignRow.add("radiobutton", undefined, getLabel("radio.alignMiddle"));
         var vAlignBottomRadio = vAlignRow.add("radiobutton", undefined, getLabel("radio.alignBottom"));
@@ -2294,7 +2329,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         vAlignTopRadio.value = true;
 
         var hAlignRow = alignmentPanel.add("group");
-        setupRow(hAlignRow);
+        setupRow(hAlignRow, "left", 6);
         var hAlignLeftRadio = hAlignRow.add("radiobutton", undefined, getLabel("radio.alignLeft"));
         var hAlignCenterRadio = hAlignRow.add("radiobutton", undefined, getLabel("radio.alignCenter"));
         var hAlignRightRadio = hAlignRow.add("radiobutton", undefined, getLabel("radio.alignRight"));
@@ -2304,7 +2339,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         hAlignLeftRadio.value = true;
 
         /* オプションパネル / Options panel */
-        var optionsPanel = addPanel(dialogWindow, getLabel("panel.options"));
+        var optionsPanel = addPanel(dialogWindow, getLabel("panel.options"), 6);
 
         /* キーオブジェクトが未検出のときはディム / Dimmed when no key object is detected */
         var keyObjectCheckbox = addOptionCheckbox(optionsPanel, getLabel("checkbox.useKeyObject"), !!keyObject);
@@ -2316,9 +2351,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         randomizeCheckbox.helpTip = getLabel("tooltip.randomize");
 
         /* ボタンエリア（左右中央）/ Button bar, centered */
-        var buttonRow = addButtonRow(dialogWindow, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        var buttonRow = addButtonRow(dialogWindow);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             horizontalRadio: horizontalRadio,

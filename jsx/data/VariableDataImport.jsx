@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VariableDataImport";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VariableDataImport.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDataImport.md"; /* README (English) */
@@ -69,10 +69,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var DIALOG_MARGINS = 15;                        /* ダイアログの余白 / dialog margins */
-    var DIALOG_SPACING = 10;                        /* ダイアログの行間 / dialog spacing */
-    var PANEL_MARGINS = 15;                         /* パネルの余白 / panel margins */
-    var PANEL_SPACING = 10;                         /* パネルの行間 / panel spacing */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     var FIELD_LABEL_WIDTH = { ja: 165, en: 195 };   /* 流し込み設定パネルのラベル幅 / settings label width */
     var FILE_DROPDOWN_SIZE = [350, 25];             /* ファイル選択ドロップダウン / file dropdown */
     var COLUMN_DROPDOWN_SIZE = [200, 25];           /* 列選択ドロップダウン / column dropdown */
@@ -1598,10 +1673,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         // =========================================
 
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        mainDialog.orientation = "column";
-        mainDialog.alignChildren = ["fill", "top"];
-        mainDialog.spacing = DIALOG_SPACING;
-        mainDialog.margins = DIALOG_MARGINS;
+        setupWindow(mainDialog);
 
         /* 対応づけの方法：自動認識か手動照合か / Mapping mode: automatic or manual */
         var mappingModeGroup = mainDialog.add("group");
@@ -1616,10 +1688,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
         /* データファイルパネル：ファイル選択とデータ一覧 / Data-file panel: file selector & data list */
         var dataFilePanel = mainDialog.add("panel", undefined, getLabel("panel.dataFile"));
-        dataFilePanel.orientation = "column";
-        dataFilePanel.alignChildren = ["fill", "top"];
-        dataFilePanel.margins = PANEL_MARGINS;
-        dataFilePanel.spacing = PANEL_SPACING;
+        setupPanel(dataFilePanel);
 
         var fileSelectGroup = dataFilePanel.add("group");
         fileSelectGroup.add("statictext", undefined, labelText("fieldLabel.file"));
@@ -1649,9 +1718,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         var taxCalcCheckbox = null;
 
         var artboardSettingsPanel = mainDialog.add("panel", undefined, getLabel("panel.settings"));
-        artboardSettingsPanel.orientation = "column";
+        setupPanel(artboardSettingsPanel);
         artboardSettingsPanel.alignChildren = ["left", "top"];
-        artboardSettingsPanel.margins = PANEL_MARGINS;
 
         var artboardNameColumnGroup = artboardSettingsPanel.add("group");
         addFieldLabel(artboardNameColumnGroup, "fieldLabel.artboardNameColumn");
@@ -1841,10 +1909,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
         /* ファイル名パネル：複製して保存する名前を決める / File-name panel: name of the duplicated file */
         var fileNamePanel = mainDialog.add("panel", undefined, getLabel("panel.fileName"));
-        fileNamePanel.orientation = "column";
-        fileNamePanel.alignChildren = ["fill", "top"];
-        fileNamePanel.margins = PANEL_MARGINS;
-        fileNamePanel.spacing = PANEL_SPACING;
+        setupPanel(fileNamePanel);
 
         var fileBaseNameGroup = fileNamePanel.add("group");
         fileBaseNameGroup.alignment = ["fill", "top"];
@@ -2249,10 +2314,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
             if (tagMappingPanel) return;
 
             tagMappingPanel = tagMappingHost.add("panel", undefined, getLabel("panel.tagMapping"));
-            tagMappingPanel.orientation = "column";
-            tagMappingPanel.alignChildren = ["fill", "top"];
-            tagMappingPanel.margins = PANEL_MARGINS;
-            tagMappingPanel.spacing = TAG_MAPPING_ROW_SPACING;
+            setupPanel(tagMappingPanel, TAG_MAPPING_ROW_SPACING);
 
             tagMappingGroup = tagMappingPanel.add("group");
             tagMappingGroup.orientation = "column";

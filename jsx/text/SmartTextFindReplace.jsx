@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
@@ -626,10 +626,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var PANEL_MARGINS = [15, 20, 15, 10];   /* パネルの内側余白 / panel margins */
-    var PANEL_SPACING = 6;                  /* パネル内の間隔 / panel spacing */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var OPTION_ROW_SPACING = 6;             /* 検索オプションのチェックボックスの間隔 / spacing between the search option checkboxes */
     var CLEANUP_PANEL_MARGINS = [10, 20, 10, 10]; /* 「整形」タブのパネルの内側余白（左右を詰める）/ margins of the Cleanup tab panels, narrower left and right */
-    var TAB_MARGINS = [10, 15, 10, 10];     /* タブの内側余白 / tab margins */
     var INPUT_CHARACTERS = 18;              /* 入力欄の幅（文字数）/ input width in characters */
     var REPLACE_INPUT_CHARACTERS = 12;      /* 置換欄の幅（文字数）/ replace field width in characters */
     var MATCH_COUNT_WIDTH = 24;             /* 一致数の表示幅（2桁ほど）/ width of the match count, about two digits */
@@ -643,20 +721,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
     var CONVERSION_BUTTON_SIZE = [130, 24]; /* 変換ボタンのサイズ / size of the conversion buttons */
     var CONVERSION_SAMPLE_SIZE = [90, 24];  /* 変換結果の見本の最小サイズ（パネル幅まで伸びる）/ minimum size of the conversion samples, stretched to the panel width */
     var CONVERSION_SAMPLE_MAX_CHARS = 60;   /* 変換結果の見本に表示する最大文字数 / maximum characters in a conversion sample */
-
-    /**
-     * パネルの共通設定
-     * @param {Panel} targetPanel - 対象のパネル
-     * @param {number[]} [panelMargins] - 内側余白（省略時は PANEL_MARGINS）
-     * @returns {void}
-     */
-    function setupPanel(targetPanel, panelMargins) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["left", "top"];
-        targetPanel.alignment = "fill";
-        targetPanel.margins = panelMargins || PANEL_MARGINS;
-        targetPanel.spacing = PANEL_SPACING;
-    }
 
     // =========================================
     // ローカライズ / Localization
@@ -1459,8 +1523,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function buildMainDialog(savedSettings, dialogState, hasSelection, onConvert) {
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        mainDialog.orientation = "column";
-        mainDialog.alignChildren = ["fill", "top"];
+        setupWindow(mainDialog);
 
         /* 「検索・置換」「英文」「整形」をタブで切り替える / Switch between the find/replace, English and cleanup tabs */
         var modeTabbedPanel = mainDialog.add("tabbedpanel");
@@ -1583,9 +1646,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function addDialogTab(tabbedPanel, labelSet) {
         var dialogTab = tabbedPanel.add("tab", undefined, getLabel(labelSet));
-        dialogTab.orientation = "column";
-        dialogTab.alignChildren = ["fill", "top"];
-        dialogTab.margins = TAB_MARGINS;
+        setupTab(dialogTab);
         return dialogTab;
     }
 
@@ -1598,7 +1659,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function buildFindReplacePanel(parentTab, savedSettings, dialogState) {
         var findReplacePanel = parentTab.add("panel", undefined, getLabel(LABELS.panel.findReplace));
-        setupPanel(findReplacePanel);
+        setupPanel(findReplacePanel, 6);
         var fieldRows = addSearchFieldRows(findReplacePanel, savedSettings, dialogState);
         var referenceButtonGroup = addInsertButtonRow(findReplacePanel, fieldRows.getLastActiveInput);
         var searchOptionsControls = addSearchOptionsRow(findReplacePanel, savedSettings, dialogState);
@@ -1784,7 +1845,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         searchOptionsGroup.orientation = "column";
         searchOptionsGroup.alignChildren = ["left", "top"];
         searchOptionsGroup.margins = [0, SEARCH_OPTIONS_TOP_MARGIN, 0, 0];
-        searchOptionsGroup.spacing = PANEL_SPACING;
+        searchOptionsGroup.spacing = OPTION_ROW_SPACING;
         addSettingCheckbox(searchOptionsGroup, "useRegex", DEFAULT_USE_REGEX, savedSettings, dialogState);
         /* プレビューは正規表現のときだけ使うので、そのすぐ下に置く。保存せず、開くときは常に OFF
            Preview is for regular expressions only, so it sits right below; not saved, and always starts off */
@@ -1849,7 +1910,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         return {
             addConversionPanel: function (parentGroup, labelSet, conversionKeys) {
                 var conversionPanel = parentGroup.add("panel", undefined, getLabel(labelSet));
-                setupPanel(conversionPanel);
+                setupPanel(conversionPanel, 6);
                 /* 見本をパネルの幅いっぱいに伸ばす / Stretch the samples to the panel width */
                 conversionPanel.alignChildren = ["fill", "top"];
                 for (var i = 0; i < conversionKeys.length; i++) {
@@ -1911,7 +1972,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
         /* ボタンを縦に並べたパネルを作る / Create a panel of stacked buttons */
         function addCleanupPanel(parentColumn, labelSet, labelKeys) {
             var cleanupPanel = parentColumn.add("panel", undefined, getLabel(labelSet));
-            setupPanel(cleanupPanel, CLEANUP_PANEL_MARGINS);
+            setupPanel(cleanupPanel, 6);
+            cleanupPanel.margins = CLEANUP_PANEL_MARGINS;
             cleanupPanel.alignChildren = ["fill", "top"];
             for (var i = 0; i < labelKeys.length; i++) {
                 addCleanupButton(cleanupPanel, labelKeys[i]);
@@ -1949,7 +2011,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function buildSymbolConversionPanel(parentColumn, onConvert) {
         var symbolConversionPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.symbolConversion));
-        setupPanel(symbolConversionPanel, CLEANUP_PANEL_MARGINS);
+        setupPanel(symbolConversionPanel, 6);
+        symbolConversionPanel.margins = CLEANUP_PANEL_MARGINS;
         symbolConversionPanel.alignChildren = ["fill", "top"];
         /* 選んでいる記号。show() 前はラジオの value を読み戻せないので、ここに持つ
            Chosen symbols, kept here as radio values cannot be read back before show() */
@@ -1995,7 +2058,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function addSymbolRadioPanel(parentGroup, labelSet, symbolChoice, choiceKey, onChoose) {
         var symbolRadioPanel = parentGroup.add("panel", undefined, getLabel(labelSet));
-        setupPanel(symbolRadioPanel, CLEANUP_PANEL_MARGINS);
+        setupPanel(symbolRadioPanel, 6);
+        symbolRadioPanel.margins = CLEANUP_PANEL_MARGINS;
         var symbolKinds = ["space", "underscore", "hyphen"];
         var symbolRadios = {};
 
@@ -2119,7 +2183,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function buildScopePanel(parentGroup, dialogState, hasSelection) {
         var scopePanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.scope));
-        setupPanel(scopePanel);
+        setupPanel(scopePanel, 6);
         var scopeRadios = {
             selection: scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.selection)),
             artboard: scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.artboard)),
@@ -2155,7 +2219,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function buildOptionsPanel(parentGroup, savedSettings, dialogState) {
         var optionsPanel = parentGroup.add("panel", undefined, getLabel(LABELS.panel.options));
-        setupPanel(optionsPanel);
+        setupPanel(optionsPanel, 6);
         addSettingCheckbox(optionsPanel, "includeHidden", DEFAULT_INCLUDE_HIDDEN, savedSettings, dialogState);
         addSettingCheckbox(optionsPanel, "includeLocked", DEFAULT_INCLUDE_LOCKED, savedSettings, dialogState);
         addSettingCheckbox(optionsPanel, "includeSymbols", DEFAULT_INCLUDE_SYMBOLS, savedSettings, dialogState);

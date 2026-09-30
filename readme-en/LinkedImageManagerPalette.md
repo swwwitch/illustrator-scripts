@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.10 (2026-10-01): The Change Extension and Clip Group Delete dialogs now use the shared button row. Unified the window and panel margins and spacing with the shared layout part
 - v1.5.9 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.5.8 (2026-09-29): Dialog opacity changed to 98%
 - v1.5.7 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in English, the status line now uses a half-width colon followed by a space instead of a full-width colon; temporary actions on the BridgeTalk side now use the shared part

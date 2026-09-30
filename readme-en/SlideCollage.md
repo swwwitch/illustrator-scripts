@@ -55,6 +55,7 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Update History
 
+- v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.2 (2026-09-29): The dialog now reopens where it was last closed and moves aside when it would cover the selected objects; its opacity is now 97%

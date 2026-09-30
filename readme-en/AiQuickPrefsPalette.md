@@ -82,6 +82,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Update History
 
+- v2.3.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v2.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.2.1 (2026-09-19) Merged AiQuickPrefsPalette-simple.jsx and AiQuickPrefsPalette-SuperSimple.jsx into this script. Flip/rotate moved to QuickTransformPalette.jsx; artboard name and border moved to PresetManagerArtboard.jsx.
 - v2.0.4 (2026-07-23) Added the "Open File Handling" button.

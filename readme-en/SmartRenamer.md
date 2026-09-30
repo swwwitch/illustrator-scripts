@@ -49,6 +49,11 @@
 
 ### Update History
 
+
+#### v1.6.7 (2026-10-01)
+
+- Unified the window and panel margins and spacing with the shared layout part
+
     - v1.0 (20250509): Initial version
     - v1.5.2 (20260508): Refresh now commits right-column manual name edits and reorder changes
     - v1.5.3 (20260508): On name collisions, the first occurrence now starts at "_1" (non-duplicates remain untouched)

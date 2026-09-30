@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPre
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiQuickPrefsPalette";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette.md"; /* README (English) */
@@ -795,23 +795,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return checkbox;
     }
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        button.size = [button.size.width, button.size.height - px];
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // =========================================
     // パネル構築 / Panel builders
@@ -821,9 +882,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the Key Input panel (cursor step + unit popup); the editing flag and unit-sync are kept inside, returns {field, isEditing(), syncDisplay()} */
     function buildKeyInputPanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.keyInput'));
-        panel.orientation = 'row';
-        panel.alignChildren = ['left', 'center'];
-        panel.margins = PANEL_MARGINS;
+        setupPanel(panel, 6);
+        panel.orientation = "row"; /* 入力欄と単位を横に並べる / field and unit side by side */
+        panel.alignChildren = ["left", "center"];
 
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var cursorStepGroup = panel.add('group');
@@ -899,7 +960,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the Align Options panel (Preview Bounds / Align to Glyph Bounds); returns {preview, glyphBounds}. Glyph bounds toggles both point & area type together */
     function buildAlignPanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.align'));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         /* プレビュー境界 / Preview bounds */
         var checkboxPreview = addBooleanCheckbox(panel, 'checkbox.previewBounds', 'includeStrokeInBounds', 'tooltip.previewBounds');
@@ -920,7 +981,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the Transform Options panel (Pattern / Corners / Strokes & Effects); returns {pattern, corner, stroke}. Option+click toggles all three */
     function buildTransformPanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.transform'));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         /* パターンを変形 / Transform patterns */
         var checkboxPattern = panel.add('checkbox', undefined, getLabel('checkbox.transformPattern'));
@@ -967,7 +1028,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the Copy / Paste panel (Paste without Formatting / Paste Remembers Layers); returns {pastePlain, pastePreserve} */
     function buildCopyPastePanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.copyPaste'));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         /* 書式なしペースト / Paste without formatting */
         var checkboxPastePlain = addBooleanCheckbox(panel, 'checkbox.pastePlain', 'plugin/FileClipboard/pasteWithoutFormatting', 'tooltip.pastePlain');
@@ -982,7 +1043,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the Drawing panel (Real-time Drawing & Editing + Refresh Preview button); returns {realtime, refreshButton}. refreshButton is for trimButtonHeight after layout */
     function buildDrawingPanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.drawing'));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         /* リアルタイムの描画と編集（上段）＋ 更新ボタン（次の行）を縦並び / Real-time editing checkbox (top) + Refresh button (next line), stacked */
 
@@ -1014,7 +1075,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Build the View panel: Edges / Artboards / Video Ruler / Canvas Color toggle buttons; each button is returned for trimButtonHeight after layout */
     function buildViewPanel(parent) {
         var panel = parent.add('panel', undefined, getLabel('panel.view'));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         /* 幅を抑えるため2列×2行に配置 / Two columns by two rows, to keep the palette narrow */
         var firstRow = addViewButtonRow(panel);
@@ -1088,8 +1149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var initialPrefs = readAllPreferences();
 
         var dialog = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = 'column';
-        dialog.alignChildren = ['fill', 'top'];
+        setupWindow(dialog);
         dialog.opacity = DIALOG_OPACITY;
         $.global.__aiQuickPrefsPalette = dialog;
 

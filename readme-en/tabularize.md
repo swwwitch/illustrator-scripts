@@ -38,3 +38,4 @@ Interprets the selection as a table grid and generates fills and rules, both hor
 - v1.3.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored until Illustrator quits). Fixed the Preview label and the tooltips showing their key names
 - v1.3.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.3.5 (2026-10-01) Removed the custom first-open offset so the shared part handles the position, and aligned the button row with the standard form. Unified the window and panel margins and spacing with the shared layout part

@@ -141,6 +141,7 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v2.1.2 (2026-09-28) : The button row is now built with the shared part
 - v2.1.3 (2026-09-29) : Dialog opacity changed to 98%
 - v2.1.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
+- v2.1.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 
 ### Script info
 

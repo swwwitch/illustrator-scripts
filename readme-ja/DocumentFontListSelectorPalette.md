@@ -53,5 +53,6 @@
 
 ### 更新履歴
 
+- v1.1.7（2026-10-01）ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v1.1.6（2026-09-26）ファイル名を `DocumentFontListSelector.jsx` から `DocumentFontListSelectorPalette.jsx` に変更。
 - v1.1.5（2026-09-25）パレットの参照を常駐エンジンに保持し、CloseAllPalettes.jsx から閉じられるようにした。

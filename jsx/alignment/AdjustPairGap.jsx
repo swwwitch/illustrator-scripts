@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPair
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */
@@ -53,13 +53,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var PANEL_MARGINS       = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / Panel margins [left, top, right, bottom] */
-    var PANEL_SPACING       = 8;                /* パネル内の要素間隔 / Spacing inside panels */
     var GRID_CELL_SIZE      = [22, 20];         /* ［固定］の十字のセルの幅・高さ (px) / Cross-grid cell width, height (px) */
     var JUSTIFY_BUTTON_SIZE = [26, 26];         /* 行揃えボタンの幅・高さ (px) / Justification button width, height (px) */
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
     /**
-     * パネルの共通設定を適用する
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
@@ -73,19 +94,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     }
 
     /**
-     * グループの共通設定を適用する（row は横並びなので縦中央、column は縦並びなので左揃え）
-     * @param {Group} targetGroup - 対象のグループ
-     * @param {string} [orientation] - "row" または "column"（既定）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupGroup(targetGroup, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        targetGroup.orientation = groupOrientation;
-        targetGroup.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        targetGroup.alignment = "fill";
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1392,8 +1440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // 間隔行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
         // Gap row (label + input); the unit lives in the panel title instead
         var spacingRow = gapPanel.add("group");
-        setupGroup(spacingRow, "row");
-        spacingRow.alignment = "left"; // 広げず左寄せ / Keep at natural width, packed left
+        setupRow(spacingRow, "left", 8); // 広げず左寄せ / Keep at natural width, packed left
         spacingRow.add("statictext", undefined, labelText("fieldLabel.spacing"));
         /* ∧∨と入力欄は隙間0で突き合わせる。負の値も許容（オブジェクトを重ねる）/ Stepper butts the field; negatives allowed (overlap) */
         var spacingFieldGroup = spacingRow.add("group");
@@ -1472,8 +1519,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
         // 整列行（ラベル＋なし/開始/中央/終端）/ Alignment row (label + none/start/center/end)
         var alignRow = alignmentPanel.add("group");
-        setupGroup(alignRow, "row");
-        alignRow.alignment = "left";
+        setupRow(alignRow, "left", 8);
         var alignLabel = alignRow.add("statictext", undefined, labelText("fieldLabel.align"));
         var alignRadios = {
             none: alignRow.add("radiobutton", undefined, getLabel("radio.alignNone")),
@@ -1488,8 +1534,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // 位置行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
         // Position row (label + input); the unit lives in the panel title instead
         var offsetRow = alignmentPanel.add("group");
-        setupGroup(offsetRow, "row");
-        offsetRow.alignment = "left";
+        setupRow(offsetRow, "left", 8);
         var offsetLabel = offsetRow.add("statictext", undefined, labelText("fieldLabel.position"));
         var offsetFieldGroup = offsetRow.add("group");
         offsetFieldGroup.orientation = "row";
@@ -1840,8 +1885,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
      */
     function buildSettingsDialog(initialGapPoints) {
         var settingsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        settingsDialog.orientation = "column";
-        settingsDialog.alignChildren = "fill";
+        setupWindow(settingsDialog);
 
         // モード（1カラム・ラジオ縦並び）/ Mode (single column, radios stacked)
         var modeRefs = buildModePanel(settingsDialog);
@@ -1850,7 +1894,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var keyPositionColumns = settingsDialog.add("group");
         keyPositionColumns.orientation = "row";
         keyPositionColumns.alignChildren = ["fill", "fill"]; // 2パネルの高さをそろえる / Match panel heights
-        keyPositionColumns.spacing = PANEL_SPACING;
+        keyPositionColumns.spacing = COLUMN_SPACING;
 
         // キーオブジェクト（上・左・右・下を十字に配置）/ Key object (arranged as a cross)
         var fixedSideRefs = buildFixedSidePanel(keyPositionColumns);
@@ -1869,9 +1913,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var justifyRefs = buildJustifyPanel(settingsDialog);
 
         // ボタン（Mac 規約：Cancel → OK）/ Buttons (Mac order: Cancel → OK)
-        var buttonRow = addButtonRow(settingsDialog, { centered: true }); // ボタンをダイアログの左右中央に / Center the buttons in the dialog
-        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = buttonRow.rowGroup.add("button", undefined, "OK", { name: "ok" });
+        var buttonRow = addButtonRow(settingsDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, "OK", { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
         // 行揃えのボタンが増えたので Enter / ESC の行き先を明示する
         // Spell out where Enter / ESC go, now that the justification buttons are pushbuttons too
         settingsDialog.defaultElement = btnOK;

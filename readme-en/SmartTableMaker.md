@@ -38,6 +38,7 @@ In the height (%), stroke weight, corner radius and Width fields, the stepper bu
 - v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.2.5 (20260930): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
 - v1.2.6 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
+- v1.2.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 
 ### Script info
 

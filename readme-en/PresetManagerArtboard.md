@@ -33,6 +33,7 @@ Switches the artboard-name and artboard-border display preferences from a dialog
 
 ### Update History
 
+- v1.0.6 (2026-10-01) Placed the button row directly in the dialog like other scripts and removed the hand-written centering. Unified the window and panel margins and spacing with the shared layout part
 - v1.0.5 (2026-09-30) Fixed an error when running with characters selected by the Type tool
 - v1.0.4 (2026-09-29) Dialog opacity changed to 98%
 - v1.0.3 (2026-09-28) The button row is now built with the shared part

@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartVerti
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartVerticalAlign";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -83,26 +83,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    /* 余白と間隔 / Margins and spacing */
-    var PANEL_MARGINS = [15, 20, 15, 15];      /* パネル余白 [左,上,右,下] */
-    var RADIO_SPACING = 5;                     /* ラジオボタンの行間 / spacing between radio buttons */
-    var PREVIEW_ROW_MARGINS = [15, 0, 15, 0];  /* ［プレビュー境界］行の余白 */
-    var BUTTON_WIDTH = 90;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定
-     * @param {Panel} targetPanel - 対象パネル
-     * @param {number} [spacing] - 要素間隔（省略時はScriptUIの既定値のまま）
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
-        targetPanel.orientation = 'column';
-        targetPanel.alignChildren = ['left', 'top'];
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
         targetPanel.margins = PANEL_MARGINS;
-        if (typeof spacing === 'number') {
-            targetPanel.spacing = spacing;
-        }
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var PREVIEW_ROW_MARGINS = [15, 0, 15, 0];  /* ［プレビュー境界］行の余白 */
+    var BUTTON_WIDTH = 90;
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -734,7 +795,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
      */
     function addGlyphBoundsPanel(targetDialog, alignableItems) {
         var glyphBoundsPanel = targetDialog.add('panel', undefined, getLabel('panel.glyphBounds'));
-        setupPanel(glyphBoundsPanel);
+        setupPanel(glyphBoundsPanel, 6);
 
         /* 選択中の文字種。ポイント文字／エリア内文字のときだけ他方をディムする
            / Kind of the selected text; dims the checkbox for the other kind */
@@ -780,7 +841,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
      */
     function addAlignmentPanel(targetDialog) {
         var alignmentPanel = targetDialog.add('panel', undefined, getLabel('panel.alignment'));
-        setupPanel(alignmentPanel, RADIO_SPACING);
+        setupPanel(alignmentPanel, 6);
 
         for (var i = 0; i < ALIGN_OPTIONS.length; i++) {
             var alignRadio = alignmentPanel.add('radiobutton', undefined, getLabel(ALIGN_OPTIONS[i].labelKey));
@@ -872,8 +933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
         var alignDialog = new Window('dialog');
         alignDialog.text = getLabel('dialog.title') + ' ' + SCRIPT_VERSION;
-        alignDialog.orientation = 'column';
-        alignDialog.alignChildren = ['fill', 'top'];
+        setupWindow(alignDialog);
 
         var glyphBoundsCheckboxes = addGlyphBoundsPanel(alignDialog, alignableItems);
         addAlignmentPanel(alignDialog);

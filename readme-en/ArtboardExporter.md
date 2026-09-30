@@ -67,6 +67,7 @@ Clicking Export remembers each artboard's settings plus the file name, destinati
 
 ### Update History
 
+- v1.0.1 (2026-10-01) The progress palette's Cancel button now uses the shared button-row part. Unified the window and panel margins and spacing with the shared layout part
 - v1.0.0 (2026-09-30) First release
 
 ### Script info

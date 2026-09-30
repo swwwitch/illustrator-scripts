@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawRectan
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DrawRectangleBehindSelectedObject";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawRectangleBehindSelectedObject.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawRectangleBehindSelectedObject.md"; /* README (English) */
@@ -45,10 +45,87 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var COLUMN_SPACING       = 16;                  /* 2カラムの間隔 / Gap between columns */
-    var COLUMN_INNER_SPACING = 12;                  /* カラム内のパネル間隔 / Gap between panels in a column */
-    var PANEL_MARGINS        = [15, 20, 15, 10];    /* パネル余白 [左,上,右,下] / Panel margins */
-    var MARGIN_PANEL_MARGINS = [15, 15, 20, 15];    /* マージンパネルの余白 / Margin panel margins */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var NUMBER_FIELD_WIDTH   = 35;                  /* 数値欄の幅 / Numeric field width */
     var CMYK_COLUMN_WIDTH    = 40;                  /* CMYK の列幅 / CMYK column width */
     var OPACITY_FIELD_WIDTH  = 40;                  /* 不透明度欄の幅 / Opacity field width */
@@ -3689,16 +3766,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Object} titleLabel - パネル名のラベル
      * @param {string} orientation - 'row' / 'column'
      * @param {Array|string} alignChildren - 子の揃え
-     * @param {number[]} margins - 余白
-     * @param {number} [spacing] - 間隔
+     * @param {number} [spacing] - 間隔（省略時は PANEL_SPACING）
      * @returns {Panel} パネル
      */
-    function addPanel(parent, titleLabel, orientation, alignChildren, margins, spacing) {
+    function addPanel(parent, titleLabel, orientation, alignChildren, spacing) {
         var panel = parent.add('panel', undefined, getLabel(titleLabel));
+        setupPanel(panel, spacing);
         panel.orientation = orientation;
         panel.alignChildren = alignChildren;
-        if (typeof spacing === 'number') panel.spacing = spacing;
-        panel.margins = margins;
         return panel;
     }
 
@@ -3711,7 +3786,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var column = parent.add('group');
         column.orientation = 'column';
         column.alignChildren = 'fill';
-        column.spacing = COLUMN_INNER_SPACING;
+        column.spacing = WINDOW_SPACING;
         return column;
     }
 
@@ -4113,7 +4188,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildMarginPanel(parent, ui) {
-        var marginPanel = addPanel(parent, LABELS.panel.margin, 'row', ['left', 'top'], MARGIN_PANEL_MARGINS, 10);
+        var marginPanel = addPanel(parent, LABELS.panel.margin, 'row', ['left', 'top'], 10);
         var marginBody = addRowGroup(marginPanel, ['left', 'center'], 10);
         marginBody.margins = 0;
 
@@ -4174,7 +4249,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildCornerPanel(parent, ui) {
-        var cornerPanel = addPanel(parent, LABELS.panel.corner, 'column', ['left', 'top'], PANEL_MARGINS);
+        var cornerPanel = addPanel(parent, LABELS.panel.corner, 'column', ['left', 'top'], 6);
 
         var radiusRow = addRowGroup(cornerPanel, ['left', 'center']);
         ui.cbRoundEnable = radiusRow.add('checkbox', undefined, '');
@@ -4230,7 +4305,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildColorPanel(parent, ui) {
-        var colorPanel = addPanel(parent, LABELS.panel.color, 'column', 'left', PANEL_MARGINS, 10);
+        var colorPanel = addPanel(parent, LABELS.panel.color, 'column', 'left', 10);
 
         ui.blackRadio = colorPanel.add('radiobutton', undefined, getLabel(LABELS.radio.colorBlack));
         ui.blackRadio.helpTip = getLabel(LABELS.tooltip.colorBlack);
@@ -4300,7 +4375,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildTargetPanel(parent, ui) {
-        var targetPanel = addPanel(parent, LABELS.panel.target, 'row', ['left', 'center'], PANEL_MARGINS, 20);
+        var targetPanel = addPanel(parent, LABELS.panel.target, 'row', ['left', 'center'], 20);
         ui.individualRadio = targetPanel.add('radiobutton', undefined, getLabel(LABELS.radio.targetIndividual));
         ui.individualRadio.helpTip = getLabel(LABELS.tooltip.targetIndividual);
         ui.groupRadio = targetPanel.add('radiobutton', undefined, getLabel(LABELS.radio.targetGroup));
@@ -4321,7 +4396,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildOpacityPanel(parent, ui) {
-        var opacityPanel = addPanel(parent, LABELS.panel.opacity, 'row', ['left', 'center'], PANEL_MARGINS, 10);
+        var opacityPanel = addPanel(parent, LABELS.panel.opacity, 'row', ['left', 'center'], 10);
         ui.cbOpacityApply = opacityPanel.add('checkbox', undefined, getLabel(LABELS.checkbox.opacityApply));
         ui.cbOpacityApply.value = true;
         ui.cbOpacityApply.helpTip = getLabel(LABELS.tooltip.opacityApply);
@@ -4365,7 +4440,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildPaintTypePanel(parent, ui) {
-        var paintTypePanel = addPanel(parent, LABELS.panel.paintType, 'row', ['left', 'center'], PANEL_MARGINS, 20);
+        var paintTypePanel = addPanel(parent, LABELS.panel.paintType, 'row', ['left', 'center'], 20);
         ui.paintFillRadio = paintTypePanel.add('radiobutton', undefined, getLabel(LABELS.radio.paintFill));
         ui.paintStrokeRadio = paintTypePanel.add('radiobutton', undefined, getLabel(LABELS.radio.paintStroke));
 
@@ -4487,9 +4562,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function buildOkCancelButtons(dlg, ui) {
-        var buttonRow = addButtonRow(dlg, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add('button', undefined, getLabel(LABELS.button.cancel), { name: 'cancel' });
-        var btnOK = buttonRow.rowGroup.add('button', undefined, getLabel(LABELS.button.ok), { name: 'ok' });
+        var buttonRow = addButtonRow(dlg);
+        var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel(LABELS.button.cancel), { name: 'cancel' });
+        var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel(LABELS.button.ok), { name: 'ok' });
+        alignRightOnlyButtonRow(buttonRow);
 
         btnOK.onClick = function () {
             saveLastChoice(serializeChoice(collectChoice(ui)));
@@ -4561,6 +4637,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sessionSelection = snapshotSelection(doc);
 
         var dlg = new Window('dialog', getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(dlg);
         dlg.alignChildren = 'left';
 
         var ui = { dialog: dlg, doc: doc, lastRoundValue: '2' };

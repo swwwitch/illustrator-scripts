@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeD
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartFreeDistort";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartFreeDistort.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeDistort.md"; /* README (English) */
@@ -255,54 +255,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-    var AMOUNT_SLIDER_WIDTH = 220;           /* 変形量スライダーの幅（px） / amount slider width in pixels */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウに共通のレイアウトを適用する。
-     * @param {Window} win - 対象のダイアログウィンドウ
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネルに共通のレイアウトを適用する。
-     * @param {Panel} panel - 対象のパネル
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
-     * 横並びグループに共通のレイアウトを適用する。
-     * @param {Group} group - 対象のグループ
-     * @param {(string|Array<string>)} [alignment] - 親の中での配置（省略時は "left"）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.alignChildren = ["left", "center"];
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var AMOUNT_SLIDER_WIDTH = 220;           /* 変形量スライダーの幅（px） / amount slider width in pixels */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -1277,10 +1309,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹�
          */
         function buildAdjustPanel(parentWindow) {
             var adjustPanel = parentWindow.add("panel", undefined, getLabel("panel.adjust"));
-            setupPanel(adjustPanel);
+            setupPanel(adjustPanel, 6);
 
             var amountPanel = adjustPanel.add("panel", undefined, getLabel("panel.amount"));
-            setupPanel(amountPanel);
+            setupPanel(amountPanel, 6);
 
             var amountSlider = amountPanel.add("slider", undefined,
                 DISTORT_CONFIG.amountDefaultPercent,
@@ -1304,12 +1336,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹�
             amountReadout.alignment = ["center", "center"];
 
             var strengthPanel = adjustPanel.add("panel", undefined, getLabel("panel.strength"));
-            setupPanel(strengthPanel);
+            setupPanel(strengthPanel, 6);
 
             /* ラジオを内側のグループにまとめ、パネルの左右中央に置く
                Group the radios so the row can be centered inside the panel */
             var strengthRadioRow = strengthPanel.add("group");
-            setupRow(strengthRadioRow, "center");
+            setupRow(strengthRadioRow, "center", 8);
 
             return {
                 adjustPanel: adjustPanel,
@@ -1368,7 +1400,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹�
             var fixedPresetColumn = presetColumnsGroup.add("group");
             fixedPresetColumn.orientation = "column";
             fixedPresetColumn.alignChildren = ["fill", "top"];
-            fixedPresetColumn.spacing = PANEL_SPACING;
+            fixedPresetColumn.spacing = 8;
 
             for (var i = 0; i < FIXED_GROUP_KEYS.length; i++) {
                 addPresetIconPanel(fixedPresetColumn, FIXED_GROUP_KEYS[i], presetControls);

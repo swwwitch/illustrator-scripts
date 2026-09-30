@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridM
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md"; /* README (English) */
@@ -72,12 +72,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
     /* ダイアログとパネルの外観 / Dialog and panel appearance */
     var DIALOG_LAYOUT = {
-        dialogOffsetX: 300,       /* ダイアログの表示位置オフセットX / dialog offset X */
-        dialogOffsetY: 0,         /* ダイアログの表示位置オフセットY / dialog offset Y */
         tabSize: [300, 460],      /* タブパネルの最小サイズ / minimum size of the tabbed panel */
-        panelMargins: [15, 20, 15, 10], /* パネル余白 [左,上,右,下] / panel margins */
         viewLabelWidth: 58,       /* 画面表示タブのラベル幅 / label width in the Display tab */
         viewSliderWidth: 200,     /* 画面表示タブのスライダー幅 / slider width in the Display tab */
         viewButtonWidth: 220,     /* 表示コマンドボタンの幅 / view command button width */
@@ -3127,10 +3203,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          */
         function addTabColumn(tabbedPanel, labelSet) {
             var tab = tabbedPanel.add("tab", undefined, getLabel(labelSet));
-            tab.orientation = "column";
-            tab.alignChildren = ["fill", "top"];
-            tab.spacing = 8;
-            tab.margins = 10;
+            setupTab(tab, 8);
 
             var column = tab.add("group");
             column.orientation = "column";
@@ -3169,10 +3242,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          */
         function addPanel(parent, title, spacing) {
             var panel = parent.add("panel", undefined, title);
-            panel.orientation = "column";
-            panel.alignChildren = ["fill", "top"];
-            panel.margins = DIALOG_LAYOUT.panelMargins;
-            if (spacing) panel.spacing = spacing;
+            setupPanel(panel, spacing);
             return panel;
         }
 
@@ -3185,9 +3255,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          */
         function addRadioPanel(parent, title) {
             var panel = parent.add("panel", undefined, title);
+            setupPanel(panel);
+            /* ラジオボタンは横に並べる / Radio buttons run in a row */
             panel.orientation = "row";
             panel.alignChildren = ["left", "center"];
-            panel.margins = DIALOG_LAYOUT.panelMargins;
             return panel;
         }
 
@@ -3405,7 +3476,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {Object} {countInput, gutterInput}
          */
         function addGridCountPanel(parent, titleLabelSet, countLabelSet) {
-            var panel = addPanel(parent, getLabel(titleLabelSet), 8);
+            var panel = addPanel(parent, getLabel(titleLabelSet), 6);
             var row = addRow(panel);
 
             row.add("statictext", undefined, labelText(countLabelSet));
@@ -3685,7 +3756,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {void}
          */
         function buildMarginPanel(parent) {
-            var marginPanel = addPanel(parent, getLabel(LABELS.panel.margin), 10);
+            var marginPanel = addPanel(parent, getLabel(LABELS.panel.margin));
             marginFields = buildLinkedQuadUI(marginPanel, defaultValueText(GENERATION_SETTINGS.defaultMarginMm), 4, rulerUnit.label);
 
             /* アートボード基準のときだけ表示・操作できる
@@ -3701,7 +3772,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {void}
          */
         function buildFramePanel(parent) {
-            var framePanel = addPanel(parent, getLabel(LABELS.panel.frame), 10);
+            var framePanel = addPanel(parent, getLabel(LABELS.panel.frame));
             setPanelCollapsed(framePanel, !isArtboardBased);
 
             var widthRow = addToggleValueRow(framePanel, LABELS.fieldLabel.width);
@@ -3782,7 +3853,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {void}
          */
         function buildOuterPanel(parent) {
-            var outerPanel = addPanel(parent, getLabel(LABELS.panel.outer), 10);
+            var outerPanel = addPanel(parent, getLabel(LABELS.panel.outer));
 
             keepOuterCheckbox = outerPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.keepOuter));
             keepOuterCheckbox.value = true;
@@ -3870,7 +3941,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {void}
          */
         function buildTitlePanel(parent) {
-            var titlePanel = addPanel(parent, getLabel(LABELS.panel.titleArea), 10);
+            var titlePanel = addPanel(parent, getLabel(LABELS.panel.titleArea));
 
             // 有効 ＋ 幅／高さ（1行）
             var sizeRow = addToggleValueRow(titlePanel, LABELS.fieldLabel.titleSize, LABELS.tooltip.titleSize);
@@ -4070,7 +4141,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @returns {void}
          */
         function buildDisplayTab(parent) {
-            var zoomPanPanel = addPanel(parent, getLabel(LABELS.panel.zoomPan), 10);
+            var zoomPanPanel = addPanel(parent, getLabel(LABELS.panel.zoomPan));
 
             var zoomPanGroup = zoomPanPanel.add("group");
             zoomPanGroup.orientation = "column";
@@ -4086,7 +4157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 sliderHelpTip: getLabel(LABELS.tooltip.viewSlider)
             });
 
-            var viewCommandPanel = addPanel(parent, getLabel(LABELS.panel.viewCommands), 10);
+            var viewCommandPanel = addPanel(parent, getLabel(LABELS.panel.viewCommands));
 
             var viewCommandGroup = viewCommandPanel.add("group");
             viewCommandGroup.orientation = "column";
@@ -4994,20 +5065,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         }
 
         var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.spacing = 20;
-        dialog.margins = 16;
+        setupWindow(dialog);
 
-        /* 初めて開くときは表示位置をずらす（生成物が隠れないように）。2回目からは prepareDialogWindow() が前回の位置に戻す
-           Shift the dialog on first open so it does not cover the artwork; later opens return to the last position via prepareDialogWindow() */
         dialog.onShow = function () {
             /* 表示前に切り替えた enabled（マージンのパネル・タブなど）を∧∨にも反映 / reflect enabled states set before showing */
             syncStepperStates();
-            dialog.location = [
-                dialog.location[0] + DIALOG_LAYOUT.dialogOffsetX,
-                dialog.location[1] + DIALOG_LAYOUT.dialogOffsetY
-            ];
         };
 
         /* 4タブ：マージン（＋フレーム）／外側エリア（＋タイトルエリア）／内側エリア／画面表示

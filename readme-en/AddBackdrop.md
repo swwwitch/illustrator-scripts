@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.6 (2026-10-01): Aligned the button row with the standard form (no visible change). Unified the window and panel margins and spacing with the shared layout part
 - v1.7.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%

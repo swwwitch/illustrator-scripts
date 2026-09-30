@@ -64,6 +64,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.0.3 (2026-09-29): Esc now closes the palette
 - v1.0.2 (2026-09-29): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.0.1 (2026-09-23): List entries now read "#1" instead of the Japanese ordinal

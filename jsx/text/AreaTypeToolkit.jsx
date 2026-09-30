@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeTo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -1251,25 +1251,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 禁則・文字組みポップアップの幅（英語は語が長いので広め）/ Width of the kinsoku and mojikumi popups (wider in English) */
     var JP_DROPDOWN_WIDTH = (uiLang === "ja") ? 140 : 190;
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-    var DIALOG_MARGINS = 20;               /* ダイアログの余白 / dialog margins */
-    var ICON_BUTTON_SIZE = 26;             /* 行揃え・配置のアイコンボタンの一辺 / side of the icon buttons */
-    var LEADING_LABEL_WIDTH = 48;          /* 行送りの行ラベルの幅 / width of the leading row labels */
-    var FRAME_LABEL_WIDTH = 28;            /* 幅・高さの行ラベルの幅 / width of the width and height labels */
-    var SMALL_FIELD_CHARACTERS = 4;        /* 数値欄の文字数 / width of a number field */
-    var SIZE_FIELD_CHARACTERS = 5;         /* 幅・高さ欄の文字数 / width of the width and height fields */
-    var ROW_GAP_HEIGHT = 5;                /* 行のあいだの空き / gap between rows */
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定を当てる
-     * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 子どうしの間隔（省略時は PANEL_SPACING）
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function applyPanelLayout(targetPanel, spacing) {
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
         targetPanel.orientation = "column";
         targetPanel.alignChildren = ["fill", "top"];
         targetPanel.alignment = "fill";
@@ -1278,21 +1289,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /**
-     * ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）
-     * size を変えても location は動かないので、上下から均等に詰めるには位置も半分ずらす
-     * Changing size keeps the location, so the position shifts by half to trim top and bottom evenly
-     * @param {Button} targetButton - 対象のボタン
-     * @param {number} trimPx - 詰める量（px）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
      * @returns {void}
      */
-    function trimButtonHeight(targetButton, trimPx) {
-        /* レイアウト前など、size・location を変えられないときは何もしない / Leave it as is when size or location cannot be changed yet */
-        try {
-            var buttonLocation = [targetButton.location[0], targetButton.location[1]];
-            targetButton.size = [targetButton.size.width, targetButton.size.height - trimPx];
-            targetButton.location = [buttonLocation[0], buttonLocation[1] + trimPx / 2];
-        } catch (e) { }
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
     }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var ICON_BUTTON_SIZE = 26;             /* 行揃え・配置のアイコンボタンの一辺 / side of the icon buttons */
+    var LEADING_LABEL_WIDTH = 48;          /* 行送りの行ラベルの幅 / width of the leading row labels */
+    var FRAME_LABEL_WIDTH = 28;            /* 幅・高さの行ラベルの幅 / width of the width and height labels */
+    var SMALL_FIELD_CHARACTERS = 4;        /* 数値欄の文字数 / width of a number field */
+    var SIZE_FIELD_CHARACTERS = 5;         /* 幅・高さ欄の文字数 / width of the width and height fields */
+    var ROW_GAP_HEIGHT = 5;                /* 行のあいだの空き / gap between rows */
 
     /**
      * ラジオ群から1つだけを選択状態にする（null ならすべて外す）
@@ -2465,12 +2508,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function showConvertDialog(doc, selectedItems) {
         var convertDialog = new Window("dialog", getLabel("dialog.convertTitle") + " " + SCRIPT_VERSION);
-        convertDialog.alignChildren = "fill";
-        convertDialog.margins = DIALOG_MARGINS;
+        setupWindow(convertDialog);
 
         /* 作成方法のラジオボタン / Creation-method radios */
         var createMethodPanel = convertDialog.add("panel", undefined, getLabel("panel.createMethod"));
-        applyPanelLayout(createMethodPanel);
+        setupPanel(createMethodPanel, 6);
 
         var radStyleSimple = createMethodPanel.add("radiobutton", undefined, getLabel("radio.styleSimple"));
         var radStyleButton = createMethodPanel.add("radiobutton", undefined, getLabel("radio.styleButton"));
@@ -2483,9 +2525,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         radUseShapeDummy.helpTip = getLabel("tooltip.useShapeDummy");
 
         /* ボタンエリア：中央に［キャンセル］［変換］/ Button area: Cancel and Convert, centered */
-        var buttonRow = addButtonRow(convertDialog, { centered: true });
-        var btnCancelConvert = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnConvert = buttonRow.rowGroup.add("button", undefined, getLabel("button.convert"), { name: "ok" });
+        var buttonRow = addButtonRow(convertDialog);
+        var btnCancelConvert = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnConvert = buttonRow.rightGroup.add("button", undefined, getLabel("button.convert"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         applyConvertMethodGuidance({
             simple: radStyleSimple,
@@ -3141,11 +3184,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function showSeparateTextDialog(doc, areaTextFrames, adjustSettings) {
         var separateDialog = new Window("dialog", getLabel("dialog.separateTitle"));
-        separateDialog.alignChildren = "fill";
-        separateDialog.margins = DIALOG_MARGINS;
+        setupWindow(separateDialog);
 
         var frameHandlingPanel = separateDialog.add("panel", undefined, getLabel("panel.frameHandling"));
-        applyPanelLayout(frameHandlingPanel);
+        setupPanel(frameHandlingPanel, 6);
         var radStrokeBlack = frameHandlingPanel.add("radiobutton", undefined, getLabel("radio.strokeBlack"));
         var radHidePath = frameHandlingPanel.add("radiobutton", undefined, getLabel("radio.hidePath"));
         var radRemovePath = frameHandlingPanel.add("radiobutton", undefined, getLabel("radio.removePath"));
@@ -3155,7 +3197,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* テキストの処理：あふれの解決と、折り返しの強制改行化
            Text handling: resolving the overset and turning the wraps into hard returns */
         var textHandlingPanel = separateDialog.add("panel", undefined, getLabel("panel.textHandling"));
-        applyPanelLayout(textHandlingPanel);
+        setupPanel(textHandlingPanel, 6);
         var chkResolveOverset = textHandlingPanel.add("checkbox", undefined, getLabel("checkbox.resolveOverset"));
         var chkForceLineBreaks = textHandlingPanel.add("checkbox", undefined, getLabel("checkbox.forceLineBreaks"));
         chkResolveOverset.helpTip = getLabel("tooltip.resolveOverset");
@@ -3257,7 +3299,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addRolePanel(dialogControls, parentColumn) {
         var rolePanel = parentColumn.add("panel", undefined, getLabel("panel.role"));
-        applyPanelLayout(rolePanel, 4);
+        setupPanel(rolePanel, 4);
         rolePanel.orientation = "row";
         rolePanel.alignChildren = ["left", "center"];
         dialogControls.radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
@@ -3277,7 +3319,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addLeadingPanel(dialogControls, parentColumn) {
         var leadingPanel = parentColumn.add("panel", undefined, getLabel("panel.leading"));
-        applyPanelLayout(leadingPanel);
+        setupPanel(leadingPanel, 6);
         dialogControls.etLeadingEffective = addNumberRow(leadingPanel, labelText("fieldLabel.leadingEffective"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, "pt").field;
         dialogControls.etLeadingPercent = addNumberRow(leadingPanel, labelText("fieldLabel.leadingPercent"), LEADING_LABEL_WIDTH, "", SMALL_FIELD_CHARACTERS, "%").field;
         leadingPanel.helpTip = getLabel("tooltip.leading");
@@ -3294,7 +3336,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addJustificationPanel(dialogControls, parentColumn, justifyState) {
         var justificationPanel = parentColumn.add("panel", undefined, getLabel("panel.justification"));
-        applyPanelLayout(justificationPanel, 4);
+        setupPanel(justificationPanel, 4);
         justificationPanel.orientation = "row";
         justificationPanel.alignChildren = ["center", "center"];
 
@@ -3710,7 +3752,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addIndentPanel(dialogControls, parentColumn, rulerLabel) {
         var indentPanel = parentColumn.add("panel", undefined, getLabel("panel.indent"));
-        applyPanelLayout(indentPanel);
+        setupPanel(indentPanel, 6);
         indentPanel.orientation = "row";
         indentPanel.alignChildren = ["left", "top"];
         var indentFieldsColumn = indentPanel.add("group");
@@ -3751,7 +3793,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addJpCompositionPanel(dialogControls, parentColumn) {
         var jpCompositionPanel = parentColumn.add("panel", undefined, getLabel("panel.jpComposition"));
-        applyPanelLayout(jpCompositionPanel, 4);
+        setupPanel(jpCompositionPanel, 4);
         dialogControls.kinsokuDropdown = addLabeledDropdown(jpCompositionPanel, "fieldLabel.kinsoku", KINSOKU_CHOICES, "tooltip.kinsoku");
         selectChoiceByValue(dialogControls.kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
         /* fill を打ち消して幅を指定する / Cancel fill and set the width */
@@ -3774,7 +3816,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addFontSizePanel(dialogControls, parentColumn) {
         var fontSizePanel = parentColumn.add("panel", undefined, getLabel("panel.fontSize"));
-        applyPanelLayout(fontSizePanel);
+        setupPanel(fontSizePanel, 6);
         /* パネル名が「フォントサイズ」なので、行のラベルは省く / The panel title already says it, so the row label is dropped */
         var fontSizeRow = fontSizePanel.add("group");
         fontSizeRow.alignment = "left";
@@ -3805,7 +3847,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addFrameSizePanel(dialogControls, parentColumn, rulerLabel) {
         var frameSizePanel = parentColumn.add("panel", undefined, getLabel("panel.frameSize"));
-        applyPanelLayout(frameSizePanel);
+        setupPanel(frameSizePanel, 6);
         dialogControls.etWidth = addNumberRow(frameSizePanel, labelText("fieldLabel.width"), FRAME_LABEL_WIDTH, "", SIZE_FIELD_CHARACTERS, rulerLabel).field;
         /* 幅の下に字詰め欄。空きラベルで幅の入力欄と左端をそろえる
            Chars per line goes under the width, lined up with the width field via an empty label */
@@ -3837,7 +3879,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addOffsetPanel(dialogControls, parentColumn, rulerLabel) {
         var offsetPanel = parentColumn.add("panel", undefined, getLabel("panel.offset"));
-        applyPanelLayout(offsetPanel);
+        setupPanel(offsetPanel, 6);
         var spacingRow = offsetPanel.add("group");
         dialogControls.chkSpacing = spacingRow.add("checkbox", undefined, "");
         dialogControls.etSpacing = addSteppedEditText(spacingRow, "0");
@@ -3858,7 +3900,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
      */
     function addTextAlignPanel(dialogControls, parentColumn, alignState) {
         var textAlignPanel = parentColumn.add("panel", undefined, getLabel("panel.textAlign"));
-        applyPanelLayout(textAlignPanel, 4);
+        setupPanel(textAlignPanel, 4);
         textAlignPanel.orientation = "row";
         textAlignPanel.alignChildren = ["center", "center"];
         textAlignPanel.helpTip = getLabel("tooltip.textAlign");
@@ -3885,14 +3927,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function buildAdjustDialog(rulerInfo, justifyState, alignState) {
         var dialogControls = {};
         dialogControls.window = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialogControls.window.alignChildren = "fill";
-        dialogControls.window.margins = DIALOG_MARGINS;
+        setupWindow(dialogControls.window);
 
         /* 2カラムレイアウト（左右カラムは上揃えで横いっぱいに）/ Two-column layout (columns fill width, top-aligned) */
         var columnsGroup = dialogControls.window.add("group");
         columnsGroup.orientation = "row";
         columnsGroup.alignChildren = ["fill", "top"];
-        columnsGroup.spacing = 10;
+        columnsGroup.spacing = COLUMN_SPACING;
 
         var leftColumn = columnsGroup.add("group");
         leftColumn.orientation = "column";
@@ -3922,6 +3963,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         dialogControls.btnSeparateText.helpTip = getLabel("tooltip.separateText");
         dialogControls.btnCancelAdjust = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         dialogControls.btnRun = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
 
         return dialogControls;
     }
@@ -4777,8 +4819,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 調整ダイアログを開いた時点からプレビューを反映する / The preview is on from the moment the dialog opens */
         updatePreview();
 
-        /* ［文字あふれ解消］［枠にフィット］だけ、上下2pxずつ詰めて小ぶりにする
-           Make the two font-fit buttons a little shorter (2px off the top and bottom) */
+        /* ［文字あふれ解消］［枠にフィット］だけ、高さを4px詰めて小ぶりにする
+           Make the two font-fit buttons a little shorter (4px off the height) */
         dialogControls.window.layout.layout(true);
         trimButtonHeight(dialogControls.btnShrinkToFit, 4);
         trimButtonHeight(dialogControls.btnFitFontSize, 4);

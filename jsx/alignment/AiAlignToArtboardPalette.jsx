@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboardPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboardPalette.md"; /* README (English) */
@@ -133,16 +133,91 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         // =========================================
         // レイアウト / Layout
         // =========================================
-        var WINDOW_MARGINS  = 15;   /* パレット外周の余白 / window margin */
-        var WINDOW_SPACING  = 12;   /* パレット内の要素間隔 / window spacing */
+
+        // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+        /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+        var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+        var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+        var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+        var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+        var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+        var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+        /**
+         * ウィンドウの共通設定
+         * @param {Window} targetWindow - 対象のウィンドウ
+         * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+         * @returns {void}
+         */
+        function setupWindow(targetWindow, spacing) {
+            targetWindow.orientation = "column";
+            targetWindow.alignChildren = "fill";
+            targetWindow.margins = WINDOW_MARGINS;
+            targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+        }
+
+        /**
+         * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+         * @param {Panel} targetPanel - 対象のパネル
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupPanel(targetPanel, spacing) {
+            targetPanel.orientation = "column";
+            targetPanel.alignChildren = ["fill", "top"];
+            targetPanel.alignment = "fill";
+            targetPanel.margins = PANEL_MARGINS;
+            targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * タブの共通設定
+         * @param {Tab} targetTab - 対象のタブ
+         * @param {number} [spacing] - 要素間隔（省略時は変えない）
+         * @returns {void}
+         */
+        function setupTab(targetTab, spacing) {
+            targetTab.orientation = "column";
+            targetTab.alignChildren = "fill";
+            targetTab.margins = TAB_MARGINS;
+            if (typeof spacing === "number") targetTab.spacing = spacing;
+        }
+
+        /**
+         * 横並びの行グループの共通設定（ボタン列など）。
+         * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+         * @param {Group} rowGroup - 対象のグループ
+         * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupRow(rowGroup, rowAlignment, spacing) {
+            rowGroup.orientation = "row";
+            rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+            rowGroup.alignChildren = ["left", "center"];
+            rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+         * @param {Button} targetButton - 対象のボタン
+         * @param {number} trimPixels - 詰める量（px）
+         * @returns {void}
+         */
+        function trimButtonHeight(targetButton, trimPixels) {
+            /* レイアウト前は size が無い / size is not set until the layout runs */
+            if (!targetButton.size) return;
+            targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+        }
+
+        // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
         var ICON_SIZE       = 30;   /* 整列アイコン1個の大きさ（px）/ size of each align icon (px) */
-        var ICON_GAP        = 6;    /* 整列アイコンどうしの間隔 / gap between align icons */
         var RADIO_GAP       = 14;   /* ラジオボタンどうしの間隔 / gap between the radio buttons */
         var CROSS_GAP       = 2;    /* 移動ボタン（十字）どうしの間隔 / gap between the move buttons */
         var CENTER_ROW_TOP  = 8;    /* 十字と中央揃えボタンの間隔 / gap between the cross and the centre-align buttons */
         var EDGE_ROW_TOP    = 5;    /* 分割の欄と［アートボードのエッジ］の間隔 / gap above the artboard-edge checkbox */
-        var PANEL_MARGINS   = [12, 16, 12, 10]; /* オプションパネルの余白 [左,上,右,下]（上はタイトルのぶん広め）/ options panel margins */
-        var COLUMN_SPACING  = 18;   /* ボタンの十字とオプションのパネルの間隔 / gap between the button cross and the options panel */
         var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
         var LABEL_FIELD_SPACING = 4; /* 入力欄と単位ラベルの間隔（既定は広すぎる）/ gap between the field and its unit label */
         /* マージン欄を3×3に並べるときの1セルの幅（日英で文字数が違うので分ける）
@@ -1537,20 +1612,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * 行グループの共通設定を適用する（alignment と alignChildren を必ず対で指定する）
-         * @param {Group} targetGroup - 対象のグループ
-         * @param {string} [alignment] - グループ自身の横方向の配置（既定は "left"）
-         * @param {number} [spacing] - グループ内の要素間隔
-         * @returns {void}
-         */
-        function setupRow(targetGroup, alignment, spacing) {
-            targetGroup.orientation = "row";
-            targetGroup.alignment = [alignment || "left", "center"];
-            targetGroup.alignChildren = ["left", "center"];
-            targetGroup.spacing = (typeof spacing === "number") ? spacing : ICON_GAP;
-        }
-
-        /**
          * コントロールを再描画する（notify は環境により例外を投げ得るので保護）
          * @param {object} targetControl - 対象のコントロール
          * @returns {void}
@@ -2930,11 +2991,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function addMarginPanel(targetWindow) {
             marginPanel = targetWindow.add("panel", undefined, panelTitleWithUnit("guide"));
             marginPanel.helpTip = getLabel("tooltip.panelGuide");
-            marginPanel.orientation = "column";
-            marginPanel.alignment = ["fill", "top"];
-            marginPanel.alignChildren = ["left", "top"];
-            marginPanel.margins = PANEL_MARGINS;
-            marginPanel.spacing = OPTION_SPACING;
+            setupPanel(marginPanel, OPTION_SPACING);
 
             /* 前回の設定を引き継ぐ（残したガイドと表示が食い違わないように）/ Carry over the previous settings */
             var paletteSettings = loadPaletteSettings();
@@ -3113,11 +3170,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
             dividePanel = targetWindow.add("panel", undefined, panelTitleWithUnit("divide"));
             dividePanel.helpTip = getLabel("tooltip.panelDivide");
-            dividePanel.orientation = "column";
-            dividePanel.alignment = ["fill", "top"];
-            dividePanel.alignChildren = ["left", "top"];
-            dividePanel.margins = PANEL_MARGINS;
-            dividePanel.spacing = OPTION_SPACING;
+            setupPanel(dividePanel, OPTION_SPACING);
 
             addDivideModeRow(dividePanel, paletteSettings);
             for (i = 0; i < DIVIDE_FIELD_ROWS.length; i++) {
@@ -3387,13 +3440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             var paletteSettings = loadPaletteSettings();
 
             var optionsPanel = parentRow.add("panel", undefined, getLabel("panel.options"));
-            optionsPanel.orientation = "column";
-            /* パネル自身は右カラムの幅いっぱいに、中のチェックボックスは左そろえ（fill の継承を打ち消す）
-               The panel fills the width of its column while its checkboxes stay left-aligned, cancelling the inherited fill */
-            optionsPanel.alignment = ["fill", "top"];
-            optionsPanel.alignChildren = ["left", "center"];
-            optionsPanel.margins = PANEL_MARGINS;
-            optionsPanel.spacing = OPTION_SPACING;
+            setupPanel(optionsPanel, OPTION_SPACING);
 
             /* ここでは控えの値を置くだけで、実際の初期値は loadBoundsPreferences() が入れ直す
                （常駐パレットの app は当てにならないため、環境設定はメインエンジンへ問い合わせる）
@@ -3530,10 +3577,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             initIconColors();
 
             var alignPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-            alignPalette.orientation = "column";
-            alignPalette.alignChildren = ["fill", "top"];
-            alignPalette.margins = WINDOW_MARGINS;
-            alignPalette.spacing = WINDOW_SPACING;
+            setupWindow(alignPalette);
 
             addColumnsRow(alignPalette);
             addMarginPanel(alignPalette);

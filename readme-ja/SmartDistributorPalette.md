@@ -27,6 +27,7 @@ DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレ�
 
 ### 更新履歴
 
+- v1.1.4（2026-10-01）ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v1.1.3（2026-09-29）Esc で閉じるようにした（入力中も効く）
 - v1.1.2（2026-09-29）メインエンジンへ送るワーカーのソースを終わりの目印で切り詰めるようにした（前にコードを足すと送信本文が壊れて動かなくなるのを防ぐ）
 - v1.1.1（2026-09-28）設定の保存を共通の部品にした（保存先: `~/Library/Application Support/illustrator-scripts/SmartDistributorPalette.json`。旧版の設定は最初の1回だけ読み継ぐ）

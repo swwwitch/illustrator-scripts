@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObje
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md"; /* README (English) */
@@ -54,32 +54,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS     = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING     = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS      = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING      = 8;                  /* パネル内の要素間隔 / panel spacing */
-    var OPTION_SPACING     = 6;                  /* オプションパネル内の要素間隔 / spacing in the Options panel */
-    var COLUMN_SPACING     = 12;                 /* 2カラムの間隔 / gap between columns */
-    var SUB_OPTION_MARGINS = [15, 0, 0, 0];      /* サブオプションの字下げ / indent of sub-options */
-    var GAP_INPUT_CHARS    = 4;                  /* 間隔の入力欄の文字数 / width of the gap fields, in characters */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ウィンドウに共通のレイアウト設定（縦並び・外周余白・要素間隔）を適用する
-     * @param {Window} targetWindow - 対象のダイアログウィンドウ
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(targetWindow) {
+    function setupWindow(targetWindow, spacing) {
         targetWindow.orientation = "column";
         targetWindow.alignChildren = "fill";
         targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = WINDOW_SPACING;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネルに共通のレイアウト設定（縦並び・横いっぱい・余白・要素間隔）を適用する
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
      * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - パネル内の要素間隔（省略時は PANEL_SPACING）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
     function setupPanel(targetPanel, spacing) {
@@ -91,16 +92,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
     }
 
     /**
-     * 行グループ（ボタン列など）に共通の横並び設定を適用する
-     * @param {Group} rowGroup - 対象のグループ
-     * @param {string} [alignment] - グループの配置（"left" / "center" / "right" など。省略時は "left"）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
      * @returns {void}
      */
-    function setupRow(rowGroup, alignment) {
-        rowGroup.orientation = "row";
-        rowGroup.alignment = alignment || "left";
-        rowGroup.spacing = PANEL_SPACING;
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
     }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
+    var SUB_OPTION_MARGINS = [15, 0, 0, 0];      /* サブオプションの字下げ / indent of sub-options */
+    var GAP_INPUT_CHARS    = 4;                  /* 間隔の入力欄の文字数 / width of the gap fields, in characters */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -2261,11 +2296,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var spacingPanel = spacingDialog.add('panel', undefined, getLabel('panel.spacing') + unitSuffix);
         // 2カラム構成なので row のまま余白のみ共通化。連動アイコンは入力欄の上下中央に置く
         // two-column panel: keep row, share margins; the link icon sits vertically centered beside the fields
+        setupPanel(spacingPanel, COLUMN_SPACING);
         spacingPanel.orientation = 'row';
         spacingPanel.alignChildren = ['left', 'center'];
-        spacingPanel.alignment = 'fill';
-        spacingPanel.margins = PANEL_MARGINS;
-        spacingPanel.spacing = COLUMN_SPACING;
 
         // 左カラム / left column
         var gapInputColumn = spacingPanel.add('group');
@@ -2287,7 +2320,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // オプション（チェックボックスをまとめる）/ Options panel
         var optionsPanel = spacingDialog.add('panel', undefined, getLabel('panel.options'));
-        setupPanel(optionsPanel, OPTION_SPACING);
+        setupPanel(optionsPanel, 6);
 
         // レンガ状／ハニカム（レンガ状のサブオプション）/ Brick and Honeycomb (sub-option of Brick)
         var brickCheckbox = addOptionCheckbox(optionsPanel, 'checkbox.brick', 'tooltip.brick', false);
@@ -2316,9 +2349,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         setSteppedFieldEnabled(verticalGapInput, false);
 
         // ボタン行（パネル外・中央寄せ、いっぱいに広げない）/ buttons (outside panels, centered, not stretched)
-        var buttonRow = addButtonRow(spacingDialog, { centered: true });
-        var btnCancel = buttonRow.rowGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-        var btnOK = buttonRow.rowGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+        var buttonRow = addButtonRow(spacingDialog);
+        var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+        alignRightOnlyButtonRow(buttonRow);
 
         return {
             spacingDialog: spacingDialog,

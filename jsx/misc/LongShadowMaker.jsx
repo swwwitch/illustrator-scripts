@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadow
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
@@ -91,11 +91,91 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var ROW_LABEL_WIDTH = 60;     /* 行ラベルの幅 / Width of a row label */
     var UNIT_LABEL_WIDTH = 24;    /* 単位ラベルの幅 / Width of a unit label */
     var NUMBER_FIELD_CHARS = 4;   /* 数値欄の文字数 / Character width of a number field */
     var SLIDER_WIDTH = 170;       /* スライダーの幅 / Width of a slider */
-    var PANEL_MARGINS = [15, 20, 15, 10];    /* パネルの余白 / Panel margins */
     var SIMPLIFY_ROW_MARGINS = [0, 10, 0, 0]; /* 単純化行の余白 / Margins of the simplify row */
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -2081,17 +2161,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
         var previewCheckbox, btnCancel, btnOK;
 
         /**
-         * パネルに共通レイアウトを適用する
-         * @param {Panel} targetPanel - 対象パネル
-         * @returns {void}
-         */
-        function setupPanel(targetPanel) {
-            targetPanel.orientation = "column";
-            targetPanel.alignChildren = "left";
-            targetPanel.margins = PANEL_MARGINS;
-        }
-
-        /**
          * 並びの向きと子要素の揃えを指定したグループを追加する
          * @param {Object} parentGroup - 追加先のコンテナ
          * @param {string} orientation - "row" または "column"
@@ -2214,8 +2283,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
          */
         function buildDialog() {
             shadowDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-            shadowDialog.orientation = "column";
-            shadowDialog.alignChildren = "fill";
+            setupWindow(shadowDialog);
 
             addPresetRow();
 
@@ -2224,8 +2292,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹�
 
             var settingsPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.settings'));
             setupPanel(settingsPanel);
+            settingsPanel.alignChildren = "left";
             var offsetPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.offset'));
             setupPanel(offsetPanel);
+            offsetPanel.alignChildren = "left";
 
             addOffsetControls(offsetPanel);
             addSettingsControls(settingsPanel);

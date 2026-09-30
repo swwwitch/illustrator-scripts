@@ -83,6 +83,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 
 ### Change log
 
+- v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.6 (2026-09-28) In Japanese, the footer of saved text files (source and save time) now uses a full-width colon.
 - v1.1.5 (2026-09-26) Renamed the file from `AiMemoPallete.jsx` to `AiMemoPalette.jsx`.
 - v1.1.3 (2026-08-16) : Copying to the clipboard now goes through redraw + menu command for reliability, loading no longer removes characters being edited with the Type tool, internal structure tidied up

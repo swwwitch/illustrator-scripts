@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -83,32 +83,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    var WINDOW_MARGINS         = 16;               /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING         = 12;               /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS          = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING          = 6;                /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING         = 12;               /* 2カラムの間隔 / gap between columns */
-    var LABEL_WIDTH            = 80;               /* 行ラベルの共通幅 / shared width of row labels */
-    var SLIDER_WIDTH           = 240;              /* スライダーの幅 / slider width */
-    var NARROW_SLIDER_WIDTH    = 200;              /* 補助スライダーの幅 / width of a secondary slider */
-    var SYMBOL_DROPDOWN_WIDTH  = 120;              /* シンボル選択の幅 / width of the symbol dropdown */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * ダイアログ全体の並びと余白を設定する
-     * @param {Window} targetWindow - 対象ウィンドウ
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
     function setupWindow(targetWindow, spacing) {
         targetWindow.orientation = "column";
-        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.alignChildren = "fill";
         targetWindow.margins = WINDOW_MARGINS;
         targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
-     * パネルの並びと余白を設定する
-     * @param {Panel} targetPanel - 対象パネル
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -121,19 +121,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     }
 
     /**
-     * グループを横並びの行として設定する
-     * @param {Group} targetGroup - 対象グループ
-     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(targetGroup, horizontalAlign, spacing) {
-        targetGroup.orientation = "row";
-        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
-        targetGroup.alignment = [horizontalAlign || "left", "center"];
-        targetGroup.alignChildren = ["left", "center"];
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var LABEL_WIDTH            = 80;               /* 行ラベルの共通幅 / shared width of row labels */
+    var SLIDER_WIDTH           = 240;              /* スライダーの幅 / slider width */
+    var NARROW_SLIDER_WIDTH    = 200;              /* 補助スライダーの幅 / width of a secondary slider */
+    var SYMBOL_DROPDOWN_WIDTH  = 120;              /* シンボル選択の幅 / width of the symbol dropdown */
 
     /**
      * ラベル付きパネルを生成する（共通レイアウト適用）
@@ -144,7 +176,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     function addPanel(parentContainer, panelTitle) {
         var createdPanel = parentContainer.add("panel");
         createdPanel.text = panelTitle;
-        setupPanel(createdPanel);
+        setupPanel(createdPanel, 6);
         return createdPanel;
     }
 
@@ -156,7 +188,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
      */
     function addRow(parentContainer, horizontalAlign) {
         var createdGroup = parentContainer.add("group");
-        setupRow(createdGroup, horizontalAlign);
+        setupRow(createdGroup, horizontalAlign, 6);
         return createdGroup;
     }
 

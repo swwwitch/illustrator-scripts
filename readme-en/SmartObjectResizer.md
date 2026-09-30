@@ -172,6 +172,7 @@ The key-object detection is based on the idea published in this article.
 
 ## Update history
 
+- v1.5.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.5.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.5.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.5.2 (2026-09-28): The Fixed size field now follows the ruler unit in Preferences (fixed H, feet, meters and yards being treated as points; inches now shown as "in"). The bleed allowance is given in mm. The button row is now built with the shared part. Clip groups are measured by their masks (hidden parts no longer count when matching sizes)

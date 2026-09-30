@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardNavigatorPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.12";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardNavigatorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNavigatorPalette.md"; /* README (English) */
@@ -54,17 +54,93 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nee7de364c3dc"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var PALETTE_MARGINS = 12;                      /* パレット外周の余白 / palette margin */
-    var PALETTE_SPACING = 8;                       /* パレット内の要素間隔 / palette spacing */
     var PALETTE_PREFERRED_SIZE = [210, 200];       /* パレットの初期サイズ / initial palette size */
     var NAV_BUTTON_SIZE = 26;                      /* ナビゲーションボタンの一辺 / side of a navigation button */
     var NAV_BUTTON_SPACING = 7;                    /* ナビゲーションボタンの間隔 / spacing between navigation buttons */
     var NAV_BUTTON_ROW_MARGINS = [5, 5, 5, 10];    /* ボタン行の余白（下だけ +5）/ button row margins (+5 at the bottom) */
-    var OPTIONS_PANEL_MARGINS = [16, 20, 16, 12];  /* オプションパネルの余白 / options panel margins */
     var SLIDER_PREFERRED_SIZE = [120, -1];         /* スライダーの幅 / slider width */
     var LIST_TOGGLE_ROW_MARGINS = 5;               /* 「アートボード一覧」行の余白 / margins of the list toggle row */
     var LIST_COLUMN_WIDTHS = [44, 156];            /* 一覧の列幅（番号｜名前）/ list column widths */
     var LIST_PREFERRED_SIZE = [210, 150];          /* 一覧の初期サイズ / initial list size */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     // =========================================
     // ローカライズ / Localization
@@ -1033,10 +1109,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nee7de364c3dc"; /* 紹�
     var paletteWindow = new Window("palette", PALETTE_TITLE, undefined, { resizeable: true });
     $.global.artboardNavigatorWindow = paletteWindow;
 
-    paletteWindow.orientation = "column";
-    paletteWindow.alignChildren = ["fill", "top"];
-    paletteWindow.margins = PALETTE_MARGINS;
-    paletteWindow.spacing = PALETTE_SPACING;
+    setupWindow(paletteWindow);
     paletteWindow.preferredSize = PALETTE_PREFERRED_SIZE;
 
     var navButtonRow = addNavButtonRow(paletteWindow);
@@ -1165,10 +1238,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nee7de364c3dc"; /* 紹�
      */
     function addOptionsPanel(parentWindow) {
         var optionsPanel = parentWindow.add("panel", undefined, getLabel("panel.options"));
-        optionsPanel.orientation = "column";
-        optionsPanel.alignChildren = ["left", "top"];
-        optionsPanel.alignment = ["fill", "top"];
-        optionsPanel.margins = OPTIONS_PANEL_MARGINS;
+        setupPanel(optionsPanel, 6);
 
         // アニメーションの ON/OFF（OFF で以降のオプションをディム表示）
         var animationToggle = addSettingCheckbox(optionsPanel, "animation", "animation");

@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/tabularize
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "tabularize";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/tabularize.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/tabularize.md"; /* README (English) */
@@ -1248,21 +1248,88 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ドキュメントチェックと選択チェックをダイアログより前に移動
         // 横罫ガターなど単位周辺の初期値計算はこのまま
 
-        /* ダイアログ位置 / Dialog position */
-        var offsetX = 300;
-        var offsetY = 0;
+        // =========================================
+        // レイアウト / Layout
+        // =========================================
 
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function () {
-                try { requestPreviewUpdate(); } catch (e) { }
+        // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-                try {
-                    var currentX = dlg.location[0];
-                    var currentY = dlg.location[1];
-                    dlg.location = [currentX + offsetX, currentY + offsetY];
-                } catch (e) { }
-            };
+        /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+        var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+        var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+        var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+        var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+        var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+        var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+        /**
+         * ウィンドウの共通設定
+         * @param {Window} targetWindow - 対象のウィンドウ
+         * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+         * @returns {void}
+         */
+        function setupWindow(targetWindow, spacing) {
+            targetWindow.orientation = "column";
+            targetWindow.alignChildren = "fill";
+            targetWindow.margins = WINDOW_MARGINS;
+            targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
         }
+
+        /**
+         * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+         * @param {Panel} targetPanel - 対象のパネル
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupPanel(targetPanel, spacing) {
+            targetPanel.orientation = "column";
+            targetPanel.alignChildren = ["fill", "top"];
+            targetPanel.alignment = "fill";
+            targetPanel.margins = PANEL_MARGINS;
+            targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * タブの共通設定
+         * @param {Tab} targetTab - 対象のタブ
+         * @param {number} [spacing] - 要素間隔（省略時は変えない）
+         * @returns {void}
+         */
+        function setupTab(targetTab, spacing) {
+            targetTab.orientation = "column";
+            targetTab.alignChildren = "fill";
+            targetTab.margins = TAB_MARGINS;
+            if (typeof spacing === "number") targetTab.spacing = spacing;
+        }
+
+        /**
+         * 横並びの行グループの共通設定（ボタン列など）。
+         * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+         * @param {Group} rowGroup - 対象のグループ
+         * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupRow(rowGroup, rowAlignment, spacing) {
+            rowGroup.orientation = "row";
+            rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+            rowGroup.alignChildren = ["left", "center"];
+            rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+         * @param {Button} targetButton - 対象のボタン
+         * @param {number} trimPixels - 詰める量（px）
+         * @returns {void}
+         */
+        function trimButtonHeight(targetButton, trimPixels) {
+            /* レイアウト前は size が無い / size is not set until the layout runs */
+            if (!targetButton.size) return;
+            targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+        }
+
+        // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
         // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1491,10 +1558,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ダイアログ / Dialog */
         var dlg = new Window('dialog', getLabel('dialogTitle'));
-        dlg.orientation = 'column';
-        dlg.alignChildren = 'left';
+        setupWindow(dlg);
 
-        shiftDialogPosition(dlg, offsetX, offsetY);
+        /* 開いたらプレビューを描く / Draw the preview once the dialog opens */
+        dlg.onShow = function () {
+            try { requestPreviewUpdate(); } catch (e) { }
+        };
 
         /* ダイアログ状態の復元/保存 / Restore & save dialog state */
         function restoreDialogState(controls) {
@@ -1658,9 +1727,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* オプション / Options */
         var pOpt = dlg.add('panel', undefined, getLabel('optionPanel'));
-        pOpt.orientation = 'column';
-        pOpt.alignChildren = 'left';
-        pOpt.margins = [15, 20, 15, 10];
+        setupPanel(pOpt);
+        pOpt.alignChildren = ['left', 'top'];
 
         /* ガター設定 / Gutter */
         var gGutter = pOpt.add('group');
@@ -1769,9 +1837,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 塗り / Fill */
         var pFill = gLeft.add('panel', undefined, getLabel('fillPanel'));
-        pFill.orientation = 'column';
-        pFill.alignChildren = 'left';
-        pFill.margins = [15, 20, 15, 10];
+        setupPanel(pFill);
+        pFill.alignChildren = ['left', 'top'];
 
         var gFill = pFill.add('group');
         gFill.orientation = 'row';
@@ -1785,9 +1852,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 塗りオプション / Fill options */
         var pFillOpt = pFill.add('panel', undefined, getLabel('fillOptionPanel'));
-        pFillOpt.orientation = 'column';
-        pFillOpt.alignChildren = 'left';
-        pFillOpt.margins = [15, 20, 15, 10];
+        setupPanel(pFillOpt, 6);
+        pFillOpt.alignChildren = ['left', 'top'];
 
         // 行方向に連結（UI）
         var cbFillJoinRow = pFillOpt.add('checkbox', undefined, getLabel('fillJoinRow'));
@@ -1870,9 +1936,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 縦罫 / Vertical rules */
         var pVrule = gRight.add('panel', undefined, getLabel('vRulePanel'));
-        pVrule.orientation = 'column';
-        pVrule.alignChildren = 'left';
-        pVrule.margins = [15, 20, 15, 10];
+        setupPanel(pVrule);
+        pVrule.alignChildren = ['left', 'top'];
 
         // 線（横ケイ＋縦ケイの有効/無効）
         var cbRule = pVrule.add('checkbox', undefined, getLabel('ruleCheck'));
@@ -1881,9 +1946,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 縦ケイ
         var pVkei = pVrule.add('panel', undefined, getLabel('vRuleLabel'));
-        pVkei.orientation = 'column';
-        pVkei.alignChildren = 'left';
-        pVkei.margins = [15, 20, 15, 10];
+        setupPanel(pVkei, 6);
+        pVkei.alignChildren = ['left', 'top'];
 
         var gVrule = pVkei.add('group');
         gVrule.orientation = 'column';
@@ -2221,6 +2285,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
         var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
+        alignRightOnlyButtonRow(buttonRow);
 
         btnCancel.onClick = function () {
             saveDialogState({

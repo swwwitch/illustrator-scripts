@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "InvoiceFromClipboard";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -197,27 +197,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-    var FIELD_ROW_SPACING = 6;               /* 入力行が続くパネルの間隔 / spacing for stacked field rows */
-    var DIALOG_BUTTON_TOP_MARGIN = 10;       /* ボタンエリアの上余白（部品の既定より広い） / top margin of the button row, wider than the part's default */
-    var PANEL_BUTTON_TOP_MARGIN = 5;         /* パネル内ボタン行の上マージン / space above a button row inside a panel */
-
-    /* コントロールの寸法 / Control sizes */
-    var FIELD_LABEL_WIDTH = 120;             /* 入力欄ラベルの幅 / field label width */
-    var AMOUNT_INPUT_SIZE = [110, 25];       /* 金額入力欄 / amount input field */
-    var DATE_INPUT_SIZE = [130, 25];         /* 日付入力欄 / date input field */
-    var READONLY_TEXT_WIDTH = 330;           /* 計算結果・パス・書き出し先の表示幅 / read-only text width */
-    var INLINE_BUTTON_WIDTH = 70;            /* 行の中に置くボタンの幅 / width of buttons placed inside a row */
-    var INLINE_SPACER_WIDTH = 12;            /* 行の中で要素を離す固定スペーサーの幅 / fixed spacer width inside a row */
-    var PATH_DISPLAY_MAX_WIDTH = 56;         /* パス表示の桁数（半角換算）/ path width in half-width units */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
      * ウィンドウの共通設定
-     * @param {Window} targetWindow - 設定するウィンドウ
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
@@ -229,8 +221,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     }
 
     /**
-     * パネルの共通設定
-     * @param {Panel} targetPanel - 設定するパネル
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -243,28 +235,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     }
 
     /**
-     * 行グループの共通設定（ボタン列など）
-     * @param {Group} targetGroup - 設定するグループ
-     * @param {string} [alignment] - 揃え位置（省略時は "left"）
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupRow(targetGroup, alignment, spacing) {
-        targetGroup.orientation = "row";
-        /*
-           揃えは横と天地を必ず対で指定する。文字列だけを渡すと天地の指定が外れ、
-           行の中で背の低いチェックボックスなどが上端に張り付く。
-           Always pass both axes: a bare string drops the vertical one and pins short controls to the top.
-        */
-        targetGroup.alignment = [alignment || "left", "center"];
-        /*
-           親パネルの alignChildren（fill）を引き継ぐと、行の中のボタンまで横いっぱいに伸びる。
-           行の中身は本来の幅のままにし、伸ばしたい要素だけが個別に alignment を指定する。
-           Without this, buttons inherit the panel's fill and stretch across the row.
-        */
-        targetGroup.alignChildren = ["left", "center"];
-        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var FIELD_ROW_SPACING = 6;               /* 入力行が続くパネルの間隔 / spacing for stacked field rows */
+    var DIALOG_BUTTON_TOP_MARGIN = 10;       /* ボタンエリアの上余白（部品の既定より広い） / top margin of the button row, wider than the part's default */
+    var PANEL_BUTTON_TOP_MARGIN = 5;         /* パネル内ボタン行の上マージン / space above a button row inside a panel */
+
+    /* コントロールの寸法 / Control sizes */
+    var FIELD_LABEL_WIDTH = 120;             /* 入力欄ラベルの幅 / field label width */
+    var AMOUNT_INPUT_SIZE = [110, 25];       /* 金額入力欄 / amount input field */
+    var DATE_INPUT_SIZE = [130, 25];         /* 日付入力欄 / date input field */
+    var READONLY_TEXT_WIDTH = 330;           /* 計算結果・パス・書き出し先の表示幅 / read-only text width */
+    var INLINE_BUTTON_WIDTH = 70;            /* 行の中に置くボタンの幅 / width of buttons placed inside a row */
+    var INLINE_SPACER_WIDTH = 12;            /* 行の中で要素を離す固定スペーサーの幅 / fixed spacer width inside a row */
+    var PATH_DISPLAY_MAX_WIDTH = 56;         /* パス表示の桁数（半角換算）/ path width in half-width units */
 
     /**
      * 一定幅の見出しラベルを右揃えで追加し、入力欄の左端を縦に揃える

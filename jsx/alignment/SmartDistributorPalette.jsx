@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDistributorPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributorPalette.md"; /* README (English) */
@@ -614,23 +614,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // レイアウト / Layout
     // =========================================
 
-    var PALETTE_MARGINS = 14;               /* パレットの余白 / palette margins */
-    var PALETTE_SPACING = 10;               /* パレット内の間隔 / spacing inside the palette */
-    var PALETTE_OPACITY = 0.97;             /* パレットの不透明度 / palette opacity */
-    var COLUMN_SPACING = 12;                /* 基準点と十字ボタンの間隔 / gap between the two columns */
-    var PANEL_MARGINS = [16, 20, 16, 12];   /* パネルの余白 / panel margins */
-    var PANEL_SPACING = 8;                  /* パネル内の既定の間隔 / default spacing inside panels */
-    var ANCHOR_PANEL_SPACING = 4;           /* 基準点の行間 / spacing between the reference point rows */
-    var ANCHOR_RADIO_GAP = 18;              /* 基準点の中段ラジオの間隔 / gap between the middle-row radios */
-    var NUDGE_BUTTON_SIZE = [32, 24];       /* 十字ボタンの大きさ / size of the nudge buttons */
-    var NUDGE_BUTTON_GAP = 4;               /* 十字ボタンの間隔 / gap between the nudge buttons */
-    var DISTANCE_PANEL_SPACING = 6;         /* 移動距離パネルの行間 / spacing inside the distance panel */
-    var CUSTOM_ROW_SPACING = 6;             /* カスタム行の間隔 / spacing inside the custom row */
-    var CUSTOM_FIELD_CHARS = 5;             /* カスタム値の入力欄の幅（文字数）/ width of the custom field */
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
     /**
-     * パネルの共通設定
-     * @param {Panel} targetPanel - 対象パネル
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -641,6 +650,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetPanel.margins = PANEL_MARGINS;
         targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var PALETTE_OPACITY = 0.97;             /* パレットの不透明度 / palette opacity */
+    var ANCHOR_PANEL_SPACING = 4;           /* 基準点の行間 / spacing between the reference point rows */
+    var ANCHOR_RADIO_GAP = 18;              /* 基準点の中段ラジオの間隔 / gap between the middle-row radios */
+    var NUDGE_BUTTON_SIZE = [32, 24];       /* 十字ボタンの大きさ / size of the nudge buttons */
+    var NUDGE_BUTTON_GAP = 4;               /* 十字ボタンの間隔 / gap between the nudge buttons */
+    var CUSTOM_ROW_SPACING = 6;             /* カスタム行の間隔 / spacing inside the custom row */
+    var CUSTOM_FIELD_CHARS = 5;             /* カスタム値の入力欄の幅（文字数）/ width of the custom field */
 
     // =========================================
     // ローカライズ / Localization
@@ -1490,10 +1549,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function createPaletteWindow() {
         var newPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        newPalette.orientation = "column";
-        newPalette.alignChildren = ["fill", "top"];
-        newPalette.margins = PALETTE_MARGINS;
-        newPalette.spacing = PALETTE_SPACING;
+        setupWindow(newPalette);
         newPalette.opacity = PALETTE_OPACITY;
         return newPalette;
     }
@@ -1612,7 +1668,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function addDistancePanel(parentWindow, initialMode, initialCustom) {
         var distancePanel = parentWindow.add("panel", undefined, getLabel("panel.distance"));
-        setupPanel(distancePanel, DISTANCE_PANEL_SPACING);
+        setupPanel(distancePanel, 6);
         distancePanel.alignChildren = ["left", "top"];  /* ラジオは左寄せ / left-align radios */
 
         sourceTextLeadingRadio = distancePanel.add("radiobutton", undefined, getLabel("radio.sourceTextLeading"));

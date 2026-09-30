@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConv
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFontConverter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFontConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConverter.md"; /* README (English) */
@@ -391,18 +391,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     // UI 共通 / UI helpers
     // =========================================
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
     function setupGroup(group, orientation, spacing) {
@@ -569,11 +635,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         // -----------------------------------------
 
         var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        mainDialog.orientation = "column";
-        mainDialog.alignChildren = "left";
+        setupWindow(mainDialog);
 
         /* 対象パネル（ラジオは縦並び）/ Target panel (radios in a column) */
-        var targetPanel = addPanel(mainDialog, "panel.target");
+        var targetPanel = addPanel(mainDialog, "panel.target", 6);
         targetPanel.helpTip = getLabel("tooltip.target");
         var rbTargetSelection = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSelection"));
         var rbTargetDocument = targetPanel.add("radiobutton", undefined, getLabel("radio.targetDocument"));
@@ -581,7 +646,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         rbTargetSelection.value = true;
 
         /* 変換設定パネル（文字セット/N/UD/P と Max/MaxN をまとめる）/ Conversion panel (variant columns + presets) */
-        var conversionPanel = addPanel(mainDialog, "panel.conversion");
+        var conversionPanel = addPanel(mainDialog, "panel.conversion", 6);
 
         /* 変換設定: 3 カラム（左=文字セット / 中央=N・NT / 右=UD・P）/ Conversion: 3 columns */
         var variantColumns = conversionPanel.add("group");
@@ -589,7 +654,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         variantColumns.alignChildren = ["fill", "top"];
 
         /* 左カラム: 文字セットパネル（Std/Pro/Pr5/Pr6 はローカライズ不要の固有名）/ Left: character set */
-        var charsetPanel = addPanel(variantColumns, "panel.charset");
+        var charsetPanel = addPanel(variantColumns, "panel.charset", 6);
         charsetPanel.helpTip = getLabel("tooltip.charset");
         var rbCharsetKeep = charsetPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbCharsetStd = charsetPanel.add("radiobutton", undefined, "Std");
@@ -602,7 +667,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         var nNtColumn = variantColumns.add("group");
         setupGroup(nNtColumn, "column");
 
-        var nVariantPanel = addPanel(nNtColumn, "panel.nSetting");
+        var nVariantPanel = addPanel(nNtColumn, "panel.nSetting", 6);
         nVariantPanel.helpTip = getLabel("tooltip.nSetting");
         var rbNKeep = nVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbNOff = nVariantPanel.add("radiobutton", undefined, getLabel("radio.nOff"));
@@ -610,7 +675,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         rbNKeep.value = true;
 
         /* NT 設定パネル（新ゴ ⇄ 新ゴNT）/ NT panel (ShinGo <-> ShinGo NT) */
-        var ntPanel = addPanel(nNtColumn, "panel.ntSetting");
+        var ntPanel = addPanel(nNtColumn, "panel.ntSetting", 6);
         ntPanel.helpTip = getLabel("tooltip.nt");
         var rbNTKeep = ntPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbNTOff = ntPanel.add("radiobutton", undefined, getLabel("radio.ntOff"));
@@ -621,14 +686,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         var udProportionalColumn = variantColumns.add("group");
         setupGroup(udProportionalColumn, "column");
 
-        var udVariantPanel = addPanel(udProportionalColumn, "panel.udSetting");
+        var udVariantPanel = addPanel(udProportionalColumn, "panel.udSetting", 6);
         udVariantPanel.helpTip = getLabel("tooltip.udSetting");
         var rbUDKeep = udVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbUDOff = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOff"));
         var rbUDOn = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOn"));
         rbUDKeep.value = true;
 
-        var proportionalPanel = addPanel(udProportionalColumn, "panel.pSetting");
+        var proportionalPanel = addPanel(udProportionalColumn, "panel.pSetting", 6);
         proportionalPanel.helpTip = getLabel("tooltip.pSetting");
         var rbPKeep = proportionalPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbPOff = proportionalPanel.add("radiobutton", undefined, getLabel("radio.pOff"));
@@ -692,7 +757,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         };
 
         /* オプションパネル / Options panel */
-        var optionsPanel = addPanel(mainDialog, "panel.options");
+        var optionsPanel = addPanel(mainDialog, "panel.options", 6);
         var cbIntegrateGakusan = optionsPanel.add("checkbox", undefined, getLabel("checkbox.integrateGakusan"));
         cbIntegrateGakusan.helpTip = getLabel("tooltip.integrateGakusan");
         cbIntegrateGakusan.value = INTEGRATE_GAKUSAN_TO_STANDARD;
@@ -1275,11 +1340,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         /* 変更プレビューを表示し、各項目を ON/OFF させて結果を返す / Show preview with per-item ON/OFF and return the result */
         function showConfirmDialog() {
             var confirmDialog = new Window("dialog", getLabel("confirm.title"));
-            confirmDialog.orientation = "column";
-            confirmDialog.alignChildren = "fill";
+            setupWindow(confirmDialog);
             // 左右マージンを +10 / Add 10 to left & right margins
-            confirmDialog.margins.left += 10;
-            confirmDialog.margins.right += 10;
+            confirmDialog.margins = [WINDOW_MARGINS + 10, WINDOW_MARGINS, WINDOW_MARGINS + 10, WINDOW_MARGINS];
 
             var itemCheckboxes = []; // {checkbox, oldName}
 

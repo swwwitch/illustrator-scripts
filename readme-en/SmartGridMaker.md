@@ -73,6 +73,7 @@ The Artboard tab is hidden when the script starts from a selected rectangle; mar
 
 ### Changelog
 
+- v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.7.3 (2026-09-29): Dialog opacity changed to 98%
 - v1.7.2 (2026-09-28): The button row is now built with the shared part. Rectangles inside groups can now be used as base rectangles (clip masks, guides, locked and hidden paths are skipped)

@@ -27,6 +27,7 @@ Each press of the cross buttons (↑ / ← 0 → / ↓) applies one step to what
 
 ### Update History
 
+- v1.1.4 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.3 (2026-09-29) Esc now closes the palette (also while typing)
 - v1.1.2 (2026-09-29) The worker source sent to the main engine is now trimmed at an end marker, so adding code before it can no longer break the script
 - v1.1.1 (2026-09-28) Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/SmartDistributorPalette.json`; the old settings are carried over once)
