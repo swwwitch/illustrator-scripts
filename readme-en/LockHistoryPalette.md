@@ -64,11 +64,13 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.3 (2026-09-29): Esc now closes the palette
+- v1.0.2 (2026-09-29): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.0.1 (2026-09-23): List entries now read "#1" instead of the Japanese ordinal
 - v1.0.0 (2026-09-23): First release
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.3
 - First release: 2026-09-23
-- Last updated: 2026-09-23
+- Last updated: 2026-09-29

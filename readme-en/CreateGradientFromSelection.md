@@ -25,6 +25,7 @@
   - **Match selection size**: uses the bounding size of the selection (otherwise 100 pt square; fixed 200 x 100 pt when invoked from swatches)
   - Placed below and left-aligned for a horizontal selection, to the right and top-aligned for a vertical selection
 - **Save as Graphic Style**: registers the rectangle's appearance as a Graphic Style (when rectangle output is off, a temporary rectangle on a temporary layer is used and removed afterwards)
+- **Blend duplicates**: duplicates the selected objects and blends the duplicates, leaving the originals as they are (unavailable when colors come from swatches or only one object is selected)
 - When the selection is detected as vertical, an action (gradient/90degree) rotates the gradient angle to 90 degrees
 - Automatic Japanese / English UI, with tooltips on the key options
 - Dialog values persist for the session inside the targetengine (cleared when Illustrator restarts)
@@ -47,3 +48,10 @@
 ### Update History
 
 - v1.9.2 (20260528): Current version
+- v1.9.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.9.5 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.9.5 (20260928): The button row is now built with the shared part
+- v1.9.5 (20260928): Clip groups are now measured by their mask (affects where the rectangle is placed)
+- v1.10.0 (20260929): Merged CreateGradientFromSelection-Blend.jsx and added Blend duplicates (blends duplicates of the selected objects, leaving the originals as they are). Dialog opacity changed to 98%
+- v1.10.1 (20260930): Merged CreateGradientFromSelection-Blend.jsx and added Blend duplicates (blends duplicates of the selected objects, leaving the originals as they are). Fixed an error when running with characters selected by the Type tool
+- v1.10.2 (20260930): Button rows with only right-side buttons are now centered

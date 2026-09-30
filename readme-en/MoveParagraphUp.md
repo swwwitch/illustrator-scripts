@@ -11,13 +11,14 @@
 ### Overview
 
 - Swaps the paragraph containing the text cursor with the paragraph above it. It is Visual Studio Code's "Move Line Up" applied to paragraphs instead of display lines.
-- A paragraph-based variant of moveLineUp.jsx by sky-chaser-high.
+- A variant of moveLineUp.jsx by sky-chaser-high that can also move whole paragraphs. A variable at the top of the script switches back to moving lines, as in the original.
 - The cursor stays inside the paragraph that moved, so running the script again keeps sending it up.
 
 ### Features
 
 - Works with the caret placed anywhere in the paragraph; no need to select the whole paragraph
 - Swaps the formatting too (font, size, paragraph style, and so on)
+- The `MOVE_BY_PARAGRAPH` variable switches the unit to move (1: paragraph [default], 0: line)
 - Restores the cursor to the same position inside the paragraph, so the script can be repeated
 - Does nothing on the first paragraph
 
@@ -27,6 +28,8 @@
 2. Run the script.
 3. Run it repeatedly to move the paragraph further up.
 
+To move lines instead, change `var MOVE_BY_PARAGRAPH = 1;` to `0` under "User settings" at the top of the script.
+
 Assigning the script to an action with a function key makes reordering paragraphs feel like working in a text editor.
 
 ### Notes
@@ -34,9 +37,12 @@ Assigning the script to an action with a function key makes reordering paragraph
 - The script runs only while text is being edited with the Type tool (the caret is inside the text). Selecting a text frame as an object does nothing.
 - The swap goes through the clipboard, so running the script replaces the clipboard contents.
 - When the destination is an empty paragraph (a lone return), the cursor position is not restored.
+- In line mode, soft-wrapped lines in area type count as separate lines, so lines with wrapping may not swap correctly.
 - `MoveParagraphDown.jsx` moves a paragraph in the opposite direction.
 
 ### Update History
 
 - v1.0.0 (2026-08-27) : Initial release
 - v1.0.1 (2026-09-02) : Fixed "Error 21: undefined is not an object" raised while restoring the cursor after the swap (it read `contents` from the Story, which has no such property; the text now comes from the paragraph)
+- v1.0.2 (2026-09-19) : Removed extra blank lines (no change in behavior)
+- v1.1.0 (2026-09-30) : Added the MOVE_BY_PARAGRAPH variable (1: paragraph, 0: line) to switch the unit to move. Faster: runs in a persistent engine and redraws only once at the end

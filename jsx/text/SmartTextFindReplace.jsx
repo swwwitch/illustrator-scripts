@@ -1,12 +1,13 @@
 #target illustrator
+#targetengine "SmartTextFindReplaceEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-テキストから文字列をまとめて削除・置換し（7つまで、正規表現も可）、英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行います。
-残った文字の書式は変わりません。
+テキストから文字列をまとめて検索・削除・置換し（5つまで、正規表現も可）、一致した文字をカンバス上で選択することもできます。
+英字の大文字・小文字の変換や、スペース・記号・かな・数字の整形も行い、残った文字の書式は変わりません。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md
@@ -16,42 +17,46 @@ https://note.com/dtp_tranist/n/nec5dfffce709
 
 ### Overview
 
-Removes or replaces up to seven strings in text (regular expressions allowed), and also changes letter case and tidies spaces, symbols, kana and digits.
-The formatting of the remaining text is kept.
+Finds, removes or replaces up to five strings in text (regular expressions allowed), and can select the matching characters on the canvas.
+It also changes letter case and tidies spaces, symbols, kana and digits, keeping the formatting of the remaining text.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartTextFindReplace";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
-
-    var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextFindReplace.md"; /* README（日本語） */
-    var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextFindReplace.md"; /* README (English) */
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
-    var SEARCH_FIELD_COUNT = 7;             /* 削除・置換する文字列の入力欄の数 / number of search fields */
+    var SEARCH_FIELD_COUNT = 5;             /* 削除・置換する文字列の入力欄の数 / number of search fields */
     var DEFAULT_USE_REGEX = false;          /* 正規表現（初期値）/ regular expression (initial value) */
     var DEFAULT_MATCH_CASE = true;          /* 大文字と小文字を区別（初期値）/ match case (initial value) */
+    var DEFAULT_DELETE_EMPTY_LINES = true;  /* 空になった行を削除（初期値）/ delete emptied lines (initial value) */
     var DEFAULT_DELETE_EMPTY_FRAMES = true; /* 空になったフレームを削除（初期値）/ delete emptied frames (initial value) */
     var DEFAULT_INCLUDE_HIDDEN = false;     /* 非表示のレイヤーを検索（初期値）/ search hidden layers (initial value) */
     var DEFAULT_INCLUDE_LOCKED = false;     /* ロックされたレイヤーを検索（初期値）/ search locked layers (initial value) */
     var DEFAULT_INCLUDE_SYMBOLS = true;     /* シンボルも検索（初期値）/ search symbols too (initial value) */
+    var DEFAULT_ZOOM_TO_MATCH = true;       /* 選択時に拡大表示（初期値）/ zoom on select (initial value) */
+    var MATCH_ZOOM_FILL_RATIO = 0.8;        /* 大きく表示するとき、テキストが画面に占める割合 / share of the window the zoomed text fills */
+    var MATCH_ZOOM_MAX = 4;                 /* 大きく表示するときの最大の表示倍率（4 = 400%）/ maximum zoom when zooming to the text (4 = 400%) */
 
     // =========================================
     // 改行の記号 / Break tokens
@@ -64,37 +69,558 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     // =========================================
     // 前回の設定 / Saved settings
     // =========================================
-    var SETTINGS_PREF_KEY = "SmartTextFindReplace/settings"; /* 環境設定に保存するキー / preference key */
+
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
 
     /**
-     * 前回［実行］したとき・閉じたときの設定を読み込む
-     * @returns {Object|null} 保存した設定。無いか壊れていれば null
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
      */
-    function loadSettings() {
-        var savedText = app.preferences.getStringPreference(SETTINGS_PREF_KEY);
-        if (!savedText) return null;
-        var savedSettings;
-        /* 壊れた文字列は eval が例外を出す / eval throws on a corrupted string */
-        try {
-            savedSettings = eval(savedText);
-        } catch (e) {
-            return null;
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
         }
-        /* v1.2.1 より前は「大文字と小文字を区別しない」（ignoreCase）で保存していたので、反転して読み替える
-           Before v1.2.1 the setting was saved as ignoreCase, so read it inverted */
-        if (savedSettings && typeof savedSettings.matchCase !== "boolean" && typeof savedSettings.ignoreCase === "boolean") {
-            savedSettings.matchCase = !savedSettings.ignoreCase;
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
         }
-        return savedSettings;
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
     }
 
     /**
-     * 設定を環境設定に保存する（Illustrator を再起動しても残る）
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^\uFEFF/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^\uFEFF/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+
+    /* 前回の設定の保存先（Folder.userData/illustrator-scripts/SmartTextFindReplace.json）。再起動しても残る。
+       以前は Illustrator の環境設定に toSource の文字列で保存していたので、新しい保存が無いときだけそこから読み継ぐ
+       Saved-settings store (survives a restart); the toSource string formerly in Illustrator's preferences is read only until the first save */
+    var LEGACY_SETTINGS_PREF_KEY = "SmartTextFindReplace/settings"; /* 以前の環境設定のキー / former preference key */
+    var settingsStore = createSettingsStore(SCRIPT_NAME, "persistent", {
+        legacy: function () {
+            var legacySettings = readSettingsLegacyPreference(LEGACY_SETTINGS_PREF_KEY);
+            /* v1.2.1 より前は「大文字と小文字を区別しない」（ignoreCase）で保存していたので、反転して読み替える
+               Before v1.2.1 the setting was saved as ignoreCase, so read it inverted */
+            if (legacySettings && typeof legacySettings.matchCase !== "boolean" && typeof legacySettings.ignoreCase === "boolean") {
+                legacySettings.matchCase = !legacySettings.ignoreCase;
+            }
+            return legacySettings;
+        }
+    });
+
+    /* 保存する設定の既定値（scope の空文字は「保存なし」）/ Defaults of the saved settings ("" scope means nothing saved) */
+    var DEFAULT_SETTINGS = {
+        searchTexts: [],
+        replaceTexts: [],
+        scope: "",
+        useRegex: DEFAULT_USE_REGEX,
+        matchCase: DEFAULT_MATCH_CASE,
+        deleteEmptyLines: DEFAULT_DELETE_EMPTY_LINES,
+        deleteEmptyFrames: DEFAULT_DELETE_EMPTY_FRAMES,
+        zoomToMatch: DEFAULT_ZOOM_TO_MATCH,
+        includeHidden: DEFAULT_INCLUDE_HIDDEN,
+        includeLocked: DEFAULT_INCLUDE_LOCKED,
+        includeSymbols: DEFAULT_INCLUDE_SYMBOLS
+    };
+
+    /**
+     * 前回［すべてを置換］したとき・閉じたときの設定を読み込む
+     * @returns {Object} 保存した設定（無い項目は既定値）
+     */
+    function loadSettings() {
+        return settingsStore.load(DEFAULT_SETTINGS);
+    }
+
+    /**
+     * 設定を保存する（Illustrator を再起動しても残る）
      * @param {Object} settingsToSave - 保存する設定
      * @returns {void}
      */
     function saveSettings(settingsToSave) {
-        app.preferences.setStringPreference(SETTINGS_PREF_KEY, settingsToSave.toSource());
+        settingsStore.save(settingsToSave);
     }
 
     // =========================================
@@ -107,12 +633,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     var INPUT_CHARACTERS = 18;              /* 入力欄の幅（文字数）/ input width in characters */
     var REPLACE_INPUT_CHARACTERS = 12;      /* 置換欄の幅（文字数）/ replace field width in characters */
     var MATCH_COUNT_WIDTH = 24;             /* 一致数の表示幅（2桁ほど）/ width of the match count, about two digits */
+    var ROW_MARKER_TEXT = "\u25B6";          /* 目印の文字（▶）/ marker character */
+    var SEARCH_OPTIONS_ROW_TOP_MARGIN = 10; /* チェックボックスとボタンの行の上余白 / top margin above the row of checkboxes and buttons */
     var SEARCH_OPTIONS_TOP_MARGIN = 5;      /* 正規表現などの上余白 / top margin above the search options */
     var INSERT_BUTTON_HEIGHT = 20;          /* 挿入ボタンの高さ / height of the insert buttons */
     var INSERT_BUTTON_FONT_SHRINK = 2;      /* 挿入ボタンの文字を小さくする量（pt）/ how much smaller the insert button font is (pt) */
     var INSERT_BUTTON_TOP_MARGIN = 2;       /* 挿入ボタンの上余白 / top margin of the insert buttons */
     var INSERT_BUTTON_LINE_SPACING = 4;     /* 挿入ボタンの行間 / spacing between rows of insert buttons */
-    var BUTTON_ROW_TOP_MARGIN = 6;          /* ボタン行の上余白 / top margin of the button row */
     var CONVERSION_BUTTON_SIZE = [130, 24]; /* 変換ボタンのサイズ / size of the conversion buttons */
     var CONVERSION_SAMPLE_SIZE = [90, 24];  /* 変換結果の見本の最小サイズ（パネル幅まで伸びる）/ minimum size of the conversion samples, stretched to the panel width */
     var CONVERSION_SAMPLE_MAX_CHARS = 60;   /* 変換結果の見本に表示する最大文字数 / maximum characters in a conversion sample */
@@ -134,26 +661,104 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     var LABELS = {
         dialog: {
-            title: { ja: "テキストの削除・置換・整形", en: "Remove, Replace & Clean Up Text" }
+            title: { ja: "テキストの検索・置換・整形", en: "Find, Replace & Clean Up Text" }
         },
         tab: {
-            findReplace: { ja: "削除・置換", en: "Remove / Replace" },
+            findReplace: { ja: "検索・置換", en: "Find / Replace" },
             englishText: { ja: "英文", en: "English" },
             cleanup: { ja: "整形", en: "Cleanup" }
         },
         panel: {
-            findReplace: { ja: "削除・置換する文字列", en: "Text to Remove / Replace" },
+            findReplace: { ja: "検索・置換する文字列", en: "Text to Find / Replace" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" },
-            letterCase: { ja: "大文字/小文字", en: "Letter Case" },
+            letterCase: { ja: "大文字・小文字", en: "Letter Case" },
             kanaDigitConversion: { ja: "かな・数字の変換", en: "Kana & Digits" },
             tabCharacter: { ja: "タブ", en: "Tabs" },
-            removeSpace: { ja: "スペース削除", en: "Remove Spaces" },
-            addSpace: { ja: "スペース追加", en: "Add Spaces" },
+            removeSpace: { ja: "スペースの削除", en: "Remove Spaces" },
+            addSpace: { ja: "スペースの追加", en: "Add Spaces" },
             symbolConversion: { ja: "スペースや記号の変換", en: "Convert Spaces & Symbols" },
             symbolBefore: { ja: "変換前", en: "Before" },
             symbolAfter: { ja: "変換後", en: "After" },
@@ -163,10 +768,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             preview: { ja: "プレビュー", en: "Preview" },
             useRegex: { ja: "正規表現", en: "Regular expression" },
             matchCase: { ja: "大文字と小文字を区別", en: "Match case" },
+            deleteEmptyLines: { ja: "空になった行を削除", en: "Delete emptied lines" },
             deleteEmptyFrames: { ja: "空になったテキストを削除", en: "Delete emptied text" },
             includeHidden: { ja: "非表示のレイヤーを検索", en: "Check hidden layers" },
             includeLocked: { ja: "ロックされたレイヤーを検索", en: "Check locked layers" },
-            includeSymbols: { ja: "シンボルを検索", en: "Check symbols" }
+            includeSymbols: { ja: "シンボルを検索", en: "Check symbols" },
+            zoomToMatch: { ja: "選択時に拡大表示", en: "Zoom on select" }
         },
         radio: {
             selection: { ja: "選択中のオブジェクト", en: "Selected objects" },
@@ -178,8 +785,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         },
         tooltip: {
             searchText: {
-                ja: "一致する部分をすべて削除します（右の欄に入力すると置換）。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
-                en: "Removes every match (or replaces it when the field on the right is filled). Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
+                ja: "検索する文字列。右の欄が空なら［すべてを置換］で削除、入力すると置換します。［次を選択］［すべてを選択］にも使います。空欄は無視し、上の欄から順に処理します。入力内容は次回に引き継がれます",
+                en: "Text to find. Replace All removes each match when the field on the right is empty, or replaces it with that text. Select Next and Select All use it too. Empty fields are ignored; fields are processed from top to bottom. Entries are kept for the next run"
             },
             replaceText: {
                 ja: "一致した部分をこの文字列に置き換えます。空欄なら削除します。正規表現のときは $1・\\1 や $&・\\0 で一致した部分を参照できます",
@@ -215,6 +822,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             },
             selection: { ja: "グループ内のテキストも対象になります", en: "Includes text inside groups" },
             artboard: { ja: "アートボードに一部でも重なるテキストが対象になります", en: "Includes text that partly overlaps the artboard" },
+            deleteEmptyLines: {
+                ja: "削除で段落が空になったら、その改行も削除して空行を残しません。元から空の行は残します",
+                en: "When removing leaves a paragraph empty, also removes its break so no blank line is left. Lines that were already empty are kept"
+            },
             deleteEmptyFrames: {
                 ja: "今回の削除で空になったテキストだけを削除します。元から空のテキストと、スレッドテキスト（連結）は残します",
                 en: "Deletes only text emptied by this run. Text that was already empty and threaded text are kept"
@@ -232,13 +843,29 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 en: "Rewrites the definitions of symbols in the scope. Instances outside the scope change too, and symbol options such as the registration point are reset"
             },
             selectionUnavailable: { ja: "オブジェクトが選択されていないため選べません", en: "Unavailable because nothing is selected" },
+            rowMarker: {
+                ja: "［次を選択］［すべてを選択］は、▶ の行の文字列で選択します",
+                en: "Select Next and Select All use the text in the row marked ▶"
+            },
+            selectNext: {
+                ja: "カーソルのある行の文字列に次に一致する文字を選択します。最後まで行くと最初に戻ります。非表示・ロックされたテキストとシンボル内は飛ばします",
+                en: "Selects the next characters matching the row with the cursor, wrapping around at the end. Hidden or locked text and text in symbols are skipped"
+            },
+            zoomToMatch: {
+                ja: "［次を選択］で選んだ文字を含むテキストが画面に大きく収まるように、表示倍率と位置を変えます",
+                en: "Changes the zoom and position so the text containing the characters picked by Select Next fills the window"
+            },
+            selectAll: {
+                ja: "カーソルのある行の文字列に一致する文字を含むテキストオブジェクトを、すべて選択します。非表示・ロックされたテキストとシンボル内は選択しません",
+                en: "Selects every text object containing a match for the row with the cursor. Hidden or locked text and text in symbols are not selected"
+            },
             reset: {
                 ja: "入力欄を空にし、対象とオプションを初期値に戻します（プレビューの ON／OFF はそのまま）",
                 en: "Clears the fields and restores the scope and options to their defaults (the preview setting is kept)"
             },
-            apply: {
-                ja: "対象の範囲で削除・置換します（Enter）。ダイアログは閉じないので、続けて別の文字列を処理できます",
-                en: "Removes or replaces in the scope (Enter). The dialog stays open so you can continue with other text"
+            replaceAll: {
+                ja: "対象の範囲で一致する部分をすべて置換します。置換欄が空なら削除します（Enter）。ダイアログは閉じないので、続けて別の文字列を処理できます",
+                en: "Replaces every match in the scope, or removes it when the replacement is empty (Enter). The dialog stays open so you can continue with other text"
             },
             caseWord: { ja: "単語ごとに先頭を大文字、残りを小文字にします", en: "Capitalizes the first letter of each word and lowercases the rest" },
             caseSentence: { ja: "文の先頭だけを大文字にし、残りを小文字にします", en: "Capitalizes only the first letter of each sentence" },
@@ -260,7 +887,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             },
             collapseSpaces: { ja: "連続したスペースを1つにまとめます", en: "Collapses consecutive spaces into one" },
             cleanupSpaces: {
-                ja: "行頭行末・連続・和欧間のスペースをまとめて処理します",
+                ja: "行頭・行末、連続、和欧間のスペースをまとめて処理します",
                 en: "Applies Leading/Trailing, Consecutive and Between CJK and Latin in one step"
             },
             spaceAfterPunct: { ja: "半角ピリオド・カンマの直後にスペースを挿入します", en: "Inserts a space right after a period or comma" },
@@ -277,8 +904,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 en: "Removes leading numbers (1. ① a. etc.). Illustrator numbered lists are converted to text first, then removed"
             },
             preview: {
-                ja: "ダイアログを閉じずに結果を表示し、入力や対象の変更に合わせて更新します。シンボル内・非表示・ロック中・スレッドテキスト（連結）のテキストは表示しません",
-                en: "Shows the result without closing the dialog, updating as the input or scope changes. Text in symbols, hidden, locked or threaded text is not previewed"
+                ja: "正規表現のときだけ使えます。ダイアログを閉じずに結果を表示し、入力や対象の変更に合わせて更新します。シンボル内・非表示・ロック中・スレッドテキスト（連結）のテキストは表示しません",
+                en: "Available with regular expressions only. Shows the result without closing the dialog, updating as the input or scope changes. Text in symbols, hidden, locked or threaded text is not previewed"
             }
         },
         button: {
@@ -299,7 +926,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             toFullDigit: { ja: "全角数字", en: "Fullwidth Digits" },
             removeTabs: { ja: "削除", en: "Remove" },
             tabsToSpaces: { ja: "スペースに", en: "To Spaces" },
-            trimSpaces: { ja: "行頭行末", en: "Leading/Trailing" },
+            trimSpaces: { ja: "行頭・行末", en: "Leading/Trailing" },
             cjkLatinSpaces: { ja: "和欧間", en: "Between CJK and Latin" },
             collapseSpaces: { ja: "連続", en: "Consecutive" },
             cleanupSpaces: { ja: "まとめて", en: "All at Once" },
@@ -307,8 +934,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             convertSymbol: { ja: "変換", en: "Convert" },
             bulletList: { ja: "箇条書き", en: "Bullets" },
             numberList: { ja: "番号リスト", en: "Numbers" },
-            reset: { ja: "リセット", en: "Reset" },
-            apply: { ja: "実行", en: "Apply" },
+            reset: { ja: "条件をリセット", en: "Reset Criteria" },
+            selectNext: { ja: "次を選択", en: "Select Next" },
+            selectAll: { ja: "すべてを選択", en: "Select All" },
+            replaceAll: { ja: "すべてを置換", en: "Replace All" },
             close: { ja: "閉じる", en: "Close" }
         },
         alert: {
@@ -316,14 +945,141 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         }
     };
 
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
     /**
-     * 現在の言語のラベルを返す
-     * @param {Object} labelSet - { ja, en } を持つラベル
-     * @returns {string} ラベル文字列
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
      */
-    function getLabel(labelSet) {
-        return labelSet[uiLang] || labelSet.en;
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
     }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
     // メイン処理 / Main
@@ -346,15 +1102,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
-     * 選択（配列でない TextRange などを含む）をアイテムの配列にする
+     * 選択をアイテムの配列にする。文字ツールで文字を選択しているときは、その文字を含むストーリーのテキストフレームにする
      * @param {Object} currentSelection - doc.selection
      * @returns {PageItem[]} アイテムの配列。選択が無ければ空
      */
     function toItemArray(currentSelection) {
         var itemArray = [];
-        if (!currentSelection || !currentSelection.length) return itemArray;
-        for (var i = 0; i < currentSelection.length; i++) {
-            itemArray.push(currentSelection[i]);
+        if (!currentSelection) return itemArray;
+        /* TextRange の length は文字数で、[i] は undefined になる / A TextRange's length is its character count, and [i] is undefined */
+        var sourceItems = (currentSelection.typename === "TextRange") ? currentSelection.story.textFrames : currentSelection;
+        for (var i = 0; i < sourceItems.length; i++) {
+            itemArray.push(sourceItems[i]);
         }
         return itemArray;
     }
@@ -396,6 +1154,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         var hasShownPreview = false;
         /* 箇条書きの変換で選択を使ったか / Whether converting list styles changed the selection */
         var hasChangedSelection = false;
+        /* ［次を選択］［すべてを選択］の処理 / Select Next and Select All */
+        var matchSelector = createMatchSelector(doc, collectRowMatches);
         var isPreviewOn = false;
         /* 入力が有効か（有効なパターンがあり、誤った正規表現が無い）/ Whether the input is valid */
         var isInputValid = false;
@@ -407,7 +1167,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 
         /* 入力欄から検索エントリーを作る / Build the search entries from the fields */
         function readSearchEntries() {
-            return getSearchEntries(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState.values.useRegex, dialogState.values.matchCase);
+            return getSearchEntries(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState.values.useRegex, dialogState.values.matchCase, dialogState.values.deleteEmptyLines);
         }
 
         /* プレビューを消して元に戻す / Remove the preview and restore the originals */
@@ -440,8 +1200,41 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             return contentsCache[cacheKey];
         }
 
-        /* 一致数と［実行］の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は押せない）
-           Update match counts, Apply and the preview; disable Apply when no pattern is given or a regular expression is invalid */
+        /* 行の検索文字列に一致する、選択できるテキストと一致箇所を集める / Collect the selectable matches for a row */
+        function collectRowMatches(rowIndex) {
+            var searchPattern = createSearchPattern(searchInputs[rowIndex].text, dialogState.values.useRegex, dialogState.values.matchCase);
+            if (!searchPattern) return [];
+            /* プレビューの複製を拾わないよう、先に消す / Clear the preview first so its duplicates are not picked */
+            clearPreview();
+            return findSelectableMatches(collectTargetFrames(doc, dialogState.scope, getLayerOptions(), selectedItems), searchPattern);
+        }
+
+        /* 対象範囲のテキストフレームとシンボル（シンボルは［シンボルを検索］が ON のときだけ）/ Text frames and symbols in the scope; symbols only with Check symbols on */
+        function collectEditTargets() {
+            var layerOptions = getLayerOptions();
+            return {
+                textFrames: collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems),
+                symbols: dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : []
+            };
+        }
+
+        /* 内容が変わったので、集め直して一致数を数え直す / The contents changed, so collect and count again */
+        function refreshAfterEdit() {
+            contentsCache = {};
+            app.redraw();
+            refreshDialogState();
+        }
+
+        /* 入力欄をすべて空にする / Clear all fields */
+        function clearAllInputs() {
+            for (var i = 0; i < searchInputs.length; i++) {
+                searchInputs[i].text = "";
+                replaceInputs[i].text = "";
+            }
+        }
+
+        /* 一致数と［すべてを置換］の可否、プレビューを更新（有効なパターンが無いか、誤った正規表現がある間は押せない）
+           Update match counts, Replace All and the preview; disable Replace All when no pattern is given or a regular expression is invalid */
         function refreshDialogState() {
             /* プレビューの複製が数に入らないよう、先に消す / Clear the preview first so its duplicates are not counted */
             clearPreview();
@@ -463,8 +1256,18 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
                 findReplaceControls.matchCountLabels[i].text = matchCountText;
             }
             isInputValid = hasPattern && !hasInvalidPattern;
-            findReplaceControls.btnApply.enabled = isInputValid;
+            findReplaceControls.btnReplaceAll.enabled = isInputValid;
+            /* 選択は有効な行だけで働くので、誤った正規表現があっても押せる / Selecting works per row, so an invalid row elsewhere does not block it */
+            findReplaceControls.btnSelectNext.enabled = hasPattern;
+            findReplaceControls.btnSelectAll.enabled = hasPattern;
+            matchSelector.resetCursor();
             findReplaceControls.referenceButtonGroup.enabled = dialogState.values.useRegex;
+            /* プレビューは正規表現のときだけ使える。OFF にしたら外す / Preview works only with regular expressions; turning them off turns it off */
+            findReplaceControls.previewCheckbox.enabled = dialogState.values.useRegex;
+            if (!dialogState.values.useRegex) {
+                findReplaceControls.previewCheckbox.value = false;
+                isPreviewOn = false;
+            }
             updatePreview();
         }
 
@@ -472,64 +1275,49 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         function runConversion(convertText, conversionKey) {
             /* プレビューの複製ではなく元を変換する / Convert the originals, not the preview duplicates */
             clearPreview();
-            var layerOptions = getLayerOptions();
-            var targetFrames = collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems);
-            var targetSymbols = dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : [];
+            var editTargets = collectEditTargets();
+            var prepareFrame = null;
             if (conversionKey === "bulletList" || conversionKey === "numberList") {
                 /* 箇条書き機能の記号を本文にしてから取り除く（選択を使うので、閉じたあとに選択を戻す）
                    Turn list markers into text first; this uses the selection, so restore it after closing */
                 hasChangedSelection = true;
-                var convertListStyle = function (textFrame) {
+                prepareFrame = function (textFrame) {
                     convertListStyleToText(doc, textFrame);
                 };
-                convertTextInFrames(targetFrames, convertText, convertListStyle);
-                convertTextInSymbols(doc, targetSymbols, convertText, convertListStyle);
-            } else {
-                convertTextInFrames(targetFrames, convertText, null);
-                convertTextInSymbols(doc, targetSymbols, convertText, null);
             }
-            /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
-            contentsCache = {};
-            app.redraw();
-            refreshDialogState();
+            convertTextInFrames(editTargets.textFrames, convertText, prepareFrame);
+            convertTextInSymbols(doc, editTargets.symbols, convertText, prepareFrame);
+            refreshAfterEdit();
         }
 
         /* 対象範囲のテキストを削除・置換する（ダイアログは閉じない）/ Remove or replace in the scope, keeping the dialog open */
         function runReplace() {
-            /* Enter は表示中のタブにかかわらず既定のボタンを押すので、削除・置換タブのときだけ実行する
-               Enter presses the default button on any tab, so run only on the Remove / Replace tab */
+            /* Enter は表示中のタブにかかわらず既定のボタンを押すので、検索・置換タブのときだけ実行する
+               Enter presses the default button on any tab, so run only on the Find / Replace tab */
             if (dialogControls.modeTabbedPanel.selection !== dialogControls.findReplaceTab || !isInputValid) return;
             /* プレビューの複製ではなく元を処理する / Process the originals, not the preview duplicates */
             clearPreview();
             var searchTexts = readInputTexts(searchInputs);
             var replaceTexts = readInputTexts(replaceInputs);
             saveDialogSettings(searchTexts, replaceTexts, dialogState);
-            var searchEntries = getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase);
-            var layerOptions = getLayerOptions();
-            var targetFrames = collectTargetFrames(doc, dialogState.scope, layerOptions, selectedItems);
-            /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルは先に集める
-               Collect symbols first, as deleting emptied frames leaves invalid references in selectedItems */
-            var targetSymbols = dialogState.values.includeSymbols ? collectTargetSymbols(doc, dialogState.scope, layerOptions, selectedItems) : [];
-            var replaceResult = replaceTextInFrames(targetFrames, searchEntries, dialogState.values.deleteEmptyFrames);
-            replaceTextInSymbols(doc, targetSymbols, searchEntries, replaceResult.processedCounts);
+            var searchEntries = getSearchEntries(searchTexts, replaceTexts, dialogState.values.useRegex, dialogState.values.matchCase, dialogState.values.deleteEmptyLines);
+            /* 空になったフレームを削除すると selectedItems に無効な参照が残るので、シンボルも先に集める
+               Collect symbols up front too, as deleting emptied frames leaves invalid references in selectedItems */
+            var editTargets = collectEditTargets();
+            var replaceResult = replaceTextInFrames(editTargets.textFrames, searchEntries, dialogState.values.deleteEmptyFrames);
+            replaceTextInSymbols(doc, editTargets.symbols, searchEntries, replaceResult.processedCounts);
             /* 次の実行や閉じたあとの選択の復元で使わないよう、削除したフレームを取り除く
                Drop the deleted frames so later runs and the selection restore do not touch them */
             for (var i = selectedItems.length - 1; i >= 0; i--) {
                 if (indexOfItem(replaceResult.deletedFrames, selectedItems[i]) !== -1) selectedItems.splice(i, 1);
             }
-            /* 内容が変わったので一致数を数え直す / The contents changed, so count the matches again */
-            contentsCache = {};
-            app.redraw();
-            refreshDialogState();
+            refreshAfterEdit();
         }
 
         /* 入力欄を空にし、対象とオプションを初期値に戻す（プレビューの ON/OFF はそのまま）
            Clear the fields and restore the scope and options to their defaults, keeping the preview setting */
         function resetDialog() {
-            for (var i = 0; i < searchInputs.length; i++) {
-                searchInputs[i].text = "";
-                replaceInputs[i].text = "";
-            }
+            clearAllInputs();
             for (var j = 0; j < dialogState.settingControls.length; j++) {
                 var settingControl = dialogState.settingControls[j];
                 settingControl.checkbox.value = settingControl.defaultValue;
@@ -545,9 +1333,23 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             searchInputs[i].onChanging = refreshDialogState;
             replaceInputs[i].onChanging = updatePreview;
         }
+        /* 選択している文字列を1行目の検索する文字列にする（ほかの欄は空にする）
+           The selected text becomes the first text to find; the other fields are cleared */
+        var selectedQueryText = getSelectedQueryText(selectedTextRange, selectedItems);
+        if (selectedQueryText !== "") {
+            clearAllInputs();
+            searchInputs[0].text = convertTextToQuery(selectedQueryText, dialogState.values.useRegex);
+        }
+
         dialogState.onSettingChange = refreshDialogState;
+        findReplaceControls.btnSelectNext.onClick = function () {
+            matchSelector.selectNext(findReplaceControls.getActiveRowIndex(), dialogState.values.zoomToMatch);
+        };
+        findReplaceControls.btnSelectAll.onClick = function () {
+            matchSelector.selectAllFrames(findReplaceControls.getActiveRowIndex());
+        };
         findReplaceControls.btnReset.onClick = resetDialog;
-        findReplaceControls.btnApply.onClick = runReplace;
+        findReplaceControls.btnReplaceAll.onClick = runReplace;
         findReplaceControls.previewCheckbox.onClick = function () {
             isPreviewOn = this.value;
             updatePreview();
@@ -555,9 +1357,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
 
         refreshDialogState();
 
+        /* show() 前に入れた値は効かないことがあるので、表示してからもプレビューを OFF にする
+           A value set before show() may not stick, so turn Preview off again once shown */
+        dialogControls.mainDialog.onShow = function () {
+            findReplaceControls.previewCheckbox.value = false;
+            isPreviewOn = false;
+        };
+        prepareDialogWindow(dialogControls.mainDialog, SCRIPT_NAME);
         dialogControls.mainDialog.show();
         clearPreview();
-        if (hasShownPreview || hasChangedSelection) {
+        /* ［次を選択］［すべてを選択］で選択したときは、その選択を残す / Keep the selection made by Select Next or Select All */
+        if ((hasShownPreview || hasChangedSelection) && !matchSelector.hasSelected()) {
             /* 戻せない選択（ロック・非表示になったものなど）は例外になるので無視する / Ignore a selection that can no longer be restored */
             try {
                 doc.selection = (selectedItems.length > 0) ? selectedItems : null;
@@ -565,6 +1375,78 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         }
         /* 閉じたときの入力内容と設定も次回に引き継ぐ / Keep the entries and settings at closing for the next run */
         saveDialogSettings(readInputTexts(searchInputs), readInputTexts(replaceInputs), dialogState);
+    }
+
+    /**
+     * ［次を選択］［すべてを選択］の処理を用意する（次に選ぶ一致の位置を行ごとに持つ）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Function} collectRowMatches - (rowIndex) を受け取り、findSelectableMatches() の結果を返す処理
+     * @returns {Object} { selectNext: Function, selectAllFrames: Function, resetCursor: Function, hasSelected: Function }
+     *   selectNext(rowIndex, shouldZoom) で次の一致を選択し、selectAllFrames(rowIndex) で一致を含むテキストをすべて選択する
+     */
+    function createMatchSelector(doc, collectRowMatches) {
+        /* 次に選ぶ一致の番号と、その行（行や検索の条件が変わったら最初に戻す）/ Index of the next match and its row; reset when the row or the search changes */
+        var nextMatchIndex = 0;
+        var nextMatchRowIndex = -1;
+        /* 選択したか（閉じたあとも選択を残す）/ Whether anything was selected; that selection is kept after closing */
+        var hasSelectedMatch = false;
+
+        return {
+            selectNext: function (rowIndex, shouldZoom) {
+                if (rowIndex !== nextMatchRowIndex) {
+                    nextMatchIndex = 0;
+                    nextMatchRowIndex = rowIndex;
+                }
+                var matchRecords = collectRowMatches(rowIndex);
+                if (matchRecords.length === 0) return;
+                if (nextMatchIndex >= matchRecords.length) nextMatchIndex = 0;
+                var matchRecord = matchRecords[nextMatchIndex];
+                /* select() は今の選択に足されるので、先に解除して一致した文字だけを選択する
+                   select() adds to the current selection, so clear it first to select only the match */
+                doc.selection = null;
+                selectTextSpan(matchRecord.textFrame, matchRecord.start, matchRecord.length);
+                if (shouldZoom) zoomToItem(doc, matchRecord.textFrame);
+                hasSelectedMatch = true;
+                nextMatchIndex++;
+                app.redraw();
+            },
+            selectAllFrames: function (rowIndex) {
+                var matchRecords = collectRowMatches(rowIndex);
+                var matchingFrames = [];
+                for (var i = 0; i < matchRecords.length; i++) {
+                    if (indexOfItem(matchingFrames, matchRecords[i].textFrame) === -1) matchingFrames.push(matchRecords[i].textFrame);
+                }
+                doc.selection = (matchingFrames.length > 0) ? matchingFrames : null;
+                hasSelectedMatch = true;
+                nextMatchIndex = 0;
+                app.redraw();
+            },
+            resetCursor: function () {
+                nextMatchIndex = 0;
+            },
+            hasSelected: function () {
+                return hasSelectedMatch;
+            }
+        };
+    }
+
+    /**
+     * 選択できるテキスト（表示中でロックされていないもの）から、一致箇所を集める
+     * @param {TextFrame[]} targetFrames - 対象のテキストフレーム
+     * @param {RegExp} searchPattern - g フラグ付きの検索パターン
+     * @returns {Object[]} { textFrame: TextFrame, start: number, length: number } の配列（フレーム順・位置順）
+     */
+    function findSelectableMatches(targetFrames, searchPattern) {
+        var visibleOnly = { includeHidden: false, includeLocked: false };
+        var matchRecords = [];
+        for (var i = 0; i < targetFrames.length; i++) {
+            if (!isSearchableItem(targetFrames[i], visibleOnly)) continue;
+            var frameMatches = findMatches(targetFrames[i].contents, searchPattern);
+            for (var j = 0; j < frameMatches.length; j++) {
+                matchRecords.push({ textFrame: targetFrames[i], start: frameMatches[j].start, length: frameMatches[j].length });
+            }
+        }
+        return matchRecords;
     }
 
     /**
@@ -580,7 +1462,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         mainDialog.orientation = "column";
         mainDialog.alignChildren = ["fill", "top"];
 
-        /* 「削除・置換」「英文」「整形」をタブで切り替える / Switch between the remove/replace, English and cleanup tabs */
+        /* 「検索・置換」「英文」「整形」をタブで切り替える / Switch between the find/replace, English and cleanup tabs */
         var modeTabbedPanel = mainDialog.add("tabbedpanel");
         modeTabbedPanel.alignChildren = ["fill", "top"];
         var findReplaceTab = addDialogTab(modeTabbedPanel, LABELS.tab.findReplace);
@@ -600,9 +1482,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         var scopeRadios = buildScopePanel(scopeOptionsGroup, dialogState, hasSelection);
         buildOptionsPanel(scopeOptionsGroup, savedSettings, dialogState);
 
-        buildButtonRow(mainDialog);
-        /* Enter で［実行］を押す（削除・置換タブ以外では runReplace() が何もしない）/ Enter presses Apply; runReplace() ignores it on other tabs */
-        mainDialog.defaultElement = findReplaceControls.btnApply;
+        /* ボタン行（右に閉じる。どのタブのボタンも押した時点で実行するので OK・キャンセルは置かない）
+           Button row: Close on the right; every tab's buttons run on click, so there is no OK/Cancel */
+        var buttonRow = addButtonRow(mainDialog);
+        /* name を cancel にして Esc でも閉じる / Named cancel so Esc also closes */
+        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
+        centerButtonRowIfRightOnly(buttonRow);
+        /* Enter で［すべてを置換］を押す（検索・置換タブ以外では runReplace() が何もしない）/ Enter presses Replace All; runReplace() ignores it on other tabs */
+        mainDialog.defaultElement = findReplaceControls.btnReplaceAll;
 
         return {
             mainDialog: mainDialog,
@@ -703,46 +1590,99 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
-     * 「削除・置換する文字列」パネルを作る（入力欄・挿入ボタン・正規表現や空になったテキストの削除などのチェックボックス・プレビュー・リセット・実行）
+     * 「検索・置換する文字列」パネルを作る（入力欄の行・挿入ボタンの行・チェックボックスとボタンの行）
      * @param {Tab} parentTab - 追加先のタブ
      * @param {Object} savedSettings - loadSettings() の結果
      * @param {Object} dialogState - showFindReplaceDialog() の状態
-     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, previewCheckbox: Checkbox, btnReset: Button, btnApply: Button, focusFirstInput: Function }
+     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], referenceButtonGroup: Group, previewCheckbox: Checkbox, btnSelectNext: Button, btnSelectAll: Button, btnReset: Button, btnReplaceAll: Button, focusFirstInput: Function, getActiveRowIndex: Function }
      */
     function buildFindReplacePanel(parentTab, savedSettings, dialogState) {
-        var savedSearchTexts = savedSettings.searchTexts || [];
-        var savedReplaceTexts = savedSettings.replaceTexts || [];
         var findReplacePanel = parentTab.add("panel", undefined, getLabel(LABELS.panel.findReplace));
         setupPanel(findReplacePanel);
+        var fieldRows = addSearchFieldRows(findReplacePanel, savedSettings, dialogState);
+        var referenceButtonGroup = addInsertButtonRow(findReplacePanel, fieldRows.getLastActiveInput);
+        var searchOptionsControls = addSearchOptionsRow(findReplacePanel, savedSettings, dialogState);
+        return {
+            searchInputs: fieldRows.searchInputs,
+            replaceInputs: fieldRows.replaceInputs,
+            matchCountLabels: fieldRows.matchCountLabels,
+            referenceButtonGroup: referenceButtonGroup,
+            previewCheckbox: searchOptionsControls.previewCheckbox,
+            btnSelectNext: searchOptionsControls.btnSelectNext,
+            btnSelectAll: searchOptionsControls.btnSelectAll,
+            btnReset: searchOptionsControls.btnReset,
+            btnReplaceAll: searchOptionsControls.btnReplaceAll,
+            focusFirstInput: fieldRows.focusFirstInput,
+            getActiveRowIndex: fieldRows.getActiveRowIndex
+        };
+    }
 
+    /**
+     * 検索・置換の入力欄を行ごとに並べる（行頭の目印・検索欄・置換欄・一致数）。カーソルのある欄を記録し、その行に目印を出す
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Object} savedSettings - loadSettings() の結果
+     * @param {Object} dialogState - showFindReplaceDialog() の状態
+     * @returns {Object} { searchInputs: EditText[], replaceInputs: EditText[], matchCountLabels: StaticText[], focusFirstInput: Function, getActiveRowIndex: Function, getLastActiveInput: Function }
+     */
+    function addSearchFieldRows(findReplacePanel, savedSettings, dialogState) {
+        var savedSearchTexts = savedSettings.searchTexts || [];
+        var savedReplaceTexts = savedSettings.replaceTexts || [];
         var searchInputs = [];
         var replaceInputs = [];
         var matchCountLabels = [];
-        /* 最後にカーソルがあった入力欄（挿入ボタンの挿入先）/ Field that last had the cursor, where the insert buttons insert */
+        var rowMarkers = [];
+        /* 最後にカーソルがあった入力欄（挿入ボタンの挿入先・選択の対象の行）/ Field that last had the cursor: where insert buttons insert, and the row selecting uses */
         var lastActiveInput = null;
-        /* ボタンを押すと入力欄のカーソルが失われるので、押し下げた時点の位置を控える / Clicking a button loses the caret, so keep its position from the mouse down */
-        var savedCaret = null;
 
         /* 入力欄に、挿入先の記録とショートカットを付ける / Track the cursor field and add the shortcuts */
         function setupShortcutInput(targetInput) {
             targetInput.onActivate = function () {
                 lastActiveInput = this;
+                updateRowMarkers();
             };
             targetInput.addEventListener("keydown", function (keyEvent) {
                 var insertedToken = getShortcutToken(keyEvent.keyName, ScriptUI.environment.keyboardState, dialogState.values.useRegex);
                 if (!insertedToken) return;
-                /* Enter で［実行］が押されたり、option＋数字で記号が入ったりしないよう止める
-                   Keep Enter from pressing Apply and option+digit from typing a symbol */
+                /* Enter で［すべてを置換］が押されたり、option＋数字で記号が入ったりしないよう止める
+                   Keep Enter from pressing Replace All and option+digit from typing a symbol */
                 keyEvent.preventDefault();
                 this.textselection = insertedToken;
                 if (this.onChanging) this.onChanging();
             });
         }
 
+        /* カーソルのある行の番号（置換欄にあるときもその行）/ Row index of the field with the cursor, including the replace fields */
+        function getActiveRowIndex() {
+            for (var i = 0; i < searchInputs.length; i++) {
+                if (lastActiveInput === searchInputs[i] || lastActiveInput === replaceInputs[i]) return i;
+            }
+            return 0;
+        }
+
+        /* カーソルのある行にだけ目印を出す / Show the marker only on the row with the cursor */
+        function updateRowMarkers() {
+            var activeRowIndex = getActiveRowIndex();
+            for (var i = 0; i < rowMarkers.length; i++) {
+                rowMarkers[i].visible = (i === activeRowIndex);
+            }
+        }
+
+        /* 先頭の入力欄にカーソルを置く / Put the cursor in the first field */
+        function focusFirstInput() {
+            lastActiveInput = searchInputs[0];
+            searchInputs[0].active = true;
+            updateRowMarkers();
+        }
+
         for (var i = 0; i < SEARCH_FIELD_COUNT; i++) {
             var fieldRowGroup = findReplacePanel.add("group");
             fieldRowGroup.orientation = "row";
             fieldRowGroup.alignChildren = ["left", "center"];
+            /* ［次を選択］などの対象になる行の目印 / Marker of the row Select Next and Select All work on */
+            /* 空にすると表示前の配置で幅が縮んで欄がずれるので、記号は入れたまま visible で出し分ける
+               Emptying it shrinks the width before layout and shifts the fields, so keep the marker and toggle visible */
+            var rowMarker = fieldRowGroup.add("statictext", undefined, ROW_MARKER_TEXT);
+            rowMarker.helpTip = getLabel(LABELS.tooltip.rowMarker);
             var searchInput = fieldRowGroup.add("edittext", undefined, savedSearchTexts[i] || "");
             searchInput.characters = INPUT_CHARACTERS;
             searchInput.helpTip = getLabel(LABELS.tooltip.searchText);
@@ -756,19 +1696,34 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             matchCountLabel.preferredSize.width = MATCH_COUNT_WIDTH;
             matchCountLabel.justify = "right";
             matchCountLabel.helpTip = getLabel(LABELS.tooltip.matchCount);
+            rowMarkers.push(rowMarker);
             searchInputs.push(searchInput);
             replaceInputs.push(replaceInput);
             matchCountLabels.push(matchCountLabel);
         }
-
-        /* 先頭の入力欄にカーソルを置く / Put the cursor in the first field */
-        function focusFirstInput() {
-            lastActiveInput = searchInputs[0];
-            searchInputs[0].active = true;
-        }
         focusFirstInput();
 
-        /* 挿入ボタンの行（左・スペーサー・右の3カラム）/ Row of insert buttons: left, spacer and right columns */
+        return {
+            searchInputs: searchInputs,
+            replaceInputs: replaceInputs,
+            matchCountLabels: matchCountLabels,
+            focusFirstInput: focusFirstInput,
+            getActiveRowIndex: getActiveRowIndex,
+            getLastActiveInput: function () {
+                return lastActiveInput;
+            }
+        };
+    }
+
+    /**
+     * 挿入ボタンの行を作る（左に改行、右に正規表現の検索結果の参照）
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Function} getLastActiveInput - 挿入先の入力欄を返す処理
+     * @returns {Group} 検索結果の参照ボタンのグループ（正規表現のときだけ使えるようにする）
+     */
+    function addInsertButtonRow(findReplacePanel, getLastActiveInput) {
+        /* ボタンを押すと入力欄のカーソルが失われるので、押し下げた時点の位置を控える / Clicking a button loses the caret, so keep its position from the mouse down */
+        var savedCaret = null;
         var insertButtonRowGroup = findReplacePanel.add("group");
         insertButtonRowGroup.orientation = "row";
         insertButtonRowGroup.alignment = ["fill", "top"];
@@ -780,11 +1735,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             var insertButton = addSmallButton(parentGroup, labelKey);
             /* クリックが確定する前（押し下げた時点）にカーソル位置を読む / Read the caret on mouse down, before the click completes */
             insertButton.addEventListener("mousedown", function () {
-                savedCaret = captureCaret(lastActiveInput);
+                savedCaret = captureCaret(getLastActiveInput());
             });
             insertButton.onClick = function () {
-                insertTokenAtCaret(lastActiveInput, insertedToken, savedCaret);
-                if (lastActiveInput.onChanging) lastActiveInput.onChanging();
+                var targetInput = getLastActiveInput();
+                insertTokenAtCaret(targetInput, insertedToken, savedCaret);
+                if (targetInput.onChanging) targetInput.onChanging();
             };
         }
 
@@ -794,9 +1750,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         addInsertButton(breakButtonGroup, "lineBreak", LINE_BREAK_TOKEN);
 
         /* 中央：スペーサー（伸縮）/ Center: spacer (stretchable) */
-        var insertButtonSpacer = insertButtonRowGroup.add("group");
-        insertButtonSpacer.alignment = ["fill", "fill"];
-        insertButtonSpacer.minimumSize.width = 0;
+        addStretchSpacer(insertButtonRowGroup);
 
         /* 右：検索結果の参照（正規表現のときだけ使える）。1行目に「検索結果すべて」、2行目に「検索結果1」「検索結果2」
            Right: match references, available with regular expressions only. Whole match on the first line, groups 1 and 2 on the second */
@@ -810,44 +1764,69 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         var groupReferenceButtonGroup = addButtonRowGroup(referenceButtonGroup);
         addInsertButton(groupReferenceButtonGroup, "group1", "\\1");
         addInsertButton(groupReferenceButtonGroup, "group2", "\\2");
+        return referenceButtonGroup;
+    }
 
-        /* 左に正規表現などのチェックボックスとプレビュー、右下にリセットと実行 / Checkboxes and Preview on the left, Reset and Apply at the bottom right */
+    /**
+     * チェックボックスとボタンの行を作る（左に正規表現などのチェックボックスとプレビュー、右下に選択・リセット・すべてを置換）
+     * @param {Panel} findReplacePanel - 追加先のパネル
+     * @param {Object} savedSettings - loadSettings() の結果
+     * @param {Object} dialogState - showFindReplaceDialog() の状態
+     * @returns {Object} { previewCheckbox: Checkbox, btnSelectNext: Button, btnSelectAll: Button, btnReset: Button, btnReplaceAll: Button }
+     */
+    function addSearchOptionsRow(findReplacePanel, savedSettings, dialogState) {
         var searchOptionsRowGroup = findReplacePanel.add("group");
         searchOptionsRowGroup.orientation = "row";
         searchOptionsRowGroup.alignment = ["fill", "top"];
         searchOptionsRowGroup.alignChildren = ["left", "bottom"];
+        searchOptionsRowGroup.margins = [0, SEARCH_OPTIONS_ROW_TOP_MARGIN, 0, 0];
         var searchOptionsGroup = searchOptionsRowGroup.add("group");
         searchOptionsGroup.orientation = "column";
         searchOptionsGroup.alignChildren = ["left", "top"];
         searchOptionsGroup.margins = [0, SEARCH_OPTIONS_TOP_MARGIN, 0, 0];
         searchOptionsGroup.spacing = PANEL_SPACING;
         addSettingCheckbox(searchOptionsGroup, "useRegex", DEFAULT_USE_REGEX, savedSettings, dialogState);
-        addSettingCheckbox(searchOptionsGroup, "matchCase", DEFAULT_MATCH_CASE, savedSettings, dialogState);
-        addSettingCheckbox(searchOptionsGroup, "deleteEmptyFrames", DEFAULT_DELETE_EMPTY_FRAMES, savedSettings, dialogState);
+        /* プレビューは正規表現のときだけ使うので、そのすぐ下に置く。保存せず、開くときは常に OFF
+           Preview is for regular expressions only, so it sits right below; not saved, and always starts off */
         var previewCheckbox = searchOptionsGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        previewCheckbox.value = false;
         previewCheckbox.helpTip = getLabel(LABELS.tooltip.preview);
-        var searchOptionsSpacer = searchOptionsRowGroup.add("group");
-        searchOptionsSpacer.alignment = ["fill", "fill"];
-        searchOptionsSpacer.minimumSize.width = 0;
+        addSettingCheckbox(searchOptionsGroup, "matchCase", DEFAULT_MATCH_CASE, savedSettings, dialogState);
+        addSettingCheckbox(searchOptionsGroup, "deleteEmptyLines", DEFAULT_DELETE_EMPTY_LINES, savedSettings, dialogState);
+        addSettingCheckbox(searchOptionsGroup, "deleteEmptyFrames", DEFAULT_DELETE_EMPTY_FRAMES, savedSettings, dialogState);
+        addSettingCheckbox(searchOptionsGroup, "zoomToMatch", DEFAULT_ZOOM_TO_MATCH, savedSettings, dialogState);
+        addStretchSpacer(searchOptionsRowGroup);
         var actionButtonGroup = searchOptionsRowGroup.add("group");
         actionButtonGroup.orientation = "column";
         actionButtonGroup.alignment = ["right", "bottom"];
         actionButtonGroup.alignChildren = ["fill", "top"];
-        var btnReset = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.reset));
-        btnReset.helpTip = getLabel(LABELS.tooltip.reset);
-        var btnApply = actionButtonGroup.add("button", undefined, getLabel(LABELS.button.apply));
-        btnApply.helpTip = getLabel(LABELS.tooltip.apply);
+
+        /* ツールチップ付きのボタンを追加する / Add a button with its tooltip */
+        function addActionButton(labelKey) {
+            var actionButton = actionButtonGroup.add("button", undefined, getLabel(LABELS.button[labelKey]));
+            actionButton.helpTip = getLabel(LABELS.tooltip[labelKey]);
+            return actionButton;
+        }
 
         return {
-            searchInputs: searchInputs,
-            replaceInputs: replaceInputs,
-            matchCountLabels: matchCountLabels,
-            referenceButtonGroup: referenceButtonGroup,
             previewCheckbox: previewCheckbox,
-            btnReset: btnReset,
-            btnApply: btnApply,
-            focusFirstInput: focusFirstInput
+            btnSelectNext: addActionButton("selectNext"),
+            btnSelectAll: addActionButton("selectAll"),
+            btnReset: addActionButton("reset"),
+            btnReplaceAll: addActionButton("replaceAll")
         };
+    }
+
+    /**
+     * 行の中で伸び縮みするスペーサーを追加する（左右のコントロールを両端に寄せる）
+     * @param {Group} rowGroup - 追加先の行
+     * @returns {Group} 追加したスペーサー
+     */
+    function addStretchSpacer(rowGroup) {
+        var spacerGroup = rowGroup.add("group");
+        spacerGroup.alignment = ["fill", "fill"];
+        spacerGroup.minimumSize.width = 0;
+        return spacerGroup;
     }
 
     /**
@@ -1068,6 +2047,31 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     }
 
     /**
+     * 検索する文字列に入れる、選択している文字列を返す
+     * 文字ツールで選択した文字、無ければ選択ツールで1つだけ選んだテキストオブジェクトの1行目（複数選んでいるときは入れない）
+     * @param {TextRange|null} selectedTextRange - 文字ツールで選択した文字（まだ何も変換していないので読める）
+     * @param {PageItem[]} selectedItems - 実行時に選択していたアイテム
+     * @returns {string} 選択している文字列。無ければ空文字列
+     */
+    function getSelectedQueryText(selectedTextRange, selectedItems) {
+        if (selectedTextRange) return selectedTextRange.contents;
+        /* 最初の改行・強制改行までを1行目とする / The first line runs up to the first paragraph or forced line break */
+        if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") return selectedItems[0].contents.split(/[\r\x03]/)[0];
+        return "";
+    }
+
+    /**
+     * 文字列を検索欄に入れる形にする（改行は記号に、正規表現のときは記号の意味を消す）
+     * @param {string} text - 元の文字列
+     * @param {boolean} useRegex - 正規表現として扱うか
+     * @returns {string} 検索欄に入れる文字列
+     */
+    function convertTextToQuery(text, useRegex) {
+        var queryText = useRegex ? text.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&") : text;
+        return queryText.split("\r").join(PARAGRAPH_BREAK_TOKEN).split("\x03").join(LINE_BREAK_TOKEN);
+    }
+
+    /**
      * 空でない最初の文字列を返す（変換結果の見本用）
      * @param {string[]} textContents - テキストの内容
      * @returns {string} 見つからなければ空文字列
@@ -1157,26 +2161,67 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
         addSettingCheckbox(optionsPanel, "includeSymbols", DEFAULT_INCLUDE_SYMBOLS, savedSettings, dialogState);
     }
 
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
     /**
-     * ボタンエリアを作る（右に閉じる。どのタブのボタンも押した時点で実行するので OK・キャンセルは置かない）
-     * @param {Window} parentDialog - ダイアログ
-     * @returns {void}
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
      */
-    function buildButtonRow(parentDialog) {
-        var btnRowGroup = parentDialog.add("group");
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
         btnRowGroup.alignment = ["fill", "bottom"];
 
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
 
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        /* name を cancel にして Esc でも閉じる / Named cancel so Esc also closes */
-        btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
     }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     /**
      * ショートカットに対応する記号を返す
@@ -1334,16 +2379,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      * @param {string[]} replaceTexts - 置換欄の文字列（空欄は削除）
      * @param {boolean} useRegex - 正規表現として扱うか
      * @param {boolean} matchCase - 大文字と小文字を区別するか
-     * @returns {Object[]} { text: string, pattern: RegExp, replaceText: string, useRegex: boolean } の配列
+     * @param {boolean} deleteEmptyLines - 削除で空になった段落の改行も削除するか
+     * @returns {Object[]} { text: string, pattern: RegExp, replaceText: string, useRegex: boolean, deleteEmptyLines: boolean } の配列
      */
-    function getSearchEntries(searchTexts, replaceTexts, useRegex, matchCase) {
+    function getSearchEntries(searchTexts, replaceTexts, useRegex, matchCase, deleteEmptyLines) {
         var searchEntries = [];
         for (var i = 0; i < searchTexts.length; i++) {
             var searchPattern = createSearchPattern(searchTexts[i], useRegex, matchCase);
             if (searchPattern) {
                 /* 正規表現の置換欄は getReplacementText() で改行の記号を展開する / Regex replacements expand the break tokens in getReplacementText() */
                 var replaceText = replaceTexts[i] || "";
-                searchEntries.push({ text: searchTexts[i], pattern: searchPattern, replaceText: useRegex ? replaceText : expandBreakTokens(replaceText), useRegex: useRegex });
+                searchEntries.push({ text: searchTexts[i], pattern: searchPattern, replaceText: useRegex ? replaceText : expandBreakTokens(replaceText), useRegex: useRegex, deleteEmptyLines: deleteEmptyLines });
             }
         }
         return searchEntries;
@@ -1629,6 +2675,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
     /**
      * 一致箇所を右から削除・置換する（contents を書き戻さないので文字ごとの書式が残る）
      * 置換は先頭の1文字だけ残して contents を差し替えるので、置換後の文字はその文字の書式になる
+     * 空になった行の削除が有効なら、削除で空になった段落の改行もあわせて削除する
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {Object[]} matches - findMatches() の結果（昇順）
      * @param {Object} searchEntry - getSearchEntries() の要素
@@ -1636,14 +2683,111 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      */
     function replaceMatchesKeepingFormat(textFrame, matches, searchEntry) {
         var frameCharacters = textFrame.characters;
-        for (var i = matches.length - 1; i >= 0; i--) {
-            var newText = getReplacementText(searchEntry, matches[i].captures);
-            var keptCount = (newText === "") ? 0 : 1;
-            for (var j = matches[i].start + matches[i].length - 1; j >= matches[i].start + keptCount; j--) {
+        var newTexts = [];
+        for (var i = 0; i < matches.length; i++) {
+            newTexts.push(getReplacementText(searchEntry, matches[i].captures));
+        }
+        /* 削除する改行（降順）。一致箇所とは重ならない / Breaks to remove, in descending order; they never overlap a match */
+        var breakIndices = searchEntry.deleteEmptyLines ? findEmptiedLineBreaks(textFrame.contents, matches, newTexts) : [];
+        var breakCursor = 0;
+        for (var k = matches.length - 1; k >= 0; k--) {
+            /* 右から処理するので、この一致より後ろの改行を先に消す / Working from the right, remove the breaks after this match first */
+            while (breakCursor < breakIndices.length && breakIndices[breakCursor] > matches[k].start) {
+                frameCharacters[breakIndices[breakCursor]].remove();
+                breakCursor++;
+            }
+            var keptCount = (newTexts[k] === "") ? 0 : 1;
+            for (var j = matches[k].start + matches[k].length - 1; j >= matches[k].start + keptCount; j--) {
                 frameCharacters[j].remove();
             }
-            if (keptCount > 0) frameCharacters[matches[i].start].contents = newText;
+            if (keptCount > 0) frameCharacters[matches[k].start].contents = newTexts[k];
         }
+        for (; breakCursor < breakIndices.length; breakCursor++) {
+            frameCharacters[breakIndices[breakCursor]].remove();
+        }
+    }
+
+    /**
+     * テキストフレームの指定した範囲の文字を選択する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} start - 先頭の文字の番号（contents と1対1）
+     * @param {number} length - 文字数
+     * @returns {void}
+     */
+    function selectTextSpan(textFrame, start, length) {
+        /* characterOffset への代入は範囲が崩れるので、先頭の1文字から length を伸ばす（実測済み）
+           Assigning characterOffset breaks the range, so extend the length from the first character (tested) */
+        var textSpan = textFrame.characters[start];
+        textSpan.length = length;
+        textSpan.select();
+    }
+
+    /**
+     * アイテムが画面に大きく収まるように、表示倍率と中心を変える（MATCH_ZOOM_MAX を超えては拡大しない）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} item - 表示するアイテム
+     * @returns {void}
+     */
+    function zoomToItem(doc, item) {
+        var activeView = doc.activeView;
+        var itemBounds = item.visibleBounds;
+        var itemWidth = Math.max(itemBounds[2] - itemBounds[0], 1);
+        var itemHeight = Math.max(itemBounds[1] - itemBounds[3], 1);
+        /* 画面の大きさ（画面上の長さ）は、見えている範囲に今の倍率を掛けて求める / The window size in screen units is the visible area times the current zoom */
+        var viewBounds = activeView.bounds;
+        var windowWidth = (viewBounds[2] - viewBounds[0]) * activeView.zoom;
+        var windowHeight = (viewBounds[1] - viewBounds[3]) * activeView.zoom;
+        var fitZoom = Math.min(windowWidth / itemWidth, windowHeight / itemHeight) * MATCH_ZOOM_FILL_RATIO;
+        activeView.zoom = Math.min(fitZoom, MATCH_ZOOM_MAX);
+        activeView.centerPoint = [(itemBounds[0] + itemBounds[2]) / 2, (itemBounds[1] + itemBounds[3]) / 2];
+    }
+
+    /**
+     * 削除で空になる段落を探し、あわせて消す改行の位置を返す
+     * 空になった段落は後ろの改行を消す。末尾から続けて空になった段落は、後ろに改行が無いので前の改行を消す
+     * 元から空の段落は対象にしない
+     * @param {string} text - 削除・置換する前の contents
+     * @param {Object[]} matches - findMatches() の結果（昇順）
+     * @param {string[]} newTexts - 一致箇所ごとの置換後の文字列（空なら削除）
+     * @returns {number[]} 消す改行の位置（降順）
+     */
+    function findEmptiedLineBreaks(text, matches, newTexts) {
+        /* 文字ごとに、一致箇所に含まれるか / Whether each character is inside a match */
+        var isMatched = [];
+        /* 置換で文字が入る位置 / Positions where a replacement puts text */
+        var hasNewText = [];
+        for (var i = 0; i < matches.length; i++) {
+            for (var j = matches[i].start; j < matches[i].start + matches[i].length; j++) isMatched[j] = true;
+            if (newTexts[i] !== "") hasNewText[matches[i].start] = true;
+        }
+        /* 残る改行で区切った段落ごとに、元の文字があったか・結果が空か / Per paragraph split by the surviving breaks: had text, and ends up empty */
+        var lineRecords = [];
+        var currentLine = { previousBreak: -1, nextBreak: -1, hadText: false, isEmptied: true };
+        for (var k = 0; k < text.length; k++) {
+            if (text.charAt(k) === "\r" && !isMatched[k]) {
+                currentLine.nextBreak = k;
+                lineRecords.push(currentLine);
+                currentLine = { previousBreak: k, nextBreak: -1, hadText: false, isEmptied: true };
+                continue;
+            }
+            currentLine.hadText = true;
+            if (!isMatched[k] || hasNewText[k]) currentLine.isEmptied = false;
+        }
+        lineRecords.push(currentLine);
+
+        var breakIndices = [];
+        /* 末尾から続く空になった段落か / Whether the paragraphs so far, from the end, were all emptied */
+        var isTrailing = true;
+        for (var lineIndex = lineRecords.length - 1; lineIndex >= 0; lineIndex--) {
+            var lineRecord = lineRecords[lineIndex];
+            if (!lineRecord.hadText || !lineRecord.isEmptied) {
+                isTrailing = false;
+                continue;
+            }
+            var breakIndex = isTrailing ? lineRecord.previousBreak : lineRecord.nextBreak;
+            if (breakIndex >= 0) breakIndices.push(breakIndex);
+        }
+        return breakIndices;
     }
 
     /**
@@ -2261,7 +3405,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
      * @returns {void}
      */
     function withSymbolWorkLayer(doc, workCallback) {
-        var savedSelection = toItemArray(doc.selection);
+        /* 文字ツールで選択した文字は、フレームではなく文字の範囲として戻す / Restore characters selected with the Type tool as a text range, not as frames */
+        var savedTextRange = (doc.selection && doc.selection.typename === "TextRange") ? doc.selection : null;
+        var savedSelection = savedTextRange ? [] : toItemArray(doc.selection);
         var savedActiveLayer = doc.activeLayer;
         var workLayer = doc.layers.add();
         try {
@@ -2270,6 +3416,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextF
             workLayer.remove();
             doc.activeLayer = savedActiveLayer;
             doc.selection = (savedSelection.length > 0) ? savedSelection : null;
+            if (savedTextRange) savedTextRange.select();
         }
     }
 

@@ -1,8 +1,8 @@
 # アートボードをランダムな順序でグリッドに並べ替え
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-randomizeArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/randomizeArtboards.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RandomizeArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/RandomizeArtboards.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeArtboards.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeArtboards.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

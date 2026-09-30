@@ -79,10 +79,14 @@ https://note.com/dtp_tranist/n/n4907511336ad
 
 ### Update History
 
+- v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.2.3 (20260929): Dialog opacity changed to 98%
+- v1.2.2 (20260928): The button row is now built with the shared part
+- v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (20260817): Added Layers, Current Artboard Only, the Specific Layer destination, and Convert to Shape. The dialog now reports the guide and rectangle counts. Overlapping guides no longer produce zero-size rectangles
 - v1.0 (20250713): Initial version
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.3

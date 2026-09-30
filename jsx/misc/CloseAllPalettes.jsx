@@ -18,6 +18,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   でも解放されるが保険）
 - 対象は PALETTES テーブルで管理。パレットを増やしたら 1 行追加するだけで対象にできる
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloseAllPalettes.md
+
 ### 実行時の要点 / Runtime notes
 
 - BridgeTalk のクロスエンジン往復は「ファイル＞スクリプト」実行でも同期的に効く。ただし
@@ -38,6 +41,13 @@ LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPa
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
 AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
 
+### Overview
+
+Closes the floating palettes that run in persistent engines, all at once.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPalettes.md
+
 */
 
 // =========================================
@@ -48,6 +58,9 @@ var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloseAllPalettes.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPalettes.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -107,30 +120,90 @@ var PALETTES = [
 // =========================================
 // ローカライズ / Localization
 // =========================================
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI の表示言語を判定する（ロケールが ja 始まりなら日本語）
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
-function detectUILanguage() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+function getCurrentLang() {
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
-var uiLang = detectUILanguage();
+
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
 var LABELS = {
     alert: {
         closedSome: { ja: "個のパレットを閉じました:", en: " palette(s) closed:" }
     }
 };
-
-/**
- * ラベルから表示言語の文言を返す
- * @param {Object} labelEntry - ja / en を持つラベル
- * @returns {string} 表示言語の文言（無ければ英語、それも無ければ空文字）
- */
-function getLabel(labelEntry) {
-    if (!labelEntry) return "";
-    return labelEntry[uiLang] || labelEntry.en || "";
-}
 
 (function () {
 

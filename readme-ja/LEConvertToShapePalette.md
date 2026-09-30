@@ -14,10 +14,11 @@
 
 ### 更新履歴
 
+- v1.1.1（2026-09-28）英語 UI の項目名のコロンの後ろの空白をなくした（ローカライズ処理の共通化）
 - v1.1.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.0.1（2026-09-26）ファイル名を `LEConvertToShape.jsx` から `LEConvertToShapePalette.jsx` に変更。
 - v1.0.0: 常駐パレット化。形状（長方形／楕円）とサイズモード（値を指定／値を追加）＋幅・高さを設定し、ライブプレビュー付きで［形状に変換］を適用 ／ Persistent palette. Choose shape (rectangle/ellipse) and size mode (absolute/relative) plus width/height, apply "Convert to Shape" with a live preview.
 
 ### スクリプト情報
 
-- バージョン: v1.1.0
+- バージョン: v1.1.1

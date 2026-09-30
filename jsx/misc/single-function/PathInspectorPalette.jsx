@@ -23,11 +23,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspec
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "PathInspectorPalette";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_NAME     = "PathInspectorPalette";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspectorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspectorPalette.md"; /* README (English) */
@@ -37,14 +37,293 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * 現在の言語コードを返す
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
 
     /* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
     var LABELS = {
@@ -53,8 +332,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         report: {
             title: { ja: "Path Inspector Report", en: "Path Inspector Report" },
-            document: { ja: "ドキュメント：", en: "Document:" },
-            date: { ja: "日付：", en: "Date:" },
+            document: { ja: "ドキュメント", en: "Document" },
+            date: { ja: "日付", en: "Date" },
             valueNote: {
                 ja: "※ 値は『選択 / 全体』の形式です",
                 en: "Note: values are formatted as 'Selection / All'"
@@ -67,13 +346,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             path: { ja: "パス", en: "Paths" }
         },
         row: {
-            pathCount: { ja: "パス：", en: "Paths:" },
-            openPath: { ja: "オープンパス：", en: "Open Paths:" },
-            closedPath: { ja: "クローズパス：", en: "Closed Paths:" },
-            anchors: { ja: "アンカーポイント：", en: "Anchor Points:" },
-            handles: { ja: "ハンドル：", en: "Handles:" },
-            compoundPath: { ja: "複合パス：", en: "Compound Paths:" },
-            compoundShape: { ja: "複合シェイプ：", en: "Compound Shapes:" }
+            pathCount: { ja: "パス", en: "Paths" },
+            openPath: { ja: "オープンパス", en: "Open Paths" },
+            closedPath: { ja: "クローズパス", en: "Closed Paths" },
+            anchors: { ja: "アンカーポイント", en: "Anchor Points" },
+            handles: { ja: "ハンドル", en: "Handles" },
+            compoundPath: { ja: "複合パス", en: "Compound Paths" },
+            compoundShape: { ja: "複合シェイプ", en: "Compound Shapes" }
         },
         button: {
             refresh: { ja: "更新", en: "Refresh" },
@@ -98,30 +377,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /**
-     * ドットパスでラベルを参照する（見つからない場合はパス文字列を返す）
-     * @param {string} path ラベルのドットパス（例: "row.pathCount"）
-     * @returns {string} ローカライズ済み文字列
-     */
-    function getLabel(path) {
-        var parts = String(path).split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node == null) return path;
-            node = node[parts[i]];
-        }
-        if (node == null) return path;
-        if (typeof node === "string") return node;
-        if (typeof node === "object" && node[uiLang] != null) return node[uiLang];
-        return path;
-    }
-
-    /**
      * 書き出し用にラベル末尾のコロンを半角へ正規化する
      * @param {string} path ラベルのドットパス
      * @returns {string} 正規化済み文字列
      */
     function LX(path) {
-        return getLabel(path).replace(/[：:]\s*$/, ":");
+        return getLabel(path) + ":";
     }
 
     (function () {
@@ -357,13 +618,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             panelPath.alignChildren = ["fill", "top"];
             panelPath.margins = PANEL_MARGINS;
 
-            v.pathCount = addStatRow(panelPath, getLabel('row.pathCount'), LABEL_WIDTH);
-            v.openPath = addStatRow(panelPath, getLabel('row.openPath'), LABEL_WIDTH);
-            v.closedPath = addStatRow(panelPath, getLabel('row.closedPath'), LABEL_WIDTH);
-            v.anchors = addStatRow(panelPath, getLabel('row.anchors'), LABEL_WIDTH);
-            v.handles = addStatRow(panelPath, getLabel('row.handles'), LABEL_WIDTH);
-            v.compoundPath = addStatRow(panelPath, getLabel('row.compoundPath'), LABEL_WIDTH);
-            v.compoundShape = addStatRow(panelPath, getLabel('row.compoundShape'), LABEL_WIDTH);
+            v.pathCount = addStatRow(panelPath, labelText('row.pathCount'), LABEL_WIDTH);
+            v.openPath = addStatRow(panelPath, labelText('row.openPath'), LABEL_WIDTH);
+            v.closedPath = addStatRow(panelPath, labelText('row.closedPath'), LABEL_WIDTH);
+            v.anchors = addStatRow(panelPath, labelText('row.anchors'), LABEL_WIDTH);
+            v.handles = addStatRow(panelPath, labelText('row.handles'), LABEL_WIDTH);
+            v.compoundPath = addStatRow(panelPath, labelText('row.compoundPath'), LABEL_WIDTH);
+            v.compoundShape = addStatRow(panelPath, labelText('row.compoundShape'), LABEL_WIDTH);
 
             /* ステータス / Status line */
             var statusText = win.add("statictext", undefined, getLabel('status.ready'));
@@ -410,7 +671,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (resp === "ERR:BUSY") { setStatus(getLabel('status.busy')); return; }
                 if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
                 if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); clearValues(); return; }
-                if (resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
+                if (resp.indexOf("ERR:") === 0) { setStatus(labelValueText('status.error', resp.substring(4))); return; }
 
                 var map = parseCollect(resp);
                 if (!map) { setStatus(getLabel('status.error')); return; }
@@ -434,7 +695,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var resp = callMainEngine("wkCollect()");
                 if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); return; }
                 if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
-                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
+                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(labelValueText('status.error', resp.substring(4))); return; }
 
                 var m = parseCollect(resp);
                 if (!m) { setStatus(getLabel('status.error')); return; }
@@ -469,8 +730,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                     if (file.open("w")) {
                         file.writeln(getLabel('report.title'));
-                        file.writeln(getLabel('report.document') + " " + fullName);
-                        file.writeln(getLabel('report.date') + " " + yyyy + "-" + mm + "-" + dd);
+                        file.writeln(labelText('report.document') + " " + fullName);
+                        file.writeln(labelText('report.date') + " " + yyyy + "-" + mm + "-" + dd);
                         file.writeln("");
                         file.writeln(getLabel('report.valueNote'));
 
@@ -489,7 +750,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         setStatus(getLabel('status.exportFailOpen'));
                     }
                 } catch (err) {
-                    setStatus(getLabel('status.error') + ": " + err);
+                    setStatus(labelValueText('status.error', err));
                 }
             }
 
@@ -519,16 +780,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* キー操作 / Key handling
                Esc: 閉じる / close
                ⌘R: 更新 / Cmd+R refresh */
-            win.addEventListener("keydown", function (ev) {
-                var key = "";
-                try { key = ev && ev.keyName ? String(ev.keyName).toUpperCase() : ""; } catch (e) { key = ""; }
-
-                if (key === "ESCAPE") {
-                    try { win.close(); } catch (e1) {}
-                } else if (ev && ev.metaKey && key === "R") {
-                    refresh();
-                    try { if (ev.preventDefault) ev.preventDefault(); } catch (e2) {}
-                }
+            addKeyShortcuts(win, {
+                "Escape": { target: function () { try { win.close(); } catch (e1) {} }, inFields: true },
+                "Cmd+R": { target: refresh, inFields: true }
             });
 
             try { win.opacity = PALETTE_OPACITY; } catch (e) {}

@@ -1,6 +1,6 @@
 # フォントサイズやベースラインの調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustTextScaleBaseline.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustTextScaleBaseline.jsx
+[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustTextScaleBaseline.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustTextScaleBaseline.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md)
 )
@@ -30,3 +30,7 @@
 - v1.2 (20250723) : プレビュー反映の強化、100%時の見かけディム処理、shiftキー刻み修正
 - v1.3 (20250724) : トラッキング機能追加、UI微調整
 - v1.5.0 (20260927) : 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
+- v1.5.1 (20260928) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
+- v1.5.2 (20260929) : ダイアログの不透明度を98%に変更
+- v1.5.3 (20260930) : 文字ツールで文字を選択して実行するとエラーになる不具合を修正
+- v1.5.4 (20260930) : 初めて開くときにダイアログを右へずらす独自の配置をやめた

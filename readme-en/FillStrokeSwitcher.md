@@ -47,7 +47,13 @@
 
 - Based on a script by しぶやみゃむさん, with added features and refactoring.
 - https://note.com/shibumi/n/n5229b4357dd3
+- Article: https://note.com/dtp_tranist/n/n81ee3a9e09b4
 
 ### Update History
 
 - v1.1.0: Current version
+- v1.1.2: The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.3: In Japanese, failure counts now use a full-width colon
+- v1.1.3: The button row is now built with the shared part
+- v1.1.4: Dialog opacity changed to 98%
+- v1.1.5: Fixed an error when running with characters selected by the Type tool

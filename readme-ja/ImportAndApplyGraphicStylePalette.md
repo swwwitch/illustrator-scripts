@@ -50,10 +50,11 @@
 | テキスト＋長方形 | ―（長方形サイズ優先） | ○ |
 
 - ボタン背景は New Fill を2枚追加し、長方形シェイプ効果で背景化する。塗り色は設定しない（追加した塗りは既定のまま）。
-- グラフィックスタイルで「読み込んだスタイル」を選んだ場合、そのスタイルが見た目を定義するためボタン背景は付与しない。現書類に未登録なら、記憶した AI ファイルから取り込んで適用する。参照ファイルとスタイル名は Folder.userData（styles_for_TextWithShapeToAreaType.txt）に記憶する。
+- グラフィックスタイルで「読み込んだスタイル」を選んだ場合、そのスタイルが見た目を定義するためボタン背景は付与しない。現書類に未登録なら、記憶した AI ファイルから取り込んで適用する。参照ファイルとスタイル名は Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json に記憶する（TextWithShapeToAreaType と共用。以前の styles_for_TextWithShapeToAreaType.txt は初回に読み継ぐ）。
 
 ### 更新履歴
 
+- v1.4.1（2026-09-28）一時アクションの一時ファイルを Folder.temp に置き、失敗してもアクションセットと一時ファイルが残らないようにした。BridgeTalk 側の一時アクションを共通の部品にした。設定の保存を共通の部品にした（保存先: Folder.userData/illustrator-scripts/TextWithShapeToAreaTypeStyles.json）。
 - v1.4.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）。
 - v1.3.2（2026-09-26）ファイル名を `ImportAndApplyGraphicStyle.jsx` から `ImportAndApplyGraphicStylePalette.jsx` に変更。
 - v1.3.0 (2026-07-01): モーダルダイアログを常駐パレット化（#targetengine ＋ $.global 単一インスタンスガード）。DOM 処理は BridgeTalk でメインエンジンへ委譲し、パレットは開いたまま実行。「変換」ボタンはエリア内文字オプションパネル内に配置。グラフィックスタイルの listbox はクリックした時点で選択オブジェクトへ即適用（「適用」ボタンなし）。閉じるボタンは廃止し、パレットをアクティブにして Esc キーで閉じる。worker と重複していた旧・非worker実装を一掃／ Converted the modal dialog into a resident palette (#targetengine + a $.global single-instance guard); DOM work is delegated to the main engine via BridgeTalk and runs while the palette stays open; the "Convert" button now sits inside the Area Type Options panel; clicking a graphic style in the listbox live-applies it to the current selection (no Apply button); the Close button was dropped in favor of pressing Esc while the palette is active; removed the legacy non-worker code duplicated by the workers
@@ -63,4 +64,4 @@
 
 ### スクリプト情報
 
-- バージョン: v1.3.2
+- バージョン: v1.4.1

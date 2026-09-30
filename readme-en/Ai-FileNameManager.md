@@ -196,7 +196,7 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 
 **Create PDF Compatible File**: Illustrator's DOM does not expose the setting the document was originally saved with, so "Create PDF Compatible File" on save is decided by `FEATURE_PDF_COMPATIBLE` at the top of the script (default `true`, matching Illustrator's own default). Set it to `false` if you do not want the compatible PDF stream embedded.
 
-**Your previous settings are saved as a preset.** They are stored in `FileNameManager-prefs.txt` under `Folder.userData` as `key=value` text. It is written only when the save succeeds.
+**Your previous settings are saved as a preset.** They are stored in `illustrator-scripts/Ai-FileNameManager.json` under `Folder.userData` (the old `FileNameManager-prefs.txt` is carried over once). It is written only when the save succeeds.
 
 **Feature switches at the top of the script**: The status, ordering, separator, NFC, clean, convert, half-width kana, and sequence features each disappear — UI and all — when the corresponding `FEATURE_*` at the top of the script is set to `false`. Useful if you dislike a crowded dialog full of features you never use.
 
@@ -207,6 +207,12 @@ The active Illustrator document. The output is always .ai. When a non-.ai docume
 - v1.3.6 (2026-07-23) Fixed version/sequence auto-increment to run **after** formatting (clean, convert, separator unification). Since existing filenames in the folder are stored already-formatted, matching against a pre-formatting name could miss the maximum and fail to bump — resolved for both the preview and the actual save. Consolidated the shared UI layout settings (`setupWindow` / `setupPanel`, etc. and the margin constants) into one place, and unified the window margins of the main dialog and the segment-order sub-dialog.
 
 - v1.3.7 (2026-09-12) Fixed the three "Segment Order" radio buttons not being mutually exclusive ("Custom" lived in its own group, so ScriptUI's built-in exclusivity did not cover it). Fixed a case where a rename differing only in letter case or kana composition sent the freshly saved file to the Trash. Rename and Save a Copy are now unavailable for non-.ai documents. Moved the empty-name check to run **after** formatting, so a name that formatting reduces to an empty string (symbols only, emoji only) is rejected. Fixed "Save a Copy" failing after an overwrite was approved, because `File.copy()` does not overwrite. Version and sequence numbers are now matched as delimited segments (a word such as `rev1` is no longer bumped). Turning on "Append HHMM" now selects a timestamp format automatically. The PDF compatibility used on save is now explicit via `FEATURE_PDF_COMPATIBLE`. Unified the formatting pipeline shared by the preview and the actual save, and cached the folder listing. Added JSDoc to every function and removed unused layout helpers.
+
+- v1.3.9 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.10 (2026-09-28) The button row is now built with the shared part. Settings are now saved through the shared part (stored in `Folder.userData/illustrator-scripts/Ai-FileNameManager.json`)
+- v1.3.11 (2026-09-29) Dialog opacity changed to 98%
+- v1.3.12 (2026-09-30) Fixed an error when running with characters selected by the Type tool
+- v1.3.13 (2026-09-30) Button rows with only right-side buttons are now centered
 
 ### Article
 

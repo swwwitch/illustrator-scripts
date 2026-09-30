@@ -27,6 +27,14 @@ Converts the selected object into a symbol and replaces matching items in the do
 
 https://note.com/dtp_tranist/n/n650a4b91329d
 
+### Update History
+
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.3 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
+- v1.0.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.0.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.6 (2026-09-30): Button rows with only right-side buttons are now centered
+
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.6

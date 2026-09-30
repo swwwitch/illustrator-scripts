@@ -133,6 +133,10 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ## Update History
 
+- v1.0.8 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.7 (2026-09-29): Dialog opacity changed to 98%
+- v1.0.6 (2026-09-28): The button row is now built with the shared part
+- v1.0.5 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.3 (2026-09-17): Added support for unsaved and edited documents (topping the list up from the text). Added "Missing fonts only". Centered the button row. Fixed missing fonts being judged installed because they are still listed in `app.textFonts`, composite fonts always being reported missing, and an absent face being passed off as installed by another weight of the same family. Gave the filtered export its own filename and heading
 - v1.0.2 (2026-08-06): Added "Open the folder after exporting". Fixed a dropped composite member font, arrow-key selection, XML entity decoding, and CSV escaping
 - v1.0.1 (2026-06-17): Added destination choice (desktop / same folder), panel layout, and unsaved-document check

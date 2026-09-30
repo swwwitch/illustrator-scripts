@@ -16,6 +16,14 @@ A dialog lets you choose what to swap (string / style / position).
 - Exactly two objects must be selected, and both must be text objects.
 - Shows an alert if the conditions are not met.
 
+### Update history
+
+- v1.0.6 (2026-09-30): Button rows with only right-side buttons are now centered
+- v1.0.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.0.3 (2026-09-28): The button row is now built with the shared part
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.6

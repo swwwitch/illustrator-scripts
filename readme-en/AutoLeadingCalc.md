@@ -17,4 +17,8 @@ in place, including text inside groups and range selections in text-edit mode.
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1
+
+### Update History
+
+- v1.0.1 (2026-09-19): Renamed the label lookup to getLabel() (no change in behavior)

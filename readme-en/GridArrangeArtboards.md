@@ -17,7 +17,7 @@
 
 ### Main Features
 
-- Spacing panel for column and row gaps; "Link" mirrors the column gap to the row gap
+- Spacing panel for column and row gaps; the link icon mirrors the column gap to the row gap
   - Input follows the document ruler unit (rulerType)
   - Default gap is the active artboard width divided by 8, rounded to an integer
   - The ∧∨ buttons and arrow keys step the value to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
@@ -50,5 +50,11 @@
 
 ### Update History
 
+- v1.2.5 (20260930): Button rows with only right-side buttons are now centered
+- v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.2.3 (20260929): Dialog opacity changed to 98%
+- v1.2.2 (20260928): The button row is now built with the shared part
+- v1.2.1 (20260928): Replaced the Link checkbox with a link icon
+- v1.2.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0

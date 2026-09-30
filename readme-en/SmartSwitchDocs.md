@@ -42,6 +42,8 @@ Quickly switches to another Illustrator document when several are open.
 
 ### Update History
 
+- v0.5.9 (20260930): Fixed an error when running with characters selected by the Type tool
+- v0.5.8 (20260929): Dialog opacity changed to 98%
 - v1.0.0 (20250325): Initial version
 - v1.1.0 (20250403): Returned focus to the dialog after arrow-key selection so documents can be switched in a row, switched to the first candidate when the dialog opens, and moved the layout to preferredSize (improvements by Yusuke Saegusa)
 - v0.5.1 (20250525): Added Cancel button and adjusted UI
@@ -49,3 +51,5 @@ Quickly switches to another Illustrator document when several are open.
 - v0.5.3 (20260903): Added a Preview checkbox (switching waits for OK when it is off), put the version in the dialog title, fixed switching to the inactive document when exactly two are open; added the article URL to the basic info block, reorganized LABELS into nested categories with `getLabel()`, renamed variables/panels/functions to follow the naming rules, split dialog building and document collection into functions, unified duplicated selection/activation code, and added JSDoc to every function
 - v0.5.4 (20260924): Closing the dialog with the window close box now also restores the original document, renamed the "Current Document" panel to "Original Document" and gave it a tooltip, and split part of the dialog building into functions
 - v0.5.5 (20260924): Double-clicking a list item now switches and closes the dialog; added a tooltip to the list
+- v0.5.6 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v0.5.7 (20260928): The button row is now built with the shared part

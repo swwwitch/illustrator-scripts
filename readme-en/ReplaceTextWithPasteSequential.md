@@ -72,6 +72,7 @@ Assigning a keyboard shortcut lets you work through the list with nothing but se
 
 ## Changelog
 
+- v1.0.4 (20260929): Clip groups are now measured by their mask (when centering pasted contents in the window with nothing selected)
 - v1.0.3 (20260825): The paste with no selection now places only the first line instead of the whole clipboard, and writes the remaining lines back to the clipboard, consuming one line per run just as it does with a selection. Placement is now based on the center of the window (`activeView.centerPoint`) rather than the center of the artboard
 - v1.0.2 (20260825): Added the behavior for running with no text frame selected. Instead of reporting and stopping, the script now pastes the clipboard at the center of the artboard as it is, without consuming a line or writing the clipboard back
 - v1.0.1 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid. When the selection holds no text frame at all, the script now reports it and stops instead of consuming a line from the clipboard

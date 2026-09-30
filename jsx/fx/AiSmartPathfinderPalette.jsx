@@ -28,11 +28,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPat
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiSmartPathfinderPalette";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_NAME     = "AiSmartPathfinderPalette";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinderPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinderPalette.md"; /* README (English) */
@@ -49,15 +49,289 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6909b836221a"; /* 紹�
  * ローカライズ / Localization
  * ============================================================ */
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * 現在の UI 言語を返す。
- * @returns {string} "ja" または "en" / "ja" or "en"
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+ * @returns {string} "ja" または "en"
  */
-function getCurrentLanguage() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+function getCurrentLang() {
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLanguage = getCurrentLanguage();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+// キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+
+/* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+/* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+/* 修飾キーの別名 / Aliases accepted for the modifiers */
+var KEY_SHORTCUT_MODIFIER_ALIASES = {
+    SHIFT: "SHIFT",
+    ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+    CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+};
+
+/**
+ * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+ * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+ * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+ */
+function normalizeKeyShortcutSpec(keySpec) {
+    var specParts = String(keySpec).split("+");
+    var baseKey = specParts.pop().toUpperCase();
+    var modifierFlags = {};
+    for (var i = 0; i < specParts.length; i++) {
+        var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+        if (modifierName) modifierFlags[modifierName] = true;
+    }
+    return buildKeyShortcutSpec(modifierFlags, baseKey);
+}
+
+/**
+ * 修飾キーの状態とキー名から照合用の表記を組み立てる
+ * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+ * @param {string} baseKey - 大文字のキー名
+ * @returns {string} 照合用の表記
+ */
+function buildKeyShortcutSpec(modifierFlags, baseKey) {
+    var specText = "";
+    for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+        if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+    }
+    return specText + baseKey;
+}
+
+/**
+ * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+ * @param {Object} keyEvent - keydown イベント
+ * @returns {string} 照合用の表記。キー名が無いときは空文字
+ */
+function readKeyShortcutSpec(keyEvent) {
+    if (!keyEvent || !keyEvent.keyName) return "";
+    var keyboardState = {};
+    try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+    var modifierFlags = {
+        SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+        ALT: !!(keyEvent.altKey || keyboardState.altKey),
+        CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+    };
+    return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+}
+
+/**
+ * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+ * @param {Object} control - コントロール
+ * @returns {boolean} 押せるなら true
+ */
+function isKeyShortcutControlUsable(control) {
+    for (var node = control; node; node = node.parent) {
+        if (node.enabled === false || node.visible === false) return false;
+    }
+    return true;
+}
+
+/**
+ * キーを受けたコントロールが、文字を入力する欄か
+ * @param {Object} focusedControl - イベントの発生元
+ * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+ * @returns {boolean} 入力中としてショートカットを止めるなら true
+ */
+function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+    if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+    for (var i = 0; i < numericFields.length; i++) {
+        if (numericFields[i] === focusedControl) return false;
+    }
+    return true;
+}
+
+/**
+ * コントロールをクリックしたときと同じ動作をする
+ * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+ * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+ * @returns {void}
+ */
+function pressKeyShortcutControl(control) {
+    if (control.type === "radiobutton") {
+        /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+        var siblings = control.parent ? control.parent.children : [];
+        for (var i = 0; i < siblings.length; i++) {
+            if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+        }
+        control.value = true;
+    } else if (control.type === "checkbox") {
+        control.value = !control.value;
+    }
+    if (typeof control.onClick === "function") {
+        control.onClick.call(control);
+    } else if (control.type === "button" && typeof control.notify === "function") {
+        /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+        control.notify("onClick");
+    }
+}
+
+/**
+ * 1つのショートカットを実行する
+ * @param {Object|Function} shortcutTarget - コントロール、または関数
+ * @param {Object} keyEvent - keydown イベント
+ * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+ */
+function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+    var targetControl = shortcutTarget;
+    if (typeof shortcutTarget === "function") {
+        var runResult = shortcutTarget(keyEvent);
+        if (runResult === false || runResult === null) return false;
+        if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+        targetControl = runResult;
+    }
+    /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+    if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+    return true;
+}
+
+/**
+ * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+ * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+ * @returns {string} 表示用の表記（"Shift+R" など）
+ */
+function formatKeyShortcutLabel(normalizedSpec) {
+    var isMac = ($.os.indexOf("Mac") === 0);
+    var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+    var specParts = normalizedSpec.split("+");
+    var baseKey = specParts.pop();
+    var labelText = "";
+    for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+    if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+    return labelText + baseKey;
+}
+
+/**
+ * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+ * @param {Object} control - コントロール
+ * @param {string} normalizedSpec - 照合用の表記
+ * @returns {void}
+ */
+function appendKeyShortcutToTip(control, normalizedSpec) {
+    var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+    var currentTip = control.helpTip ? String(control.helpTip) : "";
+    if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+    var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+    control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+}
+
+/**
+ * ダイアログ・パレットに文字キーのショートカットを付ける
+ * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+ * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+ * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+ * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+ */
+function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+    var shortcutSettings = shortcutOptions || {};
+    var numericFields = shortcutSettings.numericFields || [];
+    var bindingTable = {};
+
+    for (var keySpec in shortcutMap) {
+        if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+        var mapEntry = shortcutMap[keySpec];
+        if (!mapEntry) continue;
+        var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+        var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+        bindingTable[normalizedSpec] = {
+            target: isWrapped ? mapEntry.target : mapEntry,
+            inFields: !!(isWrapped && mapEntry.inFields)
+        };
+        var tipControl = bindingTable[normalizedSpec].target;
+        if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+            appendKeyShortcutToTip(tipControl, normalizedSpec);
+        }
+    }
+
+    /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+    targetWindow.addEventListener("keydown", function (keyEvent) {
+        var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+        if (!binding) return;
+        if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+        if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+        if (keyEvent.preventDefault) keyEvent.preventDefault();
+        if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+    }, true);
+
+    return bindingTable;
+}
+
+// キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
 
 var LABELS = {
     dialog: {
@@ -165,24 +439,6 @@ var LABELS = {
     }
 };
 
-/**
- * ドットパスでローカライズ文字列を引く。存在しないキーは null 耐性でパス文字列を返す。
- * @param {string} dotPath 例 "mode.unite" / e.g. "mode.unite"
- * @returns {string} ローカライズ済み文字列 / localized string
- */
-function getLabel(dotPath) {
-    var parts = String(dotPath).split(".");
-    var labelNode = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        if (labelNode == null) return dotPath;
-        labelNode = labelNode[parts[i]];
-    }
-    if (labelNode == null) return dotPath;
-    if (typeof labelNode[currentLanguage] === "string") return labelNode[currentLanguage];
-    if (typeof labelNode.en === "string") return labelNode.en;
-    return dotPath;
-}
-
 /* ============================================================
  * 基本設定 / Settings
  * ============================================================ */
@@ -239,6 +495,103 @@ var PATHFINDER_MODES = [
     { command: 6, icon: "outline",   labelKey: "pathfinder.outline",   unpainted: true },
     { command: 4, icon: "minusBack", labelKey: "pathfinder.minusBack", unpainted: false }
 ];
+
+// 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
+
+/**
+ * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
+ * @param {string} sourceText - 送る文字列
+ * @returns {string} decodeURIComponent("…") の形の式
+ */
+function buildTemporaryActionWorkerArg(sourceText) {
+    return 'decodeURIComponent("' + encodeURIComponent(String(sourceText)) + '")';
+}
+
+/**
+ * workerRunTemporaryAction の呼び出し式を組み立てる（パレット側で使う。評価結果は true / false）
+ * @param {string} actionSource - アクション定義のテキスト
+ * @param {string} setName - アクションセット名
+ * @param {string} actionName - 実行するアクション名
+ * @returns {string} メインエンジンで評価する呼び出し式
+ */
+function buildTemporaryActionWorkerCall(actionSource, setName, actionName) {
+    return "workerRunTemporaryAction("
+        + buildTemporaryActionWorkerArg(actionSource) + ", "
+        + buildTemporaryActionWorkerArg(setName) + ", "
+        + buildTemporaryActionWorkerArg(actionName) + ")";
+}
+
+/* 送るワーカー関数の一覧（関数宣言は巻き上がるのでここで参照できる） / Worker functions to send (declarations are hoisted) */
+var TEMPORARY_ACTION_WORKER_FUNCS = [
+    workerToActionHex,
+    workerBuildActionNameLines,
+    workerUnloadTemporaryActionSet,
+    workerLoadTemporaryActionSet,
+    workerRunTemporaryAction
+];
+
+function workerToActionHex(sourceText) {
+    var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+    var hexText = "";
+    for (var i = 0; i < utf8Text.length; i++) {
+        var hexByte = utf8Text.charCodeAt(i).toString(16);
+        hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+    }
+    return hexText;
+}
+
+function workerBuildActionNameLines(indent, nameText, fieldName) {
+    var nameHex = workerToActionHex(nameText);
+    return [
+        indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+        indent + String.fromCharCode(9) + nameHex,
+        indent + "]"
+    ];
+}
+
+function workerUnloadTemporaryActionSet(setName) {
+    try {
+        app.unloadAction(setName, "");
+    } catch (e) {
+    }
+}
+
+function workerLoadTemporaryActionSet(actionSource, setName) {
+    var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+    try {
+        actionFile.encoding = "UTF-8";
+        if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+        actionFile.write(actionSource);
+        actionFile.close();
+        workerUnloadTemporaryActionSet(setName);
+        app.loadAction(actionFile);
+        return true;
+    } catch (e) {
+        $.writeln("workerLoadTemporaryActionSet: " + e);
+        return false;
+    } finally {
+        try { actionFile.close(); } catch (closeError) { }
+        try { actionFile.remove(); } catch (removeError) { }
+    }
+}
+
+function workerRunTemporaryAction(actionSource, setName, actionName) {
+    if (!workerLoadTemporaryActionSet(actionSource, setName)) return false;
+    try {
+        app.doScript(actionName, setName);
+        return true;
+    } catch (e) {
+        $.writeln("workerRunTemporaryAction: " + e);
+        return false;
+    } finally {
+        workerUnloadTemporaryActionSet(setName);
+    }
+}
+
+/* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
+var TEMPORARY_ACTION_WORKER_END = true;
+
+// 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
 
 /* ============================================================
  * worker 関数（メインエンジンで実行）/ Worker functions (run in main engine)
@@ -303,12 +656,11 @@ function workerApplyCompoundShape(shapeModeValue, shapeModeName) {
         shapeModeKey: 1851878757,
         shapeModeName: shapeModeName,
         shapeModeValue: shapeModeValue,
-        expandKey: 1836016741,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        expandKey: 1836016741
     };
     try {
         var actionSource = buildActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { return "ERR:Temporary action failed."; }
         app.redraw();
         return "OK";
     } catch (applyError) {
@@ -441,84 +793,14 @@ function buildActionSource(actionConfig) {
 }
 
 /**
- * `/name [ <byteCount> <utf8Hex> ]` 形式の1行を生成する。
+ * `/name [ <byteCount> <utf8Hex> ]` 形式の1行を生成する（16進化は workerToActionHex）。
  * @param {string} prefix 行頭のキー（先頭スペース含む）/ line key prefix
  * @param {string} text 対象文字列 / target string
  * @returns {string} 生成した1行 / generated line
  */
 function buildNameLine(prefix, text) {
-    var encoded = stringToUtf8Hex(text);
-    return prefix + ' [ ' + encoded.byteCount + ' ' + encoded.hex + ' ]\n';
-}
-
-/**
- * 文字列を UTF-8 バイト列の16進表記に変換する（.aia の名前フィールド用）。
- * サロゲートペア（U+10000 以上、絵文字等）は結合して 4 バイトで符号化する。
- * @param {string} sourceText 変換対象 / source string
- * @returns {{hex: string, byteCount: number}} 16進文字列とバイト数 / hex text and byte count
- */
-function stringToUtf8Hex(sourceText) {
-    var hexText = "";
-    var byteCount = 0;
-    for (var i = 0; i < sourceText.length; i++) {
-        var codePoint = sourceText.charCodeAt(i);
-        if (codePoint >= 0xD800 && codePoint <= 0xDBFF && i + 1 < sourceText.length) {
-            var lowSurrogate = sourceText.charCodeAt(i + 1);
-            if (lowSurrogate >= 0xDC00 && lowSurrogate <= 0xDFFF) {
-                codePoint = 0x10000 + ((codePoint - 0xD800) << 10) + (lowSurrogate - 0xDC00);
-                i++;
-            }
-        }
-        var bytes;
-        if (codePoint < 0x80) {
-            bytes = [codePoint];
-        } else if (codePoint < 0x800) {
-            bytes = [0xC0 | (codePoint >> 6), 0x80 | (codePoint & 0x3F)];
-        } else if (codePoint < 0x10000) {
-            bytes = [0xE0 | (codePoint >> 12), 0x80 | ((codePoint >> 6) & 0x3F), 0x80 | (codePoint & 0x3F)];
-        } else {
-            bytes = [0xF0 | (codePoint >> 18), 0x80 | ((codePoint >> 12) & 0x3F), 0x80 | ((codePoint >> 6) & 0x3F), 0x80 | (codePoint & 0x3F)];
-        }
-        for (var byteIndex = 0; byteIndex < bytes.length; byteIndex++) {
-            var singleHex = bytes[byteIndex].toString(16);
-            if (singleHex.length < 2) { singleHex = "0" + singleHex; }
-            hexText += singleHex;
-            byteCount++;
-        }
-    }
-    return { hex: hexText, byteCount: byteCount };
-}
-
-/**
- * 一時アクションをファイル化 → ロード → 実行し、後始末する。
- * encoding は open より前に設定する（open 後だと書き込みに反映されない場合があるため）。
- * unloadAction はロードに成功したときだけ行う（未ロードのセットを外そうとして例外を出さない）。
- * ※ この関数は BridgeTalk 委譲で toString 送信されるため、本体にコメントを書かず説明はこの JSDoc に集約する。
- * @param {string} actionSource .aia のソース文字列 / .aia source text
- * @param {string} setName アクションセット名 / action set name
- * @param {string} actionName アクション名 / action name
- * @param {string} actionFilePath 一時ファイルパス / temp file path
- * @returns {void}
- */
-function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-    var actionFile = new File(actionFilePath);
-    var isActionLoaded = false;
-    var isActionFileOpen = false;
-    actionFile.encoding = "UTF-8";
-    try {
-        if (!actionFile.open("w")) { throw new Error("Failed to open temporary action file."); }
-        isActionFileOpen = true;
-        actionFile.write(actionSource);
-        actionFile.close();
-        isActionFileOpen = false;
-        app.loadAction(actionFile);
-        isActionLoaded = true;
-        app.doScript(actionName, setName, false);
-    } finally {
-        if (isActionFileOpen) { try { actionFile.close(); } catch (closeError) { } }
-        if (actionFile.exists) { try { actionFile.remove(); } catch (removeError) { } }
-        if (isActionLoaded) { try { app.unloadAction(setName, ""); } catch (unloadError2) { } }
-    }
+    var nameHex = workerToActionHex(text);
+    return prefix + ' [ ' + (nameHex.length / 2) + ' ' + nameHex + ' ]\n';
 }
 
 /**
@@ -559,12 +841,11 @@ function playCompoundShapeAction(tokenPrefix, internalName, localizedName, expan
         actionName: uniqueToken + "_action",
         internalName: internalName,
         localizedName: localizedName,
-        expandParamKey: expandParamKey,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        expandParamKey: expandParamKey
     };
     try {
         var actionSource = buildExpandActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { return "ERR:Temporary action failed."; }
         app.redraw();
         return "OK";
     } catch (compoundShapeError) {
@@ -1007,6 +1288,7 @@ function workerClearAppearance() {
  * 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
  * 現在の選択に対して一時アクションとして1回再生する（呼び出し前に対象を選択しておくこと）。
  * ClearAppearance.jsx の act_Clear 相当。セット名のみユニーク化して既存アクションセットとの衝突を避ける。
+ * 失敗したら例外を投げ、呼び出し元の後続処理（塗り・線の復元）を止めて "ERR:" で返させる。
  * @returns {void}
  */
 function playClearAppearanceAction() {
@@ -1021,11 +1303,10 @@ function playClearAppearanceAction() {
         localizedName: "アピアランス",
         enumKey: 1835363957,
         enumName: "アピアランスを消去",
-        enumValue: 6,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+        enumValue: 6
     };
     var actionSource = buildEnumeratedActionSource(actionConfig);
-    playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+    if (!workerRunTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName)) { throw new Error("Temporary action failed."); }
 }
 
 /**
@@ -1447,10 +1728,8 @@ var WORKER_FUNCS = [
     buildPathfinderXML,
     buildActionSource,
     buildExpandActionSource,
-    buildNameLine,
-    stringToUtf8Hex,
-    playTemporaryAction
-];
+    buildNameLine
+].concat(TEMPORARY_ACTION_WORKER_FUNCS);
 
 /* ============================================================
  * BridgeTalk 委譲 / Delegation to the main engine
@@ -1716,7 +1995,7 @@ function delegateCleanupCollinear() {
  * @returns {string} 表示用テキスト / status text
  */
 function markerToStatus(marker, mode) {
-    if (marker === "OK") { return getLabel(mode.labelKey) + ": " + getLabel("status.applied"); }
+    if (marker === "OK") { return labelValueText(mode.labelKey, getLabel("status.applied")); }
     if (marker === "NODOC") { return getLabel("status.noDoc"); }
     if (marker === "NOSEL") { return getLabel("status.noSel"); }
     if (marker === "NEEDTWO") { return getLabel("status.needTwo"); }
@@ -2548,19 +2827,11 @@ function showPalette() {
     /* キーボードショートカット / Keyboard shortcuts
      * Esc: 閉じる / P: パスに変換 / C: 複合シェイプにする / F: 効果として適用
      */
-    paletteWindow.addEventListener("keydown", function (kbEvent) {
-        if (kbEvent.keyName === "Escape") {
-            paletteWindow.close();
-        } else if (kbEvent.keyName === "P") {
-            selectOutputMode(modeExecuteRadio);
-            kbEvent.preventDefault();
-        } else if (kbEvent.keyName === "C") {
-            selectOutputMode(modeCompoundRadio);
-            kbEvent.preventDefault();
-        } else if (kbEvent.keyName === "F") {
-            selectOutputMode(modeEffectRadio);
-            kbEvent.preventDefault();
-        }
+    addKeyShortcuts(paletteWindow, {
+        "Escape": { target: function () { paletteWindow.close(); }, inFields: true },
+        "P": function () { selectOutputMode(modeExecuteRadio); },
+        "C": function () { selectOutputMode(modeCompoundRadio); },
+        "F": function () { selectOutputMode(modeEffectRadio); }
     });
 
     /* 閉じたら常駐参照をクリア / clear the persistent reference on close */

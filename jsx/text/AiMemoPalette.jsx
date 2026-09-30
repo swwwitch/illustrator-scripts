@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiMemoPalette";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPalette.md"; /* README (English) */
@@ -85,8 +85,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    /* 現在の言語を判定（ロケールが ja 始まりなら日本語）/ Detect UI language (Japanese if locale starts with "ja") */
-    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     var LABELS = {
         dialog: {
@@ -167,26 +244,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
             savedAt: { ja: "保存日時", en: "Saved at" }
         }
     };
-
-    /**
-     * ラベルノードから現在の言語の文言を返す（{slash} は / に置換）
-     * @param {object} labelNode - { ja: string, en: string } 形式のラベル
-     * @returns {string} 現在の言語の文言
-     */
-    function getLabel(labelNode) {
-        if (!labelNode) return "";
-        var localizedText = labelNode[uiLang] || labelNode.en || "";
-        return localizedText.replace(/\{slash\}/g, "/");
-    }
-
-    /**
-     * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {Object} labelNode - LABELS 内の { ja, en } ノード
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelNode) {
-        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // メインエンジン用ワーカー / Main-engine workers
@@ -845,8 +902,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     function buildSaveContent(memoText) {
         var bodyText = memoText.replace(/\r\n|\r/g, '\n');
         var footerTimeStamp = getTimeStamp().replace(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/, '$1-$2-$3 $4:$5:$6');
-        return bodyText + '\n\n---\n[' + getLabel(LABELS.footer.source) + ': ' + sourceDocumentName + ']\n[' +
-            getLabel(LABELS.footer.savedAt) + ': ' + footerTimeStamp + ']\n';
+        return bodyText + '\n\n---\n[' + labelValueText(LABELS.footer.source, sourceDocumentName) + ']\n[' +
+            labelValueText(LABELS.footer.savedAt, footerTimeStamp) + ']\n';
     }
 
     /**

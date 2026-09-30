@@ -56,7 +56,13 @@
 ### Update History
 
 - v1.0.0 (20260928): Initial version
+- v1.0.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.2 (20260928): The button row is now built with the shared part
+- v1.0.2 (20260928): Target collection now uses the shared part
+- v1.0.3 (20260929): Dialog opacity changed to 98%
+- v1.0.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.0.5 (20260930): Button rows with only right-side buttons are now centered
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.5

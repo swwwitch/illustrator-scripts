@@ -27,3 +27,4 @@ The leading is fixed at 110%.
 ### Update History
 
 - v1.0
+- v1.0.1 (2026-09-19): Tidied up internal names (no change in behavior)

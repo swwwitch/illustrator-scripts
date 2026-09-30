@@ -32,3 +32,5 @@ Registers the appearance of the selected object as a graphic style, using the se
 ### Update History
 
 - v1.1.0
+- v1.1.1 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.1.2 (2026-09-30): Fixed an error when running with characters selected by the Type tool

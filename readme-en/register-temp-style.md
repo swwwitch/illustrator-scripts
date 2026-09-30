@@ -30,6 +30,10 @@
 
 https://qiita.com/comsk/items/87161b2b7d2336b161c4
 
+### Update History
+
+- v1.0.1 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.1

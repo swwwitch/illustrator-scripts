@@ -16,7 +16,7 @@ Draws a rectangle the size of the active artboard, or of every artboard, taking 
 
 - Offset (a negative value shrinks inward). The ∧∨ buttons and Up/Down keys step to the next whole number (1.5 → 2; Shift = next multiple of 10, Option = 0.1)
 - Bleed presets (mm = 3, Q/H = 12, pt = 9; every other unit shows the 3 mm equivalent converted)
-- Color modes (None / K100 at 15% opacity / HEX / CMYK)
+- Color modes (None / K100 at 15% opacity / Custom)
 - Placement (Front / Back / bg layer; defaults to Front)
 - Target scope (Current artboard / All artboards)
 - Post-draw options (Convert to Guides: default OFF / Convert to Live Shape: default ON)
@@ -47,8 +47,7 @@ Draws a rectangle the size of the active artboard, or of every artboard, taking 
 | --- | --- |
 | None | No fill and no stroke |
 | K100, Opacity 15% | Black matching the document color space, at 15% opacity |
-| HEX | `#RRGGBB`. Also accepts the `#RGB`, `#RG` and `#R` shorthands, color names (`red`, `orange`, …) and `gray0`–`gray100` |
-| CMYK | 0–100 per channel. Empty fields are treated as 0 |
+| Custom | Click the swatch to open Illustrator's standard color picker; the rectangle is filled with the chosen color (in the document's color mode) |
 
 **Placement**
 
@@ -80,8 +79,6 @@ Draws a rectangle the size of the active artboard, or of every artboard, taking 
 | C / A | Current artboard / All artboards |
 | G | Toggles Convert to Guides |
 
-Hotkeys are ignored while an edit field has focus.
-
 ### Notes
 
 - The preview is drawn on a temporary `_preview` layer, which is removed on both OK and Cancel.
@@ -95,6 +92,12 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Update History
 
+- v1.7.3 (2026-09-30) Dropped the script's own rightward shift of the dialog on first open
+- v1.7.2 (2026-09-30) Fixed an error when running with characters selected by the Type tool
+- v1.7.1 (2026-09-29) Dialog opacity changed to 98%
+- v1.7.0 (2026-09-29) Merged the HEX and CMYK color options into Custom; clicking its swatch opens Illustrator's standard color picker
+- v1.6.2 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.6.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.6.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.5.5 (2026-09-03) Reliable preview-layer cleanup; guide mode renames items to `<Guide>` and clears the selection; the HEX field accepts color names, shorthand hex and grayNN; the center widget is applied only when converting to a live shape. Alongside an internal cleanup (naming, structure, function splits), fixed the preview staying faint after switching to None or entering an invalid HEX value, and the mismatch between the shown offset and the drawn offset when Bleed was used with a unit other than mm, Q/H or pt
 - v1.5.4 (2026-06-01) Fixed Error 8705 when the front-most layer is a template or locked layer

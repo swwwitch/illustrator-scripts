@@ -15,7 +15,7 @@ Counts the selected objects in order and reselects only the odd- or even-numbere
 ### Features
 
 - Select switches between Odd and Even
-- Direction switches between Vertical, Horizontal and Z-order, changing the counting order
+- Count Order switches between Vertical, Horizontal and Stacking Order
 - Preview inside the dialog
 - Japanese / English UI
 
@@ -23,14 +23,19 @@ Counts the selected objects in order and reselects only the odd- or even-numbere
 
 1. Select several objects.
 2. Run the script.
-3. Choose Select and Direction.
+3. Choose Select and Count Order.
 4. Confirm with OK.
 
 ### Notes
 
 - If no document is open, or nothing is selected, the script shows a warning and exits.
-- Vertical and Horizontal count by position; Z-order counts by stacking order.
+- Vertical and Horizontal count by position; Stacking Order counts by stacking order.
 
 ### Update History
 
 - v1.1.0
+- v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.3 (2026-09-29): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.1.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.1.5 (2026-09-29): Fixed the last Count Order not being saved. Renamed Direction to Count Order and centered the buttons. Stacking order now follows the selection order, so it counts correctly across groups and layers
+- v1.1.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool

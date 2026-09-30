@@ -28,11 +28,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTyp
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "UnifiedTypePalette";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "UnifiedTypePalette";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePalette.md"; /* README (English) */
@@ -50,12 +50,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     // =========================================
     // ローカライズ / Localization
     // =========================================
+    // ローカライズ（再利用パーツ） / Localization (reusable)
 
-    /* 言語判定 / Detect UI language */
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -219,7 +291,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             toApparent: { ja: "サイズ×比率を実フォントサイズに焼き込んで比率100%に、もう一度押すと元のサイズ・比率へ戻します（相互変換）。", en: "Bakes size × scale into the actual font size at 100%; press again to restore the original size and scale (round-trip)." },
             typeScale: { ja: "基準サイズと倍率からタイプスケールを生成します。行をクリックすると選択テキストに適用します。", en: "Generate a type scale from a base size and ratio. Click a row to apply it to the selection." },
             typeScaleBase: { ja: "タイプスケールの基準となるフォントサイズ。", en: "The base font size for the type scale." },
-            typeScaleRatio: { ja: "各段の比率（音程比）。基準サイズにこの比率を掛け合わせて各サイズを生成します。", en: "The step ratio (musical interval). Each size is the base multiplied by this ratio." },
+            typeScaleRatio: { ja: "各段の比率（音程比）。基準サイズにこの比率を掛け合わせて各サイズを生成します。", en: "The step ratio (musical interval). Each size is the base multiplied by this ratio." }
+        },
+        tooltip: {
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -235,17 +309,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             applyError: { ja: "適用に失敗しました", en: "Apply failed" }
         }
     };
-
-    /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLabel(entry) {
-        if (!entry) return "";
-        return entry[currentLanguage] || entry.ja || entry.en || "";
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(entry) {
-        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // メインエンジンで実行する DOM 処理 / DOM helpers run on the main engine
@@ -1627,28 +1690,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         for (var i = 0; i < buttons.length; i++) fitButtonHeight(buttons[i]);
     }
 
-    var UNIT_MAP = { 0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft" };
-    var UNIT_TO_PT = {
-        0: 72, 1: 2.8346456692913386, 2: 1, 3: 12, 4: 28.346456692913386,
-        5: 0.7086614173228346, 6: 1, 7: 72, 8: 2834.6456692913386, 9: 2592, 10: 864
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    function getUnitLabel(unitCode) {
-        if (unitCode === 5) return "Q";
-        return UNIT_MAP[unitCode] || "pt";
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* 行送りの単位ラベル（Q/H 環境では行送りは「H」）/ Leading unit label (leading uses "H" when the unit is Q/H) */
     function getLeadingUnitLabel(unitCode) {
         if (unitCode === 5) return "H";
-        return getUnitLabel(unitCode);
-    }
-
-    /* テキスト単位を取得（コード・ラベル・pt 換算係数）/ Resolve the text unit (code, label, pt factor) */
-    function getTextUnit() {
-        var unitCode = 2;
-        try { unitCode = app.preferences.getIntegerPreference("text/units"); } catch (e) { }
-        return { code: unitCode, label: getUnitLabel(unitCode), factor: UNIT_TO_PT[unitCode] || 1 };
+        return (UNITS[unitCode] || UNITS[2]).label;
     }
 
     /* タイプスケールの倍率（音程比）/ Type-scale ratios (musical intervals) */
@@ -1998,33 +2082,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ];
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -2040,22 +2117,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -2167,8 +2229,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? LABELS.tip.stepUpInteger : LABELS.tip.stepUp;
-        var downTooltip = stepOptions.integer ? LABELS.tip.stepDownInteger : LABELS.tip.stepDown;
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -2423,9 +2485,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * 行に、左に∧∨を付けた数値欄を追加する（↑↓キーも∧∨と同じ処理で増減する）。
@@ -2942,8 +3002,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         leadingPanel.alignChildren = "left";
         leadingPanel.helpTip = getLabel(LABELS.tip.leading);
 
-        var leadColon = currentLanguage === "ja" ? "：" : ": ";
-        var leadTextUnit = getTextUnit();
+        var leadColon = uiLang === "ja" ? "：" : ": ";
+        var leadTextUnit = getUnitInfo("text/units");
 
         // フォントサイズ（フォントサイズパネルから移動）/ Font size (moved from the font-size panel)
         var leadSizeRow = leadingPanel.add("group");
@@ -3083,7 +3143,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         fontSizePanel.alignChildren = ["left", "top"];
         fontSizePanel.alignment = ["left", "top"]; // タブ幅いっぱいに広げず、内容幅に合わせる / Size to content instead of filling the tab width
 
-        var sizeColon = currentLanguage === "ja" ? "：" : ": ";
+        var sizeColon = uiLang === "ja" ? "：" : ": ";
 
         var fsSizeRow = fontSizePanel.add("group");
         fsSizeRow.orientation = "row";
@@ -3206,7 +3266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
 
-        var textUnit = getTextUnit();
+        var textUnit = getUnitInfo("text/units");
         var leadingBasisChoices = getLeadingTypeChoices();
 
         // ===== 上部：種別（タイトルなし）＋方針を左右に並べて構築 / Top: Type + Policy panels side by side =====
@@ -3678,7 +3738,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             }
             suppressUiEvents = false;
             // 文字サイズ 12pt・比率 100% / Font size 12pt, scale 100%
-            syncFontSizeText(String(Math.round((12 / textUnit.factor) * 10) / 10), null);
+            syncFontSizeText(String(Math.round((12 / textUnit.pointsPerUnit) * 10) / 10), null);
             ui.scaleInput.text = "100";
             updateApparentDisplay();
             updateReferenceApparent();
@@ -3789,7 +3849,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             var inputValue = parseFloat(sourceInput.text);
             // 行送りは自動行送りなのでサイズ変更に自動追従する（行送りの再適用は不要）
             // Leading is auto-leading and follows the size automatically (no need to reapply leading)
-            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.factor });
+            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.pointsPerUnit });
             updateApparentDisplay();
             updateLeadingEffective(); // サイズ変更で実質行送りの表示も更新 / Refresh the effective-leading display on size change
         }
@@ -3825,12 +3885,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             updateLeadingEffective(); // サイズ変更で実質行送りの表示も更新 / Refresh the effective-leading display on size change
             // タイプスケールは段落全体にサイズを適用（行送りは自動行送りなので自動追従）
             // Type scale applies the size to the whole paragraph (leading is auto and follows automatically)
-            runApply("applyFontSizePara", { sizePt: sizeValue * textUnit.factor });
+            runApply("applyFontSizePara", { sizePt: sizeValue * textUnit.pointsPerUnit });
         };
         // 基準サイズ欄が空なら現在のフォントサイズ（なければ既定値）で初期化 / Seed the base field from the current font size (fallback to default)
         if (ui.typeScaleBaseInput.text === "") {
             var seedBase = parseFloat(ui.fontSizeInputs[0].text);
-            ui.typeScaleBaseInput.text = (!isNaN(seedBase) && seedBase > 0) ? String(seedBase) : String(Math.round((12 / textUnit.factor) * 10) / 10);
+            ui.typeScaleBaseInput.text = (!isNaN(seedBase) && seedBase > 0) ? String(seedBase) : String(Math.round((12 / textUnit.pointsPerUnit) * 10) / 10);
             ui.rebuildTypeScaleList();
         }
 
@@ -3859,14 +3919,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 var bakedSize = calcApparentSize(size, scale);
                 syncFontSizeText(String(bakedSize), null);
                 ui.scaleInput.text = "100";
-                runApply("applyFontSizeAndScale", { sizePt: bakedSize * textUnit.factor, scale: 100 });
+                runApply("applyFontSizeAndScale", { sizePt: bakedSize * textUnit.pointsPerUnit, scale: 100 });
             } else {
                 // 実サイズ→見かけ：サイズ変更後、変更前の見かけサイズを基準に比率を計算して合わせる
                 // Actual → Apparent: after a size change, compute the scale that restores the previous apparent size
                 if (isNaN(referenceApparent) || Math.abs(referenceApparent - size) < EPS) return; // 変更なし＝何もしない / no change → no-op
                 var newScale = Math.round((referenceApparent / size) * 100 * 10) / 10;
                 ui.scaleInput.text = String(newScale);
-                runApply("applyFontSizeAndScale", { sizePt: size * textUnit.factor, scale: newScale });
+                runApply("applyFontSizeAndScale", { sizePt: size * textUnit.pointsPerUnit, scale: newScale });
             }
             updateReferenceApparent(); // 変換後の見かけを新しい基準に / The post-conversion apparent becomes the new reference
             updateApparentDisplay();
@@ -3965,7 +4025,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 var state = parseLeadingState(payload);
                 if (state.count <= 0) return;
                 // フォントサイズ・比率・見かけ / Font size, scale, apparent
-                syncFontSizeText(isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.factor) * 10) / 10), null);
+                syncFontSizeText(isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.pointsPerUnit) * 10) / 10), null);
                 ui.scaleInput.text = isNaN(state.hScale) ? "100" : String(Math.round(state.hScale * 10) / 10);
                 updateApparentDisplay();
                 updateReferenceApparent(); // 選択を読み直したら現在の見かけを基準にする / Reloading the selection sets the current apparent as the reference
@@ -3974,7 +4034,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 ui.leadingPercentInput.text = isNaN(state.autoAmount) ? "" : String(Math.round(state.autoAmount * 10) / 10);
                 // 行送り：選択の現在値（絶対値 pt）をそのまま表示（サイズ×% の計算値ではない）
                 // Leading: show the selection's actual current value (absolute pt), not the size × % computation
-                ui.leadingEffectiveInput.text = isNaN(state.leadingPt) ? "" : String(Math.round((state.leadingPt / textUnit.factor) * 10) / 10);
+                ui.leadingEffectiveInput.text = isNaN(state.leadingPt) ? "" : String(Math.round((state.leadingPt / textUnit.pointsPerUnit) * 10) / 10);
                 // 行送りの基準 / Leading basis
                 var basisIndex = 0;
                 for (var choiceIndex = 0; choiceIndex < ui.leadingBasisChoices.length; choiceIndex++) {

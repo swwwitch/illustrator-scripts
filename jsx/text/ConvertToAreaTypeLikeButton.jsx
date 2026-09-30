@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "ConvertToAreaTypeLikeButtonEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -23,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConvertToAreaTypeLikeButton";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md"; /* README (English) */
@@ -84,33 +85,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -126,22 +120,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -253,8 +232,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -509,22 +488,226 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * Illustrator の UI 言語から表示言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
-    function detectUILanguage() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var uiLang = detectUILanguage();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     /* 日英ラベル定義（カテゴリ構造）/ Japanese-English label definitions (categorized) */
     var LABELS = {
@@ -549,7 +732,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         checkbox: {
             indentLeft: { ja: "左", en: "Left" },
             indentRight: { ja: "右", en: "Right" },
-            sync: { ja: "連動", en: "Link" },
             margin: { ja: "外側からの間隔", en: "Spacing" }
         },
         /* ボタン / Buttons */
@@ -589,32 +771,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
         }
     };
-
-    /**
-     * "category.key" 形式のキーからラベルを取得する
-     * @param {string} labelPath - ラベルキー（例: "panel.fontSize"）
-     * @returns {string} 現在の言語のラベル文字列（見つからない場合は labelPath をそのまま返す）
-     */
-    function getLabel(labelPath) {
-        var labelPathKeys = labelPath.split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < labelPathKeys.length; i++) {
-            if (labelNode && typeof labelNode[labelPathKeys[i]] !== "undefined") { labelNode = labelNode[labelPathKeys[i]]; }
-            else { return labelPath; }
-        }
-        if (labelNode[uiLang]) return labelNode[uiLang];
-        if (labelNode.en) return labelNode.en;
-        return labelPath;
-    }
-
-    /**
-     * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {string} labelSet - ラベルのパス
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // 単位 / Units
@@ -991,24 +1147,104 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setFontSizeKeepingLeading(textFrame, lowerSize, leadingInfo);
     }
 
-    // =========================================
-    // ダイナミックアクション / Dynamic actions
-    // =========================================
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
 
     /**
-     * 文字列を16進数表現へ変換する
-     * @param {string} text - 変換する文字列
-     * @returns {string} 16進文字列
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
      */
-    function asciiToHex(text) {
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
         var hexText = "";
-        for (var i = 0; i < text.length; i++) {
-            var hexPair = text.charCodeAt(i).toString(16);
-            if (hexPair.length < 2) hexPair = "0" + hexPair;
-            hexText += hexPair;
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
         }
         return hexText;
     }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+
+    // =========================================
+    // ダイナミックアクション / Dynamic actions
+    // =========================================
 
     /**
      * /name ブロック（ASCII）を生成する
@@ -1016,7 +1252,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 名前ブロックの文字列
      */
     function buildActionNameBlock(actionName) {
-        return "/name [ " + actionName.length + " " + asciiToHex(actionName).toUpperCase() + " ]";
+        return "/name [ " + actionName.length + " " + toActionHex(actionName).toUpperCase() + " ]";
     }
 
     /**
@@ -1070,36 +1306,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var FRAME_ALIGNMENT_ACTIONS = ["AlignTop", "AlignCenter", "AlignBottom", "AlignJustify"];
 
     /**
-     * アクションセットを読み込む（temp に .aia を書き出して loadAction。既存があれば先に外す）
-     * @param {string} setName - アクションセット名
-     * @param {string} aiaString - .aia 形式のアクションセット定義
-     * @returns {void}
-     */
-    function loadActionSet(setName, aiaString) {
-        unloadActionSet(setName);
-        /* 一時ファイルの書き出し・読み込みは失敗しうる / Writing the temp file or loading it can fail */
-        try {
-            var actionFile = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
-            actionFile.open("w");
-            actionFile.write(aiaString);
-            actionFile.close();
-
-            app.loadAction(actionFile);
-            actionFile.remove();
-        } catch (e) { }
-    }
-
-    /**
-     * アクションセットを破棄する
-     * @param {string} setName - アクションセット名
-     * @returns {void}
-     */
-    function unloadActionSet(setName) {
-        /* 読み込まれていなければ例外になる / Throws when the set is not loaded */
-        try { app.unloadAction(setName, ""); } catch (e) { }
-    }
-
-    /**
      * フレーム整列アクション（AlignTop/Center/Bottom/Justify）を読み込む
      * @returns {void}
      */
@@ -1115,7 +1321,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             1717660782,
             actionDefinitions
         );
-        loadActionSet(AREA_TEXT_ACTION_SET, aiaText);
+        /* 読み込めなくても変換・調整は続ける（整列だけ効かない）/ Keep going without the set; only the alignment is skipped */
+        loadTemporaryActionSet(aiaText, AREA_TEXT_ACTION_SET);
     }
 
     /**
@@ -1123,7 +1330,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function unloadAreaTextActions() {
-        unloadActionSet(AREA_TEXT_ACTION_SET);
+        unloadTemporaryActionSet(AREA_TEXT_ACTION_SET);
     }
 
     /**
@@ -1232,6 +1439,459 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setStepperInputEnabled(indentInput, false);
         return { checkbox: indentCheckbox, input: indentInput };
     }
+
+    // リンクアイコン（再利用パーツ） / Link toggle (reusable)
+
+    // -----------------------------------------
+    // リンクアイコンの寸法 / Link toggle metrics
+    // -----------------------------------------
+    var LINK_ICON_SIZE          = [22, 22]; /* アイコンの大きさ / icon size */
+    var LINK_ICON_STROKE        = 1.5;      /* 線幅 / stroke width */
+    var LINK_CUT_DIRECTION      = [1, 0];   /* 連動中の左辺の切れ目の向き（水平）/ direction of the left-leg cut when linked (horizontal) */
+    var LINK_HOOK_CUT_DIRECTION = [0, 1];   /* 連動中の巻き込みの切れ目の向き（垂直）/ direction of the hook cut when linked (vertical) */
+    var LINK_STRAND_COUNT       = 4;        /* 切れ目の向きをそろえるための細い線の本数 / strands used to shape the cuts */
+    var LINK_SLASH_CLEARANCE    = 2.2;      /* 連動OFFの斜線とフックの間（22px 基準）/ gap between the slash and the hooks when unlinked */
+
+    // -----------------------------------------
+    // リンクアイコンの配色 / Link toggle colors
+    // -----------------------------------------
+    var LINK_UI_DARK = isDarkUI();
+    /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
+       Translucent overlays that follow the dialog background; same values as the stepper buttons */
+    var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
+    var LINK_FRAME_COLOR    = LINK_UI_DARK ? [1, 1, 1, 0.07] : [0, 0, 0, 0.10]; /* 連動中の枠 / frame while linked */
+    var LINK_ICON_COLOR     = LINK_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* アイコンの線 / icon strokes */
+    var LINK_DIM_ICON_COLOR = LINK_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の線 / strokes when disabled */
+
+    // -----------------------------------------
+    // アイコンを作る・切り替える（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 連動の ON／OFF を切り替えるリンクアイコンを追加する（onDraw で自作描画）。
+     * クリックで切り替わる。連動中は押し込んだボタンのように地と枠を描く。
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 連動の初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @returns {Group} アイコン（.value で連動中かを読む）
+     */
+    function addLinkToggle(parent, initialValue, onToggle) {
+        var linkToggle = parent.add("group");
+        linkToggle.preferredSize = LINK_ICON_SIZE;
+        linkToggle.minimumSize = LINK_ICON_SIZE;
+        linkToggle.maximumSize = LINK_ICON_SIZE;
+        linkToggle.value = initialValue;
+
+        linkToggle.onDraw = function () {
+            var iconGraphics = linkToggle.graphics;
+            var iconWidth = LINK_ICON_SIZE[0];
+            var iconHeight = LINK_ICON_SIZE[1];
+            /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
+            var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
+            /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
+            if (linkToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+        };
+
+        linkToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(linkToggle)) return;
+            linkToggle.value = !linkToggle.value;
+            redrawLinkToggle(linkToggle);
+            if (onToggle) onToggle();
+        });
+        return linkToggle;
+    }
+
+    /**
+     * 連動の状態をコードから変えて描き直す（onToggle は呼ばない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isLinked - 連動にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleValue(linkToggle, isLinked) {
+        if (linkToggle.value === isLinked) return;
+        linkToggle.value = isLinked;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * アイコンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleEnabled(linkToggle, isEnabled) {
+        if (linkToggle.enabled === isEnabled) return;
+        linkToggle.enabled = isEnabled;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isLinkToggleEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} linkToggle - 描き直すアイコン
+     * @returns {void}
+     */
+    function redrawLinkToggle(linkToggle) {
+        linkToggle.hide();
+        linkToggle.show();
+    }
+
+    // -----------------------------------------
+    // アイコンの形 / Icon geometry
+    // -----------------------------------------
+    /**
+     * 連動アイコンを描く。Illustrator の［縦横比を固定］に合わせ、連動中は縦につながったチェーン、
+     * 連動していないときは上下に分かれたチェーンに斜線を重ねる。座標は 22px 四方を基準に拡大縮小する。
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - 描画範囲の幅
+     * @param {number} iconHeight - 描画範囲の高さ
+     * @param {boolean} isLinked - 連動中なら true
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
+        for (var i = 0; i < strokes.length; i++) {
+            var strokePoints = strokes[i].points;
+            /* newPath() を呼ばないとパスが前の描画に積み重なる / Without newPath() the paths accumulate */
+            iconGraphics.newPath();
+            for (var j = 0; j < strokePoints.length; j++) {
+                var pointX = offsetX + strokePoints[j][0] * iconScale;
+                var pointY = offsetY + strokePoints[j][1] * iconScale;
+                if (j === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, strokes[i].width * iconScale));
+        }
+    }
+
+    /**
+     * 連動中のチェーン（縦に組み合った2つの輪）の線を返す。
+     * 上の輪は左辺の途中から上端を回って右辺を下り、下端で内側へ巻き込む。下の輪はそれを180度回したもの。
+     * 切れ目の向きをそろえるため、輪を細い線の束にし、両端を延ばしてから直線で切る（左辺は水平、巻き込みは垂直）
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildLinkedChainStrokes() {
+        /* 左辺は上端の丸みだけ残して短く切り、下の輪の巻き込みとの間を空ける
+           Keep only a stub on the left so it stays clear of the lower ring's hook */
+        var upperRing = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360)
+            .concat([[14.5, 11.2]])
+            .concat(buildArcPoints(11, 11.2, 3.5, 2.3, 0, 115)));
+        var ringStart = upperRing[0];
+        var ringEnd = upperRing[upperRing.length - 1];
+        var extendedRing = extendPolylineEnds(upperRing, LINK_ICON_STROKE);
+        /* 延ばした先がどちら側かで、切り捨てる側を決める / The extended tips tell which side to cut away */
+        var startOutsideSign = sideOfLine(extendedRing[0], ringStart, LINK_CUT_DIRECTION);
+        var endOutsideSign = sideOfLine(extendedRing[extendedRing.length - 1], ringEnd, LINK_HOOK_CUT_DIRECTION);
+
+        var upperStrands = buildStrandStrokes(extendedRing, function (strandPoints) {
+            var trimmed = trimPolylineTail(strandPoints, ringEnd, LINK_HOOK_CUT_DIRECTION, endOutsideSign);
+            trimmed = trimPolylineTail(trimmed.reverse(), ringStart, LINK_CUT_DIRECTION, startOutsideSign).reverse();
+            return [trimmed];
+        });
+        var strokes = [];
+        for (var i = 0; i < upperStrands.length; i++) {
+            strokes.push(upperStrands[i]);
+            strokes.push({ points: rotatePointsHalfTurn(upperStrands[i].points), width: upperStrands[i].width });
+        }
+        return strokes;
+    }
+
+    /**
+     * 中心線を線幅の中で等分した細い線に分け、clipStrand で切った結果を線として返す。
+     * @param {Array<number[]>} centerline - 中心線の点列
+     * @param {Function} clipStrand - 細い線の点列を受け取り、残す点列の配列を返す関数
+     * @returns {Array<{points: Array<number[]>, width: number}>} 細い線ごとの点列と線幅
+     */
+    function buildStrandStrokes(centerline, clipStrand) {
+        var strandWidth = LINK_ICON_STROKE / LINK_STRAND_COUNT;
+        var strokes = [];
+        for (var k = 0; k < LINK_STRAND_COUNT; k++) {
+            /* 線幅の中を等分した位置に細い線を並べる / Lay the strands evenly across the stroke width */
+            var strandOffset = -LINK_ICON_STROKE / 2 + strandWidth * (k + 0.5);
+            var strandPieces = clipStrand(offsetPolyline(centerline, strandOffset));
+            for (var j = 0; j < strandPieces.length; j++) {
+                /* 隣の線と少し重ねて隙間を埋める / Overlap neighbours slightly so no seams show */
+                if (strandPieces[j].length > 1) strokes.push({ points: strandPieces[j], width: strandWidth * 1.4 });
+            }
+        }
+        return strokes;
+    }
+
+    /**
+     * 点列の両端を、端の向きのまま length だけ延ばす。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} length - 延ばす長さ
+     * @returns {Array<number[]>} 延ばした点列
+     */
+    function extendPolylineEnds(points, length) {
+        /* from から to の向きへ、to から length 先の点 / point length beyond to, heading from from to to */
+        function extendBeyond(from, to) {
+            var dx = to[0] - from[0];
+            var dy = to[1] - from[1];
+            var segmentLength = Math.sqrt(dx * dx + dy * dy) || 1;
+            return [to[0] + dx / segmentLength * length, to[1] + dy / segmentLength * length];
+        }
+        var lastIndex = points.length - 1;
+        return [extendBeyond(points[1], points[0])].concat(points, [extendBeyond(points[lastIndex - 1], points[lastIndex])]);
+    }
+
+    /**
+     * 点が直線のどちら側にあるかを符号で返す。
+     * @param {number[]} point - 点
+     * @param {number[]} linePoint - 直線上の1点
+     * @param {number[]} direction - 直線の向き
+     * @returns {number} 正・負で側を表す値
+     */
+    function sideOfLine(point, linePoint, direction) {
+        return direction[0] * (point[1] - linePoint[1]) - direction[1] * (point[0] - linePoint[0]);
+    }
+
+    /**
+     * 点列の終わり側で、直線より outsideSign の側にはみ出した部分を切り、直線との交点で止める。
+     * 輪の別の場所が同じ直線をまたいでも切らないよう、終わりから数点の範囲だけを見る。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} cutPoint - 切る直線上の1点
+     * @param {number[]} direction - 切る直線の向き
+     * @param {number} outsideSign - 切り捨てる側の符号
+     * @returns {Array<number[]>} 切った点列
+     */
+    function trimPolylineTail(points, cutPoint, direction, outsideSign) {
+        var lastIndex = points.length - 1;
+        var searchLimit = Math.max(0, lastIndex - 12);
+        var index = lastIndex;
+        while (index > searchLimit && sideOfLine(points[index], cutPoint, direction) * outsideSign > 0) index--;
+        if (index === lastIndex) return points.slice(0);
+        var inside = points[index];
+        var outside = points[index + 1];
+        var insideSide = sideOfLine(inside, cutPoint, direction);
+        var ratio = insideSide / (insideSide - sideOfLine(outside, cutPoint, direction));
+        return points.slice(0, index + 1).concat([[inside[0] + (outside[0] - inside[0]) * ratio, inside[1] + (outside[1] - inside[1]) * ratio]]);
+    }
+
+    /**
+     * 連動していないときのチェーン（上下に分かれた輪と斜線）の線を返す。
+     * フックは斜線の近くで切る。線の端は進む向きに直角にしか切れないため、フックを細い線の束にして
+     * 1本ずつ斜線と平行な境界で切り、切り口が斜線に沿って見えるようにする。
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildUnlinkedChainStrokes() {
+        var slashStart = [3.5, 3.5];
+        var slashEnd = [18.5, 18.5];
+        var upperHook = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360).concat([[14.5, 11.5]]));
+        var hooks = [upperHook, rotatePointsHalfTurn(upperHook)];
+
+        /* 斜線の近くの帯を切り取る / Cut away the band around the slash */
+        function clipAroundSlash(strandPoints) {
+            return clipOutsideBand(strandPoints, slashStart, slashEnd, LINK_SLASH_CLEARANCE);
+        }
+        var strokes = buildStrandStrokes(hooks[0], clipAroundSlash).concat(buildStrandStrokes(hooks[1], clipAroundSlash));
+        strokes.push({ points: [slashStart, slashEnd], width: LINK_ICON_STROKE });
+        return strokes;
+    }
+
+    /**
+     * 点の間隔が 0.5 以下になるよう、線分の間に点を足す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 細かくした点列
+     */
+    function densifyPoints(points) {
+        var densePoints = [points[0]];
+        for (var i = 1; i < points.length; i++) {
+            var from = points[i - 1];
+            var to = points[i];
+            var steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(to[0] - from[0], 2) + Math.pow(to[1] - from[1], 2)) / 0.5));
+            for (var j = 1; j <= steps; j++) {
+                densePoints.push([from[0] + (to[0] - from[0]) * j / steps, from[1] + (to[1] - from[1]) * j / steps]);
+            }
+        }
+        return densePoints;
+    }
+
+    /**
+     * 点列を、進む向きの左側へ offset だけずらした点列を返す（負の値なら右側）。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} offset - ずらす距離
+     * @returns {Array<number[]>} ずらした点列
+     */
+    function offsetPolyline(points, offset) {
+        var shifted = [];
+        for (var i = 0; i < points.length; i++) {
+            var before = points[Math.max(0, i - 1)];
+            var after = points[Math.min(points.length - 1, i + 1)];
+            var tangentX = after[0] - before[0];
+            var tangentY = after[1] - before[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            shifted.push([points[i][0] - tangentY / tangentLength * offset, points[i][1] + tangentX / tangentLength * offset]);
+        }
+        return shifted;
+    }
+
+    /**
+     * 直線（線分を延長したもの）から clearance 未満の帯に入る部分を切り取り、残りを点列に分けて返す。
+     * 帯の境界で線分を補間して切るので、切り口は直線と平行にそろう。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} lineStart - 直線上の1点
+     * @param {number[]} lineEnd - 直線上のもう1点
+     * @param {number} clearance - 空ける距離
+     * @returns {Array<Array<number[]>>} 帯の外側に残った点列（2点未満のものは除く）
+     */
+    function clipOutsideBand(points, lineStart, lineEnd, clearance) {
+        var directionX = lineEnd[0] - lineStart[0];
+        var directionY = lineEnd[1] - lineStart[1];
+        var directionLength = Math.sqrt(directionX * directionX + directionY * directionY);
+
+        /* 直線からの符号付き距離 / signed distance from the line */
+        function signedDistance(point) {
+            return (directionX * (point[1] - lineStart[1]) - directionY * (point[0] - lineStart[0])) / directionLength;
+        }
+        /* 2点の間で、距離が boundary になる点 / point between two points where the distance equals boundary */
+        function interpolateAt(from, to, fromDistance, toDistance, boundary) {
+            var ratio = (boundary - fromDistance) / (toDistance - fromDistance);
+            return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
+        }
+
+        var pieces = [];
+        var currentPiece = [];
+        for (var i = 0; i < points.length; i++) {
+            var distance = signedDistance(points[i]);
+            var isOutside = Math.abs(distance) >= clearance;
+            if (i > 0) {
+                var previousDistance = signedDistance(points[i - 1]);
+                var wasOutside = Math.abs(previousDistance) >= clearance;
+                if (wasOutside && !isOutside) {
+                    /* 帯に入る: 境界で止める / entering the band: stop at the boundary */
+                    currentPiece.push(interpolateAt(points[i - 1], points[i], previousDistance, distance, previousDistance > 0 ? clearance : -clearance));
+                    if (currentPiece.length > 1) pieces.push(currentPiece);
+                    currentPiece = [];
+                } else if (!wasOutside && isOutside) {
+                    /* 帯から出る: 境界から始める / leaving the band: start at the boundary */
+                    currentPiece = [interpolateAt(points[i - 1], points[i], previousDistance, distance, distance > 0 ? clearance : -clearance)];
+                }
+            }
+            if (isOutside) currentPiece.push(points[i]);
+        }
+        if (currentPiece.length > 1) pieces.push(currentPiece);
+        return pieces;
+    }
+
+    /**
+     * 楕円弧の点列を返す（角度は右が0度、下が90度の画面座標）。
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
+     * @param {number} radiusX - 横の半径
+     * @param {number} radiusY - 縦の半径
+     * @param {number} startDegrees - 開始角度
+     * @param {number} endDegrees - 終了角度
+     * @returns {Array<number[]>} 点列
+     */
+    function buildArcPoints(centerX, centerY, radiusX, radiusY, startDegrees, endDegrees) {
+        var arcSteps = 12;
+        var arcPoints = [];
+        for (var i = 0; i <= arcSteps; i++) {
+            var angle = (startDegrees + (endDegrees - startDegrees) * i / arcSteps) * Math.PI / 180;
+            arcPoints.push([centerX + radiusX * Math.cos(angle), centerY + radiusY * Math.sin(angle)]);
+        }
+        return arcPoints;
+    }
+
+    /**
+     * 点列を 22px 四方の中心で180度回す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 回した点列
+     */
+    function rotatePointsHalfTurn(points) {
+        var rotated = [];
+        for (var i = 0; i < points.length; i++) {
+            rotated.push([22 - points[i][0], 22 - points[i][1]]);
+        }
+        return rotated;
+    }
+
+    // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // =========================================
     // 変換 / Conversion
@@ -1446,7 +2106,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* インデント / Indent */
         var indentPanel = mainColumnGroup.add("panel", undefined, getLabel("panel.indent"));
         setupPanel(indentPanel);
-        /* 連動チェックを右側に並べるため行方向へ上書き / Override to row so "Link" sits to the right */
+        /* 連動のリンクアイコンを右側に並べるため行方向へ上書き / Override to row so the link icon sits to the right */
         indentPanel.orientation = "row";
         indentPanel.alignChildren = ["left", "top"];
         var indentFieldsColumn = indentPanel.add("group");
@@ -1454,12 +2114,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         indentFieldsColumn.alignChildren = "left";
         var leftIndentRow = addIndentRow(indentFieldsColumn, "indentLeft", unitLabel);
         var rightIndentRow = addIndentRow(indentFieldsColumn, "indentRight", unitLabel);
-        var syncColumn = indentPanel.add("group");
-        syncColumn.orientation = "column";
-        syncColumn.alignChildren = "left";
-        syncColumn.alignment = ["left", "center"];
-        var syncCheckbox = syncColumn.add("checkbox", undefined, getLabel("checkbox.sync"));
-        syncCheckbox.helpTip = getLabel("tooltip.sync");
+        /* 連動のリンクアイコンは2つの欄の右、上下の中央に置く。切り替え後の処理は syncToggle.onToggleHandler に後から入れる
+           The link icon sits right of the two fields, vertically centred; the handler is set later on syncToggle.onToggleHandler */
+        var syncToggle = addLinkToggle(indentPanel, false, function () {
+            if (syncToggle.onToggleHandler) { syncToggle.onToggleHandler(); }
+        });
+        syncToggle.alignment = ["left", "center"];
+        syncToggle.helpTip = getLabel("tooltip.sync");
 
         /* オプション / Options */
         var optionsPanel = mainColumnGroup.add("panel", undefined, getLabel("panel.options"));
@@ -1475,13 +2136,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         marginUnitLabel.enabled = false;
 
         /* ボタンエリア / Button area */
-        var btnRowGroup = adjustDialog.add("group");
-        setupGroup(btnRowGroup, "row");
-        btnRowGroup.alignChildren = ["right", "center"];
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignment = ["right", "center"];
-        var btnClose = btnRightGroup.add("button", undefined, getLabel("button.close"), { name: "cancel" });
-        var btnRun = btnRightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        var buttonRow = addButtonRow(adjustDialog);
+        var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel("button.close"), { name: "cancel" });
+        var btnRun = buttonRow.rightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         return {
             adjustDialog: adjustDialog,
@@ -1493,7 +2151,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             leftIndentInput: leftIndentRow.input,
             rightIndentCheckbox: rightIndentRow.checkbox,
             rightIndentInput: rightIndentRow.input,
-            syncCheckbox: syncCheckbox,
+            syncToggle: syncToggle,
             marginCheckbox: marginCheckbox,
             marginInput: marginInput,
             marginUnitLabel: marginUnitLabel,
@@ -1544,7 +2202,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leftIndentInput = dialogControls.leftIndentInput;
         var rightIndentCheckbox = dialogControls.rightIndentCheckbox;
         var rightIndentInput = dialogControls.rightIndentInput;
-        var syncCheckbox = dialogControls.syncCheckbox;
+        var syncToggle = dialogControls.syncToggle;
         var marginCheckbox = dialogControls.marginCheckbox;
         var marginInput = dialogControls.marginInput;
         var marginUnitLabel = dialogControls.marginUnitLabel;
@@ -1612,9 +2270,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var justification = Justification.CENTER;
             var frameAlignment = 1; /* 中央 / center */
 
-            var leftIndentPt = (leftIndentCheckbox.value || syncCheckbox.value)
+            var leftIndentPt = (leftIndentCheckbox.value || syncToggle.value)
                 ? (parseFloat(leftIndentInput.text) || 0) * pointsPerUnit : 0;
-            var rightIndentPt = syncCheckbox.value
+            var rightIndentPt = syncToggle.value
                 ? leftIndentPt
                 : (rightIndentCheckbox.value ? (parseFloat(rightIndentInput.text) || 0) * pointsPerUnit : 0);
             var marginPt = marginCheckbox.value ? (parseFloat(marginInput.text) || 0) * pointsPerUnit : 0;
@@ -1715,7 +2373,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {void}
          */
         function onAdjustmentChange() {
-            if (syncCheckbox.value) { rightIndentInput.text = leftIndentInput.text; }
+            if (syncToggle.value) { rightIndentInput.text = leftIndentInput.text; }
             onWidthChange();
         }
 
@@ -1727,8 +2385,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (marginCheckbox.value) { marginInput.text = "1"; }
             onAdjustmentChange();
         };
-        syncCheckbox.onClick = function () {
-            if (syncCheckbox.value) {
+        syncToggle.onToggleHandler = function () {
+            if (syncToggle.value) {
                 leftIndentCheckbox.value = true; setStepperInputEnabled(leftIndentInput, true);
                 rightIndentCheckbox.enabled = false; setStepperInputEnabled(rightIndentInput, false);
                 rightIndentInput.text = leftIndentInput.text;
@@ -1738,7 +2396,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             onAdjustmentChange();
         };
         leftIndentCheckbox.onClick = function () {
-            if (!syncCheckbox.value) { setStepperInputEnabled(leftIndentInput, leftIndentCheckbox.value); }
+            if (!syncToggle.value) { setStepperInputEnabled(leftIndentInput, leftIndentCheckbox.value); }
             if (!leftIndentCheckbox.value) { leftIndentInput.text = "0"; }
             onAdjustmentChange();
         };
@@ -1778,6 +2436,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 開いたらプレビュー実行（常時ON）/ Run preview on open (always on) */
         updatePreview();
 
+        prepareDialogWindow(adjustDialog, SCRIPT_NAME);
         adjustDialog.show();
     }
 

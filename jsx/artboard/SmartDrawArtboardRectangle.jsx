@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "SmartDrawArtboardRectangleEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -28,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -62,11 +63,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
-    /* ダイアログの初期位置・不透明度 / Dialog position & opacity */
-    var DIALOG_OFFSET_X = 300;  /* 右(+)／左(-) / shift right (+) / left (-) */
-    var DIALOG_OFFSET_Y = 0;    /* 下(+)／上(-) / shift down (+) / up (-) */
-    var DIALOG_OPACITY = 0.98;  /* 0.0 - 1.0 */
-
     /* 余白と間隔 / Margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] */
     var PANEL_SPACING = 8;                /* パネル内の要素間隔 */
@@ -74,8 +70,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     var STACK_SPACING = 10;               /* カラム内のパネル間隔・広めの行間 */
     var TIGHT_SPACING = 6;                /* 詰めた行間 */
 
-    /* CMYK入力欄の固定幅（ラベルと桁を揃える）/ Fixed width that aligns CMYK labels and fields */
-    var CMYK_FIELD_WIDTH = 40;
+    /* カスタムの色見本の大きさ / size of the Custom swatch */
+    var CUSTOM_SWATCH_SIZE = [36, 18];
 
     /**
      * パネルの共通設定
@@ -115,22 +111,296 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     var ColorMode = {
         NONE: 'none',
         K100: 'k100',
-        HEX: 'hex',
-        CMYK: 'cmyk'
+        CUSTOM: 'custom'
     };
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * 現在のUI言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+    // キーボードショートカット（再利用パーツ） / Keyboard shortcuts (reusable)
+
+    /* 入力中はショートカットを止めるコントロールの種類 / Control types that swallow keys while focused */
+    var KEY_SHORTCUT_TYPING_TYPES = { edittext: true, dropdownlist: true, listbox: true };
+
+    /* 修飾キーの並び順（キーの表記をそろえる）/ Canonical order of modifiers in a key spec */
+    var KEY_SHORTCUT_MODIFIERS = ["SHIFT", "ALT", "CMD"];
+
+    /* 修飾キーの別名 / Aliases accepted for the modifiers */
+    var KEY_SHORTCUT_MODIFIER_ALIASES = {
+        SHIFT: "SHIFT",
+        ALT: "ALT", OPTION: "ALT", OPT: "ALT",
+        CMD: "CMD", COMMAND: "CMD", META: "CMD", CTRL: "CMD", CONTROL: "CMD"
+    };
+
+    /**
+     * キーの指定（"Shift+R" など）を、照合用の表記（"SHIFT+R"）にそろえる
+     * @param {string} keySpec - キーの指定。修飾キーは "Shift+" / "Alt+" / "Cmd+" を前に付ける
+     * @returns {string} 照合用の表記（大文字、修飾キーは SHIFT → ALT → CMD の順）
+     */
+    function normalizeKeyShortcutSpec(keySpec) {
+        var specParts = String(keySpec).split("+");
+        var baseKey = specParts.pop().toUpperCase();
+        var modifierFlags = {};
+        for (var i = 0; i < specParts.length; i++) {
+            var modifierName = KEY_SHORTCUT_MODIFIER_ALIASES[specParts[i].toUpperCase()];
+            if (modifierName) modifierFlags[modifierName] = true;
+        }
+        return buildKeyShortcutSpec(modifierFlags, baseKey);
+    }
+
+    /**
+     * 修飾キーの状態とキー名から照合用の表記を組み立てる
+     * @param {Object} modifierFlags - { SHIFT: true, ALT: true, CMD: true } のうち押されているもの
+     * @param {string} baseKey - 大文字のキー名
+     * @returns {string} 照合用の表記
+     */
+    function buildKeyShortcutSpec(modifierFlags, baseKey) {
+        var specText = "";
+        for (var i = 0; i < KEY_SHORTCUT_MODIFIERS.length; i++) {
+            if (modifierFlags[KEY_SHORTCUT_MODIFIERS[i]]) specText += KEY_SHORTCUT_MODIFIERS[i] + "+";
+        }
+        return specText + baseKey;
+    }
+
+    /**
+     * keydown イベントから照合用の表記を作る。修飾キーはイベントと keyboardState の両方を見る
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {string} 照合用の表記。キー名が無いときは空文字
+     */
+    function readKeyShortcutSpec(keyEvent) {
+        if (!keyEvent || !keyEvent.keyName) return "";
+        var keyboardState = {};
+        try { keyboardState = ScriptUI.environment.keyboardState; } catch (e) { }
+        var modifierFlags = {
+            SHIFT: !!(keyEvent.shiftKey || keyboardState.shiftKey),
+            ALT: !!(keyEvent.altKey || keyboardState.altKey),
+            CMD: !!(keyEvent.metaKey || keyEvent.ctrlKey || keyboardState.metaKey || keyboardState.ctrlKey)
+        };
+        return buildKeyShortcutSpec(modifierFlags, String(keyEvent.keyName).toUpperCase());
+    }
+
+    /**
+     * コントロールが押せる状態か（自分と親がすべて有効で表示中か）を返す
+     * @param {Object} control - コントロール
+     * @returns {boolean} 押せるなら true
+     */
+    function isKeyShortcutControlUsable(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false || node.visible === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * キーを受けたコントロールが、文字を入力する欄か
+     * @param {Object} focusedControl - イベントの発生元
+     * @param {Object[]} numericFields - 数値だけの欄（ショートカットを効かせる）
+     * @returns {boolean} 入力中としてショートカットを止めるなら true
+     */
+    function isKeyShortcutTypingTarget(focusedControl, numericFields) {
+        if (!focusedControl || !KEY_SHORTCUT_TYPING_TYPES[focusedControl.type]) return false;
+        for (var i = 0; i < numericFields.length; i++) {
+            if (numericFields[i] === focusedControl) return false;
+        }
+        return true;
+    }
+
+    /**
+     * コントロールをクリックしたときと同じ動作をする
+     * ラジオは同じ親のラジオを外して選び、チェックボックスは反転してから onClick を呼ぶ
+     * @param {Object} control - ラジオボタン・チェックボックス・ボタンなど
+     * @returns {void}
+     */
+    function pressKeyShortcutControl(control) {
+        if (control.type === "radiobutton") {
+            /* 同じ親の直下だけが排他になるので、クリックと同じく兄弟を外す / Clear siblings like a click would */
+            var siblings = control.parent ? control.parent.children : [];
+            for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] !== control && siblings[i].type === "radiobutton") siblings[i].value = false;
+            }
+            control.value = true;
+        } else if (control.type === "checkbox") {
+            control.value = !control.value;
+        }
+        if (typeof control.onClick === "function") {
+            control.onClick.call(control);
+        } else if (control.type === "button" && typeof control.notify === "function") {
+            /* onClick の無い OK・キャンセルは notify で既定の動作（閉じる）を起こす / Let default buttons close the dialog */
+            control.notify("onClick");
+        }
+    }
+
+    /**
+     * 1つのショートカットを実行する
+     * @param {Object|Function} shortcutTarget - コントロール、または関数
+     * @param {Object} keyEvent - keydown イベント
+     * @returns {boolean} キーを使ったなら true（false なら文字をそのまま通す）
+     */
+    function runKeyShortcutTarget(shortcutTarget, keyEvent) {
+        var targetControl = shortcutTarget;
+        if (typeof shortcutTarget === "function") {
+            var runResult = shortcutTarget(keyEvent);
+            if (runResult === false || runResult === null) return false;
+            if (!runResult || typeof runResult !== "object" || !runResult.type) return true;
+            targetControl = runResult;
+        }
+        /* 無効なコントロールのキーも使ったことにして、数値欄へ文字を入れない / Consume the key even when disabled */
+        if (isKeyShortcutControlUsable(targetControl)) pressKeyShortcutControl(targetControl);
+        return true;
+    }
+
+    /**
+     * キーの指定に修飾キーの表示名を当てて、ツールチップ用の表記にする
+     * @param {string} normalizedSpec - 照合用の表記（"SHIFT+R" など）
+     * @returns {string} 表示用の表記（"Shift+R" など）
+     */
+    function formatKeyShortcutLabel(normalizedSpec) {
+        var isMac = ($.os.indexOf("Mac") === 0);
+        var displayNames = { SHIFT: "Shift", ALT: isMac ? "Option" : "Alt", CMD: isMac ? "Cmd" : "Ctrl" };
+        var specParts = normalizedSpec.split("+");
+        var baseKey = specParts.pop();
+        var labelText = "";
+        for (var i = 0; i < specParts.length; i++) labelText += displayNames[specParts[i]] + "+";
+        if (baseKey.length > 1) baseKey = baseKey.charAt(0) + baseKey.substring(1).toLowerCase();
+        return labelText + baseKey;
+    }
+
+    /**
+     * コントロールのツールチップの末尾にキーを足す（すでに書いてあれば足さない）
+     * @param {Object} control - コントロール
+     * @param {string} normalizedSpec - 照合用の表記
+     * @returns {void}
+     */
+    function appendKeyShortcutToTip(control, normalizedSpec) {
+        var keyLabel = formatKeyShortcutLabel(normalizedSpec);
+        var currentTip = control.helpTip ? String(control.helpTip) : "";
+        if (currentTip.indexOf("（" + keyLabel) >= 0 || currentTip.indexOf("(" + keyLabel) >= 0) return;
+        var keySuffix = (uiLang === "ja") ? "（" + keyLabel + "）" : " (" + keyLabel + ")";
+        control.helpTip = currentTip ? currentTip + keySuffix : keyLabel;
+    }
+
+    /**
+     * ダイアログ・パレットに文字キーのショートカットを付ける
+     * @param {Window} targetWindow - キーを受けるダイアログ・パレット
+     * @param {Object} shortcutMap - { "L": ラジオ, "Shift+R": ボタン, "G": 関数, "Escape": { target: 関数, inFields: true } }
+     * @param {Object} [shortcutOptions] - numericFields（数値だけの欄の配列）/ afterKey（キーを使ったあとに呼ぶ関数）/ showInTip（ツールチップにキーを足す）
+     * @returns {Object} 照合用の表記 → { target, inFields } の表（テスト・デバッグ用）
+     */
+    function addKeyShortcuts(targetWindow, shortcutMap, shortcutOptions) {
+        var shortcutSettings = shortcutOptions || {};
+        var numericFields = shortcutSettings.numericFields || [];
+        var bindingTable = {};
+
+        for (var keySpec in shortcutMap) {
+            if (!shortcutMap.hasOwnProperty(keySpec)) continue;
+            var mapEntry = shortcutMap[keySpec];
+            if (!mapEntry) continue;
+            var isWrapped = (typeof mapEntry === "object" && !mapEntry.type && mapEntry.target);
+            var normalizedSpec = normalizeKeyShortcutSpec(keySpec);
+            bindingTable[normalizedSpec] = {
+                target: isWrapped ? mapEntry.target : mapEntry,
+                inFields: !!(isWrapped && mapEntry.inFields)
+            };
+            var tipControl = bindingTable[normalizedSpec].target;
+            if (shortcutSettings.showInTip && typeof tipControl === "object" && tipControl.type) {
+                appendKeyShortcutToTip(tipControl, normalizedSpec);
+            }
+        }
+
+        /* キャプチャで受けて、数値欄に文字が入る前に止める / Capture phase keeps the letter out of numeric fields */
+        targetWindow.addEventListener("keydown", function (keyEvent) {
+            var binding = bindingTable[readKeyShortcutSpec(keyEvent)];
+            if (!binding) return;
+            if (!binding.inFields && isKeyShortcutTypingTarget(keyEvent.target, numericFields)) return;
+            if (!runKeyShortcutTarget(binding.target, keyEvent)) return;
+            if (keyEvent.preventDefault) keyEvent.preventDefault();
+            if (typeof shortcutSettings.afterKey === "function") shortcutSettings.afterKey(keyEvent);
+        }, true);
+
+        return bindingTable;
+    }
+
+    // キーボードショートカット（再利用パーツ）ここまで / End of the reusable keyboard shortcuts
 
     /* ラベル定義（カテゴリ別）/ Label definitions (by category) */
     var LABELS = {
@@ -147,8 +417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         radio: {
             colorNone: { ja: "なし", en: "None" },
             colorK100: { ja: "K100、不透明度15%", en: "K100, Opacity 15%" },
-            colorHex: { ja: "HEX", en: "HEX" },
-            colorCmyk: { ja: "CMYK", en: "CMYK" },
+            colorCustom: { ja: "カスタム", en: "Custom" },
             placeFront: { ja: "最前面", en: "Front" },
             placeBack: { ja: "最背面", en: "Back" },
             placeBgLayer: { ja: "bgレイヤー", en: "bg Layer" },
@@ -176,17 +445,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 en: "Automatically fills a bleed-equivalent offset based on the current unit."
             },
             colorNone: { ja: "塗りも線もない長方形を描画します。", en: "Draws the rectangle with no fill and no stroke." },
-            hexInput: {
-                ja: "#RRGGBB（#RGB 短縮・red などの色名・gray50 も可）で塗りカラーを指定します。",
-                en: "Enter a fill color: #RRGGBB (also #RGB shorthand, color names like red, or gray50)."
-            },
-            colorCmyk: {
-                ja: "CMYK値で塗りを指定します。RGBドキュメントではRGBに換算して塗ります。",
-                en: "Sets the fill from CMYK values. In an RGB document the values are converted to RGB."
-            },
-            cmykInput: {
-                ja: "0〜100の範囲でCMYK値を指定します。未入力は0として扱います。",
-                en: "Enter CMYK values from 0 to 100. Empty fields are treated as 0."
+            colorCustom: {
+                ja: "色見本をクリックすると、Illustrator 標準のカラーピッカーで塗りの色を選べます。",
+                en: "Click the swatch to choose the fill color in Illustrator's standard color picker."
             },
             placeFront: { ja: "現在のレイヤー内で最前面に配置します。", en: "Places the rectangle at the front of the current layer." },
             placeBack: { ja: "現在のレイヤー内で最背面に配置します。", en: "Places the rectangle at the back of the current layer." },
@@ -215,12 +476,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
         },
         warning: {
-            hexInvalid: { ja: "正しい #RRGGBB を入力してください", en: "Enter a valid #RRGGBB value" },
-            hexEmpty: { ja: "HEX未入力（# のみ）", en: "HEX not entered (# only)" },
-            cmykRange: {
-                ja: "0–100 の範囲にしてください（未入力は 0 として扱います）",
-                en: "Enter a value from 0 to 100 (empty fields are treated as 0)"
-            },
             singleArtboard: { ja: "アートボードが1つのため選択できません", en: "Disabled: only one artboard exists" }
         },
         objectName: {
@@ -231,125 +486,166 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
     };
 
-    /**
-     * ラベルを取得する（ドット区切りキー、{slash}→「/」に展開）
-     * @param {string} key - "panel.offset" のようなドット区切りキー
-     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
-     */
-    function getLabel(key) {
-        var labelNode = LABELS;
-        var keyParts = String(key).split('.');
-        for (var i = 0; i < keyParts.length; i++) {
-            if (labelNode == null) break;
-            labelNode = labelNode[keyParts[i]];
-        }
-        var labelValue = (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : key;
-        return String(labelValue).replace(/\{slash\}/g, '/');
-    }
-
     // =========================================
     // ダイアログ共通ユーティリティ / Dialog utilities
     // =========================================
 
-    /* =========================================
-     * DialogPersist util (extractable)
-     * ダイアログの不透明度・初期位置を共通化するユーティリティ。
-     * 使い方:
-     *   DialogPersist.setOpacity(dialog, 0.95);
-     *   DialogPersist.applyInitialOffset(dialog, offsetX, offsetY); // onShow などで
-     * ========================================= */
-    (function (globalObject) {
-        if (!globalObject.DialogPersist) {
-            globalObject.DialogPersist = {
-                setOpacity: function (dialog, opacity) {
-                    try { dialog.opacity = opacity; } catch (e) { }
-                },
-                applyInitialOffset: function (dialog, offsetX, offsetY) {
-                    try {
-                        var currentLocation = dialog.location;
-                        dialog.location = [currentLocation[0] + (offsetX | 0), currentLocation[1] + (offsetY | 0)];
-                    } catch (e) { }
-                }
-            };
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
         }
-    })($.global);
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
 
-    /* 入力中のホットキー抑止用に、フォーカス中のコントロールを保持 / Control that currently owns focus */
-    var focusedField = null;
+        dialog.opacity = DIALOG_OPACITY;
 
-    /**
-     * 入力欄のフォーカスを追跡し、入力中はダイアログのホットキーを無効にする
-     * 単一 boolean だと「新フィールドの focus → 旧フィールドの blur」の順で false に落ちるため、
-     * コントロール自体を保持して自分の blur のときだけクリアする（順序非依存）。
-     * @param {EditText} fieldControl - 追跡対象の入力欄
-     * @returns {void}
-     */
-    function trackFocusForHotkeys(fieldControl) {
-        fieldControl.addEventListener('focus', function () {
-            focusedField = fieldControl;
-        });
-        fieldControl.addEventListener('blur', function () {
-            if (focusedField === fieldControl) focusedField = null;
-        });
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
     }
 
     /**
-     * 入力欄を淡黄色でハイライト表示する（選択中のカラーモードを示す）
-     * @param {EditText} fieldControl - 対象の入力欄
-     * @param {boolean} highlighted - true でハイライト、false で通常表示
-     * @returns {void}
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
      */
-    function setFieldHighlight(fieldControl, highlighted) {
+    function getSelectionViewSpan() {
         try {
-            var graphics = fieldControl.graphics;
-            var backgroundRgb = highlighted ? [1, 1, 0.85] : [1, 1, 1];
-            var foregroundRgb = highlighted ? [0.2, 0.2, 0] : [0, 0, 0];
-            graphics.backgroundColor = graphics.newBrush(graphics.BrushType.SOLID_COLOR, backgroundRgb);
-            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, foregroundRgb, 1);
-            fieldControl.notify('onDraw');
-        } catch (e) { }
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
     }
 
     /**
-     * 入力欄の文字色を警告(赤)／通常(黒)に切り替える
-     * @param {EditText} fieldControl - 対象の入力欄
-     * @param {boolean} isWarning - true で赤、false で黒
-     * @returns {void}
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
      */
-    function setFieldWarnColor(fieldControl, isWarning) {
-        try {
-            var graphics = fieldControl.graphics;
-            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, isWarning ? [1, 0, 0] : [0, 0, 0], 1);
-        } catch (e) { }
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に↑↓キーの増減処理を別に付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -365,22 +661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -492,8 +773,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -748,9 +1029,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // 単位 / Units
@@ -836,19 +1115,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // カラー / Color
     // =========================================
 
-    /* 色名テーブル（RGB/CMYK 両方を持つ）/ Named colors, with both an RGB and a CMYK value */
-    var NAMED_COLOR_TABLE = {
-        black: { rgb: [0, 0, 0], cmyk: [0, 0, 0, 100] },
-        white: { rgb: [255, 255, 255], cmyk: [0, 0, 0, 0] },
-        red: { rgb: [255, 0, 0], cmyk: [0, 100, 100, 0] },
-        green: { rgb: [0, 128, 0], cmyk: [100, 0, 100, 50] },
-        blue: { rgb: [0, 0, 255], cmyk: [100, 100, 0, 0] },
-        cyan: { rgb: [0, 255, 255], cmyk: [100, 0, 0, 0] },
-        magenta: { rgb: [255, 0, 255], cmyk: [0, 100, 0, 0] },
-        yellow: { rgb: [255, 255, 0], cmyk: [0, 0, 100, 0] },
-        orange: { rgb: [255, 165, 0], cmyk: [0, 35, 100, 0] }
-    };
-
     /**
      * 数値を指定範囲に収める
      * @param {number} value - 対象の値
@@ -923,84 +1189,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * カラー入力欄の文字列を色として解釈する
-     * #RRGGBB／#RGB・#RG・#R の短縮形／色名（red など）／grayNN（0–100）を受け付ける
-     * @param {Document} doc - 対象ドキュメント（カラースペース判定に使う）
-     * @param {string} colorText - 入力文字列
-     * @returns {RGBColor|CMYKColor|null} 解釈できた色。できなければ null
-     */
-    function parseColorText(doc, colorText) {
-        if (!colorText) return null;
-        var normalizedText = String(colorText).replace(/^\s+|\s+$/g, '').toLowerCase();
-        if (!normalizedText) return null;
-
-        /* 全角の空白・読点・数字・記号をASCIIへ正規化 / Normalize full-width characters to ASCII */
-        normalizedText = normalizedText.replace(/　/g, ' ').replace(/[，、]/g, ',');
-        normalizedText = normalizedText.replace(/[０-９]/g, function (fullWidthDigit) {
-            return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFF10 + 0x30);
-        });
-        normalizedText = normalizedText.replace(/．/g, '.').replace(/／/g, '/');
-
-        /* 短縮HEXを #RRGGBB へ展開 / Expand shorthand hex notations */
-        if (normalizedText.charAt(0) === '#') {
-            var digits = normalizedText.substr(1);
-            if (digits.length === 1) {          /* #R → #RRRRRR */
-                normalizedText = '#' + digits + digits + digits + digits + digits + digits;
-            } else if (digits.length === 2) {   /* #RG → #RGRGRG */
-                normalizedText = '#' + digits + digits + digits;
-            } else if (digits.length === 3) {   /* #RGB → #RRGGBB */
-                normalizedText = '#' + digits.charAt(0) + digits.charAt(0) +
-                    digits.charAt(1) + digits.charAt(1) +
-                    digits.charAt(2) + digits.charAt(2);
-            }
-        }
-
-        /* #RRGGBB */
-        if (/^#[0-9a-f]{6}$/.test(normalizedText)) {
-            return makeRgbColor(parseInt(normalizedText.substr(1, 2), 16), parseInt(normalizedText.substr(3, 2), 16), parseInt(normalizedText.substr(5, 2), 16));
-        }
-
-        /* 色名 / Named colors — ドキュメントのカラースペースを優先 */
-        var namedColor = NAMED_COLOR_TABLE[normalizedText];
-        if (namedColor) {
-            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) {
-                return makeCmykColor(namedColor.cmyk[0], namedColor.cmyk[1], namedColor.cmyk[2], namedColor.cmyk[3]);
-            }
-            return makeRgbColor(namedColor.rgb[0], namedColor.rgb[1], namedColor.rgb[2]);
-        }
-
-        /* grayNN（0–100）/ grayNN (0-100) */
-        var grayMatch = normalizedText.match(/^gray\s*(\d{1,3})$/);
-        if (grayMatch) {
-            var grayLevel = clampValue(parseInt(grayMatch[1], 10), 0, 100);
-            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) return makeCmykColor(0, 0, 0, grayLevel);
-            var grayByte = Math.round(255 * (100 - grayLevel) / 100);
-            return makeRgbColor(grayByte, grayByte, grayByte);
-        }
-
-        return null;
-    }
-
-    /**
-     * CMYK入力値からドキュメントのカラースペースに合う色を作る
-     * @param {Document} doc - 対象ドキュメント
-     * @param {object} cmykValues - { c, m, y, k }（0–100）
-     * @returns {RGBColor|CMYKColor|null} 4値が揃っていなければ null
-     */
-    function buildCmykFillColor(doc, cmykValues) {
-        if (!cmykValues) return null;
-        var channels = [cmykValues.c, cmykValues.m, cmykValues.y, cmykValues.k];
-        for (var i = 0; i < channels.length; i++) {
-            if (typeof channels[i] !== 'number' || isNaN(channels[i])) return null;
-        }
-        if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-            var rgbValues = cmykToRgb(channels[0], channels[1], channels[2], channels[3]);
-            return makeRgbColor(rgbValues[0], rgbValues[1], rgbValues[2]);
-        }
-        return makeCmykColor(channels[0], channels[1], channels[2], channels[3]);
-    }
-
-    /**
      * カラーモードに応じた塗りを適用する（プレビューと本描画で共通）
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} targetRectangle - 塗りを適用する長方形
@@ -1014,13 +1202,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         if (drawSettings.colorMode === ColorMode.K100) {
             fillColor = createBlackColor(doc);
             fillOpacity = K100_OPACITY;
-        } else if (drawSettings.colorMode === ColorMode.HEX) {
-            fillColor = parseColorText(doc, drawSettings.customValue);
-        } else if (drawSettings.colorMode === ColorMode.CMYK) {
-            fillColor = buildCmykFillColor(doc, drawSettings.customCMYK);
+        } else if (drawSettings.colorMode === ColorMode.CUSTOM) {
+            fillColor = drawSettings.customColor;
         }
 
-        /* 解釈できない値・「なし」は塗りなし。線は呼び出し側（プレビュー）で付け直す
+        /* 「なし」は塗りなし。線は呼び出し側（プレビュー）で付け直す
            Unparsable values and "None" mean no fill; the caller re-applies any stroke */
         targetRectangle.stroked = false;
         targetRectangle.filled = !!fillColor;
@@ -1320,109 +1506,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     // =========================================
-    // 入力欄の検証 / Field validation
-    // =========================================
-
-    /**
-     * HEX入力欄の警告表示を切り替える
-     * @param {EditText} hexField - HEX入力欄
-     * @param {boolean} isWarning - true で警告表示
-     * @param {string} [warningKey] - 警告時のヘルプチップのラベルキー
-     * @returns {void}
-     */
-    function setHexWarning(hexField, isWarning, warningKey) {
-        setFieldWarnColor(hexField, isWarning);
-        hexField.helpTip = isWarning ? getLabel(warningKey || 'warning.hexInvalid') : getLabel('tooltip.hexInput');
-        try { hexField.notify('onDraw'); } catch (e) { }
-    }
-
-    /**
-     * CMYK入力欄の警告表示を切り替える
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @param {boolean} isWarning - true で警告表示
-     * @returns {void}
-     */
-    function setCmykWarning(channelInput, isWarning) {
-        setFieldWarnColor(channelInput, isWarning);
-        channelInput.helpTip = isWarning ? getLabel('warning.cmykRange') : getLabel('tooltip.cmykInput');
-    }
-
-    /**
-     * CMYK入力欄の値が0–100の範囲かを判定して警告表示に反映する（入力途中は警告しない）
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @returns {void}
-     */
-    function validateCmykField(channelInput) {
-        var fieldText = String(channelInput.text || '');
-        if (fieldText === '') {
-            setCmykWarning(channelInput, false);
-            return;
-        }
-        var channelValue = parseFloat(fieldText);
-        setCmykWarning(channelInput, isNaN(channelValue) || channelValue < 0 || channelValue > 100);
-    }
-
-    /**
-     * CMYK入力欄の値を0–100へ丸める（未入力は空のまま。計算時に0として扱う）
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
-     * @returns {void}
-     */
-    function clampCmykField(channelInput) {
-        var fieldText = String(channelInput.text || '').replace(/^\s+|\s+$/g, '');
-        if (fieldText !== '') {
-            var channelValue = parseFloat(fieldText);
-            if (isNaN(channelValue)) channelValue = 0;
-            channelInput.text = String(clampValue(channelValue, 0, 100));
-        }
-        setCmykWarning(channelInput, false);
-    }
-
-    /**
-     * CMYK入力欄へ共通のハンドラをまとめて登録する
-     * @param {EditText} channelInput - CMYK各チャンネルの入力欄（∧∨付き）
-     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
-     * @returns {void}
-     */
-    function bindCmykField(channelInput, previewHooks) {
-        channelInput.addEventListener('focus', function () {
-            /* ちょうど "0" のときは入力しやすいようクリア / Clear a lone "0" so typing replaces it */
-            if (String(channelInput.text) === '0') channelInput.text = '';
-        });
-
-        channelInput.addEventListener('keydown', function (event) {
-            /* 先頭ゼロ（"03"）を作らせない。小数 "0.5" は触らない
-               Prevent leading-zero integers; leave decimals like "0.5" alone */
-            var typedKey = String(event.keyName || '');
-            if (!/^[0-9]$/.test(typedKey)) return;
-            var fieldText = String(channelInput.text || '');
-            if (/\./.test(fieldText)) return;
-            if (/^0+$/.test(fieldText)) channelInput.text = '';
-            else if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
-        });
-
-        channelInput.onChanging = function () {
-            var fieldText = String(channelInput.text || '');
-            if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
-            validateCmykField(channelInput);
-            previewHooks.deferred();
-        };
-
-        channelInput.onChange = function () {
-            clampCmykField(channelInput);
-            previewHooks.immediate();
-        };
-
-        /* ∧∨と↑↓キーは同じ処理で増減する（0〜100に収める） / steppers and arrow keys share one path (0-100) */
-        channelInput.stepperOptions.onStep = function () {
-            clampCmykField(channelInput);
-            previewHooks.deferred();
-        };
-        bindSteppedArrowKeys(channelInput, channelInput.stepperGroup);
-
-        trackFocusForHotkeys(channelInput);
-    }
-
-    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -1498,7 +1581,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             if (event.keyName == 'Enter') previewHooks.immediate();
         });
         bindSteppedArrowKeys(offsetInput, offsetStepper);
-        trackFocusForHotkeys(offsetInput);
 
         return {
             offsetInput: offsetInput,
@@ -1511,20 +1593,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * 配列の指定番目の入力欄を返す関数を作る（ループ内で∧∨に渡すため、添字を閉じ込める）
-     * @param {EditText[]} inputList - 入力欄の配列（あとから push されてもよい）
-     * @param {number} inputIndex - 添字
-     * @returns {Function} 入力欄を返す関数
+     * 色を色見本に描くための RGB（0〜1）にする
+     * @param {RGBColor|CMYKColor|GrayColor} fillColor - 色
+     * @returns {number[]} [r, g, b]（0〜1）
      */
-    function makeInputGetter(inputList, inputIndex) {
-        return function () { return inputList[inputIndex]; };
+    function colorToScreenRgb(fillColor) {
+        if (fillColor.typename === "RGBColor") return [fillColor.red / 255, fillColor.green / 255, fillColor.blue / 255];
+        if (fillColor.typename === "GrayColor") return [1 - fillColor.gray / 100, 1 - fillColor.gray / 100, 1 - fillColor.gray / 100];
+        var rgbValues = cmykToRgb(fillColor.cyan, fillColor.magenta, fillColor.yellow, fillColor.black);
+        return [rgbValues[0] / 255, rgbValues[1] / 255, rgbValues[2] / 255];
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた中間のグレーを作る（カスタムの初期色）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {RGBColor|CMYKColor} グレー
+     */
+    function createDefaultCustomColor(doc) {
+        if (doc.documentColorSpace == DocumentColorSpace.RGB) return makeRgbColor(128, 128, 128);
+        return makeCmykColor(0, 0, 0, 50);
     }
 
     /**
      * カラーパネルを構築する
      * @param {Group} parentGroup - 追加先のカラムグループ
      * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred }
-     * @returns {object} 各ラジオ・入力欄をまとめたオブジェクト
+     * @returns {object} 各ラジオと、カスタムの色を返す getCustomColor をまとめたオブジェクト
      */
     function buildColorPanel(parentGroup, previewHooks) {
         var colorPanel = parentGroup.add('panel', undefined, getLabel('panel.color'));
@@ -1534,117 +1628,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         noneRadio.helpTip = getLabel('tooltip.colorNone');
         var k100Radio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorK100'));
 
-        /* HEXはラジオと入力欄を同じ行に / HEX radio and its field share one row */
-        var hexRow = colorPanel.add('group');
-        setupGroup(hexRow, 'row', TIGHT_SPACING);
-        var hexRadio = hexRow.add('radiobutton', undefined, getLabel('radio.colorHex'));
-        var hexInput = hexRow.add('edittext', undefined, '#');
-        hexInput.characters = 14; /* カラム幅が伸びないよう控えめに / narrow enough to keep the column width */
-        hexInput.helpTip = getLabel('tooltip.hexInput');
+        /* カスタムはラジオと色見本を同じ行に / the Custom radio and its swatch share one row */
+        var customRow = colorPanel.add('group');
+        setupGroup(customRow, 'row', TIGHT_SPACING);
+        var customRadio = customRow.add('radiobutton', undefined, getLabel('radio.colorCustom'));
+        customRadio.helpTip = getLabel('tooltip.colorCustom');
+        var customSwatch = customRow.add('group');
+        customSwatch.preferredSize = CUSTOM_SWATCH_SIZE;
+        customSwatch.helpTip = getLabel('tooltip.colorCustom');
 
-        var cmykRadio = colorPanel.add('radiobutton', undefined, getLabel('radio.colorCmyk'));
-        cmykRadio.helpTip = getLabel('tooltip.colorCmyk');
-
-        /* ラベル行とフィールド行の2段グリッド / Two-row grid: labels on top, fields below */
-        var cmykGrid = colorPanel.add('group');
-        setupGroup(cmykGrid, 'column', 4);
-        var cmykLabelRow = cmykGrid.add('group');
-        setupGroup(cmykLabelRow, 'row', STACK_SPACING);
-        var cmykFieldRow = cmykGrid.add('group');
-        setupGroup(cmykFieldRow, 'row', STACK_SPACING);
-
-        var cmykChannelTexts = ['  C', '  M', '  Y', '  K'];
-        var cmykLabels = [];
-        var cmykInputs = [];
-        for (var i = 0; i < cmykChannelTexts.length; i++) {
-            /* 項目名は入力欄の真上に来るよう、∧∨の幅だけ左をあける / indent the label by the stepper width to sit above the field */
-            var channelLabelCell = cmykLabelRow.add('group');
-            channelLabelCell.margins = [STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, 0, 0, 0];
-            channelLabelCell.spacing = 0;
-            var channelLabel = channelLabelCell.add('statictext', undefined, cmykChannelTexts[i]);
-            channelLabel.preferredSize.width = CMYK_FIELD_WIDTH;
-
-            /* ∧∨と入力欄は隙間0で突き合わせる。onStep は bindCmykField() で入れる / onStep is set in bindCmykField() */
-            var channelFieldGroup = cmykFieldRow.add('group');
-            channelFieldGroup.orientation = 'row';
-            channelFieldGroup.alignChildren = ['left', 'center'];
-            channelFieldGroup.spacing = 0;
-            channelFieldGroup.margins = 0;
-            var channelStepperOptions = { min: 0, max: 100 };
-            var channelStepper = addStepper(channelFieldGroup, makeInputGetter(cmykInputs, i), channelStepperOptions);
-            var channelInput = channelFieldGroup.add('edittext', undefined, '');
-            channelInput.characters = 3;
-            channelInput.preferredSize.width = CMYK_FIELD_WIDTH;
-            channelInput.helpTip = getLabel('tooltip.cmykInput');
-            channelInput.stepperGroup = channelStepper;
-            channelInput.stepperOptions = channelStepperOptions;
-            cmykLabels.push(channelLabel);
-            cmykInputs.push(channelInput);
-            bindCmykField(channelInput, previewHooks);
-        }
-
-        hexInput.onChanging = function () {
-            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
-            if (hexText === '') setHexWarning(hexInput, false);
-            else if (hexText === '#') setHexWarning(hexInput, true, 'warning.hexEmpty');
-            /* parseColorText が解釈できる入力（#RRGGBB／短縮HEX／色名／grayNN）はすべて有効
-               Anything parseColorText can resolve is valid */
-            else setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
-            previewHooks.deferred();
+        var customColor = createDefaultCustomColor(app.activeDocument);
+        customSwatch.onDraw = function () {
+            var swatchGraphics = customSwatch.graphics;
+            var swatchWidth = customSwatch.size[0];
+            var swatchHeight = customSwatch.size[1];
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+            swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, colorToScreenRgb(customColor)));
+            swatchGraphics.newPath();
+            swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
         };
 
-        hexInput.onChange = function () {
-            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
-            if (/^#?[0-9a-fA-F]{6}$/.test(hexText)) {
-                /* 6桁HEXは # 付き・大文字へ正規化 / Normalize 6-digit hex to "#" + uppercase */
-                hexInput.text = '#' + hexText.replace(/^#/, '').toUpperCase();
-                setHexWarning(hexInput, false);
-            } else if (hexText === '#') {
-                setHexWarning(hexInput, true, 'warning.hexEmpty');
-            } else {
-                /* 色名・短縮HEX・grayNN は整形せずそのまま受理 / Names, shorthand hex and grayNN pass through */
-                setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
-            }
-            previewHooks.immediate();
-        };
+        /* 色見本をクリックしたら標準のカラーピッカーを開き、カスタムを選ぶ。
+           OK なら選んだ色（ドキュメントのカラーモードの型）、キャンセルなら渡した色がそのまま返る
+           Clicking the swatch opens the standard color picker and selects Custom */
+        customSwatch.addEventListener('click', function () {
+            customColor = app.showColorPicker(customColor);
+            customSwatch.hide(); /* group には notify() が無いので、隠して再表示して描き直す / redraw the group */
+            customSwatch.show();
+            selectColorMode(ColorMode.CUSTOM);
+        });
 
-        trackFocusForHotkeys(hexInput);
-
-        /* ラジオ選択に応じて入力欄の有効・無効を反映 / Sync field enable state with the radios */
-        function updateColorFieldStates() {
-            hexInput.enabled = !!hexRadio.value;
-            var cmykEnabled = !!cmykRadio.value;
-            for (var i = 0; i < cmykInputs.length; i++) {
-                cmykInputs[i].enabled = cmykEnabled;
-                cmykInputs[i].stepperGroup.enabled = cmykEnabled;
-                redrawSteppersIn(cmykInputs[i].stepperGroup);
-                cmykLabels[i].enabled = cmykEnabled;
-                if (!cmykEnabled) setCmykWarning(cmykInputs[i], false);
-            }
-        }
-
-        /* カラーモードを排他選択し、ハイライト・フォーカス・プレビューを更新
-           Select a color mode exclusively, then sync highlight, focus and preview */
+        /* カラーモードを排他選択してプレビューを更新 / Select a color mode exclusively, then refresh the preview */
         function selectColorMode(colorMode) {
             noneRadio.value = (colorMode === ColorMode.NONE);
             k100Radio.value = (colorMode === ColorMode.K100);
-            hexRadio.value = (colorMode === ColorMode.HEX);
-            cmykRadio.value = (colorMode === ColorMode.CMYK);
-            updateColorFieldStates();
-            setFieldHighlight(hexInput, colorMode === ColorMode.HEX);
-            setFieldHighlight(cmykInputs[0], colorMode === ColorMode.CMYK);
-            try {
-                if (colorMode === ColorMode.HEX) hexInput.active = true;
-                else if (colorMode === ColorMode.CMYK) cmykInputs[0].active = true;
-            } catch (e) { }
+            customRadio.value = (colorMode === ColorMode.CUSTOM);
             previewHooks.immediate();
         }
 
         var colorRadioModes = [
             [noneRadio, ColorMode.NONE],
             [k100Radio, ColorMode.K100],
-            [hexRadio, ColorMode.HEX],
-            [cmykRadio, ColorMode.CMYK]
+            [customRadio, ColorMode.CUSTOM]
         ];
         for (var j = 0; j < colorRadioModes.length; j++) {
             (function (radio, colorMode) {
@@ -1653,15 +1680,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
 
         k100Radio.value = true; /* デフォルトはK100 / default to K100 */
-        updateColorFieldStates();
 
         return {
             noneRadio: noneRadio,
             k100Radio: k100Radio,
-            hexRadio: hexRadio,
-            cmykRadio: cmykRadio,
-            hexInput: hexInput,
-            cmykInputs: cmykInputs
+            customRadio: customRadio,
+            getCustomColor: function () { return customColor; }
         };
     }
 
@@ -1745,40 +1769,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     }
 
     /**
-     * ダイアログのホットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
+     * ダイアログのショートカットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
+     * 数値の欄でも効かせる
      * @param {Window} settingsDialog - 対象ダイアログ
      * @param {object} dialogControls - 各パネルのコントロール
-     * @param {function} refreshPreview - プレビューを即時更新するコールバック
      * @returns {void}
      */
-    function addDialogHotkeys(settingsDialog, dialogControls, refreshPreview) {
-        settingsDialog.addEventListener('keydown', function (event) {
-            if (focusedField) return; /* 入力中は無効 / ignore while typing in a field */
-            var pressedKey = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
-
-            if (pressedKey === 'G') {
-                /* ガイド化は描画後の処理なのでプレビューには反映しない
-                   Make-guides is a post-draw option and is not previewed */
-                var makeGuideCheckbox = dialogControls.options.makeGuideCheckbox;
-                makeGuideCheckbox.value = !makeGuideCheckbox.value;
-                event.preventDefault();
-                return;
-            }
-
-            var selectedRadio = null;
-            if (pressedKey === 'F') selectedRadio = dialogControls.placement.frontRadio;
-            else if (pressedKey === 'B') selectedRadio = dialogControls.placement.backRadio;
-            else if (pressedKey === 'L') selectedRadio = dialogControls.placement.bgLayerRadio;
-            else if (pressedKey === 'C') selectedRadio = dialogControls.target.currentArtboardRadio;
-            else if (pressedKey === 'A') selectedRadio = dialogControls.target.allArtboardsRadio;
-            else return;
-
-            if (selectedRadio.enabled) {
-                selectedRadio.value = true;
-                refreshPreview();
-            }
-            event.preventDefault();
-        });
+    function addDialogShortcutKeys(settingsDialog, dialogControls) {
+        var numericFields = [dialogControls.offset.offsetInput];
+        addKeyShortcuts(settingsDialog, {
+            /* ガイド化は描画後の処理なのでプレビューには反映しない / Make-guides is a post-draw option and is not previewed */
+            "G": dialogControls.options.makeGuideCheckbox,
+            "F": dialogControls.placement.frontRadio,
+            "B": dialogControls.placement.backRadio,
+            "L": dialogControls.placement.bgLayerRadio,
+            "C": dialogControls.target.currentArtboardRadio,
+            "A": dialogControls.target.allArtboardsRadio
+        }, { numericFields: numericFields });
     }
 
     /**
@@ -1793,8 +1800,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
         var colorMode = ColorMode.NONE;
         if (colorControls.k100Radio.value) colorMode = ColorMode.K100;
-        else if (colorControls.hexRadio.value) colorMode = ColorMode.HEX;
-        else if (colorControls.cmykRadio.value) colorMode = ColorMode.CMYK;
+        else if (colorControls.customRadio.value) colorMode = ColorMode.CUSTOM;
 
         var zOrder = placementControls.frontRadio.value ? 'front' :
             (placementControls.bgLayerRadio.value ? 'bg' : 'back');
@@ -1802,19 +1808,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         /* オフセット計算は resolveOffsetToPt に一元化 / All offset math lives in resolveOffsetToPt */
         var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getUnitInfo().code, !!offsetControls.bleedCheckbox.value);
 
-        /* 各欄を0–100にクランプ（空欄・不正は0）/ Clamp each field to 0-100 (empty or invalid becomes 0) */
-        var cmykChannelKeys = ['c', 'm', 'y', 'k'];
-        var cmykValues = { c: 0, m: 0, y: 0, k: 0 };
-        for (var i = 0; i < colorControls.cmykInputs.length; i++) {
-            var channelValue = parseFloat(colorControls.cmykInputs[i].text);
-            if (isNaN(channelValue)) channelValue = 0;
-            cmykValues[cmykChannelKeys[i]] = clampValue(channelValue, 0, 100);
-        }
-
         return {
             colorMode: colorMode,
-            customValue: String(colorControls.hexInput.text || '').replace(/^\s+|\s+$/g, ''), /* HEX文字列 */
-            customCMYK: cmykValues,
+            customColor: colorControls.getCustomColor(),
             offset: resolvedOffset.pt,
             zOrder: zOrder,
             target: dialogControls.target.allArtboardsRadio.value ? 'all' : 'current',
@@ -1869,7 +1865,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
      */
     function showDialog() {
         var settingsDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        DialogPersist.setOpacity(settingsDialog, DIALOG_OPACITY);
         settingsDialog.alignChildren = 'left';
 
         /* 各パネルより先に定義してコールバックとして配る（実行はパネル構築後）
@@ -1915,7 +1910,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             target: buildTargetPanel(rightColumnGroup, previewHooks)
         };
 
-        addDialogHotkeys(settingsDialog, dialogControls, updatePreviewImmediately);
+        addDialogShortcutKeys(settingsDialog, dialogControls);
 
         var dialogButtons = buildButtonRow(settingsDialog);
 
@@ -1931,13 +1926,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         dialogButtons.btnCancel.onClick = function () { closeWithCleanup(0); };
 
         settingsDialog.onShow = function () {
-            DialogPersist.applyInitialOffset(settingsDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
             dialogControls.offset.initFieldState();
             try { dialogControls.offset.offsetInput.active = true; } catch (e) { }
             PreviewHistory.start(); /* プレビューのUndoカウンタを初期化 */
             updatePreviewImmediately();
         };
 
+        prepareDialogWindow(settingsDialog, SCRIPT_NAME);
         if (settingsDialog.show() != 1) return null;
 
         /* 確定値もプレビューと同じ計算経路から取る / Final values come from the same computation as the preview */
@@ -2023,6 +2018,101 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         return artboardRectangle;
     }
 
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+
     /**
      * 中心の○（属性パネル「中心点を表示」）を選択オブジェクトへ適用する
      * API・メニューコマンドからは設定できないため、記録済みアクション(.aia)を一時ファイルへ書き出して
@@ -2068,24 +2158,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             ''
         ].join('\n');
 
-        var actionFile = null;
-        try {
-            /* 一時ファイルへ書き出し / Write the recorded action to a temp file */
-            actionFile = new File(Folder.temp + '/SmartDrawArtboardRectangle_center.aia');
-            actionFile.encoding = 'UTF-8';
-            actionFile.open('w');
-            actionFile.write(ACTION_BODY);
-            actionFile.close();
-
-            /* 同名セットを解放してからロード→再生 / Unload any same-named set, then load and play */
-            try { app.unloadAction(ACTION_SET_NAME, ''); } catch (e) { }
-            app.loadAction(actionFile);
-            app.doScript(ACTION_NAME, ACTION_SET_NAME, false);
-        } catch (e) {
-        } finally {
-            try { app.unloadAction(ACTION_SET_NAME, ''); } catch (e) { }
-            try { if (actionFile && actionFile.exists) actionFile.remove(); } catch (e) { }
-        }
+        /* 失敗しても描画は続ける（中心の○が付かないだけ）/ Keep going on failure: only the center widget is missing */
+        runTemporaryAction(ACTION_BODY, ACTION_SET_NAME, ACTION_NAME);
     }
 
     /**

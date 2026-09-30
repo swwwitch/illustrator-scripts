@@ -194,6 +194,14 @@ function getUnitInfo(prefKey) {
 ## UI
 
 - **Do not change UI wording on your own — propose it first.**
+- Window and panel margins/spacing go through the UI layout part (`jsx/_templates/UILayout.jsx`,
+  pasted from "（再利用パーツ）" to "ここまで" into the Layout block). Apply it whenever a dialog is created or
+  modified, and in every cleanup pass: `setupWindow()` for the window, `setupPanel()` for **every** panel
+  (`setupPanel(panel, 6)` for a column of radio buttons or checkboxes), no hand-written `margins` / `spacing`.
+  `setupPanel()` sets `alignChildren` to fill, so give buttons inside a panel `alignment = "left"` so they do not stretch
+- Build the bottom button row with the ButtonRow part (`jsx/_templates/ButtonRow.jsx`) and call
+  `centerButtonRowIfRightOnly(buttonRow)` after the last button is added (before `show()`): a row with only
+  right-side buttons (Cancel / OK) is centered; a row with left-side buttons keeps the split layout
 - A 3×3 anchor / alignment picker is a custom widget drawn in a `button`'s `onDraw`, never nine radio buttons.
   Reference implementation: `addAnchorWidget()` / `drawAnchorWidget()` / `drawAnchorCell()` in
   `jsx/transform/QuickTransformPalette.jsx`

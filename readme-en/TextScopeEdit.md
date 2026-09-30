@@ -56,6 +56,12 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Update History
 
+- v1.5.5 (2026-09-30)Fixed an error when running with characters selected by the Type tool
+- v1.5.4 (2026-09-29)Dialog opacity changed to 98%
+- v1.5.3 (2026-09-28)
+  - The button row is now built with the shared part
+- v1.5.2 (2026-09-28)
+  - The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.1 (2026-09-27)
   - Added Selected Text Only to the left of Update
 - v1.5.0 (2026-09-26)

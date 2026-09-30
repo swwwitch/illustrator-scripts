@@ -18,4 +18,8 @@ chosen, and the auto-leading amount that yields that integer leading is applied.
 
 ### Script info
 
-- Version: v1.0.0
+- Version: v1.0.2
+
+### Update History
+
+- v1.0.2 (2026-09-28): With the type unit set to feet/inches, one step now equals one unit (a foot) instead of one inch

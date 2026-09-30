@@ -21,7 +21,7 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- On the edge alignments, Option-click ignores the margin and sits flush against the artboard edge; on the three centred ones it centres on the artboard
 	- Pressing again once the selection already sits at the margin carries it on to the artboard edge beyond it (and it stays there on any further press)
 	- The fields step to the next whole number with the stepper buttons on their left or with ↑↓ (1.5 → 2; Shift = to the next multiple of 10 / Option = ±0.1); negative values are clamped to 0
-	- The four fields sit in a cross (3×3) with Link in the middle. While it is on, Top alone decides all four sides and the other three are dimmed (on by default); turn it off to set them individually
+	- The four fields sit in a cross (3×3) with the Link icon in the middle. While it is on, Top alone decides all four sides and the other three are dimmed (on by default); turn it off to set them individually
 	- While Add Guides is off, all four fields and Link are dimmed together (their values are kept)
 	- The starting value depends on the ruler unit (5 for mm, 20 for pt / px / Q, 0.5 for cm, 0.25 for inches). Until a value is typed in, changing the ruler unit swaps in that unit's starting value
 	- Turning Add Guides on turns Link on as well and levels the four values off, since an even inset is the usual case
@@ -113,10 +113,12 @@ Arrow buttons:
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.3.2
 
 ### Changelog
 
+- v1.3.2 (20260929): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.3.1 (20260928): Replaced the Link checkbox with a link icon
 - v1.3.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.4 (2026-09-26) Renamed the file from `AiAlignToArtboard.jsx` to `AiAlignToArtboardPalette.jsx`.
 - v1.2.2 (20260902)

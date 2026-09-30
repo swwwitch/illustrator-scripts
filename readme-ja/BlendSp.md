@@ -1,6 +1,6 @@
 # ブレンドの作成と調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-%20BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/%20BlendSp.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/BlendSp.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md)
 
@@ -39,5 +39,10 @@
 
 ### 更新履歴
 
+- v1.3.4 (2026-09-30) : 文字ツールで文字を選択して実行するとエラーになる不具合を修正
+- v1.3.3 (2026-09-29) : ダイアログの不透明度を98%に変更
+- v1.3.2 (2026-09-28) : 一時アクションの読み込み・実行・解除を共通の処理にし、失敗してもアクションセットと一時ファイルが残らないようにした
+- v1.3.2 (2026-09-28) : ボタン行を共通の部品で組むようにした
+- v1.3.1 (2026-09-28) : ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.3.0 (2026-09-27) : 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v1.2 (2026-01-01)

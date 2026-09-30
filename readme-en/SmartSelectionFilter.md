@@ -23,6 +23,7 @@
 - "Path" panel: Open Path / Horizontal Line / Vertical Line (open paths whose height or width is nearly zero are treated as horizontal / vertical lines)
 - "Closed Path" panel: Fill Only / Stroke Only / Fill and Stroke
 - "Quick Select" panel: Text / Stroke Only / Fill Only in one click. Changing the detailed options keeps these checkboxes in sync automatically
+- "Selection Scope" panel: Selected objects only / Include objects inside groups (switching it also updates the counts)
 - "Non-target Objects" panel: Do Nothing / Hide / Opacity (0–100% slider, current value shown in the radio label). The slider is enabled only while Opacity is chosen
 - Option (Alt) clicking a checkbox sets every checkbox to the same state at once
 - Button to toggle between Outline and Preview display mode (the original mode is restored on exit)
@@ -31,7 +32,7 @@
 ### Workflow
 
 1. Check that a document is open and something is selected, then store the selection as an array
-2. Walk the selection (recursing into groups) and count items per kind, alignment, font and path state
+2. Walk the selection (recursing into groups when "Include objects inside groups" is chosen) and count items per kind, alignment, font and path state
 3. On each option change, recompute the selection and the non-target display state and apply it to the canvas immediately
 4. Commit the current selection with OK, or restore the original selection and visual state with Cancel
 
@@ -40,7 +41,17 @@
 - No open document, or nothing selected
 - Objects other than text frames and paths (group contents are processed recursively, but groups themselves never remain selected)
 - Closed paths with neither fill nor stroke
+- Clipping mask paths of clip groups
+
+### Article
+
+[Select only text or only paths from the current selection with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/n6203a03662d8)
 
 ### Update History
 
 - v1.0.0: Initial release
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.3 (2026-09-28): The button row is now built with the shared part
+- v1.0.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.1.0 (2026-09-29): Added the "Selection Scope" panel (Selected objects only / Include objects inside groups). Clipping mask paths are now excluded. Merged SmartSelectionFilterSimple.jsx
+- v1.1.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool

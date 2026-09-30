@@ -12,6 +12,8 @@
 
 Reorders and edits the lines of the selected text object from a list.
 
+<img alt="The Reorder and Edit Lines dialog" src="../png/ss-680-870-144-20260930-021022.png" width="40%" />
+
 ### Features
 
 - Up and Down buttons change the line order
@@ -27,6 +29,14 @@ Reorders and edits the lines of the selected text object from a list.
 
 - Multi-line text is required; empty or single-line text produces a warning.
 
+### Article
+
+https://note.com/dtp_tranist/n/n21bb9a835075
+
 ### Update History
 
 - v1.0
+- v1.0.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.3 (2026-09-28): The button row is now built with the shared part
+- v1.0.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.0.5 (2026-09-30): Revised the instruction text, added tooltips to Add, Remove Empty Lines and the line list, and cleaned up the code. Fixed an error when running with characters selected by the Type tool

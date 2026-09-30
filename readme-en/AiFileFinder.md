@@ -29,7 +29,7 @@ This script is a finder that filters `.ai` and `.svg` files across several regis
 - Exclusions: hide files whose name or folder contains a given word; typing an excluded word as a keyword lifts that one exclusion
 - A file that is already open is brought to the front instead of being opened twice
 - Option-double-click reveals in the Finder; double-clicking a folder opens that folder
-- The index is cached for quicker later launches, and settings live in the Illustrator preferences
+- The index is cached for quicker later launches, and settings are remembered across restarts
 
 ### How to use
 
@@ -167,7 +167,7 @@ It is rebuilt when:
 - Setting a start later than the end simply matches nothing; the two are not swapped for you
 - Option-double-click selects the file in the Finder when `/Applications/RevealInFinder.app`, built with Automator, is present. Without it, or outside macOS, it just opens the enclosing folder
 - With several files selected, Option-double-click reveals only the first one
-- Search folders, keyword buttons, and exclusions are stored in the Illustrator preferences (`AiFileFinder.*`)
+- Search folders, keyword buttons, and exclusions are stored in `Folder.userData/illustrator-scripts/AiFileFinder.json` (the former Illustrator preferences `AiFileFinder.*` are read once)
 - The extensions searched for are `.ai` and `.svg`. To change them, edit `FILE_EXTENSIONS` near the top of the script
 - File names are listed without their extension, so an `.ai` and an `.svg` of the same name look alike. Set `SHOW_FILE_EXTENSION` near the top of the script to `true` to tell them apart
 - The default search folders are in `SEARCH_FOLDER_DEFAULTS` near the top of the script. The list ships empty, so register your folders in the preferences on first run (or write the ones you use most into the script)
@@ -186,6 +186,10 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.0.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.0.5 (2026-09-29): Dialog opacity changed to 98%
+- v1.0.4 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/AiFileFinder.json)
+- v1.0.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.0.2 (2026-09-18): Multi-select in the file list, so the selected files open together
 - v1.0.1 (2026-08-28): Keep unmounted search folders in the settings; skip saving the index when a folder could not be read; fix the keyword button wrapping width, the year list against the exclusions, and the period filter for files with no modified date
 - v1.0.0 (2026-08-27): First release

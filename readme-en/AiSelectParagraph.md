@@ -25,3 +25,4 @@ Selects the whole paragraph the text cursor is sitting in.
 ### Update History
 
 - v1.0.1 (2026-07-17)
+- v1.0.2 (2026-09-19): Renamed the label lookup to getLabel() (no change in behavior)

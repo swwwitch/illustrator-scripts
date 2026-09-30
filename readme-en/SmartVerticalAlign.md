@@ -71,12 +71,18 @@ https://note.com/dtp_tranist/n/n9ee716675032
 
 ### Update History
 
+- v1.1.7 (2026-09-30) Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
+- v1.1.6 (2026-09-30) Fixed an error when running with characters selected by the Type tool
+- v1.1.5 (2026-09-29) Dialog opacity changed to 98%
+- v1.1.4 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.1.4 (2026-09-28) The button row is now built with the shared part
+- v1.1.3 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.1 (2026-09-03) Fixed the preview not updating when Align to Glyph Bounds is turned back OFF; moved alignment positions, shortcuts and preference keys into tables; cleaned up naming and structure
 - v1.1 (2025-08-04) Adjusted the logic used when the dialog opens
 - Initial release (2025-08-04)
 
 ### Script info
 
-- Version: v1.1.1
+- Version: v1.1.7
 - First release: 2025-08-04
 - Last updated: 2026-09-03

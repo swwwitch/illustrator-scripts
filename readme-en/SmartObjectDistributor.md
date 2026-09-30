@@ -74,6 +74,10 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v1.10.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.10.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.10.2 (2026-09-28): The button row is now built with the shared part
+- v1.10.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.10.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.9.7 (2026-09-23): Fixed Cancel leaving the "cell-background" layer deleted (it is now removed only on OK). A "_target" rectangle that was already hidden is no longer revealed. Fixed OK closing silently when the settings cannot form a grid; the dialog now stays open and explains why. Field values are clamped on commit (no negative margins, no opacity above 100%). Fixed re-clicking the selected color radio resetting a typed opacity. The "_target" layer now prefers a rectangle and never uses open lines or paths with no area. Unit code 5 is labelled H for distances and Q for type sizes. The live preview is throttled while typing on large grids. The default division no longer exceeds the cell cap
 - v1.9.6 (2026-09-19): Unified unit handling into one table covering every ruler unit (m, yd, ft, pica, and so on). Split out the layout constants and tidied naming and JSDoc

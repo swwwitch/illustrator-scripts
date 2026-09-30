@@ -101,10 +101,11 @@ Adjust `LINE_Y_THRESHOLD` if lines are split unexpectedly, or if separate lines 
 - v1.2 (2025-07-20) : Added handling for line breaks after English words
 - v1.2.1 (2026-06-18) : Refactored (IIFE wrap, function split, renaming); single line now forced horizontal; bounding box no longer depends on selection state; added guard for no open document
 - v1.3.0 (2026-08-13) : Changed kinsoku to "Soft_v2" (applied to the whole text so it shows in the Paragraph panel, falling back to "Soft" where unavailable); lines made up of single-byte characters now break at sentence ends; the frame is extended downward when the last line overflows; added a minimum width so narrow selections no longer fail
+- v1.3.1 (2026-09-19) : Document references now go through app.activeDocument (no change in behavior)
 
 ### Script info
 
-- Version: v1.3.0
+- Version: v1.3.1
 - First release: 2025-07-18
 - Last updated: 2026-08-13
 - Article: https://note.com/dtp_tranist/n/ne8d31278c266

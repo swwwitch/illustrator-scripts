@@ -73,6 +73,11 @@ The Artboard tab is hidden when the script starts from a selected rectangle; mar
 
 ### Changelog
 
+- v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.7.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.7.2 (2026-09-28): The button row is now built with the shared part. Rectangles inside groups can now be used as base rectangles (clip masks, guides, locked and hidden paths are skipped)
+- v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v1.7.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.6.1 (2026-09-16): Revised the UI wording (tab names, the title area's Divider and Extend divider options, line types as Solid, Dashed and Dotted) and added tooltips to every option. Fixed 15 issues, including the preview not matching the result, short edges turning inside out with the edge extension, and the inner area disappearing for a left or right title. Reorganised the internal naming and structure
 - v1.4.1 (2026-02-24): Improved the stability of rounded-corner handling (Error 23)

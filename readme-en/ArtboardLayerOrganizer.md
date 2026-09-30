@@ -60,6 +60,10 @@
 
 ### Update History
 
+- v1.4.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.4.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.4.2 (2026-09-28): The button row is now built with the shared part
+- v1.4.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.4.0 (2026-09-25): Added "Guides" to the Locked / Hidden exclusions. Fixed individually locked guides failing to move and being counted as failures (when off, they are unlocked for the move). Removed the separator checkbox; use "None" in the dropdown instead. Revised UI wording and tooltips
 - v1.3.1 (2026-08-17): Fixed objects being counted as failures instead of moved when the Locked / Hidden exclusions were turned off. Fixed the script aborting while removing empty layers, and failures being counted twice. Excluded sub-layers are now kept together with their contents. Added the layer name preview, revised the UI wording, and cached centroid calculation for speed
 - v1.3.0 (2026-05-26)

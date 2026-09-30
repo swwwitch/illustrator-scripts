@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipEditMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipEditMask";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipEditMask.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipEditMask.md"; /* README (English) */
@@ -119,7 +119,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var doc = app.activeDocument;
         var currentSelection = doc.selection;
-        if (currentSelection.length === 0) return;
+        /* 文字ツールで文字を選択しているときは TextRange が返り、length は文字数になる / With characters selected by the Type tool, selection is a TextRange whose length is the character count */
+        if (!currentSelection || currentSelection.typename === "TextRange" || currentSelection.length === 0) return;
 
         if (currentSelection.length === 1) {
             var selectedItem = currentSelection[0];

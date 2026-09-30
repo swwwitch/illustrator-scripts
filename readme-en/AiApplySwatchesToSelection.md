@@ -39,6 +39,11 @@ A modal dialog that applies swatches, or predefined colors, to the selected obje
 
 ### Update History
 
+- v1.8.7 (2026-09-30): Button rows with only right-side buttons are now centered
+- v1.8.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.8.5 (2026-09-29): Dialog opacity changed to 98%
+- v1.8.4 (2026-09-28): The button row is now built with the shared part
+- v1.8.3 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.8.1 (2026-09-09): Merged the persistent-palette and modal-dialog versions into the dialog version
 - v1.8.0 (2026-07-19): Preview is now reverted from a snapshot baseline; per-character coloring of long text is decimated while previewing
 - v1.7.3 (2026-07-17): Lighter behavior while the UI is open

@@ -61,6 +61,10 @@ Groups and compound paths are walked recursively. Text is handled by outlining a
 
 ### Update History
 
+- v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.3.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.3.2 (2026-09-28): The button row is now built with the shared part. Clip groups are now measured by their mask
+- v1.3.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.2.1 (2026-09-17): Preview is now on by default. Fixed the dialog position not being remembered, the output layer changing after using the preview, and the previous anchor shapes surviving when the shape is set back to None. Code cleanup as well
 - v1.2 (2026-03-12)

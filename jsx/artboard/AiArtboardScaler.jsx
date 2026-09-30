@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "AiArtboardScalerEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -25,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboard
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiArtboardScaler";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiArtboardScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboardScaler.md"; /* README (English) */
@@ -53,7 +54,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var SELECTION_FIELD_CHARS = 8;           /* 「指定」欄の文字数（通常の2倍）/ width of the Specify field (twice the usual) */
     var SCALE_COLUMN_GAP = 16;               /* 入力欄の列と基準点の列の間隔 / gap between the field column and the anchor column */
     var CHECKBOX_GROUP_MARGINS = [0, 10, 0, 0]; /* チェックボックス群の余白（上に10px）/ checkbox group margins (10px on top) */
-    var ANCHOR_WIDGET_SIZE = 66;             /* 基準点ウィジェットの一辺 / side of the anchor widget */
 
     /**
      * ウィンドウに共通のレイアウト設定を適用する
@@ -130,33 +130,224 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return "" + (Math.round(value * 100) / 100);
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -172,22 +363,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -299,8 +475,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -555,22 +731,90 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * 現在のUI言語を返す / Return current UI language
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     var LABELS = {
         dialog: {
@@ -642,39 +886,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
     };
-
-    /**
-     * ドット区切りパスでラベルを取得しローカライズする（キー欠落時は labelPath を返す）
-     * Resolve a localized label by dot path (returns the path itself if a key is missing)
-     * @param {string} labelPath - 例 "panel.target"
-     * @returns {string} ローカライズ済み文字列（見つからなければ labelPath）
-     */
-    function getLabel(labelPath) {
-        var labelPathKeys = labelPath.split(".");
-        var labelNode = LABELS;
-        /* 各階層を安全に辿る（途中で欠落したら labelPath を返す） / Walk each level safely; return the path if anything is missing */
-        for (var i = 0; i < labelPathKeys.length; i++) {
-            if (labelNode === null || typeof labelNode !== "object" || !labelNode.hasOwnProperty(labelPathKeys[i])) {
-                return labelPath;
-            }
-            labelNode = labelNode[labelPathKeys[i]];
-        }
-        /* 現在言語→英語→日本語の順にフォールバック / Fall back current language → English → Japanese */
-        var localizedText = labelNode[uiLang];
-        if (localizedText === undefined || localizedText === null) { localizedText = labelNode.en; }
-        if (localizedText === undefined || localizedText === null) { localizedText = labelNode.ja; }
-        if (typeof localizedText !== "string") { return labelPath; } /* どの言語値も無ければ labelPath / no language value → path */
-        return localizedText.replace(/\{slash\}/g, "/");
-    }
-
-    /**
-     * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {string} labelPath - ラベルのパス
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelPath) {
-        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // 対象指定の解析 / Target spec parsing
@@ -873,7 +1084,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         resizeDialog.heightInput = addSizeField(fieldColumn, labelText("fieldLabel.height"), formatNumber(baseHeight), unitLabel, getLabel("tooltip.size"));
 
         /* 基準点グリッド（2列目） / Anchor reference-point grid (second column) */
-        addAnchorWidget(resizeDialog, columnsRow);
+        addAnchorColumn(resizeDialog, columnsRow);
 
         /* チェックボックス群（上に10pxの余白） / Checkbox group (10px top margin) */
         var checkboxGroup = scalePanel.add("group");
@@ -991,9 +1202,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Window} ダイアログウィンドウ（各入力コントロールを公開）
      */
     function createResizeDialog(unitLabel, defaultWidth, defaultHeight, artboardCount) {
-        /* 基準点ウィジェットの配色をUI明暗に合わせる / Match the anchor widget colors to the light/dark UI */
-        initAnchorColors();
-
         /* タイトルバーにバージョンを表示 / Show version in the title bar */
         var resizeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(resizeDialog);
@@ -1005,210 +1213,388 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         addScalePanel(resizeDialog, unitLabel, parseFloat(defaultWidth), parseFloat(defaultHeight));
 
         /* ボタン類はパネル幅いっぱいには広げず右寄せ / Keep buttons right-aligned, not full width */
-        var btnRowGroup = resizeDialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = "right";
-        btnRowGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
-        btnRowGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
+        var buttonRow = addButtonRow(resizeDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
+        var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
+        centerButtonRowIfRightOnly(buttonRow);
 
         return resizeDialog;
     }
 
-    // =========================================
-    // 基準点ウィジェット / Anchor widget
-    // =========================================
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 1]     : [0.42, 0.42, 0.42, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 1]     : [0.27, 0.27, 0.27, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 0.4]   : [0.42, 0.42, 0.42, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 0.3]   : [0.27, 0.27, 0.27, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
+     */
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
+    }
 
     /**
-     * UI明度(0..1)を取得する（失敗時は1=明るい） / Get UI brightness (0..1); 1 on failure
-     * @returns {number} 0..1 の明度
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
      */
-    function getUIBrightness() {
-        try {
-            var brightness = app.preferences.getRealPreference("uiBrightness");
-            if (brightness < 0) { brightness = 0; }
-            if (brightness > 1) { brightness = 1; }
-            return brightness;
-        } catch (e) {
-            return 1;
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
         }
     }
 
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
     /**
-     * 明るいUIかどうか / Whether the UI is light
-     * @returns {boolean} 明るいUIなら true
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
      */
-    function isLightUI() {
-        return getUIBrightness() > 0.5;
-    }
-
-    /* 基準点セルの配色（initAnchorColorsでUI明暗に合わせて上書き） / Anchor-cell colors (overwritten by initAnchorColors) */
-    var ANCHOR_LINE_COLOR = [0.6, 0.6, 0.6, 1];      /* 枠・ケイ線：薄いグレー / border & rules: light gray */
-    var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];   /* 選択セルの塗り / fill of the selected cell */
-
-    /**
-     * UI明暗に合わせて選択セルの塗り色を決める（表示前に呼ぶ） / Decide the selected-cell fill from the light/dark UI (call before showing)
-     * @returns {void}
-     */
-    function initAnchorColors() {
-        ANCHOR_SELECTED_FILL = isLightUI() ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
-    }
-
-    /**
-     * コントロールを再描画する（notifyは環境により例外を投げ得るので保護） / Redraw a control (notify can throw in some environments)
-     * @param {Object} control - 再描画するコントロール
-     * @returns {void}
-     */
-    function redrawControl(control) {
-        try { control.notify("onDraw"); } catch (e) {}
-    }
-
-    /**
-     * 正方形のサブパスを1つ作る / Build one square subpath
-     * @param {ScriptUIGraphics} graphics - 描画先
-     * @param {number} x - 左上のX
-     * @param {number} y - 左上のY
-     * @param {number} size - 一辺
-     * @returns {void}
-     */
-    function squarePath(graphics, x, y, size) {
-        graphics.newPath();
-        graphics.moveTo(x, y);
-        graphics.lineTo(x + size, y);
-        graphics.lineTo(x + size, y + size);
-        graphics.lineTo(x, y + size);
-        graphics.closePath();
-    }
-
-    /**
-     * 基準点セルの□を1つ描画する（選択時のみ塗り、枠は常時） / Draw one anchor-cell square (fill only when selected, always bordered)
-     * @param {ScriptUIGraphics} graphics - 描画先
-     * @param {number} x - 左上のX
-     * @param {number} y - 左上のY
-     * @param {number} size - 一辺
-     * @param {boolean} selected - 選択中のセルなら true
-     * @returns {void}
-     */
-    function drawAnchorCell(graphics, x, y, size, selected) {
-        if (selected) {
-            squarePath(graphics, x, y, size);
-            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, ANCHOR_SELECTED_FILL));
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
         }
-        /* 枠線は常に薄いグレー（塗りの上に描く） / Border always light gray (drawn over the fill) */
-        squarePath(graphics, x, y, size);
-        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, ANCHOR_LINE_COLOR, 1));
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
     }
 
     /**
-     * 9軸ウィジェットを描画する（外周の□をケイ線でつなぐ・中央は独立） / Draw the 9-axis widget (outer squares joined by rules; center stands alone)
-     * @param {Button} widget - 描画するウィジェット（anchorIndex を持つ）
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
      * @returns {void}
      */
-    function drawAnchorWidget(widget) {
-        var graphics = widget.graphics;
-        var width = widget.size[0];
-        var height = widget.size[1];
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
 
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
         try {
-            /* コントロール地色で塗って透過に見せる / Paint the control's own background so it looks transparent */
-            graphics.rectPath(0, 0, width, height);
-            graphics.fillPath(graphics.backgroundColor);
-        } catch (e0) {}
-
-        var cellSize = 9;
-        var cellGap = 7.5;
-        var cellStep = cellSize + cellGap;
-        var gridSize = cellSize * 3 + cellGap * 2;
-        var originX = Math.round((width - gridSize) / 2);
-        var originY = Math.round((height - gridSize) / 2);
-
-        /**
-         * セルの左上X / Left X of a cell
-         * @param {number} index - セル番号（0..8）
-         * @returns {number} X座標
-         */
-        function anchorCellX(index) { return originX + (index % 3) * cellStep; }
-
-        /**
-         * セルの左上Y / Top Y of a cell
-         * @param {number} index - セル番号（0..8）
-         * @returns {number} Y座標
-         */
-        function anchorCellY(index) { return originY + Math.floor(index / 3) * cellStep; }
-
-        /* 中央(4)を除く外周の□どうしをケイ線でつなぐ / Join the outer squares (except center 4) with rules */
-        var connections = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
-        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, ANCHOR_LINE_COLOR, 1);
-        for (var i = 0; i < connections.length; i++) {
-            var cellA = connections[i][0];
-            var cellB = connections[i][1];
-            var cellAX = anchorCellX(cellA);
-            var cellAY = anchorCellY(cellA);
-            var cellBX = anchorCellX(cellB);
-            var cellBY = anchorCellY(cellB);
             graphics.newPath();
-            if (cellB - cellA === 1) {
-                graphics.moveTo(cellAX + cellSize, cellAY + cellSize / 2);
-                graphics.lineTo(cellBX, cellBY + cellSize / 2);
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
             } else {
-                graphics.moveTo(cellAX + cellSize / 2, cellAY + cellSize);
-                graphics.lineTo(cellBX + cellSize / 2, cellBY);
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
             }
             graphics.strokePath(linePen);
         }
 
-        for (var index = 0; index < 9; index++) {
-            drawAnchorCell(graphics, anchorCellX(index), anchorCellY(index), cellSize, index === widget.anchorIndex);
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
         }
     }
 
     /**
-     * 3×3の基準点ウィジェット（onDrawで描画するproxy）を構築する / Build a 3×3 anchor proxy widget drawn via onDraw
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
+
+    /**
+     * 基準点の列（見出し＋3×3の基準点ウィジェット）を構築する / Build the anchor column (caption + 3×3 anchor widget)
      * 選択に応じて resizeDialog.anchorX / resizeDialog.anchorY に 0/0.5/1 の割合を設定する（既定=左上）。
      * @param {Window} resizeDialog - 割合を書き込むダイアログ
      * @param {Group} parentGroup - 追加先グループ
      * @returns {void}
      */
-    function addAnchorWidget(resizeDialog, parentGroup) {
+    function addAnchorColumn(resizeDialog, parentGroup) {
         var anchorColumn = parentGroup.add("group");
         anchorColumn.orientation = "column";
         anchorColumn.alignChildren = ["center", "top"];
         anchorColumn.spacing = 4;
         anchorColumn.add("statictext", undefined, getLabel("fieldLabel.anchor"));
 
-        var anchorWidget = anchorColumn.add("button", undefined, "");
+        /* 0..8 行優先（0=左上, 4=中央, 8=右下）。既定=左上 / 0..8 row-major (0=top-left, 4=center, 8=bottom-right); default: top-left */
+        var anchorWidget = addAnchorWidget(anchorColumn, 0, function () {
+            commitAnchor();
+            requestPreview(resizeDialog);
+        });
         anchorWidget.helpTip = getLabel("tooltip.anchor");
-        anchorWidget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
-        anchorWidget.anchorIndex = 0; /* 0..8 行優先（0=左上, 4=中央, 8=右下）/ 0..8 row-major (0=top-left, 4=center, 8=bottom-right) */
-        anchorWidget.onDraw = function () { drawAnchorWidget(this); };
-        anchorWidget.onClick = function () {}; /* セル判定は mousedown 側 / hit-testing happens in mousedown */
 
         /**
-         * 選択索引を割合(0/0.5/1)に変換して resizeDialog に反映する / Map the index to fractions and store on the dialog
+         * 選択中のセルを割合(0/0.5/1)に変換して resizeDialog に反映する / Map the selected cell to fractions and store on the dialog
          * @returns {void}
          */
         function commitAnchor() {
-            resizeDialog.anchorX = (anchorWidget.anchorIndex % 3) * 0.5;
-            resizeDialog.anchorY = Math.floor(anchorWidget.anchorIndex / 3) * 0.5;
+            var anchorRatio = getAnchorRatio(getAnchorWidgetIndex(anchorWidget));
+            resizeDialog.anchorX = anchorRatio[0];
+            resizeDialog.anchorY = anchorRatio[1];
         }
         commitAnchor(); /* 既定=左上 / default: top-left */
-
-        /* クリックした3×3のセルを基準点に設定（座標はコントロール基準）/ Set the anchor from the clicked 3x3 cell (control-relative coords) */
-        try {
-            anchorWidget.addEventListener("mousedown", function (event) {
-                var cellColumn = Math.floor(event.clientX / (anchorWidget.size[0] / 3));
-                var cellRow = Math.floor(event.clientY / (anchorWidget.size[1] / 3));
-                if (cellColumn < 0) { cellColumn = 0; }
-                if (cellColumn > 2) { cellColumn = 2; }
-                if (cellRow < 0) { cellRow = 0; }
-                if (cellRow > 2) { cellRow = 2; }
-                anchorWidget.anchorIndex = cellRow * 3 + cellColumn;
-                commitAnchor();
-                redrawControl(anchorWidget);
-                requestPreview(resizeDialog);
-            });
-        } catch (e) {}
     }
 
     // =========================================
@@ -1730,6 +2116,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resizeDialog.scaleInput.active = true;
         };
 
+        prepareDialogWindow(resizeDialog, SCRIPT_NAME);
         if (resizeDialog.show() !== 1) {
             /* キャンセル：矩形を復元（失敗は通知）し、選択・アクティブアートボードを戻す / Cancel: restore rects (notify on failure), restore selection & active artboard */
             if (!revertAll(previewController).success) { alert(getLabel("alert.restoreError")); }

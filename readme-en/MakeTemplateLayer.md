@@ -18,8 +18,9 @@
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2
 
 ### Update History
 
 - v1.0.1 (2026-09-27): Messages now appear in the UI language only
+- v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure

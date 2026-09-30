@@ -36,3 +36,4 @@
 
 - v1.0.0 (20250502): Initial version
 - v1.0.1 (20250603): Adjusted scaling to even integer multiples, cleaned up comments
+- v1.0.2 (20260919): Tidied up internal names (no change in behavior)

@@ -17,6 +17,14 @@
 - Matching: same path (absolute path) / same filename (path ignored)
 - Action: select the matching links / delete the linked images only / delete them together with their clip groups
 
+### Update History
+
+- v1.1.6 (2026-09-30): Button rows with only right-side buttons are now centered
+- v1.1.5 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.1.4 (2026-09-29): Dialog opacity changed to 98%
+- v1.1.3 (2026-09-28): The button row is now built with the shared part
+- v1.1.2 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+
 ### Script info
 
-- Version: v1.1
+- Version: v1.1.6

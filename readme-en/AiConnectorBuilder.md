@@ -131,3 +131,11 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.7 (20260926): Tidied the UI wording (dialog title "Build Connectors", "Weight", "Corner radius", "Tip", "Offset"); the start-object dialog's "Close and pick it manually" checkbox is now a "Set Manually" button; internal cleanup
 - v1.0.8 (20260926): Fixed the Ends & Arrowheads labels being cut off (the colon was hidden)
 - v1.1.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.1.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.1.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.1.2 (20260928): The button row is now built with the shared part
+- v1.1.2 (20260928): The 3×3 reference point picker now uses the shared part
+- v1.1.2 (20260928): Clip groups are now measured by their mask
+- v1.1.3 (20260929): Dialog opacity changed to 98%
+- v1.1.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.1.5 (20260930): Button rows with only right-side buttons are now centered

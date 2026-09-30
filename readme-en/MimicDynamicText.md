@@ -32,3 +32,4 @@
 
 - v1.0.0 (20250618): Initial version
 - v1.0.1 (20250618): Added process to convert back to area text
+- v1.0.2 (20260919): Removed unused functions (no change in behavior)

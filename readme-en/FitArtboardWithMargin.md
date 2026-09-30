@@ -20,7 +20,7 @@ Adjusts artboard size by operation (fit to objects / expand the artboard), targe
 - Target the current artboard or all artboards
 - Adjust width only or height only (the axis you switch off keeps its original size)
 - Run Fit with nothing selected to resize every artboard to the objects it contains
-- Separate vertical and horizontal margins, with a Linked option that mirrors the vertical value
+- Separate vertical and horizontal margins, with a link icon that mirrors the vertical value
 - Margin unit follows the ruler unit, with per-unit defaults (mm=5, px=20, pt=10)
 - Switch between preview bounds (including strokes and effects) and geometric bounds
 - Rounding for artboard position and size: optimize to pixel grid / round in the current unit / do nothing
@@ -56,7 +56,7 @@ Width and Height can be switched on independently. Option-click one of them to t
 | --- | --- |
 | Vertical | Amount applied to the top and bottom (editable while Height is on) |
 | Horizontal | Amount applied to the left and right (editable while Width is on) |
-| Linked | Applies the vertical value to horizontal as well |
+| Link (icon) | Applies the vertical value to horizontal as well |
 | Preview bounds | On measures the visible bounds incl. strokes and effects; off measures geometric path bounds (Fit only) |
 
 **Artboard size fine-tuning**
@@ -95,3 +95,9 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.3 (2025-07-10): UI improvements, added panel and radio buttons
 - v1.9.2 (2026-09-10): Added width/height checkboxes to Adjustment basis; merged FitArtboardHeight.jsx so that running Fit with nothing selected resizes every artboard to the objects it contains. Also fixed preview restore on a partial failure, group-level effects being dropped from measurements, outlining failures aborting the run, and the first-run dialog appearing off-screen
 - v1.10.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.10.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v1.10.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.10.2 (2026-09-28): The button row is now built with the shared part
+- v1.10.2 (2026-09-28): Clip groups are now measured by their mask (text and compound-path masks included; overlap with the artboard is also judged by the mask)
+- v1.10.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.10.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool

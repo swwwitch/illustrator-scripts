@@ -23,4 +23,8 @@ https://note.com/gautt/n/n92f6faeda048
 
 ### Script info
 
-- Version: v1.0
+- Version: v1.0.1
+
+### Update History
+
+- v1.0.1 (2026-09-19): Tidied up internal names (no change in behavior)

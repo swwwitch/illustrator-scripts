@@ -74,6 +74,10 @@ When the selection contains text, Weak is selected by default to reduce distorti
 
 ### Changelog
 
+- v1.5.9 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.5.8 (2026-09-29): Dialog opacity changed to 98%
+- v1.5.7 (2026-09-28): The button row is now built with the shared part
+- v1.5.6 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.5 (2026-09-18): Revised the UI wording (Weak/Normal/Strong strength, a percent amount readout with the effective value, and concrete tooltips for the triangle, diagonal and parallelogram presets), added tooltips, and fixed target resolution after the preview is reverted along with the undo-boundary cleanup
 - v1.5.4 (2026-07-21): Added Japanese and English READMEs and linked them from the script's basic information
 - v1.5.3 (2026-07-21): Updated the overview for the current preset count and application flow

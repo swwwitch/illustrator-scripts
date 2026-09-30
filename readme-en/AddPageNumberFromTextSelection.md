@@ -53,7 +53,7 @@
 | Z | Toggles zero padding |
 | A | Toggles the total page display |
 
-Z and A do not toggle while a text field has focus — typing takes precedence there.
+Z and A do not toggle while the prefix or suffix field has focus — typing takes precedence there (they still work in the start number field).
 
 ### Notes
 
@@ -68,6 +68,11 @@ Z and A do not toggle while a text field has focus — typing takes precedence t
 
 ### Update History
 
+- v2.2.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open. Button rows with only right-side buttons are now centered
+- v2.2.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v2.2.3 (2026-09-29): Dialog opacity changed to 98%
+- v2.2.2 (2026-09-28): The button row is now built with the shared part. Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v2.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.1.0 (2026-07-27): Unified UI wording around "page number". Added tooltips. Checkbox toggles and committed field edits now refresh the preview. Fixed detection of a nested `_pagenumber` layer, excluded off-artboard text from numbering, and made a failed cut abort instead of deleting the existing text. Consolidated internal routines.
 - v2.0.1 (2026-05-16): Internal cleanup. Improved template detection on commit, preview undo tracking, and `_pagenumber` restoration.

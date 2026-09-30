@@ -30,3 +30,5 @@ Extracts the fill colors of the selected objects in layout order (left to right,
 ### Update History
 
 - v1.3 (2026-01-28)
+- v1.3.1 (2026-09-19): Removed an unused function (no change in behavior)
+- v1.3.2 (2026-09-30): Fixed an error when running with characters selected by the Type tool

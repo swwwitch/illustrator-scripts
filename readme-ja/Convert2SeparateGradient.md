@@ -1,8 +1,8 @@
 # グラデーションをセパレートグラデーションに変換
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-convert2separategradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/convert2separategradient.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-Convert2SeparateGradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/Convert2SeparateGradient.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/convert2separategradient.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Convert2SeparateGradient.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -26,8 +26,14 @@
 
 ### スクリプト情報
 
-- バージョン: v1.1.0
+- バージョン: v1.1.6
 
 ### 更新履歴
 
+- v1.1.6 (2026-09-30): 右側のボタンだけのボタン行を左右中央に並べるようにした
+- v1.1.5 (2026-09-30): 文字ツールで文字を選択して実行するとエラーになる不具合を修正
+- v1.1.4 (2026-09-29): ファイル名を `convert2separategradient.jsx` から `Convert2SeparateGradient.jsx` に変更
+- v1.1.3 (2026-09-29): ダイアログの不透明度を98%に変更
+- v1.1.2 (2026-09-28): ボタン行を共通の部品で組むようにした
+- v1.1.1 (2026-09-28): ダイアログを前回閉じた位置で開き、選択中のオブジェクトに重なるときは左右にずらすようにした。不透明度を97%にそろえた
 - v1.1.0 (2026-09-27): 数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）

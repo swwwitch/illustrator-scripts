@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "EditCornerRadiusEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -6,26 +7,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択・現在のアートボード・ドキュメント全体のいずれかにある角丸長方形の角の半径を、ダイアログで変更します。
-ダイアログには現在の半径を計測して表示し、OK で角を指定の半径にそろえてパスを作り直します（半径 0 の角は、既定では角のまま残します）。
+吹き出し形状と、グループ・複合パス・複合シェイプの中の長方形も対象です。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCornerRadius.md
 
 ### 注意
 
-水平・垂直に置かれた長方形（角丸を含む）だけが対象です。回転した長方形、長方形以外のパス、ロック・非表示のオブジェクトは変更しません。辺に吹き出しの口などが付いた長方形と、複合パスの中の長方形も対象です。複合シェイプの中の長方形は、ダイレクト選択したときだけ対象です（いずれも「角を丸くする」効果の計測・変換は除く）。選択が対象のときは、グループの中身は直接選択してください。
+水平・垂直に置かれた長方形だけが対象です。回転した長方形、ロック・非表示のオブジェクトは変更しません。
+複合シェイプは「グループ＋［パスファインダー：合体］」に変換するため、各パスのモードは合体になります。
 
 ### Overview
 
 Edits the corner radius of rounded rectangles in the selection, on the current artboard, or in the entire document, using a dialog.
-The dialog shows the measured radius, and OK rebuilds each path with the corners set to that radius (corners with zero radius stay square by default).
+Callout shapes and rectangles inside groups, compound paths and compound shapes are included.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCornerRadius.md
 
 ### Notes
 
-Only rectangles (rounded or not) aligned to the horizontal and vertical axes are changed. Rotated rectangles, other paths, and locked or hidden objects are left as they are. Rectangles with a callout tail or similar on a side, and rectangles inside compound paths, are included. Rectangles inside compound shapes are included only when selected directly (none of these get Round Corners effect measurement or conversion). When the target is the selection, select the contents of groups directly.
+Only rectangles aligned to the horizontal and vertical axes are changed. Rotated rectangles and locked or hidden objects are left as they are.
+Compound shapes are converted to a group with the Pathfinder Add effect, so every shape mode becomes Add.
 
 */
 
@@ -33,10 +36,10 @@ Only rectangles (rounded or not) aligned to the horizontal and vertical axes are
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "EditCornerRadius";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/EditCornerRadius.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/EditCornerRadius.md"; /* README (English) */
@@ -129,7 +132,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var PANEL_SPACING         = 6;                 /* パネル内の要素間隔 */
     var FIELD_SPACING         = 6;                 /* 名前・入力欄・単位の間隔 */
     var FIELD_CHARACTERS      = 4;                 /* 半径の入力欄の文字数 */
-    var BUTTON_ROW_TOP_MARGIN = 5;                 /* ボタンエリアの上余白 */
 
     /**
      * パネルの共通レイアウトを設定する
@@ -158,33 +160,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.spacing = FIELD_SPACING;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -200,22 +195,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -327,8 +307,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-        var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
         makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
         makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -583,14 +563,89 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    var currentLanguage = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     var LABELS = {
         dialog: {
@@ -616,12 +671,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             artboard: {
-                ja: "現在のアートボードに一部でも重なる長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
-                en: "Rectangles (including callout shapes) that overlap the current artboard, including those inside groups and compound paths (locked or hidden ones are skipped)"
+                ja: "現在のアートボードに一部でも重なる長方形（吹き出し形状を含む）が対象です。グループ・複合パス・複合シェイプの中も含みます（複合シェイプは合体に変換。ロック・非表示は除く）",
+                en: "Rectangles (including callout shapes) that overlap the current artboard, including those inside groups, compound paths and compound shapes (compound shapes are converted to Add; locked or hidden ones are skipped)"
             },
             document: {
-                ja: "ドキュメント内のすべての長方形（吹き出し形状を含む）が対象です。グループ・複合パスの中も含みます（ロック・非表示は除く）",
-                en: "All rectangles (including callout shapes) in the document, including those inside groups and compound paths (locked or hidden ones are skipped)"
+                ja: "ドキュメント内のすべての長方形（吹き出し形状を含む）が対象です。グループ・複合パス・複合シェイプの中も含みます（複合シェイプは合体に変換。ロック・非表示は除く）",
+                en: "All rectangles (including callout shapes) in the document, including those inside groups, compound paths and compound shapes (compound shapes are converted to Add; locked or hidden ones are skipped)"
             },
             radiusField: {
                 ja: "短辺の半分（吹き出しは口の付け根まで）を超える値は、そこまでに制限されます。↑↓で増減（Shift：10、Option：0.1）",
@@ -640,8 +695,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 en: "When on, rectangles with all four corners rounded are made square and rounded with the Round Corners effect. Not for callout shapes or paths in compound paths or compound shapes"
             },
             skippedCount: {
-                ja: "水平・垂直の長方形（吹き出し形状・複合パスの中を含む）のみ変更します。複合シェイプの中はダイレクト選択してください",
-                en: "Only axis-aligned rectangles (including callout shapes and those in compound paths) are changed. Select rectangles in compound shapes directly"
+                ja: "水平・垂直の長方形（吹き出し形状、複合パス・複合シェイプの中を含む）のみ変更します",
+                en: "Only axis-aligned rectangles (including callout shapes and those in compound paths and compound shapes) are changed"
+            },
+            noTargetInSelection: {
+                ja: "選択の中に、水平・垂直の長方形がありません",
+                en: "The selection contains no axis-aligned rectangles"
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -658,7 +717,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             skippedCount: {
                 ja: "対象外のオブジェクト：{count} 個",
                 en: "Skipped objects: {count}"
-            }
+            },
+            noTargetInSelection: { ja: "選択に対象がありません", en: "Nothing selected can be changed" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
@@ -668,31 +728,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
         }
     };
-
-    /**
-     * ドット区切りのキーからラベルを取得する
-     * @param {string} key - "dialog.title" のようなキー
-     * @returns {string} 現在の言語のラベル
-     */
-    function getLabel(key) {
-        var keyParts = key.split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < keyParts.length; i++) {
-            if (labelNode == null) return key;
-            labelNode = labelNode[keyParts[i]];
-        }
-        if (labelNode == null) return key;
-        return labelNode[currentLanguage] || labelNode.en || key;
-    }
-
-    /**
-     * コロン付きのラベルを返す（日本語は全角、英語は半角）
-     * @param {string} key - ラベルのキー
-     * @returns {string} コロン付きラベル
-     */
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // 半径の計測 / Radius measurement
@@ -1128,17 +1163,50 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 複合シェイプの中のパスかを返す（ダイレクト選択したときだけ選択に入り、PluginItem の中のグループに属する）
+     * 複合シェイプの中のパスかを返す（ダイレクト選択したときだけ選択に入る）
+     * 中のパスは PluginItem 直下の見えないグループに属し、さらにサブグループや入れ子の複合シェイプの中にも置ける
      * @param {PathItem} pathItem - 判定するパス
      * @returns {boolean} 複合シェイプの中のパスなら true
      */
     function isCompoundShapeMember(pathItem) {
-        var parentItem = pathItem.parent;
-        return parentItem.typename === "GroupItem" && parentItem.parent.typename === "PluginItem";
+        for (var ancestorItem = pathItem.parent; ancestorItem.typename === "GroupItem"; ancestorItem = ancestorItem.parent) {
+            if (ancestorItem.parent.typename === "PluginItem") return true;
+        }
+        return false;
     }
 
     /**
-     * 選択から対象の長方形を集める（複合パスは中の長方形を対象にする）
+     * 選択したオブジェクト 1 つから対象の長方形を集める
+     * グループは中を再帰でたどり（ロック・非表示の子は除く）、複合パスは中の長方形、複合シェイプは変換結果の中の長方形を対象にする
+     * @param {PageItem} pageItem - 選択したオブジェクト、またはグループの子
+     * @param {PathItem[]} targetPaths - 見つけたパスを追加する配列
+     * @returns {void}
+     */
+    function collectItemRectangles(pageItem, targetPaths) {
+        switch (pageItem.typename) {
+            case "GroupItem":
+                for (var i = 0; i < pageItem.pageItems.length; i++) {
+                    var childItem = pageItem.pageItems[i];
+                    if (childItem.locked || childItem.hidden) continue;
+                    collectItemRectangles(childItem, targetPaths);
+                }
+                break;
+            case "CompoundPathItem":
+                for (var j = 0; j < pageItem.pathItems.length; j++) {
+                    if (isRectangularShape(pageItem.pathItems[j])) targetPaths.push(pageItem.pathItems[j]);
+                }
+                break;
+            case "PluginItem":
+                var shapePaths = collectShapeRectangles(pageItem);
+                for (var k = 0; k < shapePaths.length; k++) targetPaths.push(shapePaths[k]);
+                break;
+            default:
+                if (isRectangularShape(pageItem)) targetPaths.push(pageItem);
+        }
+    }
+
+    /**
+     * 選択から対象の長方形を集める（グループ・複合パス・複合シェイプの中も含む）
      * @param {PageItem[]} selectedItems - 選択
      * @returns {{targetPaths: PathItem[], skippedCount: number}} 対象パスと、対象を含まない選択の数
      */
@@ -1146,21 +1214,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var targetPaths = [];
         var skippedCount = 0;
         for (var i = 0; i < selectedItems.length; i++) {
-            var selectedItem = selectedItems[i];
-            var memberPaths = (selectedItem.typename === "CompoundPathItem") ? selectedItem.pathItems : [selectedItem];
-            var foundCount = 0;
-            for (var j = 0; j < memberPaths.length; j++) {
-                if (!isRectangularShape(memberPaths[j])) continue;
-                targetPaths.push(memberPaths[j]);
-                foundCount++;
-            }
-            if (foundCount === 0) skippedCount++;
+            var foundCount = targetPaths.length;
+            collectItemRectangles(selectedItems[i], targetPaths);
+            if (targetPaths.length === foundCount) skippedCount++;
         }
         return { targetPaths: targetPaths, skippedCount: skippedCount };
     }
 
     /**
-     * ドキュメント内の編集できる長方形を集める（グループ・複合パスの中も含む。ガイドは除く）
+     * ドキュメント内の編集できる長方形を集める（グループ・複合パスの中と、変換した複合シェイプの中も含む。ガイドは除く）
      * @param {Document} doc - 対象ドキュメント
      * @param {number[]} [areaBounds] - 指定したときは、この範囲に重なるものだけ
      * @returns {PathItem[]} 対象パス
@@ -1174,6 +1236,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!isRectangularShape(pathItem) || !isEditable(pathItem)) continue;
             if (areaBounds && !boundsOverlap(pathItem.geometricBounds, areaBounds)) continue;
             targetPaths.push(pathItem);
+        }
+        /* 複合シェイプは変換すると PluginItem が増減するので、先に一覧を写す
+           Converting adds and removes PluginItems, so snapshot the list first */
+        var pluginItems = [];
+        for (var k = 0; k < doc.pluginItems.length; k++) pluginItems.push(doc.pluginItems[k]);
+        for (var m = 0; m < pluginItems.length; m++) {
+            var pluginItem = pluginItems[m];
+            if (!isEditable(pluginItem)) continue;
+            if (areaBounds && !boundsOverlap(pluginItem.geometricBounds, areaBounds)) continue;
+            targetPaths = targetPaths.concat(collectShapeRectangles(pluginItem));
         }
         return targetPaths;
     }
@@ -1459,13 +1531,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         "}"
     ].join("\n");
 
+    /* ［複合シェイプを解除］のダイナミックアクション（セット「CompoundShape」／アクション「Release」）
+       複合シェイプにだけ効き、ブレンドやエンベロープは解除しない
+       Dynamic action for Release Compound Shape; it affects compound shapes only, not blends or envelopes */
+    var RELEASE_COMPOUND_SHAPE_ACTION = [
+        "/version 3",
+        "/name [ 13",
+        " 436f6d706f756e645368617065",
+        "]",
+        "/isOpen 1",
+        "/actionCount 1",
+        "/action-1 {",
+        " /name [ 7",
+        " 52656c65617365",
+        " ]",
+        " /keyIndex 0",
+        " /colorIndex 0",
+        " /isOpen 1",
+        " /eventCount 1",
+        " /event-1 {",
+        " /useRulersIn1stQuadrant 0",
+        " /internalName (ai_release_compound_shape)",
+        " /localizedName [ 27",
+        " e8a487e59088e382b7e382a7e382a4e38397e38292e8a7a3e999a4",
+        " ]",
+        " /isOpen 0",
+        " /isOn 1",
+        " /hasDialog 0",
+        " /parameterCount 1",
+        " /parameter-1 {",
+        " /key 1919710053",
+        " /showInPalette 4294967295",
+        " /type (integer)",
+        " /value 0",
+        " }",
+        " }",
+        "}"
+    ].join("\n");
+
     /**
      * オブジェクトだけを選択する（メニューコマンドやアクションの対象にする）
      * @param {PageItem} pageItem - 対象オブジェクト（ロック・非表示でないこと）
      * @returns {void}
      */
     function selectOnly(pageItem) {
-        app.activeDocument.selection = null;
+        var doc = app.activeDocument;
+        doc.selection = null;
+        /* グループへ移したばかりのオブジェクトなどは、null の代入で外れずに残ることがある
+           Items just moved into a group can stay selected after assigning null */
+        var remainingItems = doc.selection;
+        for (var i = remainingItems.length - 1; i >= 0; i--) remainingItems[i].selected = false;
         pageItem.selected = true;
     }
 
@@ -1478,6 +1593,117 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return (currentSelection.length > 0) ? currentSelection[0] : null;
     }
 
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
+
+    /**
+     * オブジェクトだけを選択して、ダイナミックアクションを読み込んで実行する（実行後は読み込みを外す）
+     * @param {string} actionSource - アクションの定義（.aia の内容）
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {void}
+     */
+    function runDynamicAction(actionSource, setName, actionName, pageItem) {
+        selectOnly(pageItem);
+        /* 失敗は従来どおり例外で呼び出し元へ伝える / Report a failure to the caller as an exception, as before */
+        if (!runTemporaryAction(actionSource, setName, actionName)) {
+            throw new Error("Could not run the action: " + setName + " / " + actionName);
+        }
+    }
+
     /**
      * ダイナミックアクションで［アピアランスを消去］を実行し、基本の塗り・線・不透明度を戻す
      * （効果を外すためのメニューコマンドは無いのでアクションで実行する）
@@ -1485,25 +1711,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {PathItem} 処理後のパス（作り直されたときは新しい参照）
      */
     function clearAppearance(pathItem) {
-
         var pathStyle = capturePathStyle(pathItem);
-        var actionFile = new File(Folder.temp.fsName + "/EditCornerRadius_clear_" + new Date().getTime() + ".aia");
-        actionFile.open("w");
-        actionFile.write(CLEAR_APPEARANCE_ACTION);
-        actionFile.close();
-        app.loadAction(actionFile);
-        /* 読み込んだ時点でパース済みなので、すぐ消す / Already parsed on load, so remove right away */
-        actionFile.remove();
-
-        var clearedPath = pathItem;
-        /* doScript が失敗しても読み込んだアクションを残さない / Unload the action even if doScript fails */
-        try {
-            selectOnly(pathItem);
-            app.doScript("clear", "Appearance", false);
-            clearedPath = findFirstPathItem(getFirstSelectedItem()) || pathItem;
-        } finally {
-            app.unloadAction("Appearance", "");
-        }
+        runDynamicAction(CLEAR_APPEARANCE_ACTION, "Appearance", "clear", pathItem);
+        var clearedPath = findFirstPathItem(getFirstSelectedItem()) || pathItem;
         restorePathStyle(clearedPath, pathStyle);
         return clearedPath;
     }
@@ -1569,13 +1779,238 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pathRadii = getShapeRadii(cornerShape);
         /* 効果は複合パス・複合シェイプ全体に付き、吹き出しの口まで丸めるので、いずれも効果では扱わない
            Effects apply to the whole compound path or shape and would round a callout tail too */
-        var canUseEffect = !isCompoundMember(pathItem) && !isCompoundShapeMember(pathItem) && !cornerShape.hasOffEdgePoints;
+        var canUseEffect = !isCompoundMember(pathItem) && !isCompoundShapeMember(pathItem) &&
+            !findShapeConversion(pathItem) && !cornerShape.hasOffEdgePoints;
         var effectRadii = null;
         if (includeEffect && canUseEffect && countRoundedCorners(pathRadii) === 0) {
             var expandedRadii = getEffectiveCornerRadii(pathItem);
             if (countRoundedCorners(expandedRadii) > 0) effectRadii = expandedRadii;
         }
         return { pathRadii: pathRadii, effectRadii: effectRadii, canUseEffect: canUseEffect };
+    }
+
+    // =========================================
+    // 複合シェイプの変換 / Compound shape conversion
+    // =========================================
+
+    /* 複合シェイプの中のパスは PluginItem からたどれないので、複製を解除して「グループ＋［パスファインダー：合体］」に
+       変換し、そのグループの中の長方形を対象にする。変換結果は隠しておき、OK で元と差し替える（キャンセルなら捨てる）
+       Members of a compound shape cannot be reached from the PluginItem, so a copy is released and rebuilt as
+       a group with the Pathfinder Add effect. The result stays hidden and replaces the original on OK */
+
+    /* { original: PluginItem, converted: GroupItem|null, isShown: boolean, isUsed: boolean } の配列
+       converted が null のものは複合シェイプではなかった / converted is null when it was not a compound shape */
+    var shapeConversions = [];
+
+    /* プレビュー中に表示している変換結果 / Conversions shown while previewing */
+    var shownConversions = [];
+
+    /**
+     * 現在の選択を配列に写す（選択は後の操作で変わるため）
+     * @returns {PageItem[]} 選択の写し
+     */
+    function copySelection() {
+        var currentSelection = app.activeDocument.selection;
+        var selectionCopy = [];
+        for (var i = 0; i < currentSelection.length; i++) selectionCopy.push(currentSelection[i]);
+        return selectionCopy;
+    }
+
+    /**
+     * オブジェクトをグループにまとめ、［パスファインダー：合体］効果を付ける（中の複合シェイプも変換する）
+     * @param {PageItem[]} pageItems - まとめるオブジェクト（前面から背面の順）
+     * @returns {GroupItem} 作ったグループ
+     */
+    function groupWithPathfinderAdd(pageItems) {
+        var shapeGroup = pageItems[0].parent.groupItems.add();
+        shapeGroup.move(pageItems[0], ElementPlacement.PLACEBEFORE);
+        /* 前面から順に末尾へ入れて重なり順を保つ / Append front to back to keep the stacking order */
+        for (var i = 0; i < pageItems.length; i++) pageItems[i].move(shapeGroup, ElementPlacement.PLACEATEND);
+
+        /* 入れ子の複合シェイプは 1 段ずつしか解除されないので、中でも変換する / Nested compound shapes release one level at a time */
+        var nestedItems = [];
+        for (var j = 0; j < shapeGroup.pageItems.length; j++) {
+            if (shapeGroup.pageItems[j].typename === "PluginItem") nestedItems.push(shapeGroup.pageItems[j]);
+        }
+        for (var k = 0; k < nestedItems.length; k++) {
+            var nestedGroup = convertCompoundShapeCopy(nestedItems[k]);
+            if (!nestedGroup) continue;
+            nestedGroup.move(nestedItems[k], ElementPlacement.PLACEBEFORE);
+            nestedItems[k].remove();
+        }
+
+        bakeRoundCornersEffects(shapeGroup);
+
+        /* applyEffect() だとアピアランスの「内容」の下に入って図形が消えるので、メニューコマンドで付ける
+           applyEffect() puts the effect below Contents and the art vanishes, so use the menu command */
+        runMenuCommand(shapeGroup, "Live Pathfinder Add");
+        return shapeGroup;
+    }
+
+    /**
+     * グループの中の長方形に「角を丸くする」効果が付いていれば外し、同じ半径をパスの角丸にする
+     * 効果の有無は、複製のアピアランスを分割した半径とパスの半径の違いで判定する
+     * （外すのは［アピアランスを消去］なので、そのパスのほかの効果も外れる。塗り・線・不透明度は戻す）
+     * @param {GroupItem} shapeGroup - 解除した複合シェイプをまとめたグループ
+     * @returns {void}
+     */
+    function bakeRoundCornersEffects(shapeGroup) {
+        var rectanglePaths = [];
+        collectGroupRectangles(shapeGroup, rectanglePaths);
+        for (var i = 0; i < rectanglePaths.length; i++) {
+            var pathRadii = getCornerRadii(rectanglePaths[i]);
+            var effectRadii = getEffectiveCornerRadii(rectanglePaths[i]);
+            var hasRoundCornersEffect = false;
+            for (var j = 0; j < pathRadii.length; j++) {
+                if (Math.abs(effectRadii[j] - pathRadii[j]) >= GEOMETRY_TOLERANCE) hasRoundCornersEffect = true;
+            }
+            if (!hasRoundCornersEffect) continue;
+            /* 消去でパスが作り直されることがあるので、戻り値に作り直す / Clearing may recreate the path, so rebuild the returned one */
+            rebuildPath(clearAppearance(rectanglePaths[i]), effectRadii);
+        }
+    }
+
+    /**
+     * 複合シェイプなら、その複製を「グループ＋［パスファインダー：合体］」に変換して返す（元は変更しない）
+     * @param {PluginItem} pluginItem - 調べるオブジェクト
+     * @returns {GroupItem|null} 変換したグループ（複合シェイプでなければ null）
+     */
+    function convertCompoundShapeCopy(pluginItem) {
+        var shapeCopy = pluginItem.duplicate();
+        runDynamicAction(RELEASE_COMPOUND_SHAPE_ACTION, "CompoundShape", "Release", shapeCopy);
+        var releasedItems = copySelection();
+        /* 解除されなければ複製が選択に残る。エンベロープは MeshItem と 2 つで選択に入るので、数では判定しない
+           An unreleased copy stays selected; envelopes select as two items, so do not judge by count */
+        for (var i = 0; i < releasedItems.length; i++) {
+            if (releasedItems[i] === shapeCopy) {
+                shapeCopy.remove();
+                return null;
+            }
+        }
+        if (releasedItems.length === 0) return null;
+        return groupWithPathfinderAdd(releasedItems);
+    }
+
+    /**
+     * PluginItem の変換結果を返す（初回だけ変換し、結果は隠しておく）
+     * @param {PluginItem} pluginItem - 対象オブジェクト
+     * @returns {Object} shapeConversions の要素
+     */
+    function getShapeConversion(pluginItem) {
+        for (var i = 0; i < shapeConversions.length; i++) {
+            if (shapeConversions[i].original === pluginItem) return shapeConversions[i];
+        }
+        var convertedGroup = convertCompoundShapeCopy(pluginItem);
+        if (convertedGroup) convertedGroup.hidden = true;
+        var shapeConversion = { original: pluginItem, converted: convertedGroup, isShown: false, isUsed: false };
+        shapeConversions.push(shapeConversion);
+        return shapeConversion;
+    }
+
+    /**
+     * パスが属する変換結果を返す
+     * @param {PathItem} pathItem - 調べるパス
+     * @returns {Object|null} shapeConversions の要素（変換結果の中でなければ null）
+     */
+    function findShapeConversion(pathItem) {
+        if (shapeConversions.length === 0) return null;
+        for (var ancestorItem = pathItem.parent; ancestorItem.typename === "GroupItem" ||
+            ancestorItem.typename === "CompoundPathItem"; ancestorItem = ancestorItem.parent) {
+            for (var i = 0; i < shapeConversions.length; i++) {
+                if (shapeConversions[i].converted === ancestorItem) return shapeConversions[i];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * グループの中の長方形を集める（サブグループ・複合パスの中も含む）
+     * @param {GroupItem} containerGroup - 探すグループ
+     * @param {PathItem[]} targetPaths - 見つけたパスを追加する配列
+     * @returns {void}
+     */
+    function collectGroupRectangles(containerGroup, targetPaths) {
+        for (var i = 0; i < containerGroup.pageItems.length; i++) {
+            var childItem = containerGroup.pageItems[i];
+            if (childItem.typename === "GroupItem") {
+                collectGroupRectangles(childItem, targetPaths);
+            } else if (childItem.typename === "CompoundPathItem") {
+                for (var j = 0; j < childItem.pathItems.length; j++) {
+                    if (isRectangularShape(childItem.pathItems[j])) targetPaths.push(childItem.pathItems[j]);
+                }
+            } else if (isRectangularShape(childItem)) {
+                targetPaths.push(childItem);
+            }
+        }
+    }
+
+    /**
+     * 複合シェイプを変換し、中の長方形を返す（複合シェイプでなければ空）
+     * @param {PluginItem} pluginItem - 対象オブジェクト
+     * @returns {PathItem[]} 変換結果の中の長方形
+     */
+    function collectShapeRectangles(pluginItem) {
+        var shapeConversion = getShapeConversion(pluginItem);
+        var targetPaths = [];
+        if (shapeConversion.converted) collectGroupRectangles(shapeConversion.converted, targetPaths);
+        return targetPaths;
+    }
+
+    /**
+     * プレビュー用に、元の複合シェイプを隠して変換結果を表示する
+     * @param {Object} shapeConversion - shapeConversions の要素
+     * @returns {void}
+     */
+    function showShapeConversion(shapeConversion) {
+        if (shapeConversion.isShown) return;
+        shapeConversion.original.hidden = true;
+        hiddenOriginals.push(shapeConversion.original);
+        shapeConversion.converted.hidden = false;
+        shapeConversion.isShown = true;
+        shownConversions.push(shapeConversion);
+    }
+
+    /**
+     * 使った変換結果で元の複合シェイプを差し替え、使わなかったものは捨てる
+     * @param {PathItem[]} targetPaths - 変更したパス
+     * @param {PageItem[]} restoredSelection - 戻す選択（差し替えた元は変換結果に置き換える）
+     * @returns {void}
+     */
+    function finishShapeConversions(targetPaths, restoredSelection) {
+        for (var i = 0; i < targetPaths.length; i++) {
+            var shapeConversion = findShapeConversion(targetPaths[i]);
+            if (shapeConversion) shapeConversion.isUsed = true;
+        }
+        for (var j = 0; j < shapeConversions.length; j++) {
+            var original = shapeConversions[j].original;
+            var convertedGroup = shapeConversions[j].converted;
+            if (!convertedGroup) continue;
+            if (!shapeConversions[j].isUsed) {
+                convertedGroup.remove();
+                continue;
+            }
+            convertedGroup.hidden = false;
+            convertedGroup.move(original, ElementPlacement.PLACEBEFORE);
+            convertedGroup.name = original.name;
+            convertedGroup.opacity = original.opacity;
+            convertedGroup.blendingMode = original.blendingMode;
+            for (var k = 0; k < restoredSelection.length; k++) {
+                if (restoredSelection[k] === original) restoredSelection[k] = convertedGroup;
+            }
+            original.remove();
+        }
+        shapeConversions = [];
+    }
+
+    /**
+     * 変換結果をすべて捨てる（キャンセル時）
+     * @returns {void}
+     */
+    function discardShapeConversions() {
+        for (var i = 0; i < shapeConversions.length; i++) {
+            if (shapeConversions[i].converted) shapeConversions[i].converted.remove();
+        }
+        shapeConversions = [];
     }
 
     // =========================================
@@ -1642,6 +2077,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var k = editedOriginals.length - 1; k >= 0; k--) {
             restorePathPoints(editedOriginals[k].pathItem, editedOriginals[k].savedPoints);
         }
+        for (var m = 0; m < shownConversions.length; m++) {
+            shownConversions[m].converted.hidden = true;
+            shownConversions[m].isShown = false;
+        }
+        shownConversions = [];
         for (var i = 0; i < previewCopies.length; i++) previewCopies[i].remove();
         previewCopies = [];
         hiddenOriginals = [];
@@ -1665,6 +2105,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 複製に半径を適用してプレビューを表示する（元のパスは一時的に隠す。前のプレビューは消してから呼ぶ）
      * 複合パスの一部は、複合パスごと複製して中の同じ番号のパスに適用する
      * 複合シェイプの中のパスは、複製すると形の一部になるので、元を控えて直接書き換える
+     * 変換した複合シェイプは、元を隠して変換結果を表示し、中のパスを控えて直接書き換える
      * @param {PathItem[]} targetPaths - 対象パス
      * @param {Object[]} measurements - パスごとの計測結果（targetPaths と同じ並び）
      * @param {number} cornerRadius - 半径（pt）
@@ -1677,7 +2118,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var compoundCopies = [];
         for (var i = 0; i < targetPaths.length; i++) {
             var targetPath = targetPaths[i];
-            if (isCompoundShapeMember(targetPath)) {
+            var shapeConversion = findShapeConversion(targetPath);
+            if (shapeConversion) showShapeConversion(shapeConversion);
+            if (shapeConversion || isCompoundShapeMember(targetPath)) {
                 editedOriginals.push({ pathItem: targetPath, savedPoints: capturePathPoints(targetPath) });
                 applyCornerRadius(targetPath, measurements[i], cornerRadius, cornerOptions);
                 continue;
@@ -1710,6 +2153,142 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         app.redraw();
     }
+
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
     // ダイアログ / Dialog
@@ -1807,20 +2386,67 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return optionCheckbox;
     }
 
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
     /**
-     * キャンセル・OK のボタン行を左右中央に追加する
-     * @param {Window} parentWindow - 追加先のダイアログ
-     * @returns {Button} OK ボタン
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
      */
-    function addButtonRow(parentWindow) {
-        var btnRowGroup = parentWindow.add("group");
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
         btnRowGroup.alignment = ["center", "bottom"];
         btnRowGroup.alignChildren = ["center", "center"];
-        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        return btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        buttonRow.leftGroup = null;
     }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     /**
      * 角丸の半径を入力するダイアログを表示する
@@ -1888,12 +2514,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (hasSelection && skippedCount > 0) {
             skippedText = radiusDialog.add("statictext", undefined, skippedLabel);
             skippedText.helpTip = getLabel("tooltip.skippedCount");
+        } else if (!hasSelection && skippedCount > 0) {
+            /* 選択はあるが対象が無い（複合シェイプ全体を選んだときなど）。対象を切り替えても出したままにする
+               Something is selected but nothing qualifies (e.g. a whole compound shape); keep it across scopes */
+            var noTargetText = radiusDialog.add("statictext", undefined, getLabel("status.noTargetInSelection"));
+            noTargetText.helpTip = getLabel("tooltip.noTargetInSelection");
+            noTargetText.alignment = ["center", "top"];
         }
 
         var previewCheckbox = addOptionCheckbox(radiusDialog, "preview", PREVIEW_DEFAULT);
         previewCheckbox.alignment = ["center", "top"];
 
-        var btnOk = addButtonRow(radiusDialog);
+        var buttonRow = addButtonRow(radiusDialog, { centered: true });
+        var btnCancel = buttonRow.rowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         /**
          * プレビューの表示状態を入力に合わせる
@@ -1922,7 +2556,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             currentScope = scopeKey;
             targetPaths = collectScopeTargets(scopeKey);
             if (skippedText) skippedText.text = (scopeKey === "selection") ? skippedLabel : "";
-            btnOk.enabled = targetPaths.length > 0;
+            btnOK.enabled = targetPaths.length > 0;
             refreshPreview();
         }
 
@@ -1955,6 +2589,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             changeScope(currentScope);
         };
 
+        prepareDialogWindow(radiusDialog, SCRIPT_NAME);
         var dialogResult = radiusDialog.show();
         clearPreview();
         if (dialogResult !== 1) return null;
@@ -2001,8 +2636,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         var initialSelection = doc.selection || [];
 
-        var selectedRectangles = collectSelectedRectangles(initialSelection);
-        var scopeTargets = { selection: selectedRectangles.targetPaths, artboard: null, document: null };
+        var scopeTargets = { selection: [], artboard: null, document: null };
 
         /**
          * 対象のパスを返す（アートボード・ドキュメントは初回だけ集める）
@@ -2020,9 +2654,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return scopeTargets[scopeKey];
         }
 
-        var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets, selectedRectangles.skippedCount);
-        /* 効果の計測・付け直しで変わる選択を元に戻す / Restore the selection changed by measuring and reapplying */
-        var restoredSelection = dialogValues ? applyDialogValues(dialogValues, initialSelection) : initialSelection;
+        var restoredSelection = initialSelection;
+        /* 途中で止まっても、隠した変換結果をドキュメントに残さない / Never leave hidden conversions behind */
+        try {
+            /* 選択の複合シェイプはここで変換する / Compound shapes in the selection are converted here */
+            var selectedRectangles = collectSelectedRectangles(initialSelection);
+            scopeTargets.selection = selectedRectangles.targetPaths;
+            var dialogValues = showRadiusDialog(scopeTargets, collectScopeTargets, selectedRectangles.skippedCount);
+            if (dialogValues) {
+                restoredSelection = applyDialogValues(dialogValues, initialSelection);
+                finishShapeConversions(dialogValues.targetPaths, restoredSelection);
+            }
+        } finally {
+            discardShapeConversions();
+        }
+        /* 計測・変換・効果の付け直しで変わる選択を元に戻す / Restore the selection changed by measuring, converting and reapplying */
         doc.selection = (restoredSelection.length > 0) ? restoredSelection : null;
         app.redraw();
     }

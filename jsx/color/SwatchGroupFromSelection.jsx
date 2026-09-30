@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGrou
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwatchGroupFromSelection";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwatchGroupFromSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGroupFromSelection.md"; /* README (English) */
@@ -310,7 +310,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var doc = app.activeDocument;
         var originalSelection = doc.selection;
-        if (!originalSelection || originalSelection.length === 0) {
+        /* 文字ツールで文字を選択しているときは TextRange が返り、length は文字数になる / With characters selected by the Type tool, selection is a TextRange whose length is the character count */
+        if (!originalSelection || originalSelection.typename === "TextRange" || originalSelection.length === 0) {
             return;
         }
 

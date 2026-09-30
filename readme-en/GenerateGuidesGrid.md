@@ -19,7 +19,7 @@
 
 - Choose the target: the selected objects, the active artboard, or all artboards
 - Set rows and columns with row/column gutters (gutters can be linked)
-- Set top/bottom/left/right margins individually, or link them to apply one value to all
+- Set top/bottom/left/right margins individually, or link them with the link icon to apply one value to all
 - Extend the guides beyond the artboard by a given distance
 - Draw guides on the four edges of the artboard ("Artboard Edges"); an edge with a zero margin is skipped because it would coincide with the outer grid guide
 - Add a vertical guide at the horizontal center of every cell ("Split Each Cell Horizontally")
@@ -82,3 +82,8 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.7.2 (20260827): Artboard edges are no longer drawn on a zero-margin side; a blank row/column count is treated as 1; existing guides are kept when nothing can be drawn; "Clear Existing Guides" is disabled while "Draw Guides" is off; fixed the enabled state of the fields after loading a preset; widened the numeric fields so converted units fit; fixed the notification and rollback when a preview step fails
 - v1.7.3 (20260913): Guides are now created directly on their destination layer, so a locked active layer no longer breaks them; fixed a surplus undo rolling back the user's own work when the preview drew nothing; artboard edges are now drawn even when the grid cannot be; fixed the right alignment of the row/column labels; a dimmed "Extension" no longer applies while "Draw Guides" is off; fixed the cleanup of the "Show Center" action; made the cell fill color and the single-artboard path cheaper
 - v1.8.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.8.1 (20260928): Replaced the Link checkbox with a link icon
+- v1.8.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.8.2 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
+- v1.8.3 (20260929): Dialog opacity changed to 98%
+- v1.8.4 (20260930): Fixed an error when running with characters selected by the Type tool

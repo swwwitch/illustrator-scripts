@@ -29,7 +29,7 @@
 - Break lines along the cut edge (solid or dashed, segment count, cap)
 - Groups each break line with the part it belongs to
 - Live preview from the moment the dialog opens
-- Restores the settings used last time (`~/Library/Application Support/TrimWithBreakLine/settings.txt`)
+- Restores the settings used last time (`~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`)
 - Distances use the ruler unit, the stroke weight uses the Stroke unit (Preferences › Units)
 
 ### How to use
@@ -86,6 +86,11 @@ The up/down buttons to the left of each number field work the same way as the ar
 
 ### Update history
 
+- v1.2.5 (20260930) : Button rows with only right-side buttons are now centered
+- v1.2.4 (20260930) : Fixed an error when running with characters selected by the Type tool
+- v1.2.3 (20260929) : Dialog opacity changed to 98%
+- v1.2.2 (20260928) : The button row is now built with the shared part. Settings are now saved through the shared part (stored in `~/Library/Application Support/illustrator-scripts/TrimWithBreakLine.json`; the old `TrimWithBreakLine/settings.txt` is carried over once). When the artwork is a clip group, the cut direction and position are now based on the mask
+- v1.2.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (20260927) : Added stepper buttons to the left of the number fields. The arrow keys now share the steppers' logic, Up / Down moves to the next whole number (1.5 → 2) and Shift + Up / Down to the next multiple of ten
 - v1.1.0 (20260927) : The cut-edge shape radio buttons are now icon buttons that show each shape
 - v1.0.8 (20260925) : Added Jagged (the Zig Zag effect) to the cut-edge shapes, with its size and ridges. The cut-edge shape radio buttons are now laid out in two rows of two

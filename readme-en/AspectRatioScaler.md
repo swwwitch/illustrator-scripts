@@ -61,3 +61,9 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.7.0 (20260927): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.8.0 (20260927): The settings from the last OK (ratio, custom ratio, options, orientation, reference point, fixed side) are kept while Illustrator runs; Reset returns to the defaults. Fixed now defaults to Height. Vertically aligned the orientation icons with the reference point
 - v1.7.1 (20260927): Added Original Ratio to the ratios (now the default). The fixed side now keeps its original length while the other side takes a length or percentage. Added None (Free) to Fixed (enter width and height separately). The resulting ratio shows in the custom fields, and the size unit appears in the panel title. Added a Reset button that restores the size from before the dialog opened. Revised UI wording
+- v1.8.1 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.8.2 (20260928): The button row is now built with the shared part
+- v1.8.2 (20260928): The 3×3 reference point picker now uses the shared part
+- v1.8.3 (20260929): Dialog opacity changed to 98%
+- v1.8.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.8.5 (20260930): Dropped the script's own rightward shift of the dialog on first open

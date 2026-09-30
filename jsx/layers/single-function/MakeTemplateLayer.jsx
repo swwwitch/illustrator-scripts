@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTempla
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MakeTemplateLayer";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeTemplateLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTemplateLayer.md"; /* README (English) */
@@ -41,7 +41,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     var ACTION_SET_NAME = "DynamicActionMakeTemplate";
     var ACTION_NAME = "TemplateON";
-    var ACTION_FILE_NAME = "~/MakeTemplateLayerAction.aia";
 
     /* レイヤーオプションのプリセット（テンプレート ON 固定）/ Layer-option preset (template ON) */
     var TEMPLATE_ON_OPTIONS = {
@@ -58,14 +57,84 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * UI言語を返す
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
+
     var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -73,24 +142,108 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             layerLocked: { ja: "アクティブレイヤーがロックされているため、実行できません。", en: "The active layer is locked." },
             layerHidden: { ja: "アクティブレイヤーが非表示のため、実行できません。", en: "The active layer is hidden." },
-            actionFailed: { ja: "テンプレート属性の適用に失敗しました。", en: "Failed to apply the template attribute." },
-            fileOpenFailed: { ja: "一時アクションファイルを作成できませんでした。", en: "Failed to open the temporary action file." }
+            actionFailed: { ja: "テンプレート属性の適用に失敗しました。", en: "Failed to apply the template attribute." }
         }
     };
-
-    /**
-     * LABELS からドット区切りのパスで表示言語のテキストを取り出す
-     * @param {string} labelPath - "alert.noDocument" のようなパス
-     * @returns {string} 表示言語のテキスト
-     */
-    function getLabel(labelPath) {
-        var labelPathKeys = labelPath.split(".");
-        return LABELS[labelPathKeys[0]][labelPathKeys[1]][uiLang];
-    }
 
     // =========================================
     // 一時アクション生成 / Temporary action generation
     // =========================================
+
+    // 一時アクション（再利用パーツ） / Temporary action (reusable)
+
+    /**
+     * 文字列を UTF-8 のバイト列の16進にする（アクション定義の /name・/localizedName 用）
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進の文字列（2文字で1バイト）
+     */
+    function toActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    /**
+     * アクション定義の「/name [ バイト数 16進 ]」の3行を返す
+     * @param {string} indent - 行頭の字下げ（"\t" など）
+     * @param {string} nameText - 名前
+     * @param {string} [fieldName] - 項目名（既定は "name"。"localizedName" など）
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = toActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + "\t" + nameHex,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * アクション定義を一時ファイルに書き出してセットを読み込む。読み込んだら一時ファイルは消す
+     * （読み込んだ時点で解釈済みなので、以降の失敗でファイルが残らない）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @returns {boolean} 読み込めたら true
+     */
+    function loadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            /* 前回の失敗で同じ名前のセットが残っていれば外す / Remove a same-name set left by an earlier failure */
+            unloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("loadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { /* 閉じ済み / already closed */ }
+            try { actionFile.remove(); } catch (removeError) { /* 消せなくても続ける / keep going */ }
+        }
+    }
+
+    /**
+     * 一時アクションのセットを解除する（読み込まれていなくてもエラーにしない）
+     * @param {string} setName - アクションセット名
+     * @returns {void}
+     */
+    function unloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+            /* 読み込まれていない / not loaded */
+        }
+    }
+
+    /**
+     * アクション定義を読み込んで1回実行し、解除する。途中で失敗しても解除は必ず試みる
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {boolean} 実行できたら true
+     */
+    function runTemporaryAction(actionSource, setName, actionName) {
+        if (!loadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("runTemporaryAction: " + e);
+            return false;
+        } finally {
+            unloadTemporaryActionSet(setName);
+        }
+    }
+
+    // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
 
     /**
      * 記録済みの .aia から採取した internalName / key を使い、オプションからアクション定義を組み立てる
@@ -167,27 +320,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * バイト列（1文字1バイトの文字列）を16進数の文字列にする
-     * @param {string} byteString - 各文字が 0〜255 の文字列
-     * @returns {string} 16進数の文字列
-     */
-    function bytesToHex(byteString) {
-        var hexText = "";
-        for (var i = 0; i < byteString.length; i++) {
-            var hexValue = byteString.charCodeAt(i).toString(16);
-            if (hexValue.length < 2) hexValue = "0" + hexValue;
-            hexText += hexValue;
-        }
-        return hexText;
-    }
-
-    /**
      * アクションセット名・アクション名の /name 行を作る（名前は英数字）
      * @param {string} actionName - 名前
      * @returns {string} /name 行
      */
     function buildActionNameLine(actionName) {
-        return '/name [ ' + actionName.length + ' ' + bytesToHex(actionName) + ' ]\n';
+        var nameHex = toActionHex(actionName);
+        return '/name [ ' + (nameHex.length / 2) + ' ' + nameHex + ' ]\n';
     }
 
     /**
@@ -196,46 +335,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} ustring 値
      */
     function buildUstringValue(sourceText) {
-        var byteString = unescape(encodeURIComponent(sourceText));
-        return '[ ' + byteString.length + ' ' + bytesToHex(byteString) + ' ]';
-    }
-
-    // =========================================
-    // 一時アクション実行 / Temporary action playback
-    // =========================================
-
-    /**
-     * アクション定義を一時ファイルに書き出して読み込み、実行後にアンロードする
-     * @param {string} actionSource - .aia の内容
-     * @param {string} setName - アクションセット名
-     * @param {string} actionName - アクション名
-     * @param {string} actionFilePath - 一時ファイルのパス
-     * @returns {void}
-     */
-    function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-        /* 前回の残りを外す（読み込まれていなければ例外）/ Unload a leftover set; throws when none is loaded */
-        try { app.unloadAction(setName, ""); } catch (e) { }
-
-        var actionFile = new File(actionFilePath);
-        if (!actionFile.open("w")) {
-            alert(getLabel("alert.actionFailed") + "\n\n" + getLabel("alert.fileOpenFailed"));
-            return;
-        }
-        actionFile.write(actionSource);
-        actionFile.close();
-
-        var isActionLoaded = false;
-        try {
-            app.loadAction(actionFile);
-            isActionLoaded = true;
-            app.doScript(actionName, setName, false);
-        } catch (e) {
-            alert(getLabel("alert.actionFailed") + "\n\n" + e);
-        } finally {
-            /* 読み込み時点でパース済みなので一時ファイルは消してよい / The action is parsed on load, so the temp file can go */
-            actionFile.remove();
-            if (isActionLoaded) app.unloadAction(setName, "");
-        }
+        var valueHex = toActionHex(sourceText);
+        return '[ ' + (valueHex.length / 2) + ' ' + valueHex + ' ]';
     }
 
     // =========================================
@@ -266,7 +367,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 実行前にアクティブレイヤー名を取得して注入する（リネーム防止）/ Inject the active layer name so the action does not rename it */
         var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, activeLayer.name, TEMPLATE_ON_OPTIONS);
-        playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
+        if (!runTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME)) {
+            alert(getLabel("alert.actionFailed"));
+        }
     }
 
     makeTemplateLayer();

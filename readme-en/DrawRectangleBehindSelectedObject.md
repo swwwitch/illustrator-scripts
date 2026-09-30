@@ -43,7 +43,12 @@ Last updated: 2025-11-09
 - v1.6 (2025-11-09): Preview stabilization (debounce & cancel, before/afterRender, bump compat, immediate refresh fix)
 - v1.6.2 (2026-09-27): Code cleanup. Renamed the “Fill” panel to “Color” and “Group with Text” to “Group with Objects”; added colons to field labels and tooltips. Fixed the stroke width stepping twice per arrow key, values being re-rounded on keys other than the arrows, the temporary measuring layer being left behind, and the preview remaining after closing with Esc
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.7.1 (2026-09-28): Replaced the Link checkbox with a link icon. The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.7.2 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/DrawRectangleBehindSelectedObject.json). Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held). Clip groups are now measured by their mask
+- v1.7.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.7.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
 
 ### Script info
 
-- Version: v1.7.0
+- Version: v1.7.5

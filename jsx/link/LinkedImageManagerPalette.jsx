@@ -28,11 +28,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "LinkedImageManagerPalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
+var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManagerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManagerPalette.md"; /* README (English) */
@@ -56,10 +56,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
+    /**
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -271,34 +345,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         }
     };
 
-    // ドット区切りキー（例 'panel.sort'）で LABELS を辿る。見つからなければキー文字列を返す
-    function getLabel(key) {
-        var node = LABELS;
-        var parts = key.split(".");
-        for (var i = 0; i < parts.length; i++) {
-            if (node && typeof node === "object" && node.hasOwnProperty(parts[i])) {
-                node = node[parts[i]];
-            } else {
-                return key;
-            }
-        }
-        return (node && node[currentLanguage]) ? node[currentLanguage] : key;
-    }
-
-    function labelText(key) {
-        return getLabel(key) + (currentLanguage === 'ja' ? '：' : ':');
-    }
-
     // 数値＋単位をローカライズ付きで整形
     function withUnit(value, unitKey) {
-        return (currentLanguage === 'ja')
+        return (uiLang === 'ja')
             ? (value + getLabel(unitKey))
             : (value + " " + getLabel(unitKey));
     }
 
     // alert / status 用に「ラベル：値+単位」を 1 行で組み立てる
     function kvLine(labelKey, value, unitKey) {
-        var sep = (currentLanguage === 'ja' ? '：' : ': ');
+        var sep = (uiLang === 'ja' ? '：' : ': ');
         var valueText = unitKey ? withUnit(value, unitKey) : String(value);
         return getLabel(labelKey) + sep + valueText;
     }
@@ -763,6 +819,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         if (sep < 0) return { marker: res, body: "" };
         return { marker: res.substring(0, sep), body: res.substring(sep + 1) };
     }
+
+    // 一時アクション・ワーカー版（再利用パーツ） / Temporary action, worker version (reusable)
+
+    /**
+     * メインエンジンへ送る文字列を、呼び出し式に埋め込める引数リテラルにする（パレット側で使う）
+     * @param {string} sourceText - 送る文字列
+     * @returns {string} decodeURIComponent("…") の形の式
+     */
+    function buildTemporaryActionWorkerArg(sourceText) {
+        return 'decodeURIComponent("' + encodeURIComponent(String(sourceText)) + '")';
+    }
+
+    /**
+     * workerRunTemporaryAction の呼び出し式を組み立てる（パレット側で使う。評価結果は true / false）
+     * @param {string} actionSource - アクション定義のテキスト
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - 実行するアクション名
+     * @returns {string} メインエンジンで評価する呼び出し式
+     */
+    function buildTemporaryActionWorkerCall(actionSource, setName, actionName) {
+        return "workerRunTemporaryAction("
+            + buildTemporaryActionWorkerArg(actionSource) + ", "
+            + buildTemporaryActionWorkerArg(setName) + ", "
+            + buildTemporaryActionWorkerArg(actionName) + ")";
+    }
+
+    /* 送るワーカー関数の一覧（関数宣言は巻き上がるのでここで参照できる） / Worker functions to send (declarations are hoisted) */
+    var TEMPORARY_ACTION_WORKER_FUNCS = [
+        workerToActionHex,
+        workerBuildActionNameLines,
+        workerUnloadTemporaryActionSet,
+        workerLoadTemporaryActionSet,
+        workerRunTemporaryAction
+    ];
+
+    function workerToActionHex(sourceText) {
+        var utf8Text = unescape(encodeURIComponent(String(sourceText)));
+        var hexText = "";
+        for (var i = 0; i < utf8Text.length; i++) {
+            var hexByte = utf8Text.charCodeAt(i).toString(16);
+            hexText += (hexByte.length < 2 ? "0" : "") + hexByte;
+        }
+        return hexText;
+    }
+
+    function workerBuildActionNameLines(indent, nameText, fieldName) {
+        var nameHex = workerToActionHex(nameText);
+        return [
+            indent + "/" + (fieldName || "name") + " [ " + (nameHex.length / 2),
+            indent + String.fromCharCode(9) + nameHex,
+            indent + "]"
+        ];
+    }
+
+    function workerUnloadTemporaryActionSet(setName) {
+        try {
+            app.unloadAction(setName, "");
+        } catch (e) {
+        }
+    }
+
+    function workerLoadTemporaryActionSet(actionSource, setName) {
+        var actionFile = new File(Folder.temp + "/" + setName + "_" + new Date().getTime() + ".aia");
+        try {
+            actionFile.encoding = "UTF-8";
+            if (!actionFile.open("w")) throw new Error("cannot open " + actionFile.fsName);
+            actionFile.write(actionSource);
+            actionFile.close();
+            workerUnloadTemporaryActionSet(setName);
+            app.loadAction(actionFile);
+            return true;
+        } catch (e) {
+            $.writeln("workerLoadTemporaryActionSet: " + e);
+            return false;
+        } finally {
+            try { actionFile.close(); } catch (closeError) { }
+            try { actionFile.remove(); } catch (removeError) { }
+        }
+    }
+
+    function workerRunTemporaryAction(actionSource, setName, actionName) {
+        if (!workerLoadTemporaryActionSet(actionSource, setName)) return false;
+        try {
+            app.doScript(actionName, setName);
+            return true;
+        } catch (e) {
+            $.writeln("workerRunTemporaryAction: " + e);
+            return false;
+        } finally {
+            workerUnloadTemporaryActionSet(setName);
+        }
+    }
+
+    /* 区切りの文（直後のコメントが最後のワーカーに取り込まれるのを防ぐ） / Separator statement: keeps the comments below out of the last worker */
+    var TEMPORARY_ACTION_WORKER_END = true;
+
+    // 一時アクション・ワーカー版（再利用パーツ）ここまで / End of the reusable temporary action worker
 
     // =========================================
     // WORKER 関数（メインエンジンで実行）/ Worker functions (run in main engine)
@@ -1867,7 +2020,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         return {
             actionSetName: "LinkedImageManagerTempSet",
             actionName: "LinkedImageManagerPlace",
-            actionFilePath: "~/LinkedImageManagerTemp.aia",
             linksFolderName: "Links",
             exportResolution: 72
         };
@@ -1889,41 +2041,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         ];
     }
 
-    /* 文字列を UTF-8 バイト列へ */
-    function w_stringToUtf8Bytes(sourceText) {
-        var encodedText = encodeURIComponent(sourceText);
-        var byteList = [];
-        for (var i = 0; i < encodedText.length; i++) {
-            var currentChar = encodedText.charAt(i);
-            if (currentChar === "%") {
-                byteList.push(parseInt(encodedText.substr(i + 1, 2), 16));
-                i += 2;
-            } else {
-                byteList.push(currentChar.charCodeAt(0));
-            }
-        }
-        return byteList;
-    }
-
-    /* バイト列を 16 進文字列にし、記録された .aia と同じく 32 バイトごとに改行する */
-    function w_bytesToHexLines(byteList, indentText) {
-        var hexText = "";
-        for (var i = 0; i < byteList.length; i++) {
-            hexText += (byteList[i] < 16 ? "0" : "") + byteList[i].toString(16);
-        }
+    /* .aia のテキスト値（[ バイト数 16進 ]）を組み立てる。16進は記録された .aia と同じく 32 バイトごとに改行する */
+    function w_buildTextValue(sourceText, indentText) {
+        var hexText = workerToActionHex(sourceText);
+        if (hexText.length === 0) return "[ 0 ]";
         var lineList = [];
         for (var start = 0; start < hexText.length; start += 64) {
-            lineList.push(indentText + hexText.substr(start, 64));
+            lineList.push(indentText + "\t" + hexText.substr(start, 64));
         }
-        return lineList.join("\n");
-    }
-
-    /* .aia のテキスト値（[ バイト数 16進 ]）を組み立てる */
-    function w_buildTextValue(sourceText, indentText) {
-        var byteList = w_stringToUtf8Bytes(sourceText);
-        if (byteList.length === 0) return "[ 0 ]";
-        return "[ " + byteList.length + "\n"
-            + w_bytesToHexLines(byteList, indentText + "\t") + "\n"
+        return "[ " + (hexText.length / 2) + "\n"
+            + lineList.join("\n") + "\n"
             + indentText + "]";
     }
 
@@ -1969,24 +2096,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             + parameterText
             + "\t}\n"
             + "}\n";
-    }
-
-    /* 一時アクションを書き出して読み込み、実行後に必ず後片付けする */
-    function w_playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
-        var actionFile = new File(actionFilePath);
-        w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
-        try {
-            actionFile.lineFeed = "Unix";
-            if (!actionFile.open("w")) throw new Error("ACTION_FILE_FAILED");
-            actionFile.write(actionSource);
-            actionFile.close();
-            app.loadAction(actionFile);
-            app.doScript(actionName, setName, false);
-        } finally {
-            actionFile.close();
-            if (actionFile.exists) actionFile.remove();
-            w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
-        }
     }
 
     /* 選択できない理由コードを返す。選択できる場合は空文字（祖先のロック・非表示も見る）*/
@@ -2053,7 +2162,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var actionSource = w_buildActionSource(config.actionSetName, config.actionName, targetFile.fsName);
             /* ここから先はアクションが実行済みとして扱う */
             status.actionPlayed = true;
-            w_playTemporaryAction(actionSource, config.actionSetName, config.actionName, config.actionFilePath);
+            if (!workerLoadTemporaryActionSet(actionSource, config.actionSetName)) throw new Error("ACTION_FILE_FAILED");
+            try {
+                app.doScript(config.actionName, config.actionSetName, false);
+            } finally {
+                workerUnloadTemporaryActionSet(config.actionSetName);
+            }
             var newSelection = doc.selection;
             if (!newSelection || newSelection.length === 0 || newSelection[0].typename !== "PlacedItem") {
                 throw new Error("ACTION_RESULT_MISSING");
@@ -2480,8 +2594,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         w_findSelectedItemIndex, w_analyze, w_currentIndex, w_select, w_fitArtboard, w_openLinksPanel,
         w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster,
         w_findClippingPath, w_clipCoversItems, w_releaseEmbeddedGroup, w_embed,
-        w_unembedConfig, w_placeParameters, w_stringToUtf8Bytes, w_bytesToHexLines, w_buildTextValue,
-        w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction,
+        w_unembedConfig, w_placeParameters, w_buildTextValue,
+        w_buildParameterBlock, w_buildActionSource,
         w_unlockForSelection, w_restoreLocks, w_findSelectionBlocker,
         w_isSameArtItem, w_relinkByAction, w_isSameFile, w_resolveCollectDestination, w_getLinksFolder,
         w_collectLink, w_getEmbeddedSourceFile, w_getImageNameFromItem, w_getManifestFileNames,
@@ -2489,7 +2603,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         w_getAccumulatedRotation, w_getScaleAndRotation, w_getNonOverwritingFilePath,
         w_createExportDocument, w_exportDocumentAsPSD, w_exportEmbeddedImageAsPSD, w_unembed,
         w_probeDelete, w_del, w_docFolder, w_copyText
-    ];
+    ].concat(TEMPORARY_ACTION_WORKER_FUNCS);
 
     // =========================================
     // パレット側データ状態 / Palette-side data state
@@ -2556,7 +2670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             for (var i = 0; i < allPlacementEntries.length; i++) localizeEntry(allPlacementEntries[i]);
             for (var j = 0; j < uniqueFileEntries.length; j++) localizeEntry(uniqueFileEntries[j]);
             if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
-            else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+            else setStatus(labelValueText('status.loaded', withUnit(allPlacementEntries.length, 'label.items')));
             return true;
         } finally {
             isBusy = false;
@@ -2747,6 +2861,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         cancelBtn.onClick = function () { extdialog.close(0); };
         okBtn.onClick = function () { if (!referenceFolder) return; extdialog.close(1); };
 
+        prepareDialogWindow(extdialog, SCRIPT_NAME + "_changeExt");
         if (extdialog.show() !== 1) return null;
         var selected = findSelectedRadioSpec();
         if (!selected) return null;
@@ -2774,11 +2889,148 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         imageOnlyBtn.onClick = function () { deleteDialog.close(1); };
         withGroupBtn.onClick = function () { deleteDialog.close(2); };
 
+        prepareDialogWindow(deleteDialog, SCRIPT_NAME + "_clipGroupDelete");
         var dialogResult = deleteDialog.show();
         if (dialogResult === 1) return 'image';
         if (dialogResult === 2) return 'group';
         return null;
     }
+
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
     // =========================================
     // パレット構築 / Build palette
@@ -2853,7 +3105,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         setupPanel(optPanel, 6);
         var dedupCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.dedup'));
         dedupCheck.value = true;
-        dedupCheck.helpTip = (currentLanguage === 'ja')
+        dedupCheck.helpTip = (uiLang === 'ja')
             ? "ON：同じリンクファイルを1行にまとめます。\nOFF：配置ごとに個別表示します。"
             : "ON: Group same linked files into one row.\nOFF: Each placement is listed separately.";
         var countColCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.displayFileCount'));
@@ -2928,7 +3180,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 var abNum = allPlacementEntries[entryIdx].artboardNum;
                 if (abNum !== null) artboardsWithImages[abNum] = true;
             }
-            var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
+            var artboardSep = (uiLang === 'ja') ? '：' : ': ';
 
             suppressArtboardChange = true;
             try {
@@ -3452,20 +3704,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         embedRow.alignChildren = ["left", "center"];
 
         var embedBtn = embedRow.add("button", undefined, getLabel('button.embed'));
-        embedBtn.helpTip = (currentLanguage === 'ja')
+        embedBtn.helpTip = (uiLang === 'ja')
             ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
             : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
         embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
 
         var unembedBtn = embedRow.add("button", undefined, getLabel('button.unembed'));
-        unembedBtn.helpTip = (currentLanguage === 'ja')
+        unembedBtn.helpTip = (uiLang === 'ja')
             ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
             : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
         unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
 
         var collectAfterRelinkCheck = embedRow.add("checkbox", undefined, getLabel('checkbox.collectAfterRelink'));
         collectAfterRelinkCheck.value = true;
-        collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
+        collectAfterRelinkCheck.helpTip = (uiLang === 'ja')
             ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
             : "After unembedding, copy the linked file into the \"Links\" folder next to the document.";
 
@@ -3709,13 +3961,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             for (var i = 0; i < idxs.length; i++) pairs.push([idxs[i], newFile.fsName]);
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(getLabel('message.renameDone') + "：" + oldName + " → " + newName + "／" + kvLine('label.success', counts.success, 'label.items'));
+            setStatus(labelValueText('message.renameDone', oldName + " → " + newName) + "／" + kvLine('label.success', counts.success, 'label.items'));
         }
 
         function handleCopyFileName() {
             var name = selectedEntry.fileName || "";
             var res = parseWorkerResult(delegate("$.global.__LIM.copyText(" + jsString(name) + ")"));
-            if (res.marker === "OK") setStatus(getLabel('message.copyFileNameDone') + "：" + name);
+            if (res.marker === "OK") setStatus(labelValueText('message.copyFileNameDone', name));
             else setStatus(getLabel('message.copyFileNameFailed'));
         }
 
@@ -3863,7 +4115,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
         var reloadBtn = btnGroup.add("button", undefined, getLabel('button.reload'));
         reloadBtn.alignment = ["right", "center"];
-        reloadBtn.helpTip = (currentLanguage === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
+        reloadBtn.helpTip = (uiLang === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
         reloadBtn.onClick = guardAction(function () { refreshFromDoc(); });
 
         statusText = palette.add("statictext", undefined, "", { truncate: "middle" });
@@ -3871,7 +4123,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         // loadData が出した理由（未オープン／読み込み失敗）を優先し、無い場合だけ件数表示にフォールバック
         if (lastStatusMessage) statusText.text = lastStatusMessage;
         else if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
-        else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+        else setStatus(labelValueText('status.loaded', withUnit(allPlacementEntries.length, 'label.items')));
 
         // 実行前に選択していた PlacedItem があれば対応行を初期選択（カンバスは触らない）
         function applyInitialSelection() {

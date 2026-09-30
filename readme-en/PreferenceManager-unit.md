@@ -35,7 +35,11 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.2.2 (2026-09-19): Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
 - v1.2.3 (2026-09-27): Added tooltips to the unit dropdowns and corrected the "Print (Q)" tooltip to East Asian=H; English field labels now use a single half-width colon (fixed the doubled "Keyboard Increment::"); code cleanup
 - v1.3.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.3.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.3.2 (2026-09-28): The button row is now built with the shared part
+- v1.3.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 
-- Version: v1.2.3
+- Version: v1.3.3

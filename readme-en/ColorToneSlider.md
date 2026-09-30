@@ -44,6 +44,11 @@ https://note.com/dtp_tranist/n/n88e33648b19a
 
 ### Update History
 
+- v1.1.4 (2026-09-30) Fixed an error when running with characters selected by the Type tool
+- v1.1.3 (2026-09-29) Dialog opacity changed to 98%
+- v1.1.2 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v1.1.2 (2026-09-28) The button row is now built with the shared part
+- v1.1.1 (2026-09-28) The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.1 (2026-09-17) Added 10% snapping while dragging the slider with shift, removed "(R)" from the Reset label, revised the UI wording (title, slider end labels, Amount field, alerts), added tooltips, and reorganized internal naming and functions
 - v1.0 (2025-12-28) Initial release

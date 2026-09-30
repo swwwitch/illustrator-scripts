@@ -1,12 +1,13 @@
 #target illustrator
+#targetengine "PDFAIImporterEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメント上に配置します。
-各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。
+PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメントまたは新規ドキュメント上に配置します。
+各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。横長の見開きページは左右に分割できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md
@@ -16,8 +17,8 @@ https://note.com/dtp_tranist/n/n42595650216f
 
 ### Overview
 
-Imports a PDF/AI file over a given page range and places the pages in the current document.
-The pages can be laid out as one artboard each, or placed as objects without adding artboards.
+Imports a PDF/AI file over a given page range and places the pages in the current or a new document.
+The pages can be laid out as one artboard each, or placed as objects without adding artboards. Landscape spreads can be split left and right.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md
@@ -28,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImpor
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAIImporter";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md"; /* README (English) */
@@ -52,25 +53,104 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     // 自動列のときの最大行幅（pt）。これを超えると次行へ折り返す / Max row width for Auto columns (pt); wraps beyond this
     var MAX_AUTO_ROW_WIDTH = (220 / 2) * 72; // 7920 pt
 
+    /* 見開きと判定する横長比（幅 > 高さ × この値） / Aspect ratio that marks a page as a spread (width > height x this) */
+    var SPREAD_ASPECT_RATIO = 1.2;
+
+    /* 綴じ方向の判定で読むPDFの行数 / Number of PDF lines scanned for the binding direction */
+    var BINDING_SCAN_LINE_LIMIT = 200;
+
+    /* 新規ドキュメントのラスタライズ効果解像度（ppi） / Raster effects resolution of a new document (ppi) */
+    var NEW_DOCUMENT_RASTER_RESOLUTION = 300;
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * 現在の UI 言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     /* 日英ラベル定義 */
 
     var LABELS = {
         dialog: {
-            title: { ja: "PDF{slash}AI配置", en: "PDF{slash}AI Placement" },
-            pickFile: { ja: "PDF{slash}AIを選択してください", en: "Select a PDF{slash}AI" }
+            title: { ja: "PDF/AI配置", en: "PDF/AI Placement" },
+            pickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" }
         },
         panel: {
             source: { ja: "読み込みファイル", en: "Source File" },
@@ -78,6 +158,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             mode: { ja: "配置方法", en: "Placement Method" },
             placement: { ja: "レイアウト", en: "Layout" },
             option: { ja: "オプション", en: "Options" },
+            spread: { ja: "見開き", en: "Spreads" },
+            destination: { ja: "配置先", en: "Destination" },
             kei: { ja: "枠線", en: "Stroke" }
         },
         radio: {
@@ -87,10 +169,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             perArtboard: { ja: "アートボードごと", en: "Per Artboard" },
             ignoreArtboard: { ja: "アートボードを無視", en: "Place as Objects" },
             keiNone: { ja: "なし", en: "None" },
-            keiClipGroup: { ja: "枠線を追加", en: "Add stroke" }
+            keiClipGroup: { ja: "枠線を追加", en: "Add stroke" },
+            evenPageRight: { ja: "右", en: "Right" },
+            evenPageLeft: { ja: "左", en: "Left" },
+            destinationCurrent: { ja: "現在のドキュメント", en: "Current document" },
+            destinationNew: { ja: "新規ドキュメント", en: "New document" },
+            colorModeCMYK: { ja: "CMYK", en: "CMYK" },
+            colorModeRGB: { ja: "RGB", en: "RGB" }
         },
         checkbox: {
-            roundCorner: { ja: "角丸", en: "Round corners" }
+            roundCorner: { ja: "角丸", en: "Round corners" },
+            splitSpreads: { ja: "左右に分割", en: "Split left and right" }
+        },
+        dropdown: {
+            cropArt: { ja: "アート", en: "Art" },
+            cropCrop: { ja: "トリミング", en: "Crop" },
+            cropTrim: { ja: "仕上がり", en: "Trim" },
+            cropBleed: { ja: "裁ち落とし", en: "Bleed" }
         },
         label: {
             notSelected: { ja: "未指定", en: "Not selected" },
@@ -101,6 +196,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             columns: { ja: "列数", en: "Columns" },
             columnsAuto: { ja: "自動", en: "Auto" },
             rows: { ja: "行数", en: "Rows" },
+            cropMode: { ja: "トリミング", en: "Crop to" },
+            evenPage: { ja: "偶数ページ", en: "Even pages" },
+            colorMode: { ja: "カラーモード", en: "Color mode" },
             errorDetails: { ja: "詳細", en: "Details" }
         },
         button: {
@@ -121,15 +219,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
             source: { ja: "PDF または AI ファイルを選択（複数ページ対応）", en: "Choose a PDF or AI file (multi-page supported)" },
             customRange: { ja: "例: 1-10, 1,3,5", en: "e.g. 1-10, 1,3,5" },
-            totalPages: { ja: "配置されるページ数 {slash} 総ページ数", en: "Pages to place {slash} total pages" },
+            totalPages: { ja: "配置されるページ数 / 総ページ数", en: "Pages to place / total pages" },
             columns: { ja: "1 行あたりの列数。自動はカンバス右端で折り返し", en: "Columns per row; Auto wraps at the canvas edge" },
-            estimate: { ja: "配置に必要な行数（列数が自動のときは不定）", en: "Rows needed for the layout (unknown when Columns is Auto)" },
+            estimate: {
+                ja: "配置に必要な行数（列数が自動のとき、見開きを分割するときは不定）",
+                en: "Rows needed for the layout (unknown when Columns is Auto or spreads are split)"
+            },
             gapPerArtboard: { ja: "アートボードの間隔", en: "Artboard gap" },
             gapIgnoreArtboard: { ja: "配置するオブジェクトの間隔", en: "Placed object gap" },
             scale: { ja: "配置倍率（［アートボードを無視］のときのみ有効）", en: "Placement scale (only when ignoring artboards)" },
             perArtboard: { ja: "各ページをアートボードとして並べる（倍率 100%）", en: "Lay out each page as an artboard (100%)" },
             ignoreArtboard: { ja: "アートボードを追加せずオブジェクトとして配置", en: "Place as objects without adding artboards" },
-            roundCorner: { ja: "外接矩形の角を丸める", en: "Round the corners of the bounding rectangle" }
+            roundCorner: { ja: "外接矩形の角を丸める", en: "Round the corners of the bounding rectangle" },
+            cropMode: {
+                ja: "PDF のどのボックスを基準に配置するかを選びます。AI ファイルでは使いません",
+                en: "Which PDF box the pages are placed from. Not used for AI files"
+            },
+            splitSpreads: {
+                ja: "横長のページを見開きとみなし、左右2つに切り分けて並べます",
+                en: "Treats landscape pages as spreads and lays them out as two halves"
+            },
+            evenPage: {
+                ja: "見開きを分割したとき、偶数ページを置く側です。PDF の綴じ方向から自動で設定します",
+                en: "Which side the even pages go to when a spread is split. Detected from the PDF binding direction"
+            },
+            destinationCurrent: { ja: "現在のドキュメントに配置します", en: "Places into the current document" },
+            destinationNew: { ja: "新規ドキュメントを作り、そこに配置します", en: "Creates a new document and places into it" },
+            colorMode: {
+                ja: "作成する新規ドキュメントのカラーモードです。初期値は現在のドキュメントに合わせます",
+                en: "Color mode of the new document. Defaults to that of the current document"
+            }
         },
         alert: {
             needDoc: {
@@ -149,8 +268,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                 en: "Image link not found."
             },
             pageCountFail: {
-                ja: "リンクされたPDF{slash}AIファイルのページ数を取得できませんでした。",
-                en: "Could not determine the page count of the linked PDF{slash}AI file."
+                ja: "リンクされたPDF/AIファイルのページ数を取得できませんでした。",
+                en: "Could not determine the page count of the linked PDF/AI file."
             },
             pickPdfAi: {
                 ja: "PDFまたはAIファイルを選択してください。",
@@ -162,26 +281,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             }
         }
     };
-
-    /**
-     * ラベル（ja/en のリーフ）を現在の言語に解決し、{slash} を / に置換する
-     * @param {object} entry - ja / en を持つラベル定義
-     * @returns {string} 表示する文言
-     */
-    function getLabel(entry) {
-        if (!entry) return "";
-        var text = entry[currentLanguage] || entry.en || entry.ja || "";
-        return String(text).replace(/\{slash\}/g, "/");
-    }
-
-    /**
-     * 項目名にコロンを付与する（日本語は全角、英語は半角）
-     * @param {object} entry - ja / en を持つラベル定義
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(entry) {
-        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
-    }
 
     // =========================================
     // 単位 / Unit
@@ -257,33 +356,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -299,22 +391,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -682,9 +759,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     /**
      * 例外オブジェクトから表示用の詳細文字列を取り出す
@@ -716,6 +791,204 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             alert(msg);
         } catch (err) { }
     }
+
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     // ========================
     // 配置処理ヘルパー
@@ -803,12 +1076,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     }
 
     /**
+     * 見開き（横長）のページを左右の半ページ2つに分ける（DOM は参照しない）
+     * 偶数ページが右なら右半分、左なら左半分を先に並べる
+     * @param {Array} measured - placementMeasurePages() の戻り値
+     * @param {boolean} evenPageOnRight - 偶数ページを右に置くなら true
+     * @returns {Array} 半ページには half（"left" / "right"）が付いた計測結果の配列
+     */
+    function placementSplitSpreads(measured, evenPageOnRight) {
+        var pieces = [];
+        for (var i = 0; i < measured.length; i++) {
+            var m = measured[i];
+            if (!m || m.width <= m.height * SPREAD_ASPECT_RATIO) {
+                pieces.push(m);
+                continue;
+            }
+            var halfWidth = m.width / 2;
+            var firstHalf = evenPageOnRight ? "right" : "left";
+            var secondHalf = evenPageOnRight ? "left" : "right";
+            pieces.push({ page: m.page, half: firstHalf, width: halfWidth, height: m.height });
+            pieces.push({ page: m.page, half: secondHalf, width: halfWidth, height: m.height });
+        }
+        return pieces;
+    }
+
+    /**
      * 計測結果から各ページの配置位置と全体サイズを求める（DOM は参照しない）
      * @param {Array} measured - placementMeasurePages() の戻り値
      * @param {number} scaleFactor - 配置倍率（1 = 100%）
      * @param {number} gap - ページ間の間隔（pt）
      * @param {number} colsPerRow - 1 行あたりの列数。0 は自動
-     * @returns {object} slots（配置位置の配列）と width / height を持つオブジェクト
+     * @returns {object} slots（配置位置の配列。半ページは half 付き）と width / height を持つオブジェクト
      */
     function placementBuildLayout(measured, scaleFactor, gap, colsPerRow) {
         var slots = [];
@@ -840,7 +1137,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                 colCount = 0;
             }
 
-            slots.push({ page: m.page, x: nextX, y: topY, width: pageW, height: pageH });
+            slots.push({ page: m.page, half: m.half || null, x: nextX, y: topY, width: pageW, height: pageH });
 
             if (nextX + pageW > maxRight) maxRight = nextX + pageW;
             if (topY - pageH < minBottom) minBottom = topY - pageH;
@@ -1013,23 +1310,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         }
     }
 
+    /**
+     * 配置先の新規ドキュメントを作成してアクティブにする。サイズは最初に並べるページに合わせる
+     * @param {DocumentColorSpace} colorSpace - カラーモード
+     * @param {object} layout - placementBuildLayout() の戻り値
+     * @param {Document} fallbackDoc - 並べるページが無いときにサイズを借りるドキュメント
+     * @returns {Document} 作成したドキュメント
+     */
+    function createOutputDocument(colorSpace, layout, fallbackDoc) {
+        var firstSlot = null;
+        for (var i = 0; i < layout.slots.length && !firstSlot; i++) {
+            firstSlot = layout.slots[i];
+        }
+        var docWidth = firstSlot ? firstSlot.width : fallbackDoc.width;
+        var docHeight = firstSlot ? firstSlot.height : fallbackDoc.height;
+
+        var outputDoc = app.documents.add(colorSpace, docWidth, docHeight);
+
+        /* ラスタライズ効果解像度の設定に失敗しても配置は続ける / Keep placing even if the raster resolution cannot be set */
+        try {
+            var rasterSettings = outputDoc.rasterEffectSettings;
+            rasterSettings.resolution = NEW_DOCUMENT_RASTER_RESOLUTION;
+            outputDoc.rasterEffectSettings = rasterSettings;
+        } catch (e) { }
+
+        app.activeDocument = outputDoc;
+        return outputDoc;
+    }
+
     // =========================================
     // ケイ処理ヘルパー
     // =========================================
 
     /**
-     * 配置アイテムの外接矩形でクリッピングマスクグループを作成する
+     * 配置アイテムの外接矩形（または指定した矩形）でクリッピングマスクグループを作成する
      * @param {PlacedItem} placedItem - 対象の配置アイテム
+     * @param {number[]} [clipRect] - マスクの矩形 [left, top, right, bottom]。省略時は配置アイテムの外接矩形
      * @returns {GroupItem} 作成したクリッピンググループ
      */
-    function keiCreateClippingMaskGroup(placedItem) {
+    function keiCreateClippingMaskGroup(placedItem, clipRect) {
         var targetLayer = placedItem.layer;
-        var rect = targetLayer.pathItems.rectangle(
-            placedItem.top,
-            placedItem.left,
-            placedItem.width,
-            placedItem.height
-        );
+        var rect = clipRect
+            ? targetLayer.pathItems.rectangle(clipRect[1], clipRect[0], clipRect[2] - clipRect[0], clipRect[1] - clipRect[3])
+            : targetLayer.pathItems.rectangle(placedItem.top, placedItem.left, placedItem.width, placedItem.height);
         rect.stroked = false;
         rect.filled = false;
 
@@ -1060,7 +1383,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     /**
      * 配置アイテムにケイ処理を適用する
      * @param {Document} targetDoc - 対象ドキュメント
-     * @param {PlacedItem} placedItem - 対象の配置アイテム
+     * @param {PageItem} placedItem - 対象の配置アイテム。見開きの半ページは切り抜き済みのクリップグループ
      * @param {object} keiOpts - mode / roundCorners / roundRadius を持つ設定
      * @returns {PageItem} 処理後のアイテム。処理しない場合は元のアイテム
      */
@@ -1068,7 +1391,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         if (!keiOpts || !placedItem) return placedItem;
 
         if (keiOpts.mode === 'clipGroup') {
-            var group = keiCreateClippingMaskGroup(placedItem);
+            /* 半ページはすでにクリップグループなので包み直さない / A half page is already a clip group */
+            var isClipGroup = placedItem.typename === "GroupItem" && placedItem.clipped;
+            var group = isClipGroup ? placedItem : keiCreateClippingMaskGroup(placedItem);
 
             if (keiOpts.roundCorners && keiOpts.roundRadius > 0) {
                 keiApplyRoundCornersLiveEffect(group, keiOpts.roundRadius);
@@ -1089,8 +1414,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     // 効くのは plugin/PDFImport/CropTo。値は 0=アート / 1=トリミング（CropBox）/ 2=仕上がり（TrimBox）/ 3=裁ち落とし / 4=メディア（実測）
     // =========================================
 
-    // 配置時に使うトリミング。「トリミング」＝ CropBox 固定
-    // Crop box used when placing; fixed to CropBox
+    // トリミングの初期選択。ドロップダウンの番号が CropTo の値と一致する（1 = トリミング / CropBox）。AI ファイルは常にこの値
+    // Default crop; the dropdown index equals the CropTo value (1 = Crop / CropBox). AI files always use it
     var DEFAULT_CROP_MODE = 1;
 
     // PDF 配置時の crop プリファレンスキー（環境差を吸収するため複数試行）/ Crop preference keys (multiple keys tried for version differences)
@@ -1159,6 +1484,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      */
     function isPdfLikeFile(f) {
         return /\.(?:pdf|ai)$/i.test(String((f && f.name) || ""));
+    }
+
+    /**
+     * 拡張子から PDF ファイルかどうかを判定する（トリミングは PDF でだけ選べる）
+     * @param {File} f - 対象ファイル
+     * @returns {boolean} PDF なら true
+     */
+    function isPdfFile(f) {
+        return /\.pdf$/i.test(String((f && f.name) || ""));
+    }
+
+    /**
+     * 綴じ方向を判定する。先頭の BINDING_SCAN_LINE_LIMIT 行に /Direction /R2L があれば右綴じとみなす
+     * @param {File} f - 対象ファイル
+     * @returns {boolean} 右綴じ（偶数ページが右）なら true。読めないときは false
+     */
+    function isRightBoundFile(f) {
+        var isRightBound = false;
+        try {
+            f.open('r');
+            for (var lineIndex = 0; lineIndex < BINDING_SCAN_LINE_LIMIT && !f.eof; lineIndex++) {
+                if (/\/Direction\s*\/R2L/.test(f.readln())) {
+                    isRightBound = true;
+                    break;
+                }
+            }
+        } catch (e) {
+            isRightBound = false;
+        } finally {
+            try { f.close(); } catch (err) { }
+        }
+        return isRightBound;
     }
 
     /**
@@ -1455,6 +1812,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         rbIgnoreArtboard.helpTip = getLabel(LABELS.tooltip.ignoreArtboard);
         rbPerArtboard.value = true;
 
+        var destinationPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.destination));
+        setupPanel(destinationPanel);
+        var destinationGroup = destinationPanel.add("group");
+        setupGroup(destinationGroup, "column");
+        var rbDestinationCurrent = destinationGroup.add("radiobutton", undefined, getLabel(LABELS.radio.destinationCurrent));
+        rbDestinationCurrent.helpTip = getLabel(LABELS.tooltip.destinationCurrent);
+        var rbDestinationNew = destinationGroup.add("radiobutton", undefined, getLabel(LABELS.radio.destinationNew));
+        rbDestinationNew.helpTip = getLabel(LABELS.tooltip.destinationNew);
+        rbDestinationCurrent.value = true;
+
+        var colorModeGroup = destinationPanel.add("group");
+        setupGroup(colorModeGroup, "row");
+        var stColorModeLabel = colorModeGroup.add("statictext", undefined, labelText(LABELS.label.colorMode));
+        var rbColorCMYK = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeCMYK));
+        var rbColorRGB = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeRGB));
+        stColorModeLabel.helpTip = rbColorCMYK.helpTip = rbColorRGB.helpTip = getLabel(LABELS.tooltip.colorMode);
+        /* 現在のドキュメントのカラーモードを初期値にする / Default to the current document's color mode */
+        if (doc.documentColorSpace === DocumentColorSpace.RGB) rbColorRGB.value = true;
+        else rbColorCMYK.value = true;
+
         var layoutPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.placement));
         setupPanel(layoutPanel);
 
@@ -1530,6 +1907,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         stScaleLabel.helpTip = getLabel(LABELS.tooltip.scale);
         var stScaleUnit = scaleGroup.add("statictext", undefined, getLabel(LABELS.label.scaleUnit));
 
+        var cropGroup = optionPanel.add("group");
+        setupGroup(cropGroup, "row");
+        var stCropLabel = cropGroup.add("statictext", undefined, labelText(LABELS.label.cropMode));
+        stCropLabel.justify = "right";
+        /* 並びは CropTo の値の順（0 アート / 1 トリミング / 2 仕上がり / 3 裁ち落とし） / Ordered by CropTo value */
+        var ddCropMode = cropGroup.add("dropdownlist", undefined, [
+            getLabel(LABELS.dropdown.cropArt),
+            getLabel(LABELS.dropdown.cropCrop),
+            getLabel(LABELS.dropdown.cropTrim),
+            getLabel(LABELS.dropdown.cropBleed)
+        ]);
+        ddCropMode.selection = DEFAULT_CROP_MODE;
+        stCropLabel.helpTip = ddCropMode.helpTip = getLabel(LABELS.tooltip.cropMode);
+
+        var spreadPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.spread));
+        setupPanel(spreadPanel);
+        var cbSplitSpreads = spreadPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.splitSpreads));
+        cbSplitSpreads.helpTip = getLabel(LABELS.tooltip.splitSpreads);
+        var evenPageGroup = spreadPanel.add("group");
+        setupGroup(evenPageGroup, "row");
+        var stEvenPageLabel = evenPageGroup.add("statictext", undefined, labelText(LABELS.label.evenPage));
+        var rbEvenPageRight = evenPageGroup.add("radiobutton", undefined, getLabel(LABELS.radio.evenPageRight));
+        var rbEvenPageLeft = evenPageGroup.add("radiobutton", undefined, getLabel(LABELS.radio.evenPageLeft));
+        rbEvenPageRight.value = true;
+        stEvenPageLabel.helpTip = rbEvenPageRight.helpTip = rbEvenPageLeft.helpTip = getLabel(LABELS.tooltip.evenPage);
+
         var keiPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.kei));
         setupPanel(keiPanel);
         var keiModeGroup = keiPanel.add("group");
@@ -1550,27 +1953,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         etRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
 
         // === ボタンエリア（左スペーサー／右キャンセル・OK）/ Button area (spacer left, cancel+ok right)
-        var btnRowGroup = win.add("group");
-        btnRowGroup.alignment = ["fill", "top"];
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.margins = [0, 5, 0, 0]; // ボタンエリア上マージン +5 / extra top margin
-        btnRowGroup.spacing = 0;
-
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "center"];
-        spacer.minimumSize.width = 0;
-        spacer.maximumSize.height = 0;
-
-        // 右グループ（キャンセル・OKボタン）/ Right group (Cancel/OK buttons)
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.orientation = "row";
-        btnRightGroup.alignment = ["right", "center"];
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.spacing = 10;
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOk = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        btnOk.alignment = ["right", "center"];
+        var buttonRow = addButtonRow(win);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOk = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         // ------------------------
         // UI状態の更新
@@ -1584,12 +1969,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             var enabled = !!sourceFile;
             pagesPanel.enabled = enabled;
             methodPanel.enabled = enabled;
+            destinationPanel.enabled = enabled;
             layoutPanel.enabled = enabled;
             optionPanel.enabled = enabled;
+            spreadPanel.enabled = enabled;
             keiPanel.enabled = enabled;
+            updateCropEnabledState();
             /* ∧∨のディム表示を切り替える / update stepper dimming */
             redrawSteppersIn(layoutPanel);
             redrawSteppersIn(optionPanel);
+        }
+
+        /**
+         * トリミングの有効／無効を切り替える（PDF のときだけ選べる）
+         * @returns {void}
+         */
+        function updateCropEnabledState() {
+            var enabled = isPdfFile(sourceFile);
+            stCropLabel.enabled = enabled;
+            ddCropMode.enabled = enabled;
+        }
+
+        /**
+         * 偶数ページの位置の有効／無効を切り替える（見開きを分割するときだけ選べる）
+         * @returns {void}
+         */
+        function updateEvenPageEnabledState() {
+            evenPageGroup.enabled = cbSplitSpreads.value;
+        }
+
+        /**
+         * カラーモードの有効／無効を切り替える（新規ドキュメントのときだけ選べる）
+         * @returns {void}
+         */
+        function updateColorModeEnabledState() {
+            colorModeGroup.enabled = rbDestinationNew.value;
         }
 
         /**
@@ -1643,13 +2057,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
 
         /**
          * 行数の表示を更新する
-         * 列数が自動のときは折り返し位置がページ幅次第で確定しないため、空欄にしてディム表示にする
+         * 列数が自動のときは折り返し位置がページ幅次第で、見開きを分割するときは並ぶ数が計測するまで分からないため、空欄にしてディム表示にする
          * @returns {void}
          */
         function updateRowsInfo() {
             var colsPerRow = getColsPerRow();
             var placedPages = getPlacedPageCount(getDetectedTotalPages());
-            var known = colsPerRow > 0;
+            var known = colsPerRow > 0 && !cbSplitSpreads.value;
 
             stRowsLabel.enabled = known;
             stRowsValue.enabled = known;
@@ -1738,6 +2152,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             sourceFile = f || null;
             updatePanelEnabledState();
 
+            /* 綴じ方向から偶数ページの位置を設定する / Set the even-page side from the binding direction */
+            if (sourceFile) {
+                if (isRightBoundFile(sourceFile)) rbEvenPageRight.value = true;
+                else rbEvenPageLeft.value = true;
+            }
+
             var info = getFileDisplayInfo(f);
             stSourceName.text = info.name;
             stSourceName.helpTip = info.path;
@@ -1801,6 +2221,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                 roundCorners: cbRoundCorner.value,
                 roundRadius: radius * getUnitInfo().pointsPerUnit
             };
+        }
+
+        /**
+         * UI で指定したトリミングを CropTo の値で取得する。AI ファイルは DEFAULT_CROP_MODE
+         * @returns {number} CropTo の値
+         */
+        function getCropModeFromUI() {
+            if (!isPdfFile(sourceFile) || !ddCropMode.selection) return DEFAULT_CROP_MODE;
+            return ddCropMode.selection.index;
         }
 
         /**
@@ -1879,15 +2308,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         // ------------------------
 
         /**
-         * 指定ページを配置する。アートボードごと／無視のどちらにも対応
-         * @param {Array} targetPages - 対象ページ番号の配列
-         * @param {object} keiOpts - ケイ処理の設定。null で処理なし
-         * @param {boolean} perArtboard - true でページごとにアートボードを作成
-         * @param {number} scale - 配置倍率（%）。perArtboard が true のときは無視
+         * 指定ページを配置する。アートボードごと／無視、現在／新規ドキュメント、見開きの分割に対応
+         * @param {object} request - OK で控えた配置指示
+         * @param {Array} request.pages - 対象ページ番号の配列
+         * @param {object} request.keiOpts - ケイ処理の設定。null で処理なし
+         * @param {boolean} request.perArtboard - true でページごとにアートボードを作成
+         * @param {number} request.scale - 配置倍率（%）。perArtboard が true のときは無視
+         * @param {number} request.cropMode - トリミング（CropTo の値）
+         * @param {boolean} request.splitSpreads - 見開きを左右に分割するなら true
+         * @param {boolean} request.evenPageOnRight - 偶数ページを右に置くなら true
+         * @param {boolean} request.placeInNewDoc - 新規ドキュメントに配置するなら true
+         * @param {DocumentColorSpace} request.colorSpace - 新規ドキュメントのカラーモード
          * @returns {void}
          */
-        function placePages(targetPages, keiOpts, perArtboard, scale) {
-            var cropMode = DEFAULT_CROP_MODE;
+        function placePages(request) {
+            var targetPages = request.pages;
+            var keiOpts = request.keiOpts;
+            var perArtboard = request.perArtboard;
+            var scale = request.scale;
+            var cropMode = request.cropMode;
             var scaleFactor = perArtboard ? 1 : (scale / 100);
             var gap = getArtboardGap();
             var colsPerRow = getColsPerRow();
@@ -1895,7 +2334,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             // crop 環境設定は計測で書き換わるため、計測より前に退避する
             // Snapshot the crop preferences before measuring, which overwrites them
             var cropSnapshot = SC_snapshotPdfCropPreference();
-            var activeIdx = doc.artboards.getActiveArtboardIndex();
+            var targetDoc = doc;
             var abCount = 0;
             var skippedCount = 0;
             var completed = false;
@@ -1906,8 +2345,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                 // 全ページを一度だけ計測し、レイアウト全体をカンバス中心へ揃える
                 // Measure every page once, then center the whole layout on the canvas
                 var measured = placementMeasurePages(doc, sourceFile, targetPages, cropMode);
+                if (request.splitSpreads) measured = placementSplitSpreads(measured, request.evenPageOnRight);
                 var layout = placementBuildLayout(measured, scaleFactor, gap, colsPerRow);
-                var canvas = getLargestCanvasBounds(doc);
+                if (request.placeInNewDoc) targetDoc = createOutputDocument(request.colorSpace, layout, doc);
+                var activeIdx = targetDoc.artboards.getActiveArtboardIndex();
+                var canvas = getLargestCanvasBounds(targetDoc);
                 var startX = (canvas[0] + canvas[2]) / 2 - layout.width / 2;
                 var baseTop = (canvas[1] + canvas[3]) / 2 + layout.height / 2;
 
@@ -1920,18 +2362,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                             var left = startX + slot.x;
                             var top = baseTop + slot.y;
 
+                            var slotRect = [left, top, left + slot.width, top - slot.height];
+
                             if (perArtboard) {
-                                abCount = placementUseOrAddArtboard(
-                                    doc,
-                                    activeIdx,
-                                    [left, top, left + slot.width, top - slot.height],
-                                    abCount
-                                );
+                                abCount = placementUseOrAddArtboard(targetDoc, activeIdx, slotRect, abCount);
                             }
 
-                            var item = placementPlacePage(doc, sourceFile, slot.page, [left, top], cropMode, perArtboard ? 100 : scale);
+                            /* 右半分は見開き全体を半ページ分左へずらして置き、枠の外をマスクで隠す
+                               The right half is placed one half-width to the left, and the rest is masked out */
+                            var placeLeft = (slot.half === "right") ? left - slot.width : left;
+                            var item = placementPlacePage(targetDoc, sourceFile, slot.page, [placeLeft, top], cropMode, perArtboard ? 100 : scale);
+                            if (slot.half) item = keiCreateClippingMaskGroup(item, slotRect);
                             if (keiOpts) {
-                                try { item = keiApplyToPlacedItem(doc, item, keiOpts); } catch (e) { }
+                                try { item = keiApplyToPlacedItem(targetDoc, item, keiOpts); } catch (e) { }
                             }
                             placedItems.push(item);
                         } catch (e) {
@@ -1952,14 +2395,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             if (!completed) return;
 
             if (perArtboard) {
-                placementFitBoundsInView(doc, placementGetArtboardsBounds(doc));
+                placementFitBoundsInView(targetDoc, placementGetArtboardsBounds(targetDoc));
             } else {
                 // 配置したオブジェクトを選択して表示を合わせる / Select the placed objects and fit the view
-                try { doc.selection = null; } catch (e) { }
+                try { targetDoc.selection = null; } catch (e) { }
                 for (var j = 0; j < placedItems.length; j++) {
                     try { placedItems[j].selected = true; } catch (e) { }
                 }
-                placementFitBoundsInView(doc, placementGetItemsVisibleBounds(placedItems));
+                placementFitBoundsInView(targetDoc, placementGetItemsVisibleBounds(placedItems));
             }
 
             if (skippedCount > 0) SC_alert(LABELS.alert.someSkipped);
@@ -2034,6 +2477,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             };
             rbIgnoreArtboard.onClick = rbPerArtboard.onClick;
 
+            cbSplitSpreads.onClick = function () {
+                updateEvenPageEnabledState();
+                updateRowsInfo();
+            };
+
+            rbDestinationCurrent.onClick = updateColorModeEnabledState;
+            rbDestinationNew.onClick = updateColorModeEnabledState;
+
             rbKeiNone.onClick = updateKeiRoundEnabled;
             rbKeiClipGroup.onClick = updateKeiRoundEnabled;
             cbRoundCorner.onClick = updateKeiRoundEnabled;
@@ -2055,7 +2506,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                     pages: getTargetPagesFromUI(),
                     keiOpts: getKeiOptionsFromUI(),
                     perArtboard: perArtboard,
-                    scale: perArtboard ? 100 : getScaleFromUI()
+                    scale: perArtboard ? 100 : getScaleFromUI(),
+                    cropMode: getCropModeFromUI(),
+                    splitSpreads: cbSplitSpreads.value,
+                    evenPageOnRight: rbEvenPageRight.value,
+                    placeInNewDoc: rbDestinationNew.value,
+                    colorSpace: rbColorRGB.value ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK
                 };
                 win.close(1);
             };
@@ -2081,6 +2537,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             updateTotalPagesLabel();
             updateScaleEnabledState();
             updateGapHelpTip();
+            updateEvenPageEnabledState();
+            updateColorModeEnabledState();
             updateRowsInfo();
 
             stRoundCornerUnit.text = getUnitInfo().label;
@@ -2089,16 +2547,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         bindDialogEvents();
         initializeDialogState();
 
+        centerButtonRowIfRightOnly(buttonRow);
+        prepareDialogWindow(win, SCRIPT_NAME);
         if (win.show() !== 1 || !placementRequest) return;
 
         // モーダル表示中は executeMenuCommand が無視されることがあり、閉じ処理も詰まりやすい
         // Run after the dialog closes: executeMenuCommand can be ignored while a modal dialog is up
-        placePages(
-            placementRequest.pages,
-            placementRequest.keiOpts,
-            placementRequest.perArtboard,
-            placementRequest.scale
-        );
+        placePages(placementRequest);
 
     }
 

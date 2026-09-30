@@ -28,7 +28,11 @@
 - v1.6.0 (2026-04-27): Separated the UI structure, reorganized unit handling, added safe-operation helpers, cleaned up naming, and added a dedicated output layer
 - v1.6.5 (2026-04-27): Improved the UI structure (added a post-processing panel, reorganized options, improved labels) and refined the output layer design
 - v1.7.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.7.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.7.2 (2026-09-28): The button row is now built with the shared part
+- v1.7.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 
-- Version: v1.7.0
+- Version: v1.7.3

@@ -295,6 +295,10 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.9 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.5.8 (2026-09-29): Dialog opacity changed to 98%
+- v1.5.7 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in English, the status line now uses a half-width colon followed by a space instead of a full-width colon; temporary actions on the BridgeTalk side now use the shared part
+- v1.5.6 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.5.5 (2026-09-26) Renamed the file from `LinkedImageManager.jsx` to `LinkedImageManagerPalette.jsx`.
 - v1.5.3 (2026-08-02): Added reverse selection sync so the list follows the image selected on the canvas (synced when the palette becomes active); fixed an embedded PSD staying grouped with its raster locked; fixed embedding applying the parent group's name to the raster as well; moved Embed, Unembed, and Collect after relinking directly below the file action buttons, and tied Collect after relinking's enabled state to Unembed
 - v1.5.2 (2026-08-02): Fixed the assembled worker source being corrupted, which made every delegated call fail; fixed the palette not shrinking in its compact empty state; fixed the reason for a failed load not being shown; unified panel margins and spacing into shared settings

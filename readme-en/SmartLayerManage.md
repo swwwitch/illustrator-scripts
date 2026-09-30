@@ -37,3 +37,7 @@
 - v1.0.2 (20250703): Improved auto selection detection and empty layer deletion logic
 - v1.0.3 (20250704): Added "All (Force)" mode (merge all layers)
 - v1.0.6 (20260927): Dialog title changed to "Move Objects to Layer"; the All / All (Force) tooltips now describe what they actually do; "Text Only" renamed to "All Text"; all messages localized
+- v1.0.7 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.8 (20260928): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.0.9 (20260929): Dialog opacity changed to 98%
+- v1.0.10 (20260930): Fixed an error when running with characters selected by the Type tool

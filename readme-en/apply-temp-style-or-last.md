@@ -26,3 +26,4 @@ Applies the existing graphic style named "temp_style" to the selected objects.
 ### Update History
 
 - v1.1.0
+- v1.1.1 (2026-09-19): Tidied up internal names (no change in behavior)

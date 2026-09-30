@@ -112,6 +112,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.0.6 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in Japanese, the error text now uses a full-width colon; temporary actions on the BridgeTalk side now use the shared part
 - v2.0.4 (2026-09-02): Fixed a missing redraw after restore when Keep outline data is off, which left the deleted outlines visible on screen. The active layer is now always set back to the restore target (a locked `outlined_text` layer could stay selected when Restore text to a separate layer was off). Stashed outlines are no longer wrapped in a group of their own. The list display order is now driven by the note field table. Japanese-only attributes are no longer read at all in English locales. The busy flag is reset in a `finally` block
 - v2.0.1 (2026-07-31): Moved the overview into the README, tidied the basic info block, updated the article URL
 - v2.0.0 (2026-07-05): Japanese labels for kinsoku and mojikumi in the listbox, reordered display, `outlined_text` layer reuse, new title, localized listbox item names and values, split Outline and Restore Text panels, added the Keep outline data and Restore text to a separate layer options, helpTips on panels and listbox, unified note wording, and Japanese-only attributes skipped in English locales

@@ -27,6 +27,11 @@ Merges several text objects into a single area text, or splits one back out.
 
 ### Update History
 
+- v1.2.5 (2026-09-30): Button rows with only right-side buttons are now centered
+- v1.2.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v1.2.3 (2026-09-29): Dialog opacity changed to 98%
+- v1.2.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure. The button row is now built with the shared part
+- v1.2.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v1.2.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.1.0 (2026-09-27): Works on text inside groups; a single unthreaded area text runs Area Text Height only; revised UI wording; number field steps with the arrow keys
 - v1.0 (2026-03-04)

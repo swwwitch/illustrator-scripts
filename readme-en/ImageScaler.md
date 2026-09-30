@@ -37,7 +37,11 @@
 - v1.2 (20250816) : Immediate application of changes (OK closes only), localization support
 - v1.3.2 (20260927) : Fixed typing other than the arrow keys re-rounding the value. Added a colon to the field label and removed the extra space in the dialog title
 - v1.4.0 (20260927) : Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
+- v1.4.1 (20260928) : The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.4.2 (20260928) : The button row is now built with the shared part
+- v1.4.3 (20260929) : Dialog opacity changed to 98%
+- v1.4.4 (20260930) : Fixed an error when running with characters selected by the Type tool
 
 ### Script info
 
-- Version: v1.3.2
+- Version: v1.4.3

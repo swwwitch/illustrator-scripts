@@ -23,7 +23,7 @@ Folders and file names are shown in two side-by-side lists, so you reach the scr
 - Words that appear often in the filtered results become one-click buttons, so you can drill down step by step
 - Option double-click reveals a script in the Finder; double-clicking a folder opens it
 - Nested subfolders (such as `artboard/backup`) can be excluded in one click
-- The target folder and keyword settings are remembered in Illustrator's preferences, so they survive a restart
+- The target folder and keyword settings are remembered, so they survive a restart
 
 ### Usage
 
@@ -72,7 +72,7 @@ text align       2 files  (no buttons left)
 | Occurrences | Minimum number of files a word must appear in | 4 |
 | Keywords | Maximum number of buttons | 10 |
 
-The number fields step to the next whole number with the stepper buttons on their left or the arrow keys, or to the next multiple of ten with shift. Settings are stored in Illustrator's preferences and survive a restart.
+The number fields step to the next whole number with the stepper buttons on their left or the arrow keys, or to the next multiple of ten with shift. Settings survive a restart.
 
 **Include subdirectories**
 
@@ -111,7 +111,7 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 - Option double-click reveals the file with the Automator app at `/Applications/RevealInFinder.app` when it is installed. Without it, or outside macOS, it just opens the enclosing folder
 - If this launcher itself lives inside the target folder, it is left out of the list
 - File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
-- The target folder and keyword settings live in Illustrator's own preferences (`AiScriptLauncher.*`). The only other file the script writes is the session file described in the next bullet
+- The target folder and keyword settings are stored in `Folder.userData/illustrator-scripts/AiScriptLauncher.json` (the former Illustrator preferences `AiScriptLauncher.*` are read once). The only other file the script writes is the session file described in the next bullet
 - While **Remember the search** is on, the keyword, the “Include subdirectories” and “Full path” states and the list selections carry over until Illustrator quits. They are stored in `AiScriptLauncher.session.txt` in the temp folder, tagged with the creation time of the session lock file Illustrator writes at launch, so a restart changes that time and brings back the defaults (macOS only)
 - On launch the script turns `ShowExternalJSXWarning` off, so running scripts from outside the Scripts folder does not raise a warning every time. This preference applies to Illustrator as a whole
 
@@ -134,6 +134,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.5.1 (2026-09-28): The button row is now built with the shared part. Settings are now saved through the shared part (stored in Folder.userData/illustrator-scripts/AiScriptLauncher.json)
 - v1.5.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.4.3 (2026-09-27): “Palette” now always leads the keyword buttons whenever a matching file exists
 - v1.4.2 (2026-08-31): Added “Remember the search”. While it is on, the keyword and the list selections carry over between runs within an Illustrator session

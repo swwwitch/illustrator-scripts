@@ -36,3 +36,8 @@
 
 - v1.2.0 (20260401): Initial release
 - v1.2.1 (20260831): Restore the preference, active layer, and layer visibility after the run; make the rectangle tolerance check effective and reject degenerate zero-area paths; stop accumulating duplicate layers on the All Artboards run
+- v1.2.3 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.2.4 (20260928): The button row is now built with the shared part
+- v1.2.5 (20260929): Dialog opacity changed to 98%
+- v1.2.6 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.2.7 (20260930): Button rows with only right-side buttons are now centered

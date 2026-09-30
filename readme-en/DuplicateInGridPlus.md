@@ -25,7 +25,7 @@ Spacing is entered in the current ruler unit (the unit set in Preferences) and c
   - Row: a single row of the horizontal count (vertical is always 1; vertical direction and vertical gap are disabled)
   - Column: a single column of the vertical count (horizontal is always 1; horizontal direction and horizontal gap are disabled)
   - Random: scattered around the center of the original object
-- **Count**: horizontal and vertical entered separately. With Link on, vertical follows horizontal. A slider (1–20) drives the same value, and preview updates are throttled while dragging to reduce flicker
+- **Count**: horizontal and vertical entered separately. With Link on (the link icon to the right of the fields), vertical follows horizontal. A slider (1–20) drives the same value, and preview updates are throttled while dragging to reduce flicker
 - **Gap**: horizontal and vertical in the current ruler unit. With Link on, vertical follows horizontal
 - **Direction**: right / left and up / down (disabled depending on the repeat method)
 - **Fill**
@@ -95,6 +95,14 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
+- v2.1.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
+- v2.1.3 (2026-09-29): Dialog opacity changed to 98%
+- v2.1.2 (2026-09-28): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
+- v2.1.2 (2026-09-28): The button row is now built with the shared part
+- v2.1.2 (2026-09-28): Clip groups are now measured by their mask (compound-path and text masks included)
+- v2.1.1 (2026-09-28): Replaced the Link checkbox with a link icon
+- v2.1.1 (2026-09-28): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
 - v2.1.0 (2026-09-27): Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v2.0.2 (2026-08-15): Multi-selection grouping now happens after OK, so cancelling leaves the document untouched. The count slider is disabled while a Fill option is on. Fixed: returning to Grid from Row/Column/Random left Link off and the slider dead; toggling the gap Link did not recalculate the fill counts; the slider truncated its value and landed one below the drag position; preview cleanup could abort partway and leave duplicates behind; grouping stopped at the first item that refused to move; and the per-method direction states were overwritten by the Fill checkboxes. Preview updates no longer repaint twice, which reduces flicker. Switching from Column to Random now carries the count over
 - v2.0.1 (2026-02-26): Repeat methods (grid / row / column / random), fill options (to artboard edge / full artboard), the count slider, and the zoom control

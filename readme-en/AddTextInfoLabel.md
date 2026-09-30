@@ -32,3 +32,9 @@
 - v1.0.0 (20250420): Initial version
 - v1.0.1 (20250423): Added item disable control and spacing settings
 - v1.0.2 (20250424): Fixed incorrect leading (%) detection for accurate display
+- v1.0.4 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.5 (20260928): Font size and leading are now converted to the units set in Preferences (the pt value used to be shown with the mm/Q label). Inches and picas now shown as "in" and "pica"
+- v1.0.5 (20260928): The button row is now built with the shared part
+- v1.0.6 (20260929): Dialog opacity changed to 98%
+- v1.0.7 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.0.8 (20260930): Button rows with only right-side buttons are now centered

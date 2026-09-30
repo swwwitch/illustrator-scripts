@@ -112,3 +112,8 @@ When on, red frames (no fill, 10 pt stroke, 50% opacity) show where the groups w
 - v0.0.5 (20240610): Improved z-order retention, re-execution support, and threshold restore
 - v0.0.6 (20260919): Added tooltips to the radio buttons and the slider
 - v1.0.7 (20260922): Merged SmartAutoGroup.jsx and SmartAutoGroup-yoko.jsx. Implemented Vertical (column) and Horizontal (row) grouping, and added Split at gaps and Within each artboard. Added a count and preview frames, toggled by Show preview, for the groups to be created. Arranged the grouping radio buttons in two rows and two columns. Fixed clipping stopping partway, and grouping reversing the stacking order and moving groups to the active layer. Removed the square mask code, which the UI could not reach
+- v1.0.8 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.0.9 (20260928): The button row is now built with the shared part
+- v1.0.9 (20260928): Clip groups are now measured by their mask (affects clustering and the preview frames)
+- v1.0.10 (20260929): Dialog opacity changed to 98%
+- v1.0.11 (20260930): Fixed an error when running with characters selected by the Type tool

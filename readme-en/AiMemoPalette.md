@@ -83,12 +83,13 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 
 ### Change log
 
+- v1.1.6 (2026-09-28) In Japanese, the footer of saved text files (source and save time) now uses a full-width colon.
 - v1.1.5 (2026-09-26) Renamed the file from `AiMemoPallete.jsx` to `AiMemoPalette.jsx`.
 - v1.1.3 (2026-08-16) : Copying to the clipboard now goes through redraw + menu command for reliability, loading no longer removes characters being edited with the Type tool, internal structure tidied up
 
 ### Script info
 
-- Version: v1.1.5
+- Version: v1.1.6
 - First release: 2026-06-15
-- Last updated: 2026-09-26
+- Last updated: 2026-09-28
 - Article: https://note.com/dtp_tranist/n/n41e91e4b1a09

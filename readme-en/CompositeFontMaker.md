@@ -122,3 +122,11 @@ https://note.com/dtp_tranist/n/ne0f78458ddd3
   - Added Also create in InDesign, which creates the same composite font in the running InDesign
 - v1.2.0 (20260928):
   - Code cleanup (dialog and initial values split into functions, shared range parsing, fewer try blocks); no change in behavior
+- v1.2.1 (20260928):
+  - The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%
+- v1.2.2 (20260928):
+  - English field labels now end in ":" without a trailing space
+  - The button row is now built with the shared part
+- v1.2.3 (20260929): Dialog opacity changed to 98%
+- v1.2.4 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.2.5 (20260930): Button rows with only right-side buttons are now centered
