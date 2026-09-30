@@ -172,6 +172,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択オブジェクトをシンボルとして登録し、ドキュメント内の一致するオブジェクトをそのインスタンスに置き換え](readme-ja/SymbolizeAndReplace.md)
 - [選択したオブジェクトをシンボルとして登録](readme-ja/SymbolizeEach.md)
 - [アクティブドキュメントの全アートボードを、名前ごとのルールで PNG 書き出しします](readme-ja/export-Event.md)
+- [ダイアログで選んだアートボードを PNG・JPEG・PDF で書き出します](readme-ja/ArtboardExporter.md)
 - [アクティブなアートボードを PNG24 形式で書き出します](readme-ja/export200.md)
 
 

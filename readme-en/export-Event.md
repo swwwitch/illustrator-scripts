@@ -10,7 +10,8 @@
 
 ### Overview
 
-Exports every artboard of the active document to PNG, following per-name rules.
+Exports the artboards chosen in a dialog to PNG, following per-name rules.
+The list shows each artboard's scale and background (transparent or white). Every artboard starts selected.
 
 ### Export rules
 
@@ -23,8 +24,9 @@ Edit `buildExportJobs()` to add or change rules. Returning an empty array exclud
 
 ### Update History
 
+- v1.1.0 (2026-09-30) Choose the artboards to export in a dialog; the list shows the scale and background
 - v1.0.5 (2026-09-27) Alerts and the progress window now switch between Japanese and English
 
 ### Script info
 
-- Version: v1.0.5
+- Version: v1.1.0

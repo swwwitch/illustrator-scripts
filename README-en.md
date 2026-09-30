@@ -164,6 +164,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Converts the selected object into a symbol and replace…](readme-en/SymbolizeAndReplace.md)
 - [Register selected objects as symbols](readme-en/SymbolizeEach.md)
 - [Exports every artboard of the active document to PNG,…](readme-en/export-Event.md)
+- [Exports the artboards chosen in a dialog as PNG, JPEG or PDF](readme-en/ArtboardExporter.md)
 - [Exports the active artboard as PNG24](readme-en/export200.md)
 
 
