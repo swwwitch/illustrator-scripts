@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストのツリー記号（├─・└─・│）をパスの罫線に変換し、字下げと名前・説明のあいだの空きをタブにします。
+選択したテキストのツリー記号（├─・└─・│ や tree コマンドの ├── など）をパスの罫線に変換し、字下げと名前・説明のあいだの空きをタブにします。
 罫線とタブストップの位置は、プレビューを見ながら調整できます。
 
 詳細は README を参照してください。
@@ -14,8 +14,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TreeSymbol
 
 ### Overview
 
-Converts the tree symbols (├─, └─, │) in the selected text into stroked paths, and turns indents and the gaps
-between names and descriptions into tabs. The line and tab stop positions are adjusted with a live preview.
+Converts the tree symbols (├─, └─, │, the ├── from the tree command and so on) in the selected text into stroked paths,
+and turns indents and the gaps between names and descriptions into tabs. The line and tab stop positions are adjusted with a live preview.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TreeSymbolToStroke.md
@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TreeSymbol
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TreeSymbolToStroke";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -1802,15 +1802,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* 角の記号（├ は縦線が下まで続く、└ は横線で止まる） / corner symbols (├ continues down, └ stops at the arm) */
-    var CORNER_SYMBOLS = { "├": "tee", "└": "elbow" };
-    /* 角の記号に続けて1組にする横線。値が true のものは字形が文字枠の両端まで届く罫線素片
-       Horizontal bars paired with a corner; true means a box-drawing glyph that spans the whole cell */
-    var HORIZONTAL_BARS = { "─": true, "━": true, "ー": false };
+    var CORNER_SYMBOLS = { "├": "tee", "└": "elbow", "┣": "tee", "┗": "elbow" };
+    /* 角の記号に続けて1組にする横線（字形が文字枠の両端まで届く罫線素片）。長音の「ー」は文字として残すので入れない
+       Horizontal bars paired with a corner (box-drawing glyphs that span the whole cell). The long vowel ー stays as text */
+    var HORIZONTAL_BARS = { "─": true, "━": true };
     /* 縦線の記号 / vertical bar symbols */
     var VERTICAL_BARS = { "│": true, "┃": true };
 
     /**
-     * 文字列からツリー記号の位置を拾う（├─・└─ は2文字で1個、│ は1文字で1個）
+     * 文字列からツリー記号の位置を拾う（├─・└─ は角と続く横線をまとめて1個（tree コマンドの ├── も1個）、│ は1文字で1個）
      * @param {string} textContents - テキストフレームの contents
      * @returns {Object[]} { index, kind（"tee" / "elbow" / "vertical"）, length } の配列（前から順）
      */
@@ -1819,9 +1819,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < textContents.length; i++) {
             var currentChar = textContents.charAt(i);
             var cornerKind = CORNER_SYMBOLS[currentChar];
-            if (cornerKind && HORIZONTAL_BARS.hasOwnProperty(textContents.charAt(i + 1))) {
-                symbols.push({ index: i, kind: cornerKind, length: 2 });
-                i++;
+            var barCount = 0;
+            if (cornerKind) {
+                while (HORIZONTAL_BARS.hasOwnProperty(textContents.charAt(i + 1 + barCount))) barCount++;
+            }
+            if (barCount > 0) {
+                symbols.push({ index: i, kind: cornerKind, length: 1 + barCount });
+                i += barCount;
             } else if (VERTICAL_BARS[currentChar]) {
                 symbols.push({ index: i, kind: "vertical", length: 1 });
             }
@@ -1923,20 +1927,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return null;
         }
 
-        var glyphItems = [];
-        collectOutlinedGlyphs(outlinedGroup, glyphItems);
-        var glyphCharIndices = listGlyphCharIndices(textFrame.contents);
-        /* 字形と文字の数が合わなければ対応が取れない（合字など） / counts must match to pair them up (ligatures break it) */
-        var boundsByIndex = null;
-        if (glyphItems.length === glyphCharIndices.length) {
+        /* 測る途中で例外になっても、アウトラインは必ず消す / always remove the outlines, even when measuring throws */
+        try {
+            var glyphItems = [];
+            collectOutlinedGlyphs(outlinedGroup, glyphItems);
+            var glyphCharIndices = listGlyphCharIndices(textFrame.contents);
+            /* 字形と文字の数が合わなければ対応が取れない（合字など） / counts must match to pair them up (ligatures break it) */
+            if (glyphItems.length !== glyphCharIndices.length) return null;
             if (isGlyphOrderReversed(glyphItems)) glyphItems.reverse();
-            boundsByIndex = {};
+            var boundsByIndex = {};
             for (var i = 0; i < glyphCharIndices.length; i++) {
                 if (wantedIndices[glyphCharIndices[i]]) boundsByIndex[glyphCharIndices[i]] = glyphItems[i].geometricBounds;
             }
+            return boundsByIndex;
+        } finally {
+            outlinedGroup.remove();
         }
-        outlinedGroup.remove();
-        return boundsByIndex;
     }
 
     // =========================================
@@ -1967,18 +1973,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return [[[centerX, glyphTop], [centerX, continuedBottom]]];
         }
 
-        /* 横線の字形が文字枠の両端まで届くなら、その幅と中央の高さを使う
-           when the bar glyph spans the cell, take the cell width and arm height from it */
+        /* 横線の字形は文字枠の両端まで届くので、その幅と中央の高さを使う。横線が続くときは最後の横線の右端まで
+           the bar glyph spans the cell, so take the cell width and arm height from it; the arm runs to the last bar */
+        var barCount = symbol.length - 1;
         var barBounds = boundsByIndex[symbol.index + 1];
-        var barChar = symbol.barChar;
+        var lastBarBounds = boundsByIndex[symbol.index + barCount];
         var cellWidth, lineRight, armY;
-        if (barBounds && HORIZONTAL_BARS[barChar]) {
+        if (barBounds && lastBarBounds) {
             cellWidth = barBounds[2] - barBounds[0];
-            lineRight = barBounds[2];
+            lineRight = lastBarBounds[2];
             armY = (barBounds[1] + barBounds[3]) / 2;
         } else {
             cellWidth = cellMetrics.cellWidth;
-            lineRight = glyphRight + cellWidth;
+            lineRight = glyphRight + cellWidth * barCount;
             armY = (symbol.kind === "tee") ? (glyphTop + glyphBottom) / 2 : glyphBottom;
         }
         /* 名前を深さごとにそろえて右へ動かした分だけ、横線を伸ばす / extend the arm to follow a name moved to its depth's position */
@@ -2223,7 +2230,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function findSpaceRuns(textContents) {
         var spaceRuns = [];
-        var runPattern = /[  ]{2,}/g;
+        var runPattern = /[ \u00A0]{2,}/g;
         var match;
         while ((match = runPattern.exec(textContents)) !== null) {
             var runStart = match.index;
@@ -2618,7 +2625,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var i;
         for (i = 0; i < symbols.length; i++) {
             wantedIndices[symbols[i].index] = true;
-            if (symbols[i].length === 2) wantedIndices[symbols[i].index + 1] = true;
+            /* 最初と最後の横線（1本なら同じ文字） / the first and last bars (the same character when there is one) */
+            if (symbols[i].length >= 2) {
+                wantedIndices[symbols[i].index + 1] = true;
+                wantedIndices[symbols[i].index + symbols[i].length - 1] = true;
+            }
         }
         for (i = 0; i < framePlan.kernedSymbols.length; i++) {
             if (framePlan.kernedSymbols[i].anchorIndex >= 0) wantedIndices[framePlan.kernedSymbols[i].anchorIndex] = true;
@@ -2840,10 +2851,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 書き換える前に、罫線の形と位置合わせに要る情報を控える（横線の文字・1文字の幅と行送り・位置を保つ字形の左端）
+     * 書き換える前に、罫線の形と位置合わせに要る情報を控える（1文字の幅と行送り・位置を保つ字形の左端）
      * @param {TextFrame} textFrame - 対象のテキストフレーム
      * @param {string} textContents - 書き換える前の contents
-     * @param {Object[]} symbols - findTreeSymbols() の戻り値。barChar / cellMetrics を足す
+     * @param {Object[]} symbols - findTreeSymbols() の戻り値。cellMetrics を足す
      * @param {Object} framePlan - planFrameEdits() の戻り値。カーニングで保つ記号に anchorLeft を足す
      * @param {Object} boundsByIndex - measureGlyphBounds() の戻り値
      * @returns {void}
@@ -2851,7 +2862,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function rememberGlyphInfo(textFrame, textContents, symbols, framePlan, boundsByIndex) {
         var i;
         for (i = 0; i < symbols.length; i++) {
-            symbols[i].barChar = textContents.charAt(symbols[i].index + 1);
             symbols[i].cellMetrics = readCellMetrics(textFrame.characters[symbols[i].index]);
         }
         for (i = 0; i < framePlan.kernedSymbols.length; i++) {
@@ -2905,11 +2915,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {TextFrame[]} textFrames - 対象のテキストフレーム
      * @param {Object} conversionSettings - strokeWidthPt / strokeColor / roundCap / leadingPt / convertIndents / convertSpaceRuns /
      *     tabStopOverrides / stemOverrides
+     * @param {PageItem[]} [createdItems] - 罫線のグループを作ったらすぐここに足す（途中で例外になっても片付けられるように）
      * @returns {Object} symbolCount / indentCount / spaceRunCount / failedFrameCount（位置を測れなかったテキスト）/
      *     levelPositions（深さのキー → タブストップの位置 pt）/ stemPositions（列のキー → 縦罫の位置 pt）/
      *     lineGroup（作った罫線のグループ。無ければ null）
      */
-    function convertTextFrames(doc, textFrames, conversionSettings) {
+    function convertTextFrames(doc, textFrames, conversionSettings, createdItems) {
         /* 角の形状は線端に連動させる（丸型 → ラウンド、なし → マイター） / the join follows the cap */
         var lineStyle = {
             strokeWidth: conversionSettings.strokeWidthPt,
@@ -2927,6 +2938,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!conversionResult.lineGroup) {
                 conversionResult.lineGroup = doc.groupItems.add();
                 conversionResult.lineGroup.name = getLabel("fallbackName.lineGroup");
+                if (createdItems) createdItems.push(conversionResult.lineGroup);
             }
             return conversionResult.lineGroup;
         }
@@ -3193,9 +3205,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < textFrames.length; i++) previewFrames.push(textFrames[i].duplicate());
             for (i = 0; i < textFrames.length; i++) textFrames[i].hidden = true;
             isShowing = true;
-            var conversionResult = convertTextFrames(doc, previewFrames, conversionSettings);
+            /* 変換の前に控え、途中で例外になっても複製と罫線を片付けて元を表示に戻す
+               record the items before converting so a failure still cleans them up and shows the originals again */
             previewItems = previewFrames;
-            if (conversionResult.lineGroup) previewItems.push(conversionResult.lineGroup);
+            var conversionResult;
+            try {
+                conversionResult = convertTextFrames(doc, previewFrames, conversionSettings, previewItems);
+            } catch (e) {
+                clear();
+                throw e;
+            }
             app.redraw();
             return conversionResult;
         }
@@ -3847,7 +3866,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
         var doc = app.activeDocument;
-        var textFrames = collectSelectionTextFrames(doc.selection);
+        /* 空のテキストは変換するものが無く、行送りの初期値も読めないので外す / drop empty text: nothing to convert, no leading to read */
+        var selectedFrames = collectSelectionTextFrames(doc.selection);
+        var textFrames = [];
+        for (var i = 0; i < selectedFrames.length; i++) {
+            if (selectedFrames[i].contents !== "") textFrames.push(selectedFrames[i]);
+        }
         if (textFrames.length === 0) {
             alert(getLabel("alert.noTextFrame"));
             return;

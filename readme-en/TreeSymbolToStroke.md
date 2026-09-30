@@ -10,12 +10,14 @@
 
 ### Overview
 
-Converts the tree symbols (├─, └─, │) in the selected text into stroked paths, and turns indents and the gaps
+Converts the tree symbols (├─, └─, │, the ├── from the tree command and so on) in the selected text into stroked paths, and turns indents and the gaps
 between names and descriptions into tabs. The line and tab stop positions are adjusted with a live preview.
+
+<img alt="The Tree Symbols to Lines dialog" src="../png/ss-1020-918-144-20261001-044120.png" width="50%" />
 
 ### Features
 
-- Converts ├─, └─ and │ (including the heavy ┃ and ━, and the long vowel mark ー) into stroked paths
+- Converts ├─, └─ and │ (including the heavy ┣, ┗, ┃ and ━, and the ├── from the tree command) into stroked paths
 - Deletes the symbols from the text without moving the names
 - Turns indents into tabs, with one tab stop per level
 - Turns two or more spaces between a name and its description into a tab and lines up the descriptions
@@ -52,7 +54,8 @@ The lines are created as a group named "Tree Lines" on the current layer.
 
 ### Notes
 
-- Works on horizontal text.
+- Works on horizontal text. Empty text is skipped.
+- A corner (├, └, ┣, ┗) becomes a line only when a bar (─, ━) follows it. The long vowel mark ー is not a bar and stays as text.
 - The tab stops of converted paragraphs are replaced by the ones the script sets.
 - Text whose glyph count does not match its characters (ligatures and the like) cannot be measured and is skipped; the count is reported at the end.
 - With large text, redrawing the preview after a change can take a while.
@@ -60,3 +63,4 @@ The lines are created as a group named "Tree Lines" on the current layer.
 ### Update History
 
 - v1.0.0 (2026-10-01) Initial release
+- v1.0.1 (2026-10-01) The long vowel mark ー is no longer treated as a line and stays as text. Supports the heavy corners ┣ and ┗ and runs of bars such as ├── (tree command output). Empty text is now skipped

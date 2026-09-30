@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CirclePath
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CirclePathTextRepeat";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-12";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -62,6 +62,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
     var MIN_FONT_SIZE        = 0.1;      /* 文字サイズの下限（pt）/ minimum font size (pt) */
     var MAX_FONT_SIZE        = 1296;     /* 文字サイズの上限（pt）/ maximum font size (pt) */
+    var MIN_SEPARATOR_SCALE  = 1;        /* 水平・垂直比率の下限（%）/ minimum horizontal/vertical scale (%) */
     var MEASURE_FRAME_OFFSET = -100000;  /* 計測用フレームを置く画面外の座標 / off-canvas position of the measurement frame */
 
     // =========================================
@@ -442,12 +443,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
                 en: "Temporarily previews the result while keeping the original objects until you click OK."
             },
             arrowKeys: {
-                ja: "↑↓キーで増減できます（Shift+↑↓で10単位、Option+↑↓で0.1単位）。",
-                en: "Step with the Up/Down keys (Shift for 10, Option for 0.1)."
+                ja: "↑↓キーで増減できます（Shift+↑↓で10の倍数へ、Option+↑↓で0.1ずつ）。",
+                en: "Step with the Up/Down keys (Shift to snap to 10s, Option by 0.1)."
             },
             arrowKeysInteger: {
-                ja: "↑↓キーで増減できます（Shift+↑↓で10単位）。",
-                en: "Step with the Up/Down keys (Shift for 10)."
+                ja: "↑↓キーで増減できます（Shift+↑↓で10の倍数へ）。",
+                en: "Step with the Up/Down keys (Shift to snap to 10s)."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -1056,6 +1057,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     // =========================================
 
     /**
+     * パスの周長を返す。円以外の形でも合うよう PathItem.length を使い、読めなければ楕円とみなして近似する
+     * @param {PathItem} targetPath - 対象のパス
+     * @returns {number} 周長（pt）
+     */
+    function getPathPerimeter(targetPath) {
+        var pathLength = NaN;
+        try {
+            pathLength = targetPath.length;
+        } catch (e) { }
+        return (pathLength > 0) ? pathLength : getEllipsePerimeter(targetPath);
+    }
+
+    /**
      * 円・楕円のおおよその周長を返す（Ramanujan 近似）
      * @param {PathItem} ellipsePath - 対象のパス
      * @returns {number} 周長（pt）
@@ -1069,21 +1083,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         var ramanujanH = Math.pow(radiusX - radiusY, 2) / Math.pow(radiusX + radiusY, 2);
         return Math.PI * (radiusX + radiusY) *
             (1 + (3 * ramanujanH) / (10 + Math.sqrt(4 - 3 * ramanujanH)));
-    }
-
-    /**
-     * 指定点を中心にアイテムを回転する
-     * @param {PageItem} targetItem - 対象のアイテム
-     * @param {number} rotationAngle - 回転角度（度）
-     * @param {number} centerX - 回転中心のX座標
-     * @param {number} centerY - 回転中心のY座標
-     * @returns {void}
-     */
-    function rotateAroundCenter(targetItem, rotationAngle, centerX, centerY) {
-        var rotationMatrix = app.getRotationMatrix(rotationAngle);
-        targetItem.translate(-centerX, -centerY);
-        targetItem.transform(rotationMatrix);
-        targetItem.translate(centerX, centerY);
     }
 
     // =========================================
@@ -1212,8 +1211,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
                 measureFrame = activeDoc.textFrames.add();
                 measureFrame.top = MEASURE_FRAME_OFFSET;
                 measureFrame.left = MEASURE_FRAME_OFFSET;
-                /* 生成を確定し、プレビューの app.undo() で消えないようにする / Commit the creation so the preview's app.undo() cannot remove it */
-                app.redraw();
             }
             return measureFrame;
         }
@@ -1389,52 +1386,60 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         var measuredText = repeatJob.textMeasurer.measure(buildRepeatedContent(repeatJob, repeatSettings).text);
         if (measuredText.width <= 0) return measuredText.fontSize;
 
-        var perimeter = getEllipsePerimeter(repeatJob.circlePath);
+        var perimeter = getPathPerimeter(repeatJob.circlePath);
         var correctionRatio = repeatSettings.correctionPercent / 100;
         return clampFontSize(measuredText.fontSize * ((perimeter * correctionRatio) / measuredText.width));
     }
 
     /**
-     * パス上文字を作成する（計測・redraw は含めない＝1 undo グループにするため）
+     * パス上文字を作成する（計測・redraw は含めない）。途中で失敗したら作りかけを消して例外を投げ直す
      * @param {RepeatJob} repeatJob - 処理対象
      * @param {RepeatSettings} repeatSettings - 現在の設定
      * @param {number|null} fontSize - 適用する文字サイズ（pt）、null ならフィット OFF
-     * @param {boolean} isPreview - プレビューとして作成するか
      * @returns {TextFrame} 作成したパス上文字
      */
-    function createPathTypeText(repeatJob, repeatSettings, fontSize, isPreview) {
-        var circlePath = repeatJob.circlePath;
+    function createPathTypeText(repeatJob, repeatSettings, fontSize) {
         var repeatedContent = buildRepeatedContent(repeatJob, repeatSettings);
 
-        var pathTypeFrame = repeatJob.activeDoc.textFrames.pathText(circlePath.duplicate());
-        pathTypeFrame.contents = repeatedContent.text;
-        copySourceAttributes(repeatJob.sourceTextFrame, pathTypeFrame);
-
-        /* 事前計算したフィットサイズを適用（null はフィット OFF）/ Apply the precomputed fit size (null means fitting is off) */
-        if (fontSize !== null) {
-            pathTypeFrame.textRange.characterAttributes.size = fontSize;
-        }
-
-        /* 区切り文字（スペース以外）のスケール・ベースラインを適用 / Apply scale and baseline to the separator's non-space characters */
-        if (repeatSettings.separatorScale !== 100 || repeatSettings.baselineShiftPt !== 0) {
-            applySeparatorStyle(pathTypeFrame, repeatedContent.separatorInfo, repeatJob.originalText.length, repeatSettings.repeatCount,
-                repeatSettings.separatorScale, repeatSettings.baselineShiftPt);
-        }
-
-        /* 円の中心を基準に回転 / Rotate around the circle center */
+        /* 複製は元の hidden を引き継ぐので、プレビュー中（元を隠している間）でも表示にする / The duplicate inherits hidden, so show it even while the original is hidden for the preview */
+        var circleCopy = repeatJob.circlePath.duplicate();
+        circleCopy.hidden = false;
+        /* 円を回すと文字の始点が動く。rotate() は既定でパス自身の中心、つまり円の中心で回る / Rotating the circle moves the text start; rotate() turns it about its own center, i.e. the circle center */
         if (repeatSettings.rotationAngle !== 0) {
-            var pathBounds = circlePath.geometricBounds;
-            rotateAroundCenter(pathTypeFrame, repeatSettings.rotationAngle,
-                (pathBounds[0] + pathBounds[2]) / 2, (pathBounds[1] + pathBounds[3]) / 2);
+            circleCopy.rotate(repeatSettings.rotationAngle);
         }
 
-        /* プレビュー時は元のテキスト・円を一時的に隠す（undo で復帰）/ Hide the originals during preview (restored by undo) */
-        if (isPreview) {
-            repeatJob.sourceTextFrame.hidden = true;
-            circlePath.hidden = true;
-        }
+        var pathTypeFrame = repeatJob.activeDoc.textFrames.pathText(circleCopy);
+        try {
+            pathTypeFrame.contents = repeatedContent.text;
+            copySourceAttributes(repeatJob.sourceTextFrame, pathTypeFrame);
 
+            /* 事前計算したフィットサイズを適用（null はフィット OFF）/ Apply the precomputed fit size (null means fitting is off) */
+            if (fontSize !== null) {
+                pathTypeFrame.textRange.characterAttributes.size = fontSize;
+            }
+
+            /* 区切り文字（スペース以外）のスケール・ベースラインを適用 / Apply scale and baseline to the separator's non-space characters */
+            if (repeatSettings.separatorScale !== 100 || repeatSettings.baselineShiftPt !== 0) {
+                applySeparatorStyle(pathTypeFrame, repeatedContent.separatorInfo, repeatJob.originalText.length, repeatSettings.repeatCount,
+                    repeatSettings.separatorScale, repeatSettings.baselineShiftPt);
+            }
+        } catch (e) {
+            pathTypeFrame.remove();
+            throw e;
+        }
         return pathTypeFrame;
+    }
+
+    /**
+     * 元のテキストと円の表示・非表示を切り替える（プレビュー中は隠す）
+     * @param {RepeatJob} repeatJob - 処理対象
+     * @param {boolean} isHidden - 隠すなら true
+     * @returns {void}
+     */
+    function setOriginalsHidden(repeatJob, isHidden) {
+        repeatJob.sourceTextFrame.hidden = isHidden;
+        repeatJob.circlePath.hidden = isHidden;
     }
 
     // =========================================
@@ -1524,7 +1529,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
 
         var repeatPanel = addPanel(repeatDialog, "panel.repeat");
         var repeatCountInput = addNumberField(rowLabels, repeatPanel, "fieldLabel.repeatCount", DEFAULT_REPEAT_COUNT, COUNT_FIELD_CHARS, "tooltip.repeatCount", "", { min: 1, integer: true });
-        var rotationInput = addNumberField(rowLabels, repeatPanel, "fieldLabel.rotation", DEFAULT_ROTATION, COUNT_FIELD_CHARS, "tooltip.rotation", "°");
+        var rotationInput = addNumberField(rowLabels, repeatPanel, "fieldLabel.rotation", DEFAULT_ROTATION, VALUE_FIELD_CHARS, "tooltip.rotation", "°");
 
         var separatorPanel = addPanel(repeatDialog, "panel.separator");
 
@@ -1554,7 +1559,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         separatorCharRadio.value = true;
 
         var spaceCountInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.spaceCount", DEFAULT_SPACE_COUNT, VALUE_FIELD_CHARS, "tooltip.spaceCount", "", { min: 1, integer: true });
-        var scaleInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.scale", DEFAULT_SEPARATOR_SCALE, VALUE_FIELD_CHARS, "tooltip.scale", "%", { min: 0 });
+        var scaleInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.scale", DEFAULT_SEPARATOR_SCALE, VALUE_FIELD_CHARS, "tooltip.scale", "%", { min: MIN_SEPARATOR_SCALE });
         /* 単位表記は環境設定のテキスト単位に従う / The unit label follows the preferences text unit */
         var baselineInput = addNumberField(rowLabels, separatorPanel, "fieldLabel.baseline", DEFAULT_BASELINE_SHIFT, VALUE_FIELD_CHARS, "tooltip.baseline", textUnitLabel);
 
@@ -1637,7 +1642,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     // =========================================
 
     /**
-     * 未適用のクリーンな状態から1回だけ生成し、元のテキストと円を削除して生成結果を選択する
+     * プレビューを片付けた状態から1回だけ生成し、元のテキストと円を削除して生成結果を選択する
      * @param {RepeatJob} repeatJob - 処理対象
      * @param {RepeatSettings} repeatSettings - 検証済みの設定
      * @returns {void}
@@ -1646,7 +1651,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
         var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
         repeatJob.textMeasurer.dispose();   /* 計測フレームを片付けてから確定 / Clean up the measurement frame before committing */
 
-        var resultTextFrame = createPathTypeText(repeatJob, repeatSettings, fontSize, false);
+        var resultTextFrame = createPathTypeText(repeatJob, repeatSettings, fontSize);
         repeatJob.sourceTextFrame.remove();
         repeatJob.circlePath.remove();
 
@@ -1656,7 +1661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     }
 
     /**
-     * 計測フレームを片付け、元のテキストと円を選択し直す（プレビューは undo 済み）
+     * 計測フレームを片付け、元のテキストと円を選択し直す（プレビューは片付け済み）
      * @param {RepeatJob} repeatJob - 処理対象
      * @returns {void}
      */
@@ -1682,46 +1687,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
     function bindDialogEvents(dialogControls, repeatJob, textUnitInfo) {
         var repeatDialog = dialogControls.dialog;
         var isUpdatingPreview = false;
-        var isPreviewApplied = false; /* 適用済みで undo が必要か / Whether an applied preview still needs undoing */
-        var hasCommitted = false;     /* OK で確定したか / Whether OK has committed the result */
+        var previewFrame = null;  /* 表示中のプレビュー / The preview currently shown */
+        var hasCommitted = false; /* OK で確定したか / Whether OK has committed the result */
 
-        /* プレビューを適用して表示する（undo は呼び出し元が行う）/ Apply and show the preview (the caller undoes it) */
+        /* プレビューを消し、元のテキストと円を表示に戻す / Remove the preview and show the originals again */
+        function discardPreview() {
+            if (previewFrame !== null) {
+                try {
+                    previewFrame.remove();
+                } catch (e) { }
+                previewFrame = null;
+            }
+            setOriginalsHidden(repeatJob, false);
+        }
+
+        /* 元を隠し、複製した円でプレビューを作る / Hide the originals and build the preview on a copy of the circle */
         function applyPreview() {
             if (!dialogControls.previewCheckbox.value) return;
 
             var repeatSettings = readSettings(dialogControls, textUnitInfo);
             if (validateSettings(repeatSettings) !== null) return;
 
-            /* 計測は redraw を含むため適用バッチの前に実行 / Measure before the apply batch (it involves a redraw) */
             var fontSize = computeFittedFontSize(repeatJob, repeatSettings);
-
-            /* ここから先は必ず undo が要る / Everything past this point must be undone */
-            isPreviewApplied = true;
-
-            /* 仮アイテムで強制的に変化を起こし、undo の空振りを防ぐ。画面外に作り、変数にも保持しない（undo で消える）/ Force a change with an off-canvas dummy so undo cannot misfire (not kept in a variable since undo removes it) */
-            repeatJob.activeDoc.pathItems.rectangle(MEASURE_FRAME_OFFSET, MEASURE_FRAME_OFFSET, 1, 1);
-
-            createPathTypeText(repeatJob, repeatSettings, fontSize, true);
-            app.redraw();   /* 見せる / show the applied result */
+            previewFrame = createPathTypeText(repeatJob, repeatSettings, fontSize);
+            setOriginalsHidden(repeatJob, true);
         }
 
-        /* プレビューを更新する（適用 → redraw → undo。再入と失敗を吸収する）/ Refresh the preview (apply, redraw, undo) */
+        /* プレビューを作り直す（再入と失敗を吸収する）/ Rebuild the preview (absorbs reentry and failures) */
         function runPreview() {
             if (isUpdatingPreview) return;
             isUpdatingPreview = true;
-            isPreviewApplied = false;
+            discardPreview();
 
             try {
                 applyPreview();
             } catch (e) {
                 /* プレビューは best-effort。失敗しても操作を続けられるようにする / Preview is best-effort; keep the dialog usable on failure */
+                discardPreview();
             }
 
-            if (isPreviewApplied) {
-                app.undo();   /* 内部を未適用へ戻す（画面は適用後のまま）/ revert the model (screen keeps showing it) */
-            } else {
-                app.redraw(); /* 未適用状態を表示 / show the clean state */
-            }
+            app.redraw();
             isUpdatingPreview = false;
         }
 
@@ -1758,20 +1763,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
                 return;
             }
 
+            /* 確定は元をそのまま使う / Commit on the originals, not on the preview */
+            discardPreview();
             commitRepeatText(repeatJob, repeatSettings);
             hasCommitted = true;
             repeatDialog.close();
         };
 
         dialogControls.btnCancel.onClick = function () {
+            discardPreview();
             restoreOriginalSelection(repeatJob);
             repeatDialog.close();
         };
 
         repeatDialog.onClose = function () {
-            /* 計測フレームを片付け、未確定なら未適用状態を画面に反映 / Clean up the measurement frame; if not committed, refresh the screen to the reverted state */
+            /* 計測フレームを片付け、未確定（Esc で閉じたときなど）ならプレビューを消して元を表示に戻す
+               Clean up the measurement frame; if not committed (e.g. closed with Esc), remove the preview and show the originals */
             repeatJob.textMeasurer.dispose();
             if (!hasCommitted) {
+                discardPreview();
                 app.redraw();
             }
         };
@@ -1822,8 +1832,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na9334a217ec3"; /* 紹�
             activeDoc: activeDoc,
             sourceTextFrame: sourceTextFrame,
             circlePath: selectedPair.circlePath,
-            /* パス上文字は改行を保持できないため、改行はスペースに置き換える / Path text cannot keep line breaks, so replace them with spaces */
-            originalText: sourceTextFrame.contents.replace(/[\r\n]/g, " "),
+            /* パス上文字は改行を保持できないため、改行（強制改行 \u0003 を含む）はスペースに置き換える / Path text cannot keep line breaks (incl. forced \u0003), so replace them with spaces */
+            originalText: sourceTextFrame.contents.replace(/[\r\n\u0003]/g, " "),
             textMeasurer: createTextMeasurer(activeDoc, sourceTextFrame)
         };
 
