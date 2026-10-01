@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 よく使うフォントを分類と規格で絞り込んだ一覧から選び、プレビューで確かめて選択中のテキストに適用します。
-同じ書体の規格違い（Pr6N・Pr5 など）はチェックした規格の中で優先順位の高いものだけを残し、中華・ハングルなどのフォントは外します。
+同じ書体の規格違い（Pr6N・Pr5 など）はチェックした規格の中で優先順位の高いものだけを残し、中国語・韓国語など日本語以外のフォントは外します。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteFontPicker.md
@@ -18,7 +18,7 @@ https://note.com/dtp_tranist/n/ncf9ff6feebf0
 ### Overview
 
 Lists the fonts you use often, narrowed by category and standard, and applies the one you pick to the selected text after a preview.
-Of the same typeface in several standards (Pr6N, Pr5, etc.), only the highest-priority checked one is kept, and Chinese, Hangul and other fonts are left out.
+Of the same typeface in several standards (Pr6N, Pr5, etc.), only the highest-priority checked one is kept, and Chinese, Korean and other non-Japanese fonts are left out.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFontPicker.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteFontPicker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "KOUJI & 相棒（Gem）";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
@@ -53,9 +53,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     // ユーザー設定 / User settings
     // =========================================
 
-    /* ［カスタム］の初期値（ファミリー名・PostScript 名の前方一致）。以後は［カスタムに追加］［カスタムから外す］で変え、設定ファイルに保存する
-       Initial Custom fonts (prefix match on the family or PostScript name); later changed in the dialog and saved */
+    /* ［カスタムセット］1 の初期値（ファミリー名・PostScript 名の前方一致）。以後は一覧の下のボタンで出し入れし、設定ファイルに保存する
+       Initial fonts of Custom set 1 (prefix match on the family or PostScript name); later changed in the dialog and saved */
     var CUSTOM_FONTS = ["Graphik", "DIN"];
+
+    /* ［カスタムセット］の数 / Number of Custom sets */
+    var CUSTOM_SET_COUNT = 5;
 
     /* 一覧から外すフォント（部分一致）。［すべて表示］では外さない
        Fonts left out of the list (substring match); ignored by Show All */
@@ -79,24 +82,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         {
             key: "morisawa",
             label: { ja: "モリサワ", en: "Morisawa" },
+            tooltip: { ja: "A-OTF・A P-OTF で始まるモリサワのフォント（リュウミン・新ゴなど）", en: "Morisawa fonts starting with A-OTF or A P-OTF (Ryumin, Shin Go, etc.)" },
             familyPrefixes: ["A-OTF", "A P-OTF", "AP-OTF"],
             psNamePrefixes: ["Ryumin", "ShinGo", "UDShinGo", "GothicMB101", "FutoGoB101", "MidashiGo"]
         },
-        { key: "tb", label: { ja: "TB（タイプバンク）", en: "TB (TypeBank)" }, familyPrefixes: ["TB"], psNamePrefixes: ["TB"] },
-        { key: "fot", label: { ja: "FOT（フォントワークス）", en: "FOT (Fontworks)" }, familyPrefixes: ["FOT-"], psNamePrefixes: ["FOT-"] },
+        { key: "tb", label: { ja: "TB（タイプバンク）", en: "TB (TypeBank)" }, tooltip: { ja: "TB で始まるタイプバンクのフォント", en: "TypeBank fonts starting with TB" }, familyPrefixes: ["TB"], psNamePrefixes: ["TB"] },
+        { key: "fot", label: { ja: "FOT（フォントワークス）", en: "FOT (Fontworks)" }, tooltip: { ja: "FOT- で始まるフォントワークスのフォント", en: "Fontworks fonts starting with FOT-" }, familyPrefixes: ["FOT-"], psNamePrefixes: ["FOT-"] },
         {
             key: "hiragino",
             label: { ja: "ヒラギノ", en: "Hiragino" },
+            tooltip: { ja: "ヒラギノ角ゴ・明朝・丸ゴなど（中国語版は［日本語以外を除外］の「中国語」で外れる）", en: "Hiragino Kaku Gothic, Mincho, Maru Gothic, etc. (the Chinese versions follow Chinese under Exclude non-Japanese)" },
             familyPrefixes: ["ヒラギノ", "Hiragino"],
             psNamePrefixes: ["Hiragino", "HiraKaku", "HiraMin", "HiraMaru"]
         },
         {
-            /* Adobe Fonts（配信サービス）は名前で見分けられないので、Adobe 自社の和文書体をまとめる
-               Adobe Fonts (the service) cannot be told by name, so this groups Adobe's own Japanese typefaces */
+            /* Adobe Fonts（配信サービス）とは別に、アドビ自社の和文書体をまとめる
+               Adobe's own Japanese typefaces, apart from the Adobe Fonts service */
             key: "adobe",
-            label: { ja: "Adobe（小塚・源ノ・りょう）", en: "Adobe (Kozuka, Source Han, Ryo)" },
-            familyPrefixes: ["小塚", "源ノ", "りょう", "かづらき", "Kozuka", "Source Han", "Kazuraki"],
-            psNamePrefixes: ["Koz", "SourceHan", "RyoGothic", "RyoDisp", "RyoText", "Kazuraki"]
+            label: { ja: "アドビ", en: "Adobe" },
+            tooltip: { ja: "小塚・源ノ角ゴシック／明朝・りょう・貂明朝・百千鳥・かづらきなど、アドビ自社の和文書体", en: "Adobe's own Japanese typefaces such as Kozuka, Source Han, Ryo, Ten Mincho, Momochidori and Kazuraki" },
+            familyPrefixes: ["小塚", "源ノ", "りょう", "貂", "百千鳥", "かづらき", "Kozuka", "Source Han", "Ten Mincho", "Momochidori", "Kazuraki"],
+            psNamePrefixes: ["Koz", "SourceHan", "RyoGothic", "RyoDisp", "RyoText", "TenMincho", "Momochidori", "Kazuraki"]
+        },
+        {
+            /* 名前では見分けられないので、Creative Cloud の同期状態（entitlements.xml）でアクティベート中のファミリーを引く
+               Not detectable by name, so active families are looked up in the Creative Cloud sync state */
+            key: "adobeFonts",
+            label: { ja: "Adobe Fonts", en: "Adobe Fonts" },
+            tooltip: { ja: "Creative Cloud でアクティベートしている Adobe Fonts のフォント", en: "Adobe Fonts activated through Creative Cloud" },
+            familyPrefixes: [],
+            psNamePrefixes: [],
+            usesAdobeFontsList: true
         }
     ];
 
@@ -106,7 +122,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     var LANGUAGE_GROUPS = [
         {
             key: "chinese",
-            label: { ja: "中華", en: "Chinese" },
+            label: { ja: "中国語", en: "Chinese" },
             tooltip: { ja: "PingFang・宋体・黑体・Source Han Sans SC など、中国語（簡体字・繁体字）のフォント", en: "Chinese (Simplified and Traditional) fonts such as PingFang, Songti, Heiti and Source Han Sans SC" },
             namePrefixes: ["PingFang", "Hiragino Sans GB", "Hiragino Sans CNS", "HiraginoSansCNS", "STHeiti", "STSong", "STKaiti", "STFangsong", "STXihei", "Songti", "Heiti", "Kaiti", "Lantinghei", "Hannotate", "Hanzipen", "Weibei", "Libian", "Xingkai", "Baoli", "Wawati", "Yuanti", "Yuppy", "BiauKai", "LiSong", "LiHei", "Apple LiGothic", "Apple LiSung", "GB18030", "SimSun", "NSimSun", "SimHei", "Microsoft YaHei", "Microsoft JhengHei", "MingLiU", "PMingLiU", "DFKai", "AdobeSong", "AdobeMing", "AdobeHeiti", "AdobeFangsong", "AdobeKaiti", "思源", "苹方", "蘋方", "华文", "華文", "黑体", "黑體", "宋体", "宋體", "楷体", "仿宋", "圆体", "圓體", "兰亭", "蘭亭", "翩翩", "魏碑", "隶变", "隸變", "行楷", "报隶", "報隸", "娃娃", "雅痞"],
             familyPatterns: [/ (SC|TC|HK|CN)$/],
@@ -116,7 +132,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         },
         {
             key: "korean",
-            label: { ja: "ハングル", en: "Hangul" },
+            label: { ja: "韓国語", en: "Korean" },
             tooltip: { ja: "Apple SD Gothic Neo・AppleMyungjo・Nanum など、ハングルのフォント", en: "Korean fonts such as Apple SD Gothic Neo, AppleMyungjo and Nanum" },
             namePrefixes: ["AppleGothic", "AppleMyungjo", "AppleSDGothicNeo", "Apple SD", "Nanum", "Malgun", "Gulim", "Batang", "Dotum", "Gungsuh", "PCMyungjo", "HeadLineA", "AdobeMyungjo", "AdobeGothicStd", "JCsmPC", "JCfg", "JCkg", "JCHEadA"],
             familyPatterns: [/[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF]/, / KR$/],
@@ -124,7 +140,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         },
         {
             key: "thai",
-            label: { ja: "タイ", en: "Thai" },
+            label: { ja: "タイ語", en: "Thai" },
             tooltip: { ja: "Thonburi・Sukhumvit Set など、タイ語のフォント", en: "Thai fonts such as Thonburi and Sukhumvit Set" },
             namePrefixes: ["Thonburi", "Ayuthaya", "Krungthep", "Sathu", "Silom", "Sukhumvit"],
             familyPatterns: [/[\u0E00-\u0E7F]/, /\bThai\b/i],
@@ -132,7 +148,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         },
         {
             key: "multilingual",
-            label: { ja: "その他マルチリンガル", en: "Other multilingual" },
+            label: { ja: "その他", en: "Other" },
             tooltip: {
                 ja: "アラビア語・ヘブライ語・インドの諸文字など、そのほかの言語のフォント（Noto Sans の各言語版を含む）",
                 en: "Fonts for other scripts such as Arabic, Hebrew and Indic (including the Noto Sans language versions)"
@@ -159,6 +175,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
+
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    /* 自前描画のたびに環境設定を読まないよう、1回だけ控える / Read once so custom drawing does not query preferences every time */
+    var UI_IS_DARK = isDarkUI();
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -239,12 +277,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var FONT_LIST_SIZE = [320, 440];   /* フォント一覧の大きさ / font list size */
-    var STATUS_TEXT_WIDTH = 320;       /* 件数表示の幅 / width of the count line */
-    var COMPACT_BUTTON_FONT_SHRINK = 2; /* ボタン行以外のボタンの文字を小さくする量（pt）/ font shrink for buttons outside the button row */
-    var COMPACT_BUTTON_TRIM_PX = 4;     /* そのボタンの高さを詰める量（px）/ height trim for those buttons */
+    var FONT_LIST_SIZE = [320, 380];   /* フォント一覧の大きさ / font list size */
+    var FONT_LIST_TOP_MARGIN = 10;     /* フォント一覧の上に足す余白（px）/ extra space above the font list */
+    var FONT_LIST_BOTTOM_MARGIN = 10;  /* フォント一覧の下に足す余白（px）/ extra space below the font list */
+
+    /* 絞り込み欄のクリアボタン（自前描画）/ Clear button next to the filter field (custom drawn) */
+    var CLEAR_BUTTON_SIZE = 20;        /* クリアボタンの一辺 / clear button size */
+    var CLEAR_CIRCLE_INSET = 2;        /* 円と外周の間隔 / inset of the circle */
+    var CLEAR_GLYPH_INSET = 6;         /* ×と外周の間隔 / inset of the × glyph */
+    var CLEAR_STROKE_WIDTH = 1.5;      /* 円と×の線幅 / stroke width */
+
+    /* ［カスタムセット］の出し入れボタン（重なった2枚のカードに番号としおりを自前描画）
+       Custom set toggle buttons (two stacked cards with a number and a bookmark, custom drawn) */
+    var SET_BUTTON_SIZE = 33;          /* ボタンの一辺 / button size */
+    var SET_CARD_SIZE = 22;            /* カード1枚の一辺 / card size */
+    var SET_CARD_OFFSET = 5;           /* 後ろのカードとのずれ / offset of the back card */
+    var SET_CARD_STROKE_WIDTH = 2;     /* カードの線幅 / card stroke width */
+    var SET_BOOKMARK_WIDTH = 7;        /* しおりの幅 / bookmark width */
+    var SET_BOOKMARK_HEIGHT = 10;      /* しおりの高さ / bookmark height */
+    var SET_BOOKMARK_NOTCH = 3;        /* しおりの切り込みの深さ / depth of the bookmark notch */
+    var SET_BOOKMARK_INSET = 3;        /* しおりとカードの右端の間隔 / gap between the bookmark and the card's right edge */
+    var SET_NUMBER_FONT_SIZE = 13;     /* 番号の文字サイズ / number font size */
     var STYLE_ROW_INDENT = "\u3000\u3000"; /* ウェイト（スタイル）行の字下げ / indent of style rows */
     var STANDARD_LEFT_WIDTH = 64;      /* ［規格］の左列（無印）の幅 / width of the left (plain) column under Standard */
+    var LANGUAGE_LEFT_WIDTH = 96;      /* 環境設定の、外す言語の左列の幅 / left column width of the languages in Preferences */
+    var CUSTOM_SET_LIST_SIZE = [260, 160]; /* 環境設定の、カスタムセットの中身の一覧の大きさ / size of the Custom set contents list in Preferences */
 
     // ボタン行（再利用パーツ） / Button row (reusable)
 
@@ -968,14 +1025,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
 
     /* ダイアログの初期値 / Dialog defaults */
     var DEFAULT_SETTINGS = {
-        custom: true,
-        customFonts: CUSTOM_FONTS, /* ［カスタム］のフォント名 / names under Custom */
+        customSets: null,        /* ［カスタムセット］ごとのフォント名。null は未保存（resolveCustomSets() で作る）/ names per Custom set; null when unsaved */
+        customSetsVisible: null, /* ［カスタムセット］ごとのチェック / checked state per Custom set */
+        custom: null,            /* 旧形式の［カスタム］のチェック（セット1に読み継ぐ）/ legacy Custom checkbox, carried into set 1 */
+        customFonts: null,       /* 旧形式の［カスタム］のフォント名（セット1に読み継ぐ）/ legacy Custom names, carried into set 1 */
         documentFonts: false,
         compositeFonts: false,
         foundries: [],          /* チェックしたメーカーの key / keys of the checked foundries */
         showAll: false,
         filterByStandard: true, /* ［規格］のチェックで絞り込む / filter by the Standard checkboxes */
-        excludedLanguages: ["chinese", "korean", "thai", "multilingual"], /* ［日本語以外を除外］の言語 / excluded languages */
+        japaneseOnly: true,     /* ［和文フォントのみ］/ Japanese fonts only */
+        excludedLanguages: ["chinese", "korean", "thai", "multilingual"], /* ［和文フォントのみ］で外す言語（環境設定）/ languages left out by Japanese fonts only (preferences) */
         hiddenSuffixes: [],     /* ［規格］で外した接尾辞（"" は［その他］）/ suffixes unchecked under Standard ("" is Other) */
         searchText: "",
         showPostScriptName: false,  /* 一覧を PostScript 名で表示 / list PostScript names */
@@ -985,6 +1045,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     /* フォント情報のキャッシュ（1行に PostScript 名・ファミリー名・スタイル名をタブ区切り）
        Font cache: one font per line, PostScript name, family and style separated by tabs */
     var FONT_CACHE_FILE = new File(Folder.userData + "/illustrator-scripts/" + SCRIPT_NAME + "-fonts.txt");
+
+    /* Creative Cloud が Adobe Fonts の同期状態を書くファイル（Mac は .c、Windows は c のフォルダー）
+       Creative Cloud's Adobe Fonts sync state (in .c on Mac, c on Windows) */
+    var ADOBE_FONTS_STATE_PATHS = [
+        "/Adobe/CoreSync/plugins/livetype/.c/entitlements.xml",
+        "/Adobe/CoreSync/plugins/livetype/c/entitlements.xml"
+    ];
 
     // =========================================
     // 選択の収集 / Selection
@@ -1477,51 +1544,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     var LABELS = {
         dialog: {
             title: { ja: "よく使うフォント", en: "Favorite Fonts" },
+            preferences: { ja: "環境設定", en: "Preferences" },
+            exportSet: { ja: "カスタムセット {number} を書き出す", en: "Export Custom set {number}" },
+            importSet: { ja: "カスタムセット {number} に読み込む", en: "Import into Custom set {number}" },
             progress: { ja: "フォント情報を読み込み中", en: "Reading font information" }
         },
         panel: {
             category: { ja: "分類", en: "Category" },
             standard: { ja: "規格", en: "Standard" },
-            excludedLanguages: { ja: "日本語以外を除外", en: "Exclude non-Japanese" }
+            excludedLanguages: { ja: "［和文フォントのみ］で外す言語", en: "Languages left out by Japanese fonts only" },
+            fontInfo: { ja: "フォント情報", en: "Font information" },
+            customSets: { ja: "カスタムセット", en: "Custom sets" }
         },
         checkbox: {
-            custom: { ja: "カスタム", en: "Custom" },
-            documentFonts: { ja: "ドキュメント", en: "Document" },
+            documentFonts: { ja: "ドキュメントフォント", en: "Document fonts" },
             compositeFonts: { ja: "合成フォント", en: "Composite fonts" },
             showAll: { ja: "すべて表示", en: "Show all" },
+            japaneseOnly: { ja: "和文フォントのみ", en: "Japanese fonts only" },
             filterByStandard: { ja: "規格で絞り込む", en: "Filter by standard" },
             noSuffix: { ja: "規格なし", en: "No standard" },
-            showPostScriptName: { ja: "PostScript名で表示", en: "Show PostScript names" },
-            preview: { ja: "プレビュー", en: "Preview" }
+            showPostScriptName: { ja: "PostScript 名で表示", en: "Show PostScript names" },
+            preview: { ja: "選択中のテキストにプレビュー", en: "Preview on selected text" }
         },
         fieldLabel: {
-            search: { ja: "絞り込み", en: "Filter" }
+            search: { ja: "絞り込み", en: "Filter" },
+            customSets: { ja: "カスタムセット", en: "Custom sets" }
         },
         button: {
-            recordUsedFonts: { ja: "使用フォントをフォルダーに記録", en: "Record used fonts in folder" },
             rescan: { ja: "再スキャン", en: "Rescan" },
-            addCustom: { ja: "カスタムに追加", en: "Add to Custom" },
-            removeCustom: { ja: "カスタムから外す", en: "Remove from Custom" },
+            preferences: { ja: "環境設定…", en: "Preferences…" },
+            exportSet: { ja: "書き出し…", en: "Export…" },
+            importSet: { ja: "読み込み…", en: "Import…" },
+            ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             apply: { ja: "適用", en: "Apply" }
         },
         tooltip: {
-            custom: {
-                ja: "［カスタムに追加］で加えたフォント。規格違いの間引きと除外はしない",
-                en: "Fonts added with Add to Custom, shown without thinning out standards or exclusions"
+            customSet: {
+                ja: "カスタムセット {number}：一覧の下の {number} のボタンで加えたフォント。規格違いの間引きと除外はしない",
+                en: "Custom set {number}: fonts added with button {number} below the list, shown without thinning out standards or exclusions"
             },
             documentFonts: {
-                ja: "ドキュメントと同じフォルダーの _ProjectFonts.txt に記録したフォント。規格違いも間引かずに表示",
-                en: "Fonts recorded in _ProjectFonts.txt next to the document, shown without thinning out standards"
+                ja: "ドキュメントと同じフォルダーの _ProjectFonts.txt に挙げたフォント。規格違いの間引きと除外はしない",
+                en: "Fonts listed in _ProjectFonts.txt next to the document, shown without thinning out standards or exclusions"
             },
-            foundry: { ja: "ファミリー名・PostScript 名の先頭で判定", en: "Matched by the start of the family or PostScript name" },
             compositeFonts: {
                 ja: "［書式］→［合成フォント］で作った合成フォント。規格の絞り込みと間引きはしない",
                 en: "Composite fonts made with Type > Composite Fonts, not filtered or thinned out by standard"
             },
             showAll: {
-                ja: "［分類］・規格違いの間引き・除外をやめてすべて表示（［規格］の絞り込みは効く）",
-                en: "Ignore Category, standard thinning and exclusions and list every font (Standard still filters)"
+                ja: "［分類］・規格違いの間引き・除外をやめてすべて表示（［規格］と［日本語以外を除外］は効く）",
+                en: "Ignore Category, standard thinning and exclusions and list every font (Standard and Exclude non-Japanese still apply)"
             },
             standard: {
                 ja: "チェックした規格だけを表示。同じ書体はチェックした中で優先順位がいちばん高い規格を残す",
@@ -1533,14 +1606,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             },
             noSuffix: { ja: "Pr6N などの規格が名前の末尾に付いていないフォント", en: "Fonts without a standard such as Pr6N at the end of the name" },
             search: { ja: "ファミリー名・スタイル名・PostScript 名の部分一致", en: "Substring match on the family, style or PostScript name" },
+            clearSearch: { ja: "絞り込みをクリア", en: "Clear filter" },
             showPostScriptName: { ja: "一覧を PostScript 名（RyuminPr6N-Light など）で表示し、その順に並べる", en: "List PostScript names (such as RyuminPr6N-Light) and sort by them" },
-            recordUsedFonts: {
-                ja: "ドキュメントで使っているフォントを、同じフォルダーの _ProjectFonts.txt に追記する",
-                en: "Add the fonts used in the document to _ProjectFonts.txt in the same folder"
-            },
-            rescan: { ja: "インストールされているフォントを読み直す", en: "Read the installed fonts again" },
-            addCustom: { ja: "一覧で選んだフォントのファミリーを［カスタム］に加える", en: "Add the family of the chosen font to Custom" },
-            removeCustom: { ja: "一覧で選んだフォントを［カスタム］から外す", en: "Remove the chosen font from Custom" },
+            rescan: { ja: "インストールされているフォントを読み直す（フォントを追加・削除したあとに）", en: "Read the installed fonts again (after adding or removing fonts)" },
+            preferences: { ja: "再スキャン、［和文フォントのみ］で外す言語、カスタムセットの書き出し・読み込み", en: "Rescan, languages left out by Japanese fonts only, and Custom set export and import" },
+            japaneseOnly: { ja: "中国語・韓国語などのフォントを外す（外す言語は環境設定で選ぶ）。カスタムセット・ドキュメントフォントに挙げたものは残す", en: "Leave out Chinese, Korean and other fonts (choose the languages in Preferences); listed Custom set and Document fonts stay" },
+            exportSet: { ja: "このセットの名前を1行1件のテキストファイルに書き出す", en: "Write this set's names to a text file, one per line" },
+            importSet: { ja: "1行1件のテキストファイルから名前を読み込み、このセットに加える", en: "Read names from a text file, one per line, and add them to this set" },
+            addCustomSet: { ja: "カスタムセット {number} に追加：一覧で選んだフォントのファミリーを加える", en: "Add to Custom set {number}: add the family of the chosen font" },
+            removeCustomSet: { ja: "カスタムセット {number} から外す：一覧で選んだフォントに当たる名前を外す（同じ名前で始まるほかのフォントも外れる）", en: "Remove from Custom set {number}: remove the names matching the chosen font (other fonts starting with them are removed too)" },
+            apply: { ja: "一覧で選んだフォントを選択中のテキストに適用して閉じる（ダブルクリック・Enter キーと同じ）", en: "Apply the chosen font to the selected text and close (same as double-click or Enter)" },
             preview: {
                 ja: "一覧で選んだフォントを選択中のテキストに仮に適用する（文字単位の選択と、連結したテキストは対象外）",
                 en: "Preview the chosen font on the selected text (not for selected characters or threaded text)"
@@ -1549,6 +1624,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             soloClick: { ja: "option（Alt）＋クリック：これだけオン／すべてオン", en: "Option (Alt)-click: only this one / all on" }
         },
         message: {
+            fontTotal: { ja: "{count} 件のフォントを読み込み済み", en: "{count} fonts loaded" },
+            setCount: { ja: "{count} 件の名前", en: "{count} names" },
             fontCount: { ja: "{count} 件のフォント", en: "{count} fonts" },
             searchPending: { ja: "{count} 件のフォント（Enter キーで一覧を更新）", en: "{count} fonts (press Enter to update the list)" }
         },
@@ -1559,19 +1636,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
                 en: "Select a text frame, or a group that contains text, and try again."
             },
             fontNotFound: { ja: "フォントが見つかりません：{name}", en: "Font not found: {name}" },
-            unsavedDocument: {
-                ja: "ドキュメントが保存されていません。\n一度保存してから実行してください。",
-                en: "The document has not been saved.\nSave it once and try again."
-            },
-            noNewFonts: { ja: "ドキュメントに新しいフォントは見つかりませんでした。", en: "No new fonts were found in the document." },
-            recorded: { ja: "{count} 件のフォントを {file} に記録しました。", en: "Recorded {count} fonts in {file}." },
-            writeFailed: { ja: "ファイルを書き出せませんでした：{message}", en: "Could not write the file: {message}" },
             rescanned: { ja: "フォント情報を更新しました（{count} 件）。", en: "Font information updated ({count} fonts)." },
-            alreadyCustom: { ja: "「{name}」はすでに［カスタム］に入っています。", en: "\"{name}\" is already in Custom." },
-            notInCustom: { ja: "「{name}」は［カスタム］に入っていません。", en: "\"{name}\" is not in Custom." },
+            exported: { ja: "{count} 件の名前を書き出しました。", en: "Exported {count} names." },
+            imported: { ja: "{count} 件の名前を加えました（重複は除く）。", en: "Added {count} names (duplicates skipped)." },
+            writeFailed: { ja: "ファイルを書き出せませんでした：{message}", en: "Could not write the file: {message}" },
             confirmRemoveCustom: {
-                ja: "［カスタム］から「{names}」を外します。\nこの名前で始まるほかのフォントも外れます。",
-                en: "Remove \"{names}\" from Custom?\nOther fonts starting with this name are removed too."
+                ja: "カスタムセット {number} から「{names}」を外しますか？\nこの名前で始まるほかのフォントも外れます。",
+                en: "Remove \"{names}\" from Custom set {number}?\nOther fonts starting with this name are removed too."
             }
         }
     };
@@ -1719,6 +1790,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             fontInfo.isComposite = /^ATC-/i.test(fontInfo.psName);
             fontInfo.languageKey = fontInfo.isComposite ? "" : detectLanguageKey(fontInfo);
             fontInfo.parsed = parseFamilyName(fontInfo.family);
+            /* 名前だけで決まる判定は、チェックのたびにくり返さないよう最初に済ませる / Name-only checks are done once, not on every click */
+            fontInfo.isExcludedName = fontNameContainsAny(fontInfo, EXCLUDE_FONTS) && !fontNameContainsAny(fontInfo, RESCUE_FONTS);
+            fontInfo.foundryMatches = {};
+            for (var j = 0; j < FOUNDRY_FILTERS.length; j++) {
+                if (!FOUNDRY_FILTERS[j].usesAdobeFontsList && matchesFoundryName(fontInfo, FOUNDRY_FILTERS[j])) fontInfo.foundryMatches[FOUNDRY_FILTERS[j].key] = true;
+            }
         }
         return fontInfos;
     }
@@ -1812,6 +1889,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     }
 
     /**
+     * 名前の一覧を小文字にする（照合のたびに小文字にしないよう、先に1回だけ）
+     * @param {string[]} fontNames - 名前の一覧
+     * @returns {string[]} 小文字にした新しい配列
+     */
+    function toLowerNames(fontNames) {
+        var lowerNames = [];
+        for (var i = 0; i < fontNames.length; i++) lowerNames.push(String(fontNames[i]).toLowerCase());
+        return lowerNames;
+    }
+
+    /**
      * 小文字の文字列が、一覧のどれかで始まるか（大文字小文字は区別しない）
      * @param {string} lowerText - 小文字の文字列
      * @param {string[]} namePrefixes - 名前の一覧
@@ -1884,6 +1972,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         return containsAny(fontInfo.familyLower, nameParts) || containsAny(fontInfo.psLower, nameParts);
     }
 
+    /* アクティベート中の Adobe Fonts のファミリー名（小文字 → true）。初めて要るときに読む / Active Adobe Fonts families, read on first use */
+    var adobeFontsFamilies = null;
+
+    /**
+     * Creative Cloud の同期状態から、アクティベート中の Adobe Fonts のファミリー名を読む。
+     * 和文は Illustrator が日本語名で返すので、ロケール別の名前（<i18n> の中の familyName）も加える。
+     * installState が OS のものは同じフォントが OS 側にあって使われていないので外す
+     * @returns {Object} 小文字のファミリー名 → true（ファイルが無ければ空）
+     */
+    function readAdobeFontsFamilies() {
+        var families = {};
+        var stateText = "";
+        for (var i = 0; i < ADOBE_FONTS_STATE_PATHS.length && stateText === ""; i++) {
+            stateText = readTextFile(new File(Folder.userData + ADOBE_FONTS_STATE_PATHS[i]));
+        }
+        var fontBlocks = stateText.split("<font>");
+        for (var j = 1; j < fontBlocks.length; j++) {
+            var fontBlock = fontBlocks[j];
+            if (fontBlock.indexOf("<owner>Adobe Fonts</owner>") === -1 || fontBlock.indexOf("<installState>CC</installState>") === -1) continue;
+            var familyPattern = /<familyName>([^<]*)<\/familyName>/g;
+            var familyMatch;
+            while ((familyMatch = familyPattern.exec(fontBlock)) !== null) {
+                families[decodeXmlText(familyMatch[1]).toLowerCase()] = true;
+            }
+        }
+        return families;
+    }
+
+    /**
+     * XML の文字参照を戻す（&amp; など）
+     * @param {string} xmlText - XML の文字列
+     * @returns {string} 戻した文字列
+     */
+    function decodeXmlText(xmlText) {
+        return xmlText.replace(/&#x([0-9a-f]+);/gi, function (whole, hexCode) {
+            return String.fromCharCode(parseInt(hexCode, 16));
+        }).replace(/&#(\d+);/g, function (whole, decimalCode) {
+            return String.fromCharCode(Number(decimalCode));
+        }).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+    }
+
     /**
      * メーカー別の分類に当たるか
      * @param {Object} fontInfo - createFontCatalog() 済みのフォント情報
@@ -1891,8 +2020,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
      * @returns {boolean} 当たれば true
      */
     function matchesFoundry(fontInfo, foundryFilter) {
+        if (foundryFilter.usesAdobeFontsList) {
+            if (!adobeFontsFamilies) adobeFontsFamilies = readAdobeFontsFamilies();
+            return adobeFontsFamilies[fontInfo.familyLower] === true;
+        }
+        return fontInfo.foundryMatches[foundryFilter.key] === true;
+    }
+
+    /**
+     * 名前の前方一致でメーカー別の分類に当たるか（createFontCatalog() で1回だけ呼ぶ）
+     * @param {Object} fontInfo - psLower・familyLower を持つフォント情報
+     * @param {Object} foundryFilter - FOUNDRY_FILTERS の1件
+     * @returns {boolean} 当たれば true
+     */
+    function matchesFoundryName(fontInfo, foundryFilter) {
         return startsWithAny(fontInfo.familyLower, foundryFilter.familyPrefixes || []) ||
             startsWithAny(fontInfo.psLower, foundryFilter.psNamePrefixes || []);
+    }
+
+    /**
+     * 保存した設定から、［カスタムセット］の中身とチェックを CUSTOM_SET_COUNT 個そろえて返す。
+     * セットを保存していない旧形式なら、［カスタム］のフォント名とチェックをセット1に移す
+     * @param {Object} filterSettings - DEFAULT_SETTINGS と同じ形
+     * @returns {{fontSets: string[][], visible: boolean[]}} セットごとのフォント名とチェック
+     */
+    function resolveCustomSets(filterSettings) {
+        var savedSets = (filterSettings.customSets instanceof Array) ? filterSettings.customSets : null;
+        var savedVisible = (filterSettings.customSetsVisible instanceof Array) ? filterSettings.customSetsVisible : null;
+        var fontSets = [];
+        var visible = [];
+        for (var i = 0; i < CUSTOM_SET_COUNT; i++) {
+            if (savedSets) {
+                fontSets.push((savedSets[i] instanceof Array) ? savedSets[i] : []);
+                visible.push(!!(savedVisible && savedVisible[i] === true));
+            } else if (i === 0) {
+                fontSets.push((filterSettings.customFonts instanceof Array) ? filterSettings.customFonts : CUSTOM_FONTS);
+                visible.push(filterSettings.custom !== false);
+            } else {
+                fontSets.push([]);
+                visible.push(false);
+            }
+        }
+        return { fontSets: fontSets, visible: visible };
     }
 
     /**
@@ -1913,14 +2082,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             if (!filterSettings.filterByStandard || !containsValue(filterSettings.hiddenSuffixes, suffixKeys[j])) visibleSuffixes[suffixKeys[j]] = true;
         }
         var excludedLanguages = {};
-        for (var k = 0; k < filterSettings.excludedLanguages.length; k++) excludedLanguages[filterSettings.excludedLanguages[k]] = true;
+        if (filterSettings.japaneseOnly) {
+            for (var k = 0; k < filterSettings.excludedLanguages.length; k++) excludedLanguages[filterSettings.excludedLanguages[k]] = true;
+        }
+        /* チェックしたセットの名前をまとめて照合する / Match against the names of all checked sets together */
+        var customSets = resolveCustomSets(filterSettings);
+        var customFontNames = [];
+        for (var m = 0; m < CUSTOM_SET_COUNT; m++) {
+            if (customSets.visible[m]) customFontNames = customFontNames.concat(customSets.fontSets[m]);
+        }
         return {
             excludedLanguages: excludedLanguages,
-            custom: filterSettings.custom,
-            customFontNames: filterSettings.customFonts,
+            custom: customFontNames.length > 0,
+            customFontNames: toLowerNames(customFontNames),
             documentFonts: filterSettings.documentFonts,
             compositeFonts: filterSettings.compositeFonts,
-            documentFontNames: documentFontNames,
+            documentFontNames: toLowerNames(documentFontNames),
             foundries: checkedFoundries,
             showAll: filterSettings.showAll,
             visibleSuffixes: visibleSuffixes,
@@ -1982,7 +2159,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
 
         var bestVariant = bestByCore[fontInfo.parsed.core];
         if (bestVariant.prefixText !== fontInfo.parsed.prefixText || bestVariant.suffixText !== fontInfo.parsed.suffixText) return false;
-        if (fontNameContainsAny(fontInfo, EXCLUDE_FONTS) && !fontNameContainsAny(fontInfo, RESCUE_FONTS)) return false;
+        if (fontInfo.isExcludedName) return false;
 
         for (var i = 0; i < filterState.foundries.length; i++) {
             if (matchesFoundry(fontInfo, filterState.foundries[i])) return true;
@@ -2103,76 +2280,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             if (fontName !== "") fontNames.push(fontName);
         }
         return fontNames;
-    }
-
-    /**
-     * ドキュメントで使っているフォントのファミリー名と PostScript 名を集める
-     * @param {Document} targetDoc - 対象のドキュメント
-     * @returns {string[]} 名前の一覧（重複なし）
-     */
-    function collectDocumentFontNames(targetDoc) {
-        var fontNames = [];
-
-        /**
-         * 名前を一度だけ加える
-         * @param {string} fontName - 名前
-         * @returns {void}
-         */
-        function addFontName(fontName) {
-            if (fontName && !containsValue(fontNames, fontName)) fontNames.push(fontName);
-        }
-
-        var stories = targetDoc.stories;
-        for (var i = 0; i < stories.length; i++) {
-            var textRanges = stories[i].textRanges;
-            for (var j = 0; j < textRanges.length; j++) {
-                var textFont;
-                try {
-                    textFont = textRanges[j].characterAttributes.textFont;
-                } catch (e) {
-                    /* 環境にないフォントの範囲は textFont が読めない / textFont cannot be read for ranges in a missing font */
-                    continue;
-                }
-                addFontName(textFont.family);
-                /* 合成フォントの PostScript 名（ATC-…）は記録しない（合成フォント名で照合する）/ Skip ATC-… names; composites match by their own name */
-                if (!/^ATC-/i.test(textFont.name)) addFontName(textFont.name);
-            }
-        }
-        return fontNames;
-    }
-
-    /**
-     * ドキュメントで使っているフォントを _ProjectFonts.txt に追記する（結果は alert で知らせる）
-     * @returns {string[]|null} 追記後の名前の一覧。追記しなかったときは null
-     */
-    function recordUsedFonts() {
-        if (app.documents.length === 0) {
-            alert(getLabel("alert.noDocument"));
-            return null;
-        }
-        var projectFontsFile = getProjectFontsFile();
-        if (!projectFontsFile) {
-            alert(getLabel("alert.unsavedDocument"));
-            return null;
-        }
-        var documentFontNames = readProjectFontNames();
-        var foundNames = collectDocumentFontNames(app.activeDocument);
-        var addedCount = 0;
-        for (var i = 0; i < foundNames.length; i++) {
-            if (containsValue(documentFontNames, foundNames[i])) continue;
-            documentFontNames.push(foundNames[i]);
-            addedCount++;
-        }
-        if (addedCount === 0) {
-            alert(getLabel("alert.noNewFonts"));
-            return null;
-        }
-        if (!writeTextFile(projectFontsFile, documentFontNames.join("\n"))) {
-            alert(getLabel("alert.writeFailed", { message: projectFontsFile.error }));
-            return null;
-        }
-        alert(getLabel("alert.recorded", { count: addedCount, file: PROJECT_FONTS_FILE_NAME }));
-        return documentFontNames;
     }
 
     // =========================================
@@ -2333,30 +2440,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         filterColumn.alignment = ["left", "fill"];
         filterColumn.spacing = WINDOW_SPACING;
 
+        /* ［分類］全体を切り替える親スイッチなので、その上に置く / The master switch for Category, placed above it */
+        var chkShowAll = addCheckbox(filterColumn, getLabel("checkbox.showAll"), "tooltip.showAll");
+        var chkJapaneseOnly = addCheckbox(filterColumn, getLabel("checkbox.japaneseOnly"), "tooltip.japaneseOnly");
+
         var categoryPanel = filterColumn.add("panel", undefined, getLabel("panel.category"));
         setupPanel(categoryPanel, 6);
-        var chkCustom = addCheckbox(categoryPanel, getLabel("checkbox.custom"), "tooltip.custom");
-        var chkDocumentFonts = addCheckbox(categoryPanel, getLabel("checkbox.documentFonts"), "tooltip.documentFonts");
-        var foundryCheckboxes = [];
-        for (var i = 0; i < FOUNDRY_FILTERS.length; i++) {
-            var chkFoundry = addCheckbox(categoryPanel, getLabel(FOUNDRY_FILTERS[i].label), "tooltip.foundry");
-            chkFoundry.foundryKey = FOUNDRY_FILTERS[i].key;
-            foundryCheckboxes.push(chkFoundry);
+        /* カスタムセットは見出しの下に番号を1行に並べる / Custom sets: a heading, then the numbers on one row */
+        categoryPanel.add("statictext", undefined, getLabel("fieldLabel.customSets"));
+        var customSetRowGroup = categoryPanel.add("group");
+        setupRow(customSetRowGroup, "left", 4);
+        var customSetCheckboxes = [];
+        for (var c = 0; c < CUSTOM_SET_COUNT; c++) {
+            var chkCustomSet = customSetRowGroup.add("checkbox", undefined, String(c + 1));
+            chkCustomSet.helpTip = getLabel("tooltip.customSet", { number: c + 1 });
+            chkCustomSet.setIndex = c;
+            customSetCheckboxes.push(chkCustomSet);
         }
+        var customSetDivider = categoryPanel.add("panel");
+        customSetDivider.alignment = ["fill", "top"];
+        customSetDivider.minimumSize.height = customSetDivider.maximumSize.height = 1;
+        var chkDocumentFonts = addCheckbox(categoryPanel, getLabel("checkbox.documentFonts"), "tooltip.documentFonts");
         var chkCompositeFonts = addCheckbox(categoryPanel, getLabel("checkbox.compositeFonts"), "tooltip.compositeFonts");
-        var btnRecordUsedFonts = addCompactButton(categoryPanel, getLabel("button.recordUsedFonts"));
-        btnRecordUsedFonts.alignment = "left";
-        btnRecordUsedFonts.helpTip = getLabel("tooltip.recordUsedFonts");
-
-        var chkShowAll = addCheckbox(filterColumn, getLabel("checkbox.showAll"), "tooltip.showAll");
-        var chkFilterByStandard = addCheckbox(filterColumn, getLabel("checkbox.filterByStandard"), "tooltip.filterByStandard");
+        var foundryCheckboxes = [];
+        /* Adobe Fonts はメーカーではなく入手経路なので、線より上に置く / Adobe Fonts is a source, not a foundry, so it goes above the line */
+        addFoundryCheckboxes(categoryPanel, foundryCheckboxes, true);
+        /* 自分で決める分類と、メーカー別の分類を線で分ける / A line between your own categories and the foundry ones */
+        var categoryDivider = categoryPanel.add("panel");
+        categoryDivider.alignment = ["fill", "top"];
+        categoryDivider.minimumSize.height = categoryDivider.maximumSize.height = 1;
+        addFoundryCheckboxes(categoryPanel, foundryCheckboxes, false);
 
         var standardPanel = filterColumn.add("panel", undefined, getLabel("panel.standard"));
         setupPanel(standardPanel, 6);
+        var chkFilterByStandard = addCheckbox(standardPanel, getLabel("checkbox.filterByStandard"), "tooltip.filterByStandard");
+        var standardDivider = standardPanel.add("panel");
+        standardDivider.alignment = ["fill", "top"];
+        standardDivider.minimumSize.height = standardDivider.maximumSize.height = 1;
+        /* ［規格で絞り込む］がオフのときに無効にする部分 / The part disabled while Filter by standard is off */
+        var suffixGroup = standardPanel.add("group");
+        suffixGroup.orientation = "column";
+        suffixGroup.alignChildren = ["fill", "top"];
+        suffixGroup.spacing = 6;
+        suffixGroup.margins = 0;
         var suffixCheckboxes = [];
         var suffixRows = buildSuffixRows(PRIORITY_SUFFIXES);
         for (var j = 0; j < suffixRows.length; j++) {
-            var suffixRowGroup = standardPanel.add("group");
+            var suffixRowGroup = suffixGroup.add("group");
             setupRow(suffixRowGroup, "fill", 0);
             for (var k = 0; k < 2; k++) {
                 var rowSuffix = suffixRows[j][k];
@@ -2371,33 +2501,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
                 suffixCheckboxes.push(chkSuffix);
             }
         }
-        var chkNoSuffix = addCheckbox(standardPanel, getLabel("checkbox.noSuffix"), "tooltip.noSuffix");
+        var chkNoSuffix = addCheckbox(suffixGroup, getLabel("checkbox.noSuffix"), "tooltip.noSuffix");
         chkNoSuffix.suffix = "";
         suffixCheckboxes.push(chkNoSuffix);
 
-        var languagePanel = filterColumn.add("panel", undefined, getLabel("panel.excludedLanguages"));
-        setupPanel(languagePanel, 6);
-        var languageCheckboxes = [];
-        for (var m = 0; m < LANGUAGE_GROUPS.length; m++) {
-            var chkLanguage = languagePanel.add("checkbox", undefined, getLabel(LANGUAGE_GROUPS[m].label));
-            chkLanguage.helpTip = getLabel(LANGUAGE_GROUPS[m].tooltip);
-            chkLanguage.languageKey = LANGUAGE_GROUPS[m].key;
-            languageCheckboxes.push(chkLanguage);
-        }
-
         return {
             categoryPanel: categoryPanel,
-            chkCustom: chkCustom,
+            customSetCheckboxes: customSetCheckboxes,
             chkDocumentFonts: chkDocumentFonts,
             chkCompositeFonts: chkCompositeFonts,
             foundryCheckboxes: foundryCheckboxes,
-            btnRecordUsedFonts: btnRecordUsedFonts,
             chkShowAll: chkShowAll,
             chkFilterByStandard: chkFilterByStandard,
-            standardPanel: standardPanel,
+            suffixGroup: suffixGroup,
             suffixCheckboxes: suffixCheckboxes,
-            languageCheckboxes: languageCheckboxes
+            chkJapaneseOnly: chkJapaneseOnly
         };
+    }
+
+    /**
+     * FOUNDRY_FILTERS のチェックボックスを足す（Adobe Fonts の一覧で判定するものか、それ以外かで分けて呼ぶ）
+     * @param {Panel} parentPanel - 足す先
+     * @param {Checkbox[]} foundryCheckboxes - 足したチェックボックスを加える配列
+     * @param {boolean} usesAdobeFontsList - true なら Adobe Fonts の一覧で判定するものだけ、false ならそれ以外
+     * @returns {void}
+     */
+    function addFoundryCheckboxes(parentPanel, foundryCheckboxes, usesAdobeFontsList) {
+        for (var i = 0; i < FOUNDRY_FILTERS.length; i++) {
+            if (!!FOUNDRY_FILTERS[i].usesAdobeFontsList !== usesAdobeFontsList) continue;
+            var chkFoundry = addCheckbox(parentPanel, getLabel(FOUNDRY_FILTERS[i].label));
+            chkFoundry.helpTip = getLabel(FOUNDRY_FILTERS[i].tooltip);
+            chkFoundry.foundryKey = FOUNDRY_FILTERS[i].key;
+            foundryCheckboxes.push(chkFoundry);
+        }
     }
 
     /**
@@ -2458,31 +2594,209 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     }
 
     /**
-     * ボタン行以外に置く、ひとまわり小さいボタンを足す（文字を小さくする。高さは表示したときに詰める）
-     * @param {Panel|Group} parentContainer - 足す先
-     * @param {string} buttonText - ボタンの文言
-     * @returns {Button} 足したボタン
+     * 自前描画のボタンの色を返す（押している間は濃く、無効のときは淡く）
+     * @param {Button} drawnButton - 対象のボタン
+     * @returns {number[]} RGBA
      */
-    function addCompactButton(parentContainer, buttonText) {
-        var compactButton = parentContainer.add("button", undefined, buttonText);
-        var baseFont = compactButton.graphics.font;
-        compactButton.graphics.font = ScriptUI.newFont(baseFont.name, "REGULAR", baseFont.size - COMPACT_BUTTON_FONT_SHRINK);
-        return compactButton;
+    function getDrawnButtonColor(drawnButton) {
+        var useDarkUI = UI_IS_DARK;
+        /* 無効にしてあるときは、さらに淡くする / Dim further while disabled */
+        if (drawnButton.enabled === false) return useDarkUI ? [0.42, 0.42, 0.42, 1] : [0.78, 0.78, 0.78, 1];
+        /* 押している間は濃くして手応えを出す / Stronger while pressed */
+        if (drawnButton.pressed) return useDarkUI ? [0.95, 0.95, 0.95, 1] : [0.20, 0.20, 0.20, 1];
+        /* 主役ではないので、通常時も少し薄めに描く / Slightly muted by default */
+        return useDarkUI ? [0.72, 0.72, 0.72, 1] : [0.45, 0.45, 0.45, 1];
     }
 
     /**
-     * 小さいボタンの高さを詰め、その高さを preferredSize に入れて固定する（リサイズで元の高さに戻らないように）
-     * @param {Window} targetWindow - 対象のウィンドウ
-     * @param {Button[]} compactButtons - addCompactButton() で作ったボタン
+     * 前回の描画を消すため、ボタンを親と同じ色で塗りつぶす（背景色のブラシを持たない環境では省く）
+     * @param {Button} drawnButton - 対象のボタン
      * @returns {void}
      */
-    function fixCompactButtonHeights(targetWindow, compactButtons) {
-        for (var i = 0; i < compactButtons.length; i++) {
-            var compactButton = compactButtons[i];
-            if (!compactButton.size) continue;
-            compactButton.preferredSize = [compactButton.size.width, compactButton.size.height - COMPACT_BUTTON_TRIM_PX];
+    function clearDrawnButton(drawnButton) {
+        var buttonGraphics = drawnButton.graphics;
+        try {
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(0, 0, drawnButton.size[0], drawnButton.size[1]);
+            buttonGraphics.fillPath(buttonGraphics.backgroundColor);
+        } catch (e) {}
+    }
+
+    /**
+     * 中身を自前で描く正方形のボタンを足す（押している間の表示も付ける）
+     * @param {Group} parentGroup - 足す先
+     * @param {number} buttonSize - 一辺（px）
+     * @param {function(Button): void} drawButton - 描く処理
+     * @returns {Button} 足したボタン
+     */
+    function addDrawnButton(parentGroup, buttonSize, drawButton) {
+        var drawnButton = parentGroup.add("button", undefined, "");
+        drawnButton.preferredSize = [buttonSize, buttonSize];
+        drawnButton.minimumSize = [buttonSize, buttonSize];
+        drawnButton.maximumSize = [buttonSize, buttonSize];
+        drawnButton.pressed = false;
+
+        drawnButton.onDraw = function () {
+            drawButton(this);
+        };
+        drawnButton.addEventListener("mousedown", function () {
+            this.pressed = true;
+            this.notify("onDraw");
+        });
+        drawnButton.addEventListener("mouseup", function () {
+            this.pressed = false;
+            this.notify("onDraw");
+        });
+        /* ボタンの外でマウスを離したときも押下表示を戻す / Reset the pressed look on mouseout */
+        drawnButton.addEventListener("mouseout", function () {
+            if (!this.pressed) return;
+            this.pressed = false;
+            this.notify("onDraw");
+        });
+        return drawnButton;
+    }
+
+    /**
+     * クリアボタンの丸と×を描く
+     * @param {Button} clearButton - 対象のボタン
+     * @returns {void}
+     */
+    function drawClearButton(clearButton) {
+        var buttonGraphics = clearButton.graphics;
+        var buttonSize = clearButton.size[0];
+        clearDrawnButton(clearButton);
+
+        var glyphPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, getDrawnButtonColor(clearButton), CLEAR_STROKE_WIDTH);
+        var circleSize = buttonSize - CLEAR_CIRCLE_INSET * 2;
+        buttonGraphics.newPath();
+        buttonGraphics.ellipsePath(CLEAR_CIRCLE_INSET, CLEAR_CIRCLE_INSET, circleSize, circleSize);
+        buttonGraphics.strokePath(glyphPen);
+
+        var glyphStart = CLEAR_GLYPH_INSET;
+        var glyphEnd = buttonSize - CLEAR_GLYPH_INSET;
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(glyphStart, glyphStart);
+        buttonGraphics.lineTo(glyphEnd, glyphEnd);
+        buttonGraphics.strokePath(glyphPen);
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(glyphEnd, glyphStart);
+        buttonGraphics.lineTo(glyphStart, glyphEnd);
+        buttonGraphics.strokePath(glyphPen);
+    }
+
+    /**
+     * 絞り込みの文字列を消すクリアボタンを足す（有効・無効は呼び出し側が入力欄に合わせる）
+     * @param {Group} parentGroup - 足す先
+     * @returns {Button} 丸に×を自前描画したボタン
+     */
+    function addClearButton(parentGroup) {
+        var clearButton = addDrawnButton(parentGroup, CLEAR_BUTTON_SIZE, drawClearButton);
+        clearButton.helpTip = getLabel("tooltip.clearSearch");
+        clearButton.alignment = ["right", "center"];
+        clearButton.enabled = false;
+        return clearButton;
+    }
+
+    /**
+     * しおりを描く。塗るときは onDraw では多角形を塗れないので、切り込みの部分は1px の横長の四角を積んで塗る
+     * @param {ScriptUIGraphics} buttonGraphics - 描く先
+     * @param {number[]} glyphColor - 色
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {boolean} isFilled - true なら塗り、false なら輪郭
+     * @returns {void}
+     */
+    function drawBookmark(buttonGraphics, glyphColor, left, top, isFilled) {
+        var right = left + SET_BOOKMARK_WIDTH;
+        var bottom = top + SET_BOOKMARK_HEIGHT;
+        var notchTop = bottom - SET_BOOKMARK_NOTCH;
+        if (!isFilled) {
+            var outlinePen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, glyphColor, 1.5);
+            buttonGraphics.newPath();
+            buttonGraphics.moveTo(left, top);
+            buttonGraphics.lineTo(right, top);
+            buttonGraphics.lineTo(right, bottom);
+            buttonGraphics.lineTo(left + SET_BOOKMARK_WIDTH / 2, notchTop);
+            buttonGraphics.lineTo(left, bottom);
+            buttonGraphics.lineTo(left, top);
+            buttonGraphics.strokePath(outlinePen);
+            return;
         }
-        targetWindow.layout.layout(true);
+        var fillBrush = buttonGraphics.newBrush(buttonGraphics.BrushType.SOLID_COLOR, glyphColor);
+        buttonGraphics.newPath();
+        buttonGraphics.rectPath(left, top, SET_BOOKMARK_WIDTH, SET_BOOKMARK_HEIGHT - SET_BOOKMARK_NOTCH);
+        buttonGraphics.fillPath(fillBrush);
+        for (var y = notchTop; y < bottom; y++) {
+            /* 切り込みは下へ行くほど広がる / The notch widens toward the bottom */
+            var legWidth = SET_BOOKMARK_WIDTH / 2 - (y - notchTop + 0.5) * (SET_BOOKMARK_WIDTH / 2) / SET_BOOKMARK_NOTCH;
+            if (legWidth <= 0) break;
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(left, y, legWidth, 1);
+            buttonGraphics.fillPath(fillBrush);
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(right - legWidth, y, legWidth, 1);
+            buttonGraphics.fillPath(fillBrush);
+        }
+    }
+
+    /**
+     * ［カスタムセット］の出し入れボタンを描く。重なった2枚のカードの手前に番号としおり。
+     * 選んだフォントがそのセットに入っていればアイコン全体を暗くしてしおりを塗り、外れていればしおりは輪郭だけ
+     * @param {Button} setButton - 対象のボタン（setNumber に番号、isOn が true なら塗る）
+     * @returns {void}
+     */
+    function drawCustomSetButton(setButton) {
+        var buttonGraphics = setButton.graphics;
+        clearDrawnButton(setButton);
+        var glyphColor = getDrawnButtonColor(setButton);
+        /* セットに入っているときは、アイコン全体を暗く（ダーク表示では明るく）してはっきり見せる / In the set, the whole icon gets the strongest contrast */
+        if (setButton.isOn && setButton.enabled !== false) glyphColor = UI_IS_DARK ? [0.95, 0.95, 0.95, 1] : [0.10, 0.10, 0.10, 1];
+        var cardPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, glyphColor, SET_CARD_STROKE_WIDTH);
+        var backLeft = Math.round((setButton.size[0] - SET_CARD_SIZE - SET_CARD_OFFSET) / 2);
+        var backTop = Math.round((setButton.size[1] - SET_CARD_SIZE - SET_CARD_OFFSET) / 2);
+        var frontLeft = backLeft + SET_CARD_OFFSET;
+        var frontTop = backTop + SET_CARD_OFFSET;
+
+        /* 後ろのカードは、手前のカードに隠れない部分の線だけを描く（ボタンでは背景色で塗って隠せない）
+           Only the visible part of the back card is drawn; buttons cannot hide it by painting the background */
+        var backRight = backLeft + SET_CARD_SIZE;
+        var backBottom = backTop + SET_CARD_SIZE;
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(frontLeft, backBottom);
+        buttonGraphics.lineTo(backLeft, backBottom);
+        buttonGraphics.lineTo(backLeft, backTop);
+        buttonGraphics.lineTo(backRight, backTop);
+        buttonGraphics.lineTo(backRight, frontTop);
+        buttonGraphics.strokePath(cardPen);
+        buttonGraphics.newPath();
+        buttonGraphics.rectPath(frontLeft, frontTop, SET_CARD_SIZE, SET_CARD_SIZE);
+        buttonGraphics.strokePath(cardPen);
+
+        var bookmarkLeft = frontLeft + SET_CARD_SIZE - SET_BOOKMARK_INSET - SET_BOOKMARK_WIDTH;
+        drawBookmark(buttonGraphics, glyphColor, bookmarkLeft, frontTop, setButton.isOn);
+
+        var numberFont = ScriptUI.newFont("dialog", "BOLD", SET_NUMBER_FONT_SIZE);
+        var numberText = String(setButton.setNumber);
+        var numberSize = buttonGraphics.measureString(numberText, numberFont);
+        var numberPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, glyphColor, 1);
+        /* 番号はしおりの左の、カードの下寄りに置く / The number sits left of the bookmark, low on the card */
+        var numberLeft = frontLeft + Math.round((bookmarkLeft - frontLeft - numberSize[0]) / 2);
+        var numberTop = frontTop + SET_CARD_SIZE - numberSize[1] - 2;
+        buttonGraphics.drawString(numberText, numberPen, numberLeft, numberTop, numberFont);
+    }
+
+    /**
+     * ［カスタムセット］の出し入れボタンを足す（状態とツールチップは呼び出し側が選択に合わせる）
+     * @param {Group} parentGroup - 足す先
+     * @param {number} setNumber - セットの番号（1 から）
+     * @returns {Button} 自前描画したボタン
+     */
+    function addCustomSetButton(parentGroup, setNumber) {
+        var setButton = addDrawnButton(parentGroup, SET_BUTTON_SIZE, drawCustomSetButton);
+        setButton.setNumber = setNumber;
+        setButton.isOn = false;
+        setButton.enabled = false;
+        return setButton;
     }
 
     /**
@@ -2501,63 +2815,190 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     /**
      * 右の列（絞り込み欄・フォント一覧・件数）を作る
      * @param {Group} parentGroup - 列を足す先
-     * @returns {Object} コントロール一式（searchInput・fontListBox・btnAddCustom・btnRemoveCustom・chkShowPostScriptName・chkPreview・statusText）
+     * @returns {Object} コントロール一式（searchInput・btnClearSearch・fontListBox・customSetButtons・chkShowPostScriptName・statusText）
      */
     function buildFontListColumn(parentGroup) {
         var fontListColumn = parentGroup.add("group");
         fontListColumn.orientation = "column";
         fontListColumn.alignChildren = ["fill", "top"];
-        fontListColumn.alignment = ["fill", "top"];
+        /* ダイアログを縦に広げたら一覧を伸ばす / The list grows when the dialog is made taller */
+        fontListColumn.alignment = ["fill", "fill"];
         fontListColumn.spacing = 6;
 
         var searchRowGroup = fontListColumn.add("group");
-        setupRow(searchRowGroup, "fill", 6);
+        /* 右の列は縦に伸びるので、行は上詰めにする（center だと余った高さの中で下へずれる）/ The column stretches, so rows stick to the top */
+        setupRow(searchRowGroup, ["fill", "top"], 6);
+        searchRowGroup.margins = [0, 0, 0, FONT_LIST_TOP_MARGIN];
         searchRowGroup.add("statictext", undefined, labelText("fieldLabel.search"));
         var searchInput = searchRowGroup.add("edittext", undefined, "");
         searchInput.alignment = ["fill", "center"];
         searchInput.helpTip = getLabel("tooltip.search");
+        var btnClearSearch = addClearButton(searchRowGroup);
+
+        /* 一覧の見出しの行：左に件数、右に［PostScript 名で表示］/ List header: the count on the left, Show PostScript names on the right */
+        var listHeaderRowGroup = fontListColumn.add("group");
+        setupRow(listHeaderRowGroup, ["fill", "top"], 6);
+        var statusText = listHeaderRowGroup.add("statictext", undefined, "");
+        /* 件数は空いた幅をすべて使い、スペーサーを兼ねる（空のまま作ると幅が 0 になるので fill で広げる）
+           The count takes the spare width and doubles as the spacer (fill keeps it from collapsing while empty) */
+        statusText.alignment = ["fill", "center"];
+        var chkShowPostScriptName = addCheckbox(listHeaderRowGroup, getLabel("checkbox.showPostScriptName"), "tooltip.showPostScriptName");
+        chkShowPostScriptName.alignment = ["right", "center"];
 
         var fontListBox = fontListColumn.add("listbox", undefined, [], { multiselect: false });
         fontListBox.preferredSize = FONT_LIST_SIZE;
-        fontListBox.alignment = ["fill", "top"];
+        fontListBox.alignment = ["fill", "fill"];
         fontListBox.helpTip = getLabel("tooltip.fontList");
 
         var customRowGroup = fontListColumn.add("group");
-        setupRow(customRowGroup, "left", 6);
-        var btnAddCustom = addCompactButton(customRowGroup, getLabel("button.addCustom"));
-        btnAddCustom.helpTip = getLabel("tooltip.addCustom");
-        var btnRemoveCustom = addCompactButton(customRowGroup, getLabel("button.removeCustom"));
-        btnRemoveCustom.helpTip = getLabel("tooltip.removeCustom");
+        setupRow(customRowGroup, ["left", "top"], 6);
+        customRowGroup.margins = [0, FONT_LIST_BOTTOM_MARGIN, 0, 0];
+        var customSetButtons = [];
+        for (var n = 0; n < CUSTOM_SET_COUNT; n++) customSetButtons.push(addCustomSetButton(customRowGroup, n + 1));
 
-        var optionRowGroup = fontListColumn.add("group");
-        setupRow(optionRowGroup, "left", PANEL_SPACING);
-        var chkShowPostScriptName = addCheckbox(optionRowGroup, getLabel("checkbox.showPostScriptName"), "tooltip.showPostScriptName");
-        var chkPreview = addCheckbox(optionRowGroup, getLabel("checkbox.preview"), "tooltip.preview");
-
-        var statusText = fontListColumn.add("statictext", undefined, "");
-        statusText.preferredSize.width = STATUS_TEXT_WIDTH;
-        statusText.alignment = ["fill", "top"];
 
         return {
             searchInput: searchInput,
+            btnClearSearch: btnClearSearch,
             fontListBox: fontListBox,
-            btnAddCustom: btnAddCustom,
-            btnRemoveCustom: btnRemoveCustom,
+            customSetButtons: customSetButtons,
             chkShowPostScriptName: chkShowPostScriptName,
-            chkPreview: chkPreview,
             statusText: statusText
         };
     }
 
     /**
+     * 環境設定のダイアログを開く（再スキャン・［和文フォントのみ］で外す言語・カスタムセットの書き出しと読み込み）。
+     * 再スキャンはその場で行い、キャンセルしても戻らない
+     * @param {{fontTotal: number, excludedLanguages: string[], customFontSets: string[][], onRescan: function(): number}} preferenceState - 今の値と、再スキャンの処理（読み込んだ件数を返す）
+     * @returns {{excludedLanguages: string[], customFontSets: string[][]}|null} OK なら新しい値、キャンセルなら null
+     */
+    function showPreferencesDialog(preferenceState) {
+        var customFontSets = [];
+        for (var i = 0; i < preferenceState.customFontSets.length; i++) customFontSets.push(preferenceState.customFontSets[i].slice(0));
+
+        var prefsDialog = new Window("dialog", getLabel("dialog.preferences"));
+        setupWindow(prefsDialog);
+
+        var fontInfoPanel = prefsDialog.add("panel", undefined, getLabel("panel.fontInfo"));
+        setupPanel(fontInfoPanel, 6);
+        var fontInfoRowGroup = fontInfoPanel.add("group");
+        setupRow(fontInfoRowGroup, "fill", 6);
+        var fontTotalText = fontInfoRowGroup.add("statictext", undefined, getLabel("message.fontTotal", { count: preferenceState.fontTotal }));
+        fontTotalText.alignment = ["fill", "center"];
+        var btnRescan = fontInfoRowGroup.add("button", undefined, getLabel("button.rescan"));
+        btnRescan.helpTip = getLabel("tooltip.rescan");
+
+        var languagePanel = prefsDialog.add("panel", undefined, getLabel("panel.excludedLanguages"));
+        setupPanel(languagePanel, 6);
+        var languageCheckboxes = [];
+        /* 2列に並べる / Two columns */
+        var languageRowGroup = null;
+        for (var m = 0; m < LANGUAGE_GROUPS.length; m++) {
+            if (m % 2 === 0) {
+                languageRowGroup = languagePanel.add("group");
+                setupRow(languageRowGroup, "fill", 0);
+            }
+            var chkLanguage = languageRowGroup.add("checkbox", undefined, getLabel(LANGUAGE_GROUPS[m].label));
+            if (m % 2 === 0) chkLanguage.preferredSize.width = LANGUAGE_LEFT_WIDTH;
+            chkLanguage.helpTip = getLabel(LANGUAGE_GROUPS[m].tooltip);
+            chkLanguage.languageKey = LANGUAGE_GROUPS[m].key;
+            chkLanguage.value = containsValue(preferenceState.excludedLanguages, chkLanguage.languageKey);
+            languageCheckboxes.push(chkLanguage);
+        }
+        addSoloClickGroup(languageCheckboxes, function () {});
+
+        var customSetPanel = prefsDialog.add("panel", undefined, getLabel("panel.customSets"));
+        setupPanel(customSetPanel, 6);
+        var setNumbers = [];
+        for (var n = 0; n < customFontSets.length; n++) setNumbers.push(String(n + 1));
+        var customSetRowGroup = customSetPanel.add("group");
+        setupRow(customSetRowGroup, "fill", 6);
+        var setDropdown = customSetRowGroup.add("dropdownlist", undefined, setNumbers);
+        setDropdown.selection = 0;
+        var setCountText = customSetRowGroup.add("statictext", undefined, "");
+        setCountText.alignment = ["fill", "center"];
+        var setListBox = customSetPanel.add("listbox", undefined, [], { multiselect: false });
+        setListBox.preferredSize = CUSTOM_SET_LIST_SIZE;
+        var setButtonRowGroup = customSetPanel.add("group");
+        setupRow(setButtonRowGroup, "left", 6);
+        var btnExportSet = setButtonRowGroup.add("button", undefined, getLabel("button.exportSet"));
+        btnExportSet.helpTip = getLabel("tooltip.exportSet");
+        var btnImportSet = setButtonRowGroup.add("button", undefined, getLabel("button.importSet"));
+        btnImportSet.helpTip = getLabel("tooltip.importSet");
+
+        var buttonRow = addButtonRow(prefsDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+
+        /**
+         * ドロップダウンで選んだセットの中身を一覧に並べる
+         * @returns {void}
+         */
+        function showSelectedSet() {
+            var setFontNames = customFontSets[setDropdown.selection.index];
+            setListBox.removeAll();
+            for (var j = 0; j < setFontNames.length; j++) setListBox.add("item", setFontNames[j]);
+            setCountText.text = getLabel("message.setCount", { count: setFontNames.length });
+        }
+
+        setDropdown.onChange = showSelectedSet;
+        btnRescan.onClick = function () {
+            var fontTotal = preferenceState.onRescan();
+            fontTotalText.text = getLabel("message.fontTotal", { count: fontTotal });
+            alert(getLabel("alert.rescanned", { count: fontTotal }));
+        };
+        btnExportSet.onClick = function () {
+            var setIndex = setDropdown.selection.index;
+            var exportFile = File.saveDialog(getLabel("dialog.exportSet", { number: setIndex + 1 }), "*.txt");
+            if (!exportFile) return;
+            if (!/\.txt$/i.test(exportFile.name)) exportFile = new File(exportFile.fsName + ".txt");
+            if (!writeTextFile(exportFile, customFontSets[setIndex].join("\n"))) {
+                alert(getLabel("alert.writeFailed", { message: exportFile.error }));
+                return;
+            }
+            alert(getLabel("alert.exported", { count: customFontSets[setIndex].length }));
+        };
+        btnImportSet.onClick = function () {
+            var setIndex = setDropdown.selection.index;
+            var importFile = File.openDialog(getLabel("dialog.importSet", { number: setIndex + 1 }));
+            if (!importFile) return;
+            var fileLines = splitTextLines(readTextFile(importFile));
+            var addedCount = 0;
+            for (var k = 0; k < fileLines.length; k++) {
+                var fontName = fileLines[k].replace(/^\s+|\s+$/g, "");
+                if (fontName === "" || containsValue(customFontSets[setIndex], fontName)) continue;
+                customFontSets[setIndex].push(fontName);
+                addedCount++;
+            }
+            showSelectedSet();
+            alert(getLabel("alert.imported", { count: addedCount }));
+        };
+
+        showSelectedSet();
+        prepareDialogWindow(prefsDialog, SCRIPT_NAME + "Preferences");
+        if (prefsDialog.show() !== 1) return null;
+
+        var excludedLanguages = [];
+        for (var c = 0; c < languageCheckboxes.length; c++) {
+            if (languageCheckboxes[c].value) excludedLanguages.push(languageCheckboxes[c].languageKey);
+        }
+        return { excludedLanguages: excludedLanguages, customFontSets: customFontSets };
+    }
+
+    /**
      * 保存形式の設定をダイアログに反映する
-     * @param {Object} filterControls - buildFilterColumn() の戻り値に searchInput・chkShowPostScriptName・chkPreview・customFontNames を足したもの
+     * @param {Object} filterControls - buildFilterColumn() の戻り値に searchInput・chkShowPostScriptName・chkPreview・customFontSets・excludedLanguages を足したもの
      * @param {Object} filterSettings - DEFAULT_SETTINGS と同じ形
      * @returns {void}
      */
     function applySettingsToControls(filterControls, filterSettings) {
-        filterControls.chkCustom.value = filterSettings.custom;
-        filterControls.customFontNames = filterSettings.customFonts;
+        var customSets = resolveCustomSets(filterSettings);
+        filterControls.customFontSets = customSets.fontSets;
+        for (var c = 0; c < filterControls.customSetCheckboxes.length; c++) {
+            filterControls.customSetCheckboxes[c].value = customSets.visible[c];
+        }
         filterControls.chkDocumentFonts.value = filterSettings.documentFonts;
         filterControls.chkCompositeFonts.value = filterSettings.compositeFonts;
         for (var i = 0; i < filterControls.foundryCheckboxes.length; i++) {
@@ -2566,10 +3007,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         }
         filterControls.chkShowAll.value = filterSettings.showAll;
         filterControls.chkFilterByStandard.value = filterSettings.filterByStandard;
-        for (var k = 0; k < filterControls.languageCheckboxes.length; k++) {
-            var chkLanguage = filterControls.languageCheckboxes[k];
-            chkLanguage.value = containsValue(filterSettings.excludedLanguages, chkLanguage.languageKey);
-        }
+        filterControls.chkJapaneseOnly.value = filterSettings.japaneseOnly;
+        filterControls.excludedLanguages = filterSettings.excludedLanguages;
         for (var j = 0; j < filterControls.suffixCheckboxes.length; j++) {
             var chkSuffix = filterControls.suffixCheckboxes[j];
             chkSuffix.value = !containsValue(filterSettings.hiddenSuffixes, chkSuffix.suffix);
@@ -2585,6 +3024,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
      * @returns {Object} DEFAULT_SETTINGS と同じ形
      */
     function readSettingsFromControls(filterControls) {
+        var customSetsVisible = [];
+        for (var c = 0; c < filterControls.customSetCheckboxes.length; c++) customSetsVisible.push(filterControls.customSetCheckboxes[c].value);
         var checkedFoundryKeys = [];
         for (var i = 0; i < filterControls.foundryCheckboxes.length; i++) {
             var chkFoundry = filterControls.foundryCheckboxes[i];
@@ -2595,15 +3036,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             var chkSuffix = filterControls.suffixCheckboxes[j];
             if (!chkSuffix.value) hiddenSuffixes.push(chkSuffix.suffix);
         }
-        var excludedLanguageKeys = [];
-        for (var k = 0; k < filterControls.languageCheckboxes.length; k++) {
-            var chkLanguage = filterControls.languageCheckboxes[k];
-            if (chkLanguage.value) excludedLanguageKeys.push(chkLanguage.languageKey);
-        }
         return {
-            excludedLanguages: excludedLanguageKeys,
-            custom: filterControls.chkCustom.value,
-            customFonts: filterControls.customFontNames,
+            japaneseOnly: filterControls.chkJapaneseOnly.value,
+            excludedLanguages: filterControls.excludedLanguages,
+            customSets: filterControls.customFontSets,
+            customSetsVisible: customSetsVisible,
             documentFonts: filterControls.chkDocumentFonts.value,
             compositeFonts: filterControls.chkCompositeFonts.value,
             foundries: checkedFoundryKeys,
@@ -2643,13 +3080,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         var fontListBox = fontListControls.fontListBox;
         filterControls.searchInput = fontListControls.searchInput;
         filterControls.chkShowPostScriptName = fontListControls.chkShowPostScriptName;
-        filterControls.chkPreview = fontListControls.chkPreview;
 
         var buttonRow = addButtonRow(mainDialog);
-        var btnRescan = buttonRow.leftGroup.add("button", undefined, getLabel("button.rescan"));
-        btnRescan.helpTip = getLabel("tooltip.rescan");
+        var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel("button.preferences"));
+        btnPreferences.helpTip = getLabel("tooltip.preferences");
+        /* 適用先（テキスト）に関わる設定なので、一覧ではなくボタン行に置く / It concerns the target text, so it sits in the button row */
+        filterControls.chkPreview = addCheckbox(buttonRow.leftGroup, getLabel("checkbox.preview"), "tooltip.preview");
         var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnApply = buttonRow.rightGroup.add("button", undefined, getLabel("button.apply"));
+        btnApply.helpTip = getLabel("tooltip.apply");
         alignRightOnlyButtonRow(buttonRow);
 
         applySettingsToControls(filterControls, settingsStore.load(DEFAULT_SETTINGS));
@@ -2660,7 +3099,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
          */
         function updatePanelStates() {
             filterControls.categoryPanel.enabled = !filterControls.chkShowAll.value;
-            filterControls.standardPanel.enabled = filterControls.chkFilterByStandard.value;
+            filterControls.suffixGroup.enabled = filterControls.chkFilterByStandard.value;
         }
 
         /* 絞り込み欄の内容をまだ一覧に反映していない / The filter text is not reflected in the list yet */
@@ -2721,6 +3160,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             isUpdatingList = false;
             lastSelectedIndex = fontListBox.selection ? fontListBox.selection.index : -1;
             fontListControls.statusText.text = getLabel("message.fontCount", { count: visibleFonts.length });
+            updateCustomToggle();
         }
 
         /**
@@ -2794,65 +3234,115 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         }
 
         /**
-         * 一覧で選んだフォントのファミリーを［カスタム］に加える
+         * 一覧で選んだフォントのファミリーを［カスタムセット］に加え、そのセットのチェックを入れる
+         * @param {number} setIndex - セットの位置（0 から）
          * @returns {void}
          */
-        function addSelectedToCustom() {
+        function addSelectedToSet(setIndex) {
             if (!fontListBox.selection) return;
-            var familyName = fontListBox.selection.familyName;
-            if (containsValue(filterControls.customFontNames, familyName)) {
-                alert(getLabel("alert.alreadyCustom", { name: familyName }));
-                return;
-            }
-            filterControls.customFontNames = filterControls.customFontNames.concat([familyName]);
-            filterControls.chkCustom.value = true;
+            filterControls.customFontSets[setIndex] = filterControls.customFontSets[setIndex].concat([fontListBox.selection.familyName]);
+            filterControls.customSetCheckboxes[setIndex].value = true;
             refreshFontList();
         }
 
         /**
-         * 一覧で選んだフォントに当たる名前を［カスタム］から外す（ほかのフォントにも当たる名前なら確かめる）
+         * 一覧で選んだフォントに当たる名前を［カスタムセット］から外す（ほかのフォントにも当たる名前なら確かめる）
+         * @param {number} setIndex - セットの位置（0 から）
          * @returns {void}
          */
-        function removeSelectedFromCustom() {
+        function removeSelectedFromSet(setIndex) {
             if (!fontListBox.selection) return;
             var selectedItem = fontListBox.selection;
             var familyLower = selectedItem.familyName.toLowerCase();
             var psLower = selectedItem.psName.toLowerCase();
+            var setFontNames = filterControls.customFontSets[setIndex];
             var keptNames = [];
             var removedNames = [];
-            for (var i = 0; i < filterControls.customFontNames.length; i++) {
-                var customName = filterControls.customFontNames[i];
-                var isMatch = startsWithAny(familyLower, [customName]) || startsWithAny(psLower, [customName]);
-                if (isMatch) removedNames.push(customName);
-                else keptNames.push(customName);
+            for (var i = 0; i < setFontNames.length; i++) {
+                var isMatch = startsWithAny(familyLower, [setFontNames[i]]) || startsWithAny(psLower, [setFontNames[i]]);
+                if (isMatch) removedNames.push(setFontNames[i]);
+                else keptNames.push(setFontNames[i]);
             }
-            if (removedNames.length === 0) {
-                alert(getLabel("alert.notInCustom", { name: selectedItem.familyName }));
-                return;
-            }
+            if (removedNames.length === 0) return;
             var isOnlyThisFamily = (removedNames.length === 1 && removedNames[0].toLowerCase() === familyLower);
-            if (!isOnlyThisFamily && !confirm(getLabel("alert.confirmRemoveCustom", { names: removedNames.join(uiLang === "ja" ? "」「" : "\", \"") }))) return;
-            filterControls.customFontNames = keptNames;
+            if (!isOnlyThisFamily && !confirm(getLabel("alert.confirmRemoveCustom", { number: setIndex + 1, names: removedNames.join(uiLang === "ja" ? "」「" : "\", \"") }))) return;
+            filterControls.customFontSets[setIndex] = keptNames;
             refreshFontList();
         }
 
-        addSoloClickGroup([filterControls.chkCustom, filterControls.chkDocumentFonts].concat(filterControls.foundryCheckboxes, [filterControls.chkCompositeFonts]), refreshFontList);
+        /**
+         * 一覧で選んだフォントが［カスタムセット］に入っているか（名前の前方一致）
+         * @param {number} setIndex - セットの位置（0 から）
+         * @returns {boolean} 入っていれば true
+         */
+        function isSelectedInSet(setIndex) {
+            var selectedItem = fontListBox.selection;
+            if (!selectedItem || selectedItem.isFamilyHeader) return false;
+            var setFontNames = filterControls.customFontSets[setIndex];
+            return startsWithAny(selectedItem.familyName.toLowerCase(), setFontNames) ||
+                startsWithAny(selectedItem.psName.toLowerCase(), setFontNames);
+        }
+
+        /**
+         * ［カスタムセット］の出し入れボタンを、一覧の選択に合わせる（しおりの塗り・有効・ツールチップ）
+         * @returns {void}
+         */
+        function updateCustomToggle() {
+            var selectedItem = fontListBox.selection;
+            var hasFont = !!selectedItem && !selectedItem.isFamilyHeader;
+            for (var i = 0; i < fontListControls.customSetButtons.length; i++) {
+                var setButton = fontListControls.customSetButtons[i];
+                setButton.enabled = hasFont;
+                setButton.isOn = isSelectedInSet(i);
+                setButton.helpTip = getLabel(setButton.isOn ? "tooltip.removeCustomSet" : "tooltip.addCustomSet", { number: i + 1 });
+                setButton.notify("onDraw");
+            }
+        }
+
+        /**
+         * 一覧で選んだフォントを、［カスタムセット］に入っていれば外し、入っていなければ加える
+         * @param {number} setIndex - セットの位置（0 から）
+         * @returns {void}
+         */
+        function toggleSelectedInSet(setIndex) {
+            if (isSelectedInSet(setIndex)) removeSelectedFromSet(setIndex);
+            else addSelectedToSet(setIndex);
+            updateCustomToggle();
+        }
+
+        addSoloClickGroup(filterControls.customSetCheckboxes.concat([filterControls.chkDocumentFonts, filterControls.chkCompositeFonts], filterControls.foundryCheckboxes), refreshFontList);
         addSoloClickGroup(filterControls.suffixCheckboxes, refreshFontList);
-        for (var n = 0; n < filterControls.languageCheckboxes.length; n++) filterControls.languageCheckboxes[n].onClick = refreshFontList;
+        filterControls.chkJapaneseOnly.onClick = refreshFontList;
         filterControls.chkShowAll.onClick = filterControls.chkFilterByStandard.onClick = function () {
             updatePanelStates();
             refreshFontList();
         };
         filterControls.chkShowPostScriptName.onClick = refreshFontList;
         filterControls.chkPreview.onClick = refreshPreview;
-        fontListControls.btnAddCustom.onClick = addSelectedToCustom;
-        fontListControls.btnRemoveCustom.onClick = removeSelectedFromCustom;
+        for (var b = 0; b < fontListControls.customSetButtons.length; b++) {
+            fontListControls.customSetButtons[b].onClick = function () {
+                toggleSelectedInSet(this.setNumber - 1);
+            };
+        }
         fontListBox.onChange = function () {
             if (isUpdatingList || skipFamilyHeader()) return;
+            updateCustomToggle();
             refreshPreview();
         };
+        /**
+         * クリアボタンの有効・無効を絞り込み欄に合わせる
+         * @returns {void}
+         */
+        function updateClearButtonState() {
+            var hasSearchText = filterControls.searchInput.text !== "";
+            if (fontListControls.btnClearSearch.enabled === hasSearchText) return;
+            fontListControls.btnClearSearch.enabled = hasSearchText;
+            fontListControls.btnClearSearch.notify("onDraw");
+        }
+
         /* 一覧に並べるのが重いので、件数が多いうちは Enter（onChange）まで待つ / Adding many rows is slow, so wait for Enter while the result is large */
         filterControls.searchInput.onChanging = function () {
+            updateClearButtonState();
             var visibleFonts = collectVisibleFonts();
             if (visibleFonts.length <= LIVE_SEARCH_MAX_FONTS) {
                 showFontList(visibleFonts);
@@ -2864,21 +3354,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         filterControls.searchInput.onChange = function () {
             if (isSearchPending) refreshFontList();
         };
-
-        filterControls.btnRecordUsedFonts.onClick = function () {
-            /* プレビューの複製を拾わないよう、記録の間は消しておく / Remove preview duplicates so they are not recorded */
-            clearFontPreview(fontPreview);
-            var updatedNames = recordUsedFonts();
-            refreshPreview();
-            if (!updatedNames) return;
-            documentFontNames = updatedNames;
-            filterControls.chkDocumentFonts.value = true;
+        fontListControls.btnClearSearch.onClick = function () {
+            filterControls.searchInput.text = "";
+            /* 続けて打ち直せるよう、フォーカスは入力欄へ戻す / Put the focus back in the field */
+            filterControls.searchInput.active = true;
+            updateClearButtonState();
             refreshFontList();
         };
-        btnRescan.onClick = function () {
-            fontCatalog = createFontCatalog(scanInstalledFonts());
+        /* 前回の絞り込みを読み戻したときの状態に合わせる / Match the restored filter text */
+        fontListControls.btnClearSearch.enabled = filterControls.searchInput.text !== "";
+
+        btnPreferences.onClick = function () {
+            var preferences = showPreferencesDialog({
+                fontTotal: fontCatalog.length,
+                excludedLanguages: filterControls.excludedLanguages,
+                customFontSets: filterControls.customFontSets,
+                onRescan: function () {
+                    adobeFontsFamilies = null;
+                    fontCatalog = createFontCatalog(scanInstalledFonts());
+                    return fontCatalog.length;
+                }
+            });
+            /* 再スキャンは環境設定をキャンセルしても戻らないので、いつも一覧を作り直す / A rescan stays even on Cancel, so always rebuild the list */
+            if (preferences) {
+                filterControls.excludedLanguages = preferences.excludedLanguages;
+                filterControls.customFontSets = preferences.customFontSets;
+            }
             refreshFontList();
-            alert(getLabel("alert.rescanned", { count: fontCatalog.length }));
         };
 
         fontListBox.onDoubleClick = applySelectedFont;
@@ -2898,7 +3400,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             this.layout.resize();
         };
         mainDialog.onShow = function () {
-            fixCompactButtonHeights(mainDialog, [filterControls.btnRecordUsedFonts, fontListControls.btnAddCustom, fontListControls.btnRemoveCustom]);
             filterControls.searchInput.active = true;
             selectCurrentFont();
         };
