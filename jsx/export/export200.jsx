@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export200.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "export200";                    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export200.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export200.md"; /* README (English) */
@@ -127,6 +127,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
+    // ファイルビューアで表示（再利用パーツ） / Show in file viewer (reusable)
+
+    /**
+     * Path Finder（起動中のとき）か Finder で、フォルダーを開くかファイルを選択して表示する。
+     * 補助アプリ /Applications/OpenInFileViewer.app に一時ファイルでパスを渡して起動する。
+     * 補助アプリは illustrator-scripts の helpers/OpenInFileViewer.applescript から作る
+     * @param {File|Folder} targetItem - 開くフォルダーか、選択して表示するファイル
+     * @returns {boolean} 補助アプリを起動できたら true。無い・起動できない・macOS 以外のときは false
+     */
+    function openInFileViewer(targetItem) {
+        /* 定数は巻き上げで未定義にならないよう関数内に置く / Kept local so hoisting never leaves them undefined */
+        var viewerAppPath = "/Applications/OpenInFileViewer.app";
+        var pathFilePath = "/tmp/open_in_file_viewer_path.txt";
+
+        if ($.os.indexOf("Mac") === -1) return false;
+        /* .app は実体がディレクトリなので Folder でも確かめる / An .app is a directory, so check it as a Folder too */
+        if (!new Folder(viewerAppPath).exists && !new File(viewerAppPath).exists) return false;
+
+        var pathFile = new File(pathFilePath);
+        var written = false;
+        try {
+            pathFile.encoding = "UTF-8";
+            pathFile.lineFeed = "Unix";
+            if (pathFile.open("w")) {
+                /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
+                written = pathFile.write(targetItem.fsName);
+            }
+        } catch (e) {
+        } finally {
+            try { pathFile.close(); } catch (closeError) {}
+        }
+        return written && new File(viewerAppPath).execute();
+    }
+
+    // ファイルビューアで表示（再利用パーツ）ここまで / End of the reusable file viewer
+
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         alert: {
@@ -171,7 +207,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             doc.exportFile(exportFile, ExportType.PNG24, createPngExportOptions());
             if (Folder.fs === "Macintosh") {
-                exportFolder.execute(); /* Finder で保存先を開く / Open the destination in Finder */
+                /* Path Finder（起動中のとき）か Finder で保存先を開く / Open the destination in Path Finder or Finder */
+                if (!openInFileViewer(exportFolder)) exportFolder.execute();
             }
         } catch (e) {
             alert(getLabel("alert.exportError") + e.message);

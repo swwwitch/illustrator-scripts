@@ -109,6 +109,7 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 
 - The launcher window itself does not show the target folder. Open **Preferences** to see where you are pointed
 - Option double-click reveals the file with the Automator app at `/Applications/RevealInFinder.app` when it is installed. Without it, or outside macOS, it just opens the enclosing folder
+- With the helper app `/Applications/OpenInFileViewer.app` installed, files and folders are shown in Path Finder when it is running, and in Finder otherwise (both Option double-click and double-clicking a folder). It takes priority over RevealInFinder.app. Build it from [helpers/OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) with `osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.applescript`. Revealing a file in Path Finder asks for Automation permission the first time
 - If this launcher itself lives inside the target folder, it is left out of the list
 - File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
 - The target folder and keyword settings are stored in `Folder.userData/illustrator-scripts/AiScriptLauncher.json` (the former Illustrator preferences `AiScriptLauncher.*` are read once). The only other file the script writes is the session file described in the next bullet
@@ -134,6 +135,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.6.0 (2026-10-01): With the helper app OpenInFileViewer.app, files are revealed and folders opened in Path Finder while it is running
 - v1.5.4 (2026-10-01): Fixed palette scripts run from the launcher closing right away instead of staying open
 - v1.5.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.2 (2026-10-01): The launcher and Preferences dialogs now open via the shared part (98% opacity, placement that avoids the selection, position memory within a run). Unified the window and panel margins and spacing with the shared layout part

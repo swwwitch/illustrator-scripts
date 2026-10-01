@@ -133,6 +133,7 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ## Update History
 
+- v1.1.0 (2026-10-01): Folders now open in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed
 - v1.0.10 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.9 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.0.8 (2026-09-30): Fixed an error when running with characters selected by the Type tool

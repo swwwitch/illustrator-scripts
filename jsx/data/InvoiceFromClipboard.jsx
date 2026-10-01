@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "InvoiceFromClipboard";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.10";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -2311,7 +2311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         alert(buildDoneMessage(pdfFile, missingTags, isMailCopied));
 
         /* 開くのは知らせたあと。先に開くと、前面に出たFinderやメールソフトの裏にalertが隠れる / Reveal after the alert */
-        if (OPEN_FOLDER_AFTER_EXPORT) pdfFile.parent.execute();
+        if (OPEN_FOLDER_AFTER_EXPORT && !openInFileViewer(pdfFile)) pdfFile.parent.execute();
         /* 添付はmailtoで指定できないため、開いたフォルダーからPDFをドラッグして添付する / Attach the PDF by hand */
         if (OPEN_MAIL_AFTER_EXPORT) openMailDraft(replyMail.mailToUrl);
     }
@@ -2723,6 +2723,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
     }
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+    // ファイルビューアで表示（再利用パーツ） / Show in file viewer (reusable)
+
+    /**
+     * Path Finder（起動中のとき）か Finder で、フォルダーを開くかファイルを選択して表示する。
+     * 補助アプリ /Applications/OpenInFileViewer.app に一時ファイルでパスを渡して起動する。
+     * 補助アプリは illustrator-scripts の helpers/OpenInFileViewer.applescript から作る
+     * @param {File|Folder} targetItem - 開くフォルダーか、選択して表示するファイル
+     * @returns {boolean} 補助アプリを起動できたら true。無い・起動できない・macOS 以外のときは false
+     */
+    function openInFileViewer(targetItem) {
+        /* 定数は巻き上げで未定義にならないよう関数内に置く / Kept local so hoisting never leaves them undefined */
+        var viewerAppPath = "/Applications/OpenInFileViewer.app";
+        var pathFilePath = "/tmp/open_in_file_viewer_path.txt";
+
+        if ($.os.indexOf("Mac") === -1) return false;
+        /* .app は実体がディレクトリなので Folder でも確かめる / An .app is a directory, so check it as a Folder too */
+        if (!new Folder(viewerAppPath).exists && !new File(viewerAppPath).exists) return false;
+
+        var pathFile = new File(pathFilePath);
+        var written = false;
+        try {
+            pathFile.encoding = "UTF-8";
+            pathFile.lineFeed = "Unix";
+            if (pathFile.open("w")) {
+                /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
+                written = pathFile.write(targetItem.fsName);
+            }
+        } catch (e) {
+        } finally {
+            try { pathFile.close(); } catch (closeError) {}
+        }
+        return written && new File(viewerAppPath).execute();
+    }
+
+    // ファイルビューアで表示（再利用パーツ）ここまで / End of the reusable file viewer
 
     // =========================================
     // メイン処理 / Main

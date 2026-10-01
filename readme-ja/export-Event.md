@@ -12,6 +12,8 @@
 
   ダイアログで選んだアートボードを、名前ごとのルールで PNG 書き出しします。
   一覧には各アートボードの倍率と背景（透明・白）が表示されます。初期状態はすべて選択です。
+  ［書き出し後にドキュメントを閉じる］（初期ON）で、書き出しが終わったらドキュメントを閉じます。未保存の編集がある場合は保存を確認します。
+  ［書き出し後に保存先を開く］（初期ON、macOS のみ）で、書き出しが終わったら保存先のフォルダを開きます。
 
 ### 書き出しルール
 
@@ -27,10 +29,24 @@
 
   - 保存先 … ドキュメントと同じフォルダ
   - ファイル名 … "<ドキュメント名>-<アートボード名>[suffix].png"
-  - 書き出し後は macOS のみ Finder で保存先を自動オープン
+  - 書き出し後は macOS のみ保存先を開く（チェックボックスで切り替え）
+
+### Path Finder で開く
+
+  補助アプリ `/Applications/OpenInFileViewer.app` があると、Path Finder が起動しているときは Path Finder で、起動していなければ Finder で保存先を開きます。補助アプリが無い場合は Finder で開きます。
+
+  補助アプリはリポジトリの [helpers/OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) から作ります。
+
+  ```
+  osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.applescript
+  ```
 
 ### 更新履歴
 
+
+#### v1.2.0（2026-10-01）
+
+- 一覧の下に［書き出し後にドキュメントを閉じる］［書き出し後に保存先を開く］を追加（どちらも初期ON、保存先を開くのは macOS のみ）。補助アプリがあれば Path Finder の起動中は Path Finder で開く
 
 #### v1.1.2（2026-10-01）
 
@@ -51,4 +67,4 @@
 
 ### スクリプト情報
 
-- バージョン: v1.1.0
+- バージョン: v1.2.0

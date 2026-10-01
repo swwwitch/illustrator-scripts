@@ -11,6 +11,8 @@
 
 ### 調整
 
+- 補助アプリ OpenInFileViewer.app（[helpers/OpenInFileViewer.applescript](helpers/OpenInFileViewer.applescript)）があれば、フォルダーを開く・ファイルを表示する処理を Path Finder の起動中は Path Finder で行うようにした。共通部品 OpenInFileViewer を追加（10本）
+- [全アートボードを名前ごとのルールでPNG書き出し](readme-ja/export-Event.md)（v1.2.0）：一覧の下に［書き出し後にドキュメントを閉じる］［書き出し後に保存先を開く］を追加（どちらも初期ON、保存先を開くのは macOS のみ）。補助アプリ OpenInFileViewer.app があれば Path Finder の起動中は Path Finder で開く
 - [テキストを一覧で編集してドキュメントに書き戻す](readme-ja/TextScopeEdit.md)（v1.5.8）：［選択しているテキストのみ］で、一覧と書き出しも選択していたテキストだけにした（これまでは編集の反映先だけを絞っていた）
 - [複数のオブジェクトを基準に「共通 > アピアランス」を実行](readme-ja/SelectSameAppearanceMulti.md)（v1.1.0）：シンボルインスタンスは「共通 > シンボルインスタンス」で同じシンボルのインスタンスだけを選択するようにした
 - [テキストのツリー記号をパスの罫線に変換](readme-ja/TreeSymbolToStroke.md)（v1.1.0）：［テキスト］パネルに［囲み罫］、マージン（左右・上下、連動）、［右端を揃える］を、［罫線］パネルに［横線を囲み罫につなげる］を追加

@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.11";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -3153,6 +3153,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
     // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
 
+    // ファイルビューアで表示（再利用パーツ） / Show in file viewer (reusable)
+
+    /**
+     * Path Finder（起動中のとき）か Finder で、フォルダーを開くかファイルを選択して表示する。
+     * 補助アプリ /Applications/OpenInFileViewer.app に一時ファイルでパスを渡して起動する。
+     * 補助アプリは illustrator-scripts の helpers/OpenInFileViewer.applescript から作る
+     * @param {File|Folder} targetItem - 開くフォルダーか、選択して表示するファイル
+     * @returns {boolean} 補助アプリを起動できたら true。無い・起動できない・macOS 以外のときは false
+     */
+    function openInFileViewer(targetItem) {
+        /* 定数は巻き上げで未定義にならないよう関数内に置く / Kept local so hoisting never leaves them undefined */
+        var viewerAppPath = "/Applications/OpenInFileViewer.app";
+        var pathFilePath = "/tmp/open_in_file_viewer_path.txt";
+
+        if ($.os.indexOf("Mac") === -1) return false;
+        /* .app は実体がディレクトリなので Folder でも確かめる / An .app is a directory, so check it as a Folder too */
+        if (!new Folder(viewerAppPath).exists && !new File(viewerAppPath).exists) return false;
+
+        var pathFile = new File(pathFilePath);
+        var written = false;
+        try {
+            pathFile.encoding = "UTF-8";
+            pathFile.lineFeed = "Unix";
+            if (pathFile.open("w")) {
+                /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
+                written = pathFile.write(targetItem.fsName);
+            }
+        } catch (e) {
+        } finally {
+            try { pathFile.close(); } catch (closeError) {}
+        }
+        return written && new File(viewerAppPath).execute();
+    }
+
+    // ファイルビューアで表示（再利用パーツ）ここまで / End of the reusable file viewer
+
     // =========================================
     // パレット構築 / Build palette
     // =========================================
@@ -3959,7 +3995,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             try {
                 var folderPath = linkedFolderPaths[idx];
                 var ff = new Folder(folderPath);
-                if (ff.exists) ff.execute();
+                if (ff.exists && !openInFileViewer(ff)) ff.execute();
             } catch (e) {
                 setStatus(getLabel('message.openFolderFailed') + e.message);
             }
@@ -3982,7 +4018,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             try {
                 var folderPath = linkedFolderPaths[foldersListBox.selection.index];
                 var folderToOpen = new Folder(folderPath);
-                if (folderToOpen.exists) folderToOpen.execute();
+                if (folderToOpen.exists && !openInFileViewer(folderToOpen)) folderToOpen.execute();
             } catch (e) {
                 setStatus(getLabel('message.openFolderFailed') + e.message);
             }

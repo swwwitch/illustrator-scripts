@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export-Eve
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "export-Event";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -449,6 +449,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
+    // ファイルビューアで表示（再利用パーツ） / Show in file viewer (reusable)
+
+    /**
+     * Path Finder（起動中のとき）か Finder で、フォルダーを開くかファイルを選択して表示する。
+     * 補助アプリ /Applications/OpenInFileViewer.app に一時ファイルでパスを渡して起動する。
+     * 補助アプリは illustrator-scripts の helpers/OpenInFileViewer.applescript から作る
+     * @param {File|Folder} targetItem - 開くフォルダーか、選択して表示するファイル
+     * @returns {boolean} 補助アプリを起動できたら true。無い・起動できない・macOS 以外のときは false
+     */
+    function openInFileViewer(targetItem) {
+        /* 定数は巻き上げで未定義にならないよう関数内に置く / Kept local so hoisting never leaves them undefined */
+        var viewerAppPath = "/Applications/OpenInFileViewer.app";
+        var pathFilePath = "/tmp/open_in_file_viewer_path.txt";
+
+        if ($.os.indexOf("Mac") === -1) return false;
+        /* .app は実体がディレクトリなので Folder でも確かめる / An .app is a directory, so check it as a Folder too */
+        if (!new Folder(viewerAppPath).exists && !new File(viewerAppPath).exists) return false;
+
+        var pathFile = new File(pathFilePath);
+        var written = false;
+        try {
+            pathFile.encoding = "UTF-8";
+            pathFile.lineFeed = "Unix";
+            if (pathFile.open("w")) {
+                /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
+                written = pathFile.write(targetItem.fsName);
+            }
+        } catch (e) {
+        } finally {
+            try { pathFile.close(); } catch (closeError) {}
+        }
+        return written && new File(viewerAppPath).execute();
+    }
+
+    // ファイルビューアで表示（再利用パーツ）ここまで / End of the reusable file viewer
+
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialog: {
@@ -460,6 +496,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             name:       { ja: "アートボード名", en: "Artboard" },
             scale:      { ja: "倍率", en: "Scale" },
             background: { ja: "背景", en: "Background" }
+        },
+        option: {
+            closeAfterExport: { ja: "書き出し後にドキュメントを閉じる", en: "Close the document after export" },
+            revealFolder:     { ja: "書き出し後に保存先を開く", en: "Open the output folder after export" }
         },
         background: {
             transparent: { ja: "透明", en: "Transparent" },
@@ -522,14 +562,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
+        var wasSaved = activeDoc.saved;
         var baseFileName = activeDoc.name.replace(/\.ai$/i, "");
         var progress = createProgressWindow(exportPlan.totalJobs);
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
 
         var cancelled = false;
+        var completedCount = 0;
         /* 途中で失敗しても警告表示の設定と進捗ウィンドウは戻す / Always restore alerts and close the progress window */
         try {
-            var completedCount = 0;
             for (var i = 0; i < exportPlan.artboardPlans.length && !cancelled; i++) {
                 var artboardPlan = exportPlan.artboardPlans[i];
                 activeDoc.artboards.setActiveArtboardIndex(artboardPlan.index);
@@ -548,6 +589,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } finally {
             app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
             progress.close();
+        }
+
+        /* 1枚でも書き出したら保存先を開く（キャンセル時も途中までの分を確認できるように）/ Open the output folder once anything was exported, even after cancelling */
+        if (exportPlan.revealFolder && completedCount > 0) {
+            if (!openInFileViewer(outputFolder)) outputFolder.execute();
+        }
+
+        /* 書き出し前に保存済みだったときだけ保存せずに閉じ、未保存の編集があれば保存を確認する / Close without saving only when it was saved before export; ask when there are unsaved edits */
+        if (exportPlan.closeAfterExport && !cancelled) {
+            activeDoc.close(wasSaved ? SaveOptions.DONOTSAVECHANGES : SaveOptions.PROMPTTOSAVECHANGES);
         }
     }
 
@@ -587,7 +638,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 書き出し対象のアートボードを一覧で示し、選んだものだけの書き出し計画を返す
      * @param {{artboardPlans: Object[], totalJobs: number}} exportPlan - buildExportPlan() の結果
-     * @returns {{artboardPlans: Object[], totalJobs: number}|null} 選んだアートボードの書き出し計画。キャンセル時は null
+     * @returns {{artboardPlans: Object[], totalJobs: number, closeAfterExport: boolean, revealFolder: boolean}|null} 選んだアートボードの書き出し計画。キャンセル時は null
      */
     function showArtboardDialog(exportPlan) {
         var artboardDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -611,6 +662,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             listItem.subItems[1].text = formatJobScales(artboardPlans[i].exportJobs);
             listItem.subItems[2].text = formatJobBackgrounds(artboardPlans[i].exportJobs);
             allIndexes.push(i);
+        }
+
+        var closeAfterExportCheckbox = artboardDialog.add("checkbox", undefined, getLabel("option.closeAfterExport"));
+        closeAfterExportCheckbox.alignment = "left";
+        closeAfterExportCheckbox.value = true;
+
+        /* 保存先を開くのは macOS だけ / Opening the output folder is macOS only */
+        var revealFolderCheckbox = null;
+        if ($.os.indexOf("Mac") >= 0) {
+            revealFolderCheckbox = artboardDialog.add("checkbox", undefined, getLabel("option.revealFolder"));
+            revealFolderCheckbox.alignment = "left";
+            revealFolderCheckbox.value = true;
         }
 
         var buttonRow = addButtonRow(artboardDialog);
@@ -655,7 +718,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (selectedPlans.length === 0) {
             return null;
         }
-        return { artboardPlans: selectedPlans, totalJobs: totalJobs };
+        return { artboardPlans: selectedPlans, totalJobs: totalJobs, closeAfterExport: closeAfterExportCheckbox.value,
+            revealFolder: revealFolderCheckbox !== null && revealFolderCheckbox.value
+        };
     }
 
     // =========================================

@@ -109,6 +109,7 @@ root/
 
 - ランチャー本体には対象フォルダーの表示がありません。どこを見ているかは［環境設定］で確認します
 - option + ダブルクリックは、Automatorで作成した `/Applications/RevealInFinder.app` があればファイルを選択した状態で表示します。アプリが無い場合やmacOS以外では、囲みフォルダーを開くだけになります
+- 補助アプリ `/Applications/OpenInFileViewer.app` があると、Path Finder が起動しているときは Path Finder で、起動していなければ Finder で表示します（option + ダブルクリック、フォルダーのダブルクリックとも）。RevealInFinder.app より優先します。補助アプリは [helpers/OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) から `osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.applescript` で作ります。Path Finder でファイルを選択表示するときは、初回にオートメーションの許可を求められます
 - 検索対象フォルダー内にこのランチャー自身がある場合、一覧には表示されません
 - 日本語だけのファイル名からはキーワードボタンを生成できません（英単語を抽出する仕組みのため）
 - 対象フォルダーとキーワード設定は `Folder.userData/illustrator-scripts/AiScriptLauncher.json` に保存されます（以前のIllustratorの環境設定 `AiScriptLauncher.*` は初回に読み継ぎます）。ほかに作るのは、次の項目の一時ファイルだけです
@@ -134,6 +135,7 @@ ExtendScript には Finder でファイルを選択表示する手段がない�
 
 ### 更新履歴
 
+- v1.6.0（2026-10-01）補助アプリ OpenInFileViewer.app があれば、Path Finder の起動中は Path Finder でファイルの選択表示・フォルダーを開くようにした
 - v1.5.4（2026-10-01）ランチャーから実行したパレット（常駐型）のスクリプトが、開いてすぐ消えて表示されなかったのを修正
 - v1.5.3（2026-10-01）ボタン行の下に余白を加え、Illustrator 標準のダイアログに合わせた
 - v1.5.2（2026-10-01）ランチャーと［環境設定］のダイアログを共通部品で開くようにした（不透明度98%・選択範囲を避ける配置・同じ実行中の位置の記憶）。ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
