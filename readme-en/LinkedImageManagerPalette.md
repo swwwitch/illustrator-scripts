@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.6.1 (2026-10-01): The palette now closes after clicking Open Links Panel
 - v1.6.0 (2026-10-01): Folders now open in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed
 - v1.5.11 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.5.10 (2026-10-01): The Change Extension and Clip Group Delete dialogs now use the shared button row. Unified the window and panel margins and spacing with the shared layout part

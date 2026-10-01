@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -4265,7 +4265,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
         var openLinksPanelBtn = btnGroup.add("button", undefined, getLabel('button.openLinksPanel'));
         openLinksPanelBtn.alignment = ["left", "center"];
-        openLinksPanelBtn.onClick = function () { delegateOpenLinksPanel(); };
+        openLinksPanelBtn.onClick = function () {
+            delegateOpenLinksPanel();
+            palette.close();
+        };
 
         var spacer = btnGroup.add("group");
         spacer.alignment = ["fill", "fill"];
