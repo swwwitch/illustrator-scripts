@@ -6,8 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトをシンボル化し、書類内の一致するアイテムをそのシンボルインスタンスへまとめて置き換えます。
-シンボル名と基準点はダイアログで指定でき、テキスト選択時は同じフォント・スタイル・文字列のフレームを対象にします。
+選択オブジェクトをシンボルに登録し、ドキュメント内の一致するオブジェクトをそのインスタンスにまとめて置き換えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeAndReplace.md
@@ -17,8 +16,7 @@ https://note.com/dtp_tranist/n/n650a4b91329d
 
 ### Overview
 
-Registers the selection as a symbol and replaces every matching item in the document with an instance of it.
-The symbol name and registration point are set in a dialog; with text selected, frames sharing the same font, style and string are targeted.
+Registers the selected object as a symbol and replaces every matching object in the document with an instance of it.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeAndReplace.md
@@ -29,9 +27,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SymbolizeAndReplace";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeAndReplace.md"; /* README（日本語） */
@@ -43,30 +41,466 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
 
 (function () {
 
-    /* 3×3 基準点の単一テーブル（行優先：上行 → 中行 → 下行）。AiReferencePoint と SymbolRegistrationPoint への対応をここから派生させる / Single source of truth for the 3×3 reference points (row-major: top → middle → bottom). Both AiReferencePoint and SymbolRegistrationPoint mappings are derived from this table */
-    var REFERENCE_POINTS = [
-      { key: 'TOP_LEFT', symbolPoint: SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT },
-      { key: 'TOP_MIDDLE', symbolPoint: SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT },
-      { key: 'TOP_RIGHT', symbolPoint: SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT },
-      { key: 'MIDDLE_LEFT', symbolPoint: SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT },
-      { key: 'CENTER', symbolPoint: SymbolRegistrationPoint.SYMBOLCENTERPOINT },
-      { key: 'MIDDLE_RIGHT', symbolPoint: SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT },
-      { key: 'BOTTOM_LEFT', symbolPoint: SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT },
-      { key: 'BOTTOM_MIDDLE', symbolPoint: SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT },
-      { key: 'BOTTOM_RIGHT', symbolPoint: SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT }
-    ];
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    /* キー名 → インデックス（0-8）の別名を REFERENCE_POINTS から派生 / Derive key-name → index (0-8) aliases from REFERENCE_POINTS */
-    var AiReferencePoint = {};
-    for (var rpIndex = 0; rpIndex < REFERENCE_POINTS.length; rpIndex++) {
-      AiReferencePoint[REFERENCE_POINTS[rpIndex].key] = rpIndex;
-    }
-
-    /* 既定のシンボル名（ダイアログ初期値）。空欄なら OK が無効化される / Default symbol name shown in the dialog (empty = OK disabled until typed) */
+    /* シンボル名の初期値。空欄のあいだは［OK］を押せない。テキスト選択時はその文字列が入る / Initial symbol name; OK stays disabled while it is empty. A selected TextFrame seeds it with its contents */
     var DEFAULT_SYMBOL_NAME = '';
 
-    /* 一括選択した対象オブジェクトをマーキングする note 値。buildActionSource がこの文字列を 16進化して .aia に埋め込むため、手動での一致合わせは不要 / Note value used to tag bulk-selected items; buildActionSource hex-encodes this string into the .aia, so no manual matching is needed */
-    var TEMP_NOTE_VALUE = 'temp_memo';
+    /* 基準点の初期値（"topLeft"〜"bottomRight" か 0〜8）/ Initial registration point ("topLeft" … "bottomRight" or 0-8) */
+    var DEFAULT_REFERENCE_POINT = 'center';
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var SYMBOL_NAME_FIELD_WIDTH = 210; /* シンボル名欄の幅 / width of the symbol-name field */
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    // =========================================
+    // UI 部品 / UI parts
+    // =========================================
+
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 1]     : [0.42, 0.42, 0.42, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 1]     : [0.27, 0.27, 0.27, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 0.4]   : [0.42, 0.42, 0.42, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 0.3]   : [0.27, 0.27, 0.27, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
+     */
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
+    }
+
+    /**
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
+    }
+
+    /**
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
+
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
+            } else {
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
+        }
+    }
+
+    /**
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
 
     // =========================================
     // ローカライズ / Localization
@@ -151,115 +585,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
 
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
-    /* 日英ラベル定義（カテゴリ別。参照はドット区切りキーで getLabel('dialog.title') のように取得）/ Japanese-English label definitions grouped by category; access with dotted keys such as getLabel('dialog.title') */
+    /* 日英ラベル定義（UI の部品ごと。getLabel('dialog.title') のようにドット区切りで引く）/ Japanese-English labels grouped by UI part; look up with dotted keys such as getLabel('dialog.title') */
     var LABELS = {
-      dialog: {
-        title: { ja: 'シンボル化して置換', en: 'Symbolize and Replace' }
-      },
-      panel: {
-        symbolName: { ja: 'シンボル名', en: 'Symbol Name' },
-        referencePoint: { ja: 'シンボルの基準点', en: 'Symbol Reference Point' },
-        text: { ja: 'テキスト', en: 'Text' }
-      },
-      checkbox: {
-        allowSizeMismatch: { ja: 'フォントサイズ違いも対象にする', en: 'Include different font sizes' }
-      },
-      button: {
-        cancel: { ja: 'キャンセル', en: 'Cancel' },
-        ok: { ja: 'OK', en: 'OK' }
-      },
-      help: {
-        symbolName: {
-          ja: '新しく作成するシンボルの名前です。空欄、および既存シンボルと同じ名前は使用できません。',
-          en: 'Name of the new symbol. Empty names and names already used by existing symbols are not allowed.'
+        dialog: {
+            title: { ja: 'シンボル化して置換', en: 'Symbolize and Replace' }
         },
-        referencePoint: {
-          ja: 'シンボル登録時の基準点です。置換時もこの点を使って元オブジェクトの位置に揃えます。',
-          en: 'Sets the registration point for the new symbol. The same point is used to align each replacement instance to the original object.'
+        panel: {
+            symbolName: { ja: 'シンボル名', en: 'Symbol Name' },
+            referencePoint: { ja: '基準点', en: 'Registration Point' },
+            text: { ja: 'テキスト', en: 'Text' }
         },
-        allowSizeMismatch: {
-          ja: 'ON のときは、フォント・スタイル・文字列が一致していれば、フォントサイズが異なるテキストフレームも置換対象に含めます。',
-          en: 'When enabled, TextFrames with matching font, style, and contents are included even if their font size differs.'
+        checkbox: {
+            allowSizeMismatch: { ja: 'フォントサイズ違いも対象にする', en: 'Include different font sizes' }
+        },
+        button: {
+            cancel: { ja: 'キャンセル', en: 'Cancel' },
+            ok: { ja: 'OK', en: 'OK' }
+        },
+        tooltip: {
+            symbolName: {
+                ja: '新しく作成するシンボルの名前です。空欄、および既存シンボルと同じ名前は使用できません。',
+                en: 'Name of the new symbol. Empty names and names already used by existing symbols are not allowed.'
+            },
+            referencePoint: {
+                ja: 'シンボル登録時の基準点です。置換時もこの点を使って元オブジェクトの位置に揃えます。',
+                en: 'Sets the registration point for the new symbol. The same point is used to align each replacement instance to the original object.'
+            },
+            allowSizeMismatch: {
+                ja: 'ON のときは、フォント・スタイル・文字列が一致していれば、フォントサイズが異なるテキストフレームも置換対象に含めます。',
+                en: 'When enabled, text frames with matching font, style, and contents are included even if their font size differs.'
+            }
+        },
+        alert: {
+            skipped: {
+                ja: '{count} 件はロック／非表示、または親レイヤーの状態により置換できませんでした。',
+                en: '{count} item(s) could not be replaced because they or their parent layers were locked or hidden.'
+            },
+            duplicateSymbol: {
+                ja: 'シンボル「{name}」は既に存在します。別の名前を指定してください。',
+                en: 'A symbol named "{name}" already exists. Please choose a different name.'
+            },
+            noTargets: {
+                ja: '置換対象が見つからなかったため、作成したシンボルを削除しました。',
+                en: 'No replacement targets were found, so the created symbol was removed.'
+            },
+            multiSelectionNotGroups: {
+                ja: '複数選択時は、すべてのアイテムがグループである必要があります。グループ以外を含む選択では実行できません。',
+                en: 'When multiple items are selected, every item must be a group. The script cannot run if the selection includes non-group items.'
+            }
         }
-      },
-      alert: {
-        skipped: {
-          ja: '{count} 件はロック／非表示、または親レイヤーの状態により置換できませんでした。',
-          en: '{count} item(s) could not be replaced because they or their parent layers were locked or hidden.'
-        },
-        duplicateSymbol: {
-          ja: 'シンボル「{name}」は既に存在します。別の名前を指定してください。',
-          en: 'A symbol named "{name}" already exists. Please choose a different name.'
-        },
-        noTargets: {
-          ja: '置換対象が見つからなかったため、作成したシンボルを削除しました。',
-          en: 'No replacement targets were found, so the created symbol was removed.'
-        },
-        multiSelectionNotGroups: {
-          ja: '複数選択時は、すべてのアイテムがグループである必要があります。グループ以外を含む選択では実行できません。',
-          en: 'When multiple items are selected, every item must be a group. The script cannot run if the selection includes non-group items.'
-        }
-      }
     };
-
-    /* ドット区切りキー（例 "dialog.title"）で LABELS の { ja, en } エントリを辿る。見つからなければ null / Resolve a dotted key (e.g. "dialog.title") to its { ja, en } entry in LABELS; null when not found */
-    function resolveLabelEntry(key) {
-      var parts = String(key).split('.');
-      var node = LABELS;
-      for (var i = 0; i < parts.length; i++) {
-        if (!node || typeof node !== 'object') { return null; }
-        node = node[parts[i]];
-      }
-      return node || null;
-    }
-
-    /* 同じキーの ja / en メッセージを改行でまとめて返すユーティリティ。{key:value} のプレースホルダ置換に対応 / Build a JA+EN bilingual message from a LABELS key, supporting {key:value} placeholders */
-    function buildBilingualMessage(key, replacements) {
-      var entry = resolveLabelEntry(key);
-      if (!entry) { return key; }
-      var jaText = entry.ja;
-      var enText = entry.en;
-      if (replacements) {
-        for (var placeholderKey in replacements) {
-          if (!replacements.hasOwnProperty(placeholderKey)) { continue; }
-          var token = '{' + placeholderKey + '}';
-          jaText = jaText.split(token).join(replacements[placeholderKey]);
-          enText = enText.split(token).join(replacements[placeholderKey]);
-        }
-      }
-      return jaText + '\n' + enText;
-    }
-
-    // =========================================
-    // ヘルパー関数 / Helper functions
-    // =========================================
-
-    /* AiReferencePoint インデックスを REFERENCE_POINTS 経由で SymbolRegistrationPoint に変換。範囲外は CENTER にフォールバック / Map an AiReferencePoint index to SymbolRegistrationPoint via REFERENCE_POINTS; out-of-range falls back to CENTER */
-    function toSymbolRegistrationPoint(referencePointIndex) {
-      if (referencePointIndex < 0 || referencePointIndex >= REFERENCE_POINTS.length) {
-        return SymbolRegistrationPoint.SYMBOLCENTERPOINT;
-      }
-      return REFERENCE_POINTS[referencePointIndex].symbolPoint;
-    }
-
-    /* 変形パレットの要領で基準点に対応する座標を返す / Return the coordinate matching a reference point (Transform-palette style) */
-    function getReferencePointPosition(targetItem, referencePoint) {
-      // AiReferencePoint は 0-8 の 3x3 グリッド（列：左/中/右、行：上/中/下）/ AiReferencePoint is a 0-8 3x3 grid (col: L/C/R, row: T/M/B)
-      var bounds = targetItem.visibleBounds;
-      var col = referencePoint % 3;
-      var row = Math.floor(referencePoint / 3);
-      var x = col === 0 ? bounds[0] : col === 2 ? bounds[2] : (bounds[0] + bounds[2]) / 2;
-      var y = row === 0 ? bounds[1] : row === 2 ? bounds[3] : (bounds[1] + bounds[3]) / 2;
-      return [x, y];
-    }
 
     // =========================================
     // 一時アクション設定 / Temporary action settings
     // =========================================
 
-    /* 一括選択用ダイナミックアクションのアクションセット名・アクション名。セット名／アクション名は任意の内部ラベルで、記録済みの内容と一致する必要はない（doScript と /name 生成で同じ定数を使うため整合する）/ Action-set name and action name for the bulk-select dynamic action. The set/action names are arbitrary internal labels and need not match any recording (doScript and the /name lines use the same constants, so they stay consistent) */
+    /* 一括選択用ダイナミックアクションのセット名・アクション名（任意の内部ラベル。doScript と /name で同じ定数を使う）/ Set and action names for the bulk-select dynamic action; arbitrary internal labels shared by doScript and the /name lines */
     var ACTION_SET_NAME = 'SymbolizeAndReplaceNote';
     var ACTION_NAME = 'AttachTempNote';
+
+    /* 一括選択した対象に付ける note の値。アクション定義へは16進にして埋め込む / Note value tagged onto bulk-selected items; hex-encoded into the action definition */
+    var TEMP_NOTE_VALUE = 'temp_memo';
 
     // 一時アクション（再利用パーツ） / Temporary action (reusable)
 
@@ -356,353 +742,326 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
 
     // 一時アクション（再利用パーツ）ここまで / End of the reusable temporary action
 
+    /**
+     * 選択中のアイテムの note 属性に値を書き込むアクション定義を作る。
+     * internalName（adobe_attributePalette）と parameter-1（/key 1852798053, /type ustring）は実際に記録した .aia から採取した値なので、勘で書き換えない
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {string} noteValue - 書き込む note の値
+     * @returns {string} アクション定義のテキスト
+     */
+    function buildAttachNoteActionSource(setName, actionName, noteValue) {
+        return ['/version 3']
+            .concat(buildActionNameLines('', setName))
+            .concat([
+                '/isOpen 1',
+                '/actionCount 1',
+                '/action-1 {'
+            ])
+            .concat(buildActionNameLines('\t', actionName))
+            .concat([
+                '\t/keyIndex 0',
+                '\t/colorIndex 0',
+                '\t/isOpen 1',
+                '\t/eventCount 1',
+                '\t/event-1 {',
+                '\t\t/useRulersIn1stQuadrant 0',
+                '\t\t/internalName (adobe_attributePalette)',
+                '\t\t/localizedName [ 0  ]',
+                '\t\t/isOpen 1',
+                '\t\t/isOn 1',
+                '\t\t/hasDialog 0',
+                '\t\t/parameterCount 1',
+                '\t\t/parameter-1 {',
+                '\t\t\t/key 1852798053',
+                '\t\t\t/showInPalette 4294967295',
+                '\t\t\t/type (ustring)'
+            ])
+            .concat(buildActionNameLines('\t\t\t', noteValue, 'value'))
+            .concat([
+                '\t\t}',
+                '\t}',
+                '}'
+            ])
+            .join('\n') + '\n';
+    }
+
     // =========================================
-    // 一時アクション生成 / Temporary action generation
+    // 置換対象の収集 / Collecting replacement targets
     // =========================================
 
-    /* 選択アイテムの note 属性に値を書き込む .aia アクションソースを生成する。internalName(adobe_attributePalette) と parameter-1(/key 1852798053, /type ustring) は実際に記録した .aia から採取した値なので勘で書き換えないこと。note 値だけを引数から差し込む / Build the .aia source for an action that writes a value into the note attribute. internalName (adobe_attributePalette) and parameter-1 (/key 1852798053, /type ustring) are taken from a real recording — do not guess them; only the note value is injected from the argument */
-    function buildActionSource(setName, actionName, noteValue) {
-      return ''
-        + '/version 3\n'
-        + buildActionNameLine(setName)
-        + '/isOpen 1\n'
-        + '/actionCount 1\n'
-        + '/action-1 {\n'
-        + buildActionNameLine(actionName)
-        + ' /keyIndex 0\n'
-        + ' /colorIndex 0\n'
-        + ' /isOpen 1\n'
-        + ' /eventCount 1\n'
-        + ' /event-1 {\n'
-        + ' /useRulersIn1stQuadrant 0\n'
-        + ' /internalName (adobe_attributePalette)\n'
-        + ' /localizedName [ 0  ]\n'
-        + ' /isOpen 1\n'
-        + ' /isOn 1\n'
-        + ' /hasDialog 0\n'
-        + ' /parameterCount 1\n'
-        + ' /parameter-1 { /key 1852798053 /showInPalette 4294967295 /type (ustring) /value ' + buildHexByteArray(noteValue) + ' }\n'
-        + ' }\n'
-        + '}\n';
-    }
-
-    /* アクション名／セット名を .aia の /name 行に変換 / Convert a name to the .aia /name line */
-    function buildActionNameLine(actionName) {
-      return '/name ' + buildHexByteArray(actionName) + '\n';
-    }
-
-    /* 文字列を .aia の "[ バイト長 16進 ]" 形式に変換 / Convert a string to the .aia "[ byteLength hex ]" form */
-    function buildHexByteArray(sourceText) {
-      var hexText = toActionHex(sourceText);
-      return '[ ' + (hexText.length / 2) + ' ' + hexText + ' ]';
-    }
-
-    /* 現在の選択アイテムの note 属性に TEMP_NOTE_VALUE を書き込む一時アクションを生成・再生 / Build and play a temporary action that writes TEMP_NOTE_VALUE into the note attribute of the current selection */
-    function attachNoteToSelection() {
-      var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, TEMP_NOTE_VALUE);
-      /* 失敗しても note が付かないだけで、後段の「対象なし」の警告で終わる / On failure no note is attached and the run ends with the no-targets alert */
-      runTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME);
-    }
-
-    /* 指定 note 値を持つ pageItem を全件収集 / Collect every pageItem whose note property equals the given value */
+    /**
+     * 指定した note の値を持つページアイテムをすべて集める
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} noteValue - 探す note の値
+     * @returns {PageItem[]} 見つかったアイテム
+     */
     function collectItemsByNote(targetDocument, noteValue) {
-      var matches = [];
-      var allItems = targetDocument.pageItems;
-      for (var i = 0, len = allItems.length; i < len; i++) {
-        try {
-          if (allItems[i].note === noteValue) {
-            matches.push(allItems[i]);
-          }
-        } catch (collectNoteError) { }
-      }
-      return matches;
+        var notedItems = [];
+        var allPageItems = targetDocument.pageItems;
+        for (var i = 0, len = allPageItems.length; i < len; i++) {
+            if (allPageItems[i].note === noteValue) notedItems.push(allPageItems[i]);
+        }
+        return notedItems;
     }
 
-    /* 指定アイテム群の note 属性を空文字でクリア / Clear the note property on the given items */
-    function clearNoteOnItems(items) {
-      for (var i = 0; i < items.length; i++) {
-        try { items[i].note = ''; } catch (clearNoteError) { }
-      }
+    /**
+     * アイテムの note を空にする
+     * @param {PageItem[]} notedItems - 対象のアイテム
+     * @returns {void}
+     */
+    function clearNoteOnItems(notedItems) {
+        for (var i = 0; i < notedItems.length; i++) {
+            /* ロック中のアイテムは書き込めないことがある。残っても次回の実行前に消す / Locked items may refuse the write; leftovers are cleared before the next run */
+            try { notedItems[i].note = ''; } catch (e) { }
+        }
     }
 
-    /* 対象が TextFrame か判定 / Whether the item is a TextFrame */
-    function isTextFrame(item) {
-      return !!item && item.typename === 'TextFrame';
+    /**
+     * スマート編集（「同じ」の一括選択）で元オブジェクトと同じアイテムを選び、note を付けて集める。
+     * 集めたら note は消す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {PageItem[]} 元オブジェクトを含む一致アイテム
+     */
+    function collectSimilarItemsBySmartEdit(targetDocument) {
+        /* 以前の実行が途中で止まって note が残っていれば先に消す / Clear notes left by an earlier run that stopped midway */
+        clearNoteOnItems(collectItemsByNote(targetDocument, TEMP_NOTE_VALUE));
+
+        app.executeMenuCommand('SmartEdit Menu Item');
+        /* 失敗しても note が付かないだけで、後段の「対象なし」の警告で終わる / On failure no note is attached and the run ends with the no-targets alert */
+        runTemporaryAction(buildAttachNoteActionSource(ACTION_SET_NAME, ACTION_NAME, TEMP_NOTE_VALUE), ACTION_SET_NAME, ACTION_NAME);
+        /* doScript の実行でスマート編集は自動で OFF に戻る。もう一度 'SmartEdit Menu Item' を呼ぶと逆に ON になるので呼ばない / Running doScript turns SmartEdit off automatically; calling 'SmartEdit Menu Item' again would turn it back on */
+
+        var similarItems = collectItemsByNote(targetDocument, TEMP_NOTE_VALUE);
+        clearNoteOnItems(similarItems);
+        return similarItems;
     }
 
-    /* 配列内の全要素が GroupItem か（空配列は false）/ Whether every item in the array is a GroupItem (false for empty arrays) */
-    function areAllGroups(items) {
-      if (!items || items.length === 0) { return false; }
-      for (var i = 0; i < items.length; i++) {
-        if (!items[i] || items[i].typename !== 'GroupItem') { return false; }
-      }
-      return true;
-    }
-
-    /* テキストフレームの内容と一致するか判定（typename と文字列を一括チェック）/ Whether the item is a TextFrame whose contents equal the given text */
-    function isMatchingTextFrame(item, sourceTextContent) {
-      return isTextFrame(item) && item.contents === sourceTextContent;
-    }
-
-    /* シンボル名向けにテキストを整形（改行を半角スペース化）/ Normalize text for use as a symbol name (collapse newlines to spaces) */
-    function sanitizeTextForSymbolName(text) {
-      return (text || '').replace(/[\r\n]+/g, ' ');
-    }
-
-    /* 前後の空白をトリム（ExtendScript の String.prototype.trim 非対応に備えた手動実装）/ Trim leading/trailing whitespace (manual implementation for ExtendScript compatibility) */
-    function trimWhitespace(text) {
-      return (text || '').replace(/^\s+|\s+$/g, '');
-    }
-
-    /* 同じフォント・スタイル（オプションでサイズ）かつ同一文字列のテキストフレームを取得。allowSizeMismatch=true のときはサイズを無視するメニューコマンドを使用する。副作用：内部のメニューコマンドにより document.selection が書き換わる / Collect TextFrames matching font/style (and optionally size) plus exact text content; when allowSizeMismatch is true, uses the size-agnostic menu command. Side effect: the inner menu command mutates document.selection */
+    /**
+     * 同じフォント・スタイル（allowSizeMismatch が false ならサイズも）で、文字列も同じテキストフレームを集める。
+     * メニューコマンドで選択し直すので、document.selection が書き換わる
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} sourceTextContent - 元のテキストの文字列
+     * @param {boolean} allowSizeMismatch - true ならフォントサイズ違いも含める
+     * @returns {TextFrame[]} 一致したテキストフレーム
+     */
     function findMatchingTextFrames(targetDocument, sourceTextContent, allowSizeMismatch) {
-      var menuCommand = allowSizeMismatch
-        ? 'Find Text Font Family Style menu item'
-        : 'Find Text Font Family Style Size menu item';
-      app.executeMenuCommand(menuCommand);
-      var matches = [];
-      var currentSelection = targetDocument.selection;
-      for (var i = 0; i < currentSelection.length; i++) {
-        if (isMatchingTextFrame(currentSelection[i], sourceTextContent)) {
-          matches.push(currentSelection[i]);
+        app.executeMenuCommand(allowSizeMismatch
+            ? 'Find Text Font Family Style menu item'
+            : 'Find Text Font Family Style Size menu item');
+        var matchedFrames = [];
+        var currentSelection = targetDocument.selection;
+        for (var i = 0; i < currentSelection.length; i++) {
+            if (isTextFrame(currentSelection[i]) && currentSelection[i].contents === sourceTextContent) {
+                matchedFrames.push(currentSelection[i]);
+            }
         }
-      }
-      return matches;
+        return matchedFrames;
     }
 
-    /* 指定名のシンボルが既に存在するか / Whether a symbol with the given name already exists */
-    function symbolNameExists(targetDocument, name) {
-      try {
-        targetDocument.symbols.getByName(name);
-        return true;
-      } catch (e) {
-        return false;
-      }
+    /**
+     * 選択の種類に応じて置換対象を集める
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {Object} selectionInfo - analyzeSelection() の結果
+     * @param {boolean} allowSizeMismatch - テキストのときフォントサイズ違いも含めるか
+     * @returns {PageItem[]} 置換対象（元オブジェクトを含む）
+     */
+    function collectReplaceTargets(targetDocument, selectionInfo, allowSizeMismatch) {
+        /* 複数グループ選択は選択そのもの / Multi-group selection uses the selection itself */
+        if (selectionInfo.isMultiGroup) return selectionInfo.items;
+        if (selectionInfo.isText) return findMatchingTextFrames(targetDocument, selectionInfo.textContent, allowSizeMismatch);
+        return collectSimilarItemsBySmartEdit(targetDocument);
     }
 
-    /* シンボル名の重複を検証し、重複時は警告を表示 / Validate duplicate symbol names and alert when duplicated */
-    function validateDuplicateSymbolName(targetDocument, candidateName, nameInput) {
-      if (!symbolNameExists(targetDocument, candidateName)) {
-        return true;
-      }
+    // =========================================
+    // ヘルパー関数 / Helper functions
+    // =========================================
 
-      alert(buildBilingualMessage('alert.duplicateSymbol', { name: candidateName }));
-
-      nameInput.active = true;
-      return false;
+    /**
+     * テキストフレームかどうか
+     * @param {PageItem} item - 調べるアイテム
+     * @returns {boolean} TextFrame なら true
+     */
+    function isTextFrame(item) {
+        return !!item && item.typename === 'TextFrame';
     }
 
-    /* 選択 1 個を複製してシンボル化、複製インスタンスは削除 / Duplicate the selection, convert it to a symbol, then remove the duplicate instance */
-    function createSymbolFromSelection(targetDocument, symbolName, referencePoint) {
-      var sourceItem = targetDocument.selection[0];
-      var duplicatedItem = sourceItem.duplicate();
-      var createdSymbol = targetDocument.symbols.add(duplicatedItem, toSymbolRegistrationPoint(referencePoint));
-      createdSymbol.name = symbolName;
-      duplicatedItem.remove();
-
-      /* 後続の検索・SmartEdit が元選択を参照できるよう、元オブジェクトを選択し直す / Reselect the original item so the following search or SmartEdit can use it */
-      targetDocument.selection = null;
-      sourceItem.selected = true;
-      return createdSymbol;
-    }
-
-    /* 置換先として使えるレイヤーか判定（親レイヤーも確認）/ Whether the layer can be used for replacement, including parent layers */
-    function isReplacementLayerAvailable(targetLayer) {
-      try {
-        var currentLayer = targetLayer;
-        while (currentLayer && currentLayer.typename === 'Layer') {
-          if (currentLayer.locked || !currentLayer.visible) {
-            return false;
-          }
-          currentLayer = currentLayer.parent;
+    /**
+     * 配列の要素がすべてグループかどうか（空の配列は false）
+     * @param {PageItem[]} items - 調べるアイテム
+     * @returns {boolean} すべて GroupItem なら true
+     */
+    function areAllGroups(items) {
+        if (!items || items.length === 0) return false;
+        for (var i = 0; i < items.length; i++) {
+            if (!items[i] || items[i].typename !== 'GroupItem') return false;
         }
         return true;
-      } catch (layerStateError) {
-        return false;
-      }
     }
 
-    /* 置換対象として処理できるアイテムか判定 / Whether the item can be processed as a replacement target */
-    function isReplacementItemAvailable(targetItem) {
-      try {
-        if (!targetItem || targetItem.locked || targetItem.hidden) {
-          return false;
-        }
-        return isReplacementLayerAvailable(targetItem.layer);
-      } catch (itemStateError) {
-        return false;
-      }
+    /**
+     * テキストをシンボル名に使える形にする（改行を半角スペースにまとめる）
+     * @param {string} sourceText - 元の文字列
+     * @returns {string} 整えた文字列
+     */
+    function sanitizeTextForSymbolName(sourceText) {
+        return (sourceText || '').replace(/[\r\n]+/g, ' ');
     }
 
-    /* シンボルインスタンスを作成し、指定基準点同士が揃うよう移動 / Create a symbol instance and align the specified reference points */
-    function createAlignedSymbolItem(destinationLayer, destinationSymbol, targetItem, referencePoint) {
-      var destinationPosition = getReferencePointPosition(targetItem, referencePoint);
-      var newSymbolItem = destinationLayer.symbolItems.add(destinationSymbol);
-      var sourcePosition = getReferencePointPosition(newSymbolItem, referencePoint);
-      newSymbolItem.translate(destinationPosition[0] - sourcePosition[0], destinationPosition[1] - sourcePosition[1]);
-      return newSymbolItem;
+    /**
+     * 前後の空白を取る（ExtendScript には String.prototype.trim が無い）
+     * @param {string} sourceText - 元の文字列
+     * @returns {string} 前後の空白を除いた文字列
+     */
+    function trimWhitespace(sourceText) {
+        return (sourceText || '').replace(/^\s+|\s+$/g, '');
     }
 
-    /* 対象を順次シンボルインスタンスに置換 / Replace each target with an instance of the given symbol */
-    function replaceItemsWithSymbol(targetDocument, targetItems, destinationSymbol, referencePoint) {
-      var createdSymbolItems = [];
-      var skippedCount = 0;
-
-      for (var i = 0; i < targetItems.length; i++) {
-        var currentItem = targetItems[i];
-        var newSymbolItem = null;
-
+    /**
+     * 指定名のシンボルが既にあるかどうか
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} symbolName - シンボル名
+     * @returns {boolean} あれば true
+     */
+    function symbolNameExists(targetDocument, symbolName) {
+        /* getByName は見つからないと例外を投げる / getByName throws when the name is missing */
         try {
-          if (!isReplacementItemAvailable(currentItem)) {
-            skippedCount++;
-            continue;
-          }
-
-          newSymbolItem = createAlignedSymbolItem(
-            currentItem.layer,
-            destinationSymbol,
-            currentItem,
-            referencePoint
-          );
-          currentItem.remove();
-          createdSymbolItems.push(newSymbolItem);
-        } catch (replaceItemError) {
-          if (newSymbolItem) {
-            try {
-              newSymbolItem.remove();
-            } catch (removeNewSymbolItemError) { }
-          }
-          skippedCount++;
+            targetDocument.symbols.getByName(symbolName);
+            return true;
+        } catch (e) {
+            return false;
         }
-      }
+    }
 
-      // 選択を 1 個ずつ .selected=true で立てると多数選択時に固まるため、配列で一括代入する / Bulk assignment avoids the per-item freeze that .selected = true triggers on large counts
-      targetDocument.selection = createdSymbolItems;
+    /**
+     * 選択を調べ、置換のモード（複数グループ／テキスト／それ以外）を決める。複数選択にグループ以外が混ざっていれば警告して null
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {{items: PageItem[], isMultiGroup: boolean, isText: boolean, textContent: string|null}|null} 選択の情報。実行できないときは null
+     */
+    function analyzeSelection(targetDocument) {
+        var rawSelection = targetDocument.selection;
+        /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+        if (!rawSelection || rawSelection.typename === 'TextRange' || !rawSelection.length) return null;
 
-      if (skippedCount > 0) {
-        alert(buildBilingualMessage('alert.skipped', { count: skippedCount }));
-      }
+        var isMultiGroup = rawSelection.length > 1;
+        if (isMultiGroup && !areAllGroups(rawSelection)) {
+            alert(getLabel('alert.multiSelectionNotGroups'));
+            return null;
+        }
+
+        /* createSymbolFromSelection が選択を1個に絞るので、参照を配列に控える / Keep references since createSymbolFromSelection narrows the selection to one item */
+        var selectedItems = [];
+        for (var i = 0; i < rawSelection.length; i++) {
+            selectedItems.push(rawSelection[i]);
+        }
+
+        var isText = !isMultiGroup && isTextFrame(selectedItems[0]);
+        return {
+            items: selectedItems,
+            isMultiGroup: isMultiGroup,
+            isText: isText,
+            textContent: isText ? selectedItems[0].contents : null
+        };
+    }
+
+    // =========================================
+    // シンボル化と置換 / Symbolize and replace
+    // =========================================
+
+    /**
+     * 選択の先頭を複製してシンボルにし、複製は消す。そのあと元オブジェクトを選択し直す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} symbolName - シンボル名
+     * @param {number} referencePointIndex - 基準点（0〜8）
+     * @returns {Symbol} 作成したシンボル
+     */
+    function createSymbolFromSelection(targetDocument, symbolName, referencePointIndex) {
+        var sourceItem = targetDocument.selection[0];
+        var duplicatedItem = sourceItem.duplicate();
+        var createdSymbol = targetDocument.symbols.add(duplicatedItem, getAnchorSymbolRegistrationPoint(referencePointIndex));
+        createdSymbol.name = symbolName;
+        duplicatedItem.remove();
+
+        /* 後続の検索・スマート編集が元選択を使えるよう、元オブジェクトを選択し直す / Reselect the original so the following search or SmartEdit can use it */
+        targetDocument.selection = null;
+        sourceItem.selected = true;
+        return createdSymbol;
+    }
+
+    /**
+     * 置換できるアイテムかどうか（本体と親レイヤーをたどって、ロック・非表示が無いか）
+     * @param {PageItem} targetItem - 調べるアイテム
+     * @returns {boolean} 置換できれば true
+     */
+    function isReplaceableItem(targetItem) {
+        if (!targetItem || targetItem.locked || targetItem.hidden) return false;
+        var currentLayer = targetItem.layer;
+        while (currentLayer && currentLayer.typename === 'Layer') {
+            if (currentLayer.locked || !currentLayer.visible) return false;
+            currentLayer = currentLayer.parent;
+        }
+        return true;
+    }
+
+    /**
+     * シンボルインスタンスを作り、元オブジェクトと基準点どうしが揃うよう移動する
+     * @param {Layer} destinationLayer - 配置先のレイヤー
+     * @param {Symbol} destinationSymbol - 配置するシンボル
+     * @param {PageItem} targetItem - 位置を合わせる元オブジェクト
+     * @param {number} referencePointIndex - 基準点（0〜8）
+     * @returns {SymbolItem} 作成したインスタンス
+     */
+    function createAlignedSymbolItem(destinationLayer, destinationSymbol, targetItem, referencePointIndex) {
+        var destinationPosition = getAnchorPointOnBounds(targetItem.visibleBounds, referencePointIndex);
+        var newSymbolItem = destinationLayer.symbolItems.add(destinationSymbol);
+        var sourcePosition = getAnchorPointOnBounds(newSymbolItem.visibleBounds, referencePointIndex);
+        newSymbolItem.translate(destinationPosition[0] - sourcePosition[0], destinationPosition[1] - sourcePosition[1]);
+        return newSymbolItem;
+    }
+
+    /**
+     * 対象をひとつずつシンボルインスタンスに置き換え、置き換えたものを選択する。置換できなかった件数は警告で知らせる
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {PageItem[]} targetItems - 置換対象
+     * @param {Symbol} destinationSymbol - 置き換えるシンボル
+     * @param {number} referencePointIndex - 基準点（0〜8）
+     * @returns {void}
+     */
+    function replaceItemsWithSymbol(targetDocument, targetItems, destinationSymbol, referencePointIndex) {
+        var createdSymbolItems = [];
+        var skippedCount = 0;
+
+        for (var i = 0; i < targetItems.length; i++) {
+            var currentItem = targetItems[i];
+            var newSymbolItem = null;
+            try {
+                if (!isReplaceableItem(currentItem)) {
+                    skippedCount++;
+                    continue;
+                }
+                newSymbolItem = createAlignedSymbolItem(currentItem.layer, destinationSymbol, currentItem, referencePointIndex);
+                currentItem.remove();
+                createdSymbolItems.push(newSymbolItem);
+            } catch (e) {
+                /* 途中で失敗したら作りかけのインスタンスを消して数える / Remove the half-made instance and count the failure */
+                if (newSymbolItem) {
+                    try { newSymbolItem.remove(); } catch (removeError) { }
+                }
+                skippedCount++;
+            }
+        }
+
+        /* 1個ずつ .selected = true にすると多数のとき固まるので、配列でまとめて代入する / Assign as an array; per-item .selected = true freezes on large counts */
+        targetDocument.selection = createdSymbolItems;
+
+        if (skippedCount > 0) {
+            alert(getLabel('alert.skipped', { count: skippedCount }));
+        }
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
-
-    // UIレイアウト（再利用パーツ） / UI layout (reusable)
-
-    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
-
-    /**
-     * ウィンドウの共通設定
-     * @param {Window} targetWindow - 対象のウィンドウ
-     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
-     * @returns {void}
-     */
-    function setupWindow(targetWindow, spacing) {
-        targetWindow.orientation = "column";
-        targetWindow.alignChildren = "fill";
-        targetWindow.margins = WINDOW_MARGINS;
-        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
-
-    /**
-     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
-     * @param {Panel} targetPanel - 対象のパネル
-     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
-     * @returns {void}
-     */
-    function setupPanel(targetPanel, spacing) {
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["fill", "top"];
-        targetPanel.alignment = "fill";
-        targetPanel.margins = PANEL_MARGINS;
-        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
-     * タブの共通設定
-     * @param {Tab} targetTab - 対象のタブ
-     * @param {number} [spacing] - 要素間隔（省略時は変えない）
-     * @returns {void}
-     */
-    function setupTab(targetTab, spacing) {
-        targetTab.orientation = "column";
-        targetTab.alignChildren = "fill";
-        targetTab.margins = TAB_MARGINS;
-        if (typeof spacing === "number") targetTab.spacing = spacing;
-    }
-
-    /**
-     * 横並びの行グループの共通設定（ボタン列など）。
-     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
-     * @param {Group} rowGroup - 対象のグループ
-     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
-     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
-     * @returns {void}
-     */
-    function setupRow(rowGroup, rowAlignment, spacing) {
-        rowGroup.orientation = "row";
-        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
-        rowGroup.alignChildren = ["left", "center"];
-        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
-     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
-     * @param {Button} targetButton - 対象のボタン
-     * @param {number} trimPixels - 詰める量（px）
-     * @returns {void}
-     */
-    function trimButtonHeight(targetButton, trimPixels) {
-        /* レイアウト前は size が無い / size is not set until the layout runs */
-        if (!targetButton.size) return;
-        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
-    }
-
-    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
-
-    /* 基準点ラジオボタンを排他的に選択 / Select one reference-point radio button exclusively */
-    function selectReferencePointButton(radioButtons, selectedIndex) {
-      for (var i = 0; i < radioButtons.length; i++) {
-        radioButtons[i].value = (i === selectedIndex);
-      }
-      radioButtons.selectedIndex = selectedIndex;
-    }
-
-    /* 基準点 3x3 ラジオボタンを生成（手動排他、選択値は radioButtons.selectedIndex に保持）/ Build a 3x3 radio grid with manual mutual exclusion; the selected index is exposed as radioButtons.selectedIndex */
-    function createReferencePointGrid(parentPanel, defaultIndex) {
-      var radioButtons = [];
-      for (var row = 0; row < 3; row++) {
-        var rowGroup = parentPanel.add('group');
-        rowGroup.orientation = 'row';
-        rowGroup.spacing = 4;
-        for (var col = 0; col < 3; col++) {
-          var referencePointButton = rowGroup.add('radiobutton', undefined, '');
-          referencePointButton.helpTip = getLabel('help.referencePoint');
-          radioButtons.push(referencePointButton);
-        }
-      }
-      selectReferencePointButton(radioButtons, defaultIndex);
-      for (var i = 0; i < radioButtons.length; i++) {
-        (function (buttonIndex) {
-          radioButtons[buttonIndex].onClick = function () {
-            selectReferencePointButton(radioButtons, buttonIndex);
-          };
-        })(i);
-      }
-      return radioButtons;
-    }
-
-    /* シンボル名入力に応じて OK ボタンの有効状態を更新 / Update OK button availability from the symbol-name input */
-    function updateOkButtonState(nameInput, okButton) {
-      okButton.enabled = trimWhitespace(nameInput.text).length > 0;
-    }
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -913,138 +1272,115 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹�
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
-    /* シンボル化の設定ダイアログを表示 / Show the symbolize settings dialog */
+    /**
+     * シンボル名が既存のシンボルと重ならないか確かめる。重なれば警告して入力欄へ戻す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} candidateName - 確かめるシンボル名
+     * @param {EditText} symbolNameInput - シンボル名の入力欄
+     * @returns {boolean} 使える名前なら true
+     */
+    function validateSymbolNameUnique(targetDocument, candidateName, symbolNameInput) {
+        if (!symbolNameExists(targetDocument, candidateName)) return true;
+        alert(getLabel('alert.duplicateSymbol', { name: candidateName }));
+        symbolNameInput.active = true;
+        return false;
+    }
+
+    /**
+     * シンボル化の設定ダイアログを表示する
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @param {string} defaultName - シンボル名の初期値
+     * @param {number|string} defaultReferencePoint - 基準点の初期値
+     * @param {boolean} isTextSelection - テキストフレームを選択しているか（テキストのパネルを出す）
+     * @returns {{symbolName: string, referencePoint: number, allowSizeMismatch: boolean}|null} 設定。キャンセルなら null
+     */
     function showSymbolizeDialog(targetDocument, defaultName, defaultReferencePoint, isTextSelection) {
-      var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-      setupWindow(dialog);
+        var symbolizeDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        setupWindow(symbolizeDialog);
 
-      /* シンボル名 / Symbol name */
-      var symbolNamePanel = dialog.add('panel', undefined, getLabel('panel.symbolName'));
-      setupPanel(symbolNamePanel, 6);
-      var nameInput = symbolNamePanel.add('edittext', undefined, defaultName);
-      nameInput.characters = 18;
-      nameInput.preferredSize.width = 210;
-      nameInput.helpTip = getLabel('help.symbolName');
-      nameInput.active = true;
+        /* シンボル名 / Symbol name */
+        var symbolNamePanel = symbolizeDialog.add('panel', undefined, getLabel('panel.symbolName'));
+        setupPanel(symbolNamePanel);
+        var symbolNameInput = symbolNamePanel.add('edittext', undefined, defaultName);
+        symbolNameInput.preferredSize.width = SYMBOL_NAME_FIELD_WIDTH;
+        symbolNameInput.helpTip = getLabel('tooltip.symbolName');
+        symbolNameInput.active = true;
 
-      /* 基準点 / Registration point */
-      var referencePointPanel = dialog.add('panel', undefined, getLabel('panel.referencePoint'));
-      setupPanel(referencePointPanel, 4); /* 3x3 のラジオは詰めて並べる / keep the 3x3 grid tight */
-      referencePointPanel.alignChildren = 'center';
-      referencePointPanel.helpTip = getLabel('help.referencePoint');
-      var referencePointButtons = createReferencePointGrid(referencePointPanel, defaultReferencePoint);
+        /* 基準点 / Registration point */
+        var referencePointPanel = symbolizeDialog.add('panel', undefined, getLabel('panel.referencePoint'));
+        setupPanel(referencePointPanel);
+        var referencePointWidget = addAnchorWidget(referencePointPanel, defaultReferencePoint);
+        referencePointWidget.alignment = 'center';
+        referencePointWidget.helpTip = getLabel('tooltip.referencePoint');
 
-      /* テキスト（テキスト選択時のみ。一番下に配置）/ Text options (only when a TextFrame is selected; placed at the bottom) */
-      var allowSizeMismatchCheckbox = null;
-      if (isTextSelection) {
-        var textPanel = dialog.add('panel', undefined, getLabel('panel.text'));
-        setupPanel(textPanel, 6);
-        allowSizeMismatchCheckbox = textPanel.add('checkbox', undefined, getLabel('checkbox.allowSizeMismatch'));
-        allowSizeMismatchCheckbox.helpTip = getLabel('help.allowSizeMismatch');
-        allowSizeMismatchCheckbox.value = false;
-      }
-
-      /* OK / Cancel ボタン。OK は重複チェックでダイアログを保持できるよう name:'ok' を付けず、defaultElement で Enter に紐付け / OK / Cancel buttons. OK omits name:'ok' so duplicate-name validation can keep the dialog open; defaultElement wires Enter to it. */
-      var buttonRow = addButtonRow(dialog);
-      var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-      var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'));
-      btnOK.onClick = function () {
-        var candidateName = trimWhitespace(nameInput.text);
-        if (!validateDuplicateSymbolName(targetDocument, candidateName, nameInput)) {
-          return;
+        /* テキスト（テキスト選択時のみ）/ Text options (only when a TextFrame is selected) */
+        var allowSizeMismatchCheckbox = null;
+        if (isTextSelection) {
+            var textOptionsPanel = symbolizeDialog.add('panel', undefined, getLabel('panel.text'));
+            setupPanel(textOptionsPanel, 6);
+            allowSizeMismatchCheckbox = textOptionsPanel.add('checkbox', undefined, getLabel('checkbox.allowSizeMismatch'));
+            allowSizeMismatchCheckbox.helpTip = getLabel('tooltip.allowSizeMismatch');
         }
-        dialog.close(1);
-      };
-      dialog.defaultElement = btnOK;
 
-      /* 入力中はトリム後の長さで OK の有効状態を更新（空欄時は押せない）/ Toggle OK availability live; the trimmed name length must be > 0 */
-      nameInput.onChanging = function () {
-        updateOkButtonState(nameInput, btnOK);
-      };
-      updateOkButtonState(nameInput, btnOK);
+        /* ［OK］は重複チェックでダイアログを残せるよう name:'ok' を付けず、defaultElement で Return に結び付ける / OK omits name:'ok' so the duplicate check can keep the dialog open; defaultElement binds Return to it */
+        var buttonRow = addButtonRow(symbolizeDialog);
+        buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'));
+        btnOK.onClick = function () {
+            if (!validateSymbolNameUnique(targetDocument, trimWhitespace(symbolNameInput.text), symbolNameInput)) return;
+            symbolizeDialog.close(1);
+        };
+        symbolizeDialog.defaultElement = btnOK;
 
-      alignRightOnlyButtonRow(buttonRow);
-      prepareDialogWindow(dialog, SCRIPT_NAME);
-      if (dialog.show() !== 1) { return null; }
-      return {
-        symbolName: trimWhitespace(nameInput.text),
-        referencePoint: referencePointButtons.selectedIndex,
-        allowSizeMismatch: allowSizeMismatchCheckbox ? !!allowSizeMismatchCheckbox.value : false
-      };
+        /* 空欄（空白だけを含む）のあいだは［OK］を押せない / OK stays disabled while the name is empty or blank */
+        function updateOkButtonState() {
+            btnOK.enabled = trimWhitespace(symbolNameInput.text).length > 0;
+        }
+        symbolNameInput.onChanging = updateOkButtonState;
+        updateOkButtonState();
+
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(symbolizeDialog, SCRIPT_NAME);
+        if (symbolizeDialog.show() !== 1) return null;
+        return {
+            symbolName: trimWhitespace(symbolNameInput.text),
+            referencePoint: getAnchorWidgetIndex(referencePointWidget),
+            allowSizeMismatch: allowSizeMismatchCheckbox ? allowSizeMismatchCheckbox.value : false
+        };
     }
 
     // =========================================
-    // メイン処理 / Main flow
+    // メイン処理 / Main
     // =========================================
 
-    (function main() {
-      if (app.documents.length <= 0) { return; }
-      var activeDoc = app.activeDocument;
-      var rawSelection = activeDoc.selection;
-      if (rawSelection.length < 1) { return; }
+    /**
+     * 選択をシンボル化し、一致するアイテムをそのインスタンスに置き換える
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
+        var activeDoc = app.activeDocument;
+        var selectionInfo = analyzeSelection(activeDoc);
+        if (!selectionInfo) return;
 
-      /* 複数選択時は全要素が GroupItem の場合のみ対応（"選択した全グループを 1 シンボルにまとめる" モード）。それ以外の複数選択は通知して終了 / Multi-selection is only supported when every selected item is a GroupItem (the "merge all selected groups into a single symbol" mode); other multi-selection cases notify and bail out */
-      var isMultiGroupSelection = false;
-      if (rawSelection.length > 1) {
-        if (!areAllGroups(rawSelection)) {
-          alert(buildBilingualMessage('alert.multiSelectionNotGroups'));
-          return;
+        /* テキストならその文字列をシンボル名の初期値にする / A TextFrame seeds the symbol name with its contents */
+        var initialName = selectionInfo.textContent ? sanitizeTextForSymbolName(selectionInfo.textContent) : DEFAULT_SYMBOL_NAME;
+        var dialogResult = showSymbolizeDialog(activeDoc, initialName, DEFAULT_REFERENCE_POINT, selectionInfo.isText);
+        if (!dialogResult) return;
+
+        var createdSymbol = createSymbolFromSelection(activeDoc, dialogResult.symbolName, dialogResult.referencePoint);
+        var replaceTargets = collectReplaceTargets(activeDoc, selectionInfo, dialogResult.allowSizeMismatch);
+
+        /* 元オブジェクトのほかに対象が無ければ、作ったシンボルを消して終える / Remove the created symbol and stop when nothing but the original was found */
+        if (replaceTargets.length <= 1) {
+            createdSymbol.remove();
+            alert(getLabel('alert.noTargets'));
+            return;
         }
-        isMultiGroupSelection = true;
-      }
 
-      /* 選択をローカル配列にコピーしておく（複数グループ選択時は createSymbolFromSelection が selection を 1 個に絞るため、参照を別途保持する必要がある）/ Snapshot the selection so references survive createSymbolFromSelection narrowing the selection down to one item */
-      var sourceSelection = [];
-      for (var snapshotIndex = 0; snapshotIndex < rawSelection.length; snapshotIndex++) {
-        sourceSelection.push(rawSelection[snapshotIndex]);
-      }
+        replaceItemsWithSymbol(activeDoc, replaceTargets, createdSymbol, dialogResult.referencePoint);
+    }
 
-      /* 単独選択時のみ TextFrame 分岐の判定を行う（複数グループ選択時は常に false）/ TextFrame branching only applies for single selection (always false in multi-group mode) */
-      var sourceItem = sourceSelection[0];
-      var isTextSelection = !isMultiGroupSelection && isTextFrame(sourceItem);
-      var sourceTextContent = isTextSelection ? sourceItem.contents : null;
-
-      /* 既定値（ダイアログの結果で上書きされる）。テキストならその文字列をシンボル名の初期値に / Defaults overridden by the dialog result; TextFrames seed the symbol name from their content */
-      var symbolName = (isTextSelection && sourceTextContent) ? sanitizeTextForSymbolName(sourceTextContent) : DEFAULT_SYMBOL_NAME;
-      var referencePoint = AiReferencePoint.CENTER;
-
-      /* ダイアログで設定し、複製をシンボル化（重複チェックはダイアログ内で実施済み）/ Configure via dialog and symbolize a duplicate (duplicate-name check is done inside the dialog) */
-      var dialogResult = showSymbolizeDialog(activeDoc, symbolName, referencePoint, isTextSelection);
-      if (!dialogResult) { return; }
-      symbolName = dialogResult.symbolName;
-      referencePoint = dialogResult.referencePoint;
-      var allowSizeMismatch = dialogResult.allowSizeMismatch;
-      var createdSymbol = createSymbolFromSelection(activeDoc, symbolName, referencePoint);
-
-      /* 置換対象の収集：複数グループ選択時は選択そのものを使用、テキスト単独はフォント・スタイル（＋オプションでサイズ）＋文字列で検索、それ以外は SmartEdit + note 収集 / Collect replacement targets: multi-group uses the selection itself; a single TextFrame uses Find Text (with optional size match); otherwise SmartEdit + note collection */
-      var replaceTargets;
-      if (isMultiGroupSelection) {
-        replaceTargets = sourceSelection;
-      } else if (isTextSelection) {
-        replaceTargets = findMatchingTextFrames(activeDoc, sourceTextContent, allowSizeMismatch);
-      } else {
-        /* 過去の実行が clearNoteOnItems 前にクラッシュしていた場合に備え、SmartEdit ブランチに入る前に同じ note 値を持つアイテムを一掃する / Guard against pre-existing temp_memo notes from a previous run that crashed before clearNoteOnItems */
-        clearNoteOnItems(collectItemsByNote(activeDoc, TEMP_NOTE_VALUE));
-
-        /* SmartEdit ON → ダイナミックアクションで note を付与 → note を持つアイテムを収集 → note クリア / Toggle SmartEdit on, tag matching items with a note via a dynamic action, collect every pageItem carrying that note, then clear */
-        app.executeMenuCommand('SmartEdit Menu Item');
-        attachNoteToSelection();
-        /* attachNoteToSelection() の doScript 実行で SmartEdit は自動的に OFF に戻るため、ここで再度 'SmartEdit Menu Item' を呼ぶと逆に ON になってしまう。よって明示的なトグル OFF は入れない / Illustrator turns SmartEdit back off automatically once attachNoteToSelection()'s doScript runs, so calling 'SmartEdit Menu Item' again here would toggle it back ON — do not add an explicit off-toggle */
-        replaceTargets = collectItemsByNote(activeDoc, TEMP_NOTE_VALUE);
-        clearNoteOnItems(replaceTargets);
-      }
-      /* 元オブジェクト以外の置換対象がない場合は、作成したシンボルを削除して終了。複数グループ選択は 2 件以上が前提なので、通常この分岐には入らない / Bail out (removing the created symbol) when nothing but the original item was found. Multi-group selection always carries 2+ items, so this branch is normally not taken there */
-      if (replaceTargets.length <= 1) {
-        try {
-          createdSymbol.remove();
-        } catch (removeSymbolError) { }
-
-        alert(buildBilingualMessage('alert.noTargets'));
-        return;
-      }
-
-      /* 置換実行（createSymbolFromSelection が返したシンボルをそのまま使う）/ Replace items using the symbol returned by createSymbolFromSelection */
-      replaceItemsWithSymbol(activeDoc, replaceTargets, createdSymbol, referencePoint);
-    })();
+    main();
 
 })();

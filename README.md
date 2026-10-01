@@ -50,6 +50,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [合成フォントを構成フォントに置き換え](readme-ja/DeCompositeFontMaker.md)
 - [選択テキストのフォントを一つ上／下のウェイトに切り替え](readme-ja/FontWeightUp.md)
 - [似ているフォントのウェイトを見本で見比べて適用](readme-ja/FontWeightPicker.md)
+- [よく使うフォントだけを一覧から選んで適用](readme-ja/FavoriteFontPicker.md)
 
 
 ## テキスト関連
