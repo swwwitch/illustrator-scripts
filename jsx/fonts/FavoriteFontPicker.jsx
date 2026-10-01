@@ -100,9 +100,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         }
     ];
 
-    /* ［オプション］の［対象外］で外す言語。名前（ファミリー名・PostScript 名）で判定し、上から順に当てる
+    /* ［日本語以外を除外］で外す言語。名前（ファミリー名・PostScript 名）で判定し、上から順に当てる
        namePrefixes：前方一致（大文字小文字は区別しない）、familyPatterns：ファミリー名、psNamePatterns：PostScript 名
-       Languages left out with Options > Exclude, judged by name and tried from the top */
+       Languages left out with Exclude non-Japanese, judged by name and tried from the top */
     var LANGUAGE_GROUPS = [
         {
             key: "chinese",
@@ -975,7 +975,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         foundries: [],          /* チェックしたメーカーの key / keys of the checked foundries */
         showAll: false,
         filterByStandard: true, /* ［規格］のチェックで絞り込む / filter by the Standard checkboxes */
-        excludedLanguages: ["chinese", "korean", "thai", "multilingual"], /* ［対象外］の言語 / excluded languages */
+        excludedLanguages: ["chinese", "korean", "thai", "multilingual"], /* ［日本語以外を除外］の言語 / excluded languages */
         hiddenSuffixes: [],     /* ［規格］で外した接尾辞（"" は［その他］）/ suffixes unchecked under Standard ("" is Other) */
         searchText: "",
         showPostScriptName: false,  /* 一覧を PostScript 名で表示 / list PostScript names */
@@ -1482,7 +1482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         panel: {
             category: { ja: "分類", en: "Category" },
             standard: { ja: "規格", en: "Standard" },
-            options: { ja: "オプション", en: "Options" }
+            excludedLanguages: { ja: "日本語以外を除外", en: "Exclude non-Japanese" }
         },
         checkbox: {
             custom: { ja: "カスタム", en: "Custom" },
@@ -1495,8 +1495,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             preview: { ja: "プレビュー", en: "Preview" }
         },
         fieldLabel: {
-            search: { ja: "絞り込み", en: "Filter" },
-            excluded: { ja: "対象外", en: "Exclude" }
+            search: { ja: "絞り込み", en: "Filter" }
         },
         button: {
             recordUsedFonts: { ja: "使用フォントをフォルダーに記録", en: "Record used fonts in folder" },
@@ -1969,7 +1968,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         /* カスタム・ドキュメントに挙げたフォントは、規格違いの間引きと除外をせずに出す / Listed Custom and Document fonts skip thinning and exclusions */
         var isListed = (filterState.custom && fontNameStartsWithAny(fontInfo, filterState.customFontNames)) ||
             (filterState.documentFonts && fontNameStartsWithAnyWord(fontInfo, filterState.documentFontNames));
-        /* ［対象外］の言語は外す（カスタム・ドキュメントに挙げたものは残す）/ Leave out excluded languages, except listed Custom and Document fonts */
+        /* ［日本語以外を除外］の言語は外す（カスタム・ドキュメントに挙げたものは残す）/ Leave out excluded languages, except listed Custom and Document fonts */
         if (!isListed && filterState.excludedLanguages[fontInfo.languageKey] === true) return false;
         /* 合成フォントは、［すべて表示］ではほかと同じく［規格］で絞り、それ以外は規格を問わない
            Composite fonts follow Standard under Show all like any other font, and ignore it otherwise */
@@ -2376,12 +2375,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         chkNoSuffix.suffix = "";
         suffixCheckboxes.push(chkNoSuffix);
 
-        var optionsPanel = filterColumn.add("panel", undefined, getLabel("panel.options"));
-        setupPanel(optionsPanel, 6);
-        optionsPanel.add("statictext", undefined, labelText("fieldLabel.excluded"));
+        var languagePanel = filterColumn.add("panel", undefined, getLabel("panel.excludedLanguages"));
+        setupPanel(languagePanel, 6);
         var languageCheckboxes = [];
         for (var m = 0; m < LANGUAGE_GROUPS.length; m++) {
-            var chkLanguage = optionsPanel.add("checkbox", undefined, getLabel(LANGUAGE_GROUPS[m].label));
+            var chkLanguage = languagePanel.add("checkbox", undefined, getLabel(LANGUAGE_GROUPS[m].label));
             chkLanguage.helpTip = getLabel(LANGUAGE_GROUPS[m].tooltip);
             chkLanguage.languageKey = LANGUAGE_GROUPS[m].key;
             languageCheckboxes.push(chkLanguage);

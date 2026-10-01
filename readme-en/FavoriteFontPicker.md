@@ -28,17 +28,17 @@
 **Filtering**
 
 - Category: the checked ones are combined
-  - Custom: fonts added with Add to Custom, shown without thinning out standards or exclusions (Exclude included)
-  - Document: fonts recorded in `_ProjectFonts.txt` next to the document, shown without thinning out standards or exclusions (Exclude included)
+  - Custom: fonts added with Add to Custom, shown without thinning out standards or exclusions (Exclude non-Japanese included)
+  - Document: fonts recorded in `_ProjectFonts.txt` next to the document, shown without thinning out standards or exclusions (Exclude non-Japanese included)
   - Morisawa / TB (TypeBank) / FOT (Fontworks) / Hiragino: matched by the start of the family or PostScript name
   - Adobe (Kozuka, Source Han, Ryo): Adobe's own Japanese typefaces (Kazuraki included). Fonts delivered by Adobe Fonts cannot be told by name, so they are not included
   - Composite fonts: those made with Type > Composite Fonts, not filtered or thinned out by standard
-- Show all: ignores Category, standard thinning and `EXCLUDE_FONTS`, and lists every font (Standard and Exclude still apply, composite fonts included)
+- Show all: ignores Category, standard thinning and `EXCLUDE_FONTS`, and lists every font (Standard and Exclude non-Japanese still apply, composite fonts included)
 - Standard: plain standards (Std, Pro, Pr5, Pr6) on the left, N variants on the right. Shows only the checked standards (and No standard); for each typeface the highest-priority checked standard is kept (uncheck Pr6N and Pr6 or Pr5 stays)
 - Filter by standard: when off, the Standard checkboxes are ignored (each typeface keeps its highest-priority standard of all). On by default
 - Option (Alt)-click a Category or Standard checkbox to switch between "only this one" and "all on"
 - Filter: substring match on the family, style or PostScript name
-- Options > Exclude: leaves Chinese / Hangul / Thai / Other multilingual fonts out of the list (all on by default; applies under Show all too, while listed Custom and Document fonts stay). The language is judged by the font name
+- Exclude non-Japanese: leaves Chinese / Hangul / Thai / Other multilingual fonts out of the list (all on by default; applies under Show all too, while listed Custom and Document fonts stay). The language is judged by the font name
 
 **Managing fonts**
 
@@ -50,7 +50,7 @@
 
 - Preview: applies the chosen font to the selected text for a look (on by default; Cancel restores it)
 - Double-click, press Enter or click Apply to apply and close
-- The checkboxes (Exclude included), the Custom fonts and the filter text are restored next time
+- The checkboxes (Exclude non-Japanese included), the Custom fonts and the filter text are restored next time
 
 ### Usage
 
@@ -71,7 +71,7 @@ The Filter field updates the list as you type while the result is 800 fonts or f
 | PRIORITY_PREFIXES | Prefix priority (first wins) | A-OTF, A P-OTF, AP-OTF, G-OTF, U-OTF |
 | PRIORITY_SUFFIXES | Standard priority; also listed as Standard checkboxes | Pr6N, Pr6, Pr5N, Pr5, ProN, Pro, StdN, Std |
 | FOUNDRY_FILTERS | Foundry categories (prefix match on the family or PostScript name) | Morisawa, TB, FOT, Hiragino, Adobe |
-| LANGUAGE_GROUPS | Languages under Exclude and the name rules that detect them (prefixes, regular expressions) | Chinese, Hangul, Thai, Other multilingual |
+| LANGUAGE_GROUPS | Languages under Exclude non-Japanese and the name rules that detect them (prefixes, regular expressions) | Chinese, Hangul, Thai, Other multilingual |
 | LIVE_SEARCH_MAX_FONTS | Max result count updated on every keystroke | 800 |
 
 Custom and Document names match whole words ("Pr5" does not match "Pr5N"; "DIN" matches "DIN 2014").
@@ -95,7 +95,8 @@ Custom and Document names match whole words ("Pr5" does not match "Pr5N"; "DIN" 
   - Record used fonts in folder no longer records fonts tried in the preview
   - Clicking a family header no longer selects the family above
   - Custom matches by prefix again ("DIN" also shows DINPro and DINOT)
-  - Hiragino Sans CNS now counts as Chinese under Exclude
+  - Hiragino Sans CNS now counts as Chinese under Exclude non-Japanese
+  - Options > Exclude is now a single panel titled Exclude non-Japanese
 - v1.0.0 (20261001) : Initial version, adapted from "よく使うフォントパネル" v1.1.2
   - Two-column dialog; a list with weights under family headers; Show PostScript names
   - Standard is now a set of checkboxes that also works without Show all; Filter by standard; Option-click switching
