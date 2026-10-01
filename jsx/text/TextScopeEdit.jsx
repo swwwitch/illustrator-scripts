@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 ドキュメント内のテキスト（シンボル内を含む）を一覧にし、書式を保ったまま編集して書き戻します。
-対象はアートボード単位やレイヤー単位で絞り込め、テキストとフォント名の書き出しもできます。
+改行・強制改行はボタンでカーソルの位置に入れられ、テキストとフォント名の書き出しもできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md
@@ -18,7 +18,7 @@ https://note.com/dtp_tranist/n/nb845889dd553
 ### Overview
 
 Lists the text in the document, including text in symbols, and writes your edits back while keeping the formatting.
-The scope can be narrowed by artboard or layer, and the text and font names can be exported.
+Paragraph and forced line breaks can be inserted at the cursor with buttons, and the text and font names can be exported.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -150,6 +150,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     var TEXT_LIST_BOUNDS         = [0, 0, 250, 270];   /* テキスト一覧の大きさ（［更新］ボタンの分を引く）/ Text list bounds (minus the Update button) */
     var TEXT_EDIT_BOUNDS         = [0, 0, 250, 72];    /* テキスト編集欄の大きさ / Text edit field bounds */
     var FONT_COLUMN_WIDTHS       = [180, 180, 120];    /* フォント一覧の列幅 / Font list column widths */
+    var INSERT_BUTTON_HEIGHT     = 20;                 /* 改行の挿入ボタンの高さ / Height of the break insert buttons */
+    var INSERT_FONT_SHRINK       = 2;                  /* 挿入ボタンの文字を小さくする量（pt）/ How much smaller the insert button font is (pt) */
 
     // =========================================
     // ローカライズ / Localization
@@ -330,6 +332,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 ja: "♣ の行（シンボル内のテキスト）を編集すると、OK でシンボルの定義を書き換えます。\n範囲外にある同じシンボルのインスタンスも変わり、\n基準点などのシンボルオプションは初期値になります",
                 en: "Editing a ♣ row (text in a symbol) rewrites the symbol definition on OK,\nso instances outside the scope change too, and symbol options\nsuch as the registration point are reset"
             },
+            paragraphBreak: {
+                ja: "カーソルの位置に改行を入れます",
+                en: "Inserts a paragraph break at the cursor"
+            },
+            lineBreak: {
+                ja: "カーソルの位置に強制改行（{softBreak}）を入れます（Shift+Enter）",
+                en: "Inserts a forced line break ({softBreak}) at the cursor (Shift+Enter)"
+            },
             copyText: {
                 ja: "テキスト一覧に並んでいるテキストを\n省略せずにクリップボードへコピーします",
                 en: "Copies the full text of every row\nin the text list to the clipboard"
@@ -367,6 +377,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             exportText: { ja: "テキスト書き出し...", en: "Export Text..." },
             copyText: { ja: "テキストをコピー", en: "Copy Text" },
             updateText: { ja: "更新", en: "Update" },
+            paragraphBreak: { ja: "改行", en: "Paragraph Break" },
+            lineBreak: { ja: "強制改行", en: "Forced Line Break" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         },
@@ -2226,7 +2238,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         dialogControls.textListBox = textColumn.add("listbox", TEXT_LIST_BOUNDS, []);
         dialogControls.textListBox.helpTip = getLabel("tooltip.textList");
 
-        textColumn.add("statictext", undefined, labelText("fieldLabel.textEdit"));
+        /* 見出しの右に改行の挿入ボタンを並べる（一覧の高さを変えないよう同じ行に置く）
+           Put the break insert buttons to the right of the label, on the same row so the list keeps its height */
+        var textEditLabelRow = textColumn.add("group");
+        setupRow(textEditLabelRow, ["fill", "top"], 4);
+        textEditLabelRow.add("statictext", undefined, labelText("fieldLabel.textEdit"));
+        var labelRowSpacer = textEditLabelRow.add("group");
+        labelRowSpacer.alignment = ["fill", "fill"];
+        labelRowSpacer.minimumSize.width = 0;
+        dialogControls.btnParagraphBreak = addSmallButton(textEditLabelRow, "paragraphBreak");
+        dialogControls.btnLineBreak = addSmallButton(textEditLabelRow, "lineBreak");
+
         dialogControls.textEditBox = textColumn.add("edittext", TEXT_EDIT_BOUNDS, "", { multiline: true, scrolling: true });
         dialogControls.textEditBox.helpTip = getLabel("tooltip.textEdit").replace("{softBreak}", SOFT_BREAK);
 
@@ -2242,6 +2264,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
         dialogControls.btnUpdateText = updateButtonRow.add("button", undefined, getLabel("button.updateText"));
         dialogControls.btnUpdateText.helpTip = getLabel("tooltip.updateText");
+    }
+
+    /**
+     * ほかのボタンよりひとまわり小さいボタンを作る
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} labelKey - LABELS.button と LABELS.tooltip のキー
+     * @returns {Button} 作ったボタン
+     */
+    function addSmallButton(parentGroup, labelKey) {
+        var smallButton = parentGroup.add("button", undefined, getLabel("button." + labelKey));
+        smallButton.helpTip = getLabel("tooltip." + labelKey).replace("{softBreak}", SOFT_BREAK);
+        var buttonFont = smallButton.graphics.font;
+        smallButton.graphics.font = ScriptUI.newFont(buttonFont.name, buttonFont.style, buttonFont.size - INSERT_FONT_SHRINK);
+        smallButton.preferredSize.height = INSERT_BUTTON_HEIGHT;
+        return smallButton;
     }
 
     /**
@@ -2779,11 +2816,68 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 keyEvent.preventDefault();
             }
         });
+        bindInsertButton(dialogControls.btnParagraphBreak, dialogControls.textEditBox, '\n');
+        bindInsertButton(dialogControls.btnLineBreak, dialogControls.textEditBox, SOFT_BREAK);
         dialogControls.cbMergeDuplicates.onClick = function () { refreshTextList(editSession); };
         dialogControls.cbSelectedOnly.onClick = function () {
             editSession.selectedOnly = dialogControls.cbSelectedOnly.value;
             refreshTextList(editSession);
         };
+    }
+
+    /**
+     * 押すと入力欄のカーソルの位置に文字を入れるボタンにする
+     * ボタンを押すと入力欄のカーソルが失われるので、押し下げた時点の位置を控えておく
+     * @param {Button} insertButton - 対象のボタン
+     * @param {EditText} targetInput - 入れる先の入力欄
+     * @param {string} insertedText - 入れる文字（複数行の欄の改行は \n）
+     * @returns {void}
+     */
+    function bindInsertButton(insertButton, targetInput, insertedText) {
+        var savedCaret = null;
+        /* クリックが確定する前（押し下げた時点）にカーソル位置を読む / Read the caret on mouse down, before the click completes */
+        insertButton.addEventListener("mousedown", function () {
+            savedCaret = captureCaret(targetInput);
+        });
+        insertButton.onClick = function () {
+            insertTextAtCaret(targetInput, insertedText, savedCaret);
+            savedCaret = null;
+        };
+    }
+
+    /**
+     * 控えたカーソルの位置に文字を入れる。位置が取れていなければ末尾に足す
+     * @param {EditText} targetInput - 入れる先の入力欄
+     * @param {string} insertedText - 入れる文字
+     * @param {Object|null} caretPosition - captureCaret() の結果
+     * @returns {void}
+     */
+    function insertTextAtCaret(targetInput, insertedText, caretPosition) {
+        var currentText = targetInput.text;
+        if (caretPosition && caretPosition.start + caretPosition.length <= currentText.length) {
+            targetInput.text = currentText.substring(0, caretPosition.start) + insertedText + currentText.substring(caretPosition.start + caretPosition.length);
+        } else {
+            targetInput.text = currentText + insertedText;
+        }
+    }
+
+    /**
+     * 入力欄のカーソル位置を読む。目印の文字を選択範囲に差し込んで位置を測り、元の文字列に戻す
+     * （ScriptUI にはカーソル位置を返すプロパティが無いため）
+     * @param {EditText} targetInput - 対象の入力欄（カーソルがあるうちに呼ぶ）
+     * @returns {Object|null} { start: number, length: number }。読めなければ null
+     */
+    function captureCaret(targetInput) {
+        var CARET_MARKER = "\u0001";
+        var originalText = targetInput.text;
+        var selectedLength = targetInput.textselection.length;
+        targetInput.textselection = CARET_MARKER;
+        var markerIndex = targetInput.text.indexOf(CARET_MARKER);
+        targetInput.text = originalText;
+        /* カーソルを失った入力欄では目印が先頭に入るので、先頭は信用しない（末尾に足す側に倒す）
+           A field that lost its caret puts the marker at the start, so treat the start as unknown */
+        if (markerIndex < 0 || (markerIndex === 0 && originalText.length > 0)) return null;
+        return { start: markerIndex, length: selectedLength };
     }
 
     /**

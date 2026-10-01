@@ -19,6 +19,7 @@ You can also review layer, artboard and font names, and export the text and font
 
 - Text tab: lists the target text; select a row and edit it
   - Text in symbols is listed at the end, marked with ♣, and can be edited the same way
+  - The Paragraph Break and Forced Line Break buttons insert a break at the cursor
   - Update applies the edit to the document so you can move on to the next row without closing the dialog
 - Layer Names and Artboard Names tabs: show the name lists
 - Font Names tab: lists the fonts in use, including those in symbols; click a row to select the text that uses it
@@ -32,7 +33,7 @@ You can also review layer, artboard and font names, and export the text and font
 3. Select a row in the Text List and rewrite it in Edit Text.
 4. Click Update to keep editing, or OK to finish.
 
-Type a forced line break with Shift+Enter (shown as `@#` in the edit field).
+Insert paragraph and forced line breaks at the cursor with the buttons at the top right of Edit Text. A forced line break can also be typed with Shift+Enter and is shown as `@#` in the edit field.
 
 ### Options
 
@@ -56,6 +57,7 @@ https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Update History
 
+- v1.6.0 (2026-10-01)Added Paragraph Break and Forced Line Break buttons above the right of the Edit Text field to insert them at the cursor
 - v1.5.6 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.5.5 (2026-09-30)Fixed an error when running with characters selected by the Type tool
 - v1.5.4 (2026-09-29)Dialog opacity changed to 98%
