@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeE
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -311,8 +311,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 en: "Lists identical text as one row and applies\nthe edit to every copy"
             },
             selectedOnly: {
-                ja: "編集を、起動時に選択していたテキストにだけ反映します\n（シンボル内のテキストは、インスタンスを選択していたときだけ）",
-                en: "Applies the edit only to the text selected when the script started\n(text in a symbol only when one of its instances was selected)"
+                ja: "一覧・編集・書き出しを、起動時に選択していたテキストだけにします\n（シンボル内のテキストは、インスタンスを選択していたときだけ）",
+                en: "Limits the list, edits, and export to the text selected when the script started\n(text in a symbol only when one of its instances was selected)"
             },
             sortPosition: {
                 ja: "上から下へ並べ、ほぼ同じ高さのものは\n左から右へ並べます",
@@ -1670,7 +1670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {Document} doc - 対象のドキュメント
      * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
-     * @returns {Object[]} { artboardIndex, text, fontTriples } の配列
+     * @returns {Object[]} { symbol, artboardIndex, text, fontTriples } の配列
      */
     function collectSymbolTextsByArtboard(doc, collectOptions, scopeMode) {
         var placements = collectScopedSymbolPlacements(doc, collectOptions, scopeMode);
@@ -1681,6 +1681,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             for (var j = 0; j < symbolEntries.length; j++) {
                 if (symbolEntries[j].symbol !== placements[i].symbol) continue;
                 exportEntries.push({
+                    symbol: placements[i].symbol,
                     artboardIndex: placements[i].artboardIndex,
                     text: symbolEntries[j].contents + getLabel('format.symbolSuffix').split('{symbolName}').join(symbolEntries[j].symbolName),
                     fontTriples: symbolEntries[j].fontTriples
@@ -1935,11 +1936,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {Object} exportSettings - { includeText, includeFonts, openAfter }
      * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
+     * @param {Object|null} selectedItems - 選択していたものだけにするときは collectSelectedTextItems() の結果、すべてなら null
      * @returns {Object[]} { name, items（{ text, textFrame, fontTriples }） } の配列
      */
-    function collectExportGroups(doc, exportSettings, collectOptions, scopeMode) {
+    function collectExportGroups(doc, exportSettings, collectOptions, scopeMode, selectedItems) {
         var artboardGroups = createArtboardGroups(doc, scopeMode);
         var textFrames = collectFramesByScope(doc, scopeMode, collectOptions);
+        if (selectedItems) textFrames = filterSelectedFrames(textFrames, selectedItems.frames);
         var i;
 
         for (i = 0; i < textFrames.length; i++) {
@@ -1950,6 +1953,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         if ((exportSettings.includeText || exportSettings.includeFonts) && collectOptions.includeSymbols) {
             var symbolEntries = collectSymbolTextsByArtboard(doc, collectOptions, scopeMode);
             for (i = 0; i < symbolEntries.length; i++) {
+                if (selectedItems && !isSymbolSelected(symbolEntries[i].symbol, selectedItems.symbolItems)) continue;
                 addToArtboardGroup(artboardGroups, scopeMode, symbolEntries[i].artboardIndex,
                     { text: symbolEntries[i].text, textFrame: null, fontTriples: symbolEntries[i].fontTriples });
             }
@@ -1967,10 +1971,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      * @param {Object} exportSettings - { includeText, includeFonts, openAfter }
      * @param {Object} collectOptions - { includeComment, includeLocked, includeHidden, includeSymbols }
      * @param {string} scopeMode - "all" / "allArtboards" / "current"
+     * @param {Object|null} selectedItems - 選択していたものだけにするときは collectSelectedTextItems() の結果、すべてなら null
      * @returns {string} 書き出す内容
      */
-    function buildExportText(doc, exportSettings, collectOptions, scopeMode) {
-        var exportGroups = collectExportGroups(doc, exportSettings, collectOptions, scopeMode);
+    function buildExportText(doc, exportSettings, collectOptions, scopeMode, selectedItems) {
+        var exportGroups = collectExportGroups(doc, exportSettings, collectOptions, scopeMode, selectedItems);
         var exportLines = [];
 
         for (var i = 0; i < exportGroups.length; i++) {
@@ -2448,12 +2453,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * 一覧に並べるシンボル内テキストを返す（ABC順のときは内容の順に並べ替える）
+     * 一覧に並べるシンボル内テキストを返す（［選択しているテキストのみ］なら選択していたものだけ。ABC順のときは内容の順に並べ替える）
      * @param {Object} editSession - 編集の状態
      * @returns {Object[]} readSymbolTextEntries() の要素の配列
      */
     function getListedSymbolEntries(editSession) {
-        var symbolEntries = editSession.symbolEntries.slice(0);
+        var symbolEntries = [];
+        for (var i = 0; i < editSession.symbolEntries.length; i++) {
+            var symbolEntry = editSession.symbolEntries[i];
+            if (editSession.selectedOnly && !isSymbolSelected(symbolEntry.symbol, editSession.selectedItems.symbolItems)) continue;
+            symbolEntries.push(symbolEntry);
+        }
         if (editSession.dialogControls.rbSortAlphabetical.value) {
             symbolEntries.sort(function (firstEntry, secondEntry) {
                 var firstText = firstEntry.contents.toLowerCase();
@@ -2467,13 +2477,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     }
 
     /**
-     * テキスト一覧を並べ直す（テキストフレームは集め直し、シンボル内テキストは集めた結果を末尾に並べる）
+     * テキスト一覧を並べ直す（テキストフレームは集め直し、シンボル内テキストは集めた結果を末尾に並べる。
+     * ［選択しているテキストのみ］なら選択していたものだけ）
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
     function refreshTextList(editSession) {
         var dialogControls = editSession.dialogControls;
         var textFrames = collectFramesByScope(editSession.doc, getCurrentScopeMode(dialogControls), readCollectOptions(dialogControls));
+        if (editSession.selectedOnly) textFrames = filterSelectedFrames(textFrames, editSession.selectedItems.frames);
         if (dialogControls.rbSortPosition.value) {
             sortByPosition(textFrames);
         } else if (dialogControls.rbSortAlphabetical.value) {
@@ -2631,7 +2643,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
     /**
      * 選択中の行のテキストに編集を反映する（まとめているときは同じ内容の全フレームへ。
-     * ［選択しているテキストのみ］のときは選択していたものだけ。変えていなければ何もしない）
+     * ［選択しているテキストのみ］のときは一覧が選択していたものだけなので、そのまま反映する。変えていなければ何もしない）
      * @param {Object} editSession - 編集の状態
      * @returns {void}
      */
@@ -2642,10 +2654,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         var newText = toFrameText(dialogControls.textEditBox.text);
         if (newText === editTarget.contents) return;
         var keepFormat = dialogControls.cbKeepFormat.value;
-        var selectedOnly = dialogControls.cbSelectedOnly.value;
 
         if (editTarget.kind === 'symbol') {
-            if (selectedOnly && !isSymbolSelected(editTarget.entry.symbol, editSession.selectedItems.symbolItems)) return;
             if (!replaceSymbolText(editSession.doc, editTarget.entry, newText, keepFormat)) {
                 alert(getLabel('alert.symbolUpdateFailed'));
             }
@@ -2653,7 +2663,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         }
 
         var targetFrames = editSession.duplicateMap[editTarget.index] || [editSession.textFrameList[editTarget.index]];
-        if (selectedOnly) targetFrames = filterSelectedFrames(targetFrames, editSession.selectedItems.frames);
         for (var i = 0; i < targetFrames.length; i++) {
             replaceTextContents(targetFrames[i], newText, keepFormat);
         }
@@ -2698,7 +2707,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         try {
             var exportSettings = showExportOptionsDialog();
             if (!exportSettings) return;
-            var exportContent = buildExportText(doc, exportSettings, readCollectOptions(dialogControls), getCurrentScopeMode(dialogControls));
+            var exportContent = buildExportText(doc, exportSettings, readCollectOptions(dialogControls), getCurrentScopeMode(dialogControls),
+                editSession.selectedOnly ? editSession.selectedItems : null);
             var exportFile = writeTextFile(buildExportFilePath(doc), exportContent);
             if (exportSettings.openAfter) exportFile.execute();
         } catch (e) {
@@ -2770,6 +2780,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             }
         });
         dialogControls.cbMergeDuplicates.onClick = function () { refreshTextList(editSession); };
+        dialogControls.cbSelectedOnly.onClick = function () {
+            editSession.selectedOnly = dialogControls.cbSelectedOnly.value;
+            refreshTextList(editSession);
+        };
     }
 
     /**
@@ -2889,6 +2903,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             doc: app.activeDocument,
             dialogControls: null,
             selectedItems: null,      /* 起動時に選択していたテキストとシンボルインスタンス / Text and symbol instances selected at launch */
+            selectedOnly: false,      /* ［選択しているテキストのみ］（表示前の checkbox.value は読み戻せないので控える）/ Selected Text Only (kept here; checkbox.value cannot be read back before show) */
             textFrameList: [],        /* 一覧に並ぶテキストフレーム / Text frames listed */
             duplicateMap: [],         /* 行ごとの同じ内容の全フレーム / All frames with the same contents per row */
             symbolEntries: [],        /* シンボル内のテキスト / Text in symbols */
@@ -2901,6 +2916,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         editSession.dialogControls = buildDialog();
         /* 選択が無ければ選べない。あれば最初からオン / Unavailable without a selection; on from the start when there is one */
         var hasSelectedText = editSession.selectedItems.frames.length > 0 || editSession.selectedItems.symbolItems.length > 0;
+        editSession.selectedOnly = hasSelectedText;
         editSession.dialogControls.cbSelectedOnly.value = hasSelectedText;
         editSession.dialogControls.cbSelectedOnly.enabled = hasSelectedText;
         bindEditEvents(editSession);

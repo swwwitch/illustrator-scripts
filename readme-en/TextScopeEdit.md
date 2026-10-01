@@ -41,7 +41,7 @@ Type a forced line break with Shift+Enter (shown as `@#` in the edit field).
 | Scope | Current Artboard / All Artboards. Include Outside Artboards widens it to the whole document |
 | Text to Include | Whether to include layers starting with //, locked or hidden text, and text in symbols |
 | Sort | None / By Position (top to bottom, left to right at the same height) / Alphabetical |
-| Selected Text Only | Applies the edit only to the text selected when the script started (the list still shows all text). Text in a symbol is rewritten only when one of its instances was selected. Unavailable when nothing is selected |
+| Selected Text Only | Limits the list, edits, and export to the text selected when the script started. Text in a symbol is listed only when one of its instances was selected. Unavailable when nothing is selected |
 | Edit Identical Text Together | Lists identical text as one row and applies the edit to every copy |
 | Keep Formatting | Rewrites only the changed characters and keeps character and paragraph formatting. When off, the whole text takes the formatting of its first character |
 
@@ -76,5 +76,6 @@ https://note.com/dtp_tranist/n/nb845889dd553
   - Fixed the selection being cleared after export, and font selection matching fonts whose names only partly match
   - Removed the Preview option, and moved the edit options into an Options panel
   - Revised panel and option wording (Canvas tab → Text tab, and others)
+- v1.5.8 (2026-10-01)Selected Text Only now also limits the list and export to the selected text
 - v1.5.7 (2026-10-01)Added space below the button row to match Illustrator's own dialogs
 - v1.3.6 (2026-04-08)
