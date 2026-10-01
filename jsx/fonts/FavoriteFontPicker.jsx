@@ -29,11 +29,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteFontPicker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "KOUJI & 相棒（Gem）";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-02";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteFontPicker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFontPicker.md"; /* README (English) */
@@ -108,7 +108,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             key: "chinese",
             label: { ja: "中華", en: "Chinese" },
             tooltip: { ja: "PingFang・宋体・黑体・Source Han Sans SC など、中国語（簡体字・繁体字）のフォント", en: "Chinese (Simplified and Traditional) fonts such as PingFang, Songti, Heiti and Source Han Sans SC" },
-            namePrefixes: ["PingFang", "Hiragino Sans GB", "STHeiti", "STSong", "STKaiti", "STFangsong", "STXihei", "Songti", "Heiti", "Kaiti", "Lantinghei", "Hannotate", "Hanzipen", "Weibei", "Libian", "Xingkai", "Baoli", "Wawati", "Yuanti", "Yuppy", "BiauKai", "LiSong", "LiHei", "Apple LiGothic", "Apple LiSung", "GB18030", "SimSun", "NSimSun", "SimHei", "Microsoft YaHei", "Microsoft JhengHei", "MingLiU", "PMingLiU", "DFKai", "AdobeSong", "AdobeMing", "AdobeHeiti", "AdobeFangsong", "AdobeKaiti", "思源", "苹方", "蘋方", "华文", "華文", "黑体", "黑體", "宋体", "宋體", "楷体", "仿宋", "圆体", "圓體", "兰亭", "蘭亭", "翩翩", "魏碑", "隶变", "隸變", "行楷", "报隶", "報隸", "娃娃", "雅痞"],
+            namePrefixes: ["PingFang", "Hiragino Sans GB", "Hiragino Sans CNS", "HiraginoSansCNS", "STHeiti", "STSong", "STKaiti", "STFangsong", "STXihei", "Songti", "Heiti", "Kaiti", "Lantinghei", "Hannotate", "Hanzipen", "Weibei", "Libian", "Xingkai", "Baoli", "Wawati", "Yuanti", "Yuppy", "BiauKai", "LiSong", "LiHei", "Apple LiGothic", "Apple LiSung", "GB18030", "SimSun", "NSimSun", "SimHei", "Microsoft YaHei", "Microsoft JhengHei", "MingLiU", "PMingLiU", "DFKai", "AdobeSong", "AdobeMing", "AdobeHeiti", "AdobeFangsong", "AdobeKaiti", "思源", "苹方", "蘋方", "华文", "華文", "黑体", "黑體", "宋体", "宋體", "楷体", "仿宋", "圆体", "圓體", "兰亭", "蘭亭", "翩翩", "魏碑", "隶变", "隸變", "行楷", "报隶", "報隸", "娃娃", "雅痞"],
             familyPatterns: [/ (SC|TC|HK|CN)$/],
             /* 地域の印は直前が小文字のときだけ（ZapfDingbatsITC の TC、RoNOWStd-GB のウェイト GB を拾わない）
                Region marks count only after a lowercase letter, so ITC or a GB weight name is not picked up */
@@ -1856,6 +1856,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
     }
 
     /**
+     * フォントのファミリー名か PostScript 名が、一覧のどれかで始まるか（大文字小文字は区別しない）
+     * @param {Object} fontInfo - createFontCatalog() 済みのフォント情報
+     * @param {string[]} namePrefixes - 名前の一覧
+     * @returns {boolean} 始まれば true
+     */
+    function fontNameStartsWithAny(fontInfo, namePrefixes) {
+        return startsWithAny(fontInfo.familyLower, namePrefixes) || startsWithAny(fontInfo.psLower, namePrefixes);
+    }
+
+    /**
      * フォントのファミリー名か PostScript 名が、一覧のどれかを語の単位で始まるか
      * @param {Object} fontInfo - createFontCatalog() 済みのフォント情報
      * @param {string[]} fontNames - 名前の一覧
@@ -1957,7 +1967,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
      */
     function isFontVisible(fontInfo, bestByCore, filterState) {
         /* カスタム・ドキュメントに挙げたフォントは、規格違いの間引きと除外をせずに出す / Listed Custom and Document fonts skip thinning and exclusions */
-        var isListed = (filterState.custom && fontNameStartsWithAnyWord(fontInfo, filterState.customFontNames)) ||
+        var isListed = (filterState.custom && fontNameStartsWithAny(fontInfo, filterState.customFontNames)) ||
             (filterState.documentFonts && fontNameStartsWithAnyWord(fontInfo, filterState.documentFontNames));
         /* ［対象外］の言語は外す（カスタム・ドキュメントに挙げたものは残す）/ Leave out excluded languages, except listed Custom and Document fonts */
         if (!isListed && filterState.excludedLanguages[fontInfo.languageKey] === true) return false;
@@ -2725,7 +2735,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
                 lastSelectedIndex = selectedItem ? selectedItem.index : -1;
                 return false;
             }
-            var isMovingUp = selectedItem.index < lastSelectedIndex && selectedItem.index > 0;
+            /* 真下の行から来たときだけ上向き（マウスで離れた見出しを押したときは、そのファミリーの先頭へ）
+               Go up only when coming from the row right below; a clicked header goes to its own first style */
+            var isMovingUp = lastSelectedIndex === selectedItem.index + 1 && selectedItem.index > 0;
             var nextIndex = isMovingUp ? selectedItem.index - 1 : selectedItem.index + 1;
             /* 上の行も見出しなら（1行ファミリーが無い並び）下へ / If the row above is a header too, go down instead */
             if (nextIndex >= fontListBox.items.length || fontListBox.items[nextIndex].isFamilyHeader) nextIndex = selectedItem.index + 1;
@@ -2812,7 +2824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
             var removedNames = [];
             for (var i = 0; i < filterControls.customFontNames.length; i++) {
                 var customName = filterControls.customFontNames[i];
-                var isMatch = startsWithAnyWord(familyLower, [customName]) || startsWithAnyWord(psLower, [customName]);
+                var isMatch = startsWithAny(familyLower, [customName]) || startsWithAny(psLower, [customName]);
                 if (isMatch) removedNames.push(customName);
                 else keptNames.push(customName);
             }
@@ -2856,7 +2868,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         };
 
         filterControls.btnRecordUsedFonts.onClick = function () {
+            /* プレビューの複製を拾わないよう、記録の間は消しておく / Remove preview duplicates so they are not recorded */
+            clearFontPreview(fontPreview);
             var updatedNames = recordUsedFonts();
+            refreshPreview();
             if (!updatedNames) return;
             documentFontNames = updatedNames;
             filterControls.chkDocumentFonts.value = true;

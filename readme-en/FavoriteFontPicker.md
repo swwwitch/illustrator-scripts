@@ -91,6 +91,11 @@ Custom and Document names match whole words ("Pr5" does not match "Pr5N"; "DIN" 
 
 ### Update History
 
+- v1.0.1 (20261002) : Bug fixes
+  - Record used fonts in folder no longer records fonts tried in the preview
+  - Clicking a family header no longer selects the family above
+  - Custom matches by prefix again ("DIN" also shows DINPro and DINOT)
+  - Hiragino Sans CNS now counts as Chinese under Exclude
 - v1.0.0 (20261001) : Initial version, adapted from "よく使うフォントパネル" v1.1.2
   - Two-column dialog; a list with weights under family headers; Show PostScript names
   - Standard is now a set of checkboxes that also works without Show all; Filter by standard; Option-click switching
