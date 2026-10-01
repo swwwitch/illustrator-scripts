@@ -10,11 +10,12 @@
 
 ### Overview
 
-Runs Select > Same > Appearance once for each selected object and reselects everything the passes turn up. The built-in command accepts only one reference object; this script processes several references in a single run.
+Runs Select > Same > Appearance once for each selected object and reselects everything the passes turn up. When a symbol instance is selected, it runs Same > Symbol Instance instead and selects only instances of the same symbol. The built-in commands accept only one reference object; this script processes several references in a single run.
 
 ### Features
 
 - Uses every selected object, one at a time, as the reference for Same > Appearance
+- For symbol instances, runs Same > Symbol Instance instead, selecting only instances of the same symbol (searched once per symbol, however many instances are selected)
 - Combines the results of all passes and selects them together at the end
 - No dialog — just select and run
 - Japanese / English UI (alert messages only)
@@ -23,19 +24,21 @@ Runs Select > Same > Appearance once for each selected object and reselects ever
 
 1. Select the objects you want to use as references.
 2. Run the script.
-3. Every object matching any of the references is left selected.
+3. Every object matching any of the references (for symbol instances, every instance of the same symbol) is left selected.
 
-For example, selecting one red-stroked object and one blue-filled object selects all red-stroked and all blue-filled objects at once.
+For example, selecting one red-stroked object and one blue-filled object selects all red-stroked and all blue-filled objects at once. Adding an instance of symbol "A" also selects every instance of A.
 
 ### Notes
 
 - If no document is open, or nothing is selected, the script shows an alert and exits.
 - The reference objects themselves are included in the result.
-- Matching is whatever Illustrator's Same > Appearance considers a match; the script does not change that behavior.
+- Matching is whatever Illustrator's Same > Appearance and Same > Symbol Instance consider a match; the script does not change that behavior.
+- Only symbol instances selected directly are treated as symbols. A selected group is matched by its appearance, even if it contains symbols.
 - Locked or hidden objects cannot be selected, so they never appear in the result.
 - One menu command runs per reference object, so a large selection takes longer.
 - The selection changes while the script runs. When it finishes, the result replaces the selection — the original selection is not restored.
 
 ### Update History
 
+- v1.1.0 (20261001) : Symbol instances now select the instances of the same symbol
 - v1.0.0 (20260906) : Initial release

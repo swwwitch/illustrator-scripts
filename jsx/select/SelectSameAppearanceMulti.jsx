@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したオブジェクトそれぞれに「共通 > アピアランス」を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
+選択したオブジェクトそれぞれに「共通 > アピアランス」（シンボルインスタンスは「共通 > シンボルインスタンス」）を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md
 
 ### Overview
 
-Applies "Select > Same > Appearance" to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
+Applies "Select > Same > Appearance" (or "Same > Symbol Instance" for symbol instances) to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md
@@ -23,10 +23,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSame
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectSameAppearanceMulti";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md"; /* README (English) */
@@ -138,22 +138,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 指定したページアイテムを基準に「共通 > アピアランス」を実行し、選択されたページアイテムを返す
+     * 指定したページアイテムを基準に「共通 > アピアランス」を実行し、選択されたページアイテムを返す。
+     * シンボルインスタンスは「共通 > シンボルインスタンス」で同じシンボルのインスタンスを選択する
      * @param {PageItem} referencePageItem - 基準にするページアイテム
-     * @return {array} アピアランスが一致したページアイテムの配列
+     * @returns {PageItem[]} 一致したページアイテムの配列
      */
     function findPageItemsWithSameAppearance(referencePageItem) {
         doc.selection = null;
         referencePageItem.selected = true;
         /* 選択状態を確定させてからメニューコマンドを実行する */
         app.redraw();
-        app.executeMenuCommand("Find Appearance menu item");
+        if (referencePageItem.typename === "SymbolItem") {
+            app.executeMenuCommand("Find Symbol Instance menu item");
+        } else {
+            app.executeMenuCommand("Find Appearance menu item");
+        }
         return doc.selection;
     }
 
     /* 重複したまま集めてよい。選択し直す際に同じページアイテムを複数回指定しても結果は変わらない */
     var pageItemsToSelect = [];
+    /* 検索済みのシンボル名。同じシンボルのインスタンスは結果が同じなので1回だけ検索する / Symbol names already searched */
+    var searchedSymbolNames = {};
     for (var i = 0; i < referencePageItems.length; i++) {
+        if (referencePageItems[i].typename === "SymbolItem") {
+            /* シンボル名はドキュメント内で一意 / Symbol names are unique within a document */
+            var symbolNameKey = "#" + referencePageItems[i].symbol.name;
+            if (searchedSymbolNames[symbolNameKey]) continue;
+            searchedSymbolNames[symbolNameKey] = true;
+        }
         var samePageItems = findPageItemsWithSameAppearance(referencePageItems[i]);
         for (var j = 0; j < samePageItems.length; j++) {
             pageItemsToSelect.push(samePageItems[j]);
