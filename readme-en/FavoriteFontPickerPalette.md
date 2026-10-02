@@ -18,6 +18,7 @@
 - Adapted from "よく使うフォントパネル" (Favorite Font Panel, favoriteFont_AI.jsx v1.1.2, MIT License) by KOUJI & 相棒（Gem）. Main changes:
   - The single-column dialog is now two columns: filters on the left, the list on the right
   - The tree view is now a list with weights under family headers
+  - Styles within a family are ordered by weight (thin to bold) instead of install order
   - The character set dropdown, once usable only under Show all, is now the Character set checkboxes (they work without Show all too)
   - Hiragino, Adobe, Adobe Fonts and Composite fonts categories added; Morisawa detection now matches by prefix
   - Hide multilingual fonts added (the languages to leave out — Chinese, Korean, Thai, Other — are chosen in Preferences)
@@ -42,6 +43,7 @@
 
 - Two columns: filter checkboxes on the left, the font list on the right
 - Each family is a header with its weights indented below (single-style families and composite fonts take one row)
+- Within a family, styles run by weight (thin to bold), read from numbers such as W3 and W6 or words such as Light and Bold; Condensed, Display, Italic and the like come after (same scoring as TypefaceSampler)
 - Show PostScript names: one row per font by PostScript name (such as RyuminPr6N-Light)
 - On opening, the font of the selected text is chosen in the list
 
@@ -123,6 +125,7 @@ Custom names match by prefix ("DIN" matches "DIN 2014" and "DINPro"). Document f
 
 ### Update History
 
+- v1.2.1 (20261002) : Styles within a family are now listed by weight (thin to bold, with Condensed, Italic and the like after), using the same scoring as TypefaceSampler
 - v1.2.0 (20261002) : Now a persistent palette
   - Keep it open, change the selection on the artboard and apply again (Cancel became Close; Esc closes it too)
   - Clicking a font in the list applies it; Preview on selected text and the Apply button were removed
