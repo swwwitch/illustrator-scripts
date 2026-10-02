@@ -634,10 +634,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             bindSteppedArrowKeys(numberInput, stepperGroup);
 
             /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
-            fieldLabel.addEventListener("click", function () {
-                numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
-                numberInput.active = true;
-            });
+            fieldLabel.addEventListener("click", function () { focusNumberInput(numberInput); });
 
             /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
             numberInput.lastValidText = numberInput.text;
@@ -698,11 +695,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             }
 
             /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+            /**
+             * ∧∨を離したときに入力欄へフォーカスを移す（mousedown で移しても、離したときに外れる）
+             * @param {Group} chevronButton - makeStepperChevronButton() で作ったボタン
+             * @returns {Group} 渡したボタン
+             */
+            function focusInputOnRelease(chevronButton) {
+                chevronButton.addEventListener("mouseup", function () {
+                    var numberInput = getNumberInput();
+                    if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+                });
+                return chevronButton;
+            }
+
             /* shiftStep を変えた欄は専用の説明（upTooltipKey / downTooltipKey）を使う / fields with their own shiftStep bring their own tooltips */
             var upTooltip = stepOptions.upTooltipKey || (stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp");
             var downTooltip = stepOptions.downTooltipKey || (stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown");
-            makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
-            makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+            focusInputOnRelease(makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); })).helpTip = getLabel(upTooltip);
+            focusInputOnRelease(makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); })).helpTip = getLabel(downTooltip);
             stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
             return stepperGroup;
         }
@@ -917,6 +927,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             boxGraphics.lineTo(centerX, centerY + tipOffsetY);
             boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
             boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+        }
+
+        /**
+         * 入力欄にフォーカスを移す
+         * @param {EditText} numberInput - 対象の入力欄
+         * @returns {void}
+         */
+        function focusNumberInput(numberInput) {
+            numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
+            numberInput.active = true;
         }
 
         /**

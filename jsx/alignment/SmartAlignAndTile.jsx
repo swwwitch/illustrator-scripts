@@ -486,10 +486,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         bindSteppedArrowKeys(numberInput, stepperGroup);
 
         /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
-        fieldLabel.addEventListener("click", function () {
-            numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
-            numberInput.active = true;
-        });
+        fieldLabel.addEventListener("click", function () { focusNumberInput(numberInput); });
 
         /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
         numberInput.lastValidText = numberInput.text;
@@ -548,11 +545,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             if (stepOptions.onStep) stepOptions.onStep(numberInput);
         }
 
+        /**
+         * ∧∨を離したときに入力欄へフォーカスを移す（mousedown で移しても、離したときに外れる）
+         * @param {Group} chevronButton - makeStepperChevronButton() で作ったボタン
+         * @returns {Group} 渡したボタン
+         */
+        function focusInputOnRelease(chevronButton) {
+            chevronButton.addEventListener("mouseup", function () {
+                var numberInput = getNumberInput();
+                if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+            });
+            return chevronButton;
+        }
+
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
         var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
         var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
-        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
-        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); })).helpTip = getLabel(upTooltip);
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); })).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
         return stepperGroup;
     }
@@ -767,6 +777,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         boxGraphics.lineTo(centerX, centerY + tipOffsetY);
         boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
         boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * 入力欄にフォーカスを移す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @returns {void}
+     */
+    function focusNumberInput(numberInput) {
+        numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
+        numberInput.active = true;
     }
 
     /**
@@ -2187,6 +2207,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     // =========================================
 
     /**
+     * 入力欄の直前にある項目名のクリックで、入力欄にフォーカスを移す（addSteppedField() の項目名と同じ挙動。無効の間は移さない）。
+     * 単位や「→」に付けないよう、行の先頭にあるか末尾がコロンの statictext だけを項目名とみなす
+     * @param {Group} stepperFieldGroup - ∧∨と入力欄をまとめた group（追加した直後で、親の末尾にある）
+     * @param {EditText} numberInput - 入力欄
+     * @returns {void}
+     */
+    function focusInputOnPrecedingLabel(stepperFieldGroup, numberInput) {
+        var siblings = stepperFieldGroup.parent.children;
+        if (siblings.length < 2) return;
+        var labelIndex = siblings.length - 2;
+        var fieldLabel = siblings[labelIndex];
+        if (fieldLabel.type !== "statictext") return;
+        if (labelIndex > 0 && !/[:：]\s*$/.test(fieldLabel.text)) return;
+        fieldLabel.addEventListener("click", function () {
+            if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+        });
+    }
+
+    /**
      * 行に∧∨と数値欄をひと組で追加する（隙間0で突き合わせ、↑↓キーも∧∨と同じ処理で増減する）
      * @param {Group} parentRow - 追加先の行
      * @param {string} initialText - 入力欄の初期値
@@ -2207,6 +2246,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         numberInput.stepperGroup = stepperGroup;
         numberInput.stepOptions = stepOptions;
         bindSteppedArrowKeys(numberInput, stepperGroup);
+        focusInputOnPrecedingLabel(stepperInputGroup, numberInput);
         return numberInput;
     }
 

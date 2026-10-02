@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md"; /* README (English) */
@@ -164,6 +164,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         numberInput.stepperGroup = stepperGroup;
         bindSteppedArrowKeys(numberInput, stepperGroup);
         return numberInput;
+    }
+
+    /**
+     * 項目名のクリックで入力欄にフォーカスを移す（addSteppedField() の項目名と同じ挙動。無効の間は移さない）
+     * @param {StaticText} fieldLabel - 項目名
+     * @param {EditText} numberInput - addStepperInput() で作った入力欄
+     * @returns {void}
+     */
+    function focusInputOnLabelClick(fieldLabel, numberInput) {
+        fieldLabel.addEventListener("click", function () {
+            if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+        });
     }
 
     /**
@@ -357,10 +369,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         bindSteppedArrowKeys(numberInput, stepperGroup);
 
         /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
-        fieldLabel.addEventListener("click", function () {
-            numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
-            numberInput.active = true;
-        });
+        fieldLabel.addEventListener("click", function () { focusNumberInput(numberInput); });
 
         /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
         numberInput.lastValidText = numberInput.text;
@@ -419,11 +428,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             if (stepOptions.onStep) stepOptions.onStep(numberInput);
         }
 
+        /**
+         * ∧∨を離したときに入力欄へフォーカスを移す（mousedown で移しても、離したときに外れる）
+         * @param {Group} chevronButton - makeStepperChevronButton() で作ったボタン
+         * @returns {Group} 渡したボタン
+         */
+        function focusInputOnRelease(chevronButton) {
+            chevronButton.addEventListener("mouseup", function () {
+                var numberInput = getNumberInput();
+                if (isStepperEnabledInTree(numberInput)) focusNumberInput(numberInput);
+            });
+            return chevronButton;
+        }
+
         /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
         var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
         var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
-        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
-        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); })).helpTip = getLabel(upTooltip);
+        focusInputOnRelease(makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); })).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
         return stepperGroup;
     }
@@ -638,6 +660,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         boxGraphics.lineTo(centerX, centerY + tipOffsetY);
         boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
         boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+    }
+
+    /**
+     * 入力欄にフォーカスを移す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @returns {void}
+     */
+    function focusNumberInput(numberInput) {
+        numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
+        numberInput.active = true;
     }
 
     /**
@@ -2320,6 +2352,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         rowCountLabel.preferredSize.width = gridLabelWidth;
         rowCountLabel.justify = "right";
         var rowCountInput = addStepperInput(rowCountGroup, "2", 3, { min: 1, integer: true });
+        focusInputOnLabelClick(rowCountLabel, rowCountInput);
 
         var rowGutterGroup = rowSettingPanel.add("group");
         setupGroup(rowGutterGroup, "row");
@@ -2328,6 +2361,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         rowGutterLabel.justify = "right";
         /* 単位換算後は小数2桁になるため桁数を確保 / Room for the 2 decimals unit conversion produces */
         var rowGutterInput = addStepperInput(rowGutterGroup, "0", 5, { min: 0 });
+        focusInputOnLabelClick(rowGutterLabel, rowGutterInput);
         rowGutterGroup.add("statictext", undefined, unitLabel);
 
         // 列設定パネル / Column settings panel
@@ -2340,6 +2374,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         columnCountLabel.preferredSize.width = gridLabelWidth;
         columnCountLabel.justify = "right";
         var columnCountInput = addStepperInput(columnCountGroup, "2", 3, { min: 1, integer: true });
+        focusInputOnLabelClick(columnCountLabel, columnCountInput);
 
         var columnGutterGroup = columnSettingPanel.add("group");
         setupGroup(columnGutterGroup, "row");
@@ -2347,6 +2382,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         columnGutterLabel.preferredSize.width = gridLabelWidth;
         columnGutterLabel.justify = "right";
         var columnGutterInput = addStepperInput(columnGutterGroup, "0", 5, { min: 0 });
+        focusInputOnLabelClick(columnGutterLabel, columnGutterInput);
         columnGutterGroup.add("statictext", undefined, unitLabel);
 
         // 行間に連動（列パネル下部）/ Link to row gutter (under column panel)
@@ -2373,8 +2409,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             cellGroup.orientation = "row";
             cellGroup.alignment = ["center", "center"];
             cellGroup.minimumSize.width = MARGIN_CELL_WIDTH;
-            cellGroup.add("statictext", undefined, labelText(labelKey));
+            var marginLabel = cellGroup.add("statictext", undefined, labelText(labelKey));
             var marginInput = addStepperInput(cellGroup, "0", 5, { min: 0 });
+            focusInputOnLabelClick(marginLabel, marginInput);
             return { group: cellGroup, input: marginInput };
         }
         // 位置合わせ用の空セル / Empty cell for alignment
