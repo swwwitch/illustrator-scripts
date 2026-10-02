@@ -34,7 +34,7 @@
   - The "extract from the current document" button removed (reading _ProjectFonts.txt stays)
   - English UI
 
-<img alt="The Favorite Fonts palette" src="../png/ss-1148-1320-144-20261002-070229-s.png" width="50%" />
+<img alt="The Favorite Fonts palette" src="../png/ss-1114-1584-144-20261002-102407.png" width="50%" />
 
 ### Main Features
 
