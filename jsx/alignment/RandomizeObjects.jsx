@@ -336,6 +336,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
         bindSteppedArrowKeys(numberInput, stepperGroup);
 
+        /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
+        fieldLabel.addEventListener("click", function () {
+            numberInput.active = false; /* 一度外さないとフォーカスが移らないことがある / reset first or focus may not move */
+            numberInput.active = true;
+        });
+
         /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
         numberInput.lastValidText = numberInput.text;
         numberInput.onChange = function () {
