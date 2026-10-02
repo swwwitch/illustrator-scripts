@@ -49,12 +49,16 @@ When a break sits between two Latin words, it becomes a space so the words do no
 | Merge All into One Line | Merge, drop empty lines, remove all breaks, tidy spaces |
 | Line Breaks Only | Remove paragraph breaks (forced breaks too when *Include Forced Breaks* is on) |
 | Insert Line Break After Each Character | Insert a break after every character |
-| At Specified Characters | Break right after each character listed in the text field |
+| At Specified Characters | Break right after each character in the upper field, and right before each character in the lower field |
 | At Character Count | Break every N characters |
 | Forced Breaks to Paragraph Breaks | Convert forced breaks into paragraph breaks |
 | Paragraph Breaks to Forced Breaks | Convert paragraph breaks into forced breaks |
 
 *At Specified Characters* starts with `、。，．｡､,.!?！？`, and the field is freely editable. No break is added where one already follows, and none is added when nothing but whitespace remains after that character (i.e. a sentence-final period).
+
+Characters in the lower field (default `・•→`) get a line break right before them (e.g. `A・B` → `A` / `・B`). No break is added when the character already starts a line, or when it appears only once in the text. Leave it empty to skip this. Both fields apply only to *At Specified Characters*, not to *At Character Count*.
+
+Option-click *At Specified Characters* or *At Character Count* to run *Merge All into One Line* first.
 
 *At Character Count* defaults to 35. Turn on the *Forced Break* checkbox next to it to wrap with forced breaks instead of paragraph breaks. Character counting restarts on each existing line.
 
@@ -254,6 +258,7 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.10.0 (2026-10-03) Added a field to *At Specified Characters* for characters to break before (default `・•→`; a character that appears only once in the text is ignored). Option-click *At Specified Characters* or *At Character Count* to run *Merge All into One Line* first
 - v1.9.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.9.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
 - v1.8.3 (2026-09-27) Renamed the file from `TextBreakSplitMergePalette.jsx` to `TextProcessingPalette.jsx`.

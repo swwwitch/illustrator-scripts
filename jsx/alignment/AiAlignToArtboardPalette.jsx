@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboardPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboardPalette.md"; /* README (English) */
@@ -65,6 +65,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DEFAULT_PREVIEW_BOUNDS       = false; /* プレビュー境界 / preview bounds */
         var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
         var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
+        var DEFAULT_OPTICAL_ADJUST       = true;  /* 見た目の調整 / optical adjustment */
         var DEFAULT_LINK_MARGINS         = true;  /* マージンの4値を連動させる / keep the four margins in sync */
         var DEFAULT_ALIGN_TO_BLEED       = true;  /* 裁ち落としに整列 / align to the bleed */
         var DEFAULT_ALIGN_PER_ARTBOARD   = false; /* アートボードごとに整列 / align per artboard */
@@ -73,6 +74,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            The bleed in millimetres; the palette has no field for it, so change it here.
            Being a print value it stays in millimetres instead of following the ruler */
         var BLEED_MM          = 3;
+        /* ［見た目の調整］の強さ（%）。100で字面の中心をぴったり揃える（約物の空きまで埋めると寄せすぎに見える）
+           Strength of Optical Adjustment (%); 100 centers the glyphs exactly, which looks overdone with punctuation */
+        var OPTICAL_KERNING_STRENGTH = 35;
         var BLEED_UNIT_POINTS = 72.0 / 25.4;
         var DEFAULT_SHOW_GUIDE           = false; /* ガイドを追加 / add the margin guide */
         /* 分割ガイドの初期状態。行・列はマージンの内側をいくつに分けるかで、1 のときはガイドを引かない
@@ -1097,8 +1101,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     en: "Add the bleed ({0} mm) outside the artboard as the stop after the artboard edge"
                 },
                 perArtboard: {
-                    ja: "選択したオブジェクトを、それぞれが乗っているアートボードに整列（OFFのときは1つのアートボードにまとめて整列）",
-                    en: "Align each object to the artboard it sits on (off: everything goes to a single artboard)"
+                    ja: "選択したオブジェクトを、それぞれが乗っているアートボードに整列（OFFのときは1つのアートボードにまとめて整列）。ガイドもすべてのアートボードに描く",
+                    en: "Align each object to the artboard it sits on (off: everything goes to a single artboard). Guides are drawn on every artboard too"
                 },
                 moveToEdge: {
                     ja: "その方向のガイド → アートボードのエッジ → 裁ち落とし の順に寄せる（↑↓←→キーでも実行）",
@@ -1164,6 +1168,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 changeJustification: {
                     ja: "水平方向の整列に合わせて、1行だけのテキスト1つの行揃えも変える",
                     en: "Match the justification of a lone single-line text object to the horizontal alignment"
+                },
+                opticalAdjust: {
+                    ja: "中央揃えのポイント文字で、行末の「、」などの空きで寄って見える行を、行頭のカーニングで戻す（OFFなら行頭のカーニングを0に）",
+                    en: "Kern the start of each line of centered point type so lines that look off because of punctuation such as 、 are pulled back (off resets the line-start kerning to 0)"
                 }
             },
             radio: {
@@ -1178,7 +1186,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 glyphBounds:   { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
                 alignToBleed:  { ja: "裁ち落としに整列", en: "Align to Bleed" },
                 perArtboard:   { ja: "アートボードごと", en: "Per Artboard" },
-                changeJustification: { ja: "行揃えを変更", en: "Change Justification" }
+                changeJustification: { ja: "行揃えを変更", en: "Change Justification" },
+                opticalAdjust:       { ja: "見た目の調整", en: "Optical Adjustment" }
             },
             status: {
                 done:           { ja: "整列しました。", en: "Aligned." },
@@ -2598,6 +2607,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var previewBoundsCheckbox = null;
         var glyphBoundsCheckbox = null;
         var changeJustificationCheckbox = null;
+        var opticalAdjustCheckbox = null;
         /* マージン欄・単位ラベル・ガイド表示チェックボックスの参照
            The margin field, its unit label, and the guide checkbox */
         /* 辺の名前をキーにしたマージンの入力欄 / Margin fields, keyed by side */
@@ -3459,6 +3469,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             changeJustificationCheckbox.helpTip = getLabel("tooltip.changeJustification");
             changeJustificationCheckbox.value = DEFAULT_CHANGE_JUSTIFICATION;
 
+            opticalAdjustCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.opticalAdjust"));
+            opticalAdjustCheckbox.helpTip = getLabel("tooltip.opticalAdjust");
+            opticalAdjustCheckbox.value = DEFAULT_OPTICAL_ADJUST;
+
             /* 裁ち落としの量は BLEED_MM 固定なので、チェックボックスだけを置く
                The bleed amount is fixed at BLEED_MM, so only the checkbox is needed */
             alignToBleedCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.alignToBleed"));
@@ -3469,7 +3483,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             alignPerArtboardCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.perArtboard"));
             alignPerArtboardCheckbox.helpTip = getLabel("tooltip.perArtboard");
             alignPerArtboardCheckbox.value = paletteSettings.perArtboard;
-            alignPerArtboardCheckbox.onClick = function() { savePaletteSettings(); };
+            alignPerArtboardCheckbox.onClick = function() {
+                savePaletteSettings();
+                /* ガイドを描く範囲（作業中のアートボードだけ／すべて）が変わるので描き直す */
+                if (hasGuideToDraw()) { runExclusive(refreshMarginGuide); }
+            };
         }
 
         /**
@@ -3703,7 +3721,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btAlignItems(doc, selectedItems, workerOptions) {
-            var needsGroup, didGroup, previousPreferences, justification, failure;
+            var needsGroup, didGroup, previousPreferences, justification, opticalKernings, failure;
             /* 寄せ先はこの組だけの判定で決まるので、呼び出し元の workerOptions は書き換えない */
             workerOptions = btCopyOptions(workerOptions);
             needsGroup = selectedItems.length > 1;
@@ -3713,6 +3731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             workerOptions.marginPt = btResolveStepMargin(doc, selectedItems, workerOptions);
             previousPreferences = btReadPreferences();
             justification = { previous: null, changed: null };
+            opticalKernings = [];
             /* 実際にグループ化できたかを控える。needsGroup で解除すると、グループ化の前で例外が出たときに
                選択していた既存のグループを解除してしまう
                Track whether the group actually happened; keying the ungroup off needsGroup would
@@ -3726,6 +3745,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                    ここを飛ばすと「字形の境界に整列」が効かないまま整列されることがある */
                 app.redraw();
                 justification = btApplyJustification(selectedItems, workerOptions);
+                /* 字面が変わるので、整列で測る前に入れる */
+                if (workerOptions.opticalAdjust === true) {
+                    opticalKernings = btApplyOpticalKerning(selectedItems, workerOptions.opticalStrength);
+                } else {
+                    /* OFF のときは、前に入れた調整を消す（各行の1文字目のカーニングを0に）*/
+                    opticalKernings = btResetLineStartKerning(selectedItems);
+                }
                 if (needsGroup) {
                     app.executeMenuCommand("group");
                     didGroup = true;
@@ -3741,6 +3767,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 failure = "ERR:" + alignError;
             } finally {
                 btFinishAlign(selectedItems, didGroup, previousPreferences, justification.previous, failure);
+                /* 整列できなかったときは、入れたカーニングも元に戻す */
+                if (failure !== null) { btRestoreOpticalKerning(opticalKernings); }
             }
             if (failure !== null) { return failure; }
             try {
@@ -3955,21 +3983,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btDrawMarginGuide(doc, workerOptions) {
-            var guideLayer, previousLayerState, artboardRect, marginArea, drawsFrame, divideLines;
+            var guideLayer, previousLayerState, artboardIndexes, artboardRect, marginArea, frameAreas, divideLines, i;
             btRemoveGuidesByName(doc, workerOptions.guideName, workerOptions.guideLayerName);
             btRemoveGuidesByName(doc, workerOptions.divideName, workerOptions.guideLayerName);
             if (doc.artboards.length === 0) { return; }
-            artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            /* マージンが大きすぎて内側が残らないときは null。マージンに依らないエッジのガイドは引ける */
-            marginArea = btMarginArea(artboardRect, workerOptions.guideMargins);
-            drawsFrame = marginArea !== null && workerOptions.showGuide === true && btHasMargin(workerOptions.guideMargins);
-            divideLines = btDivideLines(marginArea, artboardRect, workerOptions.divisions);
+            /* ［アートボードごと］がONなら、すべてのアートボードに描く。OFFなら作業中のアートボードだけ */
+            artboardIndexes = [];
+            if (workerOptions.perArtboard === true) {
+                for (i = 0; i < doc.artboards.length; i++) { artboardIndexes.push(i); }
+            } else {
+                artboardIndexes.push(doc.artboards.getActiveArtboardIndex());
+            }
+            frameAreas = [];
+            divideLines = [];
+            for (i = 0; i < artboardIndexes.length; i++) {
+                artboardRect = doc.artboards[artboardIndexes[i]].artboardRect;
+                /* マージンが大きすぎて内側が残らないときは null。マージンに依らないエッジのガイドは引ける */
+                marginArea = btMarginArea(artboardRect, workerOptions.guideMargins);
+                if (marginArea !== null && workerOptions.showGuide === true && btHasMargin(workerOptions.guideMargins)) {
+                    frameAreas.push(marginArea);
+                }
+                divideLines = divideLines.concat(btDivideLines(marginArea, artboardRect, workerOptions.divisions));
+            }
             /* 描くものが無いときは、ガイド用レイヤーを作らずに戻る */
-            if (!drawsFrame && divideLines.length === 0) { return; }
+            if (frameAreas.length === 0 && divideLines.length === 0) { return; }
             guideLayer = btGetGuideLayer(doc, workerOptions.guideLayerName);
             previousLayerState = btUnlockLayer(guideLayer);
             try {
-                if (drawsFrame) { btAddGuideRectangle(guideLayer, marginArea, workerOptions.guideName); }
+                for (i = 0; i < frameAreas.length; i++) { btAddGuideRectangle(guideLayer, frameAreas[i], workerOptions.guideName); }
                 btAddGuideLines(guideLayer, divideLines, workerOptions.divideName);
             } finally {
                 btRestoreLayer(guideLayer, previousLayerState);
@@ -4593,6 +4634,101 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return previousJustification;
         }
 
+        function btApplyOpticalKerning(selectedItems, strength) {
+            var textFrames, applied, i;
+            /* 見た目の調整：中央揃えのポイント文字の行ごとに字面の中心を測り、行頭のカーニングで寄せる。
+               行頭に k（1/1000 em）を入れると行幅が k 伸び、字面は k/2 右へ動くので k = 2d / サイズ x 1000。
+               _templates/OpticalCenterKerning.jsx のワーカー版。改行は fromCharCode で書く（body の逆スラッシュは二重になる）*/
+            textFrames = [];
+            for (i = 0; i < selectedItems.length; i++) { btCollectTextFrames(selectedItems[i], textFrames); }
+            applied = [];
+            for (i = 0; i < textFrames.length; i++) {
+                try {
+                    btApplyOpticalKerningToFrame(textFrames[i], strength, applied);
+                } catch (opticalError) {}
+            }
+            return applied;
+        }
+
+        function btApplyOpticalKerningToFrame(textFrame, strength, applied) {
+            var characters, centerX, lineTexts, kernings, lineStart, lineEnd, ink, fontSize, kerning, previousKerning, i;
+            if (textFrame.kind !== TextType.POINTTEXT || textFrame.locked || textFrame.hidden) { return; }
+            characters = textFrame.characters;
+            centerX = textFrame.anchor[0];
+            lineTexts = textFrame.contents.split(String.fromCharCode(13));
+            /* 先にすべての行を測ってから書き込む */
+            kernings = [];
+            lineStart = 0;
+            for (i = 0; i < lineTexts.length; i++) {
+                lineEnd = lineStart + lineTexts[i].length;
+                if (lineEnd > lineStart && characters[lineStart].paragraphAttributes.justification === Justification.CENTER) {
+                    ink = btMeasureLineInk(textFrame, lineStart, lineEnd);
+                    if (ink !== null) {
+                        fontSize = characters[lineStart].characterAttributes.size;
+                        kerning = Math.round(2 * (centerX - (ink[0] + ink[1]) / 2) / fontSize * 1000 * strength / 100);
+                        kernings.push({ index: lineStart, kerning: kerning });
+                    }
+                }
+                lineStart = lineEnd + 1;
+            }
+            for (i = 0; i < kernings.length; i++) {
+                /* 手動の値が無い位置で読むと例外になる */
+                previousKerning = 0;
+                try { previousKerning = characters[kernings[i].index].kerning; } catch (readError) {}
+                characters[kernings[i].index].kerning = kernings[i].kerning;
+                applied.push({ textFrame: textFrame, index: kernings[i].index, previous: previousKerning });
+            }
+        }
+
+        function btMeasureLineInk(textFrame, lineStart, lineEnd) {
+            var dup, outline, bounds, hasGlyphs, i;
+            dup = textFrame.duplicate();
+            /* 対象行以外の文字を右から消し、補正前の状態で測る（createOutline は複製を消費する）*/
+            for (i = dup.characters.length - 1; i >= lineEnd; i--) { dup.characters[i].remove(); }
+            for (i = lineStart - 1; i >= 0; i--) { dup.characters[i].remove(); }
+            try { dup.characters[0].kerning = 0; } catch (kerningError) {}
+            outline = dup.createOutline();
+            bounds = outline.geometricBounds;
+            hasGlyphs = outline.pageItems.length > 0;
+            outline.remove();
+            return hasGlyphs ? [bounds[0], bounds[2]] : null;
+        }
+
+        function btResetLineStartKerning(selectedItems) {
+            var textFrames, applied, characters, lineTexts, lineStart, previousKerning, i, j;
+            textFrames = [];
+            for (i = 0; i < selectedItems.length; i++) { btCollectTextFrames(selectedItems[i], textFrames); }
+            applied = [];
+            for (i = 0; i < textFrames.length; i++) {
+                if (textFrames[i].kind !== TextType.POINTTEXT || textFrames[i].locked || textFrames[i].hidden) { continue; }
+                characters = textFrames[i].characters;
+                lineTexts = textFrames[i].contents.split(String.fromCharCode(13));
+                lineStart = 0;
+                for (j = 0; j < lineTexts.length; j++) {
+                    if (lineTexts[j].length > 0) {
+                        /* 手動の値が無い位置は読むと例外になる。もともと0なので触らない */
+                        previousKerning = null;
+                        try { previousKerning = characters[lineStart].kerning; } catch (readError) {}
+                        if (previousKerning !== null && previousKerning !== 0) {
+                            try {
+                                characters[lineStart].kerning = 0;
+                                applied.push({ textFrame: textFrames[i], index: lineStart, previous: previousKerning });
+                            } catch (writeError) {}
+                        }
+                    }
+                    lineStart += lineTexts[j].length + 1;
+                }
+            }
+            return applied;
+        }
+
+        function btRestoreOpticalKerning(applied) {
+            var i;
+            for (i = applied.length - 1; i >= 0; i--) {
+                try { applied[i].textFrame.characters[applied[i].index].kerning = applied[i].previous; } catch (restoreError) {}
+            }
+        }
+
         /* 送信するワーカー関数の一覧（追加したらここにも必ず登録する）/ Every worker function shipped to the main engine */
         var WORKER_FUNCS = [
             btAlignSelection, btResolveSelection, btSelectItems, btRunPerArtboard, btAlignItems,
@@ -4612,7 +4748,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             btGetLayerKey, btSpansMultipleLayers,
             btGetOverlapArea,
             btFindOverlappingArtboardIndex, btFindNearestArtboardIndex, btActivateArtboardForSelection,
-            btIsSingleLineTextFrame, btSetJustification
+            btIsSingleLineTextFrame, btSetJustification,
+            btApplyOpticalKerning, btApplyOpticalKerningToFrame, btMeasureLineInk, btResetLineStartKerning, btRestoreOpticalKerning
         ];
 
         // =========================================
@@ -5009,6 +5146,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 showGuide:      showGuideCheckbox !== null && showGuideCheckbox.value === true,
                 guideMargins:   readMarginsPt(),
                 divisions:      readDivisions(),
+                perArtboard:    alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true,
                 guideName:      GUIDE_NAME,
                 divideName:     DIVIDE_GUIDE_NAME,
                 guideLayerName: GUIDE_LAYER_NAME
@@ -5066,6 +5204,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             alignOptions.glyphBounds         = ignoresMargin || (glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true);
             alignOptions.changeJustification = changeJustificationCheckbox !== null && changeJustificationCheckbox.value === true;
             alignOptions.justification       = alignSpec.justification;
+            alignOptions.opticalAdjust       = opticalAdjustCheckbox !== null && opticalAdjustCheckbox.value === true;
+            alignOptions.opticalStrength     = OPTICAL_KERNING_STRENGTH;
             return alignOptions;
         }
 
@@ -5170,6 +5310,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 var stateParts = workerResult.split("|");
                 if (changeJustificationCheckbox !== null) {
                     changeJustificationCheckbox.enabled = (stateParts[0] === "TEXT");
+                }
+                if (opticalAdjustCheckbox !== null) {
+                    opticalAdjustCheckbox.enabled = (stateParts[0] === "TEXT");
                 }
                 /* アートボードが1つしかないなら束ね分ける先が無いので、［アートボードごとに整列］はディムにする */
                 if (alignPerArtboardCheckbox !== null) {

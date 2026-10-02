@@ -1,41 +1,29 @@
 #target illustrator
+#targetengine "CenterAlignToArtboards"
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
 
 ### 概要
 
-選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「水平方向中央に整列」「垂直方向中央に整列」をダイナミックアクション経由で実行します。
-実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
-
-詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterAlignAsGroup.md
-
-note記事も参照してください。
-https://note.com/dtp_tranist/n/xxxxxxxx
+選択したオブジェクトをグループ化せず1つずつ、それぞれが載っているアートボードの天地中央・左右中央に整列します。
+ダイアログで天地中央・左右中央を選べます。実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
 
 ### Overview
 
-Groups the selection temporarily, then runs Align Horizontal Center and Align Vertical Center from the Align panel through a dynamic action.
-"Align to glyph bounds" is turned on only while it runs and restored afterwards.
-
-See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterAlignAsGroup.md
+Aligns each selected object, one at a time and without grouping, to the vertical and/or horizontal center of the artboard it sits on.
+Choose the directions in the dialog. "Align to glyph bounds" is turned on only while it runs and restored afterwards.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "CenterAlignAsGroup";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "CenterAlignToArtboards";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-08-21";                   /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
-
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterAlignAsGroup.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterAlignAsGroup.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -43,75 +31,184 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 (function() {
 
     // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    var DEFAULT_ALIGN_OPTIONS = {
+        vertical: true,   /* 天地中央の初期値 / vertical center on by default */
+        horizontal: true  /* 左右中央の初期値 / horizontal center on by default */
+    };
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    // =========================================
     // アクション設定 / Action settings
     // =========================================
-    var ACTION_SET_NAME = "CenterAlignAsGroup"; /* アクションセット名 / action set name */
-    var ACTION_NAME     = "Center";             /* アクション名 / action name */
+    var ACTION_SET_NAME = "CenterAlignToArtboards"; /* アクションセット名 / action set name */
+    var ACTION_NAME     = "Center";                 /* アクション名 / action name */
 
-    /* 名前は .aia 内の /name（16進とバイト数）と一致させること / Keep the names in sync with the hex in the definition */
+    /* 整列パネルのコマンド名と値（.aia の parameter-1） / Align panel command names and values */
+    var ALIGN_EVENT_SPECS = {
+        horizontal: { commandName: "水平方向中央に整列", value: 2 },
+        vertical:   { commandName: "垂直方向中央に整列", value: 5 }
+    };
 
-    /* アクション定義（.aia 形式）/ Action definition */
-    var ACTION_CODE = [
-        "/version 3",
-        "/name [ 18",
-        "\t43656e746572416c69676e417347726f7570",
-        "]",
-        "/isOpen 1",
-        "/actionCount 1",
-        "/action-1 {",
-        "\t/name [ 6",
-        "\t\t43656e746572",
-        "\t]",
-        "\t/keyIndex 0",
-        "\t/colorIndex 0",
-        "\t/isOpen 1",
-        "\t/eventCount 2",
-        "\t/event-1 {",
-        "\t\t/useRulersIn1stQuadrant 0",
-        "\t\t/internalName (ai_plugin_alignPalette)",
-        "\t\t/localizedName [ 6",
-        "\t\t\te695b4e58897",
-        "\t\t]",
-        "\t\t/isOpen 1",
-        "\t\t/isOn 1",
-        "\t\t/hasDialog 0",
-        "\t\t/parameterCount 1",
-        "\t\t/parameter-1 {",
-        "\t\t\t/key 1954115685",
-        "\t\t\t/showInPalette 4294967295",
-        "\t\t\t/type (enumerated)",
-        "\t\t\t/name [ 27",
-        "\t\t\t\te6b0b4e5b9b3e696b9e59091e4b8ade5a4aee381abe695b4e58897",
-        "\t\t\t]",
-        "\t\t\t/value 2",
-        "\t\t}",
-        "\t}",
-        "\t/event-2 {",
-        "\t\t/useRulersIn1stQuadrant 0",
-        "\t\t/internalName (ai_plugin_alignPalette)",
-        "\t\t/localizedName [ 6",
-        "\t\t\te695b4e58897",
-        "\t\t]",
-        "\t\t/isOpen 1",
-        "\t\t/isOn 1",
-        "\t\t/hasDialog 0",
-        "\t\t/parameterCount 1",
-        "\t\t/parameter-1 {",
-        "\t\t\t/key 1954115685",
-        "\t\t\t/showInPalette 4294967295",
-        "\t\t\t/type (enumerated)",
-        "\t\t\t/name [ 27",
-        "\t\t\t\te59e82e79bb4e696b9e59091e4b8ade5a4aee381abe695b4e58897",
-        "\t\t\t]",
-        "\t\t\t/value 5",
-        "\t\t}",
-        "\t}",
-        "}",
-        ""
-    ].join("\n");
+    /**
+     * 整列パネルの1コマンド分のイベント定義の行を返す
+     * @param {number} eventNumber - イベント番号（1始まり）
+     * @param {Object} eventSpec - ALIGN_EVENT_SPECS の要素
+     * @returns {string[]} イベント定義の行
+     */
+    function buildAlignEventLines(eventNumber, eventSpec) {
+        return [].concat(
+            ["\t/event-" + eventNumber + " {",
+             "\t\t/useRulersIn1stQuadrant 0",
+             "\t\t/internalName (ai_plugin_alignPalette)"],
+            buildActionNameLines("\t\t", "整列", "localizedName"),
+            ["\t\t/isOpen 1",
+             "\t\t/isOn 1",
+             "\t\t/hasDialog 0",
+             "\t\t/parameterCount 1",
+             "\t\t/parameter-1 {",
+             "\t\t\t/key 1954115685",
+             "\t\t\t/showInPalette 4294967295",
+             "\t\t\t/type (enumerated)"],
+            buildActionNameLines("\t\t\t", eventSpec.commandName),
+            ["\t\t\t/value " + eventSpec.value,
+             "\t\t}",
+             "\t}"]
+        );
+    }
+
+    /**
+     * 選んだ方向の整列だけを含むアクション定義（.aia 形式）を作る
+     * @param {{vertical: boolean, horizontal: boolean}} alignOptions - 整列する方向
+     * @returns {string} アクション定義のテキスト
+     */
+    function buildAlignActionCode(alignOptions) {
+        var eventSpecs = [];
+        if (alignOptions.horizontal) eventSpecs.push(ALIGN_EVENT_SPECS.horizontal);
+        if (alignOptions.vertical) eventSpecs.push(ALIGN_EVENT_SPECS.vertical);
+
+        var actionLines = ["/version 3"].concat(
+            buildActionNameLines("", ACTION_SET_NAME),
+            ["/isOpen 1", "/actionCount 1", "/action-1 {"],
+            buildActionNameLines("\t", ACTION_NAME),
+            ["\t/keyIndex 0", "\t/colorIndex 0", "\t/isOpen 1", "\t/eventCount " + eventSpecs.length]
+        );
+        for (var i = 0; i < eventSpecs.length; i++) {
+            actionLines = actionLines.concat(buildAlignEventLines(i + 1, eventSpecs[i]));
+        }
+        actionLines.push("}", "");
+        return actionLines.join("\n");
+    }
 
     // =========================================
-    // 日英ラベル定義 / Japanese-English label definitions
+    // 前回の設定 / Session memory
+    // =========================================
+    var ALIGN_OPTIONS_KEY = "__" + SCRIPT_NAME + "_AlignOptions"; /* $.global のキー / key on $.global */
+
+    /**
+     * 前回の整列方向を読む（無ければ DEFAULT_ALIGN_OPTIONS）
+     * @returns {{vertical: boolean, horizontal: boolean}} 整列する方向
+     */
+    function loadAlignOptions() {
+        var savedOptions = $.global[ALIGN_OPTIONS_KEY];
+        var sourceOptions = savedOptions || DEFAULT_ALIGN_OPTIONS;
+        return { vertical: sourceOptions.vertical === true, horizontal: sourceOptions.horizontal === true };
+    }
+
+    /**
+     * 整列方向を次回のために覚える（Illustrator を終了するまで）
+     * @param {{vertical: boolean, horizontal: boolean}} alignOptions - 整列する方向
+     * @returns {void}
+     */
+    function saveAlignOptions(alignOptions) {
+        $.global[ALIGN_OPTIONS_KEY] = { vertical: alignOptions.vertical, horizontal: alignOptions.horizontal };
+    }
+
+    // =========================================
+    // ローカライズ / Localization
     // =========================================
 
     // ローカライズ（再利用パーツ） / Localization (reusable)
@@ -195,14 +292,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
+        dialog: {
+            title: { ja: "それぞれのアートボードに整列", en: "Align Each to Its Artboard" }
+        },
+        panel: {
+            align: { ja: "整列", en: "Align" }
+        },
+        checkbox: {
+            verticalCenter:   { ja: "天地中央", en: "Vertical Center" },
+            horizontalCenter: { ja: "左右中央", en: "Horizontal Center" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok:     { ja: "OK", en: "OK" }
+        },
         alert: {
             noDocument:   { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection:  { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
-            genericError: { ja: "エラーが発生しました：", en: "An error occurred: " },
-            multipleLayers: {
-                ja: "複数のレイヤーにまたがって選択されています。\nグループ化するとレイヤーが1つにまとまり、解除しても元に戻らないため中止しました。",
-                en: "The selection spans multiple layers.\nGrouping would merge them into one layer and ungrouping cannot undo that, so nothing was changed."
-            }
+            genericError: { ja: "エラーが発生しました：", en: "An error occurred: " }
         }
     };
 
@@ -961,36 +1068,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return doc.selection;
     }
 
-    /**
-     * レイヤーを一意に識別するキーを作る（サブレイヤーの親子関係も含める）
-     * @param {Layer} layer - 対象レイヤー
-     * @returns {string} 識別用のキー
-     */
-    function getLayerKey(layer) {
-        var keyParts = [];
-        var layerNode = layer;
-        while (layerNode && layerNode.typename === "Layer") {
-            keyParts.push(layerNode.zOrderPosition + ":" + layerNode.name);
-            layerNode = layerNode.parent;
-        }
-        return keyParts.join("/");
-    }
-
-    /**
-     * 選択が複数のレイヤーにまたがっているか判定する
-     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
-     * @returns {boolean} またがっていれば true
-     */
-    function spansMultipleLayers(selectedItems) {
-        var firstKey = getLayerKey(selectedItems[0].layer);
-        for (var i = 1; i < selectedItems.length; i++) {
-            if (getLayerKey(selectedItems[i].layer) !== firstKey) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // =========================================
     // テキスト / Text
     // =========================================
@@ -1029,13 +1106,289 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
     }
 
+    // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
+
+    var DIALOG_OPACITY = 0.98;       /* ダイアログの不透明度 / dialog opacity */
+    var DIALOG_AVOID_MARGIN = 60;    /* 選択範囲の推定位置の両側に取る余裕（px）/ margin on each side of the estimated selection (px) */
+    var DIALOG_AVOID_MAX_ITEMS = 100; /* 選択範囲を測るオブジェクトの上限 / max items measured for the selection bounds */
+
+    /**
+     * ダイアログの不透明度を設定し、前回閉じた位置で開いて、動かした位置を記録するようにする。
+     * 開く位置が選択中のオブジェクトに重なりそうなときは、左右の反対側へずらす（Illustrator のみ）。
+     * 既存の onShow / onMove / onClose は先に呼んでから、位置の復元・記録を行う。
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {string} storageKey - 位置を覚えるキー（ふつうは SCRIPT_NAME）
+     * @returns {void}
+     */
+    function prepareDialogWindow(dialog, storageKey) {
+        /* 同じダイアログを開き直すときは、選択範囲を測り直すだけにする（ハンドラーを重ねない）
+           When the same dialog is shown again, only re-measure the selection (don't stack handlers) */
+        if (dialog.dialogWindowState) {
+            dialog.dialogWindowState.selectionSpan = getSelectionViewSpan();
+            dialog.dialogWindowState.avoidedLocation = null;
+            return;
+        }
+        var locationKey = "__" + storageKey + "_DialogLocation";
+        var previousOnShow = dialog.onShow;
+        var previousOnMove = dialog.onMove;
+        var previousOnClose = dialog.onClose;
+        var windowState = {
+            selectionSpan: getSelectionViewSpan(), /* 選択範囲は show() の前に測る / measured before show() */
+            screenWidth: null,                     /* 最初に開いたときに推定する / estimated on the first show */
+            avoidedLocation: null                  /* 避けるためにずらした位置（記録しない）/ location set to avoid the selection (not remembered) */
+        };
+        dialog.dialogWindowState = windowState;
+
+        dialog.opacity = DIALOG_OPACITY;
+
+        /* 今の位置を記録する / Remember the current location */
+        function rememberDialogLocation() {
+            var currentLocation = [dialog.location[0], dialog.location[1]];
+            var avoidedLocation = windowState.avoidedLocation;
+            if (avoidedLocation && currentLocation[0] === avoidedLocation[0] && currentLocation[1] === avoidedLocation[1]) return;
+            $.global[locationKey] = currentLocation;
+        }
+
+        dialog.onShow = function () {
+            /* 最初に開くときの既定の位置は画面の横中央なので、画面の幅を逆算できる。2回目からは前回の位置なので使い回す
+               On the first show the default location is centered horizontally, which gives the screen width; reuse it afterwards */
+            if (windowState.screenWidth === null) windowState.screenWidth = dialog.location[0] * 2 + dialog.bounds.width;
+            if (previousOnShow) previousOnShow.apply(this, arguments);
+            /* $.screens は実際の画面の大きさと合わない（Mac で 1280×524 など）ので、画面内かは判定しない
+               $.screens does not match the real display (e.g. 1280x524 on a Mac), so no on-screen check */
+            var savedLocation = $.global[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+            if (windowState.selectionSpan) {
+                var avoidLeft = findDialogLeftAvoidingSelection(dialog.location[0], dialog.bounds.width, windowState.screenWidth, windowState.selectionSpan);
+                if (avoidLeft !== null) {
+                    dialog.location = [avoidLeft, dialog.location[1]];
+                    /* 代入後の値で比べる（丸められることがある）/ Compare with the value after assignment, which may be rounded */
+                    windowState.avoidedLocation = [dialog.location[0], dialog.location[1]];
+                }
+            }
+        };
+        dialog.onMove = function () {
+            if (previousOnMove) previousOnMove.apply(this, arguments);
+            rememberDialogLocation();
+        };
+        dialog.onClose = function () {
+            rememberDialogLocation();
+            /* false を返すと閉じるのを取りやめるので、戻り値は元の onClose のものを返す
+               Returning false cancels the close, so pass the original onClose result through */
+            if (previousOnClose) return previousOnClose.apply(this, arguments);
+        };
+    }
+
+    /**
+     * 選択中のオブジェクトが、ドキュメントの表示域の左端から画面上で何 px の範囲にあるかを返す。
+     * @returns {{left: number, right: number, viewWidth: number}|null} 選択が無い・測れないときは null
+     */
+    function getSelectionViewSpan() {
+        try {
+            if (app.name !== "Adobe Illustrator" || !app.documents.length) return null;
+            var targetDoc = app.activeDocument;
+            var selectedItems = targetDoc.selection;
+            /* 文字ツールで文字を選択しているときは TextRange が返り、[0] が無い / Selecting characters with the Type tool returns a TextRange, which has no [0] */
+            if (!selectedItems || selectedItems.typename === "TextRange" || !selectedItems.length || !selectedItems[0].visibleBounds) return null;
+            var itemCount = Math.min(selectedItems.length, DIALOG_AVOID_MAX_ITEMS);
+            var spanLeft = Infinity;
+            var spanRight = -Infinity;
+            for (var i = 0; i < itemCount; i++) {
+                var itemBounds = selectedItems[i].visibleBounds;
+                if (itemBounds[0] < spanLeft) spanLeft = itemBounds[0];
+                if (itemBounds[2] > spanRight) spanRight = itemBounds[2];
+            }
+            var activeView = targetDoc.activeView; /* 複数ウィンドウで開いていても今のウィンドウ / the current window even with multiple windows */
+            var viewBounds = activeView.bounds;
+            var zoom = activeView.zoom;
+            var viewWidth = (viewBounds[2] - viewBounds[0]) * zoom;
+            /* 表示域の外にはみ出した部分は数えない / Ignore the part outside the view */
+            var left = Math.max(0, (spanLeft - viewBounds[0]) * zoom);
+            var right = Math.min(viewWidth, (spanRight - viewBounds[0]) * zoom);
+            if (right <= left) return null;
+            return { left: left, right: right, viewWidth: viewWidth };
+        } catch (e) {
+            /* テキスト編集中など測れないときは避けない / Do not avoid when it cannot be measured, e.g. while editing text */
+            return null;
+        }
+    }
+
+    /**
+     * ダイアログが選択範囲に重なるなら、重ならない左端の位置を返す。
+     * 表示域は画面の横中央にあるとみなし、ずれは DIALOG_AVOID_MARGIN で吸収する。
+     * @param {number} dialogLeft - 今のダイアログの左端
+     * @param {number} dialogWidth - ダイアログの幅
+     * @param {number} screenWidth - 画面の幅
+     * @param {{left: number, right: number, viewWidth: number}} selectionSpan - getSelectionViewSpan() の結果
+     * @returns {number|null} ずらした左端。重ならない・どちらにも収まらないときは null
+     */
+    function findDialogLeftAvoidingSelection(dialogLeft, dialogWidth, screenWidth, selectionSpan) {
+        var viewLeft = (screenWidth - selectionSpan.viewWidth) / 2;
+        var avoidLeft = viewLeft + selectionSpan.left - DIALOG_AVOID_MARGIN;
+        var avoidRight = viewLeft + selectionSpan.right + DIALOG_AVOID_MARGIN;
+        if (dialogLeft + dialogWidth <= avoidLeft || dialogLeft >= avoidRight) return null;
+
+        var leftSideLeft = avoidLeft - dialogWidth;   /* 選択範囲の左に置くとき / placed left of the selection */
+        var rightSideLeft = avoidRight;               /* 選択範囲の右に置くとき / placed right of the selection */
+        var fitsLeft = leftSideLeft >= 0;
+        var fitsRight = rightSideLeft + dialogWidth <= screenWidth;
+        /* 選択範囲が画面の右寄りなら左へ、左寄りなら右へ逃がす / Move away from the side the selection leans to */
+        var preferLeft = (avoidLeft + avoidRight) / 2 > screenWidth / 2;
+        if (preferLeft && fitsLeft) return leftSideLeft;
+        if (fitsRight) return rightSideLeft;
+        if (fitsLeft) return leftSideLeft;
+        return null;
+    }
+
+    // ダイアログの位置と不透明度（再利用パーツ）ここまで / End of the reusable dialog position and opacity
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+    var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+     * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+     * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function alignRightOnlyButtonRow(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var dialogWindow = buttonRow.rowGroup.window;
+        dialogWindow.addEventListener("show", function () {
+            if (!buttonRow.leftGroup) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+            if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+            dialogWindow.layout.layout(true);
+        });
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 整列する方向を選ぶダイアログを表示する
+     * @param {{vertical: boolean, horizontal: boolean}} initialOptions - 初期値
+     * @returns {{vertical: boolean, horizontal: boolean}|null} 選んだ方向（キャンセルなら null）
+     */
+    function showAlignDialog(initialOptions) {
+        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(alignDialog);
+
+        var alignPanel = alignDialog.add("panel", undefined, getLabel("panel.align"));
+        setupPanel(alignPanel, 6);
+        var verticalCheckbox = alignPanel.add("checkbox", undefined, getLabel("checkbox.verticalCenter"));
+        var horizontalCheckbox = alignPanel.add("checkbox", undefined, getLabel("checkbox.horizontalCenter"));
+        verticalCheckbox.value = initialOptions.vertical;
+        horizontalCheckbox.value = initialOptions.horizontal;
+
+        var buttonRow = addButtonRow(alignDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOk = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+
+        /* どちらもOFFなら OK を押せない。表示前の value は読み戻せないので初期値で判定する
+           OK needs at least one direction; before show() the values cannot be read back, so use the initial options */
+        btnOk.enabled = initialOptions.vertical || initialOptions.horizontal;
+        verticalCheckbox.onClick = horizontalCheckbox.onClick = function () {
+            btnOk.enabled = verticalCheckbox.value || horizontalCheckbox.value;
+        };
+
+        prepareDialogWindow(alignDialog, SCRIPT_NAME);
+        if (alignDialog.show() !== 1) return null;
+        return { vertical: verticalCheckbox.value, horizontal: horizontalCheckbox.value };
+    }
+
+    // =========================================
+    // 整列 / Alignment
+    // =========================================
+
+    /**
+     * 1つのオブジェクトだけを選択し、それが載っているアートボードを現在のアートボードにしてアクションを実行する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} targetItem - 整列するオブジェクト
+     * @returns {void}
+     */
+    function alignItemToItsArtboard(doc, targetItem) {
+        doc.selection = null;
+        targetItem.selected = true;
+        activateArtboardForSelection(doc, [targetItem]);
+        app.doScript(ACTION_NAME, ACTION_SET_NAME);
+    }
+
+    /**
+     * 選択を元のオブジェクトに戻す（消えたオブジェクトは飛ばす）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem[]} targetItems - 選択し直すオブジェクト
+     * @returns {void}
+     */
+    function restoreSelection(doc, targetItems) {
+        doc.selection = null;
+        for (var i = 0; i < targetItems.length; i++) {
+            try { targetItems[i].selected = true; } catch (e) { /* 選択できない / cannot be selected */ }
+        }
+    }
+
     // =========================================
     // メイン処理 / Main
     // =========================================
 
     /**
-     * ドキュメントと選択を確認し、選択を含むアートボードに切り替えてから、複数選択時は一時的にグループ化してアクションを実行する
-     * 1行だけのテキストオブジェクト1つの選択では、行揃えも中央揃えにする
+     * ドキュメントと選択を確認し、ダイアログで方向を選んでから、オブジェクトごとにそれぞれのアートボードへ整列する
+     * 左右中央のときは、1行だけのテキストオブジェクトの行揃えも中央揃えにする
      * @returns {void}
      */
     function main() {
@@ -1055,41 +1408,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             return;
         }
 
-        /* 複数選択時はまとめて動かすため一時的にグループ化 / Group temporarily so the selection moves as one */
-        var needsGroup = selectedItems.length > 1;
-        /* レイヤーをまたぐ選択はグループ化でレイヤーが移動してしまうため中止 / Grouping across layers is not reversible */
-        if (needsGroup && spansMultipleLayers(selectedItems)) {
-            alert(getLabel("alert.multipleLayers"));
-            return;
+        var alignOptions = showAlignDialog(loadAlignOptions());
+        if (!alignOptions) return;
+        saveAlignOptions(alignOptions);
+
+        /* 選択し直すと doc.selection が変わるので先に控える / Copy first; reselecting changes doc.selection */
+        var targetItems = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            targetItems.push(selectedItems[i]);
         }
-        /* 選択が現在のアートボード外にあるときは、選択を含むアートボードに切り替える
-           Aligning to the artboard uses the active one, so switch to the one holding the selection */
-        activateArtboardForSelection(doc, selectedItems);
+        var previousArtboardIndex = doc.artboards.getActiveArtboardIndex();
 
         /* 実行中だけONにして、終了時に元の状態へ戻す / Turn on for this run only, then restore */
         var previousGlyphBounds = getGlyphBoundsAlign();
         try {
             setGlyphBoundsAlign({ point: true, area: true });
-            /* 1行だけのテキスト1つの選択は行揃えも中央揃えにする / A lone single-line text object gets centered justification too */
-            if (isSingleLineTextFrame(selectedItems)) {
-                setCenterJustification(selectedItems[0]);
+            if (alignOptions.horizontal) {
+                /* 1行だけのテキストは行揃えも中央揃えにする / Single-line text objects get centered justification too */
+                for (var j = 0; j < targetItems.length; j++) {
+                    if (isSingleLineTextFrame([targetItems[j]])) {
+                        setCenterJustification(targetItems[j]);
+                    }
+                }
+                /* 中央揃えの行は、行末の約物などで寄って見える字面を行頭のカーニングで戻す
+                   Pull centered lines back toward the center with kerning at the line start */
+                applyOpticalCenterKerningToSelection(targetItems);
             }
-            /* 中央揃えの行は、行末の約物などで寄って見える字面を行頭のカーニングで戻す
-               Pull centered lines back toward the center with kerning at the line start */
-            applyOpticalCenterKerningToSelection(selectedItems);
-            if (needsGroup) {
-                app.executeMenuCommand("group");
+            /* アクションは1回だけ読み込み、オブジェクトごとに実行する / Load the action once and run it per object */
+            if (!loadTemporaryActionSet(buildAlignActionCode(alignOptions), ACTION_SET_NAME)) {
+                throw new Error("Could not load the action \"" + ACTION_NAME + "\".");
             }
-            if (!runTemporaryAction(ACTION_CODE, ACTION_SET_NAME, ACTION_NAME)) {
-                throw new Error("Could not run the action \"" + ACTION_NAME + "\".");
+            for (var k = 0; k < targetItems.length; k++) {
+                alignItemToItsArtboard(doc, targetItems[k]);
             }
         } catch (e) {
             alert(getLabel("alert.genericError") + e);
         } finally {
-            if (needsGroup) {
-                app.executeMenuCommand("ungroup");
-            }
+            unloadTemporaryActionSet(ACTION_SET_NAME);
             setGlyphBoundsAlign(previousGlyphBounds);
+            restoreSelection(doc, targetItems);
+            doc.artboards.setActiveArtboardIndex(previousArtboardIndex);
         }
     }
 

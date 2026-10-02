@@ -40,8 +40,9 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- Align to Glyph Bounds: toggles point type and area type together (on by default); Option-click treats it as on even when unchecked. Symbol instances are covered too — the type inside them is measured and aligned to its glyph bounds
 	- Both are written to the preferences only for the duration of an align, and the previous values are restored afterwards
 	- Change Justification: match the justification of a lone single-line text object to the horizontal alignment (on by default) — left align to left, horizontal center to centered, right align to right. Vertical alignments leave it alone. Dimmed while no text is selected
+	- Optical Adjustment: for centered point type, measure each line's glyph center and kern the start of the line to pull it toward the center (on by default, 35% strength). This keeps lines from looking off because of the space in a trailing 、 or a leading 「. When it is off, aligning resets the kerning of the first character of each line of point type to 0. Applies to the align buttons, not the outer move buttons. Dimmed while no text is selected
 	- Align to Bleed: adds the bleed outside the artboard as the **stop after the artboard edge** (on by default). The amount comes from `BLEED_MM` at the top of the script (3 mm by default); being a print value it never follows the ruler unit
-	- Per Artboard: aligns each selected object to **the artboard it sits on** (off by default). Objects sharing an artboard still move together as one block, and the outer buttons follow the same rule. It is dimmed in a document with only one artboard
+	- Per Artboard: aligns each selected object to **the artboard it sits on** (off by default). Objects sharing an artboard still move together as one block, and the outer buttons follow the same rule. Margin and divide guides are drawn on every artboard, not just the active one. It is dimmed in a document with only one artboard
 - Keyboard: Esc closes the palette; ↑↓←→ fire the four side move buttons (the diagonals have no key); C centres horizontally, M vertically and X on both axes; B toggles Align to Bleed
 - A status line at the bottom reports the result (aligned / moved / nothing selected / wrong align target / error). Text too long for the fixed width can be read in full by hovering over it
 
@@ -92,7 +93,7 @@ Arrow buttons:
 - Grouping and ungrouping add steps to the undo stack. They also collapse the stacking order of a multiple selection into a contiguous run at the frontmost object's position.
 - Running it with characters selected in threaded text targets every text object in that story.
 - Justification is only changed for single-line text. Changing it on multi-line text would shift every line and alter the appearance significantly; area type wrapped onto two or more lines is excluded as well.
-- The Change Justification checkbox is dimmed based on whether the selection is text, and Per Artboard based on whether the document has more than one artboard. Illustrator has no timer API, so the selection is re-read when the palette regains focus and when the mouse moves over it. If the selection has changed by then, the previous result is cleared from the status line.
+- The Change Justification and Optical Adjustment checkboxes are dimmed based on whether the selection is text, and Per Artboard based on whether the document has more than one artboard. Illustrator has no timer API, so the selection is re-read when the palette regains focus and when the mouse moves over it. If the selection has changed by then, the previous result is cleared from the status line.
 - In a document with multiple artboards, the one overlapping the selection most becomes active. If the selection overlaps none, the artboard nearest to its center is used.
 - The ↑↓←→ keys do exactly what pressing the matching move button does, and C / M / X do the same for the centring icons. B toggles the Align to Bleed checkbox. **A focused field takes the keystroke first**, so typing a margin or a bleed never moves the selection by accident, and nothing is stolen while Command (Ctrl) is held.
 - The outer buttons move the selection so that its edge on that side lands on a guide; with no guide it goes to the artboard edge. The margin fields themselves are not used. With Add Guides on, the first press stops at the margin guide, a second carries on to the artboard edge, and with Align to Bleed on a third reaches the bleed beyond it.
@@ -117,6 +118,8 @@ Arrow buttons:
 
 ### Changelog
 
+- v1.4.0 (2026-10-03): With Per Artboard on, margin and divide guides are drawn on every artboard
+- v1.4.0 (2026-10-03): Added Optical Adjustment to the options; centered point type is kerned at the start of each line to pull the glyphs toward the center
 - v1.3.3 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.3.2 (20260929): Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held)
 - v1.3.1 (20260928): Replaced the Link checkbox with a link icon

@@ -31,10 +31,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPair
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */
@@ -53,7 +53,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     // =========================================
     // レイアウト / Layout
     // =========================================
-    var GRID_CELL_SIZE      = [22, 20];         /* ［固定］の十字のセルの幅・高さ (px) / Cross-grid cell width, height (px) */
     var JUSTIFY_BUTTON_SIZE = [26, 26];         /* 行揃えボタンの幅・高さ (px) / Justification button width, height (px) */
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
@@ -153,6 +152,349 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     }
 
     // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // 基準点ウィジェット（再利用パーツ） / Anchor widget (reusable)
+
+    // -----------------------------------------
+    // 基準点ウィジェットの寸法 / Anchor widget metrics
+    // -----------------------------------------
+    var ANCHOR_WIDGET_SIZE      = 66;   /* ウィジェット全体の一辺 / overall size of the widget */
+    var ANCHOR_WIDGET_CELL_SIZE = 9;    /* □1個の一辺 / size of one square */
+    var ANCHOR_WIDGET_CELL_GAP  = 7.5;  /* □どうしの間隔 / gap between squares */
+    var ANCHOR_WIDGET_NONE      = -1;   /* 未選択のインデックス / index while nothing is selected */
+
+    /* セルの名前（行優先：上 → 中 → 下、列：左 → 中 → 右）。Transformation の列挙名にそろえる
+       Cell names in row-major order, matching the Transformation enumeration */
+    var ANCHOR_WIDGET_NAMES = ["topLeft", "top", "topRight", "left", "center", "right", "bottomLeft", "bottom", "bottomRight"];
+
+    /* 中央(4)を除く外周の□どうしをつなぐケイ線 / Rules joining the outer squares (the center stands alone) */
+    var ANCHOR_WIDGET_CONNECTIONS = [[0, 1], [1, 2], [6, 7], [7, 8], [0, 3], [3, 6], [2, 5], [5, 8]];
+
+    // -----------------------------------------
+    // 基準点ウィジェットの配色 / Anchor widget colors
+    // -----------------------------------------
+    var ANCHOR_WIDGET_UI_DARK = isDarkUI();
+    /* 枠線・ケイ線はグレー、選択セルの塗りはライトで濃いグレー・ダークで明るいグレー（既存スクリプトの配色を踏襲）。
+       無効時は同じ色を半透明にして背景へ沈める（不透明の薄いグレーだとダークUIで逆に明るく浮くため）
+       Gray rules; the selected fill is dark gray on light UI and light gray on dark UI (as in the existing scripts).
+       Disabled colors are translucent versions so they sink into any background */
+    var ANCHOR_WIDGET_LINE_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 1]     : [0.42, 0.42, 0.42, 1];  /* 枠線・ケイ線 / rules */
+    var ANCHOR_WIDGET_FILL_COLOR     = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 1]     : [0.27, 0.27, 0.27, 1];  /* 選択セルの塗り / selected fill */
+    var ANCHOR_WIDGET_DIM_LINE_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.7, 0.7, 0.7, 0.4]   : [0.42, 0.42, 0.42, 0.4];  /* 無効時の枠線 / rules when disabled */
+    var ANCHOR_WIDGET_DIM_FILL_COLOR = ANCHOR_WIDGET_UI_DARK ? [0.9, 0.9, 0.9, 0.3]   : [0.27, 0.27, 0.27, 0.3];  /* 無効時の塗り / fill when disabled */
+
+    // -----------------------------------------
+    // ウィジェットを作る・読み書きする（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 基準点（3×3）を選ぶウィジェットを追加する。クリックしたセルを選び、onChange を呼ぶ
+     * @param {Group|Panel} parent - 追加先
+     * @param {number|string} initialValue - 最初に選ぶセル（0〜8 か "topLeft" などの名前。allowNone なら -1 も可）
+     * @param {Function} [onChange] - クリックで選んだときに呼ぶ関数（引数はセルのインデックスとウィジェット）
+     * @param {Object} [widgetOptions] - allowNone（true で未選択 -1 を許す）/ disabledCells（選べないセルの配列）/ size（一辺。既定 66）
+     * @returns {Button} ウィジェット（値は getAnchorWidgetIndex() / getAnchorWidgetName() で読む）
+     */
+    function addAnchorWidget(parent, initialValue, onChange, widgetOptions) {
+        var anchorOptions = widgetOptions || {};
+        var widgetSize = anchorOptions.size || ANCHOR_WIDGET_SIZE;
+        var anchorWidget = parent.add("button", undefined, "");
+        anchorWidget.minimumSize = [widgetSize, widgetSize];
+        anchorWidget.preferredSize = [widgetSize, widgetSize];
+        anchorWidget.maximumSize = [widgetSize, widgetSize];
+        anchorWidget.isAnchorWidget = true; /* redrawAnchorWidgetsIn() の目印 / marker for redrawAnchorWidgetsIn() */
+        anchorWidget.anchorAllowNone = !!anchorOptions.allowNone;
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(anchorOptions.disabledCells);
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(initialValue, anchorWidget.anchorAllowNone);
+        anchorWidget.onDraw = function () { drawAnchorWidget(anchorWidget); };
+        anchorWidget.onClick = function () {}; /* セルの判定は mousedown で行う / hit-testing happens in mousedown */
+
+        /* クリック座標（コントロール基準）を3分割してセルを判定する / split the control-relative click into thirds */
+        anchorWidget.addEventListener("mousedown", function (event) {
+            if (!isAnchorWidgetEnabledInTree(anchorWidget)) return;
+            var cellIndex = getAnchorCellAt(event.clientX, event.clientY, anchorWidget.size[0], anchorWidget.size[1]);
+            if (anchorWidget.anchorDisabledCells[cellIndex]) return;
+            anchorWidget.anchorWidgetIndex = cellIndex;
+            redrawAnchorWidget(anchorWidget);
+            if (onChange) onChange(cellIndex, anchorWidget);
+        });
+        return anchorWidget;
+    }
+
+    /**
+     * 選択中のセルのインデックスを返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {number} 0〜8（行優先）。未選択なら -1
+     */
+    function getAnchorWidgetIndex(anchorWidget) {
+        return anchorWidget.anchorWidgetIndex;
+    }
+
+    /**
+     * 選択中のセルの名前を返す
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @returns {string} "topLeft" など。未選択なら ""
+     */
+    function getAnchorWidgetName(anchorWidget) {
+        return ANCHOR_WIDGET_NAMES[anchorWidget.anchorWidgetIndex] || "";
+    }
+
+    /**
+     * 選択するセルを変えて描き直す（onChange は呼ばない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number|string} anchorValue - 0〜8 か名前（allowNone なら -1 も可）
+     * @returns {void}
+     */
+    function setAnchorWidgetValue(anchorWidget, anchorValue) {
+        anchorWidget.anchorWidgetIndex = resolveAnchorWidgetIndex(anchorValue, anchorWidget.anchorAllowNone);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * ウィジェットの有効／無効を切り替えて描き直す（無効の間は薄く描き、クリックも無視する）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setAnchorWidgetEnabled(anchorWidget, isEnabled) {
+        anchorWidget.enabled = isEnabled;
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * 選べないセルを指定し直して描き直す（選択中のセルは変えない）
+     * @param {Button} anchorWidget - addAnchorWidget() で作ったウィジェット
+     * @param {number[]} disabledCells - 選べないセルのインデックス（空配列ですべて選べる）
+     * @returns {void}
+     */
+    function setAnchorWidgetCellsDisabled(anchorWidget, disabledCells) {
+        anchorWidget.anchorDisabledCells = toAnchorCellFlags(disabledCells);
+        redrawAnchorWidget(anchorWidget);
+    }
+
+    /**
+     * コンテナ以下にある基準点ウィジェットをすべて描き直す。パネルや行の enabled を切り替えたあとに呼ぶ
+     * @param {Object} container - パネル・グループ・ウィンドウなど
+     * @returns {void}
+     */
+    function redrawAnchorWidgetsIn(container) {
+        if (container.isAnchorWidget) {
+            redrawAnchorWidget(container);
+            return;
+        }
+        if (!container.children) return;
+        for (var i = 0; i < container.children.length; i++) {
+            redrawAnchorWidgetsIn(container.children[i]);
+        }
+    }
+
+    // -----------------------------------------
+    // 値の変換 / Value helpers
+    // -----------------------------------------
+    /**
+     * セルのインデックスか名前を 0〜8 のインデックスにする。解釈できない値は中央（4）
+     * @param {number|string} anchorValue - 0〜8 / -1 / "topLeft" などの名前
+     * @param {boolean} [allowNone] - true なら -1（未選択）をそのまま返す
+     * @returns {number} 0〜8。allowNone で -1 を渡したときだけ -1
+     */
+    function resolveAnchorWidgetIndex(anchorValue, allowNone) {
+        if (typeof anchorValue === "string") {
+            for (var i = 0; i < ANCHOR_WIDGET_NAMES.length; i++) {
+                if (ANCHOR_WIDGET_NAMES[i] === anchorValue) return i;
+            }
+            return 4;
+        }
+        if (anchorValue === ANCHOR_WIDGET_NONE && allowNone) return ANCHOR_WIDGET_NONE;
+        if (typeof anchorValue === "number" && anchorValue >= 0 && anchorValue <= 8 && anchorValue === Math.floor(anchorValue)) {
+            return anchorValue;
+        }
+        return 4;
+    }
+
+    /**
+     * セルの位置を割合で返す（左・上が 0、中央が 0.5、右・下が 1）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [横の割合, 縦の割合]
+     */
+    function getAnchorRatio(anchorValue) {
+        var anchorIndex = resolveAnchorWidgetIndex(anchorValue);
+        return [(anchorIndex % 3) / 2, Math.floor(anchorIndex / 3) / 2];
+    }
+
+    /**
+     * 境界ボックス上の基準点の座標を返す（Illustrator の [左, 上, 右, 下] でも、y 下向きの座標でもそのまま使える）
+     * @param {number[]} bounds - [左, 上, 右, 下]（geometricBounds・visibleBounds・artboardRect など）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {number[]} [x, y]
+     */
+    function getAnchorPointOnBounds(bounds, anchorValue) {
+        var anchorRatio = getAnchorRatio(anchorValue);
+        return [
+            bounds[0] + (bounds[2] - bounds[0]) * anchorRatio[0],
+            bounds[1] + (bounds[3] - bounds[1]) * anchorRatio[1]
+        ];
+    }
+
+    /**
+     * resize()・rotate()・transform() に渡す基準点を返す（Illustrator 専用）。
+     * 基準は効果を含まない境界（geometricBounds）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {Transformation} Transformation.TOPLEFT など
+     */
+    function getAnchorTransformation(anchorValue) {
+        var transformations = [
+            Transformation.TOPLEFT, Transformation.TOP, Transformation.TOPRIGHT,
+            Transformation.LEFT, Transformation.CENTER, Transformation.RIGHT,
+            Transformation.BOTTOMLEFT, Transformation.BOTTOM, Transformation.BOTTOMRIGHT
+        ];
+        return transformations[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * symbols.add() に渡す登録点を返す（Illustrator 専用）
+     * @param {number|string} anchorValue - 0〜8 か名前
+     * @returns {SymbolRegistrationPoint} SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT など
+     */
+    function getAnchorSymbolRegistrationPoint(anchorValue) {
+        var registrationPoints = [
+            SymbolRegistrationPoint.SYMBOLTOPLEFTPOINT, SymbolRegistrationPoint.SYMBOLTOPMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLTOPRIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLMIDDLELEFTPOINT, SymbolRegistrationPoint.SYMBOLCENTERPOINT, SymbolRegistrationPoint.SYMBOLMIDDLERIGHTPOINT,
+            SymbolRegistrationPoint.SYMBOLBOTTOMLEFTPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMMIDDLEPOINT, SymbolRegistrationPoint.SYMBOLBOTTOMRIGHTPOINT
+        ];
+        return registrationPoints[resolveAnchorWidgetIndex(anchorValue)];
+    }
+
+    /**
+     * クリック位置からセルのインデックスを求める（ウィジェットを縦横3等分し、外にはみ出した座標は端のセルに寄せる）
+     * @param {number} clickX - コントロール基準の x
+     * @param {number} clickY - コントロール基準の y
+     * @param {number} widgetWidth - ウィジェットの幅
+     * @param {number} widgetHeight - ウィジェットの高さ
+     * @returns {number} 0〜8
+     */
+    function getAnchorCellAt(clickX, clickY, widgetWidth, widgetHeight) {
+        var column = Math.min(2, Math.max(0, Math.floor(clickX / (widgetWidth / 3))));
+        var row = Math.min(2, Math.max(0, Math.floor(clickY / (widgetHeight / 3))));
+        return row * 3 + column;
+    }
+
+    /**
+     * セルのインデックスの配列を、9個の真偽値に直す
+     * @param {number[]} [cellIndexes] - セルのインデックスの配列
+     * @returns {boolean[]} 含まれるセルだけ true
+     */
+    function toAnchorCellFlags(cellIndexes) {
+        var cellFlags = [false, false, false, false, false, false, false, false, false];
+        if (!cellIndexes) return cellFlags;
+        for (var i = 0; i < cellIndexes.length; i++) {
+            if (cellIndexes[i] >= 0 && cellIndexes[i] <= 8) cellFlags[cellIndexes[i]] = true;
+        }
+        return cellFlags;
+    }
+
+    // -----------------------------------------
+    // 描画 / Drawing
+    // -----------------------------------------
+    /**
+     * ウィジェットを描く（外周の□をケイ線でつなぎ、中央は独立。選択セルだけ塗る）
+     * @param {Button} anchorWidget - 描くウィジェット
+     * @returns {void}
+     */
+    function drawAnchorWidget(anchorWidget) {
+        var graphics = anchorWidget.graphics;
+        var widgetWidth = anchorWidget.size[0];
+        var widgetHeight = anchorWidget.size[1];
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        var halfCell = cellSize / 2;
+        /* 自作描画は自動でディムにならないので、親までたどって判定する / custom drawing is not dimmed automatically */
+        var isEnabled = isAnchorWidgetEnabledInTree(anchorWidget);
+
+        /* ボタンの地をコントロールの地色で塗り、パネルに溶け込ませる（backgroundColor が無い環境では例外）
+           Paint the control's own background so the widget blends into the panel; throws where backgroundColor is missing */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, widgetWidth, widgetHeight);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var cellStep = cellSize + ANCHOR_WIDGET_CELL_GAP;
+        var gridSize = cellSize * 3 + ANCHOR_WIDGET_CELL_GAP * 2;
+        var originX = Math.round((widgetWidth - gridSize) / 2);
+        var originY = Math.round((widgetHeight - gridSize) / 2);
+        var cellPositions = [];
+        var i;
+        for (i = 0; i < 9; i++) {
+            cellPositions.push([originX + (i % 3) * cellStep, originY + Math.floor(i / 3) * cellStep]);
+        }
+
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1);
+        for (i = 0; i < ANCHOR_WIDGET_CONNECTIONS.length; i++) {
+            var cellA = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][0]];
+            var cellB = cellPositions[ANCHOR_WIDGET_CONNECTIONS[i][1]];
+            graphics.newPath();
+            if (ANCHOR_WIDGET_CONNECTIONS[i][1] - ANCHOR_WIDGET_CONNECTIONS[i][0] === 1) {
+                /* 横方向：右隣の□へ / horizontal: to the square on the right */
+                graphics.moveTo(cellA[0] + cellSize, cellA[1] + halfCell);
+                graphics.lineTo(cellB[0], cellB[1] + halfCell);
+            } else {
+                /* 縦方向：下の□へ / vertical: to the square below */
+                graphics.moveTo(cellA[0] + halfCell, cellA[1] + cellSize);
+                graphics.lineTo(cellB[0] + halfCell, cellB[1]);
+            }
+            graphics.strokePath(linePen);
+        }
+
+        for (i = 0; i < 9; i++) {
+            var isCellEnabled = isEnabled && !anchorWidget.anchorDisabledCells[i];
+            drawAnchorWidgetCell(graphics, cellPositions[i][0], cellPositions[i][1], i === anchorWidget.anchorWidgetIndex, isCellEnabled);
+        }
+    }
+
+    /**
+     * □を1つ描く（選択中だけ塗り、枠は塗りの上に重ねる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} cellX - 左端
+     * @param {number} cellY - 上端
+     * @param {boolean} isSelected - 選択中なら true
+     * @param {boolean} isEnabled - 選べるセルなら true（false なら薄く描く）
+     * @returns {void}
+     */
+    function drawAnchorWidgetCell(graphics, cellX, cellY, isSelected, isEnabled) {
+        var cellSize = ANCHOR_WIDGET_CELL_SIZE;
+        /* rectPath の前には毎回 newPath()（呼ばないとパスが累積して塗りが線画になる）
+           Always call newPath() before rectPath(), or paths accumulate and fills turn into outlines */
+        if (isSelected) {
+            graphics.newPath();
+            graphics.rectPath(cellX, cellY, cellSize, cellSize);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_FILL_COLOR : ANCHOR_WIDGET_DIM_FILL_COLOR));
+        }
+        graphics.newPath();
+        graphics.rectPath(cellX, cellY, cellSize, cellSize);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, isEnabled ? ANCHOR_WIDGET_LINE_COLOR : ANCHOR_WIDGET_DIM_LINE_COLOR, 1));
+    }
+
+    /**
+     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
+     * @param {Object} control - 対象のコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isAnchorWidgetEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (node.enabled === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ウィジェットの onDraw を呼び直す。notify("onDraw") は環境によって例外や空振りになるため、隠して再表示して描き直させる
+     * @param {Button} anchorWidget - 描き直すウィジェット
+     * @returns {void}
+     */
+    function redrawAnchorWidget(anchorWidget) {
+        anchorWidget.hide();
+        anchorWidget.show();
+    }
+
+    // 基準点ウィジェット（再利用パーツ）ここまで / End of the reusable anchor widget
 
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
 
@@ -912,6 +1254,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             mode: { ja: "モード", en: "Mode" },
             fixedSide: { ja: "固定", en: "Key Object" },
             offset: { ja: "オフセット", en: "Offset" },
+            artboardMargin: { ja: "アートボード", en: "Artboard" },
             position: { ja: "位置調整", en: "Position" },
             justify: { ja: "テキストの行揃え", en: "Text alignment" }
         },
@@ -931,6 +1274,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         },
         fieldLabel: {
             spacing: { ja: "間隔", en: "Gap" },
+            margin: { ja: "距離", en: "Distance" },
             align: { ja: "整列", en: "Align" },
             position: { ja: "位置", en: "Position" }
         },
@@ -963,8 +1307,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                 en: "Pairs the selected objects by nearest neighbor and sets the gap of each pair."
             },
             modeArtboard: {
-                ja: "アートボードの端（キーオブジェクトで選んだ上／左／右／下）を基準に、各選択オブジェクトとの間隔（マージン）を指定値にそろえます。",
-                en: "Sets each selected object's gap (margin) to the artboard edge chosen in Key Object (top/left/right/bottom)."
+                ja: "アートボードの端（キーオブジェクトで選んだ上／左／右／下）から各選択オブジェクトまでの距離を、［アートボード］の値にそろえます。",
+                en: "Sets the distance from the artboard edge chosen in Key Object (top/left/right/bottom) to each selected object to the Artboard value."
             },
             fixedSide: {
                 ja: "基準にする側。選んだ側は動かさず残りを移動します（左右＝水平、上下＝垂直）。",
@@ -973,6 +1317,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             spacing: {
                 ja: "オブジェクト間の間隔。マイナスにすると重なります。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
                 en: "Gap between objects; a negative value overlaps them. Arrow keys ±1, Shift ±10, Option ±0.1."
+            },
+            margin: {
+                ja: "アートボードモードで有効。［固定］で選んだアートボードの端からの距離。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
+                en: "Active in Artboard mode. Distance from the artboard edge chosen in Key Object. Arrow keys ±1, Shift ±10, Option ±0.1."
             },
             offsetHorizontal: {
                 ja: "上下をキーにしたとき有効。整列後の移動側を左右へ追加でずらします（正＝右）。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
@@ -1278,7 +1626,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     /**
      * モードパネル（グループ／自動ペア認識／アートボード）を生成する。イベント結線は呼び出し側で行う
      * @param {Window} parentGroup - 追加先
-     * @returns {{modeRadios: RadioButton[], getMode: Function, setMode: Function}} モードのラジオと読み書きの関数
+     * @returns {{panel: Panel, modeRadios: RadioButton[], getMode: Function, setMode: Function}} パネル・モードのラジオと読み書きの関数
      */
     function buildModePanel(parentGroup) {
         var modePanel = parentGroup.add("panel", undefined, getLabel("panel.mode"));
@@ -1313,6 +1661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         }
 
         return {
+            panel: modePanel,
             modeRadios: [modeGroupRadio, modeAutoPairRadio, modeArtboardRadio],
             getMode: getMode,
             setMode: setMode
@@ -1321,91 +1670,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     /**
      * 固定オブジェクト（上 / 左 / 右 / 下）パネルを生成する。
-     * 上下左右を厳密な3×3グリッドに配置する（中央・四隅は空セル）。セルを固定幅にして列を確実にそろえる。
-     * 4つのラジオは親が別なので自動グループ化されない（排他は手動）。
-     * 既定は「右」を固定（左が動く＝水平）。イベント結線は呼び出し側で行う
+     * 基準点ウィジェット（9軸）で選び、上下左右の4セルだけ選べる（中央・四隅は選べない）。
+     * 既定は「右」を固定（左が動く＝水平）。クリック時の処理は呼び出し側で setOnChange() から結線する
      * @param {Group} parentGroup - 追加先
-     * @returns {{panel: Panel, fixedRadios: RadioButton[], selectFixedRadio: Function, getFixedSide: Function, setFixedSide: Function}} パネルと操作用の関数
+     * @returns {{panel: Panel, fixedSideWidget: Button, getFixedSide: Function, setFixedSide: Function, setOnChange: Function}} パネルと操作用の関数
      */
     function buildFixedSidePanel(parentGroup) {
         var fixedSidePanel = parentGroup.add("panel", undefined, getLabel("panel.fixedSide"));
         setupPanel(fixedSidePanel, 2);
-        // 十字レイアウトの左右に余白を足す（+8）/ Add left/right margin to the cross layout (+8)
-        fixedSidePanel.margins = [PANEL_MARGINS[0] + 8, PANEL_MARGINS[1], PANEL_MARGINS[2] + 8, PANEL_MARGINS[3]];
-        fixedSidePanel.alignChildren = ["center", "top"]; // 各行を中央そろえで十字に / Center each row
+        fixedSidePanel.alignChildren = ["center", "center"];
 
-        /**
-         * グリッドの1セルを作る。withRadio が真ならラジオを入れて返す
-         * @param {Group} gridRow - 追加先の行
-         * @param {boolean} withRadio - ラジオを入れるか
-         * @returns {RadioButton|null} 入れたラジオ（無ければ null）
-         */
-        function addGridCell(gridRow, withRadio) {
-            var gridCell = gridRow.add("group");
-            gridCell.margins = 0;
-            gridCell.alignChildren = ["center", "center"];
-            gridCell.preferredSize = GRID_CELL_SIZE;
-            return withRadio ? gridCell.add("radiobutton", undefined, "") : null;
-        }
-
-        /**
-         * グリッドの1行（3セル分の入れ物）を作る
-         * @returns {Group} 行のグループ
-         */
-        function addGridRow() {
-            var gridRow = fixedSidePanel.add("group");
-            gridRow.orientation = "row";
-            gridRow.alignment = "center";
-            gridRow.spacing = 0;
-            gridRow.margins = 0;
-            return gridRow;
-        }
-
-        //   ・  上  ・
-        //   左  ・  右
-        //   ・  下  ・
-        var gridRowTop = addGridRow();
-        addGridCell(gridRowTop, false);
-        var topRadio = addGridCell(gridRowTop, true);       // 上 / Top
-        addGridCell(gridRowTop, false);
-
-        var gridRowMid = addGridRow();
-        var leftRadio = addGridCell(gridRowMid, true);      // 左 / Left
-        addGridCell(gridRowMid, false);                     // 中央は空 / center empty
-        var rightRadio = addGridCell(gridRowMid, true);     // 右 / Right
-
-        var gridRowBottom = addGridRow();
-        addGridCell(gridRowBottom, false);
-        var bottomRadio = addGridCell(gridRowBottom, true); // 下 / Bottom
-        addGridCell(gridRowBottom, false);
-
-        var fixedRadios = [topRadio, leftRadio, rightRadio, bottomRadio];
-        var radioBySide = { top: topRadio, left: leftRadio, right: rightRadio, bottom: bottomRadio };
-
-        /**
-         * 指定したラジオだけ ON にして排他制御する
-         * @param {RadioButton} chosenRadio - ON にするラジオ
-         * @returns {void}
-         */
-        function selectFixedRadio(chosenRadio) {
-            for (var i = 0; i < fixedRadios.length; i++) {
-                fixedRadios[i].value = (fixedRadios[i] === chosenRadio);
-            }
-        }
-        for (var i = 0; i < fixedRadios.length; i++) {
-            fixedRadios[i].helpTip = getLabel("tooltip.fixedSide");
-        }
-        rightRadio.value = true; // 既定：右を固定（左が動く＝水平）/ Default: fix right (horizontal)
+        var changeHandler = null;
+        /* 中央(4)と四隅(0, 2, 6, 8)は選べない / The center and corners cannot be chosen */
+        var fixedSideWidget = addAnchorWidget(fixedSidePanel, "right", function () {
+            if (changeHandler) changeHandler();
+        }, { disabledCells: [0, 2, 4, 6, 8] });
+        fixedSideWidget.helpTip = getLabel("tooltip.fixedSide");
 
         /**
          * 現在固定する側を返す
          * @returns {string} "top" / "left" / "right" / "bottom"
          */
         function getFixedSide() {
-            if (topRadio.value) return "top";
-            if (leftRadio.value) return "left";
-            if (bottomRadio.value) return "bottom";
-            return "right";
+            var side = getAnchorWidgetName(fixedSideWidget);
+            return isFixedSideName(side) ? side : "right";
         }
 
         /**
@@ -1414,49 +1702,121 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
          * @returns {void}
          */
         function setFixedSide(side) {
-            if (radioBySide[side]) selectFixedRadio(radioBySide[side]);
+            if (isFixedSideName(side)) setAnchorWidgetValue(fixedSideWidget, side);
+        }
+
+        /**
+         * クリックで固定する側が変わったときの処理を登録する
+         * @param {Function} handler - 呼ぶ関数
+         * @returns {void}
+         */
+        function setOnChange(handler) {
+            changeHandler = handler;
         }
 
         return {
             panel: fixedSidePanel,
-            fixedRadios: fixedRadios,
-            selectFixedRadio: selectFixedRadio,
+            fixedSideWidget: fixedSideWidget,
             getFixedSide: getFixedSide,
-            setFixedSide: setFixedSide
+            setFixedSide: setFixedSide,
+            setOnChange: setOnChange
         };
     }
 
     /**
-     * オフセットパネル（間隔の入力・プレビュー境界）を生成する。整列後のずらし量は［位置調整］パネルが
-     * 持つので、ここは間隔だけを扱う。間隔は定規の単位で表示し（単位はパネル名に出す）、
-     * getSpacingInPoints() が pt に換算して返す。イベント結線は呼び出し側で行う
+     * 固定する側として使える名前か（上・左・右・下）を判定する
+     * @param {string} side - 判定する名前
+     * @returns {boolean} 使えるなら true
+     */
+    function isFixedSideName(side) {
+        return side === "top" || side === "left" || side === "right" || side === "bottom";
+    }
+
+    /**
+     * 入力欄の onChanging を直接呼ぶ（↑↓キーの keydown の中では notify("onChanging") が空振りするため）
+     * @param {EditText} numberInput - 対象の入力欄
+     * @returns {void}
+     */
+    function callOnChanging(numberInput) {
+        if (typeof numberInput.onChanging === "function") numberInput.onChanging();
+    }
+
+    /**
+     * 「項目名：∧∨＋入力欄」の1行を追加する。値は定規の単位で表示し、getPoints() が pt に換算して返す
+     * @param {Panel} parentPanel - 追加先
+     * @param {string} labelKey - 項目名の LABELS のキー
+     * @param {string} tooltipKey - ツールチップの LABELS のキー
+     * @param {number} initialPoints - 初期値・空欄時のフォールバック（pt）
+     * @returns {{row: Group, input: EditText, getPoints: Function}} 行・入力欄と pt で読む関数
+     */
+    function addPointsFieldRow(parentPanel, labelKey, tooltipKey, initialPoints) {
+        var fieldRow = parentPanel.add("group");
+        setupRow(fieldRow, "left", 8); // 広げず左寄せ / Keep at natural width, packed left
+        fieldRow.add("statictext", undefined, labelText(labelKey));
+        /* ∧∨と入力欄は隙間0で突き合わせる。負の値も許容 / Stepper butts the field; negatives allowed */
+        var fieldGroup = fieldRow.add("group");
+        fieldGroup.orientation = "row";
+        fieldGroup.alignChildren = ["left", "center"];
+        fieldGroup.spacing = 0;
+        fieldGroup.margins = 0;
+        var fieldInput;
+        var fieldStepper = addStepper(fieldGroup, function () { return fieldInput; }, {
+            onStep: callOnChanging /* プレビュー更新 / refresh preview */
+        });
+        fieldInput = fieldGroup.add("edittext", undefined, pointsToDisplayText(initialPoints));
+        fieldInput.characters = 4;
+        bindSteppedArrowKeys(fieldInput, fieldStepper);
+        fieldInput.helpTip = getLabel(tooltipKey);
+
+        /**
+         * 入力値を pt に換算して返す。数値でなければ初期値
+         * @returns {number} 値（pt）
+         */
+        function getPoints() {
+            var value = parseFloat(fieldInput.text);
+            if (isNaN(value)) { value = initialPoints / pointsPerUnit; }
+            return value * pointsPerUnit;
+        }
+
+        return { row: fieldRow, input: fieldInput, getPoints: getPoints };
+    }
+
+    /**
+     * 列ごとにパネルの幅を最も広いものへそろえる。一度 layout してから幅を測り、
+     * preferredSize と size の両方を入れて組み直す（preferredSize だけでは再配置されない）
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {Panel[][]} columns - 列ごとのパネルの配列
+     * @returns {void}
+     */
+    function matchColumnWidths(targetWindow, columns) {
+        targetWindow.layout.layout(true);
+        for (var i = 0; i < columns.length; i++) {
+            var columnWidth = 0;
+            var j;
+            for (j = 0; j < columns[i].length; j++) {
+                columnWidth = Math.max(columnWidth, columns[i][j].size.width);
+            }
+            for (j = 0; j < columns[i].length; j++) {
+                columns[i][j].preferredSize.width = columnWidth;
+                columns[i][j].size.width = columnWidth;
+            }
+        }
+        targetWindow.layout.layout(true);
+    }
+
+    /**
+     * オフセットパネル（オブジェクト同士の間隔・プレビュー境界）を生成する。アートボード端からの距離は
+     * ［アートボード］パネルが持つ。単位はパネル名に出す。イベント結線は呼び出し側で行う
      * @param {Group} parentGroup - 追加先
      * @param {number} initialGapPoints - 間隔の初期値・空欄時のフォールバック（pt）
-     * @returns {{panel: Panel, spacingInput: EditText, previewBoundsCheckbox: Checkbox, getSpacingInPoints: Function, getBoundsType: Function}} パネルと操作用の関数
+     * @returns {{panel: Panel, spacingRow: Group, spacingInput: EditText, previewBoundsCheckbox: Checkbox, getSpacingInPoints: Function, getBoundsType: Function}} パネルと操作用の関数
      */
     function buildGapPanel(parentGroup, initialGapPoints) {
         var gapPanel = parentGroup.add("panel", undefined, labelWithUnit("panel.offset", rulerUnitLabel));
         setupPanel(gapPanel, 6);
 
-        // 間隔行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
-        // Gap row (label + input); the unit lives in the panel title instead
-        var spacingRow = gapPanel.add("group");
-        setupRow(spacingRow, "left", 8); // 広げず左寄せ / Keep at natural width, packed left
-        spacingRow.add("statictext", undefined, labelText("fieldLabel.spacing"));
-        /* ∧∨と入力欄は隙間0で突き合わせる。負の値も許容（オブジェクトを重ねる）/ Stepper butts the field; negatives allowed (overlap) */
-        var spacingFieldGroup = spacingRow.add("group");
-        spacingFieldGroup.orientation = "row";
-        spacingFieldGroup.alignChildren = ["left", "center"];
-        spacingFieldGroup.spacing = 0;
-        spacingFieldGroup.margins = 0;
-        var spacingInput;
-        var spacingStepper = addStepper(spacingFieldGroup, function () { return spacingInput; }, {
-            onStep: function (numberInput) { numberInput.notify("onChanging"); } /* プレビュー更新 / refresh preview */
-        });
-        spacingInput = spacingFieldGroup.add("edittext", undefined, pointsToDisplayText(initialGapPoints));
-        spacingInput.characters = 4;
-        bindSteppedArrowKeys(spacingInput, spacingStepper);
-        spacingInput.helpTip = getLabel("tooltip.spacing");
+        // 間隔行（ラベル＋入力）/ Gap row (label + input)
+        var spacingField = addPointsFieldRow(gapPanel, "fieldLabel.spacing", "tooltip.spacing", initialGapPoints);
 
         // チェックボックス：プレビュー境界（左添え）/ Preview-bounds checkbox (left)
         var previewBoundsGroup = gapPanel.add("group");
@@ -1468,16 +1828,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
 
         /**
-         * 入力値を pt に換算して返す。数値でなければ初期値
-         * @returns {number} 間隔（pt）
-         */
-        function getSpacingInPoints() {
-            var value = parseFloat(spacingInput.text);
-            if (isNaN(value)) { value = initialGapPoints / pointsPerUnit; }
-            return value * pointsPerUnit;
-        }
-
-        /**
          * チェックに応じた境界のプロパティ名を返す
          * @returns {string} "visibleBounds" または "geometricBounds"
          */
@@ -1487,10 +1837,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
         return {
             panel: gapPanel,
-            spacingInput: spacingInput,
+            spacingRow: spacingField.row,
+            spacingInput: spacingField.input,
             previewBoundsCheckbox: previewBoundsCheckbox,
-            getSpacingInPoints: getSpacingInPoints,
+            getSpacingInPoints: spacingField.getPoints,
             getBoundsType: getBoundsType
+        };
+    }
+
+    /**
+     * アートボードパネル（アートボード端からの距離）を生成する。アートボードモードのときだけ使う。
+     * 単位はパネル名に出す。イベント結線は呼び出し側で行う
+     * @param {Group} parentGroup - 追加先
+     * @param {number} initialMarginPoints - 距離の初期値・空欄時のフォールバック（pt）
+     * @returns {{panel: Panel, marginRow: Group, marginInput: EditText, getMarginInPoints: Function}} パネルと操作用の関数
+     */
+    function buildArtboardMarginPanel(parentGroup, initialMarginPoints) {
+        var marginPanel = parentGroup.add("panel", undefined, labelWithUnit("panel.artboardMargin", rulerUnitLabel));
+        setupPanel(marginPanel, 6);
+        var marginField = addPointsFieldRow(marginPanel, "fieldLabel.margin", "tooltip.margin", initialMarginPoints);
+        return {
+            panel: marginPanel,
+            marginRow: marginField.row,
+            marginInput: marginField.input,
+            getMarginInPoints: marginField.getPoints
         };
     }
 
@@ -1544,7 +1914,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         offsetFieldGroup.margins = 0;
         var offsetInput;
         var offsetStepper = addStepper(offsetFieldGroup, function () { return offsetInput; }, {
-            onStep: function (numberInput) { numberInput.notify("onChanging"); } /* プレビュー更新 / refresh preview */
+            onStep: callOnChanging /* プレビュー更新 / refresh preview */
         });
         offsetInput = offsetFieldGroup.add("edittext", undefined, "0");
         offsetInput.characters = 4;
@@ -1884,27 +2254,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
      * @param {number} initialGapPoints - 間隔の初期値（pt）
      * @returns {{settingsDialog: Window, modeRefs: Object, fixedSideRefs: Object, gapRefs: Object, alignmentRefs: Object, justifyRefs: Object, btnCancel: Button, btnOK: Button}} ダイアログと各パネルの参照
      */
-    function buildSettingsDialog(initialGapPoints) {
+    function buildSettingsDialog(initialGapPoints, initialMarginPoints) {
         var settingsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(settingsDialog);
 
-        // モード（1カラム・ラジオ縦並び）/ Mode (single column, radios stacked)
-        var modeRefs = buildModePanel(settingsDialog);
+        /**
+         * 2パネルを左右に並べる行を作る（高さをそろえる）
+         * @returns {Group} 行のグループ
+         */
+        function addColumnsRow() {
+            var columnsRow = settingsDialog.add("group");
+            columnsRow.orientation = "row";
+            columnsRow.alignChildren = ["fill", "fill"]; // 2パネルの高さをそろえる / Match panel heights
+            columnsRow.spacing = COLUMN_SPACING;
+            return columnsRow;
+        }
 
-        // キーオブジェクト と オフセット を2カラムで左右に並べる / Key object + Offset side by side (two columns)
-        var keyPositionColumns = settingsDialog.add("group");
-        keyPositionColumns.orientation = "row";
-        keyPositionColumns.alignChildren = ["fill", "fill"]; // 2パネルの高さをそろえる / Match panel heights
-        keyPositionColumns.spacing = COLUMN_SPACING;
+        // モード と オフセット（オブジェクト同士の間隔）を2カラムで / Mode + Offset (object gap) side by side
+        var modeGapColumns = addColumnsRow();
+        var modeRefs = buildModePanel(modeGapColumns);
+        var gapRefs = buildGapPanel(modeGapColumns, initialGapPoints);
 
-        // キーオブジェクト（上・左・右・下を十字に配置）/ Key object (arranged as a cross)
-        var fixedSideRefs = buildFixedSidePanel(keyPositionColumns);
-        // オフセット（間隔・プレビュー境界）/ Offset (gap, preview bounds)
-        var gapRefs = buildGapPanel(keyPositionColumns, initialGapPoints);
+        // キーオブジェクト と アートボード（端からの距離）を2カラムで / Key object + Artboard (edge distance) side by side
+        var keyMarginColumns = addColumnsRow();
+        // キーオブジェクト（9軸のうち上・左・右・下）/ Key object (top/left/right/bottom of the anchor grid)
+        var fixedSideRefs = buildFixedSidePanel(keyMarginColumns);
+        var marginRefs = buildArtboardMarginPanel(keyMarginColumns, initialMarginPoints);
 
-        // キー／位置の2パネルの高さをそろえる / Match the two panel heights
-        fixedSideRefs.panel.alignment = ["fill", "fill"];
-        gapRefs.panel.alignment = ["fill", "fill"];
+        // 各行の2パネルの高さをそろえる / Match the panel heights in each row
+        var columnPanels = [modeRefs.panel, gapRefs.panel, fixedSideRefs.panel, marginRefs.panel];
+        for (var i = 0; i < columnPanels.length; i++) {
+            columnPanels[i].alignment = ["fill", "fill"];
+        }
 
         // 位置調整パネル（整列＋位置）。1枚で、［固定］に応じて水平／垂直に切り替わる
         // One Position panel (alignment + offset); it switches with the Key Object side
@@ -1923,11 +2304,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         settingsDialog.defaultElement = btnOK;
         settingsDialog.cancelElement = btnCancel;
 
+        // 上下2段の左右の列幅をそろえる（全コントロールを追加してから）/ Line up the columns of both rows
+        matchColumnWidths(settingsDialog, [[modeRefs.panel, fixedSideRefs.panel], [gapRefs.panel, marginRefs.panel]]);
+
         return {
             settingsDialog: settingsDialog,
             modeRefs: modeRefs,
             fixedSideRefs: fixedSideRefs,
             gapRefs: gapRefs,
+            marginRefs: marginRefs,
             alignmentRefs: alignmentRefs,
             justifyRefs: justifyRefs,
             btnCancel: btnCancel,
@@ -3183,7 +3568,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     };
     var DEFAULT_SESSION_SETTINGS = {
         mode: "",
-        gap: ""       /* pt の文字列 / points as text */
+        gap: "",      /* pt の文字列 / points as text */
+        margin: ""    /* pt の文字列 / points as text */
     };
 
     /**
@@ -3195,6 +3581,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var sessionSettings = sessionStore.load(DEFAULT_SESSION_SETTINGS);
         settings.mode = sessionSettings.mode;
         settings.gap = sessionSettings.gap;
+        settings.margin = sessionSettings.margin;
         return settings;
     }
 
@@ -3204,7 +3591,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
      * @returns {void}
      */
     function saveSettings(settings) {
-        sessionStore.save({ mode: settings.mode, gap: settings.gap });
+        sessionStore.save({ mode: settings.mode, gap: settings.gap, margin: settings.margin });
         persistentStore.save({
             fixedSide: settings.fixedSide,
             previewBounds: settings.previewBounds,
@@ -3268,15 +3655,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // persists across restarts while the gap does not, so the gap is always re-measured here.
         var initialMode = (savedSettings.mode === "group" || savedSettings.mode === "auto" ||
             savedSettings.mode === "artboard") ? savedSettings.mode : defaultMode;
-        var initialFixedSide = (savedSettings.fixedSide === "top" || savedSettings.fixedSide === "left" ||
-            savedSettings.fixedSide === "right" || savedSettings.fixedSide === "bottom")
-            ? savedSettings.fixedSide : "right";
+        var initialFixedSide = isFixedSideName(savedSettings.fixedSide) ? savedSettings.fixedSide : "right";
 
         // 間隔の初期値は選択オブジェクトの現在の平均間隔。測れなければ DEFAULT_GAP を使う。
         // 負（重なり）の場合は 0 にクランプ。Initial gap = current average gap of the selection
         // (clamped to >= 0); falls back to DEFAULT_GAP when nothing measurable.
-        var measuredGap = computeAverageGap(selectedItems, initialMode, initialFixedSide);
+        var measuredGap = computeAverageGap(selectedItems, (initialMode === "artboard") ? "auto" : initialMode, initialFixedSide);
         var initialGapPoints = (measuredGap !== null) ? Math.max(0, measuredGap) : DEFAULT_GAP;
+        // アートボード端からの距離の初期値も同じく現在の平均 / Initial artboard distance = current average as well
+        var measuredMargin = computeAverageGap(selectedItems, "artboard", initialFixedSide);
+        var initialMarginPoints = (measuredMargin !== null) ? Math.max(0, measuredMargin) : DEFAULT_GAP;
 
         // =========================================
         // プレビュー / Live preview
@@ -3714,6 +4102,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             // 数値（間隔・左右・上下）/ Numeric values (gap, horizontal/vertical offsets)
             var savedGapDisplay = savedPointsToDisplayText(savedSettings.gap);
             if (savedGapDisplay !== null) dialogControls.gapRefs.spacingInput.text = savedGapDisplay;
+            var savedMarginDisplay = savedPointsToDisplayText(savedSettings.margin);
+            if (savedMarginDisplay !== null) dialogControls.marginRefs.marginInput.text = savedMarginDisplay;
             var savedOffsetHDisplay = savedPointsToDisplayText(savedSettings.offsetH);
             if (savedOffsetHDisplay !== null) orientationValues.h.offset = savedOffsetHDisplay;
             var savedOffsetVDisplay = savedPointsToDisplayText(savedSettings.offsetV);
@@ -3725,11 +4115,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
          * @returns {boolean} OK なら true
          */
         function showSettingsDialog() {
-            var dialogControls = buildSettingsDialog(initialGapPoints);
+            var dialogControls = buildSettingsDialog(initialGapPoints, initialMarginPoints);
             var settingsDialog = dialogControls.settingsDialog;
             var modeRefs = dialogControls.modeRefs;
             var fixedSideRefs = dialogControls.fixedSideRefs;
             var gapRefs = dialogControls.gapRefs;
+            var marginRefs = dialogControls.marginRefs;
             var alignmentRefs = dialogControls.alignmentRefs;
             var justifyRefs = dialogControls.justifyRefs;
             var alignRadios = alignmentRefs.alignRadios;
@@ -3744,8 +4135,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
              * @returns {void}
              */
             function refreshPreview() {
-                runPreview(fixedSideRefs.getFixedSide(), gapRefs.getSpacingInPoints(), gapRefs.getBoundsType(),
+                runPreview(fixedSideRefs.getFixedSide(), getActiveGapInPoints(), gapRefs.getBoundsType(),
                     getAlignValue(alignRadios), displayTextToPoints(offsetInput.text), justifyRefs.getJustifyMode());
+            }
+
+            /**
+             * 今のモードで使う間隔を返す（アートボードは端からの距離、それ以外はオブジェクト同士の間隔）
+             * @returns {number} 間隔（pt）
+             */
+            function getActiveGapInPoints() {
+                return (modeRefs.getMode() === "artboard") ? marginRefs.getMarginInPoints() : gapRefs.getSpacingInPoints();
+            }
+
+            /**
+             * モードに合わせて［オフセット］の間隔と［アートボード］の距離の有効／無効を切り替える
+             * @returns {void}
+             */
+            function updateModeFields() {
+                var isArtboard = (modeRefs.getMode() === "artboard");
+                gapRefs.spacingRow.enabled = !isArtboard;
+                marginRefs.marginRow.enabled = isArtboard;
+                redrawSteppersIn(gapRefs.spacingRow); /* ∧∨のディム表示を切り替える / update stepper dimming */
+                redrawSteppersIn(marginRefs.marginRow);
             }
 
             /**
@@ -3764,6 +4175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
              * @returns {void}
              */
             function onModeChange() {
+                updateModeFields();
                 undoJustifications();
                 buildPairs(modeRefs.getMode());
                 refreshPreview();
@@ -3782,27 +4194,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             for (var i = 0; i < modeRefs.modeRadios.length; i++) {
                 modeRefs.modeRadios[i].onClick = onModeChange;
             }
-            // 固定側のラジオ：手動で排他にしてからプレビュー更新（軸の切替もここで反映）
-            // Fixed-side radios: enforce exclusivity by hand, then refresh (axis switch applies here too)
-            var fixedRadios = fixedSideRefs.fixedRadios;
-            for (var j = 0; j < fixedRadios.length; j++) {
-                fixedRadios[j].onClick = (function (fixedRadio) {
-                    return function () {
-                        fixedSideRefs.selectFixedRadio(fixedRadio);
-                        orientationSwitcher.updateActivePanels();
-                        refreshPreviewResetJustify();
-                    };
-                })(fixedRadios[j]);
-            }
+            // 固定側の9軸：プレビュー更新（軸の切替もここで反映）
+            // Fixed-side anchor widget: refresh (axis switch applies here too)
+            fixedSideRefs.setOnChange(function () {
+                orientationSwitcher.updateActivePanels();
+                refreshPreviewResetJustify();
+            });
             // 間隔・位置オフセット：入力でプレビュー更新（∧∨と↑↓キーも onChanging 経由で更新）
             // Gap and offset: refresh on input (steppers and arrow keys go through onChanging too)
             gapRefs.spacingInput.onChanging = refreshPreview;
+            marginRefs.marginInput.onChanging = refreshPreview;
             offsetInput.onChanging = refreshPreview;
             gapRefs.previewBoundsCheckbox.onClick = refreshPreview;
             // 整列ラジオ：オフセットの有効/無効を更新し、行揃えを戻してから更新 / Alignment radios
             for (var alignKey in alignRadios) { alignRadios[alignKey].onClick = onAlignChange; }
             // 整列のキーボードショートカット（水平 L/C/R・垂直 T/M/B）。今の向きで読み替える / Alignment keyboard shortcuts
-            addAlignmentKeyHandler(settingsDialog, alignRadios, orientationSwitcher.isVerticalGap, [gapRefs.spacingInput, offsetInput]);
+            addAlignmentKeyHandler(settingsDialog, alignRadios, orientationSwitcher.isVerticalGap, [gapRefs.spacingInput, marginRefs.marginInput, offsetInput]);
             // テキストの行揃えボタン：押した値をアクティブにし、行揃えを戻してから再適用
             // Justification buttons: activate the clicked value, revert justification, then refresh
             var justifyButtons = justifyRefs.buttons;
@@ -3816,6 +4223,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             // ダイアログ表示時に既定モードでペアを組んで初回プレビュー（同期側 undo を避けて onShow から起動）
             // Build pairs for the default mode, then run the first preview (from onShow to avoid sync undo)
             settingsDialog.onShow = function () {
+                updateModeFields();
                 orientationSwitcher.updateActivePanels(); // 既定のキー側に合わせて水平/垂直パネルとオフセットの有効/無効を初期化 / Init enabled state
                 buildPairs(modeRefs.getMode());
                 refreshPreview();
@@ -3835,6 +4243,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                     alignV: orientationValues.v.align,
                     justify: justifyRefs.getJustifyMode(),
                     gap: String(gapRefs.getSpacingInPoints()),
+                    margin: String(marginRefs.getMarginInPoints()),
                     offsetH: String(displayTextToPoints(orientationValues.h.offset)),
                     offsetV: String(displayTextToPoints(orientationValues.v.offset))
                 });

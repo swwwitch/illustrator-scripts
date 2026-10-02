@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProces
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextProcessingPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextProcessingPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextProcessingPalette.md"; /* README (English) */
@@ -45,6 +45,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
     /* 「指定文字で改行」の初期値 / Default characters for "break at specified characters" */
     var DEFAULT_BREAK_CHARS = "、。，．｡､,.!?！？";
+
+    /* 「指定文字で改行」で直前に改行を入れる文字の初期値 / Default characters to break before */
+    var DEFAULT_BREAK_BEFORE_CHARS = "・•→";
 
     /* 「指定文字数で改行」の初期値 / Default character count for "break at character count" */
     var DEFAULT_BREAK_COUNT = "35";
@@ -175,6 +178,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         panel.alignment = ["fill", "top"];
         panel.alignChildren = alignChildren || ["fill", "center"];
         return panel;
+    }
+
+    /**
+     * パネル内の項目を区切る横線を追加する
+     * @param {Panel|Group} parent - 追加先のコンテナ
+     * @returns {Panel} 生成した線
+     */
+    function addDivider(parent) {
+        var divider = parent.add("panel", undefined, undefined);
+        divider.alignment = ["fill", "center"];
+        divider.preferredSize.height = 1;
+        return divider;
     }
 
     /**
@@ -807,6 +822,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             concatToArea: {
                 ja: "横方向に連結し、エリア内文字として整形します",
                 en: "Merge horizontally and format the result as area text"
+            },
+            breakAtChars: {
+                ja: "下の欄の文字で改行します\nOption+クリックで［すべて1行に］を実行してから改行",
+                en: "Insert line breaks at the characters below\nOption-click to run \"Merge All into One Line\" first"
+            },
+            breakAtCount: {
+                ja: "指定文字数ごとに改行します\nOption+クリックで［すべて1行に］を実行してから改行",
+                en: "Insert a line break every N characters\nOption-click to run \"Merge All into One Line\" first"
+            },
+            breakChars: {
+                ja: "この欄の文字の後ろで改行します",
+                en: "Insert a line break after each of these characters"
+            },
+            breakBeforeChars: {
+                ja: "この欄の文字の直前で改行します（テキスト内に1つしか無い文字は無視）",
+                en: "Insert a line break before each of these characters (ignored when a character appears only once in the text)"
             },
             removeLineBreaks: {
                 ja: "段落改行を削除します（「強制改行を含む」ON で強制改行も対象）",
@@ -2126,21 +2157,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             mutateMatchingChars(objects, isParagraphBreak, String.fromCharCode(3));
         }
 
-        /* 指定した記号の後に改行を挿入する関数（既定は和文・欧文の句読点と終止記号）*/
-        function addLineBreakAtPunctuation(objects, punctuationChars) {
+        /* 指定した記号の後に改行を挿入し、beforeChars の文字は直前で改行する関数
+           （既定は和文・欧文の句読点と終止記号の後で改行。直前の改行は指定時のみ）*/
+        function addLineBreakAtPunctuation(objects, punctuationChars, beforeChars) {
             var punctuation = punctuationChars || DEFAULT_BREAK_CHARS;
+            var breakBefore = beforeChars || "";
             transformContents(objects, function (txt) {
+                /* 1つしか無い文字は箇条の区切りではないとみなし、直前で改行しない */
+                var activeBreakBefore = keepRepeatedChars(txt, breakBefore);
                 /* 「後ろに実体のある文字が残っているか」は末尾位置を1回求めれば足りる */
                 var lastVisibleIndex = findLastVisibleIndex(txt);
                 var result = "";
                 for (var i = 0; i < txt.length; i++) {
                     var currentChar = txt.charAt(i);
+                    /* 行頭（先頭・改行の直後）にあるときは直前に改行を入れない */
+                    if (activeBreakBefore.indexOf(currentChar) !== -1 && result !== "" && !isAnyBreak(result.charAt(result.length - 1))) {
+                        result += "\r";
+                    }
                     result += currentChar;
                     if (punctuation.indexOf(currentChar) === -1 || i >= lastVisibleIndex) continue;
                     if (!isAnyBreak(txt.charAt(i + 1))) result += "\r";
                 }
                 return result;
             });
+        }
+
+        /* chars のうち、txt に2つ以上ある文字だけを返す */
+        function keepRepeatedChars(txt, chars) {
+            var kept = "";
+            for (var i = 0; i < chars.length; i++) {
+                var targetChar = chars.charAt(i);
+                var firstIndex = txt.indexOf(targetChar);
+                if (firstIndex !== -1 && txt.indexOf(targetChar, firstIndex + 1) !== -1) kept += targetChar;
+            }
+            return kept;
         }
 
         /* 各テキストフレームの段落を上から順に走査し、段落ごとに
@@ -3315,7 +3365,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             snapshotTabStops, restoreTabStops,
             reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
             addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
-            addLineBreakAtPunctuation, splitFramesByParagraph, getParagraphMetrics,
+            addLineBreakAtPunctuation, keepRepeatedChars, splitFramesByParagraph, getParagraphMetrics,
             collectTabOffsetsByParagraph, splitByTab, splitByLineBreak,
             fitsInOneLine, getLineAnchorRatio, getBoxExtent, setBoxExtent, fitAreaBoxToLine,
             collectVisualLines, splitByVisualLine,
@@ -3414,6 +3464,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                     collapseSpaces(flattenTargets);
                     return flattenTargets;
                 }
+                /* Option+［指定文字で改行］：すべて1行にしてから指定文字で改行 */
+                case "flattenPunctuation": {
+                    var flatTargets = runStructureAction("flatten", targets, params);
+                    addLineBreakAtPunctuation(flatTargets, params.chars, params.beforeChars);
+                    return flatTargets;
+                }
+                /* Option+［指定文字数で改行］：すべて1行にしてから指定文字数で改行 */
+                case "flattenBreakAtCount": {
+                    var flatCountTargets = runStructureAction("flatten", targets, params);
+                    addLineBreakAtCount(flatCountTargets, params.count, params.forced);
+                    return flatCountTargets;
+                }
                 case "splitByLineBreak": return applySplitGrouping(splitByLineBreak(targets), params.group);
                 case "splitByLineBreakKeepStyle": return applySplitGrouping(splitByLineBreakKeepStyle(targets), params.group);
                 case "splitByVisualLine": return applySplitGrouping(splitByVisualLine(targets), params.group);
@@ -3437,7 +3499,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             switch (actionName) {
                 case "removeLineBreaks": if (params.forced) removeAllBreaks(targets); else removeLineBreaks(targets); return;
                 case "addLineBreakPerChar": addLineBreakPerChar(targets); return;
-                case "punctuation": addLineBreakAtPunctuation(targets, params.chars); return;
+                case "punctuation": addLineBreakAtPunctuation(targets, params.chars, params.beforeChars); return;
                 case "breakAtCount": addLineBreakAtCount(targets, params.count, params.forced); return;
                 case "convertForcedLineBreaks": convertForcedLineBreaks(targets); return;
                 case "convertToForcedBreaks": convertToForcedBreaks(targets); return;
@@ -3565,6 +3627,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             if (params.mergeAreaText !== undefined) parts.push("mergeAreaText:" + (params.mergeAreaText ? "true" : "false"));
             if (params.count !== undefined) parts.push("count:" + parseInt(params.count, 10));
             if (params.chars !== undefined) parts.push('chars:decodeURIComponent("' + encodeURIComponent(params.chars) + '")');
+            if (params.beforeChars !== undefined) parts.push('beforeChars:decodeURIComponent("' + encodeURIComponent(params.beforeChars) + '")');
             if (params.text !== undefined) parts.push('text:decodeURIComponent("' + encodeURIComponent(params.text) + '")');
             if (params.from !== undefined) parts.push('from:"' + params.from + '"');
             if (params.to !== undefined) parts.push('to:"' + params.to + '"');
@@ -3870,18 +3933,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 executeAction("addLineBreakPerChar");
             };
 
-            var btnBreakAtChars = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtChars));
-            btnBreakAtChars.onClick = function () {
-                executeAction("punctuation", { chars: txtBreakChars.text });
-            };
+            /* ［1文字ごとに改行］と［指定文字で改行］を分ける線 */
+            addDivider(panelInsertBreak);
 
             var txtBreakChars = panelInsertBreak.add("edittext", undefined, DEFAULT_BREAK_CHARS);
             txtBreakChars.alignment = ["fill", "center"];
+            txtBreakChars.helpTip = getLabel(LABELS.tooltip.breakChars);
 
-            var btnBreakAtCount = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtCount));
-            btnBreakAtCount.onClick = function () {
-                executeAction("breakAtCount", { count: txtBreakCount.text, forced: chkForcedBreakAtCount.value });
+            var txtBreakBeforeChars = panelInsertBreak.add("edittext", undefined, DEFAULT_BREAK_BEFORE_CHARS);
+            txtBreakBeforeChars.alignment = ["fill", "center"];
+            txtBreakBeforeChars.helpTip = getLabel(LABELS.tooltip.breakBeforeChars);
+
+            var btnBreakAtChars = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtChars));
+            btnBreakAtChars.helpTip = getLabel(LABELS.tooltip.breakAtChars);
+            btnBreakAtChars.onClick = function () {
+                executeAction(isAltPressed() ? "flattenPunctuation" : "punctuation", { chars: txtBreakChars.text, beforeChars: txtBreakBeforeChars.text });
             };
+
+            /* ［指定文字で改行］と［指定文字数で改行］を分ける線 */
+            addDivider(panelInsertBreak);
 
             var breakCountRow = panelInsertBreak.add("group");
             breakCountRow.orientation = "row";
@@ -3898,6 +3968,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             txtBreakCount.characters = 3;
             bindSteppedArrowKeys(txtBreakCount, breakCountStepper);
             var chkForcedBreakAtCount = breakCountRow.add("checkbox", undefined, getLabel(LABELS.checkbox.forcedBreak));
+
+            var btnBreakAtCount = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtCount));
+            btnBreakAtCount.helpTip = getLabel(LABELS.tooltip.breakAtCount);
+            btnBreakAtCount.onClick = function () {
+                executeAction(isAltPressed() ? "flattenBreakAtCount" : "breakAtCount", { count: txtBreakCount.text, forced: chkForcedBreakAtCount.value });
+            };
 
             /* 改行の切り換え */
             var panelConvertBreak = addPanel(panelBreakGroup, getLabel(LABELS.panel.convertBreak));

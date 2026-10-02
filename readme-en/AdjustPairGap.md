@@ -15,7 +15,7 @@ Sets the gap and the position of the selected objects to a value you specify. Th
 ### Main Features
 
 - Three modes: even spacing inside a group, nearest-neighbour pairs, and margins from an artboard edge
-- Key Object is a cross of top/left/right/bottom. Left or right adjusts horizontally, top or bottom vertically
+- Key Object is picked from the top/left/right/bottom cells of the anchor grid. Left or right adjusts horizontally, top or bottom vertically
 - The gap accepts negative values, so objects can overlap
 - A single Position panel that switches between horizontal and vertical with the Key Object side, relabelling its radios left/right or top/bottom
 - Alignment perpendicular to the gap (none / left (top) / center / right (bottom)), plus an extra offset from there
@@ -39,7 +39,7 @@ Sets the gap and the position of the selected objects to a value you specify. Th
 | --- | --- |
 | Group | Lays out the contents of each selected group so every adjacent gap is equal (3+ objects supported) |
 | Auto Pair Detection | Pairs the selected objects by nearest neighbour and sets the gap of each pair |
-| Artboard | Sets each selected object's gap (margin) to the artboard edge chosen in Key Object (top/left/right/bottom) |
+| Artboard | Sets the distance from the artboard edge chosen in Key Object (top/left/right/bottom) to each selected object to the Artboard value |
 
 Group is preselected when every selected object is a group, otherwise Auto Pair Detection (a remembered setting wins over both).
 
@@ -47,7 +47,7 @@ Group is preselected when every selected object is a group, otherwise Auto Pair 
 
 **Key Object**
 
-Radios arranged as a cross of top/left/right/bottom. The object on the chosen side stays put and the rest move relative to it.
+A 3×3 anchor grid; click the top, left, right, or bottom cell (the center and corners cannot be chosen). The object on the chosen side stays put and the rest move relative to it.
 
 | Chosen side | Gap direction | Position panel |
 | --- | --- | --- |
@@ -60,8 +60,16 @@ The panel title carries the current ruler unit, e.g. `Offset (mm)`. The Position
 
 | Item | What it does |
 | --- | --- |
-| Gap | The gap between objects; a negative value overlaps them. Starts at the selection's current average gap |
+| Gap | The gap between objects (Group, Auto Pair Detection); a negative value overlaps them. Starts at the selection's current average gap |
 | Preview Bounds | On: measure by visible bounds (incl. stroke/effects). Off: geometric bounds |
+
+**Artboard**
+
+Active only in Artboard mode. The panel title carries the current ruler unit.
+
+| Item | What it does |
+| --- | --- |
+| Distance | Distance from the artboard edge chosen in Key Object. Starts at the selection's current average distance |
 
 **Position**
 
@@ -113,3 +121,4 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 - v1.4.4 (20260930): Fixed an error when running with characters selected by the Type tool
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v1.4.7 (2026-10-03): Key Object is now a 3×3 anchor grid instead of radios arranged as a cross. Fixed the preview not updating when the gap or position was changed with the arrow keys. Mode and Offset, and Key Object and Artboard, now sit side by side in two columns. The distance from the artboard edge is now set in its own Artboard panel instead of sharing the Offset gap
