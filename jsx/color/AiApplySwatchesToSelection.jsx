@@ -325,10 +325,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             autoColor: { ja: "カラー未選択：自動カラーを使用します", en: "No colors selected: using auto colors" }
         },
         progress: {
-            title:    { ja: "準備しています…", en: "Preparing…" },
-            analyze:  { ja: "対象を解析しています…", en: "Analyzing selection…" },
-            snapshot: { ja: "元の状態を保存しています…", en: "Saving original state…" },
-            apply:    { ja: "カラーを適用しています…", en: "Applying colors…" }
+            title:    { ja: "準備しています...", en: "Preparing..." },
+            analyze:  { ja: "対象を解析しています...", en: "Analyzing selection..." },
+            snapshot: { ja: "元の状態を保存しています...", en: "Saving original state..." },
+            apply:    { ja: "カラーを適用しています...", en: "Applying colors..." }
         }
     };
 

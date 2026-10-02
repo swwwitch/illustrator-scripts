@@ -329,7 +329,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             recheck:    { ja: "再調査", en: "Recheck" },
             openUrl:    { ja: "開く", en: "Open" },
             openFolder: { ja: "設定フォルダーを開く", en: "Open Settings Folder" },
-            saveReport: { ja: "書き出し…", en: "Save…" }
+            saveReport: { ja: "書き出し...", en: "Save..." }
         },
         tooltip: {
             kind: {
@@ -338,8 +338,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             },
             menuLang: { ja: "リストに出す名前の言語です。", en: "Language of the names shown in the list." },
             category: {
-                ja: "メニューの最上位（ファイル、編集…）や環境設定の区分で絞り込みます。",
-                en: "Filters by top-level menu (File, Edit…) or preference section."
+                ja: "メニューの最上位（ファイル、編集...）や環境設定の区分で絞り込みます。",
+                en: "Filters by top-level menu (File, Edit...) or preference section."
             },
             keyword: {
                 ja: "名前と ID・キーに含まれる文字で絞り込みます（大文字小文字を区別しません）。正規表現も使えます。入力するたびに絞り込みます。",
@@ -411,10 +411,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             }
         },
         progress: {
-            findFiles: { ja: "設定ファイルを探しています…", en: "Looking for settings files…" },
-            readKys:   { ja: "ショートカットファイルを読み込み中…", en: "Reading shortcut files…" },
-            readPrefs: { ja: "環境設定ファイルを読み込み中…", en: "Reading preference files…" },
-            comparing: { ja: "一覧と照合しています…", en: "Comparing with the list…" }
+            findFiles: { ja: "設定ファイルを探しています...", en: "Looking for settings files..." },
+            readKys:   { ja: "ショートカットファイルを読み込み中...", en: "Reading shortcut files..." },
+            readPrefs: { ja: "環境設定ファイルを読み込み中...", en: "Reading preference files..." },
+            comparing: { ja: "一覧と照合しています...", en: "Comparing with the list..." }
         },
         alert: {
             copied:     { ja: "コピーしました。", en: "Copied." },
@@ -660,7 +660,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
         var menuLevels = commandEntry.itemName.split(MENU_LEVEL_SEPARATOR);
         var lastLevelName = menuLevels[menuLevels.length - 1] || commandEntry.commandId;
         return (lastLevelName.length > NAME_COLUMN_MAX_CHARS)
-            ? lastLevelName.substring(0, NAME_COLUMN_MAX_CHARS - 1) + "…"
+            ? lastLevelName.substring(0, NAME_COLUMN_MAX_CHARS - 1) + "..."
             : lastLevelName;
     }
 

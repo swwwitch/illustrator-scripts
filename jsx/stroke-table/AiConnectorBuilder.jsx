@@ -1020,7 +1020,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd0d3486e5f68"; /* 紹�
         },
         button: {
             manualKey:    { ja: "手動で設定", en: "Set Manually" },
-            savePreset:   { ja: "保存…", en: "Save…" },
+            savePreset:   { ja: "保存...", en: "Save..." },
             removePreset: { ja: "削除", en: "Delete" },
             cancel:       { ja: "キャンセル", en: "Cancel" }
         },

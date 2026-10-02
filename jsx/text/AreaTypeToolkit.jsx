@@ -622,7 +622,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 en: "Applies the heading preset (120% leading, left, Loose v2 kinsoku, Tight mojikumi, top alignment). Tab stops are cleared."
             },
             roleMenu: {
-                ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・上揃え）。各段落に右揃えタブ（リーダー「…」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
+                ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・上揃え）。各段落に右揃えタブ（リーダー「...」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
                 en: "Applies the menu preset (150% leading, right, Loose v2 kinsoku, Tight mojikumi, top alignment) and sets a right-aligned tab with a leader at 400pt on every paragraph. Changing the justification drops this role and clears the tab stops."
             },
             kinsoku: {

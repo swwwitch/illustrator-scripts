@@ -435,9 +435,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             }
         },
         progress: {
-            preparing: { ja: "準備中…", en: "Preparing…" },
-            tracing: { ja: "色を解析中…", en: "Analyzing Colors…" },
-            palette: { ja: "パレット生成中…", en: "Generating Palette…" },
+            preparing: { ja: "準備中...", en: "Preparing..." },
+            tracing: { ja: "色を解析中...", en: "Analyzing Colors..." },
+            palette: { ja: "パレット生成中...", en: "Generating Palette..." },
             done: { ja: "完了", en: "Done" }
         },
         group: {

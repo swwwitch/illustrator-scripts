@@ -50,7 +50,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Replace composite fonts with their component fonts](readme-en/DeCompositeFontMaker.md)
 - [Switch the selected text to the next heavier weight](readme-en/FontWeightUp.md)
 - [Compare weights of similar fonts with samples and apply one](readme-en/FontWeightPicker.md)
-- [Pick from your favorite fonts and apply one](readme-en/FavoriteFontPicker.md)
+- [Pick from your favorite fonts and apply one](readme-en/FavoriteFontPickerPalette.md)
 
 
 ## Text

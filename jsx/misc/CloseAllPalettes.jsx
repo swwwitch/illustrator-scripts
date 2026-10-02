@@ -54,10 +54,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CloseAllPalettes";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-02";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloseAllPalettes.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloseAllPalettes.md"; /* README (English) */
@@ -114,7 +114,8 @@ var PALETTES = [
     { name: "SmartDistributorPalette", engine: "smartDistributorPalette", global: "smartDistributorWindow" },
     { name: "AiAdjustVerticalGapPalette", engine: "AdjustVerticalGap", global: "__aiAdjustVerticalGapPalette" },
     { name: "DirectPrefsPalette", engine: "DirectPrefs", global: "__directPrefsPalette" },
-    { name: "DocumentFontListSelectorPalette", engine: "DocumentFontListEngine", global: "__documentFontListSelectorPalette" }
+    { name: "DocumentFontListSelectorPalette", engine: "DocumentFontListEngine", global: "__documentFontListSelectorPalette" },
+    { name: "FavoriteFontPickerPalette", engine: "FavoriteFontPickerEngine", global: "__FavoriteFontPickerPalette" }
 ];
 
 // =========================================

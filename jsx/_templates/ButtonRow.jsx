@@ -132,7 +132,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
             content: { ja: "内容", en: "Content" }
         },
         button: {
-            preferences: { ja: "設定…", en: "Settings…" },
+            preferences: { ja: "設定...", en: "Settings..." },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         }

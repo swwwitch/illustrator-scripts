@@ -2086,7 +2086,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nec5dfffce709"; /* 紹�
      */
     function shortenSampleText(text) {
         var sampleText = String(text).replace(/[\r\n\x03]+/g, " ").replace(/[ 　\t]+/g, " ").replace(/^\s+|\s+$/g, "");
-        if (sampleText.length > CONVERSION_SAMPLE_MAX_CHARS) sampleText = sampleText.substring(0, CONVERSION_SAMPLE_MAX_CHARS) + "…";
+        if (sampleText.length > CONVERSION_SAMPLE_MAX_CHARS) sampleText = sampleText.substring(0, CONVERSION_SAMPLE_MAX_CHARS) + "...";
         return sampleText;
     }
 

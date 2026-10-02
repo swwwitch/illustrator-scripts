@@ -323,9 +323,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹�
                 ja: "対象にする行を「順」列の番号で指定します（例：1-3,5）",
                 en: "Rows to include, by their numbers in the # column (e.g. 1-3,5)"
             },
-            tokenSequence: { ja: "連番（1, 2, 3…）を入れます", en: "Inserts a sequence number (1, 2, 3...)" },
+            tokenSequence: { ja: "連番（1, 2, 3...）を入れます", en: "Inserts a sequence number (1, 2, 3...)" },
             tokenSequencePadded: {
-                ja: "ゼロ埋めの連番（01, 02, 03…）を入れます",
+                ja: "ゼロ埋めの連番（01, 02, 03...）を入れます",
                 en: "Inserts a zero-padded sequence number (01, 02, 03...)"
             },
             tokenFileName: { ja: "ドキュメント名（拡張子なし）を入れます", en: "Inserts the document name without its extension" },

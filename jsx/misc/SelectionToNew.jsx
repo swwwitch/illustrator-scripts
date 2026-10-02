@@ -921,9 +921,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             },
             progress: {
                 title: { ja: "処理中", en: "Working" },
-                duplicating: { ja: "ドキュメントを複製しています…", en: "Duplicating the document..." },
-                deleting: { ja: "選択オブジェクト以外を削除しています…", en: "Removing everything but the selection..." },
-                reopening: { ja: "元のドキュメントを開き直しています…", en: "Reopening the source document..." }
+                duplicating: { ja: "ドキュメントを複製しています...", en: "Duplicating the document..." },
+                deleting: { ja: "選択オブジェクト以外を削除しています...", en: "Removing everything but the selection..." },
+                reopening: { ja: "元のドキュメントを開き直しています...", en: "Reopening the source document..." }
             }
         };
 

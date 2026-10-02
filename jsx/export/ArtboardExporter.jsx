@@ -971,7 +971,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var LABELS = {
         dialog: {
             title:         { ja: "アートボードを書き出し", en: "Export Artboards" },
-            progressTitle: { ja: "書き出し中…", en: "Exporting…" }
+            progressTitle: { ja: "書き出し中...", en: "Exporting..." }
         },
         panel: {
             selectedArtboards: { ja: "選択したアートボードの書き出し設定", en: "Export Settings for Selected Artboards" },
@@ -1049,13 +1049,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             targetAll:    { ja: "すべて", en: "All" },
             targetActive: { ja: "作業中のアートボード", en: "Active Artboard" },
             applyRange:   { ja: "適用", en: "Apply" },
-            chooseFolder: { ja: "選択…", en: "Choose…" },
+            chooseFolder: { ja: "選択...", en: "Choose..." },
             cancel:       { ja: "キャンセル", en: "Cancel" },
             ok:           { ja: "書き出し", en: "Export" }
         },
         status: {
-            preparing:  { ja: "準備中…", en: "Preparing…" },
-            cancelling: { ja: "キャンセル中…", en: "Cancelling…" },
+            preparing:  { ja: "準備中...", en: "Preparing..." },
+            cancelling: { ja: "キャンセル中...", en: "Cancelling..." },
             cancelled:  { ja: "キャンセルしました", en: "Cancelled" },
             done:       { ja: "完了", en: "Done" }
         },
@@ -1314,7 +1314,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return true;
         }
         var listedNames = existingNames.slice(0, OVERWRITE_LIST_MAX);
-        if (existingNames.length > OVERWRITE_LIST_MAX) listedNames.push("…");
+        if (existingNames.length > OVERWRITE_LIST_MAX) listedNames.push("...");
         return confirm(getLabel("alert.overwrite", [existingNames.length, listedNames.join("\n")]));
     }
 

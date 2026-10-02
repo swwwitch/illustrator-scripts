@@ -489,7 +489,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var LABELS = {
         dialog: {
             title:         { ja: "書き出すアートボード", en: "Artboards to Export" },
-            progressTitle: { ja: "PNG 書き出し中…", en: "Exporting PNG…" }
+            progressTitle: { ja: "PNG 書き出し中...", en: "Exporting PNG..." }
         },
         column: {
             number:     { ja: "#", en: "#" },
@@ -506,8 +506,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             white:       { ja: "白", en: "White" }
         },
         status: {
-            preparing:  { ja: "準備中…", en: "Preparing…" },
-            cancelling: { ja: "キャンセル中…", en: "Cancelling…" },
+            preparing:  { ja: "準備中...", en: "Preparing..." },
+            cancelling: { ja: "キャンセル中...", en: "Cancelling..." },
             cancelled:  { ja: "キャンセルしました", en: "Cancelled" },
             done:       { ja: "完了", en: "Done" }
         },

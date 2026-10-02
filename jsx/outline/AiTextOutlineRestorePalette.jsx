@@ -193,7 +193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         },
         status: {
             ready: { ja: 'テキストまたはアウトラインを選択', en: 'Select text or an outline' },
-            busy: { ja: '処理中…', en: 'Working…' },
+            busy: { ja: '処理中...', en: 'Working...' },
             doneOutline: { ja: 'アウトライン化しました', en: 'Outlined' },
             doneRestore: { ja: 'テキストを復元しました', en: 'Text restored' },
             memoLoaded: { ja: 'メモを読み込みました', en: 'Note loaded' },

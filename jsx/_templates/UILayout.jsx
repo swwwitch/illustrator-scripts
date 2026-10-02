@@ -145,7 +145,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
             name: { ja: "名前", en: "Name" }
         },
         button: {
-            load: { ja: "読み込み…", en: "Load…" },
+            load: { ja: "読み込み...", en: "Load..." },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         }

@@ -1069,7 +1069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
                 en: "Choose how the description line (但) in the template is worded."
             },
             nameConflict: {
-                ja: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 … と後ろに足していきます。",
+                ja: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 ... と後ろに足していきます。",
                 en: "What to do when a PDF with the same name already exists.\nAdd a number appends -2, -3, and so on."
             },
             documentType: {
@@ -1483,7 +1483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         var separatorIndex = displayText.indexOf("/");
         while (separatorIndex !== -1) {
             var tailText = displayText.substring(separatorIndex);
-            if (displayWidthOf(tailText) + 2 <= maxWidth) return "…" + tailText;
+            if (displayWidthOf(tailText) + 2 <= maxWidth) return "..." + tailText;
             separatorIndex = displayText.indexOf("/", separatorIndex + 1);
         }
 
@@ -1492,7 +1492,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹�
         while (startIndex < displayText.length && displayWidthOf(displayText.substring(startIndex)) + 2 > maxWidth) {
             startIndex++;
         }
-        return "…" + displayText.substring(startIndex);
+        return "..." + displayText.substring(startIndex);
     }
 
     // =========================================

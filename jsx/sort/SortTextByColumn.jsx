@@ -636,7 +636,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var columnPreviews = collectColumnPreviews(columnCount, lines);
         var columnRadios = [];
         for (var i = 0; i < columnCount; i++) {
-            var columnLabel = getLabel("radio.column").replace("%1", i + 1) + columnPreviews[i].join(", ") + "…";
+            var columnLabel = getLabel("radio.column").replace("%1", i + 1) + columnPreviews[i].join(", ") + "...";
             var columnRadio = columnRadioGroup.add("radiobutton", undefined, columnLabel);
             columnRadio.helpTip = getLabel("tooltip.column");
             columnRadios.push(columnRadio);

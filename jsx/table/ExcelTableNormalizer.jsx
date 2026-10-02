@@ -1996,7 +1996,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function normalizeSampleText(textContent) {
         if (textContent === null || typeof textContent === "undefined") return "";
         var sampleText = String(textContent).replace(/[\r\n\t]+/g, " ").replace(/^\s+|\s+$/g, "");
-        if (sampleText.length > 16) sampleText = sampleText.substring(0, 16) + "…";
+        if (sampleText.length > 16) sampleText = sampleText.substring(0, 16) + "...";
         return sampleText;
     }
 

@@ -337,7 +337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             loadFailed: { ja: "読み込みに失敗しました", en: "Failed to load" },
             noDocument: { ja: "ドキュメントが開いていません", en: "No document is open" },
             noPlaced: { ja: "配置されているリンク画像がありません", en: "No linked images found" },
-            busy: { ja: "処理中です…", en: "Working…" },
+            busy: { ja: "処理中です...", en: "Working..." },
             notWired: {
                 ja: "この操作は次のステップで有効化されます（現在は準備中）",
                 en: "This action will be enabled in a later step."

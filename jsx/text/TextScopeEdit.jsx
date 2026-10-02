@@ -406,7 +406,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
      */
     function buildListLabel(text) {
         var listLabel = text.replace(/[\r\n\x03]+/g, " ");
-        if (listLabel.length > LIST_LABEL_MAX_LENGTH) listLabel = listLabel.substring(0, LIST_LABEL_MAX_LENGTH) + "…";
+        if (listLabel.length > LIST_LABEL_MAX_LENGTH) listLabel = listLabel.substring(0, LIST_LABEL_MAX_LENGTH) + "...";
         return listLabel;
     }
 

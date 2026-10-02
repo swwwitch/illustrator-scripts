@@ -509,7 +509,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n577d8a654ec1"; /* 紹�
         },
         status: {
             summary: { ja: "{units}件 ／ {items}個", en: "{units} entries / {items} items" },
-            working: { ja: "処理中…", en: "Working..." }
+            working: { ja: "処理中...", en: "Working..." }
         },
         /* PageItem.typename の表示名。ここに無い型名はそのまま出す
            / Display names for PageItem.typename; anything missing is shown as-is */

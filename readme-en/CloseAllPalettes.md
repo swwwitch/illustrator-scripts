@@ -32,7 +32,7 @@ TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePale
 AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
 LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
-AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette
 
 ### Script info
 
@@ -40,6 +40,7 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### Update History
 
+- v1.0.5 (2026-10-02) Added FavoriteFontPickerPalette to the targets.
 - v1.0.4 (2026-09-26) Removed TextFontPanelReinvented (deleted) from the targets. Updated target names after renaming persistent palette scripts to end in "Palette".
 - v1.0.3 (2026-09-26) No longer shows an alert when no palettes are open.
 - v1.0.2 (2026-09-25) Added AiAdjustVerticalGap, DirectPrefs, DocumentFontListSelector and TextFontPanelReinvented.

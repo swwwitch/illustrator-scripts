@@ -384,7 +384,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
             add: { ja: "追加", en: "Add" },
             load: { ja: "読み込み", en: "Load" },
             register: { ja: "登録", en: "Register" },
-            folder: { ja: "フォルダー…", en: "Folder…" }
+            folder: { ja: "フォルダー...", en: "Folder..." }
         },
         /* 入力プロンプト / Prompts */
         prompt: {

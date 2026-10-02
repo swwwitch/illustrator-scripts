@@ -530,9 +530,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         /* 進捗表示 / Loading progress */
         loading: {
             title: { ja: "準備中", en: "Loading" },
-            text: { ja: "処理中…", en: "Working…" },
-            fontsRead: { ja: "フォント一覧を読み込み中…", en: "Loading fonts…" },
-            fontsSet: { ja: "フォント一覧をセット中…", en: "Applying fonts…" },
+            text: { ja: "処理中...", en: "Working..." },
+            fontsRead: { ja: "フォント一覧を読み込み中...", en: "Loading fonts..." },
+            fontsSet: { ja: "フォント一覧をセット中...", en: "Applying fonts..." },
             ready: { ja: "準備完了", en: "Ready" }
         },
 

@@ -41,7 +41,7 @@ TextCountStatsPalette / SelectionInspectorPalette / ApplyLeadingPerTextFramePale
 AiAlignToArtboardPalette / AiSmartRotateViewPalette / AutoKerningPalette / FontPresetPickerPalette / KPTSketchyPalette /
 LockHistoryPalette / PathInspectorPalette / QuickTransformPalette / TypeBasicsPalette /
 ArtboardNavigatorPalette / LEConvertToShapePalette / AiSmartPathfinderPalette / SmartDistributorPalette /
-AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette
+AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalette / FavoriteFontPickerPalette
 
 ### スクリプト情報
 
@@ -49,6 +49,7 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### 更新履歴
 
+- v1.0.5（2026-10-02）FavoriteFontPickerPalette を対象に追加。
 - v1.0.4（2026-09-26）TextFontPanelReinvented（削除）を対象から外した。常駐パレットのファイル名を末尾 Palette に改名したのに合わせて対象名を更新。
 - v1.0.3（2026-09-26）開いているパレットが無いときのアラートを表示しないように変更。
 - v1.0.2（2026-09-25）AiAdjustVerticalGap / DirectPrefs / DocumentFontListSelector / TextFontPanelReinvented を対象に追加。

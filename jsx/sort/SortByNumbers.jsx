@@ -1092,7 +1092,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         numberValues.sort(function (a, b) {
             return a - b;
         });
-        return (numberValues.length > 3) ? numberValues.slice(0, 3).join(", ") + "…" : numberValues.join(", ");
+        return (numberValues.length > 3) ? numberValues.slice(0, 3).join(", ") + "..." : numberValues.join(", ");
     }
 
     /**

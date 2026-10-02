@@ -4379,7 +4379,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             function normalizePreviewSample(text) {
                 if (text == null) return "";
                 var sample = String(text).replace(/[\r\n]+/g, " ").replace(/[ 　\t]+/g, " ").replace(/^\s+|\s+$/g, "");
-                if (sample.length > PREVIEW_MAX_CHARS) sample = sample.substring(0, PREVIEW_MAX_CHARS) + "…";
+                if (sample.length > PREVIEW_MAX_CHARS) sample = sample.substring(0, PREVIEW_MAX_CHARS) + "...";
                 return sample;
             }
 

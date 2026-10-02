@@ -704,7 +704,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
         },
         /* 進捗表示 / Progress window */
         progress: {
-            title: { ja: "流し込み中…", en: "Merging…" }
+            title: { ja: "流し込み中...", en: "Merging..." }
         },
         /* ヘルプチップ / Tooltips */
         tooltip: {
@@ -729,7 +729,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
                 en: "The imported data.\nLine 1 is the header row; each line after it becomes one artboard."
             },
             artboardNameSample: {
-                ja: "各アートボードに実際に付く名前です。\n値が空の行は Data_1、Data_2… になります。",
+                ja: "各アートボードに実際に付く名前です。\n値が空の行は Data_1、Data_2... になります。",
                 en: "The name each artboard actually gets.\nRows with an empty value fall back to Data_1, Data_2, and so on."
             },
             sampleValue: {
@@ -848,7 +848,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
      */
     function truncateForDisplay(fullText) {
         var displayText = String(fullText);
-        return (displayText.length > SAMPLE_VALUE_MAX_CHARS) ? (displayText.substring(0, SAMPLE_VALUE_MAX_CHARS) + "…") : displayText;
+        return (displayText.length > SAMPLE_VALUE_MAX_CHARS) ? (displayText.substring(0, SAMPLE_VALUE_MAX_CHARS) + "...") : displayText;
     }
 
     /**

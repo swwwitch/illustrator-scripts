@@ -310,8 +310,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
                 en: "Locked to \"Current artboard\" when the document has just one artboard. In that mode, objects outside every artboard are left where they are"
             },
             includeArtboardNumber: {
-                ja: "レイヤー名の先頭にアートボードの通し番号（1, 2, 3…）を付けます",
-                en: "Prefixes the layer name with the artboard number (1, 2, 3…)"
+                ja: "レイヤー名の先頭にアートボードの通し番号（1, 2, 3...）を付けます",
+                en: "Prefixes the layer name with the artboard number (1, 2, 3...)"
             },
             includeArtboardName: {
                 ja: "レイヤー名にアートボード名を含めます。名前が空のときは「アートボード」を使います",
@@ -700,7 +700,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
                 layerNameSeparatorIndex: getSeparatorIndex()
             });
             if (sampleLayerName.length > LAYER_NAME_PREVIEW_MAX_LENGTH) {
-                sampleLayerName = sampleLayerName.substring(0, LAYER_NAME_PREVIEW_MAX_LENGTH) + "…";
+                sampleLayerName = sampleLayerName.substring(0, LAYER_NAME_PREVIEW_MAX_LENGTH) + "...";
             }
             return labelText("fieldLabel.layerNamePreview") + sampleLayerName;
         }

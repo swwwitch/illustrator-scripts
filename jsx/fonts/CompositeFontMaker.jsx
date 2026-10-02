@@ -952,7 +952,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
      */
     function describeCustomSet(ranges) {
         var charList = rangesToText(ranges);
-        return (charList.length > CUSTOM_TOOLTIP_CHARS) ? charList.substr(0, CUSTOM_TOOLTIP_CHARS) + "…" : charList;
+        return (charList.length > CUSTOM_TOOLTIP_CHARS) ? charList.substr(0, CUSTOM_TOOLTIP_CHARS) + "..." : charList;
     }
 
     /**
@@ -1830,7 +1830,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0f78458ddd3"; /* 紹�
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
             create: { ja: "作成", en: "Create" },
-            customChars: { ja: "文字…", en: "Chars…" }
+            customChars: { ja: "文字...", en: "Chars..." }
         },
         alert: {
             variableFont: {

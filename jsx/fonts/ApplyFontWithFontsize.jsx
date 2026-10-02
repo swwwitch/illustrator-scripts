@@ -462,8 +462,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         },
         dialog: {
             progressTitle: {
-                ja: "フォントを適用中…",
-                en: "Applying fonts…"
+                ja: "フォントを適用中...",
+                en: "Applying fonts..."
             },
             resultTitle: {
                 ja: "適用結果",
