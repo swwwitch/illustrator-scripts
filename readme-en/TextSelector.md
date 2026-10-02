@@ -12,6 +12,8 @@
 
 Selects text frames across the document by a combination of conditions.
 
+<img alt="The Select Text dialog" src="../png/ss-906-1398-144-20261003-073254-s.png" width="50%" />
+
 ### Features
 
 - Font Attributes: checkboxes for family, style, font size and fill color, using the selected text as the reference (every checked attribute must match)
@@ -25,10 +27,23 @@ Selects text frames across the document by a combination of conditions.
 2. Run the script.
 3. Set the conditions and the post-processing, then run it.
 
+- The top of the dialog shows how many texts the current conditions select.
+- Option-click a Font Attributes checkbox to check all; Option-click again to check all but that one.
+- In the bulk edit field, insert line breaks with the Paragraph Break / Forced Line Break buttons or Shift+Enter (a forced line break shows as `@#`).
+
+#### Keyboard shortcuts
+
+| Keys | Action |
+|---|---|
+| Option+W / E / T | Toggle Point Text / Area Text / Path Text |
+| Option+A / I / B / D / R | Exact Match / Partial Match / Starts With / Ends With / Regular Expression |
+
+They do not work while typing in the search field.
+
 ### Notes
 
 - When moving to a layer, the lock and visibility state of existing layers is restored.
-- Bulk edit replaces the contents while keeping the `characterAttributes` intact.
+- Bulk edit replaces the contents of the texts at once. Character formatting stays by position, and any text beyond the original length takes the formatting of the original last character. Empty texts are left unchanged.
 
 ### Article (Japanese)
 
@@ -48,4 +63,4 @@ https://note.com/dtp_tranist/n/n76f1e0937088
 - v1.2.14 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.2.15 (2026-10-03) When several selected texts differ in font or other attributes, the attribute preview now shows “Mixed” instead of the first text's value
 - v1.2.16 (2026-10-03) Select by String is now disabled when several texts are selected, so the search field no longer grows
-- v1.3.0 (2026-10-03) The top of the dialog now shows the number of targets, as in “Target texts: 3”. The search field is now multiline and taller. Select by Attribute is now Select by Font Attributes, with checkboxes for font family, style, font size and fill color (combinations are matched by the script, not Illustrator's built-in commands). Removed Opacity. Select by String gained a None option and now combines with the font attributes. Option-click an attribute checkbox to check all; Option-click again to check all but that one. After Selection and the string options are laid out in two columns. None became None (select only), and the destination layer name is now editable. Text Type is now a set of checkboxes that filter and combine with the attribute and string options (all on by default; Option+T for path text). Bulk edit is available only when a Select by String option is chosen, and supports paragraph and forced line breaks via buttons and Shift+Enter. Reviewed the UI wording and tooltips, and renamed the panels to Artboard, Text Type, Font Attributes and String
+- v1.3.0 (2026-10-03) The top of the dialog now shows the number of targets, as in “Target texts: 3”. The search field is now multiline and taller. Select by Attribute is now Select by Font Attributes, with checkboxes for font family, style, font size and fill color (combinations are matched by the script, not Illustrator's built-in commands). Removed Opacity. Select by String gained a None option and now combines with the font attributes. Option-click an attribute checkbox to check all; Option-click again to check all but that one. After Selection and the string options are laid out in two columns. None became None (select only), and the destination layer name is now editable. Text Type is now a set of checkboxes that filter and combine with the attribute and string options (all on by default; Option+T for path text). Bulk edit is available only when a Select by String option is chosen, and supports paragraph and forced line breaks via buttons and Shift+Enter. Reviewed the UI wording and tooltips, and renamed the panels to Artboard, Text Type, Font Attributes and String. Shortcut keys now appear at the end of the tooltips. Cleaned up the code (the dialog is built per panel, and radios and checkboxes come from tables). Fixed bulk edit giving the whole text the formatting of its first character
