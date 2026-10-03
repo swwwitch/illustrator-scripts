@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontCatalogGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.9";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.10";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontCatalogGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalogGenerator.md"; /* README (English) */
@@ -1314,7 +1314,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var fontSizeGroup = displayPanel.add("group");
         fontSizeGroup.orientation = "row";
 
-        var textUnitLabel = getCurrentTextUnitLabel();
+        /* 文字単位は欄の中に出す（「12 pt」の形）/ the text unit is shown inside the field ("12 pt") */
+        var textUnitSuffix = " " + getCurrentTextUnitLabel();
 
         // ラベル末尾の「:」を除去（ja/en両対応） / Remove trailing colon from label
         fontSizeGroup.add("statictext", undefined, labelText("labelFontSize"));
@@ -1327,13 +1328,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         fontSizeStepperGroup.spacing = 0;
         fontSizeStepperGroup.margins = 0;
         /* 文字サイズは0以下にできないので1で止める / font size cannot go to zero */
-        var fontSizeStepper = addStepper(fontSizeStepperGroup, function () { return fontSizeInput; }, { step: 1, min: 1 });
-        var fontSizeInput = fontSizeStepperGroup.add("edittext", undefined, formatNumberForDisplay(defaultFontSizeDisplay));
+        var fontSizeStepper = addStepper(fontSizeStepperGroup, function () { return fontSizeInput; }, { step: 1, min: 1, unit: textUnitSuffix });
+        var fontSizeInput = fontSizeStepperGroup.add("edittext", undefined, formatNumberForDisplay(defaultFontSizeDisplay) + textUnitSuffix);
         fontSizeInput.helpTip = getLabel("tipFontSize");
-        fontSizeInput.characters = 3;
+        /* 欄の右の単位表示を外したぶん、単位が切れないよう2文字広げる / widened by 2 into the room of the removed unit label */
+        fontSizeInput.characters = 5;
         bindSteppedArrowKeys(fontSizeInput, fontSizeStepper);
-
-        fontSizeGroup.add("statictext", undefined, "(" + textUnitLabel + ")");
 
         // --- 表示オプション / Display options ---
         var displayOptionGroup = rightColumn.add("panel", undefined, getLabel("panelFontNameDisplay"));
@@ -1502,7 +1502,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         if (dialog.show() !== 1) return;
 
         var inputStr = sampleTextInput.text;
-        var fontSizeInputValue = Number(fontSizeInput.text); // value in current text unit
+        var fontSizeInputValue = parseFloat(fontSizeInput.text); // value in current text unit (the unit suffix is ignored)
         var fontSize = currentTextUnitToPt(fontSizeInputValue); // internal pt
 
         var showFontName = showFontNameCheckbox.value === true;

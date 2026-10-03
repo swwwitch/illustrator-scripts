@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtb
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeArtboardsAll.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtboardsAll.md"; /* README (English) */
@@ -954,18 +954,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /**
-     * 単位を括弧で添えたパネル名を返す（日本語は全角括弧、英語は半角）
-     * @param {Object} labelSet - パネル名のラベル
-     * @param {string} unitLabel - 単位の表示ラベル
-     * @returns {string} 単位付きのパネル名
-     */
-    function panelTitleWithUnit(labelSet, unitLabel) {
-        return (uiLang === "ja")
-            ? getLabel(labelSet) + "（" + unitLabel + "）"
-            : getLabel(labelSet) + " (" + unitLabel + ")";
-    }
-
     // =========================================
     // エラー処理 / Error handling
     // =========================================
@@ -1246,11 +1234,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 項目名と数値入力欄の行を追加する
      * @param {Group} parentGroup - 追加先のグループ
      * @param {Object} labelSet - 項目名のラベル
-     * @param {string} initialText - 入力欄の初期値
-     * @param {Function} onStep - ∧∨・↑↓キーで増減したあとに呼ぶ関数
+     * @param {string} initialText - 入力欄の初期値（単位なしの数値文字列）
+     * @param {string} unitSuffix - 欄の中に出す単位（例 " mm"）
+     * @param {Function} onStep - ∧∨・↑↓キーで増減したあと、直接入力を確定したあとに呼ぶ関数
      * @returns {{label: StaticText, input: EditText}} 追加した項目名と入力欄
      */
-    function addSizeRow(parentGroup, labelSet, initialText, onStep) {
+    function addSizeRow(parentGroup, labelSet, initialText, unitSuffix, onStep) {
         var sizeRowGroup = parentGroup.add("group");
         sizeRowGroup.orientation = "row";
         var sizeLabel = sizeRowGroup.add("statictext", undefined, labelText(labelSet));
@@ -1263,14 +1252,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stepperInputGroup.spacing = 0;
         stepperInputGroup.margins = 0;
         var sizeInput;
-        var stepperGroup = addStepper(stepperInputGroup, function () { return sizeInput; }, {
-            step: 1, min: 0,
+        var sizeStepOptions = {
+            step: 1, min: 0, unit: unitSuffix,
             onStep: function () { onStep(); }
-        });
-        sizeInput = stepperInputGroup.add("edittext", undefined, initialText);
+        };
+        var stepperGroup = addStepper(stepperInputGroup, function () { return sizeInput; }, sizeStepOptions);
+        sizeInput = stepperInputGroup.add("edittext", undefined, initialText + unitSuffix);
         sizeInput.characters = SIZE_FIELD_CHARACTERS;
         sizeInput.helpTip = getLabel(LABELS.tooltip.sizeField);
         bindSteppedArrowKeys(sizeInput, stepperGroup);
+        /* 単位を省いて入れた値も「数値 + 単位」にそろえ、換算後の値でプレビューする / append the unit and preview the converted value */
+        sizeInput.onChange = function () {
+            var value = evaluateArithmetic(sizeInput.text, unitSuffix);
+            if (isNaN(value)) return;
+            writeSteppedValue(sizeInput, value, sizeStepOptions);
+            onStep();
+        };
         return { label: sizeLabel, input: sizeInput };
     }
 
@@ -1350,10 +1347,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rightColumn = addColumn(columnsGroup);
 
         /* サイズパネル：作業アートボードの今のサイズを初期値にする / Size panel, seeded with the active artboard */
-        var sizeGroup = addTitledPanel(leftColumn, panelTitleWithUnit(LABELS.panel.size, unitInfo.label), "column");
+        /* 単位は欄の中に出す（「210 mm」の形） / the unit is shown inside the fields */
+        var sizeGroup = addTitledPanel(leftColumn, getLabel(LABELS.panel.size), "column");
         sizeGroup.spacing = SIZE_ROW_SPACING;
-        var widthRow = addSizeRow(sizeGroup, LABELS.fieldLabel.width, formatSizeValue(Math.abs(activeRect[2] - activeRect[0]), unitInfo), applyResizePreview);
-        var heightRow = addSizeRow(sizeGroup, LABELS.fieldLabel.height, formatSizeValue(Math.abs(activeRect[1] - activeRect[3]), unitInfo), applyResizePreview);
+        var unitSuffix = " " + unitInfo.label;
+        var widthRow = addSizeRow(sizeGroup, LABELS.fieldLabel.width, formatSizeValue(Math.abs(activeRect[2] - activeRect[0]), unitInfo), unitSuffix, applyResizePreview);
+        var heightRow = addSizeRow(sizeGroup, LABELS.fieldLabel.height, formatSizeValue(Math.abs(activeRect[1] - activeRect[3]), unitInfo), unitSuffix, applyResizePreview);
         var widthInput = widthRow.input;
         var heightInput = heightRow.input;
         equalizeLabelWidths(resizeDialog, [widthRow.label, heightRow.label]);

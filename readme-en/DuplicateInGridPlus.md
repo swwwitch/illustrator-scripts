@@ -14,7 +14,7 @@ Duplicates the selected object with a given count and spacing. Besides a grid (r
 
 The dialog is laid out in two columns: Count and Repeat Method on the left, Gap, Direction, and Fill on the right. Every change refreshes a live preview, so the result can be checked before committing. The preview is drawn on a dedicated "_preview" layer and cleaned up on both OK and Cancel.
 
-Spacing is entered in the current ruler unit (the unit set in Preferences) and converted to points internally. The unit in the Gap panel title shows which one is active.
+Spacing is entered in the current ruler unit (the unit set in Preferences) and converted to points internally. The fields show the active unit inside, as in "10 mm".
 
 <img alt="The Duplicate & Arrange dialog" src="../png/ss-876-854-144-20260815-202428.png" width="50%" />
 
@@ -95,6 +95,7 @@ The two options are mutually exclusive — turning one on turns the other off. W
 
 ## Changelog
 
+- v2.1.8 (2026-10-03): The gap fields now show the unit inside; removed the unit from the panel title
 - v2.1.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v2.1.6 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v2.1.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open

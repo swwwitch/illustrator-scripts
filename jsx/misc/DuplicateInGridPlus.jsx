@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateI
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md"; /* README (English) */
@@ -146,6 +146,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
 
     var FIELD_ROW_SPACING = 20;                 /* 入力欄と連動アイコンの間隔 / gap between fields and the link icon */
     var FIELD_CHARS       = 4;                  /* 数値入力欄の文字数 / width of numeric fields */
+    var GAP_FIELD_CHARS   = 5;                  /* 間隔の欄の文字数（欄の中に単位を出すぶん広め）/ width of the gap fields, which show the unit inside */
     var ZOOM_SLIDER_WIDTH = 240;                /* ズームスライダーの幅 / zoom slider width */
     var ZOOM_GROUP_MARGINS = [0, 0, 0, 10];     /* ズームの行の余白 / zoom row margins */
 
@@ -1392,7 +1393,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
         panel: {
             repeatCount: { ja: "繰り返し数", en: "Count" },
             repeatMethod: { ja: "繰り返し方式", en: "Repeat Method" },
-            gap: { ja: "間隔（{unit}）", en: "Gap ({unit})" },
+            gap: { ja: "間隔", en: "Gap" },
             direction: { ja: "方向", en: "Direction" },
             fill: { ja: "敷き詰め", en: "Fill" }
         },
@@ -1605,11 +1606,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
      * 項目名付きの数値入力欄を追加する（左の∧∨と上下キーで増減できる。増減後は onChanging を呼ぶ）
      * @param {Group} parentGroup - 追加先
      * @param {string} fieldKey - LABELS.fieldLabel と LABELS.tooltip に共通のキー
-     * @param {string} initialText - 初期値
+     * @param {string} initialText - 初期値（単位なし）
      * @param {boolean} isInteger - 整数だけにするなら true
+     * @param {string} [unitSuffix] - 欄の中に添える単位（例 " mm"）。省略時は単位なし
      * @returns {EditText} 追加した入力欄
      */
-    function addNumericField(parentGroup, fieldKey, initialText, isInteger) {
+    function addNumericField(parentGroup, fieldKey, initialText, isInteger, unitSuffix) {
         var fieldGroup = parentGroup.add("group");
         fieldGroup.add("statictext", undefined, labelText("fieldLabel." + fieldKey));
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
@@ -1629,15 +1631,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
             stepOptions.integer = true;
             stepOptions.min = REPEAT_COUNT_MIN;
         }
+        if (unitSuffix) stepOptions.unit = unitSuffix;
         var numericInput;
         var stepperGroup = addStepper(stepperInputGroup, function () { return numericInput; }, stepOptions);
-        numericInput = stepperInputGroup.add("edittext", undefined, initialText);
+        numericInput = stepperInputGroup.add("edittext", undefined, initialText + (unitSuffix || ""));
         numericInput.helpTip = getLabel("tooltip." + fieldKey);
-        numericInput.characters = FIELD_CHARS;
+        numericInput.characters = unitSuffix ? GAP_FIELD_CHARS : FIELD_CHARS;
         numericInput.stepperGroup = stepperGroup;
         if (isInteger) numericInput.isInteger = true;
         bindSteppedArrowKeys(numericInput, stepperGroup); /* ↑↓キーも∧∨と同じ処理で増減 / arrow keys share the stepper's logic */
+        if (unitSuffix) {
+            /* 数値だけで確定したら単位を書き足す（onChange より先に呼ばれる）/ append the unit to a bare number on commit (runs before onChange) */
+            numericInput.addEventListener("change", function () { appendUnitToPlainNumber(numericInput, unitSuffix); });
+        }
         return numericInput;
+    }
+
+    /**
+     * 単位の付いていない数値だけの入力に、欄の単位を書き足す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " mm"）
+     * @returns {void}
+     */
+    function appendUnitToPlainNumber(numberInput, unitSuffix) {
+        var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+        if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmedText)) numberInput.text = trimmedText + unitSuffix;
     }
 
     /**
@@ -1646,19 +1664,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
      * @param {string} horizontalKey - 横の入力欄のキー（LABELS.fieldLabel / LABELS.tooltip）
      * @param {string} verticalKey - 縦の入力欄のキー（LABELS.fieldLabel / LABELS.tooltip）
      * @param {string} linkTooltipKey - 連動アイコンの tooltip のキー
-     * @param {string} initialText - 入力欄の初期値
+     * @param {string} initialText - 入力欄の初期値（単位なし）
      * @param {boolean} isInteger - 整数だけにするなら true
+     * @param {string} [unitSuffix] - 欄の中に添える単位（例 " mm"）。省略時は単位なし
      * @returns {{horizontalInput: EditText, verticalInput: EditText, linkToggle: Group}} 追加したコントロール（切り替え時の処理は linkToggle.handleToggle に入れる）
      */
-    function addLinkedFieldPair(parentPanel, horizontalKey, verticalKey, linkTooltipKey, initialText, isInteger) {
+    function addLinkedFieldPair(parentPanel, horizontalKey, verticalKey, linkTooltipKey, initialText, isInteger, unitSuffix) {
         var pairRow = parentPanel.add("group");
         setupRow(pairRow, "left", FIELD_ROW_SPACING);
         /* 2つの入力欄の右、上下中央にリンクアイコンを置く / Link icon to the right of the two fields, vertically centred */
         pairRow.alignChildren = ["left", "center"];
 
         var fieldsColumn = addColumnGroup(pairRow);
-        var horizontalInput = addNumericField(fieldsColumn, horizontalKey, initialText, isInteger);
-        var verticalInput = addNumericField(fieldsColumn, verticalKey, initialText, isInteger);
+        var horizontalInput = addNumericField(fieldsColumn, horizontalKey, initialText, isInteger, unitSuffix);
+        var verticalInput = addNumericField(fieldsColumn, verticalKey, initialText, isInteger, unitSuffix);
 
         var linkToggle = addLinkToggle(pairRow, true, function () {
             if (linkToggle.handleToggle) linkToggle.handleToggle();
@@ -2673,10 +2692,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
         var methodRandomRadio = addLabeledControl(repeatMethodPanel, "radiobutton", "methodRandom");
         methodGridRadio.value = true;
 
-        /* 間隔（現在の定規単位で入力し、内部ではptへ変換）
-           Gap (entered in the current ruler unit, converted to points internally) */
-        var gapPanel = addPanel(rightColumnGroup, getLabel("panel.gap", { unit: rulerUnitLabel }));
-        var gapFields = addLinkedFieldPair(gapPanel, "gapHorizontal", "gapVertical", "gapLink", "10", false);
+        /* 間隔（現在の定規単位で入力し、内部ではptへ変換。単位は欄の中に出す）
+           Gap (entered in the current ruler unit, converted to points internally; the unit shows inside the fields) */
+        var gapPanel = addPanel(rightColumnGroup, getLabel("panel.gap"));
+        var gapFields = addLinkedFieldPair(gapPanel, "gapHorizontal", "gapVertical", "gapLink", "10", false, " " + rulerUnitLabel);
 
         /* 方向 / Direction */
         var directionPanel = addPanel(rightColumnGroup, getLabel("panel.direction"));

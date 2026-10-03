@@ -28,6 +28,7 @@ With two objects selected, treats the larger as the container and the smaller as
 
 ### Update History
 
+- v1.5.9 (2026-10-03) Number fields now show the unit inside the field; removed the unit beside the fields
 - v1.5.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.5.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.5.6 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones

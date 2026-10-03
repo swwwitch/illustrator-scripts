@@ -85,16 +85,16 @@ The panel has three input fields.
 | Field | Content |
 | --- | --- |
 | Size | Font size |
-| Leading | The effective leading value (size × leading %) |
-| Leading % | The paragraph's auto-leading amount |
+| Leading (the field showing e.g. "14 pt") | The effective leading value (size × auto-leading amount) |
+| Leading (the field showing e.g. "175%") | The paragraph's auto-leading amount |
 
 The percentage you enter is set as the paragraph's `autoLeadingAmount`, and auto leading is turned ON at the same time. In other words, Illustrator's Character panel always shows leading as "Auto", and **the leading follows automatically when you change the font size**. There is no need to reapply the leading.
 
-If you type a pt value directly into the Leading field, the percentage is calculated back from the font size. The Leading field and the Leading % field both lead to the same result, whichever one you type into.
+If you type a value directly into the pt Leading field, the percentage is calculated back from the font size. The two Leading fields both lead to the same result, whichever one you type into.
 
 Note that right after the selection is re-read, the Leading field shows the **actual leading value of the selected text**, not the calculated size × %.
 
-Units follow the document's unit setting (`text/units`). In a Q/H environment the Size field is labeled "Q" and the Leading field "H".
+Units follow the document's unit setting (`text/units`). Each field shows its unit inside, as in "12 pt" or "175%"; in a Q/H environment the Size field shows "Q" and the Leading field "H".
 
 ### Leading basis
 
@@ -235,6 +235,7 @@ The two lists on each tab (Font only / Details) are stacked at the same position
 
 ### Update History
 
+- v1.4.3 (2026-10-03) The number fields now show their units inside; removed the units from the labels and beside the fields
 - v1.4.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.4.1 (2026-09-28) With the type unit set to feet/inches, font size and leading now convert by the unit's length (a foot) instead of an inch
 - v1.4.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)

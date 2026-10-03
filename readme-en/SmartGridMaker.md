@@ -73,6 +73,7 @@ The Artboard tab is hidden when the script starts from a selected rectangle; mar
 
 ### Changelog
 
+- v1.7.7 (2026-10-03): Number fields now show the unit inside the field; removed the unit from the panel title and beside the fields
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool

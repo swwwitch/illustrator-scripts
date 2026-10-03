@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeO
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RandomizeObjects";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.3.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeObjects.md"; /* README (English) */
@@ -48,10 +48,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     // =========================================
 
     /* チェックをONにしたときに自動入力する値 / Value filled in when a checkbox is turned on */
-    var DEFAULT_RANGE_TEXT = "20";
+    var DEFAULT_RANGE_VALUE = 20;
 
-    /* 移動距離の単位表記（内部の計算は常にpt）/ Unit shown in the distance panel (values are always pt) */
-    var DISTANCE_UNIT_LABEL = "pt";
+    /* 移動距離の欄に出す単位（内部の計算は常にpt）/ Unit shown in the distance fields (values are always pt) */
+    var DISTANCE_UNIT_SUFFIX = " pt";
 
     /* 回転角の上限（°）/ Maximum rotation angle (deg) */
     var ROTATE_RANGE_MAX = 180;
@@ -157,7 +157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var NUMERIC_FIELD_CHARS    = 4;                /* 数値入力欄の文字数（＝最小幅）/ width of a numeric field, in characters */
+    var NUMERIC_FIELD_CHARS    = 5;                /* 数値入力欄の文字数（＝最小幅）/ width of a numeric field, in characters */
     var SCALE_LABEL_WIDTH      = 60;               /* スケールパネルのラベル幅 / label width in the scale panel */
     var OPTIONS_LABEL_WIDTH    = 80;               /* オプションパネルのラベル幅 / label width in the options panel */
     var REPOSITION_BUTTON_SIZE = [120, 24];        /* 再配置ボタンのサイズ / size of the repositioning buttons */
@@ -194,11 +194,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @param {Panel|Group} parentContainer - 追加先
      * @param {string} rowLabel - チェックボックスのラベル
      * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
-     * @param {string} unitText - 入力欄の後ろに添える単位（不要なら空文字）
+     * @param {string} unitSuffix - 入力欄の中で数値に続ける単位（例 " pt"・"%"。不要なら空文字）
      * @param {string} [tooltipText] - チェックボックスと入力欄に付けるツールチップ
      * @returns {object} { check: Checkbox, field: EditText }
      */
-    function addNumericFieldRow(parentContainer, rowLabel, labelWidth, unitText, tooltipText) {
+    function addNumericFieldRow(parentContainer, rowLabel, labelWidth, unitSuffix, tooltipText) {
         var numericFieldRow = parentContainer.add("group");
         setupRow(numericFieldRow, "left", 6);
 
@@ -218,11 +218,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
            ranges stay at 0 or more; after stepping, run the same handler as typing (link, slider and preview) */
         var stepperGroup = addStepper(stepperInputGroup, function () { return rangeField; }, {
             min: 0,
+            unit: unitSuffix,
             onStep: function (numberInput) { if (numberInput.onChanging) numberInput.onChanging(); }
         });
-        rangeField = stepperInputGroup.add("edittext", undefined, "0");
+        rangeField = stepperInputGroup.add("edittext", undefined, "0" + unitSuffix);
         rangeField.characters = NUMERIC_FIELD_CHARS;
         rangeField.stepperGroup = stepperGroup;
+        rangeField.unitSuffix = unitSuffix; /* setRangeFieldValue() で単位を付けて書き込む / used by setRangeFieldValue() */
         if (tooltipText) rangeField.helpTip = tooltipText;
         /* ↑↓キーも∧∨と同じ処理で増減する / arrow keys share the stepper's logic */
         bindSteppedArrowKeys(rangeField, stepperGroup);
@@ -230,9 +232,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         /* 初期状態はOFF・入力欄はディム / Every row starts unchecked and dimmed */
         setRangeFieldEnabled(rangeField, false);
 
-        if (unitText) numericFieldRow.add("statictext", undefined, unitText);
-
         return { check: rangeCheckbox, field: rangeField };
+    }
+
+    /**
+     * 数値入力欄に、欄の単位を付けて値を書き込む（「20 pt」「50%」の形）
+     * @param {EditText} rangeField - addNumericFieldRow() で作った入力欄
+     * @param {number} value - 書き込む数値
+     * @returns {void}
+     */
+    function setRangeFieldValue(rangeField, value) {
+        rangeField.text = String(value) + (rangeField.unitSuffix || "");
     }
 
     /**
@@ -1285,7 +1295,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         panel: {
             distance: { ja: "移動距離", en: "Distance" },
             color: { ja: "カラー", en: "Color" },
-            scale: { ja: "スケール（%）", en: "Scale (%)" },
+            scale: { ja: "スケール", en: "Scale" },
             options: { ja: "オプション", en: "Options" }
         },
         checkbox: {
@@ -1429,7 +1439,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             setRangeFieldEnabled(rangeField, rangeCheckbox.value);
             /* ONにしたときだけ既定値を入れる（ここではプレビューを走らせない）/ Fill the default on enable only; no preview here */
             if (rangeCheckbox.value && fieldOptions.fillDefaultOnEnable) {
-                rangeField.text = DEFAULT_RANGE_TEXT;
+                setRangeFieldValue(rangeField, DEFAULT_RANGE_VALUE);
                 syncLinkedField();
                 syncSlider();
             }
@@ -1455,7 +1465,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             setRangeFieldEnabled(rangeField, true);
 
             isSyncingSlider = true;
-            rangeField.text = Math.round(rangeSlider.value).toString();
+            setRangeFieldValue(rangeField, Math.round(rangeSlider.value));
             isSyncingSlider = false;
 
             onChange();
@@ -2405,9 +2415,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @param {string} secondaryLabel - 2つ目（縦・高さ）のラベル
      * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
      * @param {object} axisTooltips - primary / secondary / link のツールチップ
+     * @param {string} unitSuffix - 入力欄の中で数値に続ける単位（例 " pt"・"%"）
      * @returns {object} { panel, checkX, fieldX, checkY, fieldY, linkToggle, onLinkToggle }（onLinkToggle は結線時に入れる）
      */
-    function buildAxisPairPanel(parentColumn, panelTitle, primaryLabel, secondaryLabel, labelWidth, axisTooltips) {
+    function buildAxisPairPanel(parentColumn, panelTitle, primaryLabel, secondaryLabel, labelWidth, axisTooltips, unitSuffix) {
         if (!axisTooltips) axisTooltips = {};
         var axisPanel = addPanel(parentColumn, panelTitle);
 
@@ -2418,8 +2429,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         axisFieldColumn.orientation = "column";
         axisFieldColumn.alignChildren = ["left", "center"];
 
-        var primaryField = addNumericFieldRow(axisFieldColumn, primaryLabel, labelWidth, "", axisTooltips.primary);
-        var secondaryField = addNumericFieldRow(axisFieldColumn, secondaryLabel, labelWidth, "", axisTooltips.secondary);
+        var primaryField = addNumericFieldRow(axisFieldColumn, primaryLabel, labelWidth, unitSuffix, axisTooltips.primary);
+        var secondaryField = addNumericFieldRow(axisFieldColumn, secondaryLabel, labelWidth, unitSuffix, axisTooltips.secondary);
 
         var axisControls = {
             panel: axisPanel,
@@ -2447,7 +2458,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     function buildDistancePanel(parentColumn) {
         var distanceControls = buildAxisPairPanel(
             parentColumn,
-            getLabel("panel.distance") + " (" + DISTANCE_UNIT_LABEL + ")",
+            getLabel("panel.distance"),
             getLabel("checkbox.horizontal"),
             getLabel("checkbox.vertical"),
             0,
@@ -2455,7 +2466,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
                 primary: getLabel("tooltip.distanceHorizontal"),
                 secondary: getLabel("tooltip.distanceVertical"),
                 link: getLabel("tooltip.distanceLink")
-            }
+            },
+            DISTANCE_UNIT_SUFFIX
         );
 
         /* 再配置ボタンはパネル幅いっぱいに広げず中央に置く / Keep the buttons centered instead of filling the panel */
@@ -2510,7 +2522,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
                 primary: getLabel("tooltip.scaleWidth"),
                 secondary: getLabel("tooltip.scaleHeight"),
                 link: getLabel("tooltip.scaleLink")
-            }
+            },
+            "%"
         );
     }
 
@@ -2725,12 +2738,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @returns {void}
      */
     function clearRangeFields(dialogControls) {
-        dialogControls.distance.fieldX.text = "0";
-        dialogControls.distance.fieldY.text = "0";
-        dialogControls.scale.fieldX.text = "0";
-        dialogControls.scale.fieldY.text = "0";
-        dialogControls.rotate.field.text = "0";
-        dialogControls.opacity.field.text = "0";
+        setRangeFieldValue(dialogControls.distance.fieldX, 0);
+        setRangeFieldValue(dialogControls.distance.fieldY, 0);
+        setRangeFieldValue(dialogControls.scale.fieldX, 0);
+        setRangeFieldValue(dialogControls.scale.fieldY, 0);
+        setRangeFieldValue(dialogControls.rotate.field, 0);
+        setRangeFieldValue(dialogControls.opacity.field, 0);
         syncSliders(dialogControls);
     }
 
@@ -2745,8 +2758,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     function bindActionButtons(dialogControls, dialogButtons, session, runPreview) {
         dialogControls.distance.gatherButton.onClick = createGuardedHandler("alert.forceError", function () {
             gatherItemsToCenter(session.baseStates);
-            dialogControls.distance.fieldX.text = "0";
-            dialogControls.distance.fieldY.text = "0";
+            setRangeFieldValue(dialogControls.distance.fieldX, 0);
+            setRangeFieldValue(dialogControls.distance.fieldY, 0);
             app.redraw();
         });
 
@@ -2764,8 +2777,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             }
 
             /* 実際に使った範囲（未入力なら既定値）に倍率を掛けて書き戻し、次の操作の起点にする / Write back the range actually used, so the panel matches the result */
-            dialogControls.distance.fieldX.text = String(Math.round(placementResult.baseX * placementResult.scaleFactor));
-            dialogControls.distance.fieldY.text = String(Math.round(placementResult.baseY * placementResult.scaleFactor));
+            setRangeFieldValue(dialogControls.distance.fieldX, Math.round(placementResult.baseX * placementResult.scaleFactor));
+            setRangeFieldValue(dialogControls.distance.fieldY, Math.round(placementResult.baseY * placementResult.scaleFactor));
 
             app.redraw();
         });

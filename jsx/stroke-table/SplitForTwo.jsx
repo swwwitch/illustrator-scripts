@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTw
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.10.9";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v2.10.10";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
@@ -142,10 +142,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     var BALANCE_SPACING = 6;                     /* バランスの行の間隔 / spacing between the balance rows */
     var BALANCE_SLIDER_MARGINS = [0, 10, 0, 0];  /* 幅スライダーの上の余白 / space above the width slider */
     var BALANCE_SLIDER_SIZE = [180, 20];         /* 幅スライダーの大きさ / width slider size */
-    var WIDTH_INPUT_CHARS = 5;                   /* 幅の入力欄の文字数 / characters for the width fields */
-    var PERCENT_INPUT_CHARS = 3;                 /* ％の入力欄の文字数 / characters for the percent fields */
-    var STROKE_INPUT_CHARS = 3;                  /* 線幅の入力欄の文字数 / characters for the stroke field */
-    var CORNER_INPUT_CHARS = 4;                  /* 角丸の入力欄の文字数 / characters for the corner fields */
+    var WIDTH_INPUT_CHARS = 7;                   /* 幅の入力欄の文字数 / characters for the width fields */
+    var PERCENT_INPUT_CHARS = 4;                 /* ％の入力欄の文字数 / characters for the percent fields */
+    var STROKE_INPUT_CHARS = 5;                  /* 線幅の入力欄の文字数 / characters for the stroke field */
+    var CORNER_INPUT_CHARS = 5;                  /* 角丸の入力欄の文字数 / characters for the corner fields */
     var SWATCH_SIZE = [20, 20];                  /* 色見本の大きさ / swatch size */
     var PRESET_DROPDOWN_WIDTH = 120;             /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_SAVE_BUTTON_WIDTH = 50;           /* ［保存］ボタンの幅 / Save button width */
@@ -340,13 +340,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     }
 
     /**
-     * 単位の値を入力欄の文字列にする
+     * 入力欄の中に出す単位（「 mm」の形。前に半角スペース）を返す
+     * @param {string} prefKey - 環境設定キー
+     * @returns {string} 単位の文字列
+     */
+    function getUnitSuffix(prefKey) {
+        return " " + getUnitInfo(prefKey).label;
+    }
+
+    /**
+     * 単位の値を入力欄の文字列にする（「20 mm」の形）
      * @param {number} value - 単位の値
      * @param {string} prefKey - 環境設定キー
      * @returns {string} 表示用の文字列
      */
     function formatUnitValue(value, prefKey) {
-        return String(roundUnitValue(value, prefKey));
+        return String(roundUnitValue(value, prefKey)) + getUnitSuffix(prefKey);
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -3610,7 +3619,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
             colorRight: controls.secondColorSwatch.getColor(),
             overallFrame: controls.overallFrameCheckbox.value,
             divider: controls.dividerCheckbox.value,
-            strokeUnit: String(controls.strokeInput.text),
+            strokeUnit: String(parseFloat(controls.strokeInput.text)), /* 単位を付けずに数値で持つ / keep the number without the unit */
             strokeColor: controls.strokeColorSwatch.getColor(),
             cornerAuto: controls.pillCheckbox.value,
             widthOffset: clampOffset(controls, controls.balanceSlider.value)
@@ -3633,7 +3642,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         controls.secondColorSwatch.setColor(presetData.colorRight || DEFAULT_SECOND_COLOR);
         controls.overallFrameCheckbox.value = !!presetData.overallFrame;
         controls.dividerCheckbox.value = !!presetData.divider;
-        controls.strokeInput.text = presetData.strokeUnit || formatUnitValue(ptToUnit(DEFAULT_STROKE_PT, "strokeUnits"), "strokeUnits");
+        var presetStrokeUnit = parseFloat(presetData.strokeUnit);
+        controls.strokeInput.text = isNaN(presetStrokeUnit)
+            ? formatUnitValue(ptToUnit(DEFAULT_STROKE_PT, "strokeUnits"), "strokeUnits")
+            : formatUnitValue(presetStrokeUnit, "strokeUnits");
         controls.strokeColorSwatch.setColor(presetData.strokeColor || DEFAULT_STROKE_COLOR);
         controls.pillCheckbox.value = !!presetData.cornerAuto;
 
@@ -3838,14 +3850,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function addBalanceRow(parent, reservedLabel) {
         var rowGroup = addRow(parent);
         var sideLabel = rowGroup.add("statictext", undefined, reservedLabel);
-        var widthInput = addSteppedInput(rowGroup, "0", { min: 0 });
+        var widthInput = addSteppedInput(rowGroup, formatUnitValue(0, "rulerType"), { min: 0, unit: getUnitSuffix("rulerType") });
         widthInput.helpTip = getLabel("tooltip.width");
         widthInput.characters = WIDTH_INPUT_CHARS;
-        rowGroup.add("statictext", undefined, getUnitInfo("rulerType").label);
-        var percentInput = addSteppedInput(rowGroup, "50", { min: 0, max: 100 });
+        var percentInput = addSteppedInput(rowGroup, "50%", { min: 0, max: 100, unit: "%" });
         percentInput.helpTip = getLabel("tooltip.percent");
         percentInput.characters = PERCENT_INPUT_CHARS;
-        rowGroup.add("statictext", undefined, "%");
         var squareCheckbox = addCheckbox(rowGroup, "checkbox.square", "tooltip.square", false);
         return { label: sideLabel, widthInput: widthInput, percentInput: percentInput, squareCheckbox: squareCheckbox };
     }
@@ -3924,10 +3934,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         controls.strokeRowGroup = addRow(strokePanel);
         controls.strokeRowGroup.add("statictext", undefined, labelText("fieldLabel.strokeWidth"));
         controls.strokeInput = addSteppedInput(controls.strokeRowGroup,
-            formatUnitValue(ptToUnit(session.strokeWidthPt, "strokeUnits"), "strokeUnits"), { min: 0 });
+            formatUnitValue(ptToUnit(session.strokeWidthPt, "strokeUnits"), "strokeUnits"), { min: 0, unit: getUnitSuffix("strokeUnits") });
         controls.strokeInput.helpTip = getLabel("tooltip.strokeWidth");
         controls.strokeInput.characters = STROKE_INPUT_CHARS;
-        controls.strokeRowGroup.add("statictext", undefined, getUnitInfo("strokeUnits").label);
 
         controls.strokeColorRowGroup = addRow(strokePanel);
         controls.strokeColorRowGroup.add("statictext", undefined, labelText("fieldLabel.color"));
@@ -3945,7 +3954,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
     function addCornerRow(parent, labelKey, checked, radiusPt) {
         var rowGroup = addRow(parent);
         var cornerCheckbox = addCheckbox(rowGroup, labelKey, "tooltip.corner", checked);
-        var radiusInput = addSteppedInput(rowGroup, formatUnitValue(ptToUnit(radiusPt, "rulerType"), "rulerType"), { min: 0 });
+        var radiusInput = addSteppedInput(rowGroup, formatUnitValue(ptToUnit(radiusPt, "rulerType"), "rulerType"),
+            { min: 0, unit: getUnitSuffix("rulerType") });
         radiusInput.helpTip = getLabel("tooltip.corner");
         radiusInput.characters = CORNER_INPUT_CHARS;
         return { checkbox: cornerCheckbox, input: radiusInput };
@@ -3959,7 +3969,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {void}
      */
     function buildCornerPanel(settingsDialog, controls, session) {
-        var cornerPanel = addPanel(settingsDialog, getLabel("panel.cornerRadius") + " (" + getUnitInfo("rulerType").label + ")");
+        var cornerPanel = addPanel(settingsDialog, getLabel("panel.cornerRadius"));
         controls.pillCheckbox = addCheckbox(cornerPanel, "checkbox.pillShape", "tooltip.pillShape", session.pillShape);
 
         /* 左の列に左上・左下、右の列に右上・右下。2列の間に連動アイコンを天地中央で置く
@@ -4050,12 +4060,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         var offsetUnit = clampOffset(controls, offsetValue);
         var maxUnit = controls.balanceMax;
         controls.balanceSlider.value = offsetUnit;
-        setInputText(controls.firstBalance.widthInput, String(roundUnitValue(maxUnit + offsetUnit, "rulerType")), skipInput);
-        setInputText(controls.secondBalance.widthInput, String(roundUnitValue(maxUnit - offsetUnit, "rulerType")), skipInput);
+        setInputText(controls.firstBalance.widthInput, formatUnitValue(maxUnit + offsetUnit, "rulerType"), skipInput);
+        setInputText(controls.secondBalance.widthInput, formatUnitValue(maxUnit - offsetUnit, "rulerType"), skipInput);
         var firstPercent = (maxUnit > 0) ? Math.round((maxUnit + offsetUnit) / (2 * maxUnit) * 100) : 50;
         var secondPercent = (maxUnit > 0) ? Math.round((maxUnit - offsetUnit) / (2 * maxUnit) * 100) : 50;
-        setInputText(controls.firstBalance.percentInput, String(firstPercent), skipInput);
-        setInputText(controls.secondBalance.percentInput, String(secondPercent), skipInput);
+        setInputText(controls.firstBalance.percentInput, firstPercent + "%", skipInput);
+        setInputText(controls.secondBalance.percentInput, secondPercent + "%", skipInput);
     }
 
     /**
@@ -4066,7 +4076,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {void}
      */
     function syncBalanceFromInput(controls, input, whileTyping) {
-        var value = Number(input.text);
+        var value = parseFloat(input.text); /* 「20 mm」「50%」→ 数値 / read the number in front of the unit */
         var maxUnit = controls.balanceMax;
         var offsetUnit;
         if (input === controls.firstBalance.widthInput) {
@@ -4125,7 +4135,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {number|null} 線幅（pt）。0以下や数値でなければ null
      */
     function readStrokeWidthPt(controls) {
-        var strokeWidthUnit = Number(controls.strokeInput.text);
+        var strokeWidthUnit = parseFloat(controls.strokeInput.text); /* 「1 pt」→ 1 */
         if (isNaN(strokeWidthUnit) || strokeWidthUnit <= 0) return null;
         return unitToPt(strokeWidthUnit, "strokeUnits");
     }
@@ -4136,7 +4146,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
      * @returns {number} 半径（pt）。負の値や数値でなければ 0
      */
     function readCornerRadiusPt(radiusInput) {
-        var radiusUnit = Number(radiusInput.text);
+        var radiusUnit = parseFloat(radiusInput.text); /* 「2 mm」→ 2 */
         if (isNaN(radiusUnit) || radiusUnit < 0) return 0;
         return unitToPt(radiusUnit, "rulerType");
     }
@@ -4468,7 +4478,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹�
         for (var i = 0; i < CORNER_KEYS.length; i++) {
             var cornerKey = CORNER_KEYS[i];
             var corner = controls.corners[cornerKey];
-            var radiusUnit = Number(corner.input.text);
+            var radiusUnit = parseFloat(corner.input.text);
             session.cornerEnabled[cornerKey] = corner.checkbox.value;
             if (!isNaN(radiusUnit) && radiusUnit >= 0) session.cornerRadiusPt[cornerKey] = unitToPt(radiusUnit, "rulerType");
         }

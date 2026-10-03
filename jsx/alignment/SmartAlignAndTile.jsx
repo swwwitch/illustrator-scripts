@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlign
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md"; /* README (English) */
@@ -2454,7 +2454,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         gridCheckbox.helpTip = getLabel("tooltip.useGrid");
 
         /* 間隔パネル（左＝横・縦の入力、右＝連動アイコンを上下中央）/ Spacing panel: fields on the left, the link icon centered on the right */
-        var spacingPanel = addPanel(dialogWindow, getLabel("panel.spacing") + " (" + getUnitInfo().label + ")");
+        var spacingPanel = addPanel(dialogWindow, getLabel("panel.spacing"));
+        /* 単位は欄の中に出す（「10 mm」の形）/ the unit is shown inside the fields ("10 mm") */
+        var marginUnitSuffix = " " + getUnitInfo().label;
         var spacingRow = spacingPanel.add("group");
         setupRow(spacingRow, "left", COLUMN_SPACING);
 
@@ -2467,13 +2469,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         setupRow(hMarginRow, "left", 6);
         addFieldLabel(hMarginRow, labelText("fieldLabel.hMargin"));
         /* 負のアキも可 / negative gaps allowed */
-        var hMarginInput = addStepperInput(hMarginRow, DEFAULT_MARGIN, { step: 1 });
+        var hMarginInput = addStepperInput(hMarginRow, DEFAULT_MARGIN + marginUnitSuffix, { step: 1, unit: marginUnitSuffix });
         hMarginInput.helpTip = getLabel("tooltip.hMargin");
 
         var vMarginRow = marginColumn.add("group");
         setupRow(vMarginRow, "left", 6);
         addFieldLabel(vMarginRow, labelText("fieldLabel.vMargin"));
-        var vMarginInput = addStepperInput(vMarginRow, DEFAULT_MARGIN, { step: 1 });
+        var vMarginInput = addStepperInput(vMarginRow, DEFAULT_MARGIN + marginUnitSuffix, { step: 1, unit: marginUnitSuffix });
         vMarginInput.helpTip = getLabel("tooltip.vMargin");
 
         /* 切り替え後の処理は結線時に onLinkToggle に入れる / The handler is set later when wiring the dialog */

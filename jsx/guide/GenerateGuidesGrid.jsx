@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
@@ -1534,11 +1534,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         }
     };
 
-    /* 見出しに単位を付与（日本語は全角括弧、英語は半角括弧）/ Append unit to a title (full-width parens JA, half-width EN) */
-    function titleWithUnit(key) {
-        return getLabel(key) + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
-    }
-
     // =========================================
     // 単位 / Units
     // =========================================
@@ -1555,8 +1550,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         }
     }
     var unitInfo = getUnitInfo(app.preferences.getIntegerPreference("rulerType"));
-    var unitLabel = unitInfo.label;
     var unitFactor = unitInfo.factor;
+    /* 長さの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the length fields, as in "10 mm" */
+    var lengthUnit = " " + unitInfo.label;
 
     /* プリセット値は pt 基準で保持。表示は現在単位へ換算する / Preset values are stored in points; convert to the current ruler unit for display */
     var UNIT_DECIMALS = 2; /* 換算時に残す小数桁数 / decimals kept when converting */
@@ -1588,6 +1584,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
      */
     function unitToPt(unitValue) {
         return roundTo(Number(unitValue) * unitFactor, UNIT_DECIMALS);
+    }
+
+    /**
+     * 現在単位の値に単位を付けて、長さの欄に入れる文字列にする
+     * @param {number} unitValue - 現在単位の値
+     * @returns {string} 例）"10 mm"
+     */
+    function formatLength(unitValue) {
+        return unitValue + lengthUnit;
     }
 
     /**
@@ -2484,10 +2489,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labelText("field.rowGutter"));
         rowGutterLabel.preferredSize.width = gridLabelWidth;
         rowGutterLabel.justify = "right";
-        /* 単位換算後は小数2桁になるため桁数を確保 / Room for the 2 decimals unit conversion produces */
-        var rowGutterInput = addStepperInput(rowGutterGroup, "0", 5, { min: 0 });
+        /* 単位換算後の小数2桁と欄の中の単位が入る幅を確保 / Room for the 2 decimals unit conversion produces plus the unit */
+        var rowGutterInput = addStepperInput(rowGutterGroup, formatLength(0), 6, { min: 0, unit: lengthUnit });
         focusInputOnLabelClick(rowGutterLabel, rowGutterInput);
-        rowGutterGroup.add("statictext", undefined, unitLabel);
 
         // 列設定パネル / Column settings panel
         var columnSettingPanel = gridSettingRow.add("panel", undefined, getLabel("panel.column"));
@@ -2506,9 +2510,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var columnGutterLabel = columnGutterGroup.add("statictext", undefined, labelText("field.columnGutter"));
         columnGutterLabel.preferredSize.width = gridLabelWidth;
         columnGutterLabel.justify = "right";
-        var columnGutterInput = addStepperInput(columnGutterGroup, "0", 5, { min: 0 });
+        var columnGutterInput = addStepperInput(columnGutterGroup, formatLength(0), 6, { min: 0, unit: lengthUnit });
         focusInputOnLabelClick(columnGutterLabel, columnGutterInput);
-        columnGutterGroup.add("statictext", undefined, unitLabel);
 
         // 行間に連動（列パネル下部）/ Link to row gutter (under column panel)
         var linkGutterCheckbox = columnSettingPanel.add("checkbox", undefined, getLabel("checkbox.linkGutter"));
@@ -2523,7 +2526,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         };
 
         // マージン全体パネル / Margin panel
-        var marginPanel = dialog.add("panel", undefined, titleWithUnit("panel.margin"));
+        var marginPanel = dialog.add("panel", undefined, getLabel("panel.margin"));
         setupPanel(marginPanel);
         // 3×3 グリッド配置（中央=連動）/ 3×3 grid layout (center = link)
         var MARGIN_CELL_WIDTH = (uiLang === "ja") ? 78 : 92;
@@ -2535,7 +2538,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             cellGroup.alignment = ["center", "center"];
             cellGroup.minimumSize.width = MARGIN_CELL_WIDTH;
             var marginLabel = cellGroup.add("statictext", undefined, labelText(labelKey));
-            var marginInput = addStepperInput(cellGroup, "0", 5, { min: 0 });
+            var marginInput = addStepperInput(cellGroup, formatLength(0), 5, { min: 0, unit: lengthUnit });
             focusInputOnLabelClick(marginLabel, marginInput);
             return { group: cellGroup, input: marginInput };
         }
@@ -2607,8 +2610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var roundCornerCheckbox = roundCornerGroup.add("checkbox", undefined, getLabel("checkbox.roundCorner"));
         roundCornerCheckbox.helpTip = getLabel("tooltip.roundCorner");
         roundCornerCheckbox.value = false;
-        var roundCornerInput = addStepperInput(roundCornerGroup, "3", 2, { min: 0 });
-        roundCornerGroup.add("statictext", undefined, unitLabel);
+        var roundCornerInput = addStepperInput(roundCornerGroup, formatLength(3), 4, { min: 0, unit: lengthUnit });
 
         // 不透明度スライダー（0-100、ラベルの次の行にスライダー）/ Opacity slider (0-100, slider on the line below the label)
         var opacityGroup = cellPanel.add("group");
@@ -2635,8 +2637,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var extensionCheckbox = extensionGroup.add("checkbox", undefined, getLabel("field.guideExtension"));
         extensionCheckbox.helpTip = getLabel("tooltip.guideExtension");
         extensionCheckbox.value = true;
-        var extensionInput = addStepperInput(extensionGroup, "10", 5, { min: 0 });
-        extensionGroup.add("statictext", undefined, unitLabel);
+        var extensionInput = addStepperInput(extensionGroup, formatLength(10), 6, { min: 0, unit: lengthUnit });
         extensionCheckbox.onClick = function () {
             setStepperInputEnabled(extensionInput, extensionCheckbox.value);
             safeUpdatePreview();
@@ -2797,17 +2798,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             columnCountInput.text = pickPresetValue(preset.columns, 1);
             rowCountInput.text = pickPresetValue(preset.rows, 1);
             // 長さ系は pt 基準なので現在単位へ換算 / Length values are stored in pt — convert to the current unit
-            extensionInput.text = ptToUnit(pickPresetValue(preset.guideExtension, 0));
+            extensionInput.text = formatLength(ptToUnit(pickPresetValue(preset.guideExtension, 0)));
             var presetMarginTop = pickPresetValue(preset.marginTop, 0);
             var presetMarginBottom = pickPresetValue(preset.marginBottom, 0);
             var presetMarginLeft = pickPresetValue(preset.marginLeft, 0);
             var presetMarginRight = pickPresetValue(preset.marginRight, 0);
-            marginTopInput.text = ptToUnit(presetMarginTop);
-            marginBottomInput.text = ptToUnit(presetMarginBottom);
-            marginLeftInput.text = ptToUnit(presetMarginLeft);
-            marginRightInput.text = ptToUnit(presetMarginRight);
-            rowGutterInput.text = ptToUnit(pickPresetValue(preset.rowGutter, 0));
-            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, 0));
+            marginTopInput.text = formatLength(ptToUnit(presetMarginTop));
+            marginBottomInput.text = formatLength(ptToUnit(presetMarginBottom));
+            marginLeftInput.text = formatLength(ptToUnit(presetMarginLeft));
+            marginRightInput.text = formatLength(ptToUnit(presetMarginRight));
+            rowGutterInput.text = formatLength(ptToUnit(pickPresetValue(preset.rowGutter, 0)));
+            columnGutterInput.text = formatLength(ptToUnit(pickPresetValue(preset.columnGutter, 0)));
             // 上下左右が異なるプリセットは連動をOFF（連動が値を上書きして壊すのを防ぐ）
             // If margins differ, turn the link off so it won't overwrite the distinct values
             setLinkToggleValue(linkMarginToggle, (presetMarginTop === presetMarginBottom && presetMarginTop === presetMarginLeft && presetMarginTop === presetMarginRight));

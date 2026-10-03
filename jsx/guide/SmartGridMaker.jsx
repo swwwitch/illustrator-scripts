@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridM
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md"; /* README (English) */
@@ -2969,6 +2969,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         if (app.documents.length === 0) return;
         var doc = app.activeDocument;
         var rulerUnit = getUnitInfo();
+        /* 長さの欄の中に付ける単位（「10 mm」の形） / Unit shown inside the length fields, as in "10 mm" */
+        var lengthUnit = " " + rulerUnit.label;
 
         /* 一部環境で StrokeCap が未定義になるため、最低限の定数を用意
            Provide the StrokeCap constants for hosts that do not expose them */
@@ -3258,10 +3260,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * mmで持っている既定値を、現在の定規単位の文字列にします。
          *
          * @param {number} valueMm - mmでの既定値。
-         * @returns {string} 現在の定規単位での既定値（小数第1位まで）。
+         * @returns {string} 現在の定規単位での既定値（小数第1位まで、単位付き）。
          */
         function defaultValueText(valueMm) {
-            return String(Math.round(mmToPt(valueMm) / rulerUnit.pointsPerUnit * 10) / 10);
+            return formatLength(Math.round(mmToPt(valueMm) / rulerUnit.pointsPerUnit * 10) / 10);
+        }
+
+        /**
+         * 現在の定規単位の値に単位を付けて、長さの欄に入れる文字列にします。
+         *
+         * @param {number} value - 現在の定規単位での値。
+         * @returns {string} 例）"10 mm"
+         */
+        function formatLength(value) {
+            return value + lengthUnit;
         }
 
         /**
@@ -3365,15 +3377,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         }
 
         /**
-         * パネル名の後ろに付ける単位を、言語別の括弧で返します（日本語は全角）。
-         *
-         * @returns {string} 例）"（mm）" / " (mm)"
-         */
-        function unitSuffix() {
-            return (uiLang === "ja") ? ("（" + rulerUnit.label + "）") : (" (" + rulerUnit.label + ")");
-        }
-
-        /**
          * 入力欄にツールチップを設定します（↑↓キーの説明を必ず添えます）。
          *
          * @param {EditText} input - 対象の入力欄。
@@ -3457,7 +3460,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         }
 
         /**
-         * 「ラベルなしチェックボックス＋項目名：入力欄 単位」の1行を作ります
+         * 「ラベルなしチェックボックス＋項目名：入力欄」の1行を作ります
          * （タイトルエリアとフレームの有効／無効で共用）。
          *
          * @param {Panel|Group} parent - 追加先。
@@ -3477,15 +3480,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             valueGroup.margins = 0;
             valueGroup.add("statictext", undefined, labelText(labelSet));
 
-            var input = addStepperInput(valueGroup, "0", 4, { step: 1, min: 0 });
-            valueGroup.add("statictext", undefined, rulerUnit.label);
+            var input = addStepperInput(valueGroup, formatLength(0), 6, { step: 1, min: 0, unit: lengthUnit });
             setInputHelpTip(input, inputTooltipSet);
 
             return { checkbox: checkbox, valueGroup: valueGroup, input: input };
         }
 
         /**
-         * 「チェックボックス＋入力欄＋単位」の1行を作ります（角丸・辺の伸縮で共用）。
+         * 「チェックボックス＋入力欄」の1行を作ります（角丸・辺の伸縮で共用）。
          *
          * @param {Panel|Group} parent - 追加先。
          * @param {Object} labelSet - チェックボックスのラベル。
@@ -3498,8 +3500,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             var checkbox = row.add("checkbox", undefined, getLabel(labelSet));
 
             var valueGroup = addRow(row);
-            var input = addStepperInput(valueGroup, initialText, 4, allowNegative ? { step: 1 } : { step: 1, min: 0 });
-            valueGroup.add("statictext", undefined, rulerUnit.label);
+            var input = addStepperInput(valueGroup, initialText, 6, allowNegative ? { step: 1, unit: lengthUnit } : { step: 1, min: 0, unit: lengthUnit });
             setInputHelpTip(input);
 
             return { row: row, checkbox: checkbox, valueGroup: valueGroup, input: input };
@@ -3513,11 +3514,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          * @param {Panel} parent - 追加先のパネル。
          * @param {string} initialText - 入力欄の初期値。
          * @param {number} characters - 入力欄の文字数。
-         * @param {string} unitLabel - 上下の入力欄に付ける単位。空文字なら付けません。
          * @param {Object} [inputTooltipSet] - 入力欄のツールチップ。
          * @returns {Object} {top, bottom, left, right, linkToggle, applyLinkState}
          */
-        function buildLinkedQuadUI(parent, initialText, characters, unitLabel, inputTooltipSet) {
+        function buildLinkedQuadUI(parent, initialText, characters, inputTooltipSet) {
             var inputs = {};
             var fieldGroups = {};
             var followerKeys = ["bottom", "left", "right"];
@@ -3539,21 +3539,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             }
 
             /**
-             * 「項目名：入力欄（＋単位）」のひとまとまりを追加します。
+             * 「項目名：入力欄」のひとまとまりを追加します。
              *
              * @param {Group} row - 追加先の行。
              * @param {string} positionKey - "top" / "bottom" / "left" / "right"。
-             * @param {boolean} withUnit - 単位を付ける場合は true。
              * @returns {void}
              */
-            function addField(row, positionKey, withUnit) {
+            function addField(row, positionKey) {
                 var fieldGroup = addRow(row);
                 fieldGroup.add("statictext", undefined, labelText(LABELS.fieldLabel[positionKey]));
 
-                var input = addStepperInput(fieldGroup, initialText, characters, { step: 1, min: 0 });
+                var input = addStepperInput(fieldGroup, initialText, characters, { step: 1, min: 0, unit: lengthUnit });
                 setInputHelpTip(input, inputTooltipSet);
-
-                if (withUnit && unitLabel) fieldGroup.add("statictext", undefined, unitLabel);
 
                 inputs[positionKey] = input;
                 fieldGroups[positionKey] = fieldGroup;
@@ -3579,11 +3576,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             }
 
             // 1段目：上（中央寄せ）
-            addField(addCenteredRow(), "top", true);
+            addField(addCenteredRow(), "top");
 
             // 2段目：左 ＋ 連動（中央）＋ 右
             var middleRow = addCenteredRow(12);
-            addField(middleRow, "left", false);
+            addField(middleRow, "left");
             var linkToggle = addLinkToggle(middleRow, true, function () {
                 applyLinkState();
                 requestPreview();
@@ -3591,10 +3588,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             linkToggle.helpTip = getLabel(LABELS.tooltip.link);
             /* セッションの復元で setLinkToggleValue() を通すための目印 / Marks it so the session restore goes through setLinkToggleValue() */
             linkToggle.isLinkToggle = true;
-            addField(middleRow, "right", false);
+            addField(middleRow, "right");
 
             // 3段目：下（中央寄せ）
-            addField(addCenteredRow(), "bottom", true);
+            addField(addCenteredRow(), "bottom");
 
             inputs.top.onChanging = function () {
                 if (isSyncing) return;
@@ -3637,9 +3634,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             setInputHelpTip(countInput);
 
             row.add("statictext", undefined, labelText(LABELS.fieldLabel.spacing));
-            var gutterInput = addStepperInput(row, "0", 4, { step: 1, min: 0 });
+            var gutterInput = addStepperInput(row, formatLength(0), 6, { step: 1, min: 0, unit: lengthUnit });
             setInputHelpTip(gutterInput, LABELS.tooltip.spacing);
-            row.add("statictext", undefined, rulerUnit.label);
 
             return { countInput: countInput, gutterInput: gutterInput };
         }
@@ -3766,7 +3762,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             outerEdgeScaleValueGroup.enabled = (keepOuterCheckbox.value && outerEdgeScaleCheckbox.value);
 
             outerRoundInput.enabled = outerRoundCheckbox.value;
-            if (!outerRoundCheckbox.value) outerRoundInput.text = "0";
+            if (!outerRoundCheckbox.value) outerRoundInput.text = formatLength(0);
 
             applyStrokeCapPanelEnabledState();
             syncStepperStates();
@@ -3779,7 +3775,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          */
         function applyTitleEdgeScaleEnabledState() {
             titleEdgeScaleInput.enabled = titleEdgeScaleCheckbox.value;
-            if (!titleEdgeScaleCheckbox.value) titleEdgeScaleInput.text = "0";
+            if (!titleEdgeScaleCheckbox.value) titleEdgeScaleInput.text = formatLength(0);
             syncStepperStates();
         }
 
@@ -3834,8 +3830,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 frameCheckbox.value = false;
                 bleedCheckbox.value = false;
                 frameRoundCheckbox.value = false;
-                frameWidthInput.text = "0";
-                frameRoundInput.text = "0";
+                frameWidthInput.text = formatLength(0);
+                frameRoundInput.text = formatLength(0);
 
                 frameWidthGroup.enabled = false;
                 bleedCheckbox.enabled = false;
@@ -3929,7 +3925,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
          */
         function buildMarginPanel(parent) {
             var marginPanel = addPanel(parent, getLabel(LABELS.panel.margin));
-            marginFields = buildLinkedQuadUI(marginPanel, defaultValueText(GENERATION_SETTINGS.defaultMarginMm), 4, rulerUnit.label);
+            marginFields = buildLinkedQuadUI(marginPanel, defaultValueText(GENERATION_SETTINGS.defaultMarginMm), 5);
 
             /* アートボード基準のときだけ表示・操作できる
                The panel is shown and enabled for artboard-based runs only */
@@ -3958,7 +3954,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             bleedCheckbox = addRow(framePanel).add("checkbox", undefined, getLabel(LABELS.checkbox.bleed));
             bleedCheckbox.helpTip = getLabel(LABELS.tooltip.bleed);
 
-            var roundRow = addCheckboxValueRow(framePanel, LABELS.checkbox.round, "0", false);
+            var roundRow = addCheckboxValueRow(framePanel, LABELS.checkbox.round, formatLength(0), false);
             frameRoundCheckbox = roundRow.checkbox;
             frameRoundCheckbox.helpTip = getLabel(LABELS.tooltip.frameRound);
             frameRoundInput = roundRow.input;
@@ -4031,7 +4027,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             keepOuterCheckbox.value = true;
             keepOuterCheckbox.helpTip = getLabel(LABELS.tooltip.keepOuter);
 
-            var roundRow = addCheckboxValueRow(outerPanel, LABELS.checkbox.round, "0", false);
+            var roundRow = addCheckboxValueRow(outerPanel, LABELS.checkbox.round, formatLength(0), false);
             outerRoundCheckbox = roundRow.checkbox;
             outerRoundCheckbox.helpTip = getLabel(LABELS.tooltip.outerRound);
             outerRoundInput = roundRow.input;
@@ -4139,7 +4135,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
             titleLineCheckbox.helpTip = getLabel(LABELS.tooltip.titleDivider);
 
             // 仕切り線の伸縮（両端の詰め量）
-            var edgeScaleRow = addCheckboxValueRow(titlePanel, LABELS.checkbox.dividerScale, "0", true);
+            var edgeScaleRow = addCheckboxValueRow(titlePanel, LABELS.checkbox.dividerScale, formatLength(0), true);
             titleEdgeScaleRow = edgeScaleRow.row;
             titleEdgeScaleCheckbox = edgeScaleRow.checkbox;
             titleEdgeScaleCheckbox.helpTip = getLabel(LABELS.tooltip.dividerScale);
@@ -4149,7 +4145,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 /* ONにしたとき、サイズが0ならデフォルト値を入れる
                    Fill in the default size when enabled at zero */
                 if (titleCheckbox.value && !hasPositiveValue(titleSizeInput)) {
-                    titleSizeInput.text = String(calcDefaultTitleSize());
+                    titleSizeInput.text = formatLength(calcDefaultTitleSize());
                 }
 
                 applyTitleAreaEnabledState();
@@ -4197,10 +4193,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         function buildInnerPanel(parent) {
             var innerPanel = addPanel(parent, getLabel(LABELS.panel.innerArea));
 
-            /* 単位はパネル名に入れているので入力欄には付けない
-               The unit is in the panel title, so the fields carry none */
-            var offsetPanel = addPanel(innerPanel, getLabel(LABELS.panel.offset) + unitSuffix());
-            innerOffsetFields = buildLinkedQuadUI(offsetPanel, String(calcDefaultInnerOffset()), 3, "", LABELS.tooltip.offset);
+            var offsetPanel = addPanel(innerPanel, getLabel(LABELS.panel.offset));
+            innerOffsetFields = buildLinkedQuadUI(offsetPanel, formatLength(calcDefaultInnerOffset()), 4, LABELS.tooltip.offset);
 
             buildInnerGridPanels(innerPanel);
             buildLineTypePanel(innerPanel);
@@ -4430,6 +4424,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         }
 
         /**
+         * 入力欄の値を、セッションに保存する形で返します（単位付きの欄は数値で持ち、単位は復元時に付け直します）。
+         *
+         * @param {EditText} input - 対象の入力欄。
+         * @returns {number|string} 単位付きの欄で数値として読めれば数値、それ以外は入力欄の文字列。
+         */
+        function readSessionFieldValue(input) {
+            if (!input.stepperGroup || !input.stepperGroup.stepOptions.unit) return input.text;
+            var value = parseFloat(input.text);
+            return isNaN(value) ? input.text : value;
+        }
+
+        /**
+         * セッションの保存値を、入力欄に入れる文字列にします（単位付きの欄には単位を付けます）。
+         *
+         * @param {EditText} input - 対象の入力欄。
+         * @param {number|string} value - 保存値（以前の版の数字だけの文字列も受け付けます）。
+         * @returns {string} 入力欄に入れる文字列。
+         */
+        function formatSessionFieldText(input, value) {
+            var unit = input.stepperGroup ? input.stepperGroup.stepOptions.unit : undefined;
+            var numberValue = parseFloat(value);
+            if (!unit || isNaN(numberValue)) return String(value);
+            return numberValue + unit;
+        }
+
+        /**
          * 前回のダイアログ設定を復元します（Illustratorの起動中のみ有効）。
          *
          * @returns {void}
@@ -4444,7 +4464,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 value = getStateValue(state, controls[i][1]);
                 if (typeof value === "undefined") continue;
 
-                if (controls[i][0].type === "edittext") controls[i][0].text = String(value);
+                if (controls[i][0].type === "edittext") controls[i][0].text = formatSessionFieldText(controls[i][0], value);
                 else if (controls[i][0].isLinkToggle) setLinkToggleValue(controls[i][0], !!value);
                 else controls[i][0].value = !!value;
             }
@@ -4492,7 +4512,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
             for (i = 0; i < controls.length; i++) {
                 setStateValue(state, controls[i][1],
-                    (controls[i][0].type === "edittext") ? controls[i][0].text : controls[i][0].value);
+                    (controls[i][0].type === "edittext") ? readSessionFieldValue(controls[i][0]) : controls[i][0].value);
             }
 
             for (i = 0; i < radioGroups.length; i++) {

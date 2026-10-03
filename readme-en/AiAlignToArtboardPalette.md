@@ -25,7 +25,7 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- While Add Guides is off, all four fields and Link are dimmed together (their values are kept)
 	- The starting value depends on the ruler unit (5 for mm, 20 for pt / px / Q, 0.5 for cm, 0.25 for inches). Until a value is typed in, changing the ruler unit swaps in that unit's starting value
 	- Turning Add Guides on turns Link on as well and levels the four values off, since an even inset is the usual case
-	- The ruler unit is shown once in the panel title ("Margin (mm)") rather than beside each field
+	- The ruler unit is shown inside each field ("5 mm"). A value typed with another unit is converted to the ruler unit
 	- Add Guides: draws a rectangle guide inset from the artboard edges by the margin. That guide is a destination for the arrow buttons as well, and **it stays when the palette closes**
 - Division & Edge Guides: draw guides that split the area inside the margin into rows and columns, and guides on the four artboard edges. The division is None, Cross or Custom
 	- None: no division guides (default)
@@ -107,17 +107,18 @@ Arrow buttons:
 - The guide is drawn on the "_guide" layer (created if missing; unlocked and shown) as a rectangle named `AiAlignToArtboard-margin`. Every redraw deletes the existing guide of that name first, so there is **always exactly one, on the active artboard**. Aligning on a different artboard moves the guide there.
 - The guides are redrawn when Add Guides is toggled, when a margin or division field commits (Enter or focus loss), when the division mode or Artboard Edges is switched, and when an align runs. While stepping with ↑↓ only the dimming follows along, so Illustrator is not queried on every keypress.
 - The guides **stay when the palette closes** (whether closed with Esc or rebuilt by re-running the script). To remove them, uncheck Add Guides, set the division to None, or uncheck Artboard Edges. A guide moved off the "_guide" layer is left alone.
-- The selection kind, the ruler unit and the selection count come back in a single round trip. When Illustrator does not answer, or answers with an error, the dimming and the unit label are left as they are rather than rewritten from an unreliable value.
+- The selection kind, the ruler unit and the selection count come back in a single round trip. When Illustrator does not answer, or answers with an error, the dimming and the field units are left as they are rather than rewritten from an unreliable value.
 - DOM work is delegated to the main engine over BridgeTalk; where BridgeTalk is unavailable it runs in the palette's own engine instead.
 - Re-running the script closes the open palette and rebuilds it (this also prevents a second instance), so edited code can be applied by simply running it again.
 - For a one-shot centering command see [CenterAlignAsGroup](CenterAlignAsGroup.md), or [VerticalCenterAlignAsGroup](VerticalCenterAlignAsGroup.md) for vertical centering only.
 
 ### Script info
 
-- Version: v1.3.2
+- Version: v1.4.1
 
 ### Changelog
 
+- v1.4.1 (2026-10-03): Number fields now show their unit inside the field; removed the units from the panel titles
 - v1.4.0 (2026-10-03): With Per Artboard on, margin and divide guides are drawn on every artboard
 - v1.4.0 (2026-10-03): Added Optical Adjustment to the options; centered point type is kerned at the start of each line to pull the glyphs toward the center
 - v1.3.3 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

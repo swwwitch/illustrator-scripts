@@ -30,10 +30,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdro
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBackdrop";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md"; /* README (English) */
@@ -139,7 +139,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
     var FIELD_CHARS             = 4;                 /* 数値欄の文字数 / Characters of numeric fields */
     var SHAPE_ROW_BOTTOM_MARGIN = 5;                 /* 形状ラジオの下の余白 / Space below the shape radios */
-    var SHORT_FIELD_CHARS       = 3;                 /* 短い数値欄（倍率・マージン・CMYK）の文字数 / Characters of short fields */
+    var SHORT_FIELD_CHARS       = 3;                 /* 短い数値欄（CMYK）の文字数 / Characters of short fields */
+    var PERCENT_FIELD_CHARS     = 4;                 /* ％付きの数値欄（倍率・不透明度）の文字数 / Characters of percent fields */
+    var UNIT_FIELD_CHARS        = 5;                 /* 単位付きの数値欄（マージン・角丸・線幅）の文字数 / Characters of fields with a length unit */
 
     /**
      * 縦並びのパネルを追加する
@@ -174,7 +176,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @param {Group} parentContainer - 追加先
      * @param {string} initialText - 初期値
      * @param {string} tooltipText - ツールチップ
-     * @param {Object} [stepOptions] - ∧∨の設定（integer など。省略時は小数あり）
+     * @param {Object} [stepOptions] - ∧∨の設定（integer / unit など。省略時は小数あり・単位なし）
      * @returns {EditText} 追加した数値欄（∧∨は .stepperGroup、設定は .stepOptions で参照できる）
      */
     function addNumberField(parentContainer, initialText, tooltipText, stepOptions) {
@@ -194,6 +196,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         field.stepperGroup = fieldStepper;
         bindSteppedArrowKeys(field, fieldStepper);
         return field;
+    }
+
+    /**
+     * 数値に数値欄の単位を付けた文字列を返す（単位のない欄は数値のみ）
+     * @param {EditText} field - addNumberField() で作った数値欄
+     * @param {number|string} value - 値
+     * @returns {string} 欄に入れる文字列（例「2 mm」「90%」）
+     */
+    function formatFieldText(field, value) {
+        return String(value) + (field.stepOptions.unit || '');
     }
 
     /**
@@ -2207,16 +2219,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         }
     };
 
-    /**
-     * 見出しに単位を添える（日本語は全角かっこ、英語は半角かっこ）
-     * @param {string} titleText - 見出し
-     * @param {string} unitLabel - 単位
-     * @returns {string} 単位付きの見出し
-     */
-    function withUnit(titleText, unitLabel) {
-        return (uiLang === "ja") ? titleText + "（" + unitLabel + "）" : titleText + " (" + unitLabel + ")";
-    }
-
     // =========================================
     // 共通処理 / Helpers
     // =========================================
@@ -2352,7 +2354,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         editText.onChanging = function () {
             var value = parseFloat(editText.text);
             if (!isNaN(value) && clampToFieldRange(editText, value) !== value) {
-                editText.text = String(clampToFieldRange(editText, value));
+                editText.text = formatFieldText(editText, clampToFieldRange(editText, value));
             }
             onUpdate();
         };
@@ -3214,9 +3216,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
 
         var scaleRow = ui.scalePanel.add('group');
         scaleRow.add('statictext', undefined, labelText("fieldLabel.scale"));
-        ui.scaleInput = addNumberField(scaleRow, '90', getLabel("tooltip.scale"));
-        ui.scaleInput.characters = SHORT_FIELD_CHARS;
-        scaleRow.add('statictext', undefined, '%');
+        ui.scaleInput = addNumberField(scaleRow, '90%', getLabel("tooltip.scale"), { unit: '%' });
+        ui.scaleInput.characters = PERCENT_FIELD_CHARS;
 
         var oneCharRow = ui.scalePanel.add('group');
         oneCharRow.orientation = 'row';
@@ -3226,7 +3227,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
     }
 
     /**
-     * マージンの1行（ラベル・数値欄・単位）を追加する
+     * マージンの1行（ラベル・単位付きの数値欄）を追加する
      * @param {Group} parentContainer - 追加先
      * @param {string} labelKey - fieldLabel / tooltip のキー
      * @param {string} unitLabel - 単位
@@ -3239,9 +3240,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         marginRow.spacing = 10;
         marginRow.margins = 0;
         marginRow.add('statictext', undefined, labelText("fieldLabel." + labelKey));
-        var marginInput = addNumberField(marginRow, '0', getLabel("tooltip." + labelKey));
-        marginInput.characters = SHORT_FIELD_CHARS;
-        marginRow.add('statictext', undefined, unitLabel);
+        var marginInput = addNumberField(marginRow, '0 ' + unitLabel, getLabel("tooltip." + labelKey), { unit: ' ' + unitLabel });
+        marginInput.characters = UNIT_FIELD_CHARS;
         return marginInput;
     }
 
@@ -3293,10 +3293,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         roundRow.alignChildren = ['left', 'center'];
         ui.cbRoundEnable = roundRow.add('checkbox', undefined, '');
         ui.cbRoundEnable.helpTip = getLabel("tooltip.round");
-        ui.roundInput = addNumberField(roundRow, '2', getLabel("tooltip.round"));
-        roundRow.add('statictext', undefined, rulerUnitLabel);
+        ui.roundInput = addNumberField(roundRow, '2 ' + rulerUnitLabel, getLabel("tooltip.round"), { unit: ' ' + rulerUnitLabel });
+        ui.roundInput.characters = UNIT_FIELD_CHARS;
         /* OFF→ON で戻す半径 / Radius restored when rounding is turned back on */
-        ui.lastRoundRadius = '2';
+        ui.lastRoundRadius = ui.roundInput.text;
 
         var pillRow = ui.roundPanel.add('group');
         pillRow.orientation = 'row';
@@ -3329,16 +3329,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      * @returns {void}
      */
     function addOffsetPanel(column, ui, rulerUnitLabel) {
-        var offsetPanel = addPanel(column, withUnit(getLabel("panel.offset"), rulerUnitLabel));
+        var offsetPanel = addPanel(column, getLabel("panel.offset"));
 
         var offsetRow = offsetPanel.add('group');
         offsetRow.orientation = 'row';
         offsetRow.alignChildren = ['left', 'center'];
 
         offsetRow.add('statictext', undefined, labelText("fieldLabel.offsetX"));
-        ui.offsetXInput = addNumberField(offsetRow, '0', getLabel("tooltip.offset"));
+        ui.offsetXInput = addNumberField(offsetRow, '0 ' + rulerUnitLabel, getLabel("tooltip.offset"), { unit: ' ' + rulerUnitLabel });
         offsetRow.add('statictext', undefined, labelText("fieldLabel.offsetY"));
-        ui.offsetYInput = addNumberField(offsetRow, '0', getLabel("tooltip.offset"));
+        ui.offsetYInput = addNumberField(offsetRow, '0 ' + rulerUnitLabel, getLabel("tooltip.offset"), { unit: ' ' + rulerUnitLabel });
     }
 
     /**
@@ -3363,9 +3363,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         ui.rbFill.value = true;
         ui.kindRadios = { fill: ui.rbFill, stroke: ui.rbStroke };
 
-        ui.strokeWidthInput = addNumberField(kindRow, '1', getLabel("tooltip.stroke"));
+        ui.strokeWidthInput = addNumberField(kindRow, '1 ' + strokeUnitLabel, getLabel("tooltip.stroke"), { unit: ' ' + strokeUnitLabel });
+        ui.strokeWidthInput.characters = UNIT_FIELD_CHARS;
         setFieldRange(ui.strokeWidthInput, 0, null);
-        kindRow.add('statictext', undefined, strokeUnitLabel);
     }
 
     /**
@@ -3430,9 +3430,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         opacityRow.orientation = 'row';
         ui.cbOpacityApply = opacityRow.add('checkbox', undefined, '');
         ui.cbOpacityApply.helpTip = getLabel("tooltip.opacity");
-        ui.opacityInput = addNumberField(opacityRow, '60', getLabel("tooltip.opacity"));
-        ui.opacityInput.characters = 3;
-        opacityRow.add('statictext', undefined, '%');
+        ui.opacityInput = addNumberField(opacityRow, '60%', getLabel("tooltip.opacity"), { unit: '%' });
+        ui.opacityInput.characters = PERCENT_FIELD_CHARS;
     }
 
     /**
@@ -3488,7 +3487,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
      */
     function syncScalePanel(ui) {
         if (ui.rbRectangle.value && !ui.cbSquare.value) {
-            ui.scaleInput.text = '100';
+            ui.scaleInput.text = formatFieldText(ui.scaleInput, 100);
             ui.cbOneChar.value = false;
             ui.scalePanel.enabled = false;
         } else {
@@ -3531,7 +3530,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         }
         if (ui.cbRoundEnable.value) {
             /* OFF→ON で控えた値を戻す / Restore the saved value when turned on */
-            if (!ui.roundInput.enabled) ui.roundInput.text = String(ui.lastRoundRadius || ui.roundInput.text || '0');
+            if (!ui.roundInput.enabled) ui.roundInput.text = String(ui.lastRoundRadius || ui.roundInput.text || formatFieldText(ui.roundInput, 0));
             setNumberFieldEnabled(ui.roundInput, true);
         } else {
             /* ON→OFF で値を控えて無効化 / Save the value and disable when turned off */
@@ -3656,7 +3655,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         var fieldMap = getTextFieldMap(ui);
         var checkboxMap = getCheckboxMap(ui);
         var key;
-        for (key in fieldMap) dialogState[key] = String(fieldMap[key].text);
+        /* 単位は付けず数値だけを控える（復元時に欄の単位を付け直す）/ Save the number only; the unit is added back on restore */
+        for (key in fieldMap) {
+            var fieldValue = parseFloat(fieldMap[key].text);
+            dialogState[key] = isNaN(fieldValue) ? DEFAULT_SETTINGS[key] : String(fieldValue);
+        }
         for (key in checkboxMap) dialogState[key] = !!checkboxMap[key].value;
         dialogState.marginLink = !!ui.marginLinkToggle.value;
         dialogState.shape = getSelectedRadioKey(ui.shapeRadios, 'circle');
@@ -3676,13 +3679,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         var fieldMap = getTextFieldMap(ui);
         var checkboxMap = getCheckboxMap(ui);
         var key;
-        for (key in fieldMap) fieldMap[key].text = String(dialogState[key]);
+        for (key in fieldMap) {
+            var savedValue = parseFloat(dialogState[key]);
+            if (isNaN(savedValue)) savedValue = parseFloat(DEFAULT_SETTINGS[key]);
+            fieldMap[key].text = formatFieldText(fieldMap[key], savedValue);
+        }
         for (key in checkboxMap) checkboxMap[key].value = !!dialogState[key];
         setLinkToggleValue(ui.marginLinkToggle, !!dialogState.marginLink);
         selectRadioKey(ui.shapeRadios, dialogState.shape, 'circle');
         selectRadioKey(ui.kindRadios, dialogState.kind, 'fill');
         selectRadioKey(ui.colorRadios, dialogState.colorMode, 'black');
-        ui.lastRoundRadius = String(dialogState.roundValue);
+        ui.lastRoundRadius = ui.roundInput.text;
     }
 
     // =========================================
@@ -3754,12 +3761,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8af4a7016ad"; /* 紹�
         var shortSide = Math.min(Math.abs(baseRect.w), Math.abs(baseRect.h));
         if (!isFinite(shortSide) || shortSide <= 0) return;
 
-        var defaultMargin = String(roundToTenth(shortSide / DEFAULT_MARGIN_DIVISOR));
-        ui.marginVInput.text = defaultMargin;
-        ui.marginHInput.text = defaultMargin;
+        var defaultMargin = roundToTenth(shortSide / DEFAULT_MARGIN_DIVISOR);
+        ui.marginVInput.text = formatFieldText(ui.marginVInput, defaultMargin);
+        ui.marginHInput.text = formatFieldText(ui.marginHInput, defaultMargin);
         syncMarginLink(ui);
 
-        ui.roundInput.text = String(roundToTenth(shortSide / DEFAULT_ROUND_DIVISOR));
+        ui.roundInput.text = formatFieldText(ui.roundInput, roundToTenth(shortSide / DEFAULT_ROUND_DIVISOR));
         ui.lastRoundRadius = ui.roundInput.text;
     }
 

@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md"; /* README (English) */
@@ -142,7 +142,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /* 整列先パネルは左右・上下とも余白を詰める（9軸ウィジェットの余白調整）
        The anchor panel uses tighter padding on all sides to fit the 9-axis widget */
     var ANCHOR_PANEL_MARGINS = [9, 13, 9, 4];
-    var MARGIN_FIELD_CHARACTERS = 4;
+    var MARGIN_FIELD_CHARACTERS = 5;
     var BOUNDS_OPTION_MARGINS = [4, 4, 4, 4];  /* プレビュー境界の行の余白 / margins of the preview-bounds row */
 
     // =========================================
@@ -2509,7 +2509,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     function parseNumericInput(inputText, defaultValue) {
         var trimmedText = ("" + inputText).replace(/^\s+|\s+$/g, "");
         if (trimmedText === "") return defaultValue;
-        var parsedValue = Number(trimmedText);
+        var parsedValue = parseFloat(trimmedText); /* 「5 mm」のように単位が付いていても先頭の数値を読む / read the leading number even with a unit */
         return isNaN(parsedValue) ? defaultValue : parsedValue;
     }
 
@@ -2982,7 +2982,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {Object} パネル参照とマージン取得・フォーカス制御をまとめたオブジェクト
      */
     function buildMarginPanel(parentContainer, unitLabel, onSettingsChanged) {
-        var marginPanel = parentContainer.add("panel", undefined, getLabel("panel.margin") + " (" + unitLabel + ")");
+        var marginPanel = parentContainer.add("panel", undefined, getLabel("panel.margin"));
         setupPanel(marginPanel);
         marginPanel.orientation = "row";
         marginPanel.alignChildren = ["fill", "center"];
@@ -2991,6 +2991,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var fieldColumn = marginPanel.add("group");
         fieldColumn.orientation = "column";
         fieldColumn.alignChildren = ["left", "center"];
+
+        var unitSuffix = " " + unitLabel; /* 欄の中に出す単位（「5 mm」の形） / unit shown inside the fields */
 
         /**
          * ラベル付きのマージン入力欄を作る
@@ -3014,9 +3016,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                Same minimum as readMarginField(); run the same onChanging as typing */
             var stepperGroup = addStepper(stepperInputGroup, function () { return marginField; }, {
                 min: MINIMUM_MARGIN_VALUE,
+                unit: unitSuffix,
                 onStep: function (numberInput) { if (numberInput.onChanging) numberInput.onChanging(); }
             });
-            marginField = stepperInputGroup.add("edittext", undefined, DEFAULT_SETTINGS.marginText);
+            marginField = stepperInputGroup.add("edittext", undefined, DEFAULT_SETTINGS.marginText + unitSuffix);
             marginField.characters = MARGIN_FIELD_CHARACTERS;
             marginField.helpTip = marginPanel.helpTip;
             marginField.stepperGroup = stepperGroup;
@@ -3049,7 +3052,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
          */
         function normalizeMarginField(marginField) {
             var marginValue = readMarginField(marginField);
-            if (marginValue !== parseNumericInput(marginField.text, 0)) marginField.text = marginValue;
+            if (marginValue !== parseNumericInput(marginField.text, 0)) marginField.text = marginValue + unitSuffix;
         }
 
         /**

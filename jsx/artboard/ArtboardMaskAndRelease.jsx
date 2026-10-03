@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardMa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardMaskAndRelease";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardMaskAndRelease.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardMaskAndRelease.md"; /* README (English) */
@@ -122,7 +122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var MARGIN_FIELD_CHARS = 5;              /* マージン欄の文字数 / width of the margin field */
+    var MARGIN_FIELD_CHARS = 7;              /* マージン欄の文字数 / width of the margin field */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1133,14 +1133,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         marginStepperGroup.alignChildren = ["left", "center"];
         marginStepperGroup.spacing = 0;
         marginStepperGroup.margins = 0;
-        /* マージンは負の値も許す（アートボードより内側にマスク）/ negative margins are allowed */
-        var marginStepper = addStepper(marginStepperGroup, function () { return marginInput; }, { step: 1 });
-        var marginInput = marginStepperGroup.add("edittext", undefined, "0");
+        /* マージンは負の値も許す（アートボードより内側にマスク）。欄の中に単位を出す（「5 mm」の形）
+           negative margins are allowed; the unit is shown inside the field */
+        var marginStepOptions = { step: 1, unit: " " + getUnitInfo().label };
+        var marginStepper = addStepper(marginStepperGroup, function () { return marginInput; }, marginStepOptions);
+        var marginInput = marginStepperGroup.add("edittext", undefined, "0" + marginStepOptions.unit);
         marginInput.helpTip = getLabel("tooltip.margin");
         marginInput.characters = MARGIN_FIELD_CHARS;
         marginInput.active = true;
         bindSteppedArrowKeys(marginInput, marginStepper);
-        marginRow.add("statictext", undefined, "(" + getUnitInfo().label + ")");
+        /* 単位を省いて入れた値も「数値 + 単位」にそろえる / append the unit to values typed without one */
+        marginInput.onChange = function () {
+            var value = evaluateArithmetic(marginInput.text, marginStepOptions.unit);
+            if (!isNaN(value)) writeSteppedValue(marginInput, value, marginStepOptions);
+        };
 
         var removeOutsideCheckbox = addOptionCheckbox(maskOptionPanel, "removeOutside", false);
         removeOutsideCheckbox.alignment = "left";

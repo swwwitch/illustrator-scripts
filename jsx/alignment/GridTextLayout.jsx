@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridTextLa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridTextLayout";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridTextLayout.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridTextLayout.md"; /* README (English) */
@@ -143,7 +143,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var GUTTER_PANEL_MARGINS = [16, 20, 16, 5]; /* ［ガター］だけ下を詰める / the Gutter panel has a tighter bottom */
     var SIZE_LABEL_WIDTH = 30;                /* 幅・高さラベルの共通幅 / common width of the size labels */
     var TOLERANCE_INPUT_CHARS = 3;
-    var GAP_INPUT_CHARS = 3;
+    var GAP_INPUT_CHARS = 5;
     var SIZE_INPUT_CHARS = 5;
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
@@ -1328,9 +1328,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {number} inputChars - 入力欄の文字数
      * @param {string} tooltipPath - 入力欄の tooltip のラベルのパス
      * @param {number} [labelWidth] - 指定すると項目名をこの幅で右揃えにする
+     * @param {string} [unitSuffix] - 欄の中に出す単位（例 " mm"。省略時は数値だけ）
      * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup、増減の設定は .stepOptions で参照できる）
      */
-    function addNumberField(parentGroup, labelPath, initialText, inputChars, tooltipPath, labelWidth) {
+    function addNumberField(parentGroup, labelPath, initialText, inputChars, tooltipPath, labelWidth, unitSuffix) {
         var fieldLabel = parentGroup.add("statictext", undefined, labelText(labelPath));
         if (labelWidth) {
             fieldLabel.justify = "right";
@@ -1345,10 +1346,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stepperFieldGroup.margins = 0;
 
         /* どの欄も負数は不可。onStep は bindNumericInput() で入れる / no negatives; onStep is set in bindNumericInput() */
-        var stepOptions = { min: 0 };
+        var stepOptions = { min: 0, unit: unitSuffix };
         var numberInput;
         var stepperGroup = addStepper(stepperFieldGroup, function () { return numberInput; }, stepOptions);
-        numberInput = stepperFieldGroup.add("edittext", undefined, initialText);
+        numberInput = stepperFieldGroup.add("edittext", undefined, initialText + (unitSuffix || ""));
         numberInput.characters = inputChars;
         numberInput.helpTip = getLabel(tooltipPath);
         numberInput.stepperGroup = stepperGroup;
@@ -1718,6 +1719,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ∧∨と↑↓キーは同じ処理で増減し、増減後も連動とプレビューをそろえる / steppers and arrow keys share one path */
         editText.stepOptions.onStep = syncAndPreview;
         bindSteppedArrowKeys(editText, editText.stepperGroup);
+        /* 確定時に単位を省いた値も「数値 + 単位」にそろえ、換算後の値を連動先とプレビューへ / normalize the committed value, then sync and preview */
+        editText.onChange = function () {
+            var value = evaluateArithmetic(editText.text, editText.stepOptions.unit);
+            if (isNaN(value)) return;
+            writeSteppedValue(editText, value, editText.stepOptions);
+            syncAndPreview();
+        };
     }
 
     // =========================================
@@ -1759,7 +1767,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {object} ダイアログと各コントロールの参照
      */
     function buildGridDialog(gridShape) {
-        var currentUnitLabel = getUnitInfo().label;
+        /* ガター・全体サイズは定規の単位で入れ、単位は欄の中に出す（「1 mm」の形） / gutters and size use the ruler unit, shown inside the fields */
+        var unitInfo = getUnitInfo();
+        var unitSuffix = " " + unitInfo.label;
 
         var gridDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(gridDialog);
@@ -1773,7 +1783,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ガター / Gutter */
         /* 行間・列間の2行の右に連動アイコンを上下中央で置く / Put the link icon to the right of the two gap rows, vertically centered */
-        var gutterPanel = addDialogPanel(gridDialog, getLabel("panel.gutter") + "（" + currentUnitLabel + "）",
+        var gutterPanel = addDialogPanel(gridDialog, getLabel("panel.gutter"),
             "row", ["left", "center"], GUTTER_PANEL_MARGINS);
 
         var gutterLeftColumn = gutterPanel.add("group");
@@ -1781,9 +1791,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gutterLeftColumn.alignChildren = "left";
 
         var rowGapInput = addNumberField(gutterLeftColumn.add("group"), "fieldLabel.rowGap",
-            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.rowGap");
+            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.rowGap", undefined, unitSuffix);
         var columnGapInput = addNumberField(gutterLeftColumn.add("group"), "fieldLabel.columnGap",
-            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.columnGap");
+            String(DEFAULT_GAP), GAP_INPUT_CHARS, "tooltip.columnGap", undefined, unitSuffix);
 
         /* 切り替え後の処理は showGridDialog() で onLinkToggle に入れる / The handler is set later in showGridDialog() */
         var linkGapsToggle = addLinkToggle(gutterPanel, DEFAULT_LINK_GAPS, function () {
@@ -1793,12 +1803,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setNumberFieldEnabled(columnGapInput, !DEFAULT_LINK_GAPS);
 
         /* 全体サイズ / Overall size */
-        var regionPanel = addDialogPanel(gridDialog, getLabel("panel.region") + "（" + currentUnitLabel + "）",
+        var regionPanel = addDialogPanel(gridDialog, getLabel("panel.region"),
             "row", "top");
         var widthInput = addNumberField(regionPanel.add("group"), "fieldLabel.width",
-            String(Math.round(gridShape.unionBounds[2] - gridShape.unionBounds[0])), SIZE_INPUT_CHARS, "tooltip.width", SIZE_LABEL_WIDTH);
+            formatStepperNumber((gridShape.unionBounds[2] - gridShape.unionBounds[0]) / unitInfo.pointsPerUnit),
+            SIZE_INPUT_CHARS, "tooltip.width", SIZE_LABEL_WIDTH, unitSuffix);
         var heightInput = addNumberField(regionPanel.add("group"), "fieldLabel.height",
-            String(Math.round(gridShape.unionBounds[1] - gridShape.unionBounds[3])), SIZE_INPUT_CHARS, "tooltip.height", SIZE_LABEL_WIDTH);
+            formatStepperNumber((gridShape.unionBounds[1] - gridShape.unionBounds[3]) / unitInfo.pointsPerUnit),
+            SIZE_INPUT_CHARS, "tooltip.height", SIZE_LABEL_WIDTH, unitSuffix);
 
         /* オプション / Options */
         var optionPanel = addDialogPanel(gridDialog, getLabel("panel.option"), "column", "left");
@@ -1820,6 +1832,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         return {
             gridDialog: gridDialog,
+            pointsPerUnit: unitInfo.pointsPerUnit,
             rowToleranceInput: rowToleranceInput,
             columnToleranceInput: columnToleranceInput,
             rowGapInput: rowGapInput,
@@ -1834,19 +1847,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 入力値からセルの寸法を求める。間隔は数値でなければ 0、幅・高さは正の数でなければ選択範囲の寸法
+     * 入力値からセルの寸法を求める。間隔は数値でなければ 0、幅・高さは正の数でなければ選択範囲の寸法。
+     * 欄は「1 mm」のように単位付きなので先頭の数値を読み、定規の単位から pt へ換算する
      * @param {object} dialogControls - buildGridDialog() の戻り値
      * @param {object} gridShape - unionBounds / rowCount / columnCount を持つ判定結果
-     * @returns {object} cellWidth / cellHeight / rowGap / columnGap を持つ寸法
+     * @returns {object} cellWidth / cellHeight / rowGap / columnGap を持つ寸法（pt）
      */
     function readCellMetrics(dialogControls, gridShape) {
-        var rowGap = Number(dialogControls.rowGapInput.text);
-        var columnGap = Number(dialogControls.columnGapInput.text);
+        var pointsPerUnit = dialogControls.pointsPerUnit;
+        var rowGap = parseFloat(dialogControls.rowGapInput.text) * pointsPerUnit;
+        var columnGap = parseFloat(dialogControls.columnGapInput.text) * pointsPerUnit;
         if (isNaN(rowGap)) rowGap = 0;
         if (isNaN(columnGap)) columnGap = 0;
 
-        var totalWidth = Number(dialogControls.widthInput.text);
-        var totalHeight = Number(dialogControls.heightInput.text);
+        var totalWidth = parseFloat(dialogControls.widthInput.text) * pointsPerUnit;
+        var totalHeight = parseFloat(dialogControls.heightInput.text) * pointsPerUnit;
         if (isNaN(totalWidth) || totalWidth <= 0) totalWidth = gridShape.unionBounds[2] - gridShape.unionBounds[0];
         if (isNaN(totalHeight) || totalHeight <= 0) totalHeight = gridShape.unionBounds[1] - gridShape.unionBounds[3];
 

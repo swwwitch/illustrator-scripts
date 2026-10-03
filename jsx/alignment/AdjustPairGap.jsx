@@ -31,7 +31,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPair
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
@@ -1074,16 +1074,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     /* ダイアログの数値は定規の単位で表示し、pt に換算して使う / Dialog values are shown in the ruler unit and converted to pt */
     var rulerUnit = getUnitInfo();
-    var rulerUnitLabel = rulerUnit.label;
+    var rulerUnitSuffix = " " + rulerUnit.label; /* 入力欄の中で数値に続ける単位（「10 mm」の形）/ unit shown inside the fields */
     var pointsPerUnit = rulerUnit.pointsPerUnit; /* 1単位 = pointsPerUnit pt */
 
     /**
-     * pt の値を定規の単位の表示文字列にする（小数第2位で丸める）
+     * pt の値を定規の単位の表示文字列にする（小数第2位で丸め、単位を付ける）
      * @param {number} points - pt の値
-     * @returns {string} 表示文字列
+     * @returns {string} 表示文字列（例「10 mm」）
      */
     function pointsToDisplayText(points) {
-        return String(Math.round((points / pointsPerUnit) * 100) / 100);
+        return String(Math.round((points / pointsPerUnit) * 100) / 100) + rulerUnitSuffix;
     }
 
     /**
@@ -1508,17 +1508,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         }
     };
 
-    /**
-     * 単位を括弧で添えたパネル名を返す（日本語は全角括弧、英語は半角）。
-     * 各行に単位を並べる代わりにパネル名へまとめる
-     * @param {string} labelPath - パネル名のラベルのパス
-     * @param {string} unitLabel - 単位の表示ラベル
-     * @returns {string} 単位付きのパネル名
-     */
-    function labelWithUnit(labelPath, unitLabel) {
-        return getLabel(labelPath) + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
-    }
-
     // =========================================
     // キー操作 / Keyboard
     // =========================================
@@ -1893,7 +1882,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     }
 
     /**
-     * 「項目名：∧∨＋入力欄」の1行を追加する。値は定規の単位で表示し、getPoints() が pt に換算して返す
+     * 「項目名：∧∨＋入力欄」の1行を追加する。値は定規の単位を付けて欄の中に表示し、getPoints() が pt に換算して返す
      * @param {Panel} parentPanel - 追加先
      * @param {string} labelKey - 項目名の LABELS のキー
      * @param {string} tooltipKey - ツールチップの LABELS のキー
@@ -1912,10 +1901,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         fieldGroup.margins = 0;
         var fieldInput;
         var fieldStepper = addStepper(fieldGroup, function () { return fieldInput; }, {
+            unit: rulerUnitSuffix,
             onStep: callOnChanging /* プレビュー更新 / refresh preview */
         });
         fieldInput = fieldGroup.add("edittext", undefined, pointsToDisplayText(initialPoints));
-        fieldInput.characters = 4;
+        fieldInput.characters = 5;
         bindSteppedArrowKeys(fieldInput, fieldStepper);
         fieldInput.helpTip = getLabel(tooltipKey);
 
@@ -1957,13 +1947,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     /**
      * オフセットパネル（オブジェクト同士の間隔・プレビュー境界）を生成する。アートボード端からの距離は
-     * ［アートボード］パネルが持つ。単位はパネル名に出す。イベント結線は呼び出し側で行う
+     * ［アートボード］パネルが持つ。イベント結線は呼び出し側で行う
      * @param {Group} parentGroup - 追加先
      * @param {number} initialGapPoints - 間隔の初期値・空欄時のフォールバック（pt）
      * @returns {{panel: Panel, spacingRow: Group, spacingInput: EditText, previewBoundsCheckbox: Checkbox, getSpacingInPoints: Function, getBoundsType: Function}} パネルと操作用の関数
      */
     function buildGapPanel(parentGroup, initialGapPoints) {
-        var gapPanel = parentGroup.add("panel", undefined, labelWithUnit("panel.offset", rulerUnitLabel));
+        var gapPanel = parentGroup.add("panel", undefined, getLabel("panel.offset"));
         setupPanel(gapPanel, 6);
 
         // 間隔行（ラベル＋入力）/ Gap row (label + input)
@@ -1998,13 +1988,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     /**
      * アートボードパネル（アートボード端からの距離）を生成する。アートボードモードのときだけ使う。
-     * 単位はパネル名に出す。イベント結線は呼び出し側で行う
+     * イベント結線は呼び出し側で行う
      * @param {Group} parentGroup - 追加先
      * @param {number} initialMarginPoints - 距離の初期値・空欄時のフォールバック（pt）
      * @returns {{panel: Panel, marginRow: Group, marginInput: EditText, getMarginInPoints: Function}} パネルと操作用の関数
      */
     function buildArtboardMarginPanel(parentGroup, initialMarginPoints) {
-        var marginPanel = parentGroup.add("panel", undefined, labelWithUnit("panel.artboardMargin", rulerUnitLabel));
+        var marginPanel = parentGroup.add("panel", undefined, getLabel("panel.artboardMargin"));
         setupPanel(marginPanel, 6);
         var marginField = addPointsFieldRow(marginPanel, "fieldLabel.margin", "tooltip.margin", initialMarginPoints);
         return {
@@ -2018,8 +2008,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     /**
      * 位置調整パネルを生成する。整列（なし/開始/中央/終端）と位置の2行を1枚にまとめ、［固定］で選んだ側に
      * 応じて setOrientation() で水平／垂直に切り替える（開始/終端のラベルとツールチップが入れ替わる）。
-     * どちらの向きかは 左・右／上・下 のラベルで示すので、パネル名は「位置調整」で固定
-     * （オフセットパネルと同じく、単位はパネル名に出す）。
+     * どちらの向きかは 左・右／上・下 のラベルで示すので、パネル名は「位置調整」で固定。
      * 向きごとの値の保持と中央時のオフセット無効化は createOrientationSwitcher() が行う。
      * 開始/終端のラベルはレイアウト確定後に差し替えるので、文字数の多いほうで組み立てて幅を確保しておく
      * @param {Window} parentGroup - 追加先
@@ -2036,7 +2025,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             return (firstText.length >= secondText.length) ? firstText : secondText;
         }
 
-        var alignmentPanel = parentGroup.add("panel", undefined, labelWithUnit("panel.position", rulerUnitLabel));
+        var alignmentPanel = parentGroup.add("panel", undefined, getLabel("panel.position"));
         setupPanel(alignmentPanel, 6);
 
         // 整列行（ラベル＋なし/開始/中央/終端）/ Alignment row (label + none/start/center/end)
@@ -2053,8 +2042,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         };
         alignRadios.none.value = true; // 既定：整列なし / Default: no alignment
 
-        // 位置行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
-        // Position row (label + input); the unit lives in the panel title instead
+        // 位置行（ラベル＋入力）。単位は欄の中に出す
+        // Position row (label + input); the unit is shown inside the field
         var offsetRow = alignmentPanel.add("group");
         setupRow(offsetRow, "left", 8);
         var offsetLabel = offsetRow.add("statictext", undefined, labelText("fieldLabel.position"));
@@ -2065,10 +2054,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         offsetFieldGroup.margins = 0;
         var offsetInput;
         var offsetStepper = addStepper(offsetFieldGroup, function () { return offsetInput; }, {
+            unit: rulerUnitSuffix,
             onStep: callOnChanging /* プレビュー更新 / refresh preview */
         });
-        offsetInput = offsetFieldGroup.add("edittext", undefined, "0");
-        offsetInput.characters = 4;
+        offsetInput = offsetFieldGroup.add("edittext", undefined, pointsToDisplayText(0));
+        offsetInput.characters = 5;
         bindSteppedArrowKeys(offsetInput, offsetStepper);
 
         // ラベル幅をそろえて整列ラジオと入力の開始位置を合わせる / Match label widths
@@ -2136,8 +2126,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // 水平／垂直それぞれの入力内容。パネルを切り替えるときに退避・復元する
         // Per-orientation values, stashed and restored as the panel switches
         var orientationValues = {
-            h: { align: "none", offset: "0" },
-            v: { align: "none", offset: "0" }
+            h: { align: "none", offset: pointsToDisplayText(0) },
+            v: { align: "none", offset: pointsToDisplayText(0) }
         };
         var shownOrientation = null; // 今パネルに出ている向き / the orientation currently shown
 
@@ -2176,7 +2166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             var isCenter = alignRadios.center.value;
             alignmentRefs.offsetRow.enabled = !isCenter;
             redrawSteppersIn(alignmentRefs.offsetRow); /* ∧∨のディム表示を切り替える / update stepper dimming */
-            if (isCenter) offsetInput.text = "0";
+            if (isCenter) offsetInput.text = pointsToDisplayText(0);
         }
 
         return {

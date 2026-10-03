@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObje
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md"; /* README (English) */
@@ -2400,13 +2400,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
      * @param {string} labelPath - 項目名のラベルのパス
      * @param {string} initialText - 入力欄の初期値
      * @param {string} tooltipPath - 入力欄の tooltip のラベルのパス
+     * @param {string} unitSuffix - 欄の中に表示する単位（例 " mm"）
      * @returns {EditText} 追加した入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
      */
-    function addGapField(parentGroup, labelPath, initialText, tooltipPath) {
+    function addGapField(parentGroup, labelPath, initialText, tooltipPath, unitSuffix) {
         var gapInput = addSteppedField(parentGroup, {
             label: labelText(labelPath),
             text: initialText,
             characters: GAP_INPUT_CHARS,
+            unit: unitSuffix,
             /* 増減後は手入力と同じくプレビューを更新する（onChanging は bindDialogEvents() で結線）
                after stepping, refresh the preview just like typing does */
             onStep: function (numberInput) { if (numberInput.onChanging) numberInput.onChanging(); }
@@ -2443,9 +2445,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
         var spacingDialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         setupWindow(spacingDialog);
 
-        // パネル名に単位を出す（日本語は全角かっこ）/ show unit in panel title (full-width parentheses in Japanese)
-        var unitSuffix = (uiLang === "ja") ? "（" + rulerUnit.label + "）" : " (" + rulerUnit.label + ")";
-        var spacingPanel = spacingDialog.add('panel', undefined, getLabel('panel.spacing') + unitSuffix);
+        // 単位は欄の中に出す（「10 mm」の形）/ the unit is shown inside the fields ("10 mm")
+        var unitSuffix = " " + rulerUnit.label;
+        var spacingPanel = spacingDialog.add('panel', undefined, getLabel('panel.spacing'));
         // 2カラム構成なので row のまま余白のみ共通化。連動アイコンは入力欄の上下中央に置く
         // two-column panel: keep row, share margins; the link icon sits vertically centered beside the fields
         setupPanel(spacingPanel, COLUMN_SPACING);
@@ -2459,9 +2461,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n08861d0e40c3"; /* 紹�
 
         // 初期値は pt を表示単位に換算して表示 / show initial value converted from pt to the display unit
         var horizontalGapInput = addGapField(gapInputColumn, 'fieldLabel.horizontal',
-            (initialGapX / rulerUnit.pointsPerUnit).toFixed(1), 'tooltip.horizontal');
+            (initialGapX / rulerUnit.pointsPerUnit).toFixed(1) + unitSuffix, 'tooltip.horizontal', unitSuffix);
         // 連動ONで始めるので上下は左右と同じ値 / Link starts on, so vertical mirrors horizontal
-        var verticalGapInput = addGapField(gapInputColumn, 'fieldLabel.vertical', horizontalGapInput.text, 'tooltip.vertical');
+        var verticalGapInput = addGapField(gapInputColumn, 'fieldLabel.vertical', horizontalGapInput.text, 'tooltip.vertical', unitSuffix);
 
         // 右カラム（連動アイコン。ONで始める。切り替え後の処理は bindDialogEvents() で onLinkToggle に入れる）
         // right column: the link icon, starting on; its handler is set later in bindDialogEvents()

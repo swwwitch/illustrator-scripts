@@ -14,7 +14,7 @@
 
 - Assumes the selected objects are roughly arranged in a grid, and re-lays them out using horizontal and vertical spacing values.
 - Always-on preview. Values are typed directly into the fields, or stepped with the stepper buttons left of each field or with Up/Down (to the next whole number, 1.5 → 2; to the next multiple of ten with Shift; by 0.1 with Option).
-- Spacing is entered in the current ruler unit (mm / pt / px, and so on) and converted to points internally; the unit is shown in the panel title.
+- Spacing is entered in the current ruler unit (mm / pt / px, and so on) and converted to points internally; the unit is shown inside the fields.
 - Existing groups (including clip groups) are treated as a single object with one bounding box, rather than being broken apart.
 - Objects are not grouped automatically afterwards; they simply stay selected.
 - The dialog switches between Japanese and English automatically (`$.locale`).
@@ -33,6 +33,7 @@ Example with objects of different sizes and shapes (sample text and font names s
 
 ### Update History
 
+- v1.8.4 (2026-10-03): Units now appear inside the numeric fields; removed the unit from the panel title
 - v1.8.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.2 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.8.1 (2026-09-30): Fixed an error when running with characters selected by the Type tool

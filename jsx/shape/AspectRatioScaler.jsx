@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRati
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AspectRatioScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRatioScaler.md"; /* README (English) */
@@ -157,7 +157,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
     var FIELD_CHARACTERS    = 5;                 /* 数値欄の幅（文字数）/ Numeric field width */
     var CUSTOM_RATIO_CHARS  = 3;                 /* カスタム比の欄の幅（文字数）/ Custom ratio field width */
-    var PERCENT_CHARS       = 4;                 /* ％の欄の幅（文字数）/ Percent field width */
+    var PERCENT_CHARS       = 5;                 /* ％の欄の幅（文字数）/ Percent field width */
     var CUSTOM_RATIO_INDENT = 14;                /* カスタム比の欄の左インデント（約1文字）/ Left indent of the custom ratio fields (about one character) */
     var ORIENT_BUTTON_SIZE  = 36;                /* 向きアイコンのボタンの大きさ / Size of an orientation icon button */
     var ORIENT_FRAME_LONG   = 30;                /* 向きアイコンの枠の長辺 / Long side of the orientation icon frame */
@@ -1763,9 +1763,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @param {string} initialText - 初期値
      * @param {Object} tipSet - ツールチップ
      * @param {number} [fieldCharacters] - 欄の幅（文字数）。省略時は FIELD_CHARACTERS
+     * @param {string} [unit] - 欄の中に数値の後ろに出す単位（例 " mm"、"%"）。省略時は単位なし
      * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup、∧∨と欄を束ねた group は .parent）
      */
-    function addNumberField(parent, initialText, tipSet, fieldCharacters) {
+    function addNumberField(parent, initialText, tipSet, fieldCharacters, unit) {
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperFieldGroup = parent.add("group");
         stepperFieldGroup.orientation = "row";
@@ -1777,6 +1778,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         /* 負数は不可。増減後は onChanging を呼んでプレビューを更新する / no negatives; fire onChanging to refresh the preview */
         var stepperGroup = addStepper(stepperFieldGroup, function () { return numberField; }, {
             min: 0,
+            unit: unit,
             onStep: function (steppedField) {
                 if (typeof steppedField.onChanging === "function") steppedField.onChanging();
             }
@@ -1797,13 +1799,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @param {Object} valueTipSet - 計算値のツールチップ
      * @param {number} fieldCharacters - 欄の幅（文字数）
      * @param {string} [initialText] - 入力欄の初期値
-     * @returns {{field: EditText, valueText: StaticText}} 入力欄と計算値の表示
+     * @param {string} [unit] - 欄の中に出す単位（例 " mm"、"%"）。省略時は単位なし
+     * @returns {{field: EditText, valueText: StaticText, unit: string}} 入力欄と計算値の表示、単位
      */
-    function addFieldValueStack(parent, fieldTipSet, valueTipSet, fieldCharacters, initialText) {
+    function addFieldValueStack(parent, fieldTipSet, valueTipSet, fieldCharacters, initialText, unit) {
         var valueStack = parent.add("group");
         valueStack.orientation = "stack";
         valueStack.alignChildren = ["fill", "center"];
-        var inputField = addNumberField(valueStack, initialText || "", fieldTipSet, fieldCharacters);
+        var inputField = addNumberField(valueStack, initialText || "", fieldTipSet, fieldCharacters, unit);
         /* 計算値は∧∨の幅だけ右へずらし、入力欄と同じ位置に出す / indent by the stepper width to line up with the field */
         var valueTextGroup = valueStack.add("group");
         valueTextGroup.margins = [STEPPER_SIDE_MARGIN + STEPPER_BUTTON_WIDTH, 0, 0, 0];
@@ -1811,11 +1814,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         var valueText = valueTextGroup.add("statictext", undefined, "");
         valueText.characters = fieldCharacters;
         valueText.helpTip = getLabel(valueTipSet);
-        return { field: inputField, valueText: valueText };
+        return { field: inputField, valueText: valueText, unit: unit || "" };
     }
 
     /**
-     * 「項目名：［長さ］ ［％］%」の行を追加する（長さの単位はパネル名に出す）（固定した辺は読めるだけの表示に切り替える）
+     * 「項目名：［長さ mm］ ［％%］」の行を追加する（単位は欄の中に出す）（固定した辺は読めるだけの表示に切り替える）
      * @param {Object} parent - 追加先
      * @param {Object} labelSet - 項目名
      * @param {number} labelWidth - 項目名の幅（右揃えでそろえる）
@@ -1827,9 +1830,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         rowLabel.preferredSize.width = labelWidth;
         rowLabel.justify = "right";
 
-        var lengthStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizeValue, LABELS.tooltip.fixedValue, FIELD_CHARACTERS);
-        var percentStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizePercent, LABELS.tooltip.fixedValue, PERCENT_CHARS);
-        sizeRow.add("statictext", undefined, "%");
+        var lengthStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizeValue, LABELS.tooltip.fixedValue, FIELD_CHARACTERS, "", " " + RULER_UNIT.label);
+        var percentStack = addFieldValueStack(sizeRow, LABELS.tooltip.sizePercent, LABELS.tooltip.fixedValue, PERCENT_CHARS, "", "%");
         return { length: lengthStack, percent: percentStack };
     }
 
@@ -1922,9 +1924,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
      * @returns {void}
      */
     function buildSizePanel(parent, dialogControls) {
-        /* 単位はパネル名に出す（例：サイズ（mm））/ Show the unit in the panel title, e.g. Size (mm) */
-        var unitSuffix = (uiLang === "ja") ? "（" + RULER_UNIT.label + "）" : " (" + RULER_UNIT.label + ")";
-        var sizePanel = addPanel(parent, getLabel(LABELS.panel.size) + unitSuffix);
+        var sizePanel = addPanel(parent, getLabel(LABELS.panel.size));
 
         /* 項目名の右にラジオを横に並べる（排他にするため同じ親へ）/ Radios in a row right of the label, in one parent to stay exclusive */
         var basisRow = addRowGroup(sizePanel);
@@ -2309,12 +2309,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     }
 
     /**
-     * 入力欄と表示の両方に同じ文字列を入れる
+     * 入力欄と表示の両方に同じ文字列を入れる（空欄でなければ欄の単位を付ける）
      * @param {Object} fieldValue - addFieldValueStack() の戻り値
-     * @param {string} valueText - 入れる文字列
+     * @param {string} valueText - 入れる文字列（数値のみ）
      * @returns {void}
      */
     function writeFieldValue(fieldValue, valueText) {
+        if (valueText !== "") valueText += fieldValue.unit;
         fieldValue.field.text = valueText;
         fieldValue.valueText.text = valueText;
     }

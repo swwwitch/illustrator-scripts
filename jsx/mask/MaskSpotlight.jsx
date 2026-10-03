@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MaskSpotli
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MaskSpotlight";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MaskSpotlight.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MaskSpotlight.md"; /* README (English) */
@@ -973,8 +973,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
             offsetY:           { ja: "Y", en: "Y" },
             shadowOpacity:     { ja: "不透明度", en: "Opacity" },
             shadowBlur:        { ja: "ぼかし", en: "Blur" },
-            shadowDarkness:    { ja: "濃さ", en: "Darkness" },
-            withUnit:          { ja: "{label}（{unit}）", en: "{label} ({unit})" }
+            shadowDarkness:    { ja: "濃さ", en: "Darkness" }
         },
         preset: {
             foreground:     { ja: "すりガラス", en: "Frosted glass" },
@@ -2170,35 +2169,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
      * ∧∨と数値欄を隙間なく並べて追加する。範囲と増減後の処理は、あとから .stepOptions（min / max / onStep）に入れる
      * @param {object} parentGroup - 追加先
      * @param {number} defaultValue - 初期値
+     * @param {string} unitSuffix - 欄の中に添える単位（例 " pt"、"%"）
      * @returns {object} 追加した数値欄（∧∨は .stepperGroup、増減の設定は .stepOptions で参照できる）
      */
-    function addStepperNumberField(parentGroup, defaultValue) {
+    function addStepperNumberField(parentGroup, defaultValue, unitSuffix) {
         var stepperInputGroup = parentGroup.add('group');
         stepperInputGroup.orientation = 'row';
         stepperInputGroup.alignChildren = ['left', 'center'];
         stepperInputGroup.spacing = 0;
         stepperInputGroup.margins = 0;
 
-        var stepOptions = {};
+        var stepOptions = { unit: unitSuffix };
         var numberField;
         var stepperGroup = addStepper(stepperInputGroup, function() { return numberField; }, stepOptions);
-        numberField = stepperInputGroup.add('edittext', undefined, String(defaultValue));
-        numberField.characters = 4;
+        numberField = stepperInputGroup.add('edittext', undefined, String(defaultValue) + unitSuffix);
+        numberField.characters = 5;
         numberField.stepperGroup = stepperGroup;
         numberField.stepOptions = stepOptions;
+        /* 数値だけで確定したら単位を書き足す（onChange より先に呼ばれる）/ append the unit to a bare number on commit (runs before onChange) */
+        numberField.addEventListener('change', function() { appendUnitToPlainNumber(numberField, unitSuffix); });
         return numberField;
     }
 
     /**
-     * ラベル＋数値欄＋単位の行を作る
+     * 単位の付いていない数値だけの入力に、欄の単位を書き足す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " pt"）
+     * @returns {void}
+     */
+    function appendUnitToPlainNumber(numberInput, unitSuffix) {
+        var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+        if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmedText)) numberInput.text = trimmedText + unitSuffix;
+    }
+
+    /**
+     * ラベル＋数値欄の行を作る
      * @param {object} parentPanel - 行を追加する親
      * @param {string} labelPath - 項目名のラベルキー
      * @param {string} tooltipPath - tooltipのラベルキー
      * @param {number} defaultValue - 初期値
-     * @param {string} unitText - 単位の表記
+     * @param {string} unitSuffix - 欄の中に添える単位
      * @returns {object} 追加した数値欄
      */
-    function createNumberFieldRow(parentPanel, labelPath, tooltipPath, defaultValue, unitText) {
+    function createNumberFieldRow(parentPanel, labelPath, tooltipPath, defaultValue, unitSuffix) {
         var fieldRow = parentPanel.add('group');
         fieldRow.orientation = 'row';
         fieldRow.alignment = ['fill', 'top'];
@@ -2208,32 +2221,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
         rowLabel.preferredSize.width = NUMBER_LABEL_WIDTH;
         rowLabel.justify = 'right';
 
-        var numberField = addStepperNumberField(fieldRow, defaultValue);
+        var numberField = addStepperNumberField(fieldRow, defaultValue, unitSuffix);
         numberField.helpTip = getLabel(tooltipPath);
-
-        fieldRow.add('statictext', undefined, unitText);
         return numberField;
     }
 
     /**
-     * 「半径（px）：」を1行目、数値欄を2行目に置く（幅の狭い列で使う）
+     * 「半径：」を1行目、数値欄を2行目に置く（幅の狭い列で使う）
      * @param {object} parentPanel - 行を追加する親
      * @param {string} labelPath - 項目名のラベルキー
      * @param {string} tooltipPath - tooltipのラベルキー
      * @param {number} defaultValue - 初期値
-     * @param {string} unitText - 項目名に添える単位
+     * @param {string} unitSuffix - 欄の中に添える単位
      * @returns {object} 入れ物（group）と数値欄（field）を持つオブジェクト
      */
-    function createStackedNumberField(parentPanel, labelPath, tooltipPath, defaultValue, unitText) {
+    function createStackedNumberField(parentPanel, labelPath, tooltipPath, defaultValue, unitSuffix) {
         var fieldColumn = parentPanel.add('group');
         fieldColumn.orientation = 'column';
         fieldColumn.alignment = ['left', 'top'];
         fieldColumn.alignChildren = ['left', 'top'];
         fieldColumn.spacing = 4;
 
-        fieldColumn.add('statictext', undefined, labelText("label.withUnit", { label: getLabel(labelPath), unit: unitText }));
+        fieldColumn.add('statictext', undefined, labelText(labelPath));
 
-        var numberField = addStepperNumberField(fieldColumn, defaultValue);
+        var numberField = addStepperNumberField(fieldColumn, defaultValue, unitSuffix);
         numberField.helpTip = getLabel(tooltipPath);
 
         return { group: fieldColumn, field: numberField };
@@ -2337,9 +2348,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
             addCheckbox: addDropShadowCheckbox,
             settingsGroup: shadowSettingsGroup,
             opacityField:  createNumberFieldRow(shadowSettingsGroup, 'label.shadowOpacity',  'tooltip.shadowOpacity',  DEFAULT_SHADOW_OPACITY,  '%'),
-            offsetXField:  createNumberFieldRow(shadowSettingsGroup, 'label.offsetX',        'tooltip.shadowOffsetX',  DEFAULT_SHADOW_OFFSET_X, 'pt'),
-            offsetYField:  createNumberFieldRow(shadowSettingsGroup, 'label.offsetY',        'tooltip.shadowOffsetY',  DEFAULT_SHADOW_OFFSET_Y, 'pt'),
-            blurField:     createNumberFieldRow(shadowSettingsGroup, 'label.shadowBlur',     'tooltip.shadowBlur',     DEFAULT_SHADOW_BLUR,     'pt'),
+            offsetXField:  createNumberFieldRow(shadowSettingsGroup, 'label.offsetX',        'tooltip.shadowOffsetX',  DEFAULT_SHADOW_OFFSET_X, ' pt'),
+            offsetYField:  createNumberFieldRow(shadowSettingsGroup, 'label.offsetY',        'tooltip.shadowOffsetY',  DEFAULT_SHADOW_OFFSET_Y, ' pt'),
+            blurField:     createNumberFieldRow(shadowSettingsGroup, 'label.shadowBlur',     'tooltip.shadowBlur',     DEFAULT_SHADOW_BLUR,     ' pt'),
             darknessField: createNumberFieldRow(shadowSettingsGroup, 'label.shadowDarkness', 'tooltip.shadowDarkness', DEFAULT_SHADOW_DARKNESS, '%')
         };
     }
@@ -2430,7 +2441,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
         effectFieldColumn.alignChildren = ['left', 'top'];
         effectFieldColumn.spacing = 8;
 
-        var blurRadius = createStackedNumberField(effectFieldColumn, 'label.blurRadius', 'tooltip.blurRadius', DEFAULT_BLUR_RADIUS, 'px');
+        var blurRadius = createStackedNumberField(effectFieldColumn, 'label.blurRadius', 'tooltip.blurRadius', DEFAULT_BLUR_RADIUS, ' px');
         var spotlightDarkness = createStackedNumberField(effectFieldColumn, 'label.spotlightDarkness', 'tooltip.spotlightDarkness', DEFAULT_SPOTLIGHT_DARKNESS, '%');
 
         return {
@@ -2743,7 +2754,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
          */
         function readNumberField(specKey) {
             var fieldSpec = numberFieldSpecs[specKey];
-            return clampRange(Number(fieldSpec.field.text), fieldSpec.min, fieldSpec.max, fieldSpec.fallback);
+            return clampRange(parseFloat(fieldSpec.field.text), fieldSpec.min, fieldSpec.max, fieldSpec.fallback);
         }
 
         /**
@@ -2856,7 +2867,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfc777dda965d"; /* 紹�
 
             var settingKey;
             for (settingKey in numberFieldSpecs) {
-                numberFieldSpecs[settingKey].field.text = String(preset[settingKey]);
+                var presetField = numberFieldSpecs[settingKey].field;
+                presetField.text = String(preset[settingKey]) + presetField.stepOptions.unit;
             }
             for (settingKey in checkboxSpecs) {
                 checkboxSpecs[settingKey].value = preset[settingKey];

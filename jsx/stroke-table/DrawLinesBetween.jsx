@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesB
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DrawLinesBetween";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawLinesBetween.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesBetween.md"; /* README (English) */
@@ -155,7 +155,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
-    var NUMBER_FIELD_CHARS = 6;                /* 数値入力欄の幅（文字数）/ number field width in characters */
+    var NUMBER_FIELD_CHARS = 7;                /* 数値入力欄の幅（文字数）/ number field width in characters */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1650,16 +1650,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 「項目名＋数値欄＋（単位）」の行を追加する
+     * 「項目名＋数値欄」の行を追加する（単位は欄の中に「0.3 mm」の形で出す）
      * @param {Window} parentContainer - 追加先のダイアログ
      * @param {string} labelPath - 項目名のラベルのパス
      * @param {number} initialValue - 初期値（現在の線の単位）
-     * @param {string} unitLabel - 単位の表示
      * @param {string} tooltipPath - tooltip のラベルのパス
-     * @param {Object} stepOptions - ∧∨と↑↓キーの増減設定（min など。addStepper() に渡す）
+     * @param {Object} stepOptions - ∧∨と↑↓キーの増減設定（min / unit など。addStepper() に渡す）
      * @returns {EditText} 追加した数値欄
      */
-    function addNumberRow(parentContainer, labelPath, initialValue, unitLabel, tooltipPath, stepOptions) {
+    function addNumberRow(parentContainer, labelPath, initialValue, tooltipPath, stepOptions) {
         var numberRow = parentContainer.add("group");
         numberRow.add("statictext", undefined, getLabel(labelPath));
 
@@ -1672,11 +1671,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var numberInput;
         var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, stepOptions);
-        numberInput = stepperInputGroup.add("edittext", undefined, formatNumberForUI(initialValue));
+        numberInput = stepperInputGroup.add("edittext", undefined, formatNumberForUI(initialValue) + stepOptions.unit);
         numberInput.helpTip = getLabel(tooltipPath);
         numberInput.characters = NUMBER_FIELD_CHARS;
         bindSteppedArrowKeys(numberInput, stepperGroup);
-        numberRow.add("statictext", undefined, "(" + unitLabel + ")");
         return numberInput;
     }
 
@@ -1718,10 +1716,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rulesDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(rulesDialog);
 
+        var unitSuffix = " " + strokeUnit.label; /* 欄の中に出す単位 / unit shown inside the field */
         var lineWeightInput = addNumberRow(rulesDialog, "fieldLabel.lineWeight", initialValues.lineWeight,
-            strokeUnit.label, "tooltip.lineWeight", { min: 0 });
+            "tooltip.lineWeight", { min: 0, unit: unitSuffix });
         var extensionInput = addNumberRow(rulesDialog, "fieldLabel.extension", initialValues.extension,
-            strokeUnit.label, "tooltip.extension", {}); /* マイナスで短縮するので下限なし / negative shortens the rule */
+            "tooltip.extension", { unit: unitSuffix }); /* マイナスで短縮するので下限なし / negative shortens the rule */
 
         /* 線端（既定は「なし」、前回値があれば反映）/ Line cap: Butt by default, or the saved one */
         var capRadioGroup = addRadioPanel(rulesDialog, "panel.lineCap");
@@ -1763,13 +1762,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object} 線幅・延長（pt）・線端・長さの基準（入力が不正なときは null）
      */
     function readRuleSettings(dialogControls, strokeUnit) {
-        var lineWeightValue = Number(dialogControls.lineWeightInput.text);
+        var lineWeightValue = parseFloat(dialogControls.lineWeightInput.text); /* 「0.3 mm」→ 0.3 */
         if (isNaN(lineWeightValue) || lineWeightValue <= 0) {
             alert(getLabel("alert.needPositiveStroke"));
             return null;
         }
 
-        var extensionValue = Number(dialogControls.extensionInput.text);
+        var extensionValue = parseFloat(dialogControls.extensionInput.text);
         if (isNaN(extensionValue)) {
             alert(getLabel("alert.needNumberExtension"));
             return null;

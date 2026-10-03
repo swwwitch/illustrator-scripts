@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFil
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md"; /* README (English) */
@@ -139,6 +139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* ダイアログ固有の寸法 / Dialog-specific sizes */
     var LABEL_WIDTH = 60;         /* 項目名の幅 / Field label width */
     var FIELD_CHARACTERS = 4;     /* 数値入力欄の桁数 / Width of the number fields in characters */
+    var LENGTH_FIELD_CHARACTERS = 6; /* 単位付きの数値入力欄（間隔・マージン）の桁数 / Width of the fields that show a unit */
 
     /**
      * 右揃えの項目名と入力欄を並べる行を作る
@@ -1051,15 +1052,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /**
-     * 単位を括弧でくくった表記を返す（日本語は全角括弧）
-     * @param {string} unitLabel - 単位の表示名
-     * @returns {string} 括弧付きの単位
-     */
-    function unitSuffix(unitLabel) {
-        return (uiLang === "ja") ? ("（" + unitLabel + "）") : (" (" + unitLabel + ")");
-    }
-
     // =========================================
     // 形状と配置の計算 / Geometry
     // =========================================
@@ -1317,7 +1309,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupWindow(fillDialog);
 
         var rulerUnit = getUnitInfo("rulerType");
-        var unitLabel = rulerUnit.label;
+        /* 間隔・マージンの欄の中に付ける単位（「10 mm」の形）/ Unit shown inside the spacing and margin fields */
+        var lengthUnit = ' ' + rulerUnit.label;
 
         /* グリッド数（0 で容器に合わせて自動）/ Grid count (0 fits the container automatically) */
         var gridCountRow = addFieldRow(fillDialog, 'fieldLabel.gridCount');
@@ -1331,16 +1324,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 間隔 / Spacing */
         var spacingRow = addFieldRow(fillDialog, 'fieldLabel.spacing');
         var defaultGapValue = Math.round(tileWidthPt / rulerUnit.pointsPerUnit * DEFAULT_GAP_RATIO);
-        var gapField = addNumberField(spacingRow, String(defaultGapValue), 'tooltip.spacing',
-            { min: 0, onStep: updatePreviewFromFields });
-        spacingRow.add('statictext', undefined, unitSuffix(unitLabel));
+        var gapField = addNumberField(spacingRow, defaultGapValue + lengthUnit, 'tooltip.spacing',
+            { min: 0, unit: lengthUnit, onStep: updatePreviewFromFields });
+        gapField.characters = LENGTH_FIELD_CHARACTERS;
         gapField.active = true;
 
         /* マージン / Margin */
         var marginRow = addFieldRow(fillDialog, 'fieldLabel.margin');
         /* マージンは負OK / margin can be negative */
-        var marginField = addNumberField(marginRow, '0', 'tooltip.margin', { onStep: updatePreviewFromFields });
-        marginRow.add('statictext', undefined, unitSuffix(unitLabel));
+        var marginField = addNumberField(marginRow, '0' + lengthUnit, 'tooltip.margin', { unit: lengthUnit, onStep: updatePreviewFromFields });
+        marginField.characters = LENGTH_FIELD_CHARACTERS;
 
         /**
          * 入力欄の値を pt に換算して読む（チェックボックスは作成前なら false として扱う）

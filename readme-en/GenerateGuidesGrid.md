@@ -90,3 +90,4 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.8.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.8.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.7 (2026-10-03): Clicking a field label (Number, Gutter, and the margin labels) now focuses its field
+- v1.8.8 (2026-10-03): Number fields now show the unit inside the field; removed the unit from the panel title and beside the fields

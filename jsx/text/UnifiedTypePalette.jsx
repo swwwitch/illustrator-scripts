@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTyp
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnifiedTypePalette";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePalette.md"; /* README (English) */
@@ -157,7 +157,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             justify: { ja: "行揃え", en: "Justification" },
             role: { ja: "種別", en: "Type" },
             leading: { ja: "行送り", en: "Leading" },
-            leadingPercent: { ja: "行送り%", en: "Leading (%)" },
             sizeAndLeading: { ja: "フォントサイズと行送り", en: "Font Size & Leading" },
             leadingType: { ja: "行送りの基準", en: "Leading basis" },
             mojikumi: { ja: "文字組みアキ量設定", en: "Mojikumi" },
@@ -2721,8 +2720,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
      * 行に、左に∧∨を付けた数値欄を追加する（↑↓キーも∧∨と同じ処理で増減する）。
      * 増減後の処理は、あとから input.stepOptions.onStep に入れる
      * @param {Group} parentRow - 追加先の行
-     * @param {string} initialText - 初期値
-     * @param {Object} stepOptions - min / max / integer（addStepper() を参照）
+     * @param {string} initialText - 初期値（単位なし。空なら空のまま）
+     * @param {Object} stepOptions - min / max / integer / unit（addStepper() を参照。unit は欄の中に添える単位）
      * @returns {EditText} 追加した入力欄（設定は .stepOptions で参照できる）
      */
     function addStepperInput(parentRow, initialText, stepOptions) {
@@ -2734,11 +2733,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         stepperFieldGroup.margins = 0;
         var numberInput;
         var stepperGroup = addStepper(stepperFieldGroup, function () { return numberInput; }, stepOptions);
-        numberInput = stepperFieldGroup.add("edittext", undefined, initialText);
+        numberInput = stepperFieldGroup.add("edittext", undefined, "");
         numberInput.stepOptions = stepOptions;
+        setFieldValue(numberInput, initialText);
         bindSteppedArrowKeys(numberInput, stepperGroup);
+        if (stepOptions.unit) {
+            /* 数値だけで確定したら単位を書き足す（onChange より先に呼ばれる）/ append the unit to a bare number on commit (runs before onChange) */
+            numberInput.addEventListener("change", function () { appendUnitToPlainNumber(numberInput, stepOptions.unit); });
+        }
         focusInputOnPrecedingLabel(stepperFieldGroup, numberInput);
         return numberInput;
+    }
+
+    /**
+     * 数値欄に、欄の単位を付けて値を書き込む（空文字なら空にする）
+     * @param {EditText} numberInput - addStepperInput() で作った入力欄
+     * @param {string|number} valueText - 書き込む値（単位なし）
+     * @returns {void}
+     */
+    function setFieldValue(numberInput, valueText) {
+        var text = String(valueText);
+        numberInput.text = (text === "") ? "" : text + (numberInput.stepOptions.unit || "");
+    }
+
+    /**
+     * 単位の付いていない数値だけの入力に、欄の単位を書き足す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " pt"、"%"）
+     * @returns {void}
+     */
+    function appendUnitToPlainNumber(numberInput, unitSuffix) {
+        var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+        if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmedText)) numberInput.text = trimmedText + unitSuffix;
     }
 
     // =========================================
@@ -3144,10 +3170,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var tsumeRow = spacingPanel.add("group");
         setupGroup(tsumeRow, "row");
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
-        var tsumeInput = addStepperInput(tsumeRow, "0", { min: 0, max: 100, integer: true });
-        tsumeInput.characters = 3;
+        var tsumeInput = addStepperInput(tsumeRow, "0", { min: 0, max: 100, integer: true, unit: "%" });
+        tsumeInput.characters = 4;
         tsumeInput.helpTip = getLabel(LABELS.tip.tsume);
-        tsumeRow.add("statictext", undefined, "%");
         var tsumeSlider = spacingPanel.add("slider", undefined, 0, 0, 100);
 
         // 文字ツメとトラッキングの間に少し余白 / A little gap between Tsume and Tracking
@@ -3241,9 +3266,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         leadSizeRow.orientation = "row";
         leadSizeRow.alignChildren = ["left", "center"];
         var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + leadColon);
-        var fontSizeInput = addStepperInput(leadSizeRow, "", { min: 0 });
-        fontSizeInput.characters = 3;
-        leadSizeRow.add("statictext", undefined, leadTextUnit.label);
+        var fontSizeInput = addStepperInput(leadSizeRow, "", { min: 0, unit: " " + leadTextUnit.label });
+        fontSizeInput.characters = 5;
         leadSizeLabel.helpTip = getLabel(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
 
         // 実質（フォントサイズ×行送り% の結果。ここに入力すると % を逆算）/ Effective leading (size × %); entering a value back-calculates the %
@@ -3251,20 +3275,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         leadEffectiveRow.orientation = "row";
         leadEffectiveRow.alignChildren = ["left", "center"];
         var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLabel(LABELS.field.leading) + leadColon);
-        var leadingEffectiveInput = addStepperInput(leadEffectiveRow, "", { min: 0 });
-        leadingEffectiveInput.characters = 3;
         // 実質は行送りなので Q/H 環境では単位「H」/ Effective is a leading value, so use "H" when the unit is Q/H
-        leadEffectiveRow.add("statictext", undefined, getLeadingUnitLabel(leadTextUnit.code));
+        var leadingEffectiveInput = addStepperInput(leadEffectiveRow, "", { min: 0, unit: " " + getLeadingUnitLabel(leadTextUnit.code) });
+        leadingEffectiveInput.characters = 5;
         leadEffectiveLabel.helpTip = getLabel(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
 
         // 行送り（自動行送り量 %）/ Leading (auto-leading amount %)
         var leadPercentRow = leadingPanel.add("group");
         leadPercentRow.orientation = "row";
         leadPercentRow.alignChildren = ["left", "center"];
-        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLabel(LABELS.field.leadingPercent) + leadColon);
-        var leadingPercentInput = addStepperInput(leadPercentRow, "", { min: 0 });
-        leadingPercentInput.characters = 3;
-        leadPercentRow.add("statictext", undefined, "%");
+        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLabel(LABELS.field.leading) + leadColon);
+        var leadingPercentInput = addStepperInput(leadPercentRow, "", { min: 0, unit: "%" });
+        leadingPercentInput.characters = 4;
         leadPercentLabel.helpTip = getLabel(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
@@ -3380,17 +3402,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         fsSizeRow.orientation = "row";
         fsSizeRow.alignChildren = ["left", "center"];
         var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + sizeColon);
-        var fontSizeInput = addStepperInput(fsSizeRow, "", { min: 0 });
-        fontSizeInput.characters = 4;
-        fsSizeRow.add("statictext", undefined, textUnit.label);
+        var fontSizeInput = addStepperInput(fsSizeRow, "", { min: 0, unit: " " + textUnit.label });
+        fontSizeInput.characters = 5;
 
         var fsScaleRow = fontSizePanel.add("group");
         fsScaleRow.orientation = "row";
         fsScaleRow.alignChildren = ["left", "center"];
         var fsScaleLabel = fsScaleRow.add("statictext", undefined, getLabel(LABELS.field.scale) + sizeColon);
-        var scaleInput = addStepperInput(fsScaleRow, "100", { min: 0 });
-        scaleInput.characters = 4;
-        fsScaleRow.add("statictext", undefined, "%");
+        var scaleInput = addStepperInput(fsScaleRow, "100", { min: 0, unit: "%" });
+        scaleInput.characters = 5;
 
         var fsApparentRow = fontSizePanel.add("group");
         fsApparentRow.orientation = "row";
@@ -3439,9 +3459,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         tsBaseRow.orientation = "row";
         tsBaseRow.alignChildren = ["left", "center"];
         var tsBaseLabel = tsBaseRow.add("statictext", undefined, getLabel(LABELS.field.typeScaleBase) + sizeColon);
-        var typeScaleBaseInput = addStepperInput(tsBaseRow, "", { min: 0 });
-        typeScaleBaseInput.characters = 4;
-        tsBaseRow.add("statictext", undefined, textUnit.label);
+        var typeScaleBaseInput = addStepperInput(tsBaseRow, "", { min: 0, unit: " " + textUnit.label });
+        typeScaleBaseInput.characters = 5;
         tsBaseLabel.helpTip = getLabel(LABELS.tip.typeScaleBase); typeScaleBaseInput.helpTip = tsBaseLabel.helpTip;
 
         // 倍率ポップアップ / Ratio popup
@@ -3690,7 +3709,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 params.tsume = selectedPreset.tsume;
                 // ツメは UI にも反映 / Reflect Tsume on the slider too
                 ui.tsumeSlider.value = selectedPreset.tsume;
-                ui.tsumeInput.text = String(selectedPreset.tsume);
+                setFieldValue(ui.tsumeInput, selectedPreset.tsume);
             }
             if (selectedPreset.tracking !== undefined && selectedPreset.tracking !== null) {
                 params.tracking = selectedPreset.tracking;
@@ -3839,7 +3858,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         }
         function reflectTsume(value) {
             ui.tsumeSlider.value = value;
-            ui.tsumeInput.text = String(value);
+            setFieldValue(ui.tsumeInput, value);
         }
         function reflectTracking(value) {
             ui.trackingSlider.value = value;
@@ -3970,7 +3989,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             suppressUiEvents = false;
             // 文字サイズ 12pt・比率 100% / Font size 12pt, scale 100%
             syncFontSizeText(String(Math.round((12 / textUnit.pointsPerUnit) * 10) / 10), null);
-            ui.scaleInput.text = "100";
+            setFieldValue(ui.scaleInput, "100");
             updateApparentDisplay();
             updateReferenceApparent();
             updateLeadingEffective(); // サイズ確定後に実質行送りを更新 / Refresh the effective leading after the size is set
@@ -4001,12 +4020,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ui.tsumeSlider.onChanging = function () {
             var snappedValue = tsumeSnap(this.value);
             this.value = snappedValue;
-            ui.tsumeInput.text = String(snappedValue);
+            setFieldValue(ui.tsumeInput, snappedValue);
         };
         ui.tsumeSlider.onChange = function () {
             var snappedValue = tsumeSnap(this.value);
             this.value = snappedValue;
-            ui.tsumeInput.text = String(snappedValue);
+            setFieldValue(ui.tsumeInput, snappedValue);
             runApply("applyTsume", { value: snappedValue });
         };
         // 文字ツメ入力欄：0〜100 にクランプしてスライダーへ反映 / Tsume input: clamp 0-100 and sync the slider
@@ -4014,7 +4033,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             var clampedValue = Math.round(parseFloat(ui.tsumeInput.text));
             if (isNaN(clampedValue)) return;
             if (clampedValue < 0) clampedValue = 0; else if (clampedValue > 100) clampedValue = 100;
-            ui.tsumeInput.text = String(clampedValue);
+            setFieldValue(ui.tsumeInput, clampedValue);
             ui.tsumeSlider.value = clampedValue;
             runApply("applyTsume", { value: clampedValue });
         }
@@ -4056,7 +4075,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         /* 全サイズ欄へ値を反映（except は編集中の欄を除外してキャレット移動を防ぐ）/ Push a value to every size field (except the one being edited, to avoid caret jumps) */
         function syncFontSizeText(text, except) {
             for (var i = 0; i < ui.fontSizeInputs.length; i++) {
-                if (ui.fontSizeInputs[i] !== except) ui.fontSizeInputs[i].text = text;
+                if (ui.fontSizeInputs[i] !== except) setFieldValue(ui.fontSizeInputs[i], text);
             }
         }
         function updateApparentDisplay() {
@@ -4076,8 +4095,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // サイズ変更では基準見かけサイズ（referenceApparent）を更新しない＝ボタンで元の見かけへ戻せるように保持
         // A size edit does NOT update the reference apparent size, so the button can restore the previous look
         function applyFontSizeFromInput(sourceInput) {
-            syncFontSizeText(sourceInput.text, sourceInput);
             var inputValue = parseFloat(sourceInput.text);
+            syncFontSizeText(isNaN(inputValue) ? "" : String(inputValue), sourceInput);
             // 行送りは自動行送りなのでサイズ変更に自動追従する（行送りの再適用は不要）
             // Leading is auto-leading and follows the size automatically (no need to reapply leading)
             if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.pointsPerUnit });
@@ -4094,7 +4113,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         for (var fontSizeInputIndex = 0; fontSizeInputIndex < ui.fontSizeInputs.length; fontSizeInputIndex++) {
             (function (sizeInput) {
                 sizeInput.onChange = function () { applyFontSizeFromInput(sizeInput); };
-                sizeInput.onChanging = function () { syncFontSizeText(sizeInput.text, sizeInput); updateApparentDisplay(); updateLeadingEffective(); };
+                sizeInput.onChanging = function () {
+                    var typedSize = parseFloat(sizeInput.text);
+                    syncFontSizeText(isNaN(typedSize) ? "" : String(typedSize), sizeInput);
+                    updateApparentDisplay();
+                    updateLeadingEffective();
+                };
                 sizeInput.stepOptions.onStep = function () { applyFontSizeFromInput(sizeInput); };
             })(ui.fontSizeInputs[fontSizeInputIndex]);
         }
@@ -4121,7 +4145,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // 基準サイズ欄が空なら現在のフォントサイズ（なければ既定値）で初期化 / Seed the base field from the current font size (fallback to default)
         if (ui.typeScaleBaseInput.text === "") {
             var seedBase = parseFloat(ui.fontSizeInputs[0].text);
-            ui.typeScaleBaseInput.text = (!isNaN(seedBase) && seedBase > 0) ? String(seedBase) : String(Math.round((12 / textUnit.pointsPerUnit) * 10) / 10);
+            setFieldValue(ui.typeScaleBaseInput, (!isNaN(seedBase) && seedBase > 0) ? String(seedBase) : String(Math.round((12 / textUnit.pointsPerUnit) * 10) / 10));
             ui.rebuildTypeScaleList();
         }
 
@@ -4149,14 +4173,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 // Apparent → Actual: bake the current apparent into the actual size, scale → 100%
                 var bakedSize = calcApparentSize(size, scale);
                 syncFontSizeText(String(bakedSize), null);
-                ui.scaleInput.text = "100";
+                setFieldValue(ui.scaleInput, "100");
                 runApply("applyFontSizeAndScale", { sizePt: bakedSize * textUnit.pointsPerUnit, scale: 100 });
             } else {
                 // 実サイズ→見かけ：サイズ変更後、変更前の見かけサイズを基準に比率を計算して合わせる
                 // Actual → Apparent: after a size change, compute the scale that restores the previous apparent size
                 if (isNaN(referenceApparent) || Math.abs(referenceApparent - size) < EPS) return; // 変更なし＝何もしない / no change → no-op
                 var newScale = Math.round((referenceApparent / size) * 100 * 10) / 10;
-                ui.scaleInput.text = String(newScale);
+                setFieldValue(ui.scaleInput, newScale);
                 runApply("applyFontSizeAndScale", { sizePt: size * textUnit.pointsPerUnit, scale: newScale });
             }
             updateReferenceApparent(); // 変換後の見かけを新しい基準に / The post-conversion apparent becomes the new reference
@@ -4174,13 +4198,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         function updateLeadingEffective() {
             var size = parseFloat(ui.fontSizeInputs[0].text);
             var percent = currentLeadingPercent();
-            if (isNaN(size) || isNaN(percent)) { ui.leadingEffectiveInput.text = ""; return; }
-            ui.leadingEffectiveInput.text = String(Math.round(size * percent / 100 * 10) / 10);
+            if (isNaN(size) || isNaN(percent)) { setFieldValue(ui.leadingEffectiveInput, ""); return; }
+            setFieldValue(ui.leadingEffectiveInput, Math.round(size * percent / 100 * 10) / 10);
         }
 
         /* 行送り（%）欄へ値を反映し、実質表示も更新 / Set the leading (%) field and refresh the effective display */
         function reflectLeadingPercent(percent) {
-            ui.leadingPercentInput.text = isNaN(percent) ? "" : String(Math.round(percent * 10) / 10);
+            setFieldValue(ui.leadingPercentInput, isNaN(percent) ? "" : Math.round(percent * 10) / 10);
             updateLeadingEffective();
         }
 
@@ -4222,7 +4246,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             var size = parseFloat(ui.fontSizeInputs[0].text);
             if (isNaN(effective) || isNaN(size) || size <= 0) return;
             var percent = Math.round((effective / size) * 100 * 10) / 10;
-            ui.leadingPercentInput.text = String(percent);
+            setFieldValue(ui.leadingPercentInput, percent);
             applyLeading();
         }
         ui.leadingEffectiveInput.onChange = applyLeadingFromEffective;
@@ -4257,15 +4281,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 if (state.count <= 0) return;
                 // フォントサイズ・比率・見かけ / Font size, scale, apparent
                 syncFontSizeText(isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.pointsPerUnit) * 10) / 10), null);
-                ui.scaleInput.text = isNaN(state.hScale) ? "100" : String(Math.round(state.hScale * 10) / 10);
+                setFieldValue(ui.scaleInput, isNaN(state.hScale) ? "100" : Math.round(state.hScale * 10) / 10);
                 updateApparentDisplay();
                 updateReferenceApparent(); // 選択を読み直したら現在の見かけを基準にする / Reloading the selection sets the current apparent as the reference
                 // 行送り%：自動行送り量（%）を % 欄に反映（実質欄は現在値で上書きするので計算表示は使わない）
                 // Leading %: reflect the auto-leading amount (%) into the % field（the effective field is overwritten by the actual value below）
-                ui.leadingPercentInput.text = isNaN(state.autoAmount) ? "" : String(Math.round(state.autoAmount * 10) / 10);
+                setFieldValue(ui.leadingPercentInput, isNaN(state.autoAmount) ? "" : Math.round(state.autoAmount * 10) / 10);
                 // 行送り：選択の現在値（絶対値 pt）をそのまま表示（サイズ×% の計算値ではない）
                 // Leading: show the selection's actual current value (absolute pt), not the size × % computation
-                ui.leadingEffectiveInput.text = isNaN(state.leadingPt) ? "" : String(Math.round((state.leadingPt / textUnit.pointsPerUnit) * 10) / 10);
+                setFieldValue(ui.leadingEffectiveInput, isNaN(state.leadingPt) ? "" : Math.round((state.leadingPt / textUnit.pointsPerUnit) * 10) / 10);
                 // 行送りの基準 / Leading basis
                 var basisIndex = 0;
                 for (var choiceIndex = 0; choiceIndex < ui.leadingBasisChoices.length; choiceIndex++) {

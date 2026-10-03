@@ -16,12 +16,13 @@
 
 ### Script info
 
-- Version: v1.4.3
+- Version: v1.4.7
 - First release: 2026-02-15
-- Last updated: 2026-09-28
+- Last updated: 2026-10-03
 
 ### Update history
 
+- v1.4.7 (2026-10-03) Units now appear inside the number fields; removed the unit from the panel titles and beside the fields
 - v1.4.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.4.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.4.4 (20260930) : Fixed an error when running with characters selected by the Type tool

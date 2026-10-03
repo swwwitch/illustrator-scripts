@@ -44,7 +44,8 @@
 - v1.2.6 (2026-10-01) Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 - v1.2.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.2.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
+- v1.2.9 (2026-10-03) The number field now shows its unit inside the field; removed the unit label to the right of the field
 
 ### Script info
 
-- Version: v1.2.5
+- Version: v1.2.9

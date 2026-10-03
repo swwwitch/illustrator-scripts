@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalen
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md"; /* README (English) */
@@ -598,10 +598,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     var unitLabel = getUnitInfo("rulerType").label;
     // 文字系（フォントサイズ等）の単位は text/units を参照
     var textUnitLabel = getUnitInfo("text/units").label;
+    /* 数値欄の中に数値の後ろに出す単位 / Units shown after the number inside the fields */
+    var lengthUnitSuffix = " " + unitLabel;
+    var textUnitSuffix = " " + textUnitLabel;
 
     /* 現在の定規単位の値をポイントへ換算 / Convert a value in the current ruler unit to points */
     function unitValueToPt(v) {
-        v = Number(v);
+        v = parseFloat(v); /* 「3 mm」のような単位付きの文字列も先頭の数値で読む / read the leading number of unit-suffixed text such as "3 mm" */
         if (isNaN(v)) return NaN;
         return v * getUnitInfo("rulerType").pointsPerUnit;
     }
@@ -609,6 +612,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     /* 入力欄の値をポイントへ換算 / Convert an edit field's value to points */
     function toPtFromUI(editText) {
         return unitValueToPt(editText && editText.text);
+    }
+
+    /**
+     * 数値に入力欄の単位を付けた文字列を返す（単位のない欄は数値のみ）
+     * @param {EditText} editText - addStepperInput() で作った入力欄
+     * @param {number|string} value - 値
+     * @returns {string} 欄に入れる文字列（例「3 mm」）
+     */
+    function formatInputText(editText, value) {
+        var stepOptions = editText && editText.stepperGroup && editText.stepperGroup.stepOptions;
+        return String(value) + ((stepOptions && stepOptions.unit) || "");
     }
 
     /* ポイント値を現在の定規単位へ換算 / Convert a point value to the current ruler unit */
@@ -2236,10 +2250,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekdayBottomMargin.orientation = "row";
         gWeekdayBottomMargin.alignChildren = ["left", "center"];
         gWeekdayBottomMargin.add("statictext", undefined, labelText("weekday.margin"));
-        var inputWeekdayBottomMargin = addStepperInput(gWeekdayBottomMargin, "2", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
+        var inputWeekdayBottomMargin = addStepperInput(gWeekdayBottomMargin, "2" + lengthUnitSuffix, { min: 0, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputWeekdayBottomMargin.helpTip = getLabel("tooltip.weekdayBottomMargin");
-        inputWeekdayBottomMargin.characters = 4;
-        gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
+        inputWeekdayBottomMargin.characters = 5;
         inputWeekdayBottomMargin.onChanging = schedulePreviewRefresh;
 
         // 曜日フォントサイズ（未入力時は全体フォントサイズを使用）
@@ -2312,10 +2325,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthMargin.orientation = "row";
         gMonthMargin.alignChildren = ["left", "center"];
         gMonthMargin.add("statictext", undefined, labelText("common.bottomMargin"));
-        var inputMonthBottomMargin = addStepperInput(gMonthMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
+        var inputMonthBottomMargin = addStepperInput(gMonthMargin, "3" + lengthUnitSuffix, { min: 0, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputMonthBottomMargin.helpTip = getLabel("tooltip.monthBottomMargin");
-        inputMonthBottomMargin.characters = 4;
-        gMonthMargin.add("statictext", undefined, unitLabel);
+        inputMonthBottomMargin.characters = 5;
         inputMonthBottomMargin.onChanging = schedulePreviewRefresh;
 
         // 月タイトル行の下ボーダー
@@ -2348,10 +2360,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYearMargin.orientation = "row";
         gYearMargin.alignChildren = ["left", "center"];
         gYearMargin.add("statictext", undefined, labelText("common.bottomMargin"));
-        var inputTopYearBottomMargin = addStepperInput(gYearMargin, "3", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
+        var inputTopYearBottomMargin = addStepperInput(gYearMargin, "3" + lengthUnitSuffix, { min: 0, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputTopYearBottomMargin.helpTip = getLabel("tooltip.topYearBottomMargin");
-        inputTopYearBottomMargin.characters = 4;
-        gYearMargin.add("statictext", undefined, unitLabel);
+        inputTopYearBottomMargin.characters = 5;
         inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
 
         gYearMargin.enabled = chkTopYear.value;
@@ -2419,7 +2430,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellMonth.alignment = "fill";
 
         // 月（ユニット間マージン）panel
-        var pnlMonthOuter = gCellMonth.add("panel", undefined, getLabel("panel.month") + "（" + unitLabel + "）");
+        var pnlMonthOuter = gCellMonth.add("panel", undefined, getLabel("panel.month"));
         setupPanel(pnlMonthOuter);
         pnlMonthOuter.alignChildren = "left";
         pnlMonthOuter.enabled = false; // 月数=1 のときはディム（refreshPreviewで同期）
@@ -2433,7 +2444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterH.orientation = "row";
         gOuterH.alignChildren = ["left", "center"];
         gOuterH.add("statictext", undefined, labelText("common.lr"));
-        var inputOuterMarginX = addStepperInput(gOuterH, "10", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
+        var inputOuterMarginX = addStepperInput(gOuterH, "10" + lengthUnitSuffix, { min: 0, max: 5000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputOuterMarginX.helpTip = getLabel("tooltip.outerMarginX");
         inputOuterMarginX.characters = 3;
         inputOuterMarginX.onChanging = schedulePreviewRefresh;
@@ -2442,7 +2453,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterV.orientation = "row";
         gOuterV.alignChildren = ["left", "center"];
         gOuterV.add("statictext", undefined, labelText("common.ud"));
-        var inputOuterMarginY = addStepperInput(gOuterV, "3", { min: 0, max: 5000, onStep: refreshPreviewOnStep });
+        var inputOuterMarginY = addStepperInput(gOuterV, "3" + lengthUnitSuffix, { min: 0, max: 5000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputOuterMarginY.helpTip = getLabel("tooltip.outerMarginY");
         inputOuterMarginY.characters = 3;
         inputOuterMarginY.onChanging = schedulePreviewRefresh;
@@ -2572,16 +2583,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var __fs0 = 12;
         try {
             if (typeof inputFontSize !== "undefined" && inputFontSize) {
-                __fs0 = Number(inputFontSize.text);
+                __fs0 = parseFloat(inputFontSize.text);
             }
         } catch (e) { }
         if (!__fs0 || __fs0 <= 0) __fs0 = 12;
         var __defaultCellW_pt = Math.round(__fs0 * 1.5);
         var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
-        var inputCellW = addStepperInput(gCellW, String(__defaultCellW), { min: 1, max: 2000, onStep: refreshPreviewOnStep });
+        var inputCellW = addStepperInput(gCellW, __defaultCellW + lengthUnitSuffix, { min: 1, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellW.helpTip = getLabel("tooltip.cellWidth");
-        inputCellW.characters = 3;
-        gCellW.add("statictext", undefined, unitLabel);
+        inputCellW.characters = 4;
 
         var gCellH = pnlCellSize.add("group");
         var stCellH = gCellH.add("statictext", undefined, labelText("layout.height"));
@@ -2589,13 +2599,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         stCellH.preferredSize.width = 30;
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
         var __defaultCellH = Math.round(ptToUnitValue(__defaultCellH_pt));
-        var inputCellH = addStepperInput(gCellH, String(__defaultCellH), { min: 1, max: 2000, onStep: refreshPreviewOnStep });
+        var inputCellH = addStepperInput(gCellH, __defaultCellH + lengthUnitSuffix, { min: 1, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellH.helpTip = getLabel("tooltip.cellHeight");
-        inputCellH.characters = 3;
-        gCellH.add("statictext", undefined, unitLabel);
+        inputCellH.characters = 4;
 
         // セル：間隔（sub panel）
-        var pnlCellGap = gCellTopRow.add("panel", undefined, "セル間隔（" + unitLabel + "）");
+        var pnlCellGap = gCellTopRow.add("panel", undefined, "セル間隔");
         setupPanel(pnlCellGap);
         pnlCellGap.alignChildren = "left";
 
@@ -2609,7 +2618,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapX.orientation = "row";
         gCellGapX.alignChildren = ["left", "center"];
         gCellGapX.add("statictext", undefined, labelText("common.lr"));
-        var inputCellGapX = addStepperInput(gCellGapX, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
+        var inputCellGapX = addStepperInput(gCellGapX, "0" + lengthUnitSuffix, { min: 0, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellGapX.helpTip = getLabel("tooltip.cellGapX");
         inputCellGapX.characters = 3;
 
@@ -2617,7 +2626,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapY.orientation = "row";
         gCellGapY.alignChildren = ["left", "center"];
         gCellGapY.add("statictext", undefined, labelText("common.ud"));
-        var inputCellGapY = addStepperInput(gCellGapY, "0", { min: 0, max: 2000, onStep: refreshPreviewOnStep });
+        var inputCellGapY = addStepperInput(gCellGapY, "0" + lengthUnitSuffix, { min: 0, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellGapY.helpTip = getLabel("tooltip.cellGapY");
         inputCellGapY.characters = 3;
 
@@ -2629,10 +2638,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellPosAdj.orientation = "row";
         gCellPosAdj.alignChildren = ["left", "center"];
         gCellPosAdj.add("statictext", undefined, "セル位置調整：");
-        var inputCellPosAdjY = addStepperInput(gCellPosAdj, "0", { min: -2000, max: 2000, onStep: refreshPreviewOnStep });
+        var inputCellPosAdjY = addStepperInput(gCellPosAdj, "0" + lengthUnitSuffix, { min: -2000, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellPosAdjY.helpTip = getLabel("tooltip.cellPosAdjY");
-        inputCellPosAdjY.characters = 4;
-        gCellPosAdj.add("statictext", undefined, unitLabel);
+        inputCellPosAdjY.characters = 5;
 
         inputCellPosAdjY.onChanging = schedulePreviewRefresh;
 
@@ -2741,7 +2749,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var stFSYear;
 
         // フォントサイズ（2行4列）
-        var pnlFontSize = tabText.add("panel", undefined, getLabel("panel.fontSize") + "（" + textUnitLabel + "）");
+        var pnlFontSize = tabText.add("panel", undefined, getLabel("panel.fontSize"));
         setupPanel(pnlFontSize);
         pnlFontSize.alignChildren = "left";
 
@@ -2773,22 +2781,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gFSInputs.alignChildren = ["left", "center"];
         gFSInputs.alignment = ["left", "top"];
 
-        inputFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
+        inputFontSize = addStepperInput(gFSInputs, "12" + textUnitSuffix, { min: 0.1, max: 9999, unit: textUnitSuffix, onStep: refreshPreviewOnStep });
         inputFontSize.helpTip = getLabel("tooltip.fontSize");
         inputFontSize.characters = 3;
         inputFontSize.onChanging = schedulePreviewRefresh;
 
-        inputWeekdayFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
+        inputWeekdayFontSize = addStepperInput(gFSInputs, "12" + textUnitSuffix, { min: 0.1, max: 9999, unit: textUnitSuffix, onStep: refreshPreviewOnStep });
         inputWeekdayFontSize.helpTip = getLabel("tooltip.fontSize");
         inputWeekdayFontSize.characters = 3;
         inputWeekdayFontSize.onChanging = schedulePreviewRefresh;
 
-        inputMonthFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
+        inputMonthFontSize = addStepperInput(gFSInputs, "12" + textUnitSuffix, { min: 0.1, max: 9999, unit: textUnitSuffix, onStep: refreshPreviewOnStep });
         inputMonthFontSize.helpTip = getLabel("tooltip.fontSize");
         inputMonthFontSize.characters = 3;
         inputMonthFontSize.onChanging = schedulePreviewRefresh;
 
-        inputYearFontSize = addStepperInput(gFSInputs, "12", { min: 0.1, max: 9999, onStep: refreshPreviewOnStep });
+        inputYearFontSize = addStepperInput(gFSInputs, "12" + textUnitSuffix, { min: 0.1, max: 9999, unit: textUnitSuffix, onStep: refreshPreviewOnStep });
         inputYearFontSize.helpTip = getLabel("tooltip.fontSize");
         inputYearFontSize.characters = 3;
         inputYearFontSize.onChanging = schedulePreviewRefresh;
@@ -3180,38 +3188,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
                 // year
                 showTopYear: !!(chkTopYear && chkTopYear.value),
-                topYearBottomMargin: Number(inputTopYearBottomMargin.text),
+                topYearBottomMargin: parseFloat(inputTopYearBottomMargin.text),
 
                 // month
                 includeYearInMonthTitle: !!(chkMonthYear && chkMonthYear.value),
                 monthTitleAlign: __SCM_getSelectedRadioValue({ left: rbMonthAlignL, center: rbMonthAlignC, right: rbMonthAlignR }),
                 monthTitleMode: __SCM_getSelectedRadioValue({ num: rbMonthNum, pad: rbMonthPad, en: rbMonthEn, ens: rbMonthEnS }),
-                monthBottomMargin: Number(inputMonthBottomMargin.text),
+                monthBottomMargin: parseFloat(inputMonthBottomMargin.text),
                 monthTitleBottomBorder: !!(chkMonthBottomBorder && chkMonthBottomBorder.value),
 
                 // weekday
                 weekStart: __SCM_getSelectedRadioValue({ mon: rbWeekMon, sun: rbWeekSun }),
                 weekdayLabelMode: __SCM_getSelectedRadioValue({ jp: rbWdJP, mtw: rbWdMTW, mon: rbWdMon }),
-                weekdayBottomMargin: Number(inputWeekdayBottomMargin.text),
-                weekdayFontSize: Number(inputWeekdayFontSize.text),
-                monthFontSize: Number(inputMonthFontSize.text),
-                yearFontSize: Number(inputYearFontSize.text),
+                weekdayBottomMargin: parseFloat(inputWeekdayBottomMargin.text),
+                weekdayFontSize: parseFloat(inputWeekdayFontSize.text),
+                monthFontSize: parseFloat(inputMonthFontSize.text),
+                yearFontSize: parseFloat(inputYearFontSize.text),
 
                 // layout
-                cellW: Number(inputCellW.text),
-                cellH: Number(inputCellH.text),
-                cellGapX: Number(inputCellGapX.text),
-                cellGapY: Number(inputCellGapY.text),
-                cellPosAdjY: Number(inputCellPosAdjY.text),
-                outerMarginX: Number(inputOuterMarginX.text),
-                outerMarginY: Number(inputOuterMarginY.text),
+                cellW: parseFloat(inputCellW.text),
+                cellH: parseFloat(inputCellH.text),
+                cellGapX: parseFloat(inputCellGapX.text),
+                cellGapY: parseFloat(inputCellGapY.text),
+                cellPosAdjY: parseFloat(inputCellPosAdjY.text),
+                outerMarginX: parseFloat(inputOuterMarginX.text),
+                outerMarginY: parseFloat(inputOuterMarginY.text),
 
                 cellFill: !!(chkCellFill && chkCellFill.value),
 
                 // format
                 fontName: __SCM_getDropdownText(ddFont),
                 favFont: __SCM_getDropdownText(ddFavFont),
-                fontSize: Number(inputFontSize.text),
+                fontSize: parseFloat(inputFontSize.text),
 
                 align: __SCM_getSelectedRadioValue({ left: rbLeft, center: rbCenter, right: rbRight }),
                 sundayRed: !!(chkSundayRed && chkSundayRed.value),
@@ -3223,7 +3231,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         function __SCM_applyPreset(obj) {
             if (!obj) return;
 
-            function setTextSafe(et, v) { try { if (et && v != null) et.text = String(v); } catch (e) { } }
+            function setTextSafe(et, v) { try { if (et && v != null) et.text = formatInputText(et, v); } catch (e) { } }
             function setCheckSafe(chk, v) { try { if (chk && v != null) chk.value = !!v; } catch (e) { } }
 
             // date
@@ -3482,7 +3490,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 }
             } catch (e) { }
 
-            var fontSize = Number(inputFontSize.text);
+            var fontSize = parseFloat(inputFontSize.text);
             if (!fontSize || fontSize <= 0) return;
 
             var align = rbLeft.value ? "left" : (rbRight.value ? "right" : "center");
@@ -3541,13 +3549,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (isNaN(weekdayBottomMargin) || weekdayBottomMargin < 0) weekdayBottomMargin = 0;
             if (weekdayBottomMargin > 2000) weekdayBottomMargin = 2000;
 
-            var weekdayFontSize = Number(inputWeekdayFontSize.text);
+            var weekdayFontSize = parseFloat(inputWeekdayFontSize.text);
             if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fontSize;
 
-            var monthFontSize = Number(inputMonthFontSize.text);
+            var monthFontSize = parseFloat(inputMonthFontSize.text);
             if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
 
-            var yearFontSize = Number(inputYearFontSize.text);
+            var yearFontSize = parseFloat(inputYearFontSize.text);
             if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
             var outerMarginX = toPtFromUI(inputOuterMarginX);
@@ -3739,7 +3747,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (colCount > 12) colCount = 12;
             if (colCount > monthCount) colCount = monthCount;
 
-            var fontSize = Number(inputFontSize.text);
+            var fontSize = parseFloat(inputFontSize.text);
             if (!fontSize || fontSize <= 0) {
                 alert(getLabel("error.badFontSize"));
                 return;
@@ -3832,13 +3840,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             var weekdayLabelMode = getWeekdayLabelMode();
 
-            var weekdayFontSize = Number(inputWeekdayFontSize.text);
+            var weekdayFontSize = parseFloat(inputWeekdayFontSize.text);
             if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fontSize;
 
-            var monthFontSize = Number(inputMonthFontSize.text);
+            var monthFontSize = parseFloat(inputMonthFontSize.text);
             if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
 
-            var yearFontSize = Number(inputYearFontSize.text);
+            var yearFontSize = parseFloat(inputYearFontSize.text);
             if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
             var options = {

@@ -20,7 +20,7 @@
 - "Objects to Level" panel: Text / Placed-Embedded Image / Rectangle (Path) checkboxes (all ON by default)
 - "Clipping Group" checkbox: when ON, the clip group itself is rotated (scope is fixed to Topmost and cannot be changed from the UI)
 - "Reset Character Scale" in the "Text" panel: resets the character horizontal / vertical scale to 100% (ON by default)
-- "Level Tolerance (°)" in the "Correction Options" panel: numeric threshold (clamped to 0.01–10°, default 0.1). The stepper buttons (∧∨) and arrow keys step to the next whole number (1.5 → 2), Shift to the next multiple of 10, Option by ±0.1
+- "Level Tolerance" in the "Correction Options" panel: numeric threshold (clamped to 0.01–10°, default 0.1). The stepper buttons (∧∨) and arrow keys step to the next whole number (1.5 → 2), Shift to the next multiple of 10, Option by ±0.1
 - Rotation angle is estimated from the transformation matrix, falling back to path vertices (first segment) for paths
 - Mirrored transforms (negative determinant) are taken into account when deciding the rotation direction
 - Rotation is applied about the object center (Transformation.CENTER), followed by a per-item "Reset Bounding Box"
@@ -57,3 +57,4 @@
 - v1.4.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Removed the hand-written dialog centering; the shared part now handles the position. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v1.4.7 (2026-10-03): The number field now shows its unit inside; removed the unit from the label

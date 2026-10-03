@@ -56,7 +56,7 @@ A 3×3 anchor grid; click the top, left, right, or bottom cell (the center and c
 
 **Offset**
 
-The panel title carries the current ruler unit, e.g. `Offset (mm)`. The Position panel does the same.
+The number field shows the current ruler unit, e.g. `10 mm`. The Position panel does the same.
 
 | Item | What it does |
 | --- | --- |
@@ -65,7 +65,7 @@ The panel title carries the current ruler unit, e.g. `Offset (mm)`. The Position
 
 **Artboard**
 
-Active only in Artboard mode. The panel title carries the current ruler unit.
+Active only in Artboard mode. The number field shows the current ruler unit.
 
 | Item | What it does |
 | --- | --- |
@@ -73,7 +73,7 @@ Active only in Artboard mode. The panel title carries the current ruler unit.
 
 **Position**
 
-There is one panel, and it switches to whichever direction is perpendicular to the Key Object side. Which orientation is live shows in the radio labels — left/right for horizontal, top/bottom for vertical. Its title carries the current ruler unit. The horizontal and vertical settings are remembered separately, so switching the key side away and back brings your values back.
+There is one panel, and it switches to whichever direction is perpendicular to the Key Object side. Which orientation is live shows in the radio labels — left/right for horizontal, top/bottom for vertical. Its number field shows the current ruler unit. The horizontal and vertical settings are remembered separately, so switching the key side away and back brings your values back.
 
 | Item | What it does |
 | --- | --- |
@@ -122,3 +122,4 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.7 (2026-10-03): Key Object is now a 3×3 anchor grid instead of radios arranged as a cross. Fixed the preview not updating when the gap or position was changed with the arrow keys. Mode and Offset, and Key Object and Artboard, now sit side by side in two columns. The distance from the artboard edge is now set in its own Artboard panel instead of sharing the Offset gap
+- v1.4.8 (2026-10-03): Number fields now show their unit inside the field; removed the units from the panel titles

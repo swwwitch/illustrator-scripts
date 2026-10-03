@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjec
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md"; /* README (English) */
@@ -1553,13 +1553,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * ラベル付きパネルを生成する（共通レイアウト適用）
      * @param {Window|Group} parentContainer - 追加先
      * @param {Object} titleLabelSet - パネル見出しのラベル定義
-     * @param {string} [unitLabel] - 見出しに添える単位（省略時は付けない）
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parentContainer, titleLabelSet, unitLabel) {
-        var panelTitle = getLabel(titleLabelSet);
-        if (unitLabel) panelTitle += (uiLang === "ja") ? "（" + unitLabel + "）" : " (" + unitLabel + ")";
-        var createdPanel = parentContainer.add("panel", undefined, panelTitle);
+    function addPanel(parentContainer, titleLabelSet) {
+        var createdPanel = parentContainer.add("panel", undefined, getLabel(titleLabelSet));
         /* 行を詰めて並べる / Tighter spacing for the stacked rows */
         setupPanel(createdPanel, 6);
         return createdPanel;
@@ -1590,12 +1587,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     /**
      * 数値入力欄を、左に∧∨を付けて追加する（↑↓キーも∧∨と同じ処理で増減。0 未満にはしない）
      * @param {Group} parentGroup - 追加先の行グループ
-     * @param {string} initialText - 初期値
+     * @param {string} initialValue - 初期値（単位なしの数値。空なら空欄）
      * @param {number} charWidth - 入力欄の文字数
-     * @param {function} onValueChanged - 値が変わったときに呼ぶコールバック（入力欄の文字列を受け取る）
+     * @param {function} onValueChanged - 値が変わったときに呼ぶコールバック（単位を除いた数値を文字列で受け取る）
+     * @param {string} [unitSuffix] - 欄の中に表示する単位（例 " mm"、"%"）
      * @returns {EditText} 追加した入力欄（∧∨は .stepperGroup で参照できる）
      */
-    function addNumberField(parentGroup, initialText, charWidth, onValueChanged) {
+    function addNumberField(parentGroup, initialValue, charWidth, onValueChanged, unitSuffix) {
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
         var stepperInputGroup = parentGroup.add("group");
         stepperInputGroup.orientation = "row";
@@ -1606,15 +1604,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var inputField;
         var stepperGroup = addStepper(stepperInputGroup, function () { return inputField; }, {
             min: 0,
-            onStep: function (numberInput) { onValueChanged(numberInput.text); }
+            unit: unitSuffix,
+            onStep: function (numberInput) { onValueChanged(String(toNumber(numberInput.text))); }
         });
-        inputField = stepperInputGroup.add("edittext", undefined, initialText);
+        inputField = stepperInputGroup.add("edittext", undefined, "");
         inputField.characters = charWidth;
         inputField.helpTip = getLabel(LABELS.tooltip.numberField);
         inputField.stepperGroup = stepperGroup;
+        inputField.unitSuffix = unitSuffix || "";
+        setNumberFieldValue(inputField, initialValue);
         bindSteppedArrowKeys(inputField, stepperGroup);
-        inputField.onChange = function () { onValueChanged(inputField.text); };
+        inputField.onChange = function () { onValueChanged(String(toNumber(inputField.text))); };
         return inputField;
+    }
+
+    /**
+     * addNumberField() で作った入力欄に、欄の単位を付けて値を書き込む（空なら空欄のまま）
+     * @param {EditText} inputField - 対象の入力欄
+     * @param {string|number} value - 単位なしの値
+     * @returns {void}
+     */
+    function setNumberFieldValue(inputField, value) {
+        var valueText = String(value);
+        inputField.text = (valueText === "") ? "" : valueText + inputField.unitSuffix;
     }
 
     /**
@@ -2897,7 +2909,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var borderColorName = "black";
         if (borderControls.white.value) borderColorName = "white";
         else if (borderControls.colorCode.value) borderColorName = normalizeColorCode(borderControls.colorCodeInput.text);
-        return borderControls.widthInput.text + "," + borderColorName;
+        return toNumber(borderControls.widthInput.text) + "," + borderColorName;
     }
 
     /**
@@ -2910,8 +2922,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         for (var i = 0; i < sizeControls.scaleRadios.length; i++) {
             if (sizeControls.scaleRadios[i].value) return "scale:" + SCALE_CHOICES[i];
         }
-        if (sizeControls.customScale.value) return "scale:" + sizeControls.customScaleInput.text;
-        if (sizeControls.targetWidth.value) return "width:" + sizeControls.targetWidthInput.text;
+        if (sizeControls.customScale.value) return "scale:" + toNumber(sizeControls.customScaleInput.text);
+        if (sizeControls.targetWidth.value) return "width:" + toNumber(sizeControls.targetWidthInput.text);
         return "scale:100";
     }
 
@@ -3090,6 +3102,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             );
         }
 
+        /* マージン・枠線の欄の中に出す定規の単位（「3 mm」の形）/ ruler unit shown inside the margin and border fields ("3 mm") */
+        var rulerUnitSuffix = " " + rulerUnit.label;
+
         var exportDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(exportDialog);
 
@@ -3143,9 +3158,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             var checkerRow = addRow(backgroundPanel);
             backgroundControls.checker = checkerRow.add("radiobutton", undefined, labelText(LABELS.radio.checker));
             backgroundControls.checker.helpTip = getLabel(LABELS.tooltip.checker);
-            backgroundControls.checkerScaleInput = addNumberField(checkerRow, "100", NUMBER_FIELD_CHARS, refreshPreview);
+            backgroundControls.checkerScaleInput = addNumberField(checkerRow, "100", NUMBER_FIELD_CHARS, refreshPreview, "%");
             backgroundControls.checkerScaleInput.helpTip = numberFieldTip(LABELS.tooltip.checkerScale);
-            checkerRow.add("statictext", undefined, "%");
 
             var colorCodeRow = addRow(backgroundPanel);
             backgroundControls.colorCode = colorCodeRow.add("radiobutton", undefined, labelText(LABELS.radio.colorCode));
@@ -3200,7 +3214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
          * @returns {Object} マージンのコントロール一式
          */
         function buildMarginPanel(parentColumn) {
-            var marginPanel = addPanel(parentColumn, LABELS.panel.margin, rulerUnit.label);
+            var marginPanel = addPanel(parentColumn, LABELS.panel.margin);
             var marginControls = {};
 
             /* 1行目：［空］［上］［空］/ Row 1: [empty][top][empty] */
@@ -3281,10 +3295,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             /* マージン指定（"3,3,0,0"）をUIへ反映する / Apply a margin spec to the UI */
             marginControls.select = function(marginSpec) {
                 var marginValues = String(marginSpec).split(",");
-                marginControls.topInput.text = String(toNumber(marginValues[0]));
-                marginControls.bottomInput.text = String(toNumber(marginValues[1]));
-                marginControls.leftInput.text = String(toNumber(marginValues[2]));
-                marginControls.rightInput.text = String(toNumber(marginValues[3]));
+                setNumberFieldValue(marginControls.topInput, toNumber(marginValues[0]));
+                setNumberFieldValue(marginControls.bottomInput, toNumber(marginValues[1]));
+                setNumberFieldValue(marginControls.leftInput, toNumber(marginValues[2]));
+                setNumberFieldValue(marginControls.rightInput, toNumber(marginValues[3]));
                 /* 四辺が同じ値のときだけ連動状態に戻す / Re-link only when all four sides match */
                 setLinkToggleValue(marginControls.linkToggle, (marginControls.topInput.text === marginControls.bottomInput.text &&
                     marginControls.topInput.text === marginControls.leftInput.text &&
@@ -3338,7 +3352,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         function addMarginField(parentRow, labelSet, onValueChanged) {
             var cellGroup = addMarginGridCell(parentRow);
             cellGroup.add("statictext", undefined, labelText(labelSet));
-            return { group: cellGroup, input: addNumberField(cellGroup, "0", MARGIN_FIELD_CHARS, onValueChanged) };
+            return { group: cellGroup, input: addNumberField(cellGroup, "0", MARGIN_FIELD_CHARS, onValueChanged, rulerUnitSuffix) };
         }
 
         /**
@@ -3353,9 +3367,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             var borderControls = { useBorder: widthRow.add("checkbox", undefined, labelText(LABELS.fieldLabel.borderWidth)) };
             borderControls.useBorder.helpTip = getLabel(LABELS.tooltip.borderWidth);
             var defaultBorderWidth = getDefaultForUnit(DEFAULT_BORDER_BY_UNIT, rulerUnit.label);
-            borderControls.widthInput = addNumberField(widthRow, String(defaultBorderWidth), NUMBER_FIELD_CHARS, refreshPreview);
+            /* 欄の右の単位表示を外したぶん、単位が切れないよう2文字広げる / widened by 2 into the room of the removed unit label */
+            borderControls.widthInput = addNumberField(widthRow, String(defaultBorderWidth), NUMBER_FIELD_CHARS + 2, refreshPreview, rulerUnitSuffix);
             borderControls.widthInput.helpTip = numberFieldTip(LABELS.tooltip.borderWidth);
-            widthRow.add("statictext", undefined, rulerUnit.label);
 
             borderControls.colorLabelRow = addRow(borderPanel);
             addRowLabel(borderControls.colorLabelRow, LABELS.fieldLabel.borderColor);
@@ -3381,7 +3395,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
                 if (hasBorder) {
                     var specParts = String(borderSpec).split(",");
                     var borderColorName = specParts[1];
-                    borderControls.widthInput.text = specParts[0];
+                    setNumberFieldValue(borderControls.widthInput, toNumber(specParts[0]));
                     borderControls.black.value = (borderColorName === "black");
                     borderControls.white.value = (borderColorName === "white");
                     /* 黒・白以外はカラー指定として扱う / Anything but black or white means the color code */
@@ -3418,7 +3432,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
          */
         function createBorderColorHandler(borderControls, borderColorName) {
             return function() {
-                borderControls.select(borderControls.widthInput.text + "," + borderColorName);
+                borderControls.select(toNumber(borderControls.widthInput.text) + "," + borderColorName);
                 refreshPreview();
             };
         }
@@ -3451,9 +3465,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             sizeControls.customScale.helpTip = getLabel(LABELS.tooltip.customScale);
             sizeControls.customScaleInput = addNumberField(customScaleRow, String(DEFAULT_SCALE), NUMBER_FIELD_CHARS + 1, function(value) {
                 sizeControls.select("scale:" + value, false, true);
-            });
+            }, "%");
             sizeControls.customScaleInput.helpTip = numberFieldTip(LABELS.tooltip.customScale);
-            customScaleRow.add("statictext", undefined, "%");
 
             var targetWidthRow = addRow(sizePanel);
             sizeControls.targetWidth = targetWidthRow.add("radiobutton", undefined, labelText(LABELS.fieldLabel.targetWidth));
@@ -3461,9 +3474,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             sizeControls.targetWidth.helpTip = getLabel(LABELS.tooltip.targetWidth);
             sizeControls.targetWidthInput = addNumberField(targetWidthRow, "", NUMBER_FIELD_CHARS + 3, function(value) {
                 sizeControls.select("width:" + value);
-            });
+            }, " px");
             sizeControls.targetWidthInput.helpTip = numberFieldTip(LABELS.tooltip.targetWidth);
-            targetWidthRow.add("statictext", undefined, "px");
 
             /* サイズ指定（scale:200 / width:1000）をUIへ反映する / Apply a size spec to the UI */
             sizeControls.select = function(sizeSpec, keepSuffix, forceCustomScale) {
@@ -3486,10 +3498,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
                 setNumberFieldEnabled(sizeControls.targetWidthInput, isWidthMode);
 
                 if (isWidthMode) {
-                    sizeControls.targetWidthInput.text = specValue;
+                    setNumberFieldValue(sizeControls.targetWidthInput, specValue);
                 } else {
-                    sizeControls.customScaleInput.text = specValue;
-                    sizeControls.targetWidthInput.text = String(Math.ceil(getExportRectFromUI().width * toNumber(specValue) / 100));
+                    setNumberFieldValue(sizeControls.customScaleInput, specValue);
+                    setNumberFieldValue(sizeControls.targetWidthInput, Math.ceil(getExportRectFromUI().width * toNumber(specValue) / 100));
                 }
 
                 /* 倍率・横幅の値をそのまま接尾辞に流用する / Reuse the scale or width value as the suffix */
@@ -3500,10 +3512,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
                 sizeControls.scaleRadios[j].onClick = createScaleClickHandler(sizeControls, SCALE_CHOICES[j]);
             }
             sizeControls.customScale.onClick = function() {
-                sizeControls.select("scale:" + sizeControls.customScaleInput.text, false, true);
+                sizeControls.select("scale:" + toNumber(sizeControls.customScaleInput.text), false, true);
             };
             sizeControls.targetWidth.onClick = function() {
-                sizeControls.select("width:" + sizeControls.targetWidthInput.text);
+                sizeControls.select("width:" + toNumber(sizeControls.targetWidthInput.text));
             };
 
             return sizeControls;

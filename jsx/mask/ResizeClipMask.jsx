@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeClip
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeClipMask";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeClipMask.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeClipMask.md"; /* README (English) */
@@ -1027,47 +1027,68 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* プラスボタン処理 / Handle plus button */
-    function handlePlus(input) {
+    /**
+     * ＋ボタンで値を1（option で0.1）増やし、単位を付けて書き戻す
+     * @param {EditText} input - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " mm"）
+     * @returns {void}
+     */
+    function handlePlus(input, unitSuffix) {
         var val = parseFloat(input.text);
         if (isNaN(val)) val = 0;
         var keyboard = ScriptUI.environment.keyboardState;
         var delta = keyboard.altKey ? 0.1 : 1;
         val += delta;
         val = keyboard.altKey ? Math.round(val * 10) / 10 : Math.round(val);
-        input.text = String(val);
+        input.text = String(val) + unitSuffix;
         if (typeof input.onChangeValue === "function") input.onChangeValue(val);
     }
 
-    /* マイナスボタン処理 / Handle minus button */
-    function handleMinus(input) {
+    /**
+     * −ボタンで値を1（option で0.1）減らし、単位を付けて書き戻す
+     * @param {EditText} input - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " mm"）
+     * @returns {void}
+     */
+    function handleMinus(input, unitSuffix) {
         var val = parseFloat(input.text);
         if (isNaN(val)) val = 0;
         var keyboard = ScriptUI.environment.keyboardState;
         var delta = keyboard.altKey ? 0.1 : 1;
         val -= delta;
         val = keyboard.altKey ? Math.round(val * 10) / 10 : Math.round(val);
-        input.text = String(val);
+        input.text = String(val) + unitSuffix;
         if (typeof input.onChangeValue === "function") input.onChangeValue(val);
     }
 
-    /* 反転ボタン処理 / Handle swap button */
-    function handleSwap(input) {
+    /**
+     * ±ボタンで値の符号を反転し、単位を付けて書き戻す
+     * @param {EditText} input - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 " mm"）
+     * @returns {void}
+     */
+    function handleSwap(input, unitSuffix) {
         var val = parseFloat(input.text);
         if (isNaN(val)) val = 0;
         val = -val;
-        input.text = String(val);
+        input.text = String(val) + unitSuffix;
         if (typeof input.onChangeValue === "function") input.onChangeValue(val);
     }
 
-    /* マージンダイアログ表示 / Show margin dialog */
+    /**
+     * マージンを入力するダイアログを表示する
+     * @param {string} defaultValue - 欄の初期値（単位なしの数値文字列）
+     * @param {string} unitLabel - 定規の単位の表示ラベル（欄の中に出す）
+     * @param {Function} previewCallback - 値が変わったときに呼ぶプレビュー処理
+     * @returns {number|null} マージン（定規の単位）。キャンセル時は null
+     */
     function showMarginDialog(defaultValue, unitLabel, previewCallback) {
         var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
         setupWindow(dlg);
 
         var inputGroup = dlg.add("group");
         inputGroup.alignment = ["left", "center"];
-        inputGroup.add("statictext", undefined, LABELS.margin[uiLang] + " (" + unitLabel + "):");
+        inputGroup.add("statictext", undefined, labelText("margin"));
 
         var inputSubGroup = inputGroup.add("group");
         inputSubGroup.orientation = "row";
@@ -1080,17 +1101,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stepperInputGroup.margins = 0;
 
         var input;
+        /* 欄の中に単位を出す（「5 mm」の形） / show the unit inside the field */
+        var unitSuffix = " " + unitLabel;
         /* マイナスは内側へ縮める値なので下限なし / negative values shrink the mask, so no minimum */
         var marginStepper = addStepper(stepperInputGroup, function () { return input; }, {
+            unit: unitSuffix,
             onStep: function (numberInput) {
                 if (typeof numberInput.onChangeValue === "function") numberInput.onChangeValue(parseFloat(numberInput.text));
             }
         });
-        input = stepperInputGroup.add("edittext", undefined, defaultValue);
+        input = stepperInputGroup.add("edittext", undefined, defaultValue + unitSuffix);
         input.helpTip = getLabel("tipMargin");
-        input.characters = 4;
+        input.characters = 6;
         bindSteppedArrowKeys(input, marginStepper);
         input.onChangeValue = previewCallback;
+        /* 単位を省いて入れた値も「数値 + 単位」にそろえる / append the unit to values typed without one */
+        input.onChange = function () {
+            var value = evaluateArithmetic(input.text, unitSuffix);
+            if (isNaN(value)) return;
+            writeSteppedValue(input, value, marginStepper.stepOptions);
+            if (typeof input.onChangeValue === "function") input.onChangeValue(parseFloat(input.text)); /* 換算後の値でプレビュー / preview the converted value */
+        };
 
         var buttonGroup = inputSubGroup.add("group");
         buttonGroup.orientation = "row";
@@ -1109,9 +1140,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var swapBtn = zeroGroup.add("button", [0, 0, 20, 31], "±");
 
-        plusBtn.onClick = function() { handlePlus(input); };
-        minusBtn.onClick = function() { handleMinus(input); };
-        swapBtn.onClick = function() { handleSwap(input); };
+        plusBtn.onClick = function() { handlePlus(input, unitSuffix); };
+        minusBtn.onClick = function() { handleMinus(input, unitSuffix); };
+        swapBtn.onClick = function() { handleSwap(input, unitSuffix); };
 
         input.addEventListener("changing", function() {
             var val = parseFloat(input.text);

@@ -41,7 +41,7 @@ Resizes the selected objects to a chosen aspect ratio (Original Ratio, 16:9, 1:1
 
 ### Notes
 
-- Sizes use the ruler unit, shown in the panel title (e.g. Size (mm))
+- Sizes use the ruler unit, shown inside the number fields (e.g. 210 mm)
 - Percentages are relative to each object's original length
 - Choosing another ratio, orientation or Fixed side drops the typed length or percentage and returns to the ratio (with Fixed: None (Free), changing the ratio or orientation keeps them)
 - With several objects selected, lengths are not shown; the percentage and custom fields show a value only when it is the same for every object
@@ -69,3 +69,4 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.8.5 (20260930): Dropped the script's own rightward shift of the dialog on first open
 - v1.8.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.8.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v1.8.8 (2026-10-03): Units now appear inside the number fields; removed the unit from the panel title and beside the fields

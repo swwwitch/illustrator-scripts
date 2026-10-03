@@ -30,10 +30,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboar
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitArtboardWithMargin";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.10.6";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.10.7";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md"; /* README (English) */
@@ -149,7 +149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     var MARGIN_LABEL_WIDTHS = { ja: 32, en: 62 };   /* マージンパネル / margin panel */
 
     /* マージン入力欄の桁数 / Margin field width in characters */
-    var MARGIN_FIELD_CHARACTERS = 4;
+    var MARGIN_FIELD_CHARACTERS = 5;
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -3040,13 +3040,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     }
 
     /**
+     * マージンの値を入力欄の文字列にする（「5 mm」の形。数値でなければ 0）
+     * @param {number|string} marginValue - マージンの値（定規単位）
+     * @param {string} rulerUnit - 定規単位
+     * @returns {string} 入力欄の文字列
+     */
+    function formatMarginText(marginValue, rulerUnit) {
+        var numericValue = parseFloat(marginValue);
+        return (isNaN(numericValue) ? "0" : String(numericValue)) + " " + rulerUnit;
+    }
+
+    /**
      * マージンの入力行（項目名＋入力欄）を追加する
      * @param {Group} parentGroup - 追加先のグループ
      * @param {Object} labelSet - 項目名のラベル
-     * @param {string} initialText - 入力欄の初期値
+     * @param {number|string} initialValue - 入力欄の初期値（定規単位）
+     * @param {string} rulerUnit - 定規単位（欄の中に「5 mm」の形で出す）
      * @returns {{label: StaticText, input: EditText}} 項目名と入力欄（∧∨は input.stepperGroup で参照できる）
      */
-    function addMarginField(parentGroup, labelSet, initialText) {
+    function addMarginField(parentGroup, labelSet, initialValue, rulerUnit) {
         var fieldRow = parentGroup.add("group");
         fieldRow.orientation = "row";
         fieldRow.alignChildren = ["left", "center"];
@@ -3065,9 +3077,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         /* 増減後は手入力と同じ処理（連動・プレビュー更新）を通す。onChanging は showMarginDialog() で結線
            after stepping, run the same handler as typing (link and preview) */
         var stepperGroup = addStepper(stepperInputGroup, function () { return fieldInput; }, {
+            unit: " " + rulerUnit,
             onStep: function (numberInput) { if (numberInput.onChanging) numberInput.onChanging(); }
         });
-        fieldInput = stepperInputGroup.add("edittext", undefined, initialText);
+        fieldInput = stepperInputGroup.add("edittext", undefined, formatMarginText(initialValue, rulerUnit));
         fieldInput.characters = MARGIN_FIELD_CHARACTERS;
         fieldInput.helpTip = getLabel(LABELS.tooltip.marginInput);
         fieldInput.stepperGroup = stepperGroup;
@@ -3085,7 +3098,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
      * @returns {void}
      */
     function buildMarginPanel(marginDialog, rulerUnit, initialSettings, dialogControls) {
-        var marginPanel = marginDialog.add("panel", undefined, getLabel(LABELS.panel.margin) + " (" + rulerUnit + ")");
+        var marginPanel = marginDialog.add("panel", undefined, getLabel(LABELS.panel.margin));
         setupPanel(marginPanel);
         marginPanel.orientation = "row";
         marginPanel.alignChildren = ["left", "top"];
@@ -3106,11 +3119,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         optionColumn.alignment = ["left", "center"];
 
         /* 上下マージン（「高さ」OFFで無効）・左右マージン（「幅」OFFで無効） / Vertical & horizontal margin inputs */
-        var verticalField = addMarginField(marginFieldsColumn, LABELS.fieldLabel.vertical, initialSettings.marginV);
+        var verticalField = addMarginField(marginFieldsColumn, LABELS.fieldLabel.vertical, initialSettings.marginV, rulerUnit);
         dialogControls.verticalLabel = verticalField.label;
         dialogControls.verticalInput = verticalField.input;
         var horizontalField = addMarginField(marginFieldsColumn, LABELS.fieldLabel.horizontal,
-            initialSettings.link ? initialSettings.marginV : initialSettings.marginH);
+            initialSettings.link ? initialSettings.marginV : initialSettings.marginH, rulerUnit);
         dialogControls.horizontalLabel = horizontalField.label;
         dialogControls.horizontalInput = horizontalField.input;
 
@@ -3437,8 +3450,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
             };
             // 設定をセッションに保存（次回の初期値に） / store settings for next run
             storeSettings({
-                marginV: verticalInput.text,
-                marginH: horizontalInput.text,
+                marginV: String(parseFloat(verticalInput.text)),   /* 単位を付けずに数値で持つ / keep the number without the unit */
+                marginH: String(parseFloat(horizontalInput.text)),
                 link: linkToggle.value,
                 verticalEnabled: marginSettings.verticalEnabled,
                 horizontalEnabled: marginSettings.horizontalEnabled,

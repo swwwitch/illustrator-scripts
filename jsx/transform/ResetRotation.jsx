@@ -24,10 +24,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetRotat
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResetRotation";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetRotation.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetRotation.md"; /* README (English) */
@@ -251,7 +251,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resetTextScale: { ja: "縦横比を正す", en: "Reset Character Scale" }
         },
         fieldLabel: {
-            epsilon: { ja: "水平とみなす範囲(°)", en: "Level Tolerance (°)" }
+            epsilon: { ja: "水平とみなす範囲", en: "Level Tolerance" }
         },
         tooltip: {
             text: { ja: "テキストオブジェクトの回転を元に戻します。", en: "Clears the rotation on text objects." },
@@ -1022,6 +1022,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return Math.max(MIN_EPSILON_DEG, Math.min(MAX_EPSILON_DEG, value));
     }
 
+    /**
+     * 単位の付いていない数値だけの入力に、欄の単位を書き足す
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {string} unitSuffix - 欄の単位（例 "°"）
+     * @returns {void}
+     */
+    function appendUnitToPlainNumber(numberInput, unitSuffix) {
+        var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
+        if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(trimmedText)) numberInput.text = trimmedText + unitSuffix;
+    }
+
     // ボタン行（再利用パーツ） / Button row (reusable)
 
     var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
@@ -1125,11 +1136,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         epsilonStepperGroup.margins = 0;
         var epsilonInput;
         /* 範囲は parseEpsilon() と同じ / same range as parseEpsilon() */
-        var epsilonStepper = addStepper(epsilonStepperGroup, function () { return epsilonInput; }, { min: MIN_EPSILON_DEG, max: MAX_EPSILON_DEG });
-        epsilonInput = epsilonStepperGroup.add("edittext", undefined, String(DEFAULT_SETTINGS.epsilonDeg));
+        var epsilonStepper = addStepper(epsilonStepperGroup, function () { return epsilonInput; }, { min: MIN_EPSILON_DEG, max: MAX_EPSILON_DEG, unit: "°" });
+        epsilonInput = epsilonStepperGroup.add("edittext", undefined, String(DEFAULT_SETTINGS.epsilonDeg) + "°");
         epsilonInput.helpTip = getLabel("tooltip.epsilon");
         epsilonInput.characters = EPSILON_FIELD_CHARACTERS;
         bindSteppedArrowKeys(epsilonInput, epsilonStepper);
+        /* 数値だけで確定したら単位を書き足す / append the unit to a bare number on commit */
+        epsilonInput.addEventListener("change", function () { appendUnitToPlainNumber(epsilonInput, "°"); });
 
         /* ボタン行 / Button row */
         var buttonRow = addButtonRow(dlg);

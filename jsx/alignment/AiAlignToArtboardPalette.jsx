@@ -31,7 +31,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboardPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
@@ -222,8 +222,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var CROSS_GAP       = 2;    /* 移動ボタン（十字）どうしの間隔 / gap between the move buttons */
         var CENTER_ROW_TOP  = 8;    /* 十字と中央揃えボタンの間隔 / gap between the cross and the centre-align buttons */
         var EDGE_ROW_TOP    = 5;    /* 分割の欄と［アートボードのエッジ］の間隔 / gap above the artboard-edge checkbox */
-        var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
-        var LABEL_FIELD_SPACING = 4; /* 入力欄と単位ラベルの間隔（既定は広すぎる）/ gap between the field and its unit label */
+        var FIELD_CHARS     = 3;    /* 分割数の入力欄の文字数 / width of the count fields */
+        var LENGTH_FIELD_CHARS = 5; /* 単位を欄の中に出す長さの入力欄の文字数（「20 pt」が切れない幅）/ width of the length fields, which show their unit */
+        var LABEL_FIELD_SPACING = 4; /* 項目名と入力欄の間隔（既定は広すぎる）/ gap between a label and its field */
         /* マージン欄を3×3に並べるときの1セルの幅（日英で文字数が違うので分ける）
            Width of one cell in the 3x3 margin grid; the labels differ in length by language */
         var MARGIN_CELL_WIDTH = { ja: 70, en: 84 };
@@ -2759,11 +2760,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var glyphBoundsCheckbox = null;
         var changeJustificationCheckbox = null;
         var opticalAdjustCheckbox = null;
-        /* マージン欄・単位ラベル・ガイド表示チェックボックスの参照
-           The margin field, its unit label, and the guide checkbox */
+        /* マージン欄・ガイド表示チェックボックスの参照
+           The margin fields and the guide checkbox */
         /* 辺の名前をキーにしたマージンの入力欄 / Margin fields, keyed by side */
         var marginFields = {};
-        var marginPanel = null;
         var linkMarginsToggle = null;
         /* マージン欄がまだ既定値のままか。定規の単位が分かった時点で、その単位の既定値に入れ直す
            Whether the margin fields still hold defaults; they are refilled once the ruler unit is known */
@@ -2778,7 +2778,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            The division mode radios and count fields, keyed by mode and axis */
         var divideRadios = {};
         var divideFields = {};
-        var dividePanel = null;
+        /* 定規の単位を欄の中に出す長さの入力欄（マージン・行間・列間・伸張）。単位が変わったら書き直す
+           The length fields (margins, gutters, extension) that show the ruler unit; rewritten when it changes */
+        var lengthFields = [];
         var artboardEdgeCheckbox = null;
         /* パレットを組み立て終えたか。組み立てのあいだは控えを書かない
            （まだ作っていないコントロールを既定値として読み、引き継いだ設定を消してしまうため）
@@ -3145,12 +3147,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * マージンガイドのパネル（上下左右の数値欄＋定規の単位ラベル）を組み立てる
+         * マージンガイドのパネル（上下左右の数値欄。定規の単位は欄の中に出す）を組み立てる
          * @param {Window} targetWindow - 追加先のパレット
          * @returns {void}
          */
         function addMarginPanel(targetWindow) {
-            marginPanel = targetWindow.add("panel", undefined, panelTitleWithUnit("guide"));
+            var marginPanel = targetWindow.add("panel", undefined, getLabel("panel.guide"));
             marginPanel.helpTip = getLabel("tooltip.panelGuide");
             setupPanel(marginPanel, OPTION_SPACING);
 
@@ -3177,14 +3179,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * パネル名に、いまの定規の単位を添える
-         * 数値欄が多いので、単位は欄ごとではなくパネル名にまとめて出す
-         * @param {string} panelKey - LABELS.panel のキー
-         * @returns {string} パネル名
+         * 長さの入力欄で数値に続ける、いまの定規の単位を返す（「20 mm」の形）
+         * @returns {string} 単位（前に半角スペース）
          */
-        function panelTitleWithUnit(panelKey) {
-            var unitLabel = currentUnitInfo.label;
-            return getLabel("panel." + panelKey) + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
+        function lengthUnitSuffix() {
+            return " " + currentUnitInfo.label;
+        }
+
+        /**
+         * 長さの入力欄の文字列から数値を読む（単位付きでも読める。数値以外と負数は0）
+         * @param {string} valueText - 入力欄の文字列
+         * @returns {number} 数値（定規の単位）
+         */
+        function parseLengthText(valueText) {
+            var lengthValue = parseFloat(valueText);
+            return (isNaN(lengthValue) || lengthValue < 0) ? 0 : lengthValue;
+        }
+
+        /**
+         * 数値に、いまの定規の単位を付けて長さの入力欄の表示文字列にする
+         * @param {number|string} lengthValue - 数値（単位付きの文字列でもよい）
+         * @returns {string} 表示文字列（例「20 mm」）
+         */
+        function formatLengthText(lengthValue) {
+            return String(parseLengthText(String(lengthValue))) + lengthUnitSuffix();
+        }
+
+        /**
+         * 長さの入力欄を作ったときに、単位の書き直しの対象へ加え、単位を欄の中に出せる幅にする
+         * @param {EditText} lengthField - addSteppedInput() で作った入力欄
+         * @returns {void}
+         */
+        function registerLengthField(lengthField) {
+            lengthField.characters = LENGTH_FIELD_CHARS;
+            lengthField.isLengthField = true;
+            lengthFields.push(lengthField);
+        }
+
+        /**
+         * 長さの入力欄の単位を、いまの定規の単位にそろえる（∧∨の単位も差し替える）。
+         * 数値はそのまま、新しい単位の値として読み替える（従来の、パネル名の単位だけを替えていた動作と同じ）
+         * @returns {void}
+         */
+        function applyLengthUnitToFields() {
+            var unitSuffix = lengthUnitSuffix();
+            for (var i = 0; i < lengthFields.length; i++) {
+                lengthFields[i].stepperGroup.stepOptions.unit = unitSuffix;
+                var lengthText = formatLengthText(lengthFields[i].text);
+                if (lengthFields[i].text !== lengthText) { lengthFields[i].text = lengthText; }
+            }
         }
 
         /**
@@ -3259,7 +3302,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             }
 
             cellGroup.add("statictext", undefined, labelText("fieldLabel." + cellKey));
-            var marginField = addSteppedInput(cellGroup, paletteSettings.margins[cellKey], { min: 0 });
+            var marginField = addSteppedInput(cellGroup, formatLengthText(paletteSettings.margins[cellKey]),
+                { min: 0, unit: lengthUnitSuffix() });
+            registerLengthField(marginField);
             marginField.helpTip = getLabel("tooltip.margin");
             /* 確定（Enter・フォーカス移動）でガイドを描き直す
                入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
@@ -3267,6 +3312,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             marginField.onChange = function() {
                 /* 一度でも触られたら、単位が変わっても既定値では上書きしない */
                 marginsAreDefault = false;
+                /* 単位を省いて入れた値も「20 mm」の形にそろえる / Show the unit even if it was left out */
+                marginField.text = formatLengthText(marginField.text);
                 copyMarginToLinkedFields(marginField);
                 runExclusive(refreshMarginGuide);
                 savePaletteSettings();
@@ -3282,7 +3329,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function fillDefaultMargins() {
             var defaultText, side, i;
             if (!marginsAreDefault) { return; }
-            defaultText = String(currentUnitInfo.defaultMargin);
+            defaultText = formatLengthText(currentUnitInfo.defaultMargin);
             for (i = 0; i < MARGIN_SIDES.length; i++) {
                 side = MARGIN_SIDES[i];
                 if (!marginFields[side]) { continue; }
@@ -3297,7 +3344,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          */
         function fillDefaultExtension() {
             if (!extensionIsDefault || !divideFields.extension) { return; }
-            divideFields.extension.text = String(currentUnitInfo.defaultExtension);
+            divideFields.extension.text = formatLengthText(currentUnitInfo.defaultExtension);
             savePaletteSettings();
         }
 
@@ -3329,7 +3376,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             paletteSettings = loadPaletteSettings();
             extensionIsDefault = paletteSettings.usesDefaultExtension;
 
-            dividePanel = targetWindow.add("panel", undefined, panelTitleWithUnit("divide"));
+            var dividePanel = targetWindow.add("panel", undefined, getLabel("panel.divide"));
             dividePanel.helpTip = getLabel("tooltip.panelDivide");
             setupPanel(dividePanel, OPTION_SPACING);
 
@@ -3415,15 +3462,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             divideLabel.preferredSize.width = labelWidth;
             divideLabel.justify = "right";
 
-            /* 分割数は1〜DIVIDE_COUNT_MAXの整数、間隔・伸張は0以上 / counts are whole numbers from 1; lengths are non-negative */
+            /* 分割数は1〜DIVIDE_COUNT_MAXの整数、間隔・伸張は0以上で単位を欄の中に出す
+               counts are whole numbers from 1; lengths are non-negative and show their unit */
             var isCountField = (valueKey === "rows" || valueKey === "columns");
-            divideField = addSteppedInput(fieldRow, paletteSettings.divideValues[valueKey],
-                isCountField ? { integer: true, min: 1, max: DIVIDE_COUNT_MAX } : { min: 0 });
+            if (isCountField) {
+                divideField = addSteppedInput(fieldRow, paletteSettings.divideValues[valueKey],
+                    { integer: true, min: 1, max: DIVIDE_COUNT_MAX });
+            } else {
+                divideField = addSteppedInput(fieldRow, formatLengthText(paletteSettings.divideValues[valueKey]),
+                    { min: 0, unit: lengthUnitSuffix() });
+                registerLengthField(divideField);
+            }
             divideField.helpTip = getLabel("tooltip." + DIVIDE_TOOLTIP_KEYS[valueKey]);
             /* 確定（Enter・フォーカス移動）でガイドを描き直す / Only redraw the guide when the field commits */
             divideField.onChange = function() {
                 /* 一度でも触られたら、単位が変わっても既定値では上書きしない */
                 if (valueKey === "extension") { extensionIsDefault = false; }
+                /* 長さは単位を省いて入れた値も「20 mm」の形にそろえる / Show the unit even if it was left out */
+                if (divideField.isLengthField) { divideField.text = formatLengthText(divideField.text); }
                 runExclusive(refreshMarginGuide);
                 savePaletteSettings();
             };
@@ -5089,22 +5145,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * 数値の入力欄を読んで pt に換算する（数値以外と負数は0に丸め、欄の表示もそろえる）
+         * 長さの入力欄を読んで pt に換算する（単位付きでも読める。数値以外と負数は0に丸め、欄の表示も単位付きにそろえる）
          * @param {EditText} valueField - 読み取る入力欄
          * @param {number} pointsPerUnit - 1単位あたりの pt
          * @returns {number} 入力値（pt）
          */
         function readFieldPt(valueField, pointsPerUnit) {
             if (valueField === null) { return 0; }
-            var fieldValue = Number(valueField.text);
-            if (isNaN(fieldValue) || fieldValue < 0) { fieldValue = 0; }
-            /* 手入力が丸められたときは欄の表示も実際に使う値にそろえる / Show the value actually used */
-            if (String(fieldValue) !== valueField.text) { valueField.text = fieldValue; }
+            var fieldValue = parseLengthText(valueField.text);
+            /* 手入力が丸められたときや単位を省いたときは、欄の表示も実際に使う値にそろえる / Show the value actually used */
+            var displayText = formatLengthText(fieldValue);
+            if (displayText !== valueField.text) { valueField.text = displayText; }
             return fieldValue * pointsPerUnit;
         }
 
         /**
-         * マージン4欄の表示中の文字列を辺ごとに読む（控え用）
+         * マージン4欄の数値を辺ごとに文字列で読む（控え用。単位は付けない）
          * @returns {object} { top: string, bottom: string, left: string, right: string }
          */
         function readMarginTexts() {
@@ -5112,13 +5168,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             marginTexts = {};
             for (side in marginFields) {
                 if (!marginFields.hasOwnProperty(side)) { continue; }
-                marginTexts[side] = String(marginFields[side].text);
+                marginTexts[side] = String(parseLengthText(marginFields[side].text));
             }
             return marginTexts;
         }
 
         /**
-         * 分割ガイドの数値欄を、入力されたままの文字列で読む（控え用）
+         * 分割ガイドの数値欄を文字列で読む（控え用。分割数は入力されたまま、長さは単位を外した数値）
          * @returns {object} DIVIDE_VALUE_KEYS をキーにした文字列の組
          */
         function readDivideValueTexts() {
@@ -5126,8 +5182,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             divideTexts = {};
             for (i = 0; i < DIVIDE_VALUE_KEYS.length; i++) {
                 valueKey = DIVIDE_VALUE_KEYS[i];
-                divideTexts[valueKey] = (divideFields[valueKey]) ?
-                    String(divideFields[valueKey].text) : defaultDivideValue(valueKey);
+                if (!divideFields[valueKey]) {
+                    divideTexts[valueKey] = defaultDivideValue(valueKey);
+                } else if (divideFields[valueKey].isLengthField) {
+                    divideTexts[valueKey] = String(parseLengthText(divideFields[valueKey].text));
+                } else {
+                    divideTexts[valueKey] = String(divideFields[valueKey].text);
+                }
             }
             return divideTexts;
         }
@@ -5444,7 +5505,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var lastSelectionSignature = null;
 
         /**
-         * 選択の種類・定規の単位・選択数・アートボード数をメインエンジンに問い合わせ、ディムと単位ラベルを更新する
+         * 選択の種類・定規の単位・選択数・アートボード数をメインエンジンに問い合わせ、ディムと長さの入力欄の単位を更新する
          * 1往復でまとめて受け取り（"TEXT|2|3|1" の形）、選択が変わっていれば状況表示も消す
          * @returns {void}
          */
@@ -5470,8 +5531,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     alignPerArtboardCheckbox.enabled = (Number(stateParts[3]) > 1);
                 }
                 currentUnitInfo = getUnitInfoWithDefaults();
-                if (marginPanel !== null) { marginPanel.text = panelTitleWithUnit("guide"); }
-                if (dividePanel !== null) { dividePanel.text = panelTitleWithUnit("divide"); }
+                applyLengthUnitToFields();
                 fillDefaultExtension();
                 fillDefaultMargins();
                 var selectionSignature = stateParts[0] + "|" + stateParts[2];
