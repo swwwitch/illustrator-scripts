@@ -23,7 +23,7 @@
 
 #### Arrowheads
 
-- Pick a favorite arrowhead (Arrow 1, 8, 11) with a radio button. The scale changes to suit it (100% for 1 and 11, 25% for 8)
+- Pick a favorite arrowhead (Arrow 1, 8, 11, 27) with a radio button. The scale changes to suit it (100% for 1, 11 and 27, 25% for 8)
 - Pick any other arrowhead from the pop-up menu (scale: 100%)
 - **Same at end**: puts the same arrowhead on the end. When off, the end has no arrowhead
 - **Swap start and end**: puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
@@ -60,9 +60,10 @@
 
 - v1.0.0 (2026-10-03) Initial release
 - v1.0.1 (2026-10-04) The initial stroke weight now follows the general unit (0.25 pt for mm, 1 px for px, 5 pt otherwise)
+- v1.0.2 (2026-10-04) The cap and corner now start at Butt and Miter. Arrow 27 joins the favorite arrowheads
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2
 - First release: 2026-10-03
 - Last updated: 2026-10-04

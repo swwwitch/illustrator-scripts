@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -49,15 +49,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        Initial stroke width (pt) per general unit; other units use DEFAULT_STROKE_WIDTH (1 px = 1 pt) */
     var DEFAULT_STROKE_WIDTH_BY_UNIT = { "mm": 0.25, "px": 1 };
     var DEFAULT_ARROW_SCALE  = 100;          /* 倍率の初期値（ポップアップメニューの矢印にも使う）/ initial arrowhead scale, also used for the pop-up arrowheads */
-    var DEFAULT_STROKE_CAP   = "round";      /* 線端の初期値（butt / round / projecting）/ default cap */
-    var DEFAULT_CORNER_JOIN  = "round";      /* 角の形状の初期値（miter / round / bevel）/ default join */
+    var DEFAULT_STROKE_CAP   = "butt";       /* 線端の初期値（butt / round / projecting）/ default cap */
+    var DEFAULT_CORNER_JOIN  = "miter";      /* 角の形状の初期値（miter / round / bevel）/ default join */
 
     /* ラジオボタンで出す矢印と倍率。ここに無い矢印はポップアップメニューに並ぶ
        Arrowheads offered as radio buttons, with their scales. The rest go in the pop-up menu */
     var FAVORITE_ARROWS = [
         { number: 1,  scale: 100 },
         { number: 8,  scale: 25 },
-        { number: 11, scale: 100 }
+        { number: 11, scale: 100 },
+        { number: 27, scale: 100 }
     ];
 
     /* 破線のパターン（線幅に対する倍率）。オンにしたときの分割数・間隔・線分の初期値に使う
