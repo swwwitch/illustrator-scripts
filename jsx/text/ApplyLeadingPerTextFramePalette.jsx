@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "ApplyLeadingPerTextFrame"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyLeadingPerTextFramePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFramePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFramePalette.md"; /* README (English) */

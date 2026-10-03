@@ -1,4 +1,4 @@
-#targetengine "UnifiedTypePanelEngine"
+#targetengine "SwwwitchPalettes"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 

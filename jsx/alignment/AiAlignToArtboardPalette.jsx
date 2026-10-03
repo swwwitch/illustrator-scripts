@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "AiAlignToArtboard"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
@@ -44,6 +44,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    /* 共通エンジンでは大域の SCRIPT_* が後から起動したスクリプトに上書きされるので、起動時の値を控える / In the shared engine a later script overwrites the global SCRIPT_*, so keep the launch-time values */
+    var launchScriptVersion = SCRIPT_VERSION;
 
     /* 常駐エンジンに残すパレット参照（GC回避と多重起動防止を兼ねる）
        var の初期化は再実行のたびに走るため、既存の参照を消さないよう $.global から引き継ぐ
@@ -3801,7 +3804,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             isPaletteReady = false;
             initIconColors();
 
-            var alignPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+            var alignPalette = new Window("palette", getLabel("dialog.title") + " " + launchScriptVersion, undefined, { resizeable: false });
             setupWindow(alignPalette);
 
             addColumnsRow(alignPalette);
@@ -5034,7 +5037,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             for (var i = 0; i < workerSource.length; i++) {
                 checksum = (checksum * 31 + workerSource.charCodeAt(i)) % 2147483647;
             }
-            return SCRIPT_VERSION + "-" + workerSource.length + "-" + checksum;
+            return launchScriptVersion + "-" + workerSource.length + "-" + checksum;
         }
 
         /**

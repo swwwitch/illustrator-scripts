@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "fxConvertToShape"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertT
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LEConvertToShapePalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEConvertToShapePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertToShapePalette.md"; /* README (English) */

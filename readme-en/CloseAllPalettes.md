@@ -12,17 +12,16 @@
 
 A utility that closes every floating palette running in a persistent engine.
 
-- Each palette lives in its own persistent engine via `#targetengine`, and `$.global` is independent per engine, so one script cannot reach another engine's palette reference directly
-- Instead, one BridgeTalk message carrying `#targetengine` is sent per engine; the receiving engine reads `$.global.<reference>` and calls `close()` when the palette is open
+- `$.global` is independent per engine, and Illustrator offers no way to run code in another engine from outside (a BridgeTalk body's `#targetengine` or `//@targetengine` is ignored and runs in the main engine)
+- Instead, the script runs in the same shared engine as the palettes, `SwwwitchPalettes`, reads `$.global.<reference>` directly, and calls `close()` when the palette is open
+- Palettes not yet moved to the shared engine cannot be closed
 - Both palette reference shapes are supported: a `Window` held directly, and a `{ window: Window }` wrapper
 - After closing, `$.global.<reference>` is set to null to release the reference (each palette's own `onClose` does this too, as a safety net)
-- Targets are listed in the `PALETTES` table; adding a palette is a one-line change
+- Targets are listed in the `PALETTES` table
 
 ### Runtime notes
 
-- A BridgeTalk cross-engine round trip works synchronously even when run from File > Scripts. The sending script has to stay alive until the reply arrives, so `BridgeTalk.pump()` waits for it after each send (without the wait the script ends before delivery and the palette is never closed)
-- Sent BridgeTalk objects are kept in an array until their reply arrives; if they are collected in the meantime the message is never delivered
-- Palettes are closed one at a time so that `close()` calls from several engines do not overlap on the same UI thread and hang
+- In the shared engine, variables and functions outside an IIFE are shared between palettes, so everything except the basic info block lives inside an IIFE
 
 ### Target
 
@@ -36,10 +35,11 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### Script info
 
-- Version: v1.0.4
+- Version: v1.1.0
 
 ### Update History
 
+- v1.1.0 (2026-10-03) Fixed palettes never closing: a BridgeTalk body's `#targetengine` was ignored and ran in the main engine. The script now closes palettes directly from the shared engine `SwwwitchPalettes`. All 28 target palettes have moved to that engine.
 - v1.0.5 (2026-10-02) Added FavoriteFontPickerPalette to the targets.
 - v1.0.4 (2026-09-26) Removed TextFontPanelReinvented (deleted) from the targets. Updated target names after renaming persistent palette scripts to end in "Palette".
 - v1.0.3 (2026-09-26) No longer shows an alert when no palettes are open.

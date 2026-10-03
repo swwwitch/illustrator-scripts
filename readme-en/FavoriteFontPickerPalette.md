@@ -125,6 +125,7 @@ Custom names match by prefix ("DIN" matches "DIN 2014" and "DINPro"). Document f
 
 ### Update History
 
+- v1.2.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.2.1 (20261002) : Styles within a family are now listed by weight (thin to bold, with Condensed, Italic and the like after), using the same scoring as TypefaceSampler
 - v1.2.0 (20261002) : Now a persistent palette
   - Keep it open, change the selection on the artboard and apply again (Cancel became Close; Esc closes it too)

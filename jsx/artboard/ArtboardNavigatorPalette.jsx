@@ -1,7 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-#targetengine "artboardNavigatorPalette"
-
+#targetengine "SwwwitchPalettes"
 /*
 
 ### 概要
@@ -29,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardNavigatorPalette";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.12";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.13";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardNavigatorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNavigatorPalette.md"; /* README (English) */

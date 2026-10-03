@@ -1,4 +1,4 @@
-#targetengine "TextBreakSplitMergeEngine"
+#targetengine "SwwwitchPalettes"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 

@@ -35,7 +35,8 @@
 - v1.1.3 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
 - v1.1.3 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.1.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
+- v1.1.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 
 ### Script info
 
-- Version: v1.1.3
+- Version: v1.1.5

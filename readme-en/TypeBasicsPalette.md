@@ -16,7 +16,7 @@ features are extracted from UnifiedTypePalette.jsx and gathered into a single vi
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.2
 
 ### note
 
@@ -25,6 +25,7 @@ features are extracted from UnifiedTypePalette.jsx and gathered into a single vi
 
 ### Update History
 
+- v1.1.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 - v1.0.5 (2026-09-26) Renamed the file from `TypeBasicsPanel.jsx` to `TypeBasicsPalette.jsx`.

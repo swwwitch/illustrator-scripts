@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "FavoriteFontPickerEngine"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -29,11 +29,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteFontPickerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "KOUJI & 相棒（Gem）";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-10-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteFontPickerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteFontPickerPalette.md"; /* README (English) */
@@ -48,6 +48,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
  */
 
 (function () {
+
+    /* 共通エンジンでは大域の SCRIPT_* が後から起動したスクリプトに上書きされるので、起動時の値を控える / In the shared engine a later script overwrites the global SCRIPT_*, so keep the launch-time values */
+    var launchScriptName = SCRIPT_NAME;
 
     // =========================================
     // ユーザー設定 / User settings
@@ -3041,7 +3044,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         };
 
         showSelectedSet();
-        prepareDialogWindow(prefsDialog, SCRIPT_NAME + "Preferences");
+        prepareDialogWindow(prefsDialog, launchScriptName + "Preferences");
         if (prefsDialog.show() !== 1) return null;
 
         var excludedLanguages = [];
@@ -3500,7 +3503,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncf9ff6feebf0"; /* 紹�
         updatePanelStates();
         refreshFontList();
 
-        prepareDialogWindow(mainPalette, SCRIPT_NAME);
+        prepareDialogWindow(mainPalette, launchScriptName);
         /* 参照を残しておかないと、スクリプトの終了とともにパレットが消える / Keep a reference, or the palette vanishes when the script ends */
         $.global[PALETTE_GLOBAL_KEY] = mainPalette;
         mainPalette.show();

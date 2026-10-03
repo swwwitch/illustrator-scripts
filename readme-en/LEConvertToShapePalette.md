@@ -14,10 +14,11 @@ A persistent palette that applies the "Convert to Shape" live effect to the sele
 
 ### Script info
 
-- Version: v1.1.1
+- Version: v1.1.4
 
 ### Update History
 
+- v1.1.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.2 (2026-10-01) Moved the Apply button from inside the panel to the standard button row at the bottom of the palette. Unified the window and panel margins and spacing with the shared layout part
 - v1.1.1 (2026-09-28) Removed the space after the colon in English field labels (shared localization helpers)

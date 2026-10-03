@@ -80,6 +80,7 @@ Illustrator application preferences, plus the active document's artboard (pixel-
 
 ### Update History
 
+- v1.3.3 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.3.2 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.3.1 (2026-09-28) The 3×3 reference point picker now uses the shared part.
 - v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).

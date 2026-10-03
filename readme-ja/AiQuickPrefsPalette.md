@@ -82,6 +82,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### 更新履歴
 
+- v2.3.2（2026-10-03）常駐エンジンを共通エンジン `SwwwitchPalettes` に変更し、［常駐パレットをまとめて閉じる］で閉じられるようにした
 - v2.3.1（2026-10-01）ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v2.3.0（2026-09-27）数値欄にステップボタン（∧∨）を追加。↑↓キーもステップボタンと同じ処理で増減するように変更（次の整数へ、shift＋で次の10の倍数へ）
 - v2.2.1（2026-09-19）AiQuickPrefsPalette-simple.jsx / AiQuickPrefsPalette-SuperSimple.jsx を本スクリプトへ統合。反転・回転は QuickTransformPalette.jsx、アートボード名・枠線は PresetManagerArtboard.jsx へ移管。

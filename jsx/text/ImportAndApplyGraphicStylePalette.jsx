@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "ImportAndApplyGraphicStyle"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportAndA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportAndApplyGraphicStylePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportAndApplyGraphicStylePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportAndApplyGraphicStylePalette.md"; /* README (English) */

@@ -258,6 +258,7 @@ Split and merge results are left ungrouped (Option-click a split button to group
 
 ### Update History
 
+- v1.10.0 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.10.0 (2026-10-03) Added a field to *At Specified Characters* for characters to break before (default `・•→`; a character that appears only once in the text is ignored). Option-click *At Specified Characters* or *At Character Count* to run *Merge All into One Line* first
 - v1.9.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.9.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).

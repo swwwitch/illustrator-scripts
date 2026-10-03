@@ -1,4 +1,4 @@
-#targetengine "DocumentFontListEngine"
+#targetengine "SwwwitchPalettes"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DocumentFo
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DocumentFontListSelectorPalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DocumentFontListSelectorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DocumentFontListSelectorPalette.md"; /* README (English) */

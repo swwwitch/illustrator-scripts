@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "LinkedImageManager"
+#targetengine "SwwwitchPalettes"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManagerPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManagerPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManagerPalette.md"; /* README (English) */
@@ -42,6 +42,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    /* 共通エンジンでは大域の SCRIPT_* が後から起動したスクリプトに上書きされるので、起動時の値を控える / In the shared engine a later script overwrites the global SCRIPT_*, so keep the launch-time values */
+    var launchScriptName = SCRIPT_NAME;
 
     // ユーザー設定 / User configuration
     // =========================================
@@ -2909,7 +2912,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         btnOK.onClick = function () { if (!referenceFolder) return; extdialog.close(1); };
         alignRightOnlyButtonRow(buttonRow);
 
-        prepareDialogWindow(extdialog, SCRIPT_NAME + "_changeExt");
+        prepareDialogWindow(extdialog, launchScriptName + "_changeExt");
         if (extdialog.show() !== 1) return null;
         var selected = findSelectedRadioSpec();
         if (!selected) return null;
@@ -2937,7 +2940,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         btnDeleteWithGroup.onClick = function () { deleteDialog.close(2); };
         alignRightOnlyButtonRow(buttonRow);
 
-        prepareDialogWindow(deleteDialog, SCRIPT_NAME + "_clipGroupDelete");
+        prepareDialogWindow(deleteDialog, launchScriptName + "_clipGroupDelete");
         var dialogResult = deleteDialog.show();
         if (dialogResult === 1) return 'image';
         if (dialogResult === 2) return 'group';

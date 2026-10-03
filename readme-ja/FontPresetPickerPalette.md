@@ -89,6 +89,7 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### 更新履歴
 
+- v1.1.4（2026-10-03）常駐エンジンを共通エンジン `SwwwitchPalettes` に変更し、［常駐パレットをまとめて閉じる］で閉じられるようにした
 - v1.1.3（2026-10-01）ボタン行の下に余白を加え、Illustrator 標準のダイアログに合わせた
 - v1.1.2（2026-10-01）ウィンドウ・パネルの余白と間隔を共通部品（UIレイアウト）にそろえた
 - v1.1.1（2026-09-26）ファイル名を `FontPresetPicker.jsx` から `FontPresetPickerPalette.jsx` に変更。
@@ -97,4 +98,4 @@ https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### スクリプト情報
 
-- バージョン: v1.1.1
+- バージョン: v1.1.4

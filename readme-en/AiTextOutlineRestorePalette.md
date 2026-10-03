@@ -112,6 +112,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.0.8 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v2.0.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v2.0.6 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in Japanese, the error text now uses a full-width colon; temporary actions on the BridgeTalk side now use the shared part
 - v2.0.4 (2026-09-02): Fixed a missing redraw after restore when Keep outline data is off, which left the deleted outlines visible on screen. The active layer is now always set back to the restore target (a locked `outlined_text` layer could stay selected when Restore text to a separate layer was off). Stashed outlines are no longer wrapped in a group of their own. The list display order is now driven by the note field table. Japanese-only attributes are no longer read at all in English locales. The busy flag is reset in a `finally` block

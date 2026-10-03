@@ -32,12 +32,13 @@
 
 ### Script info
 
-- Version: v1.0.3
+- Version: v1.0.5
 - First release: 20260731
 - Last updated: 2026-09-28
 
 ### Update History
 
+- v1.0.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.0.4 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.0.3 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.0.3 (2026-09-28) In Japanese, the status-line error text now uses a full-width colon.
