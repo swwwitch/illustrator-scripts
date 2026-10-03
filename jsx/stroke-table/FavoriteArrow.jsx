@@ -9,10 +9,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・破線）をまとめて適用します。
 矢印はDOMから操作できないため、一時アクションを生成して実行します。
 
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteArrow.md
+
 ### Overview
 
 Applies a favorite arrowhead together with the stroke settings — weight, cap, corner and dashes — to the selected paths.
 Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteArrow.md
 
 */
 
@@ -20,10 +26,13 @@ Arrowheads cannot be reached from the DOM, so a temporary action is generated an
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteArrow.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteArrow.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -35,7 +44,10 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     // =========================================
 
     /* 既定値 / Defaults */
-    var DEFAULT_STROKE_WIDTH = 5;            /* 線幅の初期値 / initial stroke width */
+    var DEFAULT_STROKE_WIDTH = 5;            /* 線幅の初期値（pt）/ initial stroke width (pt) */
+    /* 一般の単位ごとの線幅の初期値（pt）。ここに無い単位は DEFAULT_STROKE_WIDTH（1px＝1pt）
+       Initial stroke width (pt) per general unit; other units use DEFAULT_STROKE_WIDTH (1 px = 1 pt) */
+    var DEFAULT_STROKE_WIDTH_BY_UNIT = { "mm": 0.25, "px": 1 };
     var DEFAULT_ARROW_SCALE  = 100;          /* 倍率の初期値（ポップアップメニューの矢印にも使う）/ initial arrowhead scale, also used for the pop-up arrowheads */
     var DEFAULT_STROKE_CAP   = "round";      /* 線端の初期値（butt / round / projecting）/ default cap */
     var DEFAULT_CORNER_JOIN  = "round";      /* 角の形状の初期値（miter / round / bevel）/ default join */
@@ -1144,6 +1156,48 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     };
 
     // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す（Q/H の表示は使わないので、単位コード5は「Q」のまま）
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 一般の単位に合わせた線幅の初期値を返す（mm なら 0.25pt、px なら 1px）
+     * @returns {number} 線幅の初期値（pt）
+     */
+    function getDefaultStrokeWidth() {
+        var unitLabel = getUnitInfo("rulerType").label;
+        return DEFAULT_STROKE_WIDTH_BY_UNIT.hasOwnProperty(unitLabel) ? DEFAULT_STROKE_WIDTH_BY_UNIT[unitLabel] : DEFAULT_STROKE_WIDTH;
+    }
+
+    // =========================================
     // 選択肢 / Options
     // =========================================
 
@@ -1619,7 +1673,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         setupPanel(strokePanel, 6);
 
         var strokeWidthInput = addNumberField(strokePanel, {
-            labelKey: "fieldLabel.strokeWidth", labelWidth: STROKE_LABEL_WIDTH, text: String(DEFAULT_STROKE_WIDTH),
+            labelKey: "fieldLabel.strokeWidth", labelWidth: STROKE_LABEL_WIDTH, text: String(getDefaultStrokeWidth()),
             min: 0, unitKey: "unit.point", tooltipKey: "tooltip.strokeWidth"
         });
         var strokeCapRow = addLabeledRow(strokePanel, "fieldLabel.strokeCap", STROKE_LABEL_WIDTH);
@@ -1866,7 +1920,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         if (!dashCalc) return;
         var dashPattern = DASH_PATTERNS[dashCalc.style];
         var strokeWidth = parseFloat(dialogControls.stroke.strokeWidthInput.text);
-        if (isNaN(strokeWidth) || strokeWidth <= 0) strokeWidth = DEFAULT_STROKE_WIDTH;
+        if (isNaN(strokeWidth) || strokeWidth <= 0) strokeWidth = getDefaultStrokeWidth();
         if (pathMetrics) {
             setNumberFieldValue(dashControls.segmentsInput, estimateSegments(dashCalc.style, strokeWidth, pathMetrics, dashCalc.adjustEnds));
         }
