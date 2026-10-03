@@ -1,38 +1,38 @@
 #target illustrator
-#targetengine "ReleaseGroupsAndMasksEngine"
+#targetengine "ReleaseEverythingEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-選択したオブジェクトのグループ・複合パス・複合シェイプ・クリッピングマスクを、入れ子のものまでまとめて解除します。
+選択したオブジェクトのグループ・複合パス・複合シェイプ・ブレンド・エンベロープ・リピートなど、解除できるものを入れ子までまとめて解除します。
 クリップグループは単純に解除してマスクパスに塗りを付け、入れ子のグループがあるときだけダイアログで解除する深さを選べます。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseGroupsAndMasks.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md
 
 ### Overview
 
-Releases the groups, compound paths, compound shapes, and clipping masks in the selection, including nested ones.
+Releases everything that can be released in the selection, such as groups, compound paths, compound shapes, blends, envelopes, and repeats, including nested ones.
 Clipping groups are released simply with a fill on the mask path; a dialog asks how deep to release only when there are nested groups.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseGroupsAndMasks.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEverything.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ReleaseGroupsAndMasks";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "ReleaseEverything";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseGroupsAndMasks.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseGroupsAndMasks.md"; /* README (English) */
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEverything.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -449,12 +449,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             releaseAll: {
-                ja: "入れ子のグループ・複合パス・複合シェイプを、なくなるまで解除します。",
-                en: "Release nested groups, compound paths, and compound shapes until none remain."
+                ja: "入れ子になったグループ・複合パス・複合シェイプ・ブレンドなどを、なくなるまで解除します。",
+                en: "Release nested groups, compound paths, compound shapes, blends, and more until none remain."
             },
             releaseOneLevel: {
-                ja: "選択したグループ・複合パス・複合シェイプを1回だけ解除し、中のものは残します。",
-                en: "Release the selected groups, compound paths, and compound shapes once and keep what is inside them."
+                ja: "選択したグループ・複合パス・複合シェイプ・ブレンドなどを1回だけ解除し、中のものは残します。",
+                en: "Release the selected groups, compound paths, compound shapes, blends, and more once and keep what is inside them."
             }
         },
         alert: {
@@ -840,7 +840,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {boolean} 再生できたら true
      */
     function playReleaseCompoundShapeAction() {
-        var uniqueToken = "ReleaseGroupsAndMasks_release_" + new Date().getTime() + "_" + Math.floor(Math.random() * 100000);
+        var uniqueToken = "ReleaseEverything_release_" + new Date().getTime() + "_" + Math.floor(Math.random() * 100000);
         var actionSetName = uniqueToken + "_set";
         var actionName = uniqueToken + "_action";
         var actionSource = [
@@ -872,16 +872,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             "}"
         ]).join("\n") + "\n";
 
-        /* DOM で選び直した直後は画面に反映してからアクションを当てる / Redraw after a DOM selection change before playing the action */
-        app.redraw();
-        var isPlayed = runTemporaryAction(actionSource, actionSetName, actionName);
-        app.redraw();
-        return isPlayed;
+        return runTemporaryAction(actionSource, actionSetName, actionName);
     }
 
     // =========================================
-    // グループ・複合パス・複合シェイプの解除 / Group, compound path & compound shape release
+    // 構造の解除 / Structure release
     // =========================================
+
+    /* 試す解除のメニューコマンド（先頭から）。当てはまらないコマンドは何もせず例外も出さないので、
+       元のアイテムが選択から消えたかどうかで解除できたかを判断する
+       Release commands tried in order. Commands that do not apply do nothing and throw nothing,
+       so success is judged by whether the original item left the selection */
+    var GROUP_RELEASE_COMMANDS = [
+        "Partial Rearrange Release", /* クロスと重なり / Intertwine */
+        "ungroup"                    /* グループ解除 / Ungroup */
+    ];
+    var PLUGIN_RELEASE_COMMANDS = [   /* 複合シェイプは先に一時アクションで試す / compound shapes are tried first with the temporary action */
+        "Path Blend Release",        /* ブレンド / Blend */
+        "Release Envelope",          /* エンベロープ / Envelope */
+        "Release Planet X",          /* ライブペイント / Live Paint */
+        "Release Image Tracing",     /* 画像トレース / Image Trace */
+        "Partial Rearrange Release"  /* クロスと重なり / Intertwine */
+    ];
 
     /**
      * アイテム1つだけを選択して1段解除し、出てきたアイテムを返す。
@@ -893,16 +905,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function releaseItemOnce(targetDoc, targetItem) {
         var typeName = targetItem.typename;
-        if (typeName !== "GroupItem" && typeName !== "CompoundPathItem" && typeName !== "PluginItem") return null;
+        if (typeName === "CompoundPathItem") return releaseByMenuCommands(targetDoc, targetItem, ["noCompoundPath"]);
+        if (typeName === "GroupItem") return releaseByMenuCommands(targetDoc, targetItem, GROUP_RELEASE_COMMANDS);
+        /* リピートは独自の型（グリッドは GridRepeatItem、2026-10-04 実測）/ Repeats have their own type (GridRepeatItem for grids, measured) */
+        if (/RepeatItem$/.test(typeName)) return releaseByMenuCommands(targetDoc, targetItem, ["Release Repeat Art"]);
+        if (typeName !== "PluginItem") return null;
 
+        /* PluginItem は複合シェイプ・ブレンド・エンベロープなどを見分けられないので、解除を順に当てる
+           A PluginItem cannot be told apart (compound shape, blend, envelope, ...), so try each release in turn */
+        return releaseBySingleSelection(targetDoc, targetItem, playReleaseCompoundShapeAction)
+            || releaseByMenuCommands(targetDoc, targetItem, PLUGIN_RELEASE_COMMANDS);
+    }
+
+    /**
+     * メニューコマンドを順に当て、最初に解除できたときの出てきたアイテムを返す
+     * @param {Document} targetDoc - 対象のドキュメント
+     * @param {PageItem} targetItem - 解除するアイテム
+     * @param {string[]} commandIds - 試すメニューコマンドの ID（先頭から）
+     * @returns {PageItem[]|null} 解除で出てきたアイテム。どれでも解除されなかったときは null
+     */
+    function releaseByMenuCommands(targetDoc, targetItem, commandIds) {
+        for (var i = 0; i < commandIds.length; i++) {
+            var commandId = commandIds[i];
+            var releasedItems = releaseBySingleSelection(targetDoc, targetItem, function () { app.executeMenuCommand(commandId); });
+            if (releasedItems) return releasedItems;
+        }
+        return null;
+    }
+
+    /**
+     * アイテム1つだけを選択して解除の処理を当て、解除できていれば出てきたアイテムを返す。
+     * 解除の処理は当てはまらなくても例外を出さないので、元のアイテムが選択に残るかで判断する。
+     * 消えたアイテムも参照すると読めてしまう（2026-10-04 実測）ので、存在の確認には使わない。
+     * 当てはまらない処理で選択が外れたときも、解除されていないとみなす
+     * @param {Document} targetDoc - 対象のドキュメント
+     * @param {PageItem} targetItem - 解除するアイテム
+     * @param {function(): void} releaseCommand - 選択に対して解除を行う処理
+     * @returns {PageItem[]|null} 解除で出てきたアイテム。解除されなかったときは null
+     */
+    function releaseBySingleSelection(targetDoc, targetItem, releaseCommand) {
         selectItems(targetDoc, [targetItem]);
-        if (typeName === "GroupItem") app.executeMenuCommand("ungroup");
-        else if (typeName === "CompoundPathItem") app.executeMenuCommand("noCompoundPath");
-        else playReleaseCompoundShapeAction();
+        /* DOM で選び直した直後は画面に反映してからコマンドを当てる / Redraw after a DOM selection change before running the command */
+        app.redraw();
+        releaseCommand();
+        /* ブレンドの解除などは画面を更新するまで確定しない（実測）/ Some releases, such as blends, are not committed until a redraw (measured) */
+        app.redraw();
 
         var releasedItems = getSelectionItems(targetDoc);
-        /* 元のアイテムが選択に残っていれば解除されていない。PluginItem のブレンド・エンベロープはここで外れる
-           If the original item is still selected it was not released; blends and envelopes (PluginItem) end here */
+        if (!releasedItems.length) return null;
         for (var i = 0; i < releasedItems.length; i++) {
             if (releasedItems[i] === targetItem) return null;
         }
@@ -941,6 +991,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resultItems = resultItems.concat(releasedItems || [targetItems[i]]);
         }
         return resultItems;
+    }
+
+    // =========================================
+    // テキストの回り込みの解除 / Text wrap release
+    // =========================================
+
+    /**
+     * 解除し終えたアイテムのテキストの回り込みを解除する。
+     * 中身が出てくる解除ではないので、構造の解除が済んでから1つずつ当てる
+     * @param {Document} targetDoc - 対象のドキュメント
+     * @param {PageItem[]} targetItems - 対象のアイテム
+     * @returns {void}
+     */
+    function releaseTextWraps(targetDoc, targetItems) {
+        for (var i = 0; i < targetItems.length; i++) {
+            releaseTextWrap(targetDoc, targetItems[i]);
+        }
+    }
+
+    /**
+     * テキストの回り込みが設定されていれば解除する
+     * @param {Document} targetDoc - 対象のドキュメント
+     * @param {PageItem} targetItem - 対象のアイテム
+     * @returns {void}
+     */
+    function releaseTextWrap(targetDoc, targetItem) {
+        var isWrapped = false;
+        try {
+            isWrapped = targetItem.wrapped === true;
+        } catch (e) {
+            /* 回り込みを持たない種類のアイテム / item types without text wrap */
+        }
+        if (!isWrapped) return;
+        selectItems(targetDoc, [targetItem]);
+        app.executeMenuCommand("Release Text Wrap");
     }
 
     // =========================================
@@ -986,7 +1071,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                Releasing a clipping group already counts as one level, so only the other items are released once */
             var releasedOthers = releaseItemsOneLevel(activeDoc, otherItems);
             clipResult = releaseClippingGroups(clippingGroups, USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill);
-            selectItems(activeDoc, releasedOthers.concat(clipResult.contentItems, clipResult.maskItems));
+            var oneLevelItems = releasedOthers.concat(clipResult.contentItems, clipResult.maskItems);
+            releaseTextWraps(activeDoc, oneLevelItems);
+            selectItems(activeDoc, oneLevelItems);
             return;
         }
 
@@ -994,7 +1081,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
            Keep the remaining mask paths out of the following release so compound masks stay intact */
         clipResult = releaseClippingGroups(clippingGroups, USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill);
         var releasedItems = releaseItemsAllLevels(activeDoc, otherItems.concat(clipResult.contentItems));
-        selectItems(activeDoc, releasedItems.concat(clipResult.maskItems));
+        var allLevelItems = releasedItems.concat(clipResult.maskItems);
+        releaseTextWraps(activeDoc, allLevelItems);
+        selectItems(activeDoc, allLevelItems);
     }
 
     main();

@@ -1,8 +1,8 @@
-# グループ・複合パス・複合シェイプ・クリッピングマスクを入れ子ごと解除
+# グループ・複合パス・ブレンド・リピートなど、解除できるものを入れ子ごとすべて解除
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ReleaseGroupsAndMasks.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/ReleaseGroupsAndMasks.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ReleaseEverything.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/ReleaseEverything.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseGroupsAndMasks.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEverything.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,14 +10,18 @@
 
 ### 概要
 
-- 選択したオブジェクトのグループ・複合パス・複合シェイプ・クリッピングマスクを、入れ子のものまでまとめて解除します。
+- 選択したオブジェクトのグループ・複合パス・複合シェイプ・ブレンド・エンベロープ・リピート・クリッピングマスクなど、解除できるものを入れ子までまとめて解除します。
 - クリップグループは、マスクパスと内容の両方を残して解除し、マスクパスに K100・不透明度15% の塗りを設定します（ダイアログは出しません）。
 - グループを含むグループがあるときだけ、ダイアログで［すべて解除］か［1階層だけ解除］を選べます。
 
 ### 主な機能
 
-- グループ・複合パス・複合シェイプを、なくなるまで繰り返し解除
+- 次のものを、なくなるまで繰り返し解除
+  - グループ・複合パス
+  - 複合シェイプ・ブレンド・エンベロープ・ライブペイント・画像トレース
+  - リピート（ラジアル・グリッド・ミラー）・クロスと重なり
 - クリップグループは単純に解除し、残したマスクパスに K100・不透明度15% の塗りを設定
+- 解除し終えたオブジェクトのテキストの回り込みも解除
 - 入れ子のグループは［すべて解除］か［1階層だけ解除］を選択
 - 種類の違うオブジェクトを混ぜて選んでも、1つずつ選び直して解除
 - 日本語／英語 UI
@@ -32,7 +36,7 @@
 
 | パネル | 項目 | 内容 |
 | --- | --- | --- |
-| 入れ子のグループ | すべて解除 | 入れ子のグループ・複合パス・複合シェイプを残らず解除する（初期値） |
+| 入れ子のグループ | すべて解除 | 入れ子になったものを残らず解除する（初期値） |
 | | 1階層だけ解除 | 選択したものを1回だけ解除し、中のものは残す |
 
 ダイアログは、グループを含むグループがあるときだけ表示します。
@@ -47,10 +51,12 @@
 ### 注意点
 
 - ［すべて解除］では、マスク内容の中にあるグループや複合パスも解除します。残したマスクパスが複合パスのときは、複合パスのまま残します。
-- 複合シェイプは［複合シェイプを解除］のアクションで解除します。ブレンドやエンベロープは解除しません。
+- 複合シェイプ・ブレンド・エンベロープなどはスクリプトから見分けられないため、［解除］のコマンドを順に当て、解除できたもので先へ進みます。
+- 各［解除］はメニューの［解除］と同じ結果になります。ブレンドはブレンド軸のパス、エンベロープはエンベロープの形が残り、ライブペイントは塗りが消え、画像トレースは元の画像に戻ります。
 - 入れ子のクリップグループは、マスクとして扱わずにグループとして解除します（マスクパスは塗り・線のない状態で残ります）。
 - 処理のあとは、解除で出てきたオブジェクトを選択した状態になります。
 
 ### 更新履歴
 
 - v1.0.0 (20261004) : 初期バージョン
+- v1.1.0 (20261004) : ブレンド・エンベロープ・ライブペイント・画像トレース・リピート・クロスと重なりも解除し、テキストの回り込みも解除するようにした。ファイル名を ReleaseGroupsAndMasks から ReleaseEverything に変更

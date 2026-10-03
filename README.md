@@ -116,7 +116,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです（プレビュー…](readme-ja/QuickTransformPalette.md)
 - [選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト](readme-ja/RandomizeObjects.md)
 - [選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、左右・上下の間隔で再配置します](readme-ja/RegridObjects.md)
-- [グループ・複合パス・複合シェイプ・クリッピングマスクを入れ子ごと解除](readme-ja/ReleaseGroupsAndMasks.md)
+- [グループ・複合パス・ブレンド・リピートなど、解除できるものを入れ子ごとすべて解除](readme-ja/ReleaseEverything.md)
 - [配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケール／縦…](readme-ja/ResetTransform.md)
 - [重なって配置されたオブジェクトを、横方向または縦方向へ指定した間隔で並べ直します。行数・列数を指定すれば…](readme-ja/SmartAlignAndTile.md)
 - [選択オブジェクトを「縦/横」に並べて、指定した間隔で分布します。方向は自動判定も可能で、揃え（左右/上下）、…](readme-ja/SmartAlignDistribute.md)

@@ -1,8 +1,8 @@
-# Release groups, compound paths, compound shapes, and clipping masks, nested ones included
+# Release everything releasable, such as groups, compound paths, blends, and repeats, nested ones included
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ReleaseGroupsAndMasks.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/ReleaseGroupsAndMasks.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ReleaseEverything.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/ReleaseEverything.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseGroupsAndMasks.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,14 +10,18 @@
 
 ### Overview
 
-- Releases the groups, compound paths, compound shapes, and clipping masks in the selection, including nested ones.
+- Releases everything that can be released in the selection, such as groups, compound paths, compound shapes, blends, envelopes, repeats, and clipping masks, including nested ones.
 - Clipping groups are released keeping both the mask path and the content, and the mask path gets a K100 fill at 15% opacity (no dialog).
 - Only when a group contains other groups does a dialog let you choose "Release all levels" or "Release one level only".
 
 ### Main Features
 
-- Releases groups, compound paths, and compound shapes repeatedly until none remain
+- Releases the following repeatedly until none remain
+  - Groups and compound paths
+  - Compound shapes, blends, envelopes, Live Paint groups, and image tracing
+  - Repeats (radial, grid, mirror) and Intertwine
 - Releases clipping groups simply and applies a K100 fill at 15% opacity to the remaining mask path
+- Also releases text wrap on the released objects
 - Nested groups: "Release all levels" or "Release one level only"
 - Mixed selections are released one object at a time
 - Japanese / English UI
@@ -32,7 +36,7 @@
 
 | Panel | Option | Description |
 | --- | --- | --- |
-| Nested Groups | Release all levels | Releases every nested group, compound path, and compound shape (default) |
+| Nested Groups | Release all levels | Releases everything nested (default) |
 | | Release one level only | Releases the selected items once and keeps what is inside them |
 
 The dialog appears only when a group contains other groups.
@@ -47,10 +51,12 @@ How clipping groups are released, and whether the mask path gets a fill, can be 
 ### Notes
 
 - "Release all levels" also releases groups and compound paths inside the masked content. A remaining mask path that is a compound path stays a compound path.
-- Compound shapes are released with the Release Compound Shape action. Blends and envelopes are left as they are.
+- Compound shapes, blends, envelopes, and the like cannot be told apart by a script, so the Release commands are tried in turn and the script moves on with whichever one works.
+- Each release gives the same result as the Release menu command: a blend leaves its spine path, an envelope leaves its envelope shape, Live Paint loses its fills, and image tracing returns to the original image.
 - Nested clipping groups are released as plain groups, not as masks (the mask path remains with no fill or stroke).
 - After the run, the objects that came out of the release are selected.
 
 ### Update History
 
 - v1.0.0 (20261004) : Initial release
+- v1.1.0 (20261004) : Blends, envelopes, Live Paint, image tracing, repeats, and Intertwine are now released too, along with text wrap. Renamed from ReleaseGroupsAndMasks to ReleaseEverything
