@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEve
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReleaseEverything";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -610,16 +610,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * クリップグループを解除方法に従って解除し、出てきたアイテムをまとめて返す。
-     * 1つ失敗しても残りは処理し、最後に件数と理由を知らせる
+     * 1つ失敗しても残りは処理し、理由を failureReasons に足す（知らせるのは呼び出し側）
      * @param {GroupItem[]} clippingGroups - 対象のクリップグループ
      * @param {string} clipReleaseMode - "simple" | "removePath" | "removeContent"
      * @param {boolean} shouldApplyFill - 残ったマスクパスに塗りを付けるなら true
+     * @param {string[]} failureReasons - 失敗の理由を足していく配列
      * @returns {{contentItems: PageItem[], maskItems: PageItem[]}} 出てきたマスク内容と、残したマスクパス
      */
-    function releaseClippingGroups(clippingGroups, clipReleaseMode, shouldApplyFill) {
+    function releaseClippingGroups(clippingGroups, clipReleaseMode, shouldApplyFill, failureReasons) {
         var releasedContent = [];
         var keptMasks = [];
-        var failureReasons = [];
         for (var i = 0; i < clippingGroups.length; i++) {
             try {
                 var clipResult;
@@ -632,9 +632,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 /* ExtendScript は message でなく description のことがある / ExtendScript may use description instead of message */
                 failureReasons.push(err.message || err.description || String(err));
             }
-        }
-        if (failureReasons.length > 0) {
-            alert(getLabel("alert.releaseFailed", { count: failureReasons.length }) + "\n" + failureReasons.join("\n"));
         }
         return { contentItems: releasedContent, maskItems: keptMasks };
     }
@@ -960,16 +957,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 指定したアイテムを1つずつ、入れ子のものまで解除し尽くす
+     * 指定したアイテムを1つずつ、入れ子のものまで解除し尽くす。
+     * クリップグループは［グループ解除］では解除されない（実測）ので、入れ子のものも
+     * USER_DEFAULTS の方法で DOM から解除し、残したマスクパスはそれ以上解除しない（複合パスのマスクを崩さない）
      * @param {Document} targetDoc - 対象のドキュメント
      * @param {PageItem[]} targetItems - 解除するアイテム
+     * @param {string[]} failureReasons - クリップグループの解除に失敗した理由を足していく配列
      * @returns {PageItem[]} 解除し終えたアイテム
      */
-    function releaseItemsAllLevels(targetDoc, targetItems) {
+    function releaseItemsAllLevels(targetDoc, targetItems, failureReasons) {
         var pendingItems = targetItems.slice();
         var resultItems = [];
         while (pendingItems.length) {
             var currentItem = pendingItems.shift();
+            if (isClippingGroup(currentItem)) {
+                var clipResult = releaseClippingGroups([currentItem], USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill, failureReasons);
+                pendingItems = clipResult.contentItems.concat(pendingItems);
+                resultItems = resultItems.concat(clipResult.maskItems);
+                continue;
+            }
             var releasedItems = releaseItemOnce(targetDoc, currentItem);
             /* 出てきたものを先頭に戻して続けて解除する / Put what came out back at the front and keep releasing */
             if (releasedItems) pendingItems = releasedItems.concat(pendingItems);
@@ -1065,25 +1071,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!releaseDepth) return;
         }
 
-        var clipResult;
+        var failureReasons = [];
+        var finalItems;
         if (releaseDepth === "oneLevel") {
             /* クリップグループの解除で1階層ぶんなので、ほかのアイテムだけを1階層解除する
                Releasing a clipping group already counts as one level, so only the other items are released once */
             var releasedOthers = releaseItemsOneLevel(activeDoc, otherItems);
-            clipResult = releaseClippingGroups(clippingGroups, USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill);
-            var oneLevelItems = releasedOthers.concat(clipResult.contentItems, clipResult.maskItems);
-            releaseTextWraps(activeDoc, oneLevelItems);
-            selectItems(activeDoc, oneLevelItems);
-            return;
+            var clipResult = releaseClippingGroups(clippingGroups, USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill, failureReasons);
+            finalItems = releasedOthers.concat(clipResult.contentItems, clipResult.maskItems);
+        } else {
+            finalItems = releaseItemsAllLevels(activeDoc, selectionItems, failureReasons);
         }
 
-        /* 残したマスクパスは複合パスを崩さないよう、続く解除から外す
-           Keep the remaining mask paths out of the following release so compound masks stay intact */
-        clipResult = releaseClippingGroups(clippingGroups, USER_DEFAULTS.clipReleaseMode, USER_DEFAULTS.applyMaskFill);
-        var releasedItems = releaseItemsAllLevels(activeDoc, otherItems.concat(clipResult.contentItems));
-        var allLevelItems = releasedItems.concat(clipResult.maskItems);
-        releaseTextWraps(activeDoc, allLevelItems);
-        selectItems(activeDoc, allLevelItems);
+        releaseTextWraps(activeDoc, finalItems);
+        selectItems(activeDoc, finalItems);
+        if (failureReasons.length > 0) {
+            alert(getLabel("alert.releaseFailed", { count: failureReasons.length }) + "\n" + failureReasons.join("\n"));
+        }
     }
 
     main();

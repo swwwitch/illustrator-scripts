@@ -53,10 +53,11 @@ How clipping groups are released, and whether the mask path gets a fill, can be 
 - "Release all levels" also releases groups and compound paths inside the masked content. A remaining mask path that is a compound path stays a compound path.
 - Compound shapes, blends, envelopes, and the like cannot be told apart by a script, so the Release commands are tried in turn and the script moves on with whichever one works.
 - Each release gives the same result as the Release menu command: a blend leaves its spine path, an envelope leaves its envelope shape, Live Paint loses its fills, and image tracing returns to the original image.
-- Nested clipping groups are released as plain groups, not as masks (the mask path remains with no fill or stroke).
+- "Release all levels" also releases clipping groups inside groups, the same way as selected clipping groups (with the fill on the mask path).
 - After the run, the objects that came out of the release are selected.
 
 ### Update History
 
 - v1.0.0 (20261004) : Initial release
 - v1.1.0 (20261004) : Blends, envelopes, Live Paint, image tracing, repeats, and Intertwine are now released too, along with text wrap. Renamed from ReleaseGroupsAndMasks to ReleaseEverything
+- v1.1.1 (20261004) : Fixed clipping groups inside groups not being released
