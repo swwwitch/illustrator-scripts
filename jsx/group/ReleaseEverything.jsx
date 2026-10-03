@@ -12,6 +12,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf5063dc9adae
+
 ### Overview
 
 Releases everything that can be released in the selection, such as groups, compound paths, compound shapes, blends, envelopes, and repeats, including nested ones.
@@ -31,8 +34,9 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEverything.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseEverything.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseEverything.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5063dc9adae"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -894,7 +898,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * アイテム1つだけを選択して1段解除し、出てきたアイテムを返す。
-     * 種類の違うものをまとめて選んだままメニューコマンドを当てると
+     * 種類の異なるものをまとめて選んだままメニューコマンドを当てると
      * 「オブジェクトのグループを解除できません」で止まるので、必ず1つずつ選び直す
      * @param {Document} targetDoc - 対象のドキュメント
      * @param {PageItem} targetItem - 解除するアイテム

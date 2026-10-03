@@ -56,6 +56,10 @@ How clipping groups are released, and whether the mask path gets a fill, can be 
 - "Release all levels" also releases clipping groups inside groups, the same way as selected clipping groups (with the fill on the mask path).
 - After the run, the objects that came out of the release are selected.
 
+### Article
+
+- [DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/nf5063dc9adae)
+
 ### Update History
 
 - v1.0.0 (20261004) : Initial release
