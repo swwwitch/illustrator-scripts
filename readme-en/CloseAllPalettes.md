@@ -39,6 +39,7 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### Update History
 
+- v1.1.1 (2026-10-03) Added ViewTogglePalette to the targets.
 - v1.1.0 (2026-10-03) Fixed palettes never closing: a BridgeTalk body's `#targetengine` was ignored and ran in the main engine. The script now closes palettes directly from the shared engine `SwwwitchPalettes`. All 28 target palettes have moved to that engine.
 - v1.0.5 (2026-10-02) Added FavoriteFontPickerPalette to the targets.
 - v1.0.4 (2026-09-26) Removed TextFontPanelReinvented (deleted) from the targets. Updated target names after renaming persistent palette scripts to end in "Palette".

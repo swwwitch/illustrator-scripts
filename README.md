@@ -257,6 +257,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## 環境設定
 
 - [よく使う環境設定を常駐パレットで切り替える](readme-ja/AiQuickPrefsPalette.md)
+- [ビデオ定規・境界線などの表示を常駐パレットで切り替える](readme-ja/ViewTogglePalette.md)
 - [アートボード関連の環境設定](readme-ja/ArtboardDisplayPresetManagerPalette.md)
 - [環境設定：変形と整列](readme-ja/PreferenceManagerForTransformAndAlignPalette.md)
 - [環境設定をまとめて変更](readme-ja/PresetManager.md)

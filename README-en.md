@@ -242,6 +242,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 ## Preferences
 
 - [Toggle the preferences you use most from a persistent palette](readme-en/AiQuickPrefsPalette.md)
+- [Toggle the video ruler, edges and other view items from a persistent palette](readme-en/ViewTogglePalette.md)
 - [Artboard-related preferences](readme-en/ArtboardDisplayPresetManagerPalette.md)
 - [Change preferences from a single dialog](readme-en/PresetManager.md)
 - [Lets you change a range of Illustrator preferences fro…](readme-en/PreferenceManager-unit.md)

@@ -39,6 +39,7 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### 更新履歴
 
+- v1.1.1（2026-10-03）ViewTogglePalette を対象に追加。
 - v1.1.0（2026-10-03）どのパレットも閉じられなかった不具合を修正。BridgeTalk で送った本文の `#targetengine` は無視され main エンジンで動いていたため、パレットと同じ共通エンジン `SwwwitchPalettes` で直接閉じる方式に変更。対象の常駐パレット28本も共通エンジンへ移行した。
 - v1.0.5（2026-10-02）FavoriteFontPickerPalette を対象に追加。
 - v1.0.4（2026-09-26）TextFontPanelReinvented（削除）を対象から外した。常駐パレットのファイル名を末尾 Palette に改名したのに合わせて対象名を更新。

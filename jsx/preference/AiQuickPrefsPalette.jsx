@@ -6,8 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustratorの使用頻度の高い環境設定を、常駐パレットでまとめて切り替えます。
-チェックや入力を操作したその場で反映されるため、環境設定ダイアログを開き直す手間がありません。
+キー入力・整列・変形・ペースト・描画まわりの、よく使う環境設定を常駐パレットで切り替えます。
+操作したその場で反映されるため、環境設定ダイアログを開く手間がありません。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette.md
@@ -17,8 +17,8 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Overview
 
-A persistent palette for toggling the Illustrator preferences you use most often.
-Every checkbox and field applies as you touch it, so there is no reopening of the Preferences dialog.
+A persistent palette for the preferences you change most often: keyboard increment, align, transform, paste and drawing.
+Every change applies the moment you make it, so there is no need to open the Preferences dialog.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette.md
@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPre
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiQuickPrefsPalette";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
@@ -47,8 +47,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // ユーザー設定 / User settings
     // =========================================
 
-    var DIALOG_OPACITY = 0.98;   /* パレットの不透明度 / Palette opacity */
-    var SAVE_DEBOUNCE_MS = 40;   /* 保存デバウンス(ms) / Save debounce (ms) */
+    var PALETTE_OPACITY = 0.98;   /* パレットの不透明度 / Palette opacity */
 
     // =========================================
     // ローカライズ / Localization
@@ -138,25 +137,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             title: { ja: "クイック環境設定", en: "Quick Preferences" }
         },
         panel: {
-            keyInput: { ja: "キー増加", en: "Key Input" },
+            keyInput: { ja: "キー入力", en: "Keyboard Increment" },
             align: { ja: "整列オプション", en: "Align Options" },
             transform: { ja: "変形オプション", en: "Transform Options" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
-            drawing: { ja: "描画", en: "Drawing" },
-            view: { ja: "表示", en: "View" }
+            drawing: { ja: "描画", en: "Drawing" }
         },
         checkbox: {
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
-            previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
+            previewBounds: { ja: "プレビュー境界を使用", en: "Use Preview Bounds" },
             transformPattern: { ja: "パターン", en: "Pattern Tiles" },
             scaleCorners: { ja: "角", en: "Corners" },
             scaleStroke: { ja: "線幅と効果", en: "Strokes & Effects" },
             realtimeDrawing: { ja: "リアルタイムの描画と編集", en: "Real-time Drawing & Editing" },
             pastePlain: { ja: "書式なしペースト", en: "Paste without Formatting" },
-            pastePreserve: { ja: "コピー元のレイヤーに", en: "Paste Remembers Layers" }
+            pastePreserve: { ja: "コピー元のレイヤーにペースト", en: "Paste Remembers Layers" }
         },
         tooltip: {
-            cursorStep: { ja: "矢印キーでの移動量（環境設定 > 一般 > キー増加）。∧∨・↑↓で次の整数へ / Shift=10の倍数へ / Option=±0.1", en: "Keyboard increment (Preferences > General). Steppers and Up/Down go to the next whole number / Shift = next multiple of 10 / Option = ±0.1" },
+            cursorStep: {
+                ja: "矢印キーでの移動量（環境設定 > 一般 > キー入力）。∧∨・↑↓で次の整数へ、shift＋で10の倍数へ、option＋で0.1ずつ",
+                en: "Keyboard increment (Preferences > General). Steppers and Up/Down go to the next whole number; Shift to the next multiple of 10; Option by 0.1"
+            },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
                 en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
@@ -176,18 +177,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             pastePlain: { ja: "書式を保持せずにペースト", en: "Paste without keeping formatting" },
             pastePreserve: { ja: "コピー元と同じレイヤーにペースト", en: "Paste into the original (source) layer" },
             realtimeDrawing: { ja: "リアルタイムの描画と編集を切り替え", en: "Toggle real-time drawing & editing" },
-            refreshGpuPreview: { ja: "GPUプレビューを更新（再描画）", en: "Refresh the GPU preview (redraw)" },
-            edges: { ja: "エッジとバウンディングボックスの表示をまとめて切り替え", en: "Toggle edges and the bounding box together" },
-            artboard: { ja: "アートボードの表示を切り替え", en: "Toggle artboard visibility" },
-            videoRuler: { ja: "ビデオ定規の表示を切り替え", en: "Toggle video ruler visibility" },
-            canvasColor: { ja: "カンバスカラーを「UIに合わせる」と「ホワイト」で切り替え", en: "Switch the canvas color between Match Brightness and White" }
+            refreshGpuPreview: { ja: "GPUプレビューを更新（再描画）", en: "Refresh the GPU preview (redraw)" }
         },
         button: {
-            refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" },
-            edges: { ja: "境界線", en: "Edges" },
-            artboard: { ja: "アートボード", en: "Artboards" },
-            videoRuler: { ja: "ビデオ定規", en: "Video Ruler" },
-            canvasColor: { ja: "カンバスカラー", en: "Canvas Color" }
+            refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" }
         }
     };
 
@@ -241,10 +234,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return codes;
     })();
 
-    /* 単位コード → ポップアップのインデックス（未対応コードは -1）/ Unit code -> popup index (-1 if unsupported) */
-    function unitCodeToPopupIndex(code) {
+    /**
+     * 単位コードを単位ポップアップの位置に変換する
+     * @param {number} unitCode - 単位コード
+     * @returns {number} ポップアップの位置（並べていない単位は -1）
+     */
+    function unitCodeToPopupIndex(unitCode) {
         for (var i = 0; i < UNIT_POPUP_CODES.length; i++) {
-            if (UNIT_POPUP_CODES[i] === code) return i;
+            if (UNIT_POPUP_CODES[i] === unitCode) return i;
         }
         return -1;
     }
@@ -260,7 +257,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         cursorKeyLengthPt: 1.0
     };
 
-    /* キャッシュ済みの定規単位の pt 換算係数を取得（未知のコードは pt）/ Get the pt factor for the cached ruler unit (unknown codes fall back to pt) */
+    /**
+     * 控えてある定規単位の1単位あたりのポイント数を返す（未知のコードは pt）
+     * @returns {number} 1単位あたりのポイント数
+     */
     function getCurrentPtPerUnit() {
         return (UNITS[PREF_STATE.rulerType] || UNITS[2]).pointsPerUnit;
     }
@@ -271,24 +271,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // Reads are safe across engines, so fetch them directly in the palette engine
     // =========================================
 
+    /**
+     * パレットに表示する環境設定をまとめて読み出す
+     * @returns {Object} 環境設定キー（一部は短い名前）と値の組
+     */
     function readAllPreferences() {
-        var prefs = app.preferences;
-        function getBool(key) { try { return prefs.getBooleanPreference(key); } catch (e) { return false; } }
-        function getInt(key) { try { return prefs.getIntegerPreference(key); } catch (e) { return 0; } }
-        function getReal(key) { try { return prefs.getRealPreference(key); } catch (e) { return 0; } }
-        function getRulerUnitCode() { try { return getUnitInfo().code; } catch (e) { return 0; } }
+        var appPreferences = app.preferences;
         return {
-            EnableActualPointTextSpaceAlign: getBool("EnableActualPointTextSpaceAlign"),
-            EnableActualAreaTextSpaceAlign: getBool("EnableActualAreaTextSpaceAlign"),
-            includeStrokeInBounds: getBool("includeStrokeInBounds"),
-            transformPatterns: getBool("transformPatterns"),
-            scaleLineWeight: getBool("scaleLineWeight"),
-            LiveEdit_State_Machine: getBool("LiveEdit_State_Machine"),
-            pastePlain: getBool("plugin/FileClipboard/pasteWithoutFormatting"),
-            pastePreserve: getBool("layers/pastePreserve"),
-            policyForPreservingCorners: getInt("policyForPreservingCorners"),
-            rulerType: getRulerUnitCode(),
-            cursorKeyLength: getReal("cursorKeyLength")
+            EnableActualPointTextSpaceAlign: appPreferences.getBooleanPreference("EnableActualPointTextSpaceAlign"),
+            EnableActualAreaTextSpaceAlign: appPreferences.getBooleanPreference("EnableActualAreaTextSpaceAlign"),
+            includeStrokeInBounds: appPreferences.getBooleanPreference("includeStrokeInBounds"),
+            transformPatterns: appPreferences.getBooleanPreference("transformPatterns"),
+            scaleLineWeight: appPreferences.getBooleanPreference("scaleLineWeight"),
+            LiveEdit_State_Machine: appPreferences.getBooleanPreference("LiveEdit_State_Machine"),
+            pastePlain: appPreferences.getBooleanPreference("plugin/FileClipboard/pasteWithoutFormatting"),
+            pastePreserve: appPreferences.getBooleanPreference("layers/pastePreserve"),
+            policyForPreservingCorners: appPreferences.getIntegerPreference("policyForPreservingCorners"),
+            rulerType: getUnitInfo().code,
+            cursorKeyLength: appPreferences.getRealPreference("cursorKeyLength")
         };
     }
 
@@ -296,7 +296,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // BridgeTalk 委譲（書き込み）/ BridgeTalk delegation (writes)
     // =========================================
 
-    /* メインエンジン（target="illustrator"）へ環境設定コードを送って実行 / Send preference code to the main engine and run it */
+    /**
+     * メインエンジン（target="illustrator"）へコードを送って実行する
+     * @param {string} bodyCode - 実行するコード
+     * @returns {void}
+     */
     function runInMainEngine(bodyCode) {
         try {
             var bridge = new BridgeTalk();
@@ -311,30 +315,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             };
             bridge.send();
         } catch (e) {
-            /* BridgeTalk 不可時は同一エンジンで直接実行 / Fallback: run directly in this engine */
+            /* BridgeTalk 不可時は同一エンジンで直接実行（失敗は無視）/ Fallback: run directly in this engine (failures ignored) */
             try {
                 eval(bodyCode);
-            } catch (e2) {
-                // no-op
-            }
+            } catch (e2) {}
         }
     }
 
-    /* 環境設定をメインエンジンで設定（値リテラルは型別ラッパーが整形）/ Set a preference on the main engine (per-type wrappers format the value literal) */
-    function btSetPreference(method, prefKey, valueLiteral) {
-        runInMainEngine('app.preferences.' + method + '("' + prefKey + '", ' + valueLiteral + ');');
+    /**
+     * 環境設定をメインエンジンで書き込む（値の書式は型別の関数がそろえる）
+     * @param {string} setterName - "setBooleanPreference" などのメソッド名
+     * @param {string} prefKey - 環境設定キー
+     * @param {string|number} valueLiteral - コードに埋め込む値
+     * @returns {void}
+     */
+    function btSetPreference(setterName, prefKey, valueLiteral) {
+        runInMainEngine('app.preferences.' + setterName + '("' + prefKey + '", ' + valueLiteral + ');');
     }
 
-    /* 型別の薄いラッパー / Thin per-type wrappers */
+    /**
+     * 真偽値の環境設定を書き込む
+     * @param {string} prefKey - 環境設定キー
+     * @param {boolean} value - 値
+     * @returns {void}
+     */
     function btSetBooleanPreference(prefKey, value) { btSetPreference('setBooleanPreference', prefKey, value ? 'true' : 'false'); }
+
+    /**
+     * 整数の環境設定を書き込む
+     * @param {string} prefKey - 環境設定キー
+     * @param {number} value - 値
+     * @returns {void}
+     */
     function btSetIntegerPreference(prefKey, value) { btSetPreference('setIntegerPreference', prefKey, parseInt(value, 10)); }
-    function btSetRealPreference(prefKey, value)    { btSetPreference('setRealPreference', prefKey, Number(value)); }
+
+    /**
+     * 実数の環境設定を書き込む
+     * @param {string} prefKey - 環境設定キー
+     * @param {number} value - 値
+     * @returns {void}
+     */
+    function btSetRealPreference(prefKey, value) { btSetPreference('setRealPreference', prefKey, Number(value)); }
 
     // =========================================
     // カーソル移動量 / Cursor step
     // =========================================
 
-    /* 現在単位の値を cursorKeyLength(pt) として保存 / Save value (in current unit) to cursorKeyLength as pt */
+    /**
+     * 今の定規単位の値を cursorKeyLength（pt）として保存する
+     * @param {number} unitValue - 今の定規単位での値
+     * @returns {boolean} 保存したら true（数値でない・負の値なら false）
+     */
     function saveCursorKeyLengthInCurrentUnit(unitValue) {
         if (isNaN(unitValue) || unitValue < 0) return false;
         PREF_STATE.cursorKeyLengthPt = unitValue * getCurrentPtPerUnit();
@@ -342,38 +373,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return true;
     }
 
-    /* キャッシュ済み cursorKeyLength(pt) を現在単位の文字列(小数1桁)で取得 / Read cached cursorKeyLength as a current-unit string */
+    /**
+     * 控えてある cursorKeyLength（pt）を今の定規単位の文字列（小数第1位まで）で返す
+     * @returns {string} 表示用の値
+     */
     function readCursorKeyLengthInCurrentUnit() {
         return (PREF_STATE.cursorKeyLengthPt / getCurrentPtPerUnit()).toFixed(1);
-    }
-
-    /* ===== デバウンス保存 / Debounced saving ===== */
-    var __cursorKeyDebounceTaskId = null;
-    var __cursorKeyPendingText = null;
-
-    /* 保留中のテキストを実際に保存（scheduleTask から呼ばれる）。内部は例外を投げないため try 不要 / Save the pending text (called from scheduleTask); no try needed since the body cannot throw */
-    function __runSaveCursorKeyLength() {
-        if (__cursorKeyPendingText !== null) {
-            saveCursorKeyLengthInCurrentUnit(parseFloat(__cursorKeyPendingText));
-        }
-        __cursorKeyDebounceTaskId = null;
-    }
-    /* scheduleTask の文字列はグローバルスコープで評価されるため $.global 経由で公開 / scheduleTask strings run in global scope, so expose via $.global */
-    $.global.__aiQuickPrefsRunSave = __runSaveCursorKeyLength;
-
-    /* 一定遅延後に保存をスケジュール（不可時は即時保存）/ Schedule a save after a short delay (immediate if unavailable) */
-    function scheduleSaveCursorKeyLengthDebounced(editText, delayMs) {
-        try {
-            __cursorKeyPendingText = String(editText.text);
-            if (__cursorKeyDebounceTaskId) {
-                app.cancelTask(__cursorKeyDebounceTaskId);
-                __cursorKeyDebounceTaskId = null;
-            }
-            __cursorKeyDebounceTaskId = app.scheduleTask("$.global.__aiQuickPrefsRunSave()", delayMs, false);
-        } catch (e) {
-            /* scheduleTask 不可時は即時保存 / Save immediately if scheduleTask is unavailable */
-            saveCursorKeyLengthInCurrentUnit(parseFloat(editText.text));
-        }
     }
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
@@ -936,14 +941,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // UI ヘルパー / UI helpers
     // =========================================
 
-    /* Boolean 環境設定にバインドしたチェックボックスを生成して返す（tooltipKey 指定時は helpTip も設定）/ Create a checkbox bound to a boolean preference (sets helpTip when tooltipKey is given) */
-    function addBooleanCheckbox(parent, labelKey, prefKey, tooltipKey) {
-        var checkbox = parent.add('checkbox', undefined, getLabel(labelKey));
-        if (tooltipKey) checkbox.helpTip = getLabel(tooltipKey);
-        checkbox.onClick = function () {
-            btSetBooleanPreference(prefKey, checkbox.value === true);
+    /**
+     * ツールチップ付きのチェックボックスを追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelKey - LABELS.checkbox のキー
+     * @param {string} tooltipKey - LABELS.tooltip のキー
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addCheckbox(parentPanel, labelKey, tooltipKey) {
+        var newCheckbox = parentPanel.add('checkbox', undefined, getLabel('checkbox.' + labelKey));
+        newCheckbox.helpTip = getLabel('tooltip.' + tooltipKey);
+        return newCheckbox;
+    }
+
+    /**
+     * 真偽値の環境設定とつないだチェックボックスを追加する（クリックでその場で書き込む）
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {string} labelKey - LABELS.checkbox と LABELS.tooltip のキー
+     * @param {string} prefKey - 環境設定キー
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addBooleanPrefCheckbox(parentPanel, labelKey, prefKey) {
+        var prefCheckbox = addCheckbox(parentPanel, labelKey, labelKey);
+        prefCheckbox.onClick = function () {
+            btSetBooleanPreference(prefKey, prefCheckbox.value === true);
         };
-        return checkbox;
+        return prefCheckbox;
     }
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
@@ -1029,73 +1052,78 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // パネル構築 / Panel builders
     // =========================================
 
-    /* キー増加パネルを構築（カーソル移動量＋単位ポップアップ）。編集中フラグと単位同期はビルダー内に閉じ込め、{field, isEditing(), syncDisplay()} を返す */
-    /* Build the Key Input panel (cursor step + unit popup); the editing flag and unit-sync are kept inside, returns {field, isEditing(), syncDisplay()} */
+    /**
+     * キー入力パネル（移動量＋単位ポップアップ）を作る。編集中フラグと単位の同期はこの中に閉じ込める
+     * @param {Group} parent - 追加先
+     * @returns {{field: EditText, isEditing: Function, syncDisplay: Function}} 入力欄・編集中かどうか・表示の更新
+     */
     function buildKeyInputPanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.keyInput'));
-        setupPanel(panel, 6);
-        panel.orientation = "row"; /* 入力欄と単位を横に並べる / field and unit side by side */
-        panel.alignChildren = ["left", "center"];
+        var keyInputPanel = parent.add('panel', undefined, getLabel('panel.keyInput'));
+        setupPanel(keyInputPanel, 6);
+        keyInputPanel.orientation = "row"; /* 入力欄と単位を横に並べる / field and unit side by side */
+        keyInputPanel.alignChildren = ["left", "center"];
 
         /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var cursorStepGroup = panel.add('group');
+        var cursorStepGroup = keyInputPanel.add('group');
         cursorStepGroup.orientation = 'row';
         cursorStepGroup.alignChildren = ['left', 'center'];
         cursorStepGroup.spacing = 0;
         cursorStepGroup.margins = 0;
         var cursorStepStepper = addStepper(cursorStepGroup, function () { return cursorStepField; }, {
             step: 1, min: 0,
-            /* 常に小数第1位で表示し、デバウンス保存 / Always show 1 decimal and save (debounced) */
+            /* 常に小数第1位で表示し、その場で保存 / Always show 1 decimal and save right away */
             onStep: function (numberInput) {
                 numberInput.text = parseFloat(numberInput.text).toFixed(1);
-                scheduleSaveCursorKeyLengthDebounced(numberInput, SAVE_DEBOUNCE_MS);
+                saveCursorKeyLengthInCurrentUnit(parseFloat(numberInput.text));
             }
         });
         var cursorStepField = cursorStepGroup.add('edittext', undefined, "1.0");
         cursorStepField.characters = 4;
         cursorStepField.helpTip = getLabel('tooltip.cursorStep');
+        bindSteppedArrowKeys(cursorStepField, cursorStepStepper);
 
         /* 編集中フラグ：入力欄にフォーカスがある間は外部同期で値を上書きしない / Editing flag: don't let external sync overwrite while the field has focus */
         var isEditingCursorStep = false;
         cursorStepField.onActivate = function () { isEditingCursorStep = true; };
         cursorStepField.onDeactivate = function () { isEditingCursorStep = false; };
 
-        var suppressUnitChange = false;
-        var unitDropdown = panel.add('dropdownlist', undefined, []);
-        for (var i = 0; i < UNIT_POPUP_CODES.length; i++) {
-            /* 定規単位なので単位コード5は「H」/ ruler unit, so unit code 5 shows as H */
-            var popupUnitCode = UNIT_POPUP_CODES[i];
-            unitDropdown.add('item', (popupUnitCode === 5 && HA_UNIT_PREF_KEYS["rulerType"]) ? "H" : UNITS[popupUnitCode].label);
-        }
-        unitDropdown.preferredSize.width = 55;
-        unitDropdown.helpTip = getLabel('tooltip.unit');
-
-        /* 単位ポップアップ：選んだ単位を定規単位(rulerType)へ反映し、表示を再計算 / Unit popup: apply the chosen unit to rulerType and recompute the display */
-        unitDropdown.onChange = function () {
-            if (suppressUnitChange || !unitDropdown.selection) return;
-            var code = UNIT_POPUP_CODES[unitDropdown.selection.index];
-            PREF_STATE.rulerType = code;
-            btSetIntegerPreference("rulerType", code);
-            /* 保存済み pt 値は不変。新しい単位で再表示 / Stored pt value is unchanged; redisplay in the new unit */
-            cursorStepField.text = readCursorKeyLengthInCurrentUnit();
-        };
-
-        bindSteppedArrowKeys(cursorStepField, cursorStepStepper);
-
-        /* キー増加の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
+        /* 確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
         cursorStepField.onChange = function () {
             if (!saveCursorKeyLengthInCurrentUnit(parseFloat(cursorStepField.text))) {
                 cursorStepField.text = readCursorKeyLengthInCurrentUnit();
             }
         };
 
-        /* PREF_STATE から表示（単位ポップアップ＋数値）を更新。onChange は発火させない / Refresh the display (unit popup + value) from PREF_STATE without firing onChange */
+        var unitDropdown = keyInputPanel.add('dropdownlist', undefined, []);
+        for (var i = 0; i < UNIT_POPUP_CODES.length; i++) {
+            /* 定規単位なので単位コード5は「H」/ ruler unit, so unit code 5 shows as H */
+            var popupUnitCode = UNIT_POPUP_CODES[i];
+            unitDropdown.add('item', (popupUnitCode === 5) ? "H" : UNITS[popupUnitCode].label);
+        }
+        unitDropdown.preferredSize.width = 55;
+        unitDropdown.helpTip = getLabel('tooltip.unit');
+
+        /* 単位ポップアップ：選んだ単位を定規単位(rulerType)へ反映し、表示を再計算 / Unit popup: apply the chosen unit to rulerType and recompute the display */
+        var isSyncingUnit = false;
+        unitDropdown.onChange = function () {
+            if (isSyncingUnit || !unitDropdown.selection) return;
+            var rulerUnitCode = UNIT_POPUP_CODES[unitDropdown.selection.index];
+            PREF_STATE.rulerType = rulerUnitCode;
+            btSetIntegerPreference("rulerType", rulerUnitCode);
+            /* 保存済み pt 値は不変。新しい単位で再表示 / Stored pt value is unchanged; redisplay in the new unit */
+            cursorStepField.text = readCursorKeyLengthInCurrentUnit();
+        };
+
+        /**
+         * PREF_STATE から表示（単位ポップアップ＋数値）を更新する。onChange は発火させない
+         * @returns {void}
+         */
         function syncDisplay() {
             var unitPopupIndex = unitCodeToPopupIndex(PREF_STATE.rulerType);
             if (unitPopupIndex >= 0) {
-                suppressUnitChange = true;
+                isSyncingUnit = true;
                 unitDropdown.selection = unitPopupIndex;
-                suppressUnitChange = false;
+                isSyncingUnit = false;
             }
             cursorStepField.text = readCursorKeyLengthInCurrentUnit();
         }
@@ -1107,300 +1135,216 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         };
     }
 
-    /* 整列オプションパネルを構築（プレビュー境界／字形の境界に整列）。2チェックを {preview, glyphBounds} で返す。字形の境界はポイント文字・エリア内文字を両方まとめてトグル */
-    /* Build the Align Options panel (Preview Bounds / Align to Glyph Bounds); returns {preview, glyphBounds}. Glyph bounds toggles both point & area type together */
+    /**
+     * 整列オプションパネル（プレビュー境界を使用／字形の境界に整列）を作る
+     * @param {Group} parent - 追加先
+     * @returns {{previewBounds: Checkbox, glyphBounds: Checkbox}} チェックボックス
+     */
     function buildAlignPanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.align'));
-        setupPanel(panel, 6);
+        var alignPanel = parent.add('panel', undefined, getLabel('panel.align'));
+        setupPanel(alignPanel, 6);
 
-        /* プレビュー境界 / Preview bounds */
-        var checkboxPreview = addBooleanCheckbox(panel, 'checkbox.previewBounds', 'includeStrokeInBounds', 'tooltip.previewBounds');
+        var checkboxPreviewBounds = addBooleanPrefCheckbox(alignPanel, 'previewBounds', 'includeStrokeInBounds');
 
         /* 字形の境界に整列：ポイント文字・エリア内文字の両方をまとめてON/OFF / Align to glyph bounds: toggle both point & area type together */
-        var checkboxGlyphBounds = panel.add('checkbox', undefined, getLabel('checkbox.glyphBounds'));
-        checkboxGlyphBounds.helpTip = getLabel('tooltip.glyphBounds');
+        var checkboxGlyphBounds = addCheckbox(alignPanel, 'glyphBounds', 'glyphBounds');
         checkboxGlyphBounds.onClick = function () {
-            var on = checkboxGlyphBounds.value === true;
-            btSetBooleanPreference("EnableActualPointTextSpaceAlign", on);
-            btSetBooleanPreference("EnableActualAreaTextSpaceAlign", on);
+            var isOn = checkboxGlyphBounds.value === true;
+            btSetBooleanPreference("EnableActualPointTextSpaceAlign", isOn);
+            btSetBooleanPreference("EnableActualAreaTextSpaceAlign", isOn);
         };
 
-        return { preview: checkboxPreview, glyphBounds: checkboxGlyphBounds };
+        return { previewBounds: checkboxPreviewBounds, glyphBounds: checkboxGlyphBounds };
     }
 
-    /* 変形オプションパネルを構築（パターン／角／線幅と効果）。3チェックを {pattern, corner, stroke} で返す。Option+クリックで3つまとめてトグル */
-    /* Build the Transform Options panel (Pattern / Corners / Strokes & Effects); returns {pattern, corner, stroke}. Option+click toggles all three */
+    /**
+     * 変形オプションパネル（パターン／角／線幅と効果）を作る。option＋クリックで3つをそろえて切り替える
+     * @param {Group} parent - 追加先
+     * @returns {{transformPattern: Checkbox, scaleCorners: Checkbox, scaleStroke: Checkbox}} チェックボックス
+     */
     function buildTransformPanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.transform'));
-        setupPanel(panel, 6);
+        var transformPanel = parent.add('panel', undefined, getLabel('panel.transform'));
+        setupPanel(transformPanel, 6);
 
-        /* パターンを変形 / Transform patterns */
-        var checkboxPattern = panel.add('checkbox', undefined, getLabel('checkbox.transformPattern'));
-        checkboxPattern.helpTip = getLabel('tooltip.transformPattern');
+        var checkboxTransformPattern = addCheckbox(transformPanel, 'transformPattern', 'transformPattern');
+        /* 角は真偽値でなく整数（1=ON, 2=OFF）/ Corners is an integer pref (1=ON, 2=OFF) */
+        var checkboxScaleCorners = addCheckbox(transformPanel, 'scaleCorners', 'scaleCorners');
+        var checkboxScaleStroke = addCheckbox(transformPanel, 'scaleStroke', 'scaleStroke');
 
-        /* 角を拡大・縮小（1=ON, 2=OFF。Boolean でなく整数）/ Scale corners (1=ON, 2=OFF; integer pref) */
-        var checkboxCorner = panel.add('checkbox', undefined, getLabel('checkbox.scaleCorners'));
-        checkboxCorner.helpTip = getLabel('tooltip.scaleCorners');
+        /* チェックボックスと、その値を環境設定へ書き込む処理の組 / Each checkbox paired with the write for its preference */
+        var transformOptions = [
+            { checkbox: checkboxTransformPattern, apply: function () { btSetBooleanPreference("transformPatterns", checkboxTransformPattern.value === true); } },
+            { checkbox: checkboxScaleCorners, apply: function () { btSetIntegerPreference("policyForPreservingCorners", checkboxScaleCorners.value ? 1 : 2); } },
+            { checkbox: checkboxScaleStroke, apply: function () { btSetBooleanPreference("scaleLineWeight", checkboxScaleStroke.value === true); } }
+        ];
 
-        /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
-        var checkboxStroke = panel.add('checkbox', undefined, getLabel('checkbox.scaleStroke'));
-        checkboxStroke.helpTip = getLabel('tooltip.scaleStroke');
-
-        /* 各チェックの現在値を環境設定へ反映（角は 1/2 の整数）/ Apply each checkbox value to its preference (corners is the integer 1/2) */
-        function applyPattern() { btSetBooleanPreference("transformPatterns", checkboxPattern.value === true); }
-        function applyCorner() { btSetIntegerPreference("policyForPreservingCorners", checkboxCorner.value ? 1 : 2); }
-        function applyStroke() { btSetBooleanPreference("scaleLineWeight", checkboxStroke.value === true); }
-
-        /* クリック時：Option 併用なら3つを同じ値に揃えてまとめて適用、通常は単独適用 / On click: with Option, set all three to the same value and apply together; otherwise apply just this one */
-        function onTransformOptionClick(clicked) {
-            if (ScriptUI.environment.keyboardState.altKey) {
-                var newValue = clicked.value === true;
-                checkboxPattern.value = newValue;
-                checkboxCorner.value = newValue;
-                checkboxStroke.value = newValue;
-                applyPattern();
-                applyCorner();
-                applyStroke();
+        /**
+         * クリックしたチェックボックスを書き込む。option を押していれば3つを同じ値にそろえて書き込む
+         * @param {Object} clickedOption - transformOptions の要素
+         * @returns {void}
+         */
+        function onTransformOptionClick(clickedOption) {
+            if (!ScriptUI.environment.keyboardState.altKey) {
+                clickedOption.apply();
                 return;
             }
-            if (clicked === checkboxPattern) applyPattern();
-            else if (clicked === checkboxCorner) applyCorner();
-            else applyStroke();
+            var newValue = clickedOption.checkbox.value === true;
+            for (var i = 0; i < transformOptions.length; i++) {
+                transformOptions[i].checkbox.value = newValue;
+                transformOptions[i].apply();
+            }
         }
 
-        checkboxPattern.onClick = function () { onTransformOptionClick(checkboxPattern); };
-        checkboxCorner.onClick = function () { onTransformOptionClick(checkboxCorner); };
-        checkboxStroke.onClick = function () { onTransformOptionClick(checkboxStroke); };
+        for (var i = 0; i < transformOptions.length; i++) {
+            (function (transformOption) {
+                transformOption.checkbox.onClick = function () { onTransformOptionClick(transformOption); };
+            })(transformOptions[i]);
+        }
 
-        return { pattern: checkboxPattern, corner: checkboxCorner, stroke: checkboxStroke };
+        return { transformPattern: checkboxTransformPattern, scaleCorners: checkboxScaleCorners, scaleStroke: checkboxScaleStroke };
     }
 
-    /* コピー/ペーストパネルを構築（書式なしペースト／コピー元のレイヤーにペースト）。2チェックを {pastePlain, pastePreserve} で返す */
-    /* Build the Copy / Paste panel (Paste without Formatting / Paste Remembers Layers); returns {pastePlain, pastePreserve} */
+    /**
+     * コピー/ペーストパネル（書式なしペースト／コピー元のレイヤーにペースト）を作る
+     * @param {Group} parent - 追加先
+     * @returns {{pastePlain: Checkbox, pastePreserve: Checkbox}} チェックボックス
+     */
     function buildCopyPastePanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.copyPaste'));
-        setupPanel(panel, 6);
-
-        /* 書式なしペースト / Paste without formatting */
-        var checkboxPastePlain = addBooleanCheckbox(panel, 'checkbox.pastePlain', 'plugin/FileClipboard/pasteWithoutFormatting', 'tooltip.pastePlain');
-
-        /* コピー元のレイヤーにペースト / Paste remembers layers */
-        var checkboxPastePreserve = addBooleanCheckbox(panel, 'checkbox.pastePreserve', 'layers/pastePreserve', 'tooltip.pastePreserve');
-
-        return { pastePlain: checkboxPastePlain, pastePreserve: checkboxPastePreserve };
+        var copyPastePanel = parent.add('panel', undefined, getLabel('panel.copyPaste'));
+        setupPanel(copyPastePanel, 6);
+        return {
+            pastePlain: addBooleanPrefCheckbox(copyPastePanel, 'pastePlain', 'plugin/FileClipboard/pasteWithoutFormatting'),
+            pastePreserve: addBooleanPrefCheckbox(copyPastePanel, 'pastePreserve', 'layers/pastePreserve')
+        };
     }
 
-    /* 描画パネルを構築（リアルタイムの描画と編集＋プレビュー更新ボタン）。{realtime, refreshButton} を返す。refreshButton はレイアウト確定後の trimButtonHeight 用 */
-    /* Build the Drawing panel (Real-time Drawing & Editing + Refresh Preview button); returns {realtime, refreshButton}. refreshButton is for trimButtonHeight after layout */
+    /**
+     * 描画パネル（リアルタイムの描画と編集＋プレビュー更新ボタン）を作る
+     * @param {Group} parent - 追加先
+     * @returns {{realtimeDrawing: Checkbox, refreshButton: Button}} チェックボックスと、レイアウト確定後に高さを詰めるボタン
+     */
     function buildDrawingPanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.drawing'));
-        setupPanel(panel, 6);
+        var drawingPanel = parent.add('panel', undefined, getLabel('panel.drawing'));
+        setupPanel(drawingPanel, 6);
 
-        /* リアルタイムの描画と編集（上段）＋ 更新ボタン（次の行）を縦並び / Real-time editing checkbox (top) + Refresh button (next line), stacked */
-
-        /* リアルタイムの描画と編集 / Real-time drawing & editing */
-        var checkboxRealtime = addBooleanCheckbox(panel, 'checkbox.realtimeDrawing', 'LiveEdit_State_Machine', 'tooltip.realtimeDrawing');
+        var checkboxRealtimeDrawing = addBooleanPrefCheckbox(drawingPanel, 'realtimeDrawing', 'LiveEdit_State_Machine');
 
         /* GPU プレビューを更新（View using GPU を2回トグルして再描画）/ Refresh GPU preview (toggle View using GPU twice to redraw) */
-        var btnRefreshGpuPreview = panel.add('button', undefined, getLabel('button.refreshGpuPreview'));
+        var btnRefreshGpuPreview = drawingPanel.add('button', undefined, getLabel('button.refreshGpuPreview'));
         btnRefreshGpuPreview.alignment = ['left', 'top']; /* 幅いっぱいにしない（ラベル幅）/ Do not fill width (size to label) */
         btnRefreshGpuPreview.helpTip = getLabel('tooltip.refreshGpuPreview');
         btnRefreshGpuPreview.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("View using GPU");app.executeMenuCommand("View using GPU");}catch(e){}');
         };
 
-        return { realtime: checkboxRealtime, refreshButton: btnRefreshGpuPreview };
-    }
-
-    /* 表示パネルのボタン行を追加（左右中央・2列）/ Add a button row to the View panel (centered, two columns) */
-    function addViewButtonRow(panel) {
-        var row = panel.add('group');
-        row.orientation = 'row';
-        row.alignment = ['fill', 'top'];
-        row.alignChildren = ['center', 'top']; /* 左右中央 / Center horizontally */
-        row.spacing = 8;
-        return row;
-    }
-
-    /* 表示パネルを構築：境界線／アートボード／ビデオ定規／カンバスカラーのトグルボタン。各ボタンはレイアウト確定後の trimButtonHeight 用に返す */
-    /* Build the View panel: Edges / Artboards / Video Ruler / Canvas Color toggle buttons; each button is returned for trimButtonHeight after layout */
-    function buildViewPanel(parent) {
-        var panel = parent.add('panel', undefined, getLabel('panel.view'));
-        setupPanel(panel, 6);
-
-        /* 幅を抑えるため2列×2行に配置 / Two columns by two rows, to keep the palette narrow */
-        var firstRow = addViewButtonRow(panel);
-        var secondRow = addViewButtonRow(panel);
-
-        var btnEdges = firstRow.add('button', undefined, getLabel('button.edges'));
-        btnEdges.helpTip = getLabel('tooltip.edges');
-        btnEdges.onClick = function () {
-            /* edge＝エッジの表示/隠す、AI Bounding Box Toggle＝バウンディングボックスの表示/隠す。2つをまとめてトグル */
-            /* edge = Show/Hide Edges, AI Bounding Box Toggle = Show/Hide Bounding Box; toggle both at once */
-            runInMainEngine("try{app.executeMenuCommand('edge');app.executeMenuCommand('AI Bounding Box Toggle');}catch(e){}");
-        };
-
-        /* アートボードの表示/隠すをトグル / Toggle Show/Hide Artboards */
-        var btnArtboard = firstRow.add('button', undefined, getLabel('button.artboard'));
-        btnArtboard.helpTip = getLabel('tooltip.artboard');
-        btnArtboard.onClick = function () {
-            runInMainEngine("try{app.executeMenuCommand('artboard');}catch(e){}");
-        };
-
-        /* ビデオ定規の表示/隠すをトグル / Toggle Show/Hide Video Rulers */
-        var btnVideoRuler = secondRow.add('button', undefined, getLabel('button.videoRuler'));
-        btnVideoRuler.helpTip = getLabel('tooltip.videoRuler');
-        btnVideoRuler.onClick = function () {
-            runInMainEngine("try{app.executeMenuCommand('videoruler');}catch(e){}");
-        };
-
-        /* カンバスカラー：uiCanvasIsWhite を 0（UIに合わせる）と 1（ホワイト）で交互に切替 */
-        /* Canvas Color: flip uiCanvasIsWhite between 0 (Match Brightness) and 1 (White) */
-        var btnCanvasColor = secondRow.add('button', undefined, getLabel('button.canvasColor'));
-        btnCanvasColor.helpTip = getLabel('tooltip.canvasColor');
-        btnCanvasColor.onClick = function () {
-            /* 現在値の読み出しから反転・保存・再描画までをメインエンジン側で完結（エンジン間で値がずれないように） */
-            /* Read, flip, save, and repaint all in the main engine so the two engines can't disagree on the value */
-            /* 反映には画面の強制再描画が必要。redraw() だけでは足りないため、ズーム操作で描き直す（PresetManager と同じ手当て） */
-            /* Applying it needs a forced repaint; redraw() alone is not enough, so toggle the zoom (same workaround as PresetManager) */
-            var body =
-                'var isWhite = 0; ' +
-                'try { isWhite = app.preferences.getIntegerPreference("uiCanvasIsWhite"); } catch (e) {} ' +
-                'app.preferences.setIntegerPreference("uiCanvasIsWhite", (isWhite === 1) ? 0 : 1); ' +
-                'try { app.redraw(); app.executeMenuCommand("zoomout"); app.executeMenuCommand("zoomin"); } catch (e) {}';
-            runInMainEngine(body);
-        };
-
-        return {
-            edgesButton: btnEdges,
-            artboardButton: btnArtboard,
-            videoRulerButton: btnVideoRuler,
-            canvasColorButton: btnCanvasColor
-        };
+        return { realtimeDrawing: checkboxRealtimeDrawing, refreshButton: btnRefreshGpuPreview };
     }
 
     // =========================================
     // メイン処理 / Main process
     // =========================================
 
-    /* パレットを構築して表示 / Build and show the palette */
-    function main() {
+    /**
+     * パレットとパネルを組み立てる
+     * @returns {Object} パレットと各パネルのコントロール
+     */
+    function buildPalette() {
+        var palette = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        setupWindow(palette);
+        palette.opacity = PALETTE_OPACITY;
 
-        /* すでにパレットが開いていれば前面に出して終了 / If a palette already exists, bring it forward and return */
-        try {
-            if ($.global.__aiQuickPrefsPalette) {
+        var panelColumn = palette.add('group');
+        panelColumn.orientation = 'column';
+        panelColumn.alignChildren = ['fill', 'top'];
+
+        return {
+            palette: palette,
+            keyInput: buildKeyInputPanel(panelColumn),
+            align: buildAlignPanel(panelColumn),
+            transform: buildTransformPanel(panelColumn),
+            copyPaste: buildCopyPastePanel(panelColumn),
+            drawing: buildDrawingPanel(panelColumn)
+        };
+    }
+
+    /**
+     * 読み出した環境設定をパレットの表示と PREF_STATE へ反映する
+     * @param {Object} paletteControls - buildPalette() の戻り値
+     * @param {Object} prefValues - readAllPreferences() の戻り値
+     * @returns {void}
+     */
+    function applyPreferencesToControls(paletteControls, prefValues) {
+        paletteControls.align.previewBounds.value = prefValues.includeStrokeInBounds === true;
+        /* ポイント文字・エリア内文字が両方ONのときだけチェック / Checked only when both point & area type are on */
+        paletteControls.align.glyphBounds.value = prefValues.EnableActualPointTextSpaceAlign === true && prefValues.EnableActualAreaTextSpaceAlign === true;
+        paletteControls.transform.transformPattern.value = prefValues.transformPatterns === true;
+        paletteControls.transform.scaleCorners.value = parseInt(prefValues.policyForPreservingCorners, 10) === 1;
+        paletteControls.transform.scaleStroke.value = prefValues.scaleLineWeight === true;
+        paletteControls.copyPaste.pastePlain.value = prefValues.pastePlain === true;
+        paletteControls.copyPaste.pastePreserve.value = prefValues.pastePreserve === true;
+        paletteControls.drawing.realtimeDrawing.value = prefValues.LiveEdit_State_Machine === true;
+
+        var rulerUnitCode = parseInt(prefValues.rulerType, 10);
+        if (!isNaN(rulerUnitCode)) PREF_STATE.rulerType = rulerUnitCode;
+        var cursorKeyLengthPt = parseFloat(prefValues.cursorKeyLength);
+        if (!isNaN(cursorKeyLengthPt)) PREF_STATE.cursorKeyLengthPt = cursorKeyLengthPt;
+
+        /* 単位ポップアップと数値表示を PREF_STATE に同期 / Sync the unit popup and value display to PREF_STATE */
+        paletteControls.keyInput.syncDisplay();
+    }
+
+    /**
+     * パレットを表示する。すでに開いていれば前面に出す
+     * @returns {void}
+     */
+    function main() {
+        if ($.global.__aiQuickPrefsPalette) {
+            /* 閉じたあとの参照が残っていると show() で例外になる / show() throws on a stale reference left after closing */
+            try {
                 $.global.__aiQuickPrefsPalette.show();
                 return;
+            } catch (e) {
+                $.global.__aiQuickPrefsPalette = null;
             }
-        } catch (e) {
-            $.global.__aiQuickPrefsPalette = null;
         }
 
-        /* 初期表示用に現在値を読み込む（PREF_STATE への反映は後段の applyPreferencesToUI(initialPrefs) が担う）/ Load current values (applyPreferencesToUI(initialPrefs) below seeds PREF_STATE with the same fallbacks) */
-        var initialPrefs = readAllPreferences();
-
-        var dialog = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-        setupWindow(dialog);
-        dialog.opacity = DIALOG_OPACITY;
-        $.global.__aiQuickPrefsPalette = dialog;
+        var paletteControls = buildPalette();
+        var palette = paletteControls.palette;
+        $.global.__aiQuickPrefsPalette = palette;
 
         /* 閉じたら参照をクリア（次回は再構築）/ Clear the reference on close (rebuild next time) */
-        dialog.onClose = function () {
+        palette.onClose = function () {
             $.global.__aiQuickPrefsPalette = null;
         };
 
         /* パレットがアクティブなとき esc キーで閉じる / Close the palette with Esc while it is active */
-        dialog.addEventListener('keydown', function (event) {
+        palette.addEventListener('keydown', function (event) {
             if (event.keyName === 'Escape') {
-                dialog.close();
+                palette.close();
             }
         });
 
-        var mainGroup = dialog.add('group');
-        mainGroup.orientation = 'column';
-        mainGroup.alignChildren = ['fill', 'top'];
-
-        /* ----- キー増加 / 整列オプション / 変形オプション（1カラムで縦積み）/ Key input / Align Options / Transform Options (single column, stacked) ----- */
-
-        /* キー増加パネル（カーソル移動量＋単位ポップアップ）/ Key input panel (cursor step + unit popup) */
-        var keyInput = buildKeyInputPanel(mainGroup);
-        var cursorStepField = keyInput.field;
-
-        /* 整列オプションパネル（キー増加の下）。2チェックの参照を受け取る / Align Options panel (below Key input); receive the 2 checkbox refs */
-        var alignControls = buildAlignPanel(mainGroup);
-        var checkboxPreview = alignControls.preview;
-        var checkboxGlyphBounds = alignControls.glyphBounds;
-
-        /* 変形オプションパネル（整列オプションの下）。3チェックの参照を受け取る / Transform Options panel (below Align Options); receive the 3 checkbox refs */
-        var transformControls = buildTransformPanel(mainGroup);
-        var checkboxPattern = transformControls.pattern;
-        var checkboxCorner = transformControls.corner;
-        var checkboxStroke = transformControls.stroke;
-
-        /* ----- 全幅：コピー/ペースト / 描画 / Full width: Copy / Paste / Drawing ----- */
-
-        /* コピー/ペーストパネル。2チェックの参照を受け取る / Copy / Paste panel; receive the 2 checkbox refs */
-        var copyPasteControls = buildCopyPastePanel(mainGroup);
-        var checkboxPastePlain = copyPasteControls.pastePlain;
-        var checkboxPastePreserve = copyPasteControls.pastePreserve;
-
-        /* 描画パネル（コピー/ペーストの下）。realtime チェックと更新ボタンを受け取る / Drawing panel (below Copy / Paste); receive the realtime checkbox and refresh button */
-        var drawingControls = buildDrawingPanel(mainGroup);
-        var checkboxRealtime = drawingControls.realtime;
-        var btnRefreshGpuPreview = drawingControls.refreshButton;
-
-        /* 表示パネル（最下部）。境界線／アートボード／ビデオ定規／カンバスカラーの切替ボタン / View panel (bottom); Edges / Artboards / Video Ruler / Canvas Color toggles */
-        var viewControls = buildViewPanel(mainGroup);
-
-        /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
-        function applyPreferencesToUI(prefValues) {
-            function asBool(prefKey) {
-                return prefValues[prefKey] === true;
-            }
-            checkboxPreview.value = asBool('includeStrokeInBounds');
-            /* ポイント文字・エリア内文字が両方ONのときだけチェック / Checked only when both point & area type are on */
-            checkboxGlyphBounds.value = asBool('EnableActualPointTextSpaceAlign') && asBool('EnableActualAreaTextSpaceAlign');
-            checkboxPattern.value = asBool('transformPatterns');
-            checkboxStroke.value = asBool('scaleLineWeight');
-            checkboxRealtime.value = asBool('LiveEdit_State_Machine');
-            checkboxPastePlain.value = asBool('pastePlain');
-            checkboxPastePreserve.value = asBool('pastePreserve');
-            checkboxCorner.value = (parseInt(prefValues['policyForPreservingCorners'], 10) === 1);
-
-            var rulerTypeCode = parseInt(prefValues['rulerType'], 10);
-            PREF_STATE.rulerType = isNaN(rulerTypeCode) ? PREF_STATE.rulerType : rulerTypeCode;
-            var cursorKeyLengthPt = parseFloat(prefValues['cursorKeyLength']);
-            PREF_STATE.cursorKeyLengthPt = isNaN(cursorKeyLengthPt) ? PREF_STATE.cursorKeyLengthPt : cursorKeyLengthPt;
-
-            /* 単位ポップアップと数値表示を PREF_STATE に同期 / Sync the unit popup and value display to PREF_STATE */
-            keyInput.syncDisplay();
-        }
-
-        /* 構築直後に現在値を反映（常に最新の環境設定を表示）/ Populate from current values right after building */
-        applyPreferencesToUI(initialPrefs);
+        /* 構築直後に現在値を反映 / Populate from current values right after building */
+        applyPreferencesToControls(paletteControls, readAllPreferences());
 
         /* 表示時：レイアウト再計算（描画欠け防止）＋フォーカス＋最新値の再読込 / On show: recalc layout (avoid partial rendering), focus, and reload current values */
-        dialog.onShow = function () {
-            dialog.layout.layout(true);
-            dialog.layout.resize();
-            cursorStepField.active = true;
-            applyPreferencesToUI(readAllPreferences());
+        palette.onShow = function () {
+            palette.layout.layout(true);
+            palette.layout.resize();
+            paletteControls.keyInput.field.active = true;
+            applyPreferencesToControls(paletteControls, readAllPreferences());
         };
 
         /* 再アクティブ時：外部変更（環境設定ダイアログ等）へクリックで追従。ただし編集中は同期しない（入力値の上書き防止）/ On re-activate: follow external changes via click, but skip while editing (avoid clobbering input) */
-        dialog.onActivate = function () {
-            if (keyInput.isEditing()) return;
-            applyPreferencesToUI(readAllPreferences());
+        palette.onActivate = function () {
+            if (paletteControls.keyInput.isEditing()) return;
+            applyPreferencesToControls(paletteControls, readAllPreferences());
         };
 
-        dialog.show();
+        palette.show();
 
-        /* ボタンの高さを4px詰める（レイアウト確定後に1回）/ Trim button heights by 4px (once, after layout) */
-        trimButtonHeight(btnRefreshGpuPreview, 4);
-        trimButtonHeight(viewControls.edgesButton, 4);
-        trimButtonHeight(viewControls.artboardButton, 4);
-        trimButtonHeight(viewControls.videoRulerButton, 4);
-        trimButtonHeight(viewControls.canvasColorButton, 4);
+        /* ボタンの高さを4px詰める（レイアウト確定後に1回）/ Trim the button height by 4px (once, after layout) */
+        trimButtonHeight(paletteControls.drawing.refreshButton, 4);
     }
 
     main();

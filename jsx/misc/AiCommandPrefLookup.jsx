@@ -27,10 +27,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiCommandPrefLookup";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCommandPrefLookup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCommandPrefLookup.md"; /* README (English) */
@@ -2544,7 +2544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0cf4826bf4a7"; /* 紹�
             "表示 > 遠近グリッド > 測点をロック|ロック解除\tLock Station Point",
             "表示 > 遠近グリッド > グリッドを定義...\tDefine Perspective Grid",
             "表示 > 遠近グリッド > グリッドをプリセットとして保存...\tSave Perspective Grid as Preset",
-            "表示 > 定規 > 定規を表表示|隠す\truler",
+            "表示 > 定規 > 定規を表示|隠す\truler",
             "表示 > 定規 > アートボード定規に変更\trulerCoordinateSystem",
             "表示 > 定規 > ビデオ定規を表示|隠す\tvideoruler",
             "表示 > テキストのスレッドを表示|隠す\ttextthreads",
