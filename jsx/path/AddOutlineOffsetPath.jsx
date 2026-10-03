@@ -154,6 +154,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
     var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
 
+    /* 入力された単位を欄の単位へ換算するための、1単位あたりのポイント数（値は UNITS 表と同じ。キーは小文字）。
+       「p」は「1p6」（1パイカ6ポイント）の形にも使う
+       Points per unit for converting typed units into the field's unit (same values as the UNITS table; lowercase keys) */
+    var STEPPER_POINTS_PER_UNIT = {
+        "in": 72, "inch": 72, "mm": 72 / 25.4, "cm": 72 / 2.54, "m": 72 / 25.4 * 1000,
+        "pt": 1, "px": 1, "p": 12, "pc": 12, "pica": 12,
+        "q": 72 / 25.4 * 0.25, "h": 72 / 25.4 * 0.25, "ft": 72 * 12, "yd": 72 * 36
+    };
+
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
@@ -176,7 +185,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
      * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
-     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す
+     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す。
+     * 四則演算（+ - * / と括弧）を入れると、確定時に計算した値にする。欄と違う単位で入れた値は欄の単位へ換算する（mm の欄に「1 in」→「25.4 mm」）
      * @param {Group|Panel} parent - 追加先
      * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
      *     step / min / max / integer（true で整数のみ）/ unit / onStep
@@ -214,10 +224,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 項目名のクリックで入力欄にフォーカスを移す / clicking the label focuses the field */
         fieldLabel.addEventListener("click", function () { focusNumberInput(numberInput); });
 
-        /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
+        /* 直接入力をそろえる。計算式は計算し、数値でなければ直前の値に戻す / normalize typed values; evaluate arithmetic, revert non-numbers */
         numberInput.lastValidText = numberInput.text;
         numberInput.onChange = function () {
-            var value = parseFloat(numberInput.text);
+            var value = evaluateArithmetic(numberInput.text, fieldOptions.unit);
             if (isNaN(value)) {
                 numberInput.text = numberInput.lastValidText;
                 return;
@@ -265,7 +275,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function stepBy(direction) {
             var numberInput = getNumberInput();
             if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
-            var value = parseFloat(numberInput.text);
+            var value = evaluateArithmetic(numberInput.text, stepOptions.unit); /* 確定前の計算式も計算してから増減 / evaluate an uncommitted expression first */
+            if (isNaN(value)) value = parseFloat(numberInput.text); /* 計算できなければ従来どおり先頭の数値 / fall back to the leading number */
             if (isNaN(value)) value = 0;
             writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
             if (stepOptions.onStep) stepOptions.onStep(numberInput);
@@ -290,11 +301,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         focusInputOnRelease(makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); })).helpTip = getLabel(upTooltip);
         focusInputOnRelease(makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); })).helpTip = getLabel(downTooltip);
         stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+        stepperGroup.stepOptions = stepOptions; /* 確定時の計算で欄の単位を引けるよう公開 / lets the commit-time evaluation find the unit */
         return stepperGroup;
     }
 
     /**
-     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し
+     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し。
+     * あわせて、確定時に計算式・単位付きの値を計算して書き戻す（各スクリプトの onChange より先に呼ばれるので、onChange は計算後の値を読む）
      * @param {EditText} numberInput - 対象の入力欄
      * @param {Group} stepperGroup - addStepper() で作った∧∨
      * @returns {void}
@@ -304,6 +317,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
             stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
             event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+        });
+        numberInput.addEventListener("change", function () {
+            var fieldUnit = stepperGroup.stepOptions ? stepperGroup.stepOptions.unit : undefined;
+            var value = evaluateArithmetic(numberInput.text, fieldUnit);
+            if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
+            /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
+            var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
+            if (!hasOperator && value === parseFloat(numberInput.text)) return;
+            numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
         });
     }
 
@@ -351,6 +373,109 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
         if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
         return value;
+    }
+
+    /**
+     * 入力欄の文字列を四則演算（+ - * / と括弧）として計算する。eval は使わない。
+     * 数値の後ろの単位は欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
+     * 全角の数字・記号と × ÷ は半角に直す
+     * @param {string} text - 入力欄の文字列
+     * @param {string} [fieldUnit] - 欄の単位（例 " mm"。前後の空白は無視）
+     * @returns {number} 欄の単位での計算結果（式として読めない・換算できない単位・0で割ったときは NaN）
+     */
+    function evaluateArithmetic(text, fieldUnit) {
+        var source = String(text)
+            .replace(/[！-～]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
+            .replace(/×/g, "*")
+            .replace(/÷/g, "/")
+            .replace(/[−–—]/g, "-")
+            .replace(/\s/g, "");
+        if (source === "") return NaN;
+        var fieldUnitKey = String(fieldUnit || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+        var fieldPointsPerUnit = STEPPER_POINTS_PER_UNIT[fieldUnitKey];
+        var position = 0;
+
+        /**
+         * 加減算の並び（項 ± 項 …）を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readSum() {
+            var total = readProduct();
+            while (position < source.length && (source.charAt(position) === "+" || source.charAt(position) === "-")) {
+                var operator = source.charAt(position++);
+                var operand = readProduct();
+                total = (operator === "+") ? total + operand : total - operand;
+            }
+            return total;
+        }
+
+        /**
+         * 乗除算の並び（因子 × 因子 …）を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readProduct() {
+            var total = readFactor();
+            while (position < source.length && (source.charAt(position) === "*" || source.charAt(position) === "/")) {
+                var operator = source.charAt(position++);
+                var operand = readFactor();
+                if (operator === "/" && operand === 0) return NaN;
+                total = (operator === "*") ? total * operand : total / operand;
+            }
+            return total;
+        }
+
+        /**
+         * 符号付きの数値（単位付きなら欄の単位へ換算）か、括弧で囲んだ式を読む
+         * @returns {number} 値（読めなければ NaN）
+         */
+        function readFactor() {
+            var ch = source.charAt(position);
+            if (ch === "+" || ch === "-") {
+                position++;
+                var signedValue = readFactor();
+                return (ch === "-") ? -signedValue : signedValue;
+            }
+            if (ch === "(") {
+                position++;
+                var innerValue = readSum();
+                if (source.charAt(position) !== ")") return NaN;
+                position++;
+                return innerValue;
+            }
+            var numberMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+            if (!numberMatch) return NaN;
+            position += numberMatch[0].length;
+            return readUnitSuffix(parseFloat(numberMatch[0]));
+        }
+
+        /**
+         * 数値の直後の単位を読み、欄の単位へ換算する
+         * @param {number} value - 単位の前の数値
+         * @returns {number} 欄の単位での値（換算できない単位なら NaN）
+         */
+        function readUnitSuffix(value) {
+            var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+            if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
+            position += unitMatch[0].length;
+            var unitKey = unitMatch[0].toLowerCase();
+            if (unitKey === fieldUnitKey) return value;
+            var pointsPerUnit = STEPPER_POINTS_PER_UNIT[unitKey];
+            if (pointsPerUnit === undefined || fieldPointsPerUnit === undefined) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
+            var points = value * pointsPerUnit;
+            /* 「1p6」＝1パイカ6ポイント / pica-point notation */
+            if (unitKey === "p") {
+                var pointMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+                if (pointMatch) {
+                    position += pointMatch[0].length;
+                    points += parseFloat(pointMatch[0]);
+                }
+            }
+            return points / fieldPointsPerUnit;
+        }
+
+        var result = readSum();
+        if (position !== source.length || !isFinite(result)) return NaN; /* 読み残しがあれば式として不正 / leftovers mean a malformed expression */
+        return result;
     }
 
     /**
