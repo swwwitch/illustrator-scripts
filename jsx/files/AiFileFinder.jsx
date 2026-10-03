@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileFind
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFileFinder";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileFinder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileFinder.md"; /* README (English) */
@@ -617,6 +617,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
     var SETTING_KEY_KEYWORDS = "keywordPresets";
     var SETTING_KEY_EXCLUDES = "excludeKeywords";
     var DEFAULT_SETTINGS = { searchFolders: null, keywordPresets: null, excludeKeywords: null };
+
+    /* 検索フォルダーの一覧を書き出すときのファイル名。中身は1行に1つのパス / Default name of the exported folder list, one path per line */
+    var FOLDER_LIST_FILE_NAME = SCRIPT_NAME + "-folders.txt";
 
     /* 以前は Illustrator の環境設定にタブ区切りの文字列で保存していた。新しい保存が無いときだけ読み継ぐ
        / Formerly stored in Illustrator's preferences as tab-joined strings; read only until the first save */
@@ -1474,6 +1477,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
             title:        { ja: "ファイルファインダー", en: "File Finder" },
             preferences:  { ja: "環境設定", en: "Preferences" },
             selectFolder: { ja: "検索対象に加えるフォルダーを選択してください", en: "Select a folder to add to the search" },
+            exportFolders: { ja: "検索フォルダーの一覧を書き出す", en: "Export the search folder list" },
+            importFolders: { ja: "検索フォルダーの一覧を読み込む", en: "Import a search folder list" },
             scanning:     { ja: "検索中", en: "Scanning" }
         },
         panel: {
@@ -1517,6 +1522,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
                 ja: "検索フォルダー・キーワードボタン・除外条件を、すべて初期値に戻します",
                 en: "Reset the search folders, the keyword buttons, and the exclusions to their defaults"
             },
+            folderListFile: {
+                ja: "1行に1つのフォルダーパスを書いたテキストファイル。読み込むと今の一覧を置き換えます",
+                en: "A text file with one folder path per line. Importing replaces the current list"
+            },
             periodMonth: {
                 ja: "月。開始側はその月の1日から、終了側はその月の末日までを含みます",
                 en: "Month. The start begins on day 1, the end runs through the last day"
@@ -1541,6 +1550,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
             appendKeyword: { ja: "option＋クリックで語を足す", en: "Option-click to add the word" },
             addFolder:     { ja: "追加", en: "Add" },
             removeFolder:  { ja: "削除", en: "Remove" },
+            exportFolders: { ja: "書き出し...", en: "Export..." },
+            importFolders: { ja: "読み込み...", en: "Import..." },
             resetSettings: { ja: "初期値に戻す", en: "Reset" },
             cancel:        { ja: "キャンセル", en: "Cancel" },
             open:          { ja: "開く", en: "Open" },
@@ -1553,6 +1564,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
             noFiles: {
                 ja: "検索フォルダーに対象のファイルが見つかりませんでした。",
                 en: "No matching files were found in the search folders."
+            },
+            exportFailed: {
+                ja: "検索フォルダーの一覧を書き出せませんでした。\n\n%1",
+                en: "The search folder list could not be exported.\n\n%1"
+            },
+            importFailed: {
+                ja: "検索フォルダーの一覧を読み込めませんでした。\n\n%1",
+                en: "The search folder list could not be imported.\n\n%1"
+            },
+            importEmpty: {
+                ja: "ファイルにフォルダーのパスがありませんでした。1行に1つずつ書いてください。\n\n%1",
+                en: "No folder paths were found in the file. Write one path per line.\n\n%1"
             },
             missingFile: {
                 ja: "選択したファイルが見つかりません。索引が古い可能性があるので、再スキャンしてください。\n\n%1",
@@ -2264,12 +2287,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
         var folderListBox = folderPanel.add("listbox", undefined, [], { multiselect: true });
         folderListBox.preferredSize = SETTINGS_LIST_SIZE;
 
+        /* 左に編集、右にファイルの出し入れ。間のスペーサーが余りを吸う / Edit buttons left, file buttons right, the spacer absorbs the rest */
         var folderButtonRow = folderPanel.add("group");
-        setupRow(folderButtonRow, "left", DENSE_SPACING);
-        var btnAddFolder = folderButtonRow.add("button", undefined, getLabel(LABELS.button.addFolder));
-        var btnRemoveFolder = folderButtonRow.add("button", undefined, getLabel(LABELS.button.removeFolder));
+        setupRow(folderButtonRow, "fill", DENSE_SPACING);
+
+        var folderEditGroup = folderButtonRow.add("group");
+        setupRow(folderEditGroup, "left", DENSE_SPACING);
+        var btnAddFolder = folderEditGroup.add("button", undefined, getLabel(LABELS.button.addFolder));
+        var btnRemoveFolder = folderEditGroup.add("button", undefined, getLabel(LABELS.button.removeFolder));
+
+        addSpacer(folderButtonRow);
+
+        var folderFileGroup = folderButtonRow.add("group");
+        setupRow(folderFileGroup, "right", DENSE_SPACING);
+        folderFileGroup.alignChildren = ["right", "center"];
+        var btnExportFolders = folderFileGroup.add("button", undefined, getLabel(LABELS.button.exportFolders));
+        var btnImportFolders = folderFileGroup.add("button", undefined, getLabel(LABELS.button.importFolders));
         applyButtonSize(btnAddFolder, SETTINGS_BUTTON_WIDTH);
         applyButtonSize(btnRemoveFolder, SETTINGS_BUTTON_WIDTH);
+        applyButtonSize(btnExportFolders, SETTINGS_BUTTON_WIDTH);
+        applyButtonSize(btnImportFolders, SETTINGS_BUTTON_WIDTH);
+        btnExportFolders.helpTip = getLabel(LABELS.hint.folderListFile);
+        btnImportFolders.helpTip = getLabel(LABELS.hint.folderListFile);
 
         /**
          * フォルダーリストを今の内容に合わせて組み直す
@@ -2284,6 +2323,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
                 folderListBox.add("item", toDisplayPath(editedFolders[i].fsName) + missingMark);
             }
             btnRemoveFolder.enabled = editedFolders.length > 0;
+            btnExportFolders.enabled = editedFolders.length > 0;
             onFolderCountChanged(editedFolders.length);
         }
 
@@ -2318,6 +2358,45 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91b2fcf1e2d8"; /* 紹�
             selectedIndexes.sort(function (indexA, indexB) { return indexB - indexA; });
             for (var j = 0; j < selectedIndexes.length; j++) editedFolders.splice(selectedIndexes[j], 1);
 
+            refreshFolderListBox();
+        };
+
+        /* 1行に1つのパスを並べただけのテキストで書き出す。手で編集してもそのまま読める
+           / Plain text, one path per line, so it can be edited by hand and read back as is */
+        btnExportFolders.onClick = function () {
+            var exportFile = new File(Folder.desktop.fsName + "/" + FOLDER_LIST_FILE_NAME).saveDlg(getLabel(LABELS.dialog.exportFolders));
+            if (!exportFile) return;
+
+            var paths = [];
+            for (var i = 0; i < editedFolders.length; i++) paths.push(editedFolders[i].fsName);
+            if (!settingsStoreWriteTextFile(exportFile, paths.join("\n") + "\n")) {
+                alert(getLabel(LABELS.alert.exportFailed, [exportFile.fsName]), getLabel(LABELS.dialog.title));
+            }
+        };
+
+        /* 読み込んだ一覧で置き換える。保存はOKを押したとき / Replaces the list; nothing is stored until OK */
+        btnImportFolders.onClick = function () {
+            var importFile = File.openDialog(getLabel(LABELS.dialog.importFolders));
+            if (!importFile) return;
+
+            var fileText;
+            try {
+                fileText = settingsStoreReadTextFile(importFile);
+            } catch (e) {
+                fileText = null;
+            }
+            if (fileText === null) {
+                alert(getLabel(LABELS.alert.importFailed, [importFile.fsName]), getLabel(LABELS.dialog.title));
+                return;
+            }
+
+            var importedFolders = toFolderList(toWordList(fileText));
+            if (importedFolders.length === 0) {
+                alert(getLabel(LABELS.alert.importEmpty, [importFile.fsName]), getLabel(LABELS.dialog.title));
+                return;
+            }
+
+            editedFolders = importedFolders;
             refreshFolderListBox();
         };
 

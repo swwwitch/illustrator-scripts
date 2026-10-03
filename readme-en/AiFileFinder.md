@@ -140,12 +140,14 @@ Opened with the [Preferences] button.
 
 | Item | Content |
 |---|---|
-| Search Folders | The folders to search. Edit with [Add], [Remove], and [Reset] |
+| Search Folders | The folders to search. Edit with [Add], [Remove], and [Reset]. [Export...] and [Import...] save and restore them as a text file |
 | Keyword Buttons | Words shown in the filter panel (one per line) |
 | Exclusions | Words that hide a file (one per line) |
 | [Rescan] | Apply the current edits, then rebuild the index |
 
 Changing the search folders and clicking OK rebuilds the index for the new set. Their order is the order of the list on the left.
+
+The exported file is plain text with one folder path per line, so a hand-written file imports as is (blank lines are ignored). Importing replaces the current list; it is stored when you click OK.
 
 ### The index cache
 
@@ -186,6 +188,7 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.2.0 (2026-10-04): Added [Export...] and [Import...] to the search folders in the preferences (a text file with one path per line)
 - v1.1.0 (2026-10-01): Folders and files are now shown in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed (takes priority over RevealInFinder.app)
 - v1.0.8 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.0.7 (2026-10-01): Left the dialog positions to the shared part (removed the hand-written centering). Unified the window and panel margins and spacing with the shared layout part
