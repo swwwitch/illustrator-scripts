@@ -112,6 +112,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [A persistent palette that moves/duplicates and flips/r…](readme-en/QuickTransformPalette.md)
 - [Randomly moves, scales, rotates and changes the opacit…](readme-en/RandomizeObjects.md)
 - [Assumes the selected objects are roughly arranged in a…](readme-en/RegridObjects.md)
+- [Release groups, compound paths, compound shapes, and clipping masks, nested ones included](readme-en/ReleaseGroupsAndMasks.md)
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
 - [Redistributes stacked objects along the horizontal or…](readme-en/SmartAlignAndTile.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)
