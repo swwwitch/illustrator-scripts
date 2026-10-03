@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -48,13 +48,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 一般の単位ごとの線幅の初期値（pt）。ここに無い単位は DEFAULT_STROKE_WIDTH（1px＝1pt）
        Initial stroke width (pt) per general unit; other units use DEFAULT_STROKE_WIDTH (1 px = 1 pt) */
     var DEFAULT_STROKE_WIDTH_BY_UNIT = { "mm": 0.25, "px": 1 };
+    var DEFAULT_ARROW_NUMBER = 11;           /* 最初に選んでおく矢印の番号（FAVORITE_ARROWS から）/ arrowhead number selected at start (from FAVORITE_ARROWS) */
     var DEFAULT_ARROW_SCALE  = 100;          /* 倍率の初期値（ポップアップメニューの矢印にも使う）/ initial arrowhead scale, also used for the pop-up arrowheads */
     var DEFAULT_STROKE_CAP   = "butt";       /* 線端の初期値（butt / round / projecting）/ default cap */
     var DEFAULT_CORNER_JOIN  = "miter";      /* 角の形状の初期値（miter / round / bevel）/ default join */
 
     /* ラジオボタンで出す矢印と倍率。ここに無い矢印はポップアップメニューに並ぶ
-       Arrowheads offered as radio buttons, with their scales. The rest go in the pop-up menu */
+       number 0 は「[なし]」（矢印を外す）
+       Arrowheads offered as radio buttons, with their scales. The rest go in the pop-up menu.
+       Number 0 is [None], which removes the arrowheads */
     var FAVORITE_ARROWS = [
+        { number: 0,  scale: 100 },
         { number: 1,  scale: 100 },
         { number: 8,  scale: 25 },
         { number: 11, scale: 100 },
@@ -181,6 +185,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ARROW_LABEL_WIDTH  = 40;             /* 矢印パネルの項目名の幅 / arrowhead panel label width */
     var DASH_LABEL_WIDTH   = 48;             /* 破線の計算の項目名の幅 / dash calculation label width */
     var FIELD_CHARACTERS   = 4;              /* 数値入力欄の文字数 / numeric field width */
+    var DASH_CALC_TOP_MARGIN = 10;           /* 破線の計算の上の余白 / space above the dash calculation */
+    var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_NAME_CHARS  = 20;             /* プリセット名の入力欄の文字数 / preset name field width */
 
     // ダイアログの位置と不透明度（再利用パーツ） / Dialog position and opacity (reusable)
 
@@ -1032,7 +1039,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var LABELS = {
         dialog: {
-            title: { ja: "線と矢印を設定", en: "Set Stroke and Arrowheads" }
+            title: { ja: "線と矢印を設定", en: "Set Stroke and Arrowheads" },
+            presetSave: { ja: "プリセットを保存", en: "Save Preset" }
+        },
+        dropdown: {
+            presetPlaceholder: { ja: "---", en: "---" }
         },
         panel: {
             stroke: { ja: "線", en: "Stroke" },
@@ -1040,9 +1051,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dash: { ja: "破線", en: "Dashed Line" },
             dashCalc: { ja: "破線の計算", en: "Dash Calculation" },
             calcMethod: { ja: "計算方法", en: "Calculation" },
-            tipAlign: { ja: "先端位置", en: "Tip Alignment" }
+            arrowOptions: { ja: "オプション", en: "Options" }
         },
         fieldLabel: {
+            preset: { ja: "プリセット", en: "Preset" },
+            presetName: { ja: "プリセット名", en: "Preset name" },
             strokeWidth: { ja: "線幅", en: "Weight" },
             strokeCap: { ja: "線端", en: "Cap" },
             cornerJoin: { ja: "角の形状", en: "Corner" },
@@ -1064,22 +1077,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             bevelJoin: { ja: "ベベル", en: "Bevel" },
             gapToDash: { ja: "間隔→線分", en: "Gap→Dash" },
             dashToGap: { ja: "線分→間隔", en: "Dash→Gap" },
-            tipAtEnd: { ja: "矢印の先端をパスの終点に配置", en: "Place arrow tip at end of path" },
-            tipBeyondEnd: { ja: "矢印の先端をパスの終点から配置", en: "Extend arrow tip beyond end of path" }
+            noDash: { ja: "なし", en: "None" },
+            dashed: { ja: "破線", en: "Dashed" },
+            dotted: { ja: "ドット点線", en: "Dotted" },
+            tipAtEnd: { ja: "パスの終点に配置", en: "At end of path" },
+            tipBeyondEnd: { ja: "パスの終点から配置", en: "Beyond end of path" }
         },
         checkbox: {
             sameEnd: { ja: "終点も同じ", en: "Same at end" },
             swapEnds: { ja: "始点と終点を入れ替え", en: "Swap start and end" },
-            dashed: { ja: "破線", en: "Dashed" },
-            dotted: { ja: "ドット点線", en: "Dotted" },
             adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
-            ok: { ja: "OK", en: "OK" }
+            ok: { ja: "OK", en: "OK" },
+            presetSave: { ja: "保存...", en: "Save..." },
+            presetDelete: { ja: "削除", en: "Delete" }
         },
         tooltip: {
+            preset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
+            presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
+            presetDelete: { ja: "選んでいるプリセットを削除します。", en: "Deletes the selected preset." },
+            presetName: { ja: "保存する設定の名前です。同じ名前は上書きします。", en: "Name the settings are saved under. The same name is overwritten." },
             strokeWidth: { ja: "線の太さです。", en: "Weight of the stroke." },
             favoriteArrow: {
                 ja: "始点に付ける矢印です。倍率はこの矢印に合わせた値に変わります。",
@@ -1098,9 +1118,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "矢印を始点ではなく終点に付けます。",
                 en: "Puts the arrowhead on the end of the path instead of the start."
             },
+            noDash: { ja: "破線にしません（実線）。", en: "Leaves the line solid." },
             dashed: {
-                ja: "破線にします。オンにすると、線幅から決めた分割数・間隔・線分が入ります。",
-                en: "Makes a dashed line. Turning it on fills in Segments, Gap and Dash based on the stroke weight."
+                ja: "破線にします。選ぶと、線幅から決めた分割数・間隔・線分が入ります。",
+                en: "Makes a dashed line. Choosing it fills in Segments, Gap and Dash based on the stroke weight."
             },
             dotted: {
                 ja: "点線にします。点の間隔は分割数から求め、線端は丸型に固定します。",
@@ -1152,9 +1173,527 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noSelection: { ja: "オブジェクトを選択してください。", en: "Please select at least one object." },
             invalidWidth: { ja: "線幅には 0 以上の数値を入力してください。", en: "Enter a stroke weight of 0 or greater." },
-            actionFailed: { ja: "アクションを実行できませんでした。", en: "Could not run the action." }
+            actionFailed: { ja: "アクションを実行できませんでした。", en: "Could not run the action." },
+            presetSaveFailed: { ja: "プリセットを保存できませんでした。", en: "Could not save the preset." }
+        },
+        confirm: {
+            presetOverwrite: { ja: "「{name}」を上書きしますか？", en: "Overwrite \"{name}\"?" },
+            presetDelete: { ja: "「{name}」を削除しますか？", en: "Delete \"{name}\"?" }
         }
     };
+
+    // =========================================
+    // 設定の保存 / Settings store
+    // =========================================
+
+    // 設定の保存（再利用パーツ） / Settings store (reusable)
+
+    var SETTINGS_STORE_FOLDER_NAME = "illustrator-scripts"; /* Folder.userData の下に作るフォルダー / folder created under Folder.userData */
+    var SETTINGS_STORE_MAX_DEPTH = 32;                                /* 入れ子の上限（循環参照よけ）/ nesting limit (guards against cycles) */
+
+    /**
+     * 設定の保存先を作る。寿命は "session"（Illustrator の終了まで）か "persistent"（ファイルに保存）
+     * @param {string} storeName - 保存名（ふつうは SCRIPT_NAME）。ファイル名と $.global のキーに使う
+     * @param {string} lifetime - "session" または "persistent"
+     * @param {Object} [storeOptions] - { legacy: function () → 旧形式の保存値のオブジェクト|null }
+     * @returns {{load: Function, save: Function, clear: Function}} 読み込み・保存・消去の関数
+     */
+    function createSettingsStore(storeName, lifetime, storeOptions) {
+        var isPersistent = (lifetime === "persistent");
+        var legacyReader = (storeOptions && typeof storeOptions.legacy === "function") ? storeOptions.legacy : null;
+        var safeStoreName = String(storeName).replace(/[\\\/:*?"<>|]/g, "_");
+        var sessionKey = "__" + safeStoreName + "_Settings";
+        var settingsFile = isPersistent
+            ? new File(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/" + safeStoreName + ".json")
+            : null;
+
+        /**
+         * 保存してある文字列を返す
+         * @returns {string|null} 保存文字列。1度も保存していなければ null
+         */
+        function readStoredText() {
+            if (!isPersistent) {
+                return (typeof $.global[sessionKey] === "string") ? $.global[sessionKey] : null;
+            }
+            return settingsStoreReadTextFile(settingsFile);
+        }
+
+        /**
+         * 文字列を保存する
+         * @param {string} storedText - 保存する文字列
+         * @returns {boolean} 保存できたら true
+         */
+        function writeStoredText(storedText) {
+            if (!isPersistent) {
+                $.global[sessionKey] = storedText;
+                return true;
+            }
+            return settingsStoreWriteTextFile(settingsFile, storedText);
+        }
+
+        /**
+         * 保存値を読み込み、既定値と突き合わせて返す（型の合わない値・知らない項目は捨てる）
+         * @param {Object} defaultSettings - 既定値
+         * @returns {Object} 設定（毎回新しいオブジェクト）
+         */
+        function load(defaultSettings) {
+            var savedSettings = null;
+            try {
+                var storedText = readStoredText();
+                if (storedText !== null) {
+                    savedSettings = settingsStoreParse(storedText);
+                } else if (legacyReader) {
+                    savedSettings = legacyReader();
+                }
+            } catch (e) {
+                $.writeln("SettingsStore.load(" + storeName + "): " + e);
+                savedSettings = null;
+            }
+            return settingsStoreMerge(defaultSettings, savedSettings);
+        }
+
+        /**
+         * 設定を保存する
+         * @param {Object} settingValues - 保存する値
+         * @returns {boolean} 保存できたら true
+         */
+        function save(settingValues) {
+            try {
+                return writeStoredText(settingsStoreSerialize(settingValues, "", 0));
+            } catch (e) {
+                $.writeln("SettingsStore.save(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        /**
+         * 保存を消す。旧形式を読み継ぐストアでは空の保存を書き、旧設定が戻らないようにする
+         * @returns {boolean} 消せたら true
+         */
+        function clear() {
+            if (legacyReader) return writeStoredText("{}");
+            if (!isPersistent) {
+                try { delete $.global[sessionKey]; } catch (e) { $.global[sessionKey] = undefined; }
+                return true;
+            }
+            try {
+                return settingsFile.exists ? settingsFile.remove() : true;
+            } catch (e) {
+                $.writeln("SettingsStore.clear(" + storeName + "): " + e);
+                return false;
+            }
+        }
+
+        return { load: load, save: save, clear: clear };
+    }
+
+    /**
+     * 旧形式の設定ファイルを読む（key=value の行 / toSource / JSON を自動判別。eval は使わない）
+     * @param {File|string} legacyFileOrPath - 旧ファイルかそのパス
+     * @returns {Object|null} 読み込んだ値（key=value は値がすべて文字列）。無い・読めないときは null
+     */
+    function readSettingsLegacyFile(legacyFileOrPath) {
+        try {
+            var legacyFile = (legacyFileOrPath instanceof File) ? legacyFileOrPath : new File(legacyFileOrPath);
+            var legacyText = settingsStoreReadTextFile(legacyFile);
+            return (legacyText === null) ? null : settingsStoreParseLegacyText(legacyText);
+        } catch (e) {
+            $.writeln("readSettingsLegacyFile: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * app.preferences に文字列で保存していた旧設定を読む（形式は readSettingsLegacyFile と同じく自動判別）
+     * @param {string} preferenceKey - 環境設定のキー
+     * @returns {Object|null} 読み込んだ値。無い・読めないときは null
+     */
+    function readSettingsLegacyPreference(preferenceKey) {
+        try {
+            var legacyText = app.preferences.getStringPreference(preferenceKey);
+            if (!legacyText) return null;
+            return settingsStoreParseLegacyText(String(legacyText));
+        } catch (e) {
+            $.writeln("readSettingsLegacyPreference: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で読む
+     * @param {File} textFile - 読むファイル
+     * @returns {string|null} 中身。ファイルが無ければ null
+     */
+    function settingsStoreReadTextFile(textFile) {
+        if (!textFile.exists) return null;
+        textFile.encoding = "UTF-8";
+        if (!textFile.open("r")) throw new Error("cannot open " + textFile.fsName);
+        try {
+            return textFile.read().replace(/^\uFEFF/, "");
+        } finally {
+            textFile.close();
+        }
+    }
+
+    /**
+     * テキストファイルを UTF-8 で書く（フォルダーが無ければ作る）
+     * @param {File} textFile - 書くファイル
+     * @param {string} fileText - 中身
+     * @returns {boolean} 書けたら true
+     */
+    function settingsStoreWriteTextFile(textFile, fileText) {
+        try {
+            var parentFolder = textFile.parent;
+            if (!parentFolder.exists && !parentFolder.create()) throw new Error("cannot create " + parentFolder.fsName);
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) throw new Error("cannot open " + textFile.fsName);
+            try {
+                textFile.write(fileText);
+            } finally {
+                textFile.close();
+            }
+            return true;
+        } catch (e) {
+            $.writeln("SettingsStore write: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * 値が配列か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 配列なら true
+     */
+    function settingsStoreIsArray(checkedValue) {
+        return Object.prototype.toString.call(checkedValue) === "[object Array]";
+    }
+
+    /**
+     * 値が素のオブジェクト（{ } で作ったもの）か
+     * @param {*} checkedValue - 調べる値
+     * @returns {boolean} 素のオブジェクトなら true
+     */
+    function settingsStoreIsPlainObject(checkedValue) {
+        return checkedValue !== null && typeof checkedValue === "object"
+            && Object.prototype.toString.call(checkedValue) === "[object Object]"
+            && checkedValue.constructor === Object;
+    }
+
+    /**
+     * 文字列を JSON の文字列リテラルにする（ASCII 以外は \uXXXX にして、文字コードの取り違えに強くする）
+     * @param {string} sourceText - 文字列
+     * @returns {string} 引用符つきの文字列
+     */
+    function settingsStoreQuote(sourceText) {
+        var quotedText = "\"";
+        for (var i = 0; i < sourceText.length; i++) {
+            var charCode = sourceText.charCodeAt(i);
+            var oneChar = sourceText.charAt(i);
+            if (oneChar === "\"" || oneChar === "\\") quotedText += "\\" + oneChar;
+            else if (oneChar === "\n") quotedText += "\\n";
+            else if (oneChar === "\r") quotedText += "\\r";
+            else if (oneChar === "\t") quotedText += "\\t";
+            else if (charCode < 0x20 || charCode > 0x7E) quotedText += "\\u" + ("0000" + charCode.toString(16)).slice(-4);
+            else quotedText += oneChar;
+        }
+        return quotedText + "\"";
+    }
+
+    /**
+     * 値を JSON の文字列にする（オブジェクトは1項目1行、中身が値だけの配列は1行）。
+     * undefined・関数・DOM オブジェクトは項目ごと省き、配列の中では null にする。有限でない数値は null
+     * @param {*} sourceValue - 値
+     * @param {string} indentText - 今の字下げ
+     * @param {number} depth - 入れ子の深さ
+     * @returns {string|undefined} JSON の文字列。書けない値は undefined
+     */
+    function settingsStoreSerialize(sourceValue, indentText, depth) {
+        if (depth > SETTINGS_STORE_MAX_DEPTH) throw new Error("settings are nested too deeply");
+        if (sourceValue === null) return "null";
+        var valueType = typeof sourceValue;
+        if (valueType === "boolean") return sourceValue ? "true" : "false";
+        if (valueType === "number") return isFinite(sourceValue) ? String(sourceValue) : "null";
+        if (valueType === "string") return settingsStoreQuote(sourceValue);
+        var innerIndent = indentText + "  ";
+        var itemTexts = [];
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var hasNested = false;
+            for (i = 0; i < sourceValue.length; i++) {
+                var itemText = settingsStoreSerialize(sourceValue[i], innerIndent, depth + 1);
+                itemTexts.push(itemText === undefined ? "null" : itemText);
+                if (sourceValue[i] !== null && typeof sourceValue[i] === "object") hasNested = true;
+            }
+            if (!itemTexts.length) return "[]";
+            if (!hasNested) return "[" + itemTexts.join(", ") + "]";
+            return "[\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "]";
+        }
+        if (settingsStoreIsPlainObject(sourceValue)) {
+            for (var key in sourceValue) {
+                if (!sourceValue.hasOwnProperty(key)) continue;
+                var memberText = settingsStoreSerialize(sourceValue[key], innerIndent, depth + 1);
+                if (memberText !== undefined) itemTexts.push(settingsStoreQuote(key) + ": " + memberText);
+            }
+            if (!itemTexts.length) return "{}";
+            return "{\n" + innerIndent + itemTexts.join(",\n" + innerIndent) + "\n" + indentText + "}";
+        }
+        return undefined; /* 関数・DOM オブジェクトなど / functions, DOM objects, etc. */
+    }
+
+    /**
+     * JSON（と toSource の出力）を読む。eval は使わない。
+     * キーの引用符なし・'…' の文字列・全体の ( ) ・末尾のカンマ・(void 0) も受け付ける
+     * @param {string} sourceText - 読む文字列
+     * @returns {*} 読み込んだ値
+     */
+    function settingsStoreParse(sourceText) {
+        var readPos = 0;
+        var textLength = sourceText.length;
+
+        /**
+         * 読み取り位置で失敗を知らせる
+         * @param {string} reasonText - 理由
+         * @returns {void}
+         */
+        function fail(reasonText) {
+            throw new Error("settings parse error at " + readPos + ": " + reasonText);
+        }
+
+        /**
+         * 空白を読み飛ばす
+         * @returns {void}
+         */
+        function skipSpaces() {
+            while (readPos < textLength && /\s/.test(sourceText.charAt(readPos))) readPos++;
+        }
+
+        /**
+         * 識別子（英数字・_・$）を読む
+         * @returns {string} 識別子。無ければ空文字
+         */
+        function readWord() {
+            var startPos = readPos;
+            while (readPos < textLength && /[\w$]/.test(sourceText.charAt(readPos))) readPos++;
+            return sourceText.substring(startPos, readPos);
+        }
+
+        /**
+         * 引用符で囲んだ文字列を読む（" と ' のどちらでも）
+         * @returns {string} 文字列
+         */
+        function readString() {
+            var quoteChar = sourceText.charAt(readPos++);
+            var resultText = "";
+            while (readPos < textLength) {
+                var oneChar = sourceText.charAt(readPos++);
+                if (oneChar === quoteChar) return resultText;
+                if (oneChar !== "\\") { resultText += oneChar; continue; }
+                var escapeChar = sourceText.charAt(readPos++);
+                if (escapeChar === "n") resultText += "\n";
+                else if (escapeChar === "r") resultText += "\r";
+                else if (escapeChar === "t") resultText += "\t";
+                else if (escapeChar === "b") resultText += "\b";
+                else if (escapeChar === "f") resultText += "\f";
+                else if (escapeChar === "v") resultText += "\v";
+                else if (escapeChar === "0") resultText += "\0";
+                else if (escapeChar === "u" || escapeChar === "x") {
+                    var hexLength = (escapeChar === "u") ? 4 : 2;
+                    var hexText = sourceText.substr(readPos, hexLength);
+                    if (!new RegExp("^[0-9A-Fa-f]{" + hexLength + "}$").test(hexText)) fail("bad escape");
+                    resultText += String.fromCharCode(parseInt(hexText, 16));
+                    readPos += hexLength;
+                } else resultText += escapeChar;
+            }
+            fail("unterminated string");
+        }
+
+        /**
+         * 値を1つ読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {*} 値
+         */
+        function readValue(depth) {
+            if (depth > SETTINGS_STORE_MAX_DEPTH) fail("nested too deeply");
+            skipSpaces();
+            var oneChar = sourceText.charAt(readPos);
+            if (oneChar === "{") return readObject(depth);
+            if (oneChar === "[") return readArray(depth);
+            if (oneChar === "\"" || oneChar === "'") return readString();
+            if (oneChar === "(") {
+                readPos++;
+                var innerValue = readValue(depth + 1);
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ")") fail("expected )");
+                readPos++;
+                return innerValue;
+            }
+            var numberMatch = /^-?(\d+\.?\d*|\.\d+)([eE][+\-]?\d+)?/.exec(sourceText.substring(readPos, readPos + 64));
+            if (numberMatch) {
+                readPos += numberMatch[0].length;
+                return Number(numberMatch[0]);
+            }
+            var wordText = readWord();
+            if (wordText === "true") return true;
+            if (wordText === "false") return false;
+            if (wordText === "null") return null;
+            if (wordText === "NaN") return NaN;
+            if (wordText === "Infinity") return Infinity;
+            if (wordText === "void") { readValue(depth + 1); return undefined; } /* toSource の (void 0) */
+            fail("unexpected " + (wordText || oneChar || "end of text"));
+        }
+
+        /**
+         * 配列を読む
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Array} 配列
+         */
+        function readArray(depth) {
+            var resultArray = [];
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "]") {
+                resultArray.push(readValue(depth + 1));
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "]") fail("expected , or ]");
+            }
+            readPos++;
+            return resultArray;
+        }
+
+        /**
+         * オブジェクトを読む（__proto__ のキーは捨てる）
+         * @param {number} depth - 入れ子の深さ
+         * @returns {Object} オブジェクト
+         */
+        function readObject(depth) {
+            var resultObject = {};
+            readPos++;
+            skipSpaces();
+            while (sourceText.charAt(readPos) !== "}") {
+                var keyChar = sourceText.charAt(readPos);
+                var memberKey = (keyChar === "\"" || keyChar === "'") ? readString() : readWord();
+                if (memberKey === "") fail("expected a key");
+                skipSpaces();
+                if (sourceText.charAt(readPos) !== ":") fail("expected :");
+                readPos++;
+                var memberValue = readValue(depth + 1);
+                if (memberKey !== "__proto__") resultObject[memberKey] = memberValue;
+                skipSpaces();
+                if (sourceText.charAt(readPos) === ",") { readPos++; skipSpaces(); continue; }
+                if (sourceText.charAt(readPos) !== "}") fail("expected , or }");
+            }
+            readPos++;
+            return resultObject;
+        }
+
+        var parsedValue = readValue(0);
+        skipSpaces();
+        if (readPos < textLength) fail("unexpected text after the value");
+        return parsedValue;
+    }
+
+    /**
+     * 旧形式の文字列を読む。{ [ ( で始まれば JSON / toSource、それ以外は key=value の行とみなす
+     * @param {string} legacyText - 旧形式の文字列
+     * @returns {Object|null} 読み込んだ値
+     */
+    function settingsStoreParseLegacyText(legacyText) {
+        var trimmedText = legacyText.replace(/^\uFEFF/, "").replace(/^\s+|\s+$/g, "");
+        if (trimmedText === "") return null;
+        if (/^[\{\[\(]/.test(trimmedText)) return settingsStoreParse(trimmedText);
+        var keyValues = {};
+        var textLines = trimmedText.split(/\r\n|\r|\n/);
+        for (var i = 0; i < textLines.length; i++) {
+            var separatorIndex = textLines[i].indexOf("=");
+            if (separatorIndex < 1) continue;
+            var lineKey = textLines[i].substring(0, separatorIndex).replace(/^\s+|\s+$/g, "");
+            if (lineKey !== "" && lineKey !== "__proto__") keyValues[lineKey] = textLines[i].substring(separatorIndex + 1);
+        }
+        return keyValues;
+    }
+
+    /**
+     * 値を深くコピーする（素のデータだけ。関数・DOM オブジェクトは null）
+     * @param {*} sourceValue - コピー元
+     * @returns {*} コピー
+     */
+    function settingsStoreClone(sourceValue) {
+        if (sourceValue === null || typeof sourceValue !== "object") {
+            return (typeof sourceValue === "function" || sourceValue === undefined) ? null : sourceValue;
+        }
+        var i;
+        if (settingsStoreIsArray(sourceValue)) {
+            var arrayCopy = [];
+            for (i = 0; i < sourceValue.length; i++) arrayCopy.push(settingsStoreClone(sourceValue[i]));
+            return arrayCopy;
+        }
+        if (!settingsStoreIsPlainObject(sourceValue)) return null;
+        var objectCopy = {};
+        for (var key in sourceValue) {
+            if (sourceValue.hasOwnProperty(key)) objectCopy[key] = settingsStoreClone(sourceValue[key]);
+        }
+        return objectCopy;
+    }
+
+    /**
+     * 保存値を既定値と突き合わせる。型は既定値に合わせ、合わなければ既定値を使う。
+     * 既定値が {} か null なら中身を問わず受け取り、配列は配列なら受け取る。既定値に無い項目は捨てる
+     * @param {*} defaultValue - 既定値
+     * @param {*} savedValue - 保存値
+     * @returns {*} 突き合わせた値（新しいオブジェクト）
+     */
+    function settingsStoreMerge(defaultValue, savedValue) {
+        if (defaultValue === null || defaultValue === undefined) {
+            return (savedValue === undefined) ? null : settingsStoreClone(savedValue);
+        }
+        var defaultType = typeof defaultValue;
+        var savedType = typeof savedValue;
+        if (defaultType === "boolean") {
+            if (savedType === "boolean") return savedValue;
+            if (savedValue === 1 || savedValue === "1" || savedValue === "true") return true;
+            if (savedValue === 0 || savedValue === "0" || savedValue === "false") return false;
+            return defaultValue;
+        }
+        if (defaultType === "number") {
+            if (savedType === "number" && isFinite(savedValue)) return savedValue;
+            if (savedType === "string" && /\S/.test(savedValue)) {
+                var parsedNumber = Number(savedValue);
+                if (isFinite(parsedNumber)) return parsedNumber;
+            }
+            return defaultValue;
+        }
+        if (defaultType === "string") {
+            if (savedType === "string") return savedValue;
+            if (savedType === "number" && isFinite(savedValue)) return String(savedValue);
+            if (savedType === "boolean") return String(savedValue);
+            return defaultValue;
+        }
+        if (settingsStoreIsArray(defaultValue)) {
+            return settingsStoreClone(settingsStoreIsArray(savedValue) ? savedValue : defaultValue);
+        }
+        if (defaultType === "object") {
+            var savedIsObject = settingsStoreIsPlainObject(savedValue);
+            var hasDefaultKeys = false;
+            var mergedObject = {};
+            for (var key in defaultValue) {
+                if (!defaultValue.hasOwnProperty(key)) continue;
+                hasDefaultKeys = true;
+                mergedObject[key] = settingsStoreMerge(defaultValue[key], savedIsObject ? savedValue[key] : undefined);
+            }
+            /* 既定値が {} なら自由な入れ物として中身ごと受け取る / an empty default {} is a free-form map */
+            if (!hasDefaultKeys && savedIsObject) return settingsStoreClone(savedValue);
+            return mergedObject;
+        }
+        return defaultValue;
+    }
+
+    // 設定の保存（再利用パーツ）ここまで / End of the reusable settings store
+
+    /* プリセットは名前をキーにした集まり（既定値 {} で中身を問わず受け取る）。再起動しても残す
+       Presets: a map keyed by name (the {} default accepts any content), kept across restarts */
+    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent");
 
     // =========================================
     // 単位 / Units
@@ -1241,9 +1780,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function buildFavoriteArrowNames() {
         var favoriteArrowNames = [];
         for (var i = 0; i < FAVORITE_ARROWS.length; i++) {
-            favoriteArrowNames.push(getLabel("actionName.arrowheadPrefix") + FAVORITE_ARROWS[i].number);
+            var arrowNumber = FAVORITE_ARROWS[i].number;
+            favoriteArrowNames.push(arrowNumber === 0 ? getLabel("actionName.noArrowhead") : getLabel("actionName.arrowheadPrefix") + arrowNumber);
         }
         return favoriteArrowNames;
+    }
+
+    /**
+     * 最初に選んでおく矢印の FAVORITE_ARROWS 上の位置を返す（DEFAULT_ARROW_NUMBER が無ければ 0）
+     * @returns {number} FAVORITE_ARROWS の添字
+     */
+    function getDefaultFavoriteIndex() {
+        for (var i = 0; i < FAVORITE_ARROWS.length; i++) {
+            if (FAVORITE_ARROWS[i].number === DEFAULT_ARROW_NUMBER) return i;
+        }
+        return 0;
     }
 
     /**
@@ -1704,7 +2255,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < favoriteArrowNames.length; i++) {
             favoriteArrowRadios.push(addOptionRadio(arrowheadPanel, favoriteArrowNames[i], getLabel("tooltip.favoriteArrow")));
         }
-        favoriteArrowRadios[0].value = true;
+        var defaultFavoriteIndex = getDefaultFavoriteIndex();
+        favoriteArrowRadios[defaultFavoriteIndex].value = true;
 
         /* その他：ラジオ＋ポップアップメニュー。別グループのラジオは排他にならないので、onClick で切り替える
            Others: radio + pop-up. Radios in another group are not exclusive, so onClick handles it */
@@ -1718,8 +2270,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         otherArrowList.selection = 0;
 
         /* 0 以下は既定の倍率に戻されるので、下限は 1 / values of 0 or less fall back to the default, so the minimum is 1 */
-        var arrowScaleInput = addNumberField(arrowheadPanel, {
-            labelKey: "fieldLabel.arrowScale", labelWidth: ARROW_LABEL_WIDTH, text: String(FAVORITE_ARROWS[0].scale),
+        var arrowScaleGroup = arrowheadPanel.add("group");
+        arrowScaleGroup.orientation = "column";
+        arrowScaleGroup.alignChildren = ["fill", "top"];
+        arrowScaleGroup.alignment = "fill";
+        var arrowScaleInput = addNumberField(arrowScaleGroup, {
+            labelKey: "fieldLabel.arrowScale", labelWidth: ARROW_LABEL_WIDTH, text: String(FAVORITE_ARROWS[defaultFavoriteIndex].scale),
             min: 1, unitKey: "unit.percent", tooltipKey: "tooltip.arrowScale"
         });
 
@@ -1729,8 +2285,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             otherArrowList: otherArrowList,
             arrowScaleInput: arrowScaleInput,
             sameEndCheckbox: addOptionCheckbox(arrowheadPanel, "checkbox.sameEnd", "tooltip.sameEnd", false),
-            swapEndsCheckbox: addOptionCheckbox(arrowheadPanel, "checkbox.swapEnds", "tooltip.swapEnds", false)
+            swapEndsCheckbox: addOptionCheckbox(arrowheadPanel, "checkbox.swapEnds", "tooltip.swapEnds", false),
+            tipAlignRadios: buildTipAlignPanel(arrowheadPanel)
         };
+    }
+
+    /**
+     * 矢印パネルの中にオプションのパネル（先端位置）を作る
+     * @param {Panel} arrowheadPanel - 矢印パネル
+     * @returns {RadioButton[]} 先端位置のラジオボタン
+     */
+    function buildTipAlignPanel(arrowheadPanel) {
+        var tipAlignPanel = arrowheadPanel.add("panel", undefined, getLabel("panel.arrowOptions"));
+        setupPanel(tipAlignPanel, 6);
+        return addOptionRadios(tipAlignPanel, TIP_ALIGN_OPTIONS, TIP_ALIGN_OPTIONS[0].key, "tooltip.tipAlign");
     }
 
     /**
@@ -1742,11 +2310,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dashPanel = parent.add("panel", undefined, getLabel("panel.dash"));
         setupPanel(dashPanel, 6);
 
-        var dashedCheckbox = addOptionCheckbox(dashPanel, "checkbox.dashed", "tooltip.dashed", false);
-        var dottedCheckbox = addOptionCheckbox(dashPanel, "checkbox.dotted", "tooltip.dotted", false);
+        var noDashRadio = addOptionRadio(dashPanel, getLabel("radio.noDash"), getLabel("tooltip.noDash"));
+        var dashedRadio = addOptionRadio(dashPanel, getLabel("radio.dashed"), getLabel("tooltip.dashed"));
+        var dottedRadio = addOptionRadio(dashPanel, getLabel("radio.dotted"), getLabel("tooltip.dotted"));
+        noDashRadio.value = true;
 
         /* 破線の計算（DashGapCalculator から移植）/ Dash calculation (ported from DashGapCalculator) */
-        var dashCalcPanel = dashPanel.add("panel", undefined, getLabel("panel.dashCalc"));
+        var dashCalcGroup = dashPanel.add("group");
+        dashCalcGroup.orientation = "column";
+        dashCalcGroup.alignChildren = ["fill", "top"];
+        dashCalcGroup.alignment = "fill";
+        dashCalcGroup.margins = [0, DASH_CALC_TOP_MARGIN, 0, 0];
+        var dashCalcPanel = dashCalcGroup.add("panel", undefined, getLabel("panel.dashCalc"));
         setupPanel(dashCalcPanel, 6);
         var segmentsInput = addNumberField(dashCalcPanel, {
             labelKey: "fieldLabel.segments", labelWidth: DASH_LABEL_WIDTH, text: "1",
@@ -1768,8 +2343,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gapToDashRadio.value = true;
 
         return {
-            dashedCheckbox: dashedCheckbox,
-            dottedCheckbox: dottedCheckbox,
+            noDashRadio: noDashRadio,
+            dashedRadio: dashedRadio,
+            dottedRadio: dottedRadio,
             dashCalcPanel: dashCalcPanel,
             segmentsInput: segmentsInput,
             gapInput: gapInput,
@@ -1782,6 +2358,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 最上部のプリセットの行（ドロップダウン・保存・削除）を作る
+     * @param {Window} parent - 追加先
+     * @returns {Object} プリセットの行のコントロール
+     */
+    function buildPresetRow(parent) {
+        var presetRow = parent.add("group");
+        setupRow(presetRow, "left", ROW_SPACING);
+        presetRow.add("statictext", undefined, labelText("fieldLabel.preset"));
+        var presetDropdown = presetRow.add("dropdownlist", undefined, []);
+        presetDropdown.helpTip = getLabel("tooltip.preset");
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        var presetSaveButton = presetRow.add("button", undefined, getLabel("button.presetSave"));
+        presetSaveButton.helpTip = getLabel("tooltip.presetSave");
+        var presetDeleteButton = presetRow.add("button", undefined, getLabel("button.presetDelete"));
+        presetDeleteButton.helpTip = getLabel("tooltip.presetDelete");
+        return {
+            presetDropdown: presetDropdown,
+            presetSaveButton: presetSaveButton,
+            presetDeleteButton: presetDeleteButton
+        };
+    }
+
+    /**
      * 設定用ダイアログのコントロールをすべて作る（イベントは設定しない）
      * @returns {Object} ダイアログとパネルごとのコントロール
      */
@@ -1789,6 +2388,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var settingsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(settingsDialog);
 
+        var presetControls = buildPresetRow(settingsDialog);
         var strokeControls = buildStrokePanel(settingsDialog);
 
         /* 矢印と破線を 2 カラムで並べる / Lay out arrowheads and dashes in two columns */
@@ -1799,9 +2399,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowheadControls = buildArrowheadPanel(arrowDashColumns);
         var dashControls = buildDashPanel(arrowDashColumns);
 
-        var tipAlignPanel = settingsDialog.add("panel", undefined, getLabel("panel.tipAlign"));
-        setupPanel(tipAlignPanel, 6);
-        var tipAlignRadios = addOptionRadios(tipAlignPanel, TIP_ALIGN_OPTIONS, TIP_ALIGN_OPTIONS[0].key, "tooltip.tipAlign");
 
         /* ボタン（左：プレビュー／中央：スペーサー／右：キャンセル・OK） */
         /* Buttons (left: preview, center: spacer, right: cancel and OK) */
@@ -1813,10 +2410,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         return {
             settingsDialog: settingsDialog,
+            preset: presetControls,
             stroke: strokeControls,
             arrowhead: arrowheadControls,
             dash: dashControls,
-            tipAlignRadios: tipAlignRadios,
             previewCheckbox: previewCheckbox
         };
     }
@@ -1836,7 +2433,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < favoriteArrowRadios.length; i++) {
             if (favoriteArrowRadios[i].value) return favoriteArrowRadios[i].text;
         }
-        return favoriteArrowRadios[0].text;
+        return favoriteArrowRadios[getDefaultFavoriteIndex()].text;
     }
 
     /**
@@ -1845,9 +2442,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {Object|null} calcDashArray() に渡す値。破線がオフなら null
      */
     function readDashCalc(dashControls) {
-        if (!dashControls.dashedCheckbox.value && !dashControls.dottedCheckbox.value) return null;
+        if (dashControls.noDashRadio.value) return null;
         return {
-            style: dashControls.dottedCheckbox.value ? "dotted" : "dashed",
+            style: dashControls.dottedRadio.value ? "dotted" : "dashed",
             mode: dashControls.dashToGapRadio.value ? "dashToGap" : "gapToDash",
             segments: parseInt(dashControls.segmentsInput.text, 10),
             gapPt: parseFloat(dashControls.gapInput.text),
@@ -1886,7 +2483,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             startScale: isSwapped ? DEFAULT_ARROW_SCALE : arrowScale,
             endArrow: hasEndArrow ? arrowName : noArrowName,
             endScale: hasEndArrow ? arrowScale : DEFAULT_ARROW_SCALE,
-            tipAlign: getCheckedOption(dialogControls.tipAlignRadios),
+            tipAlign: getCheckedOption(arrowheadControls.tipAlignRadios),
             strokeCap: isDotted ? findOptionByKey(STROKE_CAP_OPTIONS, "round") : getCheckedOption(dialogControls.stroke.strokeCapRadios),
             cornerJoin: getCheckedOption(dialogControls.stroke.cornerJoinRadios),
             dashCalc: dashCalc
@@ -1937,8 +2534,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function syncDashEnabled(dialogControls) {
         var dashControls = dialogControls.dash;
-        var isDotted = dashControls.dottedCheckbox.value;
-        var hasDash = dashControls.dashedCheckbox.value || isDotted;
+        var isDotted = dashControls.dottedRadio.value;
+        var hasDash = !dashControls.noDashRadio.value;
         var isDashed = hasDash && !isDotted;
         dialogControls.stroke.strokeCapRow.enabled = !isDotted;
         dashControls.dashCalcPanel.enabled = hasDash;
@@ -1947,6 +2544,240 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setSteppedFieldEnabled(dashControls.segmentsInput, hasDash);
         setSteppedFieldEnabled(dashControls.gapInput, isDashed && dashControls.gapToDashRadio.value);
         setSteppedFieldEnabled(dashControls.dashLengthInput, isDashed && dashControls.dashToGapRadio.value);
+    }
+
+    // =========================================
+    // プリセット / Presets
+    // =========================================
+
+    /**
+     * 保存したプリセットを返す
+     * @returns {Object} プリセット名をキーにした設定の集まり（書き換えても保存されない）
+     */
+    function loadPresetMap() {
+        return presetSettingsStore.load({});
+    }
+
+    /**
+     * 保存したプリセットの名前を、名前順で返す
+     * @returns {string[]} プリセット名
+     */
+    function getPresetNames() {
+        var presetMap = loadPresetMap();
+        var presetNames = [];
+        for (var presetName in presetMap) {
+            if (presetMap.hasOwnProperty(presetName)) presetNames.push(presetName);
+        }
+        presetNames.sort();
+        return presetNames;
+    }
+
+    /**
+     * 選択中の矢印の番号を返す（[なし] は 0）
+     * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
+     * @returns {number} 矢印の番号
+     */
+    function getSelectedArrowNumber(arrowheadControls) {
+        if (arrowheadControls.otherArrowRadio.value) {
+            return parseInt(arrowheadControls.otherArrowList.selection.text.replace(/[^0-9]/g, ""), 10);
+        }
+        var favoriteArrowRadios = arrowheadControls.favoriteArrowRadios;
+        for (var i = 0; i < favoriteArrowRadios.length; i++) {
+            if (favoriteArrowRadios[i].value) return FAVORITE_ARROWS[i].number;
+        }
+        return FAVORITE_ARROWS[getDefaultFavoriteIndex()].number;
+    }
+
+    /**
+     * 番号で矢印を選ぶ。よく使う矢印に無ければポップアップメニューから選ぶ
+     * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
+     * @param {number} arrowNumber - 矢印の番号（[なし] は 0）
+     * @returns {void}
+     */
+    function selectArrowByNumber(arrowheadControls, arrowNumber) {
+        var favoriteArrowRadios = arrowheadControls.favoriteArrowRadios;
+        var isFavorite = false;
+        for (var i = 0; i < favoriteArrowRadios.length; i++) {
+            favoriteArrowRadios[i].value = (FAVORITE_ARROWS[i].number === arrowNumber);
+            if (favoriteArrowRadios[i].value) isFavorite = true;
+        }
+        arrowheadControls.otherArrowRadio.value = !isFavorite;
+        if (isFavorite) return;
+        var otherArrowName = getLabel("actionName.arrowheadPrefix") + arrowNumber;
+        var otherArrowItems = arrowheadControls.otherArrowList.items;
+        for (var j = 0; j < otherArrowItems.length; j++) {
+            if (otherArrowItems[j].text === otherArrowName) {
+                arrowheadControls.otherArrowList.selection = j;
+                return;
+            }
+        }
+    }
+
+    /**
+     * キーが一致するラジオボタンをオンにする
+     * @param {RadioButton[]} optionRadios - addOptionRadios() で作ったラジオボタン
+     * @param {string} optionKey - 選択肢の key
+     * @returns {void}
+     */
+    function checkOptionByKey(optionRadios, optionKey) {
+        for (var i = 0; i < optionRadios.length; i++) {
+            optionRadios[i].value = (optionRadios[i].optionDefinition.key === optionKey);
+        }
+    }
+
+    /**
+     * ダイアログの値をプリセットの形にまとめる（矢印は言語に依らない番号で持つ）
+     * @param {Object} dialogControls - buildSettingsDialog() の戻り値
+     * @returns {Object} プリセット
+     */
+    function collectPresetData(dialogControls) {
+        var strokeControls = dialogControls.stroke;
+        var arrowheadControls = dialogControls.arrowhead;
+        var dashControls = dialogControls.dash;
+        return {
+            strokeWidth: parseFloat(strokeControls.strokeWidthInput.text),
+            strokeCap: getCheckedOption(strokeControls.strokeCapRadios).key,
+            cornerJoin: getCheckedOption(strokeControls.cornerJoinRadios).key,
+            arrowNumber: getSelectedArrowNumber(arrowheadControls),
+            arrowScale: parseFloat(arrowheadControls.arrowScaleInput.text),
+            sameEnd: arrowheadControls.sameEndCheckbox.value,
+            swapEnds: arrowheadControls.swapEndsCheckbox.value,
+            tipAlign: getCheckedOption(arrowheadControls.tipAlignRadios).key,
+            dashStyle: dashControls.dottedRadio.value ? "dotted" : (dashControls.dashedRadio.value ? "dashed" : "none"),
+            dashMode: dashControls.dashToGapRadio.value ? "dashToGap" : "gapToDash",
+            segments: parseInt(dashControls.segmentsInput.text, 10),
+            gap: parseFloat(dashControls.gapInput.text),
+            dash: parseFloat(dashControls.dashLengthInput.text),
+            adjustDashEnds: dashControls.adjustDashEndsCheckbox.value
+        };
+    }
+
+    /**
+     * プリセットをダイアログに書き込む（ディム表示とプレビューは呼び出し側でそろえる）
+     * @param {Object} dialogControls - buildSettingsDialog() の戻り値
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetData(dialogControls, presetData) {
+        var strokeControls = dialogControls.stroke;
+        var arrowheadControls = dialogControls.arrowhead;
+        var dashControls = dialogControls.dash;
+
+        if (!isNaN(presetData.strokeWidth)) setNumberFieldValue(strokeControls.strokeWidthInput, presetData.strokeWidth);
+        checkOptionByKey(strokeControls.strokeCapRadios, presetData.strokeCap);
+        checkOptionByKey(strokeControls.cornerJoinRadios, presetData.cornerJoin);
+
+        /* メニューで選ぶと倍率が 100% に戻るので、倍率は矢印のあとに書く / Picking from the menu resets the scale, so write it afterwards */
+        if (typeof presetData.arrowNumber === "number") selectArrowByNumber(arrowheadControls, presetData.arrowNumber);
+        if (!isNaN(presetData.arrowScale)) setNumberFieldValue(arrowheadControls.arrowScaleInput, presetData.arrowScale);
+        arrowheadControls.sameEndCheckbox.value = !!presetData.sameEnd;
+        arrowheadControls.swapEndsCheckbox.value = !!presetData.swapEnds;
+        arrowheadControls.swapEndsCheckbox.enabled = !arrowheadControls.sameEndCheckbox.value;
+        checkOptionByKey(arrowheadControls.tipAlignRadios, presetData.tipAlign);
+
+        dashControls.noDashRadio.value = (presetData.dashStyle !== "dashed" && presetData.dashStyle !== "dotted");
+        dashControls.dashedRadio.value = (presetData.dashStyle === "dashed");
+        dashControls.dottedRadio.value = (presetData.dashStyle === "dotted");
+        dashControls.dashToGapRadio.value = (presetData.dashMode === "dashToGap");
+        dashControls.gapToDashRadio.value = !dashControls.dashToGapRadio.value;
+        if (!isNaN(presetData.segments)) setNumberFieldValue(dashControls.segmentsInput, presetData.segments);
+        if (!isNaN(presetData.gap)) setNumberFieldValue(dashControls.gapInput, presetData.gap);
+        if (!isNaN(presetData.dash)) setNumberFieldValue(dashControls.dashLengthInput, presetData.dash);
+        dashControls.adjustDashEndsCheckbox.value = !!presetData.adjustDashEnds;
+    }
+
+    /**
+     * プリセットのドロップダウンを作り直し、指定の名前を選ぶ
+     * @param {Object} presetControls - buildPresetRow() の戻り値
+     * @param {string} [selectedName] - 選んでおくプリセット名（省略時は「---」）
+     * @returns {void}
+     */
+    function fillPresetDropdown(presetControls, selectedName) {
+        var presetDropdown = presetControls.presetDropdown;
+        var presetNames = getPresetNames();
+        var selectedIndex = 0;
+        presetDropdown.removeAll();
+        presetDropdown.add("item", getLabel("dropdown.presetPlaceholder"));
+        for (var i = 0; i < presetNames.length; i++) {
+            presetDropdown.add("item", presetNames[i]);
+            if (presetNames[i] === selectedName) selectedIndex = i + 1;
+        }
+        presetDropdown.selection = selectedIndex;
+        presetControls.presetDeleteButton.enabled = (selectedIndex > 0);
+    }
+
+    /**
+     * 選んでいるプリセット名を返す
+     * @param {Object} presetControls - buildPresetRow() の戻り値
+     * @returns {string|null} プリセット名。「---」なら null
+     */
+    function getSelectedPresetName(presetControls) {
+        var presetSelection = presetControls.presetDropdown.selection;
+        return (presetSelection && presetSelection.index > 0) ? presetSelection.text : null;
+    }
+
+    /**
+     * プリセット名を尋ねる
+     * @param {string} initialName - 入力欄に入れておく名前
+     * @returns {string|null} プリセット名。キャンセルか空なら null
+     */
+    function showPresetNameDialog(initialName) {
+        var nameDialog = new Window("dialog", getLabel("dialog.presetSave"));
+        setupWindow(nameDialog);
+        var nameRow = nameDialog.add("group");
+        setupRow(nameRow, "left", ROW_SPACING);
+        nameRow.add("statictext", undefined, labelText("fieldLabel.presetName"));
+        var nameInput = nameRow.add("edittext", undefined, initialName);
+        nameInput.helpTip = getLabel("tooltip.presetName");
+        nameInput.characters = PRESET_NAME_CHARS;
+        nameInput.active = true;
+
+        /* ボタン行（右：キャンセル・OK） / Button row (right: Cancel and OK) */
+        var buttonRow = addButtonRow(nameDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+        prepareDialogWindow(nameDialog, SCRIPT_NAME + "_presetName");
+        if (nameDialog.show() !== 1) return null;
+
+        var presetName = nameInput.text.replace(/^\s+|\s+$/g, "");
+        if (!presetName || presetName === getLabel("dropdown.presetPlaceholder")) return null;
+        return presetName;
+    }
+
+    /**
+     * 今の設定を名前を付けて保存する（同じ名前は確認してから上書き）
+     * @param {Object} dialogControls - buildSettingsDialog() の戻り値
+     * @returns {string|null} 保存したプリセット名。保存しなかったら null
+     */
+    function saveCurrentPreset(dialogControls) {
+        var presetName = showPresetNameDialog(getSelectedPresetName(dialogControls.preset) || "");
+        if (!presetName) return null;
+        var presetMap = loadPresetMap();
+        if (presetMap.hasOwnProperty(presetName) && !confirm(getLabel("confirm.presetOverwrite", { name: presetName }))) return null;
+        presetMap[presetName] = collectPresetData(dialogControls);
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return null;
+        }
+        return presetName;
+    }
+
+    /**
+     * 選んでいるプリセットを確認してから削除する
+     * @param {Object} presetControls - buildPresetRow() の戻り値
+     * @returns {boolean} 削除したら true
+     */
+    function deleteSelectedPreset(presetControls) {
+        var presetName = getSelectedPresetName(presetControls);
+        if (!presetName || !confirm(getLabel("confirm.presetDelete", { name: presetName }))) return false;
+        var presetMap = loadPresetMap();
+        delete presetMap[presetName];
+        if (!presetSettingsStore.save(presetMap)) {
+            alert(getLabel("alert.presetSaveFailed"));
+            return false;
+        }
+        return true;
     }
 
     // =========================================
@@ -1965,12 +2796,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeControls = dialogControls.stroke;
         var arrowheadControls = dialogControls.arrowhead;
         var dashControls = dialogControls.dash;
+        var presetControls = dialogControls.preset;
         var previewCheckbox = dialogControls.previewCheckbox;
+        var isApplyingPreset = false; /* プリセットの書き込み中はプレビューを止める / suspend the preview while a preset is written */
         var i;
 
         /* プレビューを現在の入力値で更新する（矢印を含むためアクションを実行） */
         /* Refresh the preview with the current values (plays the action for arrowheads) */
         function updatePreview() {
+            if (isApplyingPreset) return;
             if (!previewCheckbox.value) {
                 previewController.reset();
                 return;
@@ -1991,10 +2825,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreview();
         }
 
-        /* 破線とドット点線は片方だけ。オンにしたらもう一方を外し、初期値を入れる
-           Only one dash style; turning one on clears the other and fills in the values */
-        function toggleDashStyle(clickedCheckbox, otherCheckbox) {
-            if (clickedCheckbox.value) otherCheckbox.value = false;
+        /* 破線の種類を選んだら、その種類の初期値を入れる / Fill in the defaults for the chosen dash style */
+        function changeDashStyle() {
             fillDashCalcDefaults(dialogControls, firstPathMetrics);
             syncDashEnabled(dialogControls);
             updateDashCalc();
@@ -2014,7 +2846,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (previewCheckbox.value) previewController.previewStrokeWidth(parseFloat(strokeControls.strokeWidthInput.text));
         };
         addCommitHandler(strokeControls.strokeWidthInput, updatePreview);
-        var optionRadios = strokeControls.strokeCapRadios.concat(strokeControls.cornerJoinRadios, dialogControls.tipAlignRadios);
+        var optionRadios = strokeControls.strokeCapRadios.concat(strokeControls.cornerJoinRadios, arrowheadControls.tipAlignRadios);
         for (i = 0; i < optionRadios.length; i++) optionRadios[i].onClick = updatePreview;
 
         /* 矢印 / Arrowheads：形状を選んだら、その矢印の倍率を入れる */
@@ -2037,8 +2869,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         arrowheadControls.swapEndsCheckbox.onClick = updatePreview;
 
         /* 破線 / Dashes */
-        dashControls.dashedCheckbox.onClick = function () { toggleDashStyle(dashControls.dashedCheckbox, dashControls.dottedCheckbox); };
-        dashControls.dottedCheckbox.onClick = function () { toggleDashStyle(dashControls.dottedCheckbox, dashControls.dashedCheckbox); };
+        dashControls.noDashRadio.onClick = dashControls.dashedRadio.onClick = dashControls.dottedRadio.onClick = changeDashStyle;
         dashControls.gapToDashRadio.onClick = dashControls.dashToGapRadio.onClick = function () {
             syncDashEnabled(dialogControls);
             updateDashCalc();
@@ -2052,6 +2883,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         syncDashEnabled(dialogControls);
 
         previewCheckbox.onClick = updatePreview;
+
+        /* プリセット / Presets：選んだら読み込む。ドロップダウンの作り直しでも onChange が来るので、書き込み中は読まない
+           Picking one loads it; refilling the dropdown also fires onChange, so it is ignored while refilling */
+        function refreshPresetDropdown(selectedName) {
+            isApplyingPreset = true;
+            fillPresetDropdown(presetControls, selectedName);
+            isApplyingPreset = false;
+        }
+        presetControls.presetDropdown.onChange = function () {
+            if (isApplyingPreset) return;
+            var presetName = getSelectedPresetName(presetControls);
+            presetControls.presetDeleteButton.enabled = (presetName !== null);
+            if (!presetName) return;
+            var presetData = loadPresetMap()[presetName];
+            if (!presetData) return;
+            isApplyingPreset = true;
+            applyPresetData(dialogControls, presetData);
+            isApplyingPreset = false;
+            syncDashEnabled(dialogControls);
+            updateDashCalc();
+        };
+        presetControls.presetSaveButton.onClick = function () {
+            var savedName = saveCurrentPreset(dialogControls);
+            if (savedName) refreshPresetDropdown(savedName);
+        };
+        presetControls.presetDeleteButton.onClick = function () {
+            if (deleteSelectedPreset(presetControls)) refreshPresetDropdown(null);
+        };
+        refreshPresetDropdown(null);
 
         prepareDialogWindow(dialogControls.settingsDialog, SCRIPT_NAME);
         var isAccepted = (dialogControls.settingsDialog.show() === 1);

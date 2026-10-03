@@ -16,6 +16,12 @@
 
 ### Features
 
+#### Presets
+
+- The pop-up at the top of the dialog loads saved settings (stroke, arrowheads and dashes)
+- **Save...** names and saves the current settings (an existing name is overwritten after confirming); **Delete** removes the selected preset
+- Presets survive an Illustrator restart (Folder.userData/illustrator-scripts/FavoriteArrowPresets.json)
+
 #### Stroke
 
 - Weight
@@ -23,15 +29,16 @@
 
 #### Arrowheads
 
-- Pick a favorite arrowhead (Arrow 1, 8, 11, 27) with a radio button. The scale changes to suit it (100% for 1, 11 and 27, 25% for 8)
+- [None] at the top removes the arrowheads from both ends
+- Pick a favorite arrowhead (Arrow 1, 8, 11, 27) with a radio button. Arrow 11 is selected at start. The scale changes to suit it (100% for 1, 11 and 27, 25% for 8)
 - Pick any other arrowhead from the pop-up menu (scale: 100%)
 - **Same at end**: puts the same arrowhead on the end. When off, the end has no arrowhead
 - **Swap start and end**: puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
-- Tip alignment (at end of path / beyond end of path)
+- **Options**: tip alignment (at end of path / beyond end of path)
 
 #### Dashes
 
-- Choose either **Dashed** or **Dotted**. Turning one on fills in Segments, Gap and Dash based on the stroke weight
+- Choose **None**, **Dashed** or **Dotted** with radio buttons. Choosing Dashed or Dotted fills in Segments, Gap and Dash based on the stroke weight
 - Dash Calculation: works out the dashes from Segments, Gap and Dash. With several paths selected, each path is calculated from its own length
 - Calculation: Gap→Dash / Dash→Gap
 - Dotted works out the gap between zero-length dots from Segments and fixes the cap to Round
@@ -44,7 +51,7 @@
 ### Usage
 
 1. Select the paths to style (paths inside groups and compound paths are included)
-2. Run the script and set the stroke, arrowheads, dashes and tip alignment in the dialog
+2. Run the script and set the stroke, arrowheads and dashes in the dialog (or pick a saved preset)
 3. Click **OK** to apply
 
 ### Notes
@@ -61,9 +68,10 @@
 - v1.0.0 (2026-10-03) Initial release
 - v1.0.1 (2026-10-04) The initial stroke weight now follows the general unit (0.25 pt for mm, 1 px for px, 5 pt otherwise)
 - v1.0.2 (2026-10-04) The cap and corner now start at Butt and Miter. Arrow 27 joins the favorite arrowheads
+- v1.1.0 (2026-10-04) Added presets (save, load, delete). Added [None] at the top of the favorite arrowheads to remove arrowheads. Dashed and Dotted are now None / Dashed / Dotted radio buttons instead of checkboxes. Tip alignment moved into Options in the Arrowheads panel. Arrow 11 is now selected at start
 
 ### Script info
 
-- Version: v1.0.2
+- Version: v1.1.0
 - First release: 2026-10-03
 - Last updated: 2026-10-04
