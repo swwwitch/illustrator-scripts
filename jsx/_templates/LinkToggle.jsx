@@ -41,7 +41,8 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     // 1. 「（再利用パーツ）」の行から「ここまで」の行までをまるごと、コピー先の IIFE 内に貼る。
     //    識別子はすべて LINK_* / *LinkToggle* / *Link* の名前か、描画の下請け関数（buildArcPoints など）
     //    UI の明暗は UITheme 部品の isDarkUI() を使う（先に UITheme の部品も貼っておく）
-    // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数) で作る。helpTip はコピー先で付ける
+    // 2. アイコンを addLinkToggle(親, 初期値, 切り替え後の関数[, [幅, 高さ][, 鎖の比率]]) で作る。helpTip はコピー先で付ける。
+    //    大きさを省くと LINK_ICON_SIZE（22px）。鎖の比率（0.8 など）を渡すと、枠はそのままで鎖だけ縮む
     //      var linkToggle = addLinkToggle(fieldsRowGroup, true, function () { syncFields(); });
     //      linkToggle.helpTip = getLabel(LABELS.tooltip.linkToggle);
     // 3. 連動中かは linkToggle.value で読む。コードから変えるときは setLinkToggleValue(linkToggle, true)
@@ -81,19 +82,22 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
      * @param {Group} parent - 追加先
      * @param {boolean} initialValue - 連動の初期値
      * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - アイコンの [幅, 高さ]（省略時は LINK_ICON_SIZE。絵は 22px 基準から拡大縮小する）
+     * @param {number} [chainRatio] - 鎖の絵の大きさの比率（省略時は 1。枠・地の大きさは変えず、鎖だけ縮める）
      * @returns {Group} アイコン（.value で連動中かを読む）
      */
-    function addLinkToggle(parent, initialValue, onToggle) {
+    function addLinkToggle(parent, initialValue, onToggle, iconSize, chainRatio) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
         var linkToggle = parent.add("group");
-        linkToggle.preferredSize = LINK_ICON_SIZE;
-        linkToggle.minimumSize = LINK_ICON_SIZE;
-        linkToggle.maximumSize = LINK_ICON_SIZE;
+        linkToggle.preferredSize = toggleSize;
+        linkToggle.minimumSize = toggleSize;
+        linkToggle.maximumSize = toggleSize;
         linkToggle.value = initialValue;
 
         linkToggle.onDraw = function () {
             var iconGraphics = linkToggle.graphics;
-            var iconWidth = LINK_ICON_SIZE[0];
-            var iconHeight = LINK_ICON_SIZE[1];
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
             /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
             var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
             /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
@@ -105,7 +109,7 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
                 iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
                 iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
             }
-            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR, chainRatio);
         };
 
         linkToggle.addEventListener("mousedown", function () {
@@ -174,10 +178,11 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
      * @param {number} iconHeight - 描画範囲の高さ
      * @param {boolean} isLinked - 連動中なら true
      * @param {number[]} iconColor - [r, g, b, a]
+     * @param {number} [chainRatio] - 鎖の大きさの比率（省略時は 1）。中央に置いたまま縮める
      * @returns {void}
      */
-    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor) {
-        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor, chainRatio) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22 * (chainRatio || 1);
         var offsetX = (iconWidth - 22 * iconScale) / 2;
         var offsetY = (iconHeight - 22 * iconScale) / 2;
         var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();

@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -72,6 +72,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dashed: { dash: 2, gap: 3 },         /* 破線 / dashed */
         dotted: { dash: 0, gap: 2 }          /* ドット点線 / dotted */
     };
+    var DOT_GAP_PRECISION = 1000;            /* 両端を調整したドット点線の間隔の切り捨て単位（1/1000 pt）/ truncation unit for adjusted dotted gaps */
 
     // =========================================
     // 一時アクション / Temporary action
@@ -184,8 +185,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ARROW_LABEL_WIDTH  = 40;             /* 矢印パネルの項目名の幅 / arrowhead panel label width */
     var DASH_LABEL_WIDTH   = 48;             /* 破線の計算の項目名の幅 / dash calculation label width */
     var FIELD_CHARACTERS   = 4;              /* 数値入力欄の文字数 / numeric field width */
-    var OPTION_ICON_WIDTH  = 32;             /* 先端位置アイコンの幅 / tip alignment icon width */
-    var OPTION_ICON_HEIGHT = 26;             /* 先端位置アイコンの高さ / tip alignment icon height */
+    var OPTION_ICON_SIZE   = [32, 26];       /* 両端を調整のアイコンの大きさ / adjust-ends icon size */
+    var TIP_ICON_SIZE      = [40, 30];       /* 先端位置のアイコンの大きさ / tip alignment icon size */
+    var ARROW_ICON_SIZE    = [76, 26];       /* よく使う矢印のアイコンの大きさ / favorite arrowhead icon size */
+    var ARROW_ICON_SCALE   = 22 / 383;       /* よく使う矢印の絵の倍率（高さを詰めても絵の大きさは変えない）/ fixed drawing scale, so a shorter icon keeps the same arrow */
+    var ARROW_ICONS_BOTTOM_MARGIN = 10;      /* よく使う矢印のアイコン（最後の矢印）の下の余白 / space below the favorite arrowhead icons */
+    var ARROW_ICON_INSET   = 5;              /* よく使う矢印のアイコンの枠と図形の間（px）/ gap between the arrowhead icon frame and its shape */
+    var ARROW_OPTIONS_TOP_MARGIN = 10;       /* 矢印のオプション（アイコンの行）の上の余白 / space above the arrowhead option icons */
+    var LINK_CHAIN_RATIO   = 0.8;            /* リンクアイコンの鎖の大きさ（枠に対する比率）/ chain size relative to the link icon */
+    var OPTION_TOGGLE_SIZE = [30, 30];       /* 終点も同じ・入れ替えのアイコンの大きさ / Same at end and Swap icon size */
+    var ADJUST_ICON_INSET  = 3;              /* 両端を調整のアイコンの枠と図形の間（px）/ gap between the adjust-ends icon frame and its shapes */
     var UNIT_FIELD_CHARACTERS = 6;           /* 単位を欄の中に入れる数値欄の文字数 / width of a field holding its unit */
     var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（破線の計算・計算方法）の上の余白 / space above nested panels */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
@@ -378,19 +387,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Group} parent - 追加先
      * @param {boolean} initialValue - 連動の初期値
      * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - アイコンの [幅, 高さ]（省略時は LINK_ICON_SIZE。絵は 22px 基準から拡大縮小する）
+     * @param {number} [chainRatio] - 鎖の絵の大きさの比率（省略時は 1。枠・地の大きさは変えず、鎖だけ縮める）
      * @returns {Group} アイコン（.value で連動中かを読む）
      */
-    function addLinkToggle(parent, initialValue, onToggle) {
+    function addLinkToggle(parent, initialValue, onToggle, iconSize, chainRatio) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
         var linkToggle = parent.add("group");
-        linkToggle.preferredSize = LINK_ICON_SIZE;
-        linkToggle.minimumSize = LINK_ICON_SIZE;
-        linkToggle.maximumSize = LINK_ICON_SIZE;
+        linkToggle.preferredSize = toggleSize;
+        linkToggle.minimumSize = toggleSize;
+        linkToggle.maximumSize = toggleSize;
         linkToggle.value = initialValue;
 
         linkToggle.onDraw = function () {
             var iconGraphics = linkToggle.graphics;
-            var iconWidth = LINK_ICON_SIZE[0];
-            var iconHeight = LINK_ICON_SIZE[1];
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
             /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
             var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
             /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
@@ -402,7 +414,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
                 iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
             }
-            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR, chainRatio);
         };
 
         linkToggle.addEventListener("mousedown", function () {
@@ -471,10 +483,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {number} iconHeight - 描画範囲の高さ
      * @param {boolean} isLinked - 連動中なら true
      * @param {number[]} iconColor - [r, g, b, a]
+     * @param {number} [chainRatio] - 鎖の大きさの比率（省略時は 1）。中央に置いたまま縮める
      * @returns {void}
      */
-    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor) {
-        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor, chainRatio) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22 * (chainRatio || 1);
         var offsetX = (iconWidth - 22 * iconScale) / 2;
         var offsetY = (iconHeight - 22 * iconScale) / 2;
         var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
@@ -1473,19 +1486,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dashed: { ja: "破線", en: "Dashed" },
             dotted: { ja: "ドット点線", en: "Dotted" },
             tipAtEnd: { ja: "パスの終点に配置", en: "At end of path" },
-            tipBeyondEnd: { ja: "パスの終点から配置", en: "Beyond end of path" }
-        },
-        checkbox: {
-            adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" },
-            preview: { ja: "プレビュー", en: "Preview" }
+            tipBeyondEnd: { ja: "パスの終点から配置", en: "Beyond end of path" },
+            keepDashLength: { ja: "線分の長さを保持", en: "Keep dash lengths" },
+            adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" }
         },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" },
             presetSave: { ja: "保存...", en: "Save..." },
-            presetDelete: { ja: "削除", en: "Delete" }
+            presetDelete: { ja: "削除", en: "Delete" },
+            openStrokePanel: { ja: "「線」パネルを開く", en: "Open Stroke Panel" }
         },
         tooltip: {
+            openStrokePanel: { ja: "ダイアログボックスを閉じて（設定は適用せずに）、Illustrator の［線］パネルを開きます。", en: "Closes the dialog without applying and opens Illustrator's Stroke panel." },
             preset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
             presetSave: { ja: "今の設定に名前を付けて保存します。", en: "Saves the current settings under a name." },
             presetDelete: { ja: "選んでいるプリセットを削除します。", en: "Deletes the selected preset." },
@@ -1528,10 +1541,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             adjustDashEnds: {
                 ja: "オープンパスで、両端が線分で終わるように配分します（クローズパスでは使いません）。",
                 en: "On an open path, distributes the dashes so both ends finish with a dash (unused for closed paths)."
-            },
-            preview: {
-                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
-                en: "Shows the result on the canvas. Cancel restores the original state."
             },
             stepUp: {
                 ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -2130,28 +2139,89 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 選択肢 / Options
     // =========================================
 
+    /* アイコンの図形。size の枠の中に、長方形 rects [左, 上, 右, 下]、矢じり heads [付け根x, 先端x, 中心y, 半分の高さ]、
+       折れ線 lines [[x, y], [x, y], …, 線幅]（省略可）で描く。縦横は同じ倍率で縮め、描く範囲の中央に置く
+       Icon shapes: in a frame of the given size, rectangles [left, top, right, bottom], heads [base x, tip x, center y, half height]
+       and optional polylines [[x, y], [x, y], ..., width]. Scaled uniformly and centered in the drawing area */
+    var OPTION_ICON_SHAPES = {
+        /* 両端を調整 / Adjust ends */
+        keepLength: {
+            size: [563, 450],
+            rects: [
+                [110, 53, 281, 110],                          /* 上の線分 / top dash */
+                [395, 53, 509, 110], [452, 110, 509, 282],    /* 右上の L / top-right L */
+                [53, 224, 110, 338], [53, 338, 167, 395],     /* 左下の L / bottom-left L */
+                [281, 338, 452, 395]                          /* 下の線分 / bottom dash */
+            ],
+            heads: []
+        },
+        adjustEnds: {
+            size: [563, 450],
+            rects: [
+                [53, 53, 225, 110], [53, 110, 111, 167],      /* 左上 / top-left */
+                [338, 53, 510, 110], [452, 110, 510, 167],    /* 右上 / top-right */
+                [53, 281, 111, 338], [53, 338, 225, 395],     /* 左下 / bottom-left */
+                [452, 281, 510, 338], [338, 338, 510, 395]    /* 右下 / bottom-right */
+            ],
+            heads: []
+        },
+        /* 先端位置：上がパスの終点（T字）、下が矢印 / Tip alignment: the path end (T) above, the arrow below */
+        beyondEnd: {
+            size: [573, 420],
+            rects: [
+                [140, 99, 293, 124], [293, 72, 320, 151],     /* パスと終点 / path and its end */
+                [155, 235, 335, 294]                          /* 矢印の軸（矢じりに食い込ませる）/ arrow shaft, overlapping the head */
+            ],
+            /* 細い長方形で描く矢じりは先端が細って短く見えるので、元の絵より少し右へ / sliced heads look short, so nudged right */
+            heads: [[308, 451, 264, 77]]                      /* 終点から先へ出る矢じり / head beyond the end */
+        },
+        atEnd: {
+            size: [573, 420],
+            rects: [
+                [172, 99, 440, 124], [440, 72, 467, 151],     /* パスと終点 / path and its end */
+                [187, 235, 365, 294]                          /* 矢印の軸（矢じりに食い込ませる）/ arrow shaft, overlapping the head */
+            ],
+            heads: [[339, 482, 264, 77]]                      /* 先端が終点にそろう矢じり / head ending at the end */
+        }
+    };
+
+    /* よく使う矢印のアイコン（矢印の番号ごと。0 は［なし］で矢じりの無い線）。FAVORITE_ARROWS の番号にはすべて用意する
+       Favorite arrowhead icons by number (0 is [None], a plain line). Every FAVORITE_ARROWS number needs one */
+    var ARROW_ICON_SHAPES = {
+        0: {
+            size: [883, 383],
+            rects: [[70, 179, 812, 205]],                     /* 矢じりの無い線 / plain line */
+            heads: []
+        },
+        8: {
+            size: [883, 383],
+            rects: [[150, 154, 812, 230]],                    /* 軸（矢じりに食い込ませて継ぎ目を出さない）/ shaft, overlapping the head so no seam shows */
+            heads: [[186, 70, 192, 116]]                      /* 塗りの矢じり / filled head */
+        },
+        11: {
+            size: [883, 383],
+            rects: [[100, 180, 812, 206]],                    /* 軸 / shaft */
+            heads: [],
+            /* 線の矢じり。折れ線1本で描いて先端を尖らせる / open head, one polyline so the tip comes to a point */
+            lines: [[[191, 94], [73, 193], [191, 292], 24]]
+        },
+        27: {
+            size: [883, 383],
+            rects: [[96, 178, 812, 204], [70, 109, 96, 274]], /* 軸と縦棒 / shaft and bar */
+            heads: []
+        }
+    };
+
+    /* 両端を調整（オフ／オン）。アイコンで選ぶ / Adjust ends (off / on), picked with icons */
+    var ADJUST_DASH_OPTIONS = [
+        { key: "keepLength", label: "radio.keepDashLength" },
+        { key: "adjustEnds", label: "radio.adjustDashEnds", tooltip: "tooltip.adjustDashEnds" }
+    ];
+
     /* 先端位置・線端・角の形状の選択肢。value はアクションの enumerated 値
        線端・角の形状は表示名がそのまま説明になるので、helpTip にも actionName を使う
        Tip alignment, cap and join options; value is the action's enumerated value.
        The cap and join display names explain themselves, so they double as helpTips */
-    /* 先端位置アイコンの図形。563×450 の枠の中の長方形 [左, 上, 右, 下] で描く
-       Tip alignment icon shapes: rectangles [left, top, right, bottom] in a 563 x 450 frame */
-    var OPTION_ICON_DESIGN_SIZE = [563, 450];
-    var OPTION_ICON_SHAPES = {
-        atEnd: [
-            [110, 53, 281, 110],                          /* 上の線分 / top dash */
-            [395, 53, 509, 110], [452, 110, 509, 282],    /* 右上の L / top-right L */
-            [53, 224, 110, 338], [53, 338, 167, 395],     /* 左下の L / bottom-left L */
-            [281, 338, 452, 395]                          /* 下の線分 / bottom dash */
-        ],
-        beyondEnd: [
-            [53, 53, 225, 110], [53, 110, 111, 167],      /* 左上 / top-left */
-            [338, 53, 510, 110], [452, 110, 510, 167],    /* 右上 / top-right */
-            [53, 281, 111, 338], [53, 338, 225, 395],     /* 左下 / bottom-left */
-            [452, 281, 510, 338], [338, 338, 510, 395]    /* 右下 / bottom-right */
-        ]
-    };
-
     var TIP_ALIGN_OPTIONS = [
         { key: "atEnd",     label: "radio.tipAtEnd",     actionName: "actionName.tipAtEnd",     value: 0 },
         { key: "beyondEnd", label: "radio.tipBeyondEnd", actionName: "actionName.tipBeyondEnd", value: 1 }
@@ -2322,6 +2392,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var dotCount = (!isClosed && adjustEnds) ? Math.max(2, segments) : segments;
             var solvedGapPt = calcGapPtFromDashPt(dotCount, 0, pathLen, isClosed, adjustEnds);
             if (solvedGapPt == null || solvedGapPt <= 0) return null;
+            /* 両端を調整では最後の点がちょうど終点に来る。長さ0の点は終点をわずかでも越えると描かれないので、
+               間隔を 0.001pt 単位で切り捨てて終点の手前に収める
+               With adjusted ends the last dot lands exactly on the end; a zero-length dot past the end by any
+               rounding error is not drawn, so truncate the gap to 0.001 pt to keep it inside */
+            if (!isClosed && adjustEnds) solvedGapPt = Math.floor(solvedGapPt * DOT_GAP_PRECISION) / DOT_GAP_PRECISION;
             return [0, solvedGapPt];
         }
 
@@ -2489,7 +2564,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var subPanelGroup = parent.add("group");
         subPanelGroup.orientation = "column";
         subPanelGroup.alignChildren = ["fill", "top"];
-        subPanelGroup.alignment = "fill";
+        subPanelGroup.alignment = ["fill", "top"];
         subPanelGroup.margins = [0, SUB_PANEL_TOP_MARGIN, 0, 0];
         var subPanel = subPanelGroup.add("panel", undefined, getLabel(titleKey));
         setupPanel(subPanel, 6);
@@ -2510,22 +2585,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rowLabel.preferredSize.width = labelWidth;
         rowLabel.justify = "right";
         return labeledRow;
-    }
-
-    /**
-     * 幅いっぱいに広げないチェックボックスを追加する
-     * @param {Panel|Group} parent - 追加先
-     * @param {string} labelKey - 表示名の LABELS パス
-     * @param {string} tooltipKey - helpTip の LABELS パス
-     * @param {boolean} isChecked - 初期状態
-     * @returns {Checkbox} 追加したチェックボックス
-     */
-    function addOptionCheckbox(parent, labelKey, tooltipKey, isChecked) {
-        var optionCheckbox = parent.add("checkbox", undefined, getLabel(labelKey));
-        optionCheckbox.helpTip = getLabel(tooltipKey);
-        optionCheckbox.value = isChecked;
-        optionCheckbox.alignment = "left";
-        return optionCheckbox;
     }
 
     /**
@@ -2567,22 +2626,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ラジオボタンの代わりに、onDraw で描いたアイコンを横に並べる。
      * 各アイコンはラジオボタンと同じく value / optionDefinition / onClick を持つ（getCheckedOption・checkOptionByKey でそのまま扱える）
      * @param {Panel|Group} parent - 追加先
-     * @param {Object[]} optionDefinitions - 選択肢（key / label。図形は OPTION_ICON_SHAPES[key]）
+     * @param {Object[]} optionDefinitions - 選択肢（key / label / tooltip（省略可）。図形は OPTION_ICON_SHAPES[key]）
      * @param {string} selectedKey - 初期選択の key
+     * @param {number[]} iconSize - アイコン1つの [幅, 高さ]
+     * @param {number} [contentInset] - 枠と図形の間（px、省略時は 0）
      * @returns {Group[]} 追加したアイコン
      */
-    function addOptionIcons(parent, optionDefinitions, selectedKey) {
+    function addOptionIcons(parent, optionDefinitions, selectedKey, iconSize, contentInset) {
         /* 隙間0で突き合わせ、2つ目以降は左の枠を描かずに1本の境界線を共有する
            Butted together; later icons skip their left edge so neighbors share one border */
         var iconRow = parent.add("group");
         setupRow(iconRow, "left", 0);
         var optionIcons = [];
         for (var i = 0; i < optionDefinitions.length; i++) {
-            optionIcons.push(addOptionIcon(iconRow, optionDefinitions[i], optionIcons));
+            optionIcons.push(addOptionIcon(iconRow, optionDefinitions[i], optionIcons, iconSize));
             optionIcons[i].value = (optionDefinitions[i].key === selectedKey);
             optionIcons[i].hasLeftEdge = (i === 0);
+            optionIcons[i].contentInset = contentInset || 0;
         }
         return optionIcons;
+    }
+
+    /**
+     * アイコンの組の有効／無効を切り替えて描き直す（自作描画は自動でディムにならない）
+     * @param {Group[]} optionIcons - addOptionIcons() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setOptionIconsEnabled(optionIcons, isEnabled) {
+        for (var i = 0; i < optionIcons.length; i++) {
+            optionIcons[i].enabled = isEnabled;
+            redrawStepperGroup(optionIcons[i]);
+        }
     }
 
     /**
@@ -2590,14 +2665,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Group} iconRow - 追加先の行
      * @param {Object} optionDefinition - 選択肢
      * @param {Group[]} optionIcons - 同じ組のアイコン（排他にする）
+     * @param {number[]} iconSize - [幅, 高さ]
      * @returns {Group} アイコン
      */
-    function addOptionIcon(iconRow, optionDefinition, optionIcons) {
+    function addOptionIcon(iconRow, optionDefinition, optionIcons, iconSize) {
         var optionIcon = iconRow.add("group");
-        optionIcon.preferredSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
-        optionIcon.minimumSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
-        optionIcon.maximumSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
-        optionIcon.helpTip = getLabel(optionDefinition.label);
+        optionIcon.preferredSize = iconSize;
+        optionIcon.minimumSize = iconSize;
+        optionIcon.maximumSize = iconSize;
+        optionIcon.iconSize = iconSize;
+        optionIcon.helpTip = getLabel(optionDefinition.label) + (optionDefinition.tooltip ? "\n" + getLabel(optionDefinition.tooltip) : "");
         optionIcon.optionDefinition = optionDefinition;
         optionIcon.isOptionIcon = true;
         optionIcon.value = false;
@@ -2622,14 +2699,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var iconGraphics = optionIcon.graphics;
         var isDark = isDarkUI();
         var isDimmed = !isStepperEnabledInTree(optionIcon);
-        var inkLevel = isDark ? 0.75 : 0.3; /* 図形と枠は真っ黒・真っ白より少し抑える / keep the ink slightly softer than pure black or white */
+        var inkLevel = isDark ? 0.65 : 0.45; /* 図形と枠は真っ黒・真っ白より抑える / keep the ink softer than pure black or white */
         var groundLevel = optionIcon.value ? (isDark ? 0.45 : 0.7) : (isDark ? 0.2 : 1);
         var inkColor = [inkLevel, inkLevel, inkLevel, isDimmed ? 0.4 : 1];
         var groundColor = [groundLevel, groundLevel, groundLevel, isDimmed ? 0.4 : 1];
-        var iconWidth = OPTION_ICON_WIDTH;
-        var iconHeight = OPTION_ICON_HEIGHT;
-        var scaleX = iconWidth / OPTION_ICON_DESIGN_SIZE[0];
-        var scaleY = iconHeight / OPTION_ICON_DESIGN_SIZE[1];
+        var iconWidth = optionIcon.iconSize[0];
+        var iconHeight = optionIcon.iconSize[1];
 
         /* 地と枠。左隣と接するアイコンは左の枠を描かない（隣の右の枠と共有）
            Ground and frame; an icon next to another skips its left edge (shared with the neighbor's right edge) */
@@ -2649,17 +2724,133 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         iconGraphics.lineTo(optionIcon.hasLeftEdge ? 0.5 : groundLeft, iconHeight - 0.5);
         iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, inkColor, 1));
 
-        /* 線分と角の図形 / dashes and corners */
-        var iconShapes = OPTION_ICON_SHAPES[optionIcon.optionDefinition.key] || [];
+        /* 図形。枠の内側に contentInset の余白を取って縮める / shapes, shrunk inside the inset */
+        var iconShape = optionIcon.iconShape || OPTION_ICON_SHAPES[optionIcon.optionDefinition.key];
+        if (!iconShape) return;
+        /* 両端に付けるときは左右反転した図形を重ねる（よく使う矢印のアイコン）/ overlay a mirrored copy for both ends */
+        if (optionIcon.showBothEnds) iconShape = buildBothEndsShape(iconShape);
+        var inset = optionIcon.contentInset || 0;
+        drawIconShapes(iconGraphics, iconShape, [inset, inset, iconWidth - inset * 2, iconHeight - inset * 2], inkColor, optionIcon.shapeScale);
+    }
+
+    /**
+     * 図形に、左右反転した図形を足す（片側の矢印を両端の矢印にする）
+     * @param {Object} iconShape - { size, rects, heads, lines（省略可） }
+     * @returns {Object} 両端の図形
+     */
+    function buildBothEndsShape(iconShape) {
+        var shapeWidth = iconShape.size[0];
+        var bothEndsShape = { size: iconShape.size, rects: [], heads: [], lines: [] };
+        var i, j;
+        for (i = 0; i < iconShape.rects.length; i++) {
+            var shapeRect = iconShape.rects[i];
+            bothEndsShape.rects.push(shapeRect, [shapeWidth - shapeRect[2], shapeRect[1], shapeWidth - shapeRect[0], shapeRect[3]]);
+        }
+        for (i = 0; i < iconShape.heads.length; i++) {
+            var headShape = iconShape.heads[i];
+            bothEndsShape.heads.push(headShape, [shapeWidth - headShape[0], shapeWidth - headShape[1], headShape[2], headShape[3]]);
+        }
+        var shapeLines = iconShape.lines || [];
+        for (i = 0; i < shapeLines.length; i++) {
+            var shapeLine = shapeLines[i];
+            var mirroredLine = [];
+            for (j = 0; j < shapeLine.length - 1; j++) mirroredLine.push([shapeWidth - shapeLine[j][0], shapeLine[j][1]]);
+            mirroredLine.push(shapeLine[shapeLine.length - 1]);
+            bothEndsShape.lines.push(shapeLine, mirroredLine);
+        }
+        return bothEndsShape;
+    }
+
+    /**
+     * アイコンの図形（長方形・矢じり・線）を、指定の範囲に合わせて拡大縮小して描く
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {Object} iconShape - { size, rects, heads, lines（省略可） }
+     * @param {number[]} drawArea - 描く範囲 [左, 上, 幅, 高さ]
+     * @param {number[]} inkColor - [r, g, b, a]
+     * @param {number} [fixedScale] - 絵の倍率を固定するとき（省略時は範囲に収まる倍率）
+     * @returns {void}
+     */
+    function drawIconShapes(iconGraphics, iconShape, drawArea, inkColor, fixedScale) {
+        /* 縦横比を保って縮め、中央に置く（縦横別の倍率だと矢じりの角度が変わる）
+           Uniform scale, centered; separate x / y scales would change the head angles */
+        var iconScale = fixedScale || Math.min(drawArea[2] / iconShape.size[0], drawArea[3] / iconShape.size[1]);
+        var scaleX = iconScale;
+        var scaleY = iconScale;
+        var originX = drawArea[0] + (drawArea[2] - iconShape.size[0] * iconScale) / 2;
+        var originY = drawArea[1] + (drawArea[3] - iconShape.size[1] * iconScale) / 2;
         iconGraphics.newPath();
-        for (var i = 0; i < iconShapes.length; i++) {
-            var shapeLeft = Math.round(iconShapes[i][0] * scaleX);
-            var shapeTop = Math.round(iconShapes[i][1] * scaleY);
-            var shapeRight = Math.round(iconShapes[i][2] * scaleX);
-            var shapeBottom = Math.round(iconShapes[i][3] * scaleY);
-            iconGraphics.rectPath(shapeLeft, shapeTop, shapeRight - shapeLeft, shapeBottom - shapeTop);
+        for (var i = 0; i < iconShape.rects.length; i++) {
+            var shapeRect = iconShape.rects[i];
+            var shapeLeft = Math.round(originX + shapeRect[0] * scaleX);
+            var shapeTop = Math.round(originY + shapeRect[1] * scaleY);
+            var shapeRight = Math.round(originX + shapeRect[2] * scaleX);
+            var shapeBottom = Math.round(originY + shapeRect[3] * scaleY);
+            iconGraphics.rectPath(shapeLeft, shapeTop, Math.max(1, shapeRight - shapeLeft), Math.max(1, shapeBottom - shapeTop));
+        }
+        for (var j = 0; j < iconShape.heads.length; j++) {
+            var headShape = iconShape.heads[j];
+            addArrowHeadPath(iconGraphics, originX + headShape[0] * scaleX, originX + headShape[1] * scaleX, originY + headShape[2] * scaleY, headShape[3] * scaleY);
         }
         iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, inkColor));
+
+        var shapeLines = iconShape.lines || [];
+        for (var k = 0; k < shapeLines.length; k++) {
+            var shapeLine = shapeLines[k];
+            var lineWidth = shapeLine[shapeLine.length - 1];
+            /* 折れ線は1本ずつ newPath から描く（続けると前の線に積み重なる）/ one path per polyline */
+            iconGraphics.newPath();
+            for (var m = 0; m < shapeLine.length - 1; m++) {
+                var pointX = originX + shapeLine[m][0] * scaleX;
+                var pointY = originY + shapeLine[m][1] * scaleY;
+                if (m === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, inkColor, Math.max(1, lineWidth * iconScale)));
+        }
+    }
+
+    /**
+     * よく使う矢印のアイコンを1つ追加する（ラジオボタンの代わり。選択中は灰色の地）。
+     * ラジオボタンと同じく value / onClick を持ち、矢印名は .arrowName に持つ。
+     * value を変えたあとの描き直しは redrawFavoriteArrowIcons() で行う
+     * @param {Group} parent - 追加先
+     * @param {Object} favoriteArrow - FAVORITE_ARROWS の要素
+     * @param {string} arrowName - 矢印名
+     * @returns {Group} アイコン
+     */
+    function addFavoriteArrowIcon(parent, favoriteArrow, arrowName) {
+        var arrowIcon = parent.add("group");
+        arrowIcon.preferredSize = ARROW_ICON_SIZE;
+        arrowIcon.minimumSize = ARROW_ICON_SIZE;
+        arrowIcon.maximumSize = ARROW_ICON_SIZE;
+        arrowIcon.helpTip = arrowName + "\n" + getLabel("tooltip.favoriteArrow");
+        arrowIcon.arrowName = arrowName;
+        arrowIcon.value = false;
+        /* drawOptionIcon() で描くための値 / values drawOptionIcon() reads */
+        arrowIcon.iconSize = ARROW_ICON_SIZE;
+        arrowIcon.iconShape = ARROW_ICON_SHAPES[favoriteArrow.number];
+        arrowIcon.contentInset = ARROW_ICON_INSET;
+        arrowIcon.shapeScale = ARROW_ICON_SCALE;
+        arrowIcon.hasLeftEdge = true;
+        arrowIcon.onDraw = function () { drawOptionIcon(arrowIcon); };
+        arrowIcon.addEventListener("mousedown", function () {
+            if (typeof arrowIcon.onClick === "function") arrowIcon.onClick();
+        });
+        return arrowIcon;
+    }
+
+    /**
+     * よく使う矢印のアイコンを描き直す（value を変えても自動では描き直されない）。
+     * ［終点も同じ］がオンなら両端に矢印のある絵にする
+     * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
+     * @returns {void}
+     */
+    function redrawFavoriteArrowIcons(arrowheadControls) {
+        var showBothEnds = arrowheadControls.sameEndToggle.value;
+        for (var i = 0; i < arrowheadControls.favoriteArrowRadios.length; i++) {
+            arrowheadControls.favoriteArrowRadios[i].showBothEnds = showBothEnds;
+            redrawStepperGroup(arrowheadControls.favoriteArrowRadios[i]);
+        }
     }
 
     /**
@@ -2781,17 +2972,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowChoiceGroup = arrowheadPanel.add("group");
         arrowChoiceGroup.orientation = "column";
         arrowChoiceGroup.alignChildren = ["fill", "top"];
-        arrowChoiceGroup.alignment = "fill";
+        arrowChoiceGroup.alignment = ["fill", "top"]; /* 縦は伸ばさない（伸びると下に空きができる）/ do not stretch vertically */
         arrowChoiceGroup.spacing = 0;
         var favoriteArrowGroup = arrowChoiceGroup.add("group");
         favoriteArrowGroup.orientation = "column";
         favoriteArrowGroup.alignChildren = ["fill", "top"];
         favoriteArrowGroup.spacing = 6;
+        favoriteArrowGroup.margins = [0, 0, 0, ARROW_ICONS_BOTTOM_MARGIN]; /* 最後の矢印とその他の行の間 / between the last icon and the Others row */
 
+        /* よく使う矢印はアイコンで選ぶ（ラジオボタンと同じ value を持つ。排他は onClick で切り替える）
+           Favorites are picked with icons that carry a radio-like value; onClick keeps them exclusive */
         var favoriteArrowNames = buildFavoriteArrowNames();
         var favoriteArrowRadios = [];
         for (var i = 0; i < favoriteArrowNames.length; i++) {
-            favoriteArrowRadios.push(addOptionRadio(favoriteArrowGroup, favoriteArrowNames[i], getLabel("tooltip.favoriteArrow")));
+            favoriteArrowRadios.push(addFavoriteArrowIcon(favoriteArrowGroup, FAVORITE_ARROWS[i], favoriteArrowNames[i]));
         }
         var defaultFavoriteIndex = getDefaultFavoriteIndex();
         favoriteArrowRadios[defaultFavoriteIndex].value = true;
@@ -2811,26 +3005,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowScaleGroup = arrowheadPanel.add("group");
         arrowScaleGroup.orientation = "column";
         arrowScaleGroup.alignChildren = ["fill", "top"];
-        arrowScaleGroup.alignment = "fill";
+        arrowScaleGroup.alignment = ["fill", "top"]; /* 縦に伸びるとオプションの上に空きができる / stretching would leave a gap above the options */
         var arrowScaleInput = addNumberField(arrowScaleGroup, {
             labelKey: "fieldLabel.arrowScale", labelWidth: ARROW_LABEL_WIDTH, text: String(FAVORITE_ARROWS[defaultFavoriteIndex].scale),
-            min: 1, unitKey: "unit.percent", tooltipKey: "tooltip.arrowScale"
+            min: 1, unitKey: "unit.percent", unitInField: true, tooltipKey: "tooltip.arrowScale"
         });
 
         /* オプション：終点も同じ・入れ替え・先端位置のアイコンを1行に並べる
            Options: Same at end, Swap and the tip alignment icons in one row */
         var arrowOptionsRow = arrowheadPanel.add("group");
-        setupRow(arrowOptionsRow, "left", ROW_SPACING);
+        /* 縦は上寄せ。中央だとパネルが破線パネルの高さまで伸びたとき、余りの真ん中に置かれて上に空きができる
+           Top-aligned; centered, it would sit in the middle of the extra height when the panel stretches */
+        setupRow(arrowOptionsRow, ["left", "top"], ROW_SPACING);
+        arrowOptionsRow.margins = [0, ARROW_OPTIONS_TOP_MARGIN, 0, 0]; /* 倍率との間 / space below the scale */
 
         return {
             favoriteArrowRadios: favoriteArrowRadios,
             otherArrowRadio: otherArrowRadio,
             otherArrowList: otherArrowList,
             arrowScaleInput: arrowScaleInput,
-            sameEndToggle: addToggleRow(arrowOptionsRow, addLinkToggle, null, "tooltip.sameEnd"),
+            sameEndToggle: addToggleRow(arrowOptionsRow, addLinkToggle, null, "tooltip.sameEnd", LINK_CHAIN_RATIO),
             swapEndsToggle: addToggleRow(arrowOptionsRow, addSwapToggle, null, "tooltip.swapEnds"),
-            tipAlignRadios: addOptionIcons(arrowOptionsRow, TIP_ALIGN_OPTIONS,
-                FAVORITE_ARROWS[defaultFavoriteIndex].tipAlign || TIP_ALIGN_OPTIONS[0].key)
+            /* Illustrator の線パネルと同じく「終点から」「終点に」の順 / same order as Illustrator's Stroke panel */
+            tipAlignRadios: addOptionIcons(arrowOptionsRow, [TIP_ALIGN_OPTIONS[1], TIP_ALIGN_OPTIONS[0]],
+                FAVORITE_ARROWS[defaultFavoriteIndex].tipAlign || TIP_ALIGN_OPTIONS[0].key, TIP_ICON_SIZE)
         };
     }
 
@@ -2841,14 +3039,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Function} addToggle - アイコンを作る関数（addLinkToggle / addSwapToggle）
      * @param {string|null} labelKey - 項目名の LABELS パス。null なら項目名を付けない（アイコンだけ）
      * @param {string} tooltipKey - helpTip の LABELS パス
+     * @param {number} [drawRatio] - 絵の大きさの比率（addLinkToggle の鎖の比率。省略時は 1）
      * @returns {Group} アイコン（.value でオンかを読む。項目名は .rowLabel、無ければ null）
      */
-    function addToggleRow(parent, addToggle, labelKey, tooltipKey) {
+    function addToggleRow(parent, addToggle, labelKey, tooltipKey, drawRatio) {
         var toggleRow = parent.add("group");
         setupRow(toggleRow, "left", 4);
         var iconToggle = addToggle(toggleRow, false, function () {
             if (typeof iconToggle.onClick === "function") iconToggle.onClick();
-        });
+        }, OPTION_TOGGLE_SIZE, drawRatio);
         iconToggle.helpTip = getLabel(tooltipKey);
         iconToggle.rowLabel = null;
         if (!labelKey) return iconToggle;
@@ -2880,19 +3079,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Group} parent - 追加先
      * @param {boolean} initialValue - 初期値
      * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @param {number[]} [iconSize] - [幅, 高さ]（省略時は LINK_ICON_SIZE）
      * @returns {Group} アイコン（.value でオンかを読む）
      */
-    function addSwapToggle(parent, initialValue, onToggle) {
+    function addSwapToggle(parent, initialValue, onToggle, iconSize) {
+        var toggleSize = iconSize || LINK_ICON_SIZE;
         var swapToggle = parent.add("group");
-        swapToggle.preferredSize = LINK_ICON_SIZE;
-        swapToggle.minimumSize = LINK_ICON_SIZE;
-        swapToggle.maximumSize = LINK_ICON_SIZE;
+        swapToggle.preferredSize = toggleSize;
+        swapToggle.minimumSize = toggleSize;
+        swapToggle.maximumSize = toggleSize;
         swapToggle.value = initialValue;
 
         swapToggle.onDraw = function () {
             var iconGraphics = swapToggle.graphics;
-            var iconWidth = LINK_ICON_SIZE[0];
-            var iconHeight = LINK_ICON_SIZE[1];
+            var iconWidth = toggleSize[0];
+            var iconHeight = toggleSize[1];
             var isDimmed = !isLinkToggleEnabledInTree(swapToggle);
             if (swapToggle.value && !isDimmed) {
                 iconGraphics.newPath();
@@ -2902,7 +3103,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
                 iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
             }
-            drawSwapIcon(iconGraphics, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+            drawSwapIcon(iconGraphics, iconWidth, iconHeight, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
         };
 
         swapToggle.addEventListener("mousedown", function () {
@@ -2915,18 +3116,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * ⇄ を描く（22px 角の中に、右向きの矢印を上、左向きの矢印を下）。
+     * ⇄ を描く（22px 基準の絵を大きさに合わせて拡大し、中央に置く。右向きの矢印を上、左向きの矢印を下）。
      * ScriptUI は多角形を塗れないため、矢じりは細い長方形を並べて三角形に近づける
      * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - アイコンの幅
+     * @param {number} iconHeight - アイコンの高さ
      * @param {number[]} iconColor - [r, g, b, a]
      * @returns {void}
      */
-    function drawSwapIcon(iconGraphics, iconColor) {
+    function drawSwapIcon(iconGraphics, iconWidth, iconHeight, iconColor) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        /** 22px 基準の x を描画先へ / map a 22 px based x */
+        function mapX(x) { return offsetX + x * iconScale; }
+        /** 22px 基準の y を描画先へ / map a 22 px based y */
+        function mapY(y) { return offsetY + y * iconScale; }
         iconGraphics.newPath();
-        iconGraphics.rectPath(5.5, 7.2, 6, 2);   /* 上の矢印の軸 / upper shaft */
-        addArrowHeadPath(iconGraphics, 11.5, 17, 8.2, 2.8);
-        iconGraphics.rectPath(9.3, 13, 6, 2);    /* 下の矢印の軸 / lower shaft */
-        addArrowHeadPath(iconGraphics, 9.3, 3.8, 14, 2.8);
+        iconGraphics.rectPath(mapX(5.5), mapY(7.2), 6 * iconScale, 2 * iconScale);   /* 上の矢印の軸 / upper shaft */
+        addArrowHeadPath(iconGraphics, mapX(11.5), mapX(17), mapY(8.2), 2.8 * iconScale);
+        iconGraphics.rectPath(mapX(9.3), mapY(13), 6 * iconScale, 2 * iconScale);    /* 下の矢印の軸 / lower shaft */
+        addArrowHeadPath(iconGraphics, mapX(9.3), mapX(3.8), mapY(14), 2.8 * iconScale);
         iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
     }
 
@@ -2959,9 +3169,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dashPanel = parent.add("panel", undefined, getLabel("panel.dash"));
         setupPanel(dashPanel, 6);
 
-        var noDashRadio = addOptionRadio(dashPanel, getLabel("radio.noDash"), getLabel("tooltip.noDash"));
-        var dashedRadio = addOptionRadio(dashPanel, getLabel("radio.dashed"), getLabel("tooltip.dashed"));
-        var dottedRadio = addOptionRadio(dashPanel, getLabel("radio.dotted"), getLabel("tooltip.dotted"));
+        /* なし・破線・ドット点線は横に並べる（同じ行のグループに入れるので排他になる）
+           None / Dashed / Dotted side by side; sharing one row keeps them exclusive */
+        var dashStyleRow = dashPanel.add("group");
+        setupRow(dashStyleRow, "left", ROW_SPACING);
+        var noDashRadio = addOptionRadio(dashStyleRow, getLabel("radio.noDash"), getLabel("tooltip.noDash"));
+        var dashedRadio = addOptionRadio(dashStyleRow, getLabel("radio.dashed"), getLabel("tooltip.dashed"));
+        var dottedRadio = addOptionRadio(dashStyleRow, getLabel("radio.dotted"), getLabel("tooltip.dotted"));
         noDashRadio.value = true;
 
         /* 破線の計算（DashGapCalculator から移植）/ Dash calculation (ported from DashGapCalculator) */
@@ -2996,7 +3210,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             calcMethodPanel: calcMethodPanel,
             gapToDashRadio: gapToDashRadio,
             dashToGapRadio: dashToGapRadio,
-            adjustDashEndsCheckbox: addOptionCheckbox(dashCalcPanel, "checkbox.adjustDashEnds", "tooltip.adjustDashEnds", true)
+            adjustDashEndsIcons: addOptionIcons(dashCalcPanel, ADJUST_DASH_OPTIONS, "adjustEnds", OPTION_ICON_SIZE, ADJUST_ICON_INSET)
         };
     }
 
@@ -3043,10 +3257,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dashControls = buildDashPanel(arrowDashColumns);
 
 
-        /* ボタン（左：プレビュー／中央：スペーサー／右：キャンセル・OK） */
-        /* Buttons (left: preview, center: spacer, right: cancel and OK) */
+        /* ボタン（左：「線」パネルを開く／右：キャンセル・OK）。プレビューは常にオン
+           Buttons (left: Open Stroke Panel, right: cancel and OK); the preview is always on */
         var buttonRow = addButtonRow(settingsDialog);
-        var previewCheckbox = addOptionCheckbox(buttonRow.leftGroup, "checkbox.preview", "tooltip.preview", false);
+        var openStrokePanelButton = buttonRow.leftGroup.add("button", undefined, getLabel("button.openStrokePanel"));
+        openStrokePanelButton.helpTip = getLabel("tooltip.openStrokePanel");
         buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -3055,9 +3270,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             settingsDialog: settingsDialog,
             preset: presetControls,
             stroke: strokeControls,
+            openStrokePanelButton: openStrokePanelButton,
             arrowhead: arrowheadControls,
             dash: dashControls,
-            previewCheckbox: previewCheckbox
         };
     }
 
@@ -3066,7 +3281,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 選択中の矢印名を返す（ラジオボタンとメニューの表示名がそのまま矢印名）
+     * 選択中の矢印名を返す（よく使う矢印はラジオボタンの .arrowName、その他はメニューの表示名）
      * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
      * @returns {string} 矢印名
      */
@@ -3074,9 +3289,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (arrowheadControls.otherArrowRadio.value) return arrowheadControls.otherArrowList.selection.text;
         var favoriteArrowRadios = arrowheadControls.favoriteArrowRadios;
         for (var i = 0; i < favoriteArrowRadios.length; i++) {
-            if (favoriteArrowRadios[i].value) return favoriteArrowRadios[i].text;
+            if (favoriteArrowRadios[i].value) return favoriteArrowRadios[i].arrowName;
         }
-        return favoriteArrowRadios[getDefaultFavoriteIndex()].text;
+        return favoriteArrowRadios[getDefaultFavoriteIndex()].arrowName;
     }
 
     /**
@@ -3092,7 +3307,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             segments: parseInt(dashControls.segmentsInput.text, 10),
             gapPt: parseFloat(dashControls.gapInput.text),
             dashPt: parseFloat(dashControls.dashLengthInput.text),
-            adjustEnds: dashControls.adjustDashEndsCheckbox.value
+            adjustEnds: (getCheckedOption(dashControls.adjustDashEndsIcons).key === "adjustEnds")
         };
     }
 
@@ -3170,6 +3385,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 矢印のオプション（終点も同じ・入れ替え・先端位置）の有効／無効をそろえる。
+     * 矢印が［なし］ならすべてディム、［終点も同じ］がオンなら入れ替えをディム
+     * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
+     * @returns {void}
+     */
+    function syncArrowOptionsEnabled(arrowheadControls) {
+        /* 矢印を選び直したあとに呼ばれるので、よく使う矢印のアイコンもここで描き直す / also repaint the favorite icons */
+        redrawFavoriteArrowIcons(arrowheadControls);
+        var hasArrow = (getSelectedArrowNumber(arrowheadControls) !== 0);
+        setLinkToggleEnabled(arrowheadControls.sameEndToggle, hasArrow);
+        setToggleRowEnabled(arrowheadControls.swapEndsToggle, hasArrow && !arrowheadControls.sameEndToggle.value);
+        setOptionIconsEnabled(arrowheadControls.tipAlignRadios, hasArrow);
+    }
+
+    /**
      * 破線の有無・種類・計算方法に合わせて有効／無効を切り替える。
      * 入力する側の欄だけ有効にし、ドット点線は分割数だけ。ドット点線の間は線端を丸型に固定するのでディム
      * @param {Object} dialogControls - buildSettingsDialog() の戻り値
@@ -3183,7 +3413,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialogControls.stroke.strokeCapRow.enabled = !isDotted;
         dashControls.dashCalcPanel.enabled = hasDash;
         dashControls.calcMethodPanel.enabled = isDashed;
-        dashControls.adjustDashEndsCheckbox.enabled = hasDash;
+        setOptionIconsEnabled(dashControls.adjustDashEndsIcons, hasDash);
         setSteppedFieldEnabled(dashControls.segmentsInput, hasDash);
         setSteppedFieldEnabled(dashControls.gapInput, isDashed && dashControls.gapToDashRadio.value);
         setSteppedFieldEnabled(dashControls.dashLengthInput, isDashed && dashControls.dashToGapRadio.value);
@@ -3293,7 +3523,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             segments: parseInt(dashControls.segmentsInput.text, 10),
             gap: parseFloat(dashControls.gapInput.text),
             dash: parseFloat(dashControls.dashLengthInput.text),
-            adjustDashEnds: dashControls.adjustDashEndsCheckbox.value
+            adjustDashEnds: (getCheckedOption(dashControls.adjustDashEndsIcons).key === "adjustEnds")
         };
     }
 
@@ -3317,7 +3547,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!isNaN(presetData.arrowScale)) setNumberFieldValue(arrowheadControls.arrowScaleInput, presetData.arrowScale);
         setLinkToggleValue(arrowheadControls.sameEndToggle, !!presetData.sameEnd);
         setLinkToggleValue(arrowheadControls.swapEndsToggle, !!presetData.swapEnds);
-        setToggleRowEnabled(arrowheadControls.swapEndsToggle, !arrowheadControls.sameEndToggle.value);
+        syncArrowOptionsEnabled(arrowheadControls);
         checkOptionByKey(arrowheadControls.tipAlignRadios, presetData.tipAlign);
 
         dashControls.noDashRadio.value = (presetData.dashStyle !== "dashed" && presetData.dashStyle !== "dotted");
@@ -3328,7 +3558,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!isNaN(presetData.segments)) setNumberFieldValue(dashControls.segmentsInput, presetData.segments);
         if (!isNaN(presetData.gap)) setNumberFieldValue(dashControls.gapInput, presetData.gap);
         if (!isNaN(presetData.dash)) setNumberFieldValue(dashControls.dashLengthInput, presetData.dash);
-        dashControls.adjustDashEndsCheckbox.value = !!presetData.adjustDashEnds;
+        checkOptionByKey(dashControls.adjustDashEndsIcons, presetData.adjustDashEnds ? "adjustEnds" : "keepLength");
     }
 
     /**
@@ -3442,7 +3672,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowheadControls = dialogControls.arrowhead;
         var dashControls = dialogControls.dash;
         var presetControls = dialogControls.preset;
-        var previewCheckbox = dialogControls.previewCheckbox;
         var isApplyingPreset = false; /* プリセットの書き込み中はプレビューを止める / suspend the preview while a preset is written */
         var i;
 
@@ -3450,10 +3679,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* Refresh the preview with the current values (plays the action for arrowheads) */
         function updatePreview() {
             if (isApplyingPreset) return;
-            if (!previewCheckbox.value) {
-                previewController.reset();
-                return;
-            }
             var strokeSettings = readDialogSettings(dialogControls);
             if (strokeSettings) previewController.previewSettings(strokeSettings);
         }
@@ -3461,7 +3686,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 入力中はアクションのプレビューを取り消す（確定時に貼り直す） */
         /* Drop the action preview while editing; it is reapplied on commit */
         function invalidatePreview() {
-            if (previewCheckbox.value) previewController.clearAction();
+            previewController.clearAction();
         }
 
         /* 破線の計算を更新してプレビューする / Recompute the dash fields and preview */
@@ -3470,11 +3695,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreview();
         }
 
-        /* 破線の種類を選んだら、その種類の初期値を入れる / Fill in the defaults for the chosen dash style */
+        /* 破線の種類を選んだら、その種類の初期値を入れる。破線・ドット点線では矢印を［なし］にする
+           Fill in the defaults for the chosen dash style; dashed and dotted lines drop the arrowheads */
         function changeDashStyle() {
+            if (!dashControls.noDashRadio.value) selectNoArrowhead();
             fillDashCalcDefaults(dialogControls, firstPathMetrics);
             syncDashEnabled(dialogControls);
             updateDashCalc();
+        }
+
+        /* 矢印を［なし］にする（プレビューは呼び出し側で更新する） / Set the arrowhead to [None]; the caller refreshes the preview */
+        function selectNoArrowhead() {
+            for (var j = 0; j < FAVORITE_ARROWS.length; j++) {
+                if (FAVORITE_ARROWS[j].number !== 0) continue;
+                selectArrowByNumber(arrowheadControls, 0);
+                setNumberFieldValue(arrowheadControls.arrowScaleInput, FAVORITE_ARROWS[j].scale);
+                syncArrowOptionsEnabled(arrowheadControls);
+                return;
+            }
         }
 
         /* 矢印のラジオを1つだけ選び、倍率と先端位置を入れる（先端位置は指定があるときだけ）
@@ -3485,12 +3723,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             arrowheadControls.otherArrowRadio.value = (arrowheadControls.otherArrowRadio === targetRadio);
             setNumberFieldValue(arrowheadControls.arrowScaleInput, arrowScale);
             if (tipAlignKey) checkOptionByKey(arrowheadControls.tipAlignRadios, tipAlignKey);
+            syncArrowOptionsEnabled(arrowheadControls);
             updatePreview();
         }
 
         /* 線 / Stroke：線幅は入力中も DOM で即時プレビュー、確定時にアクションで貼り直す */
         strokeControls.strokeWidthInput.onChanging = function () {
-            if (previewCheckbox.value) previewController.previewStrokeWidth(parseFloat(strokeControls.strokeWidthInput.text));
+            previewController.previewStrokeWidth(parseFloat(strokeControls.strokeWidthInput.text));
         };
         addCommitHandler(strokeControls.strokeWidthInput, updatePreview);
         var optionRadios = strokeControls.strokeCapRadios.concat(strokeControls.cornerJoinRadios, arrowheadControls.tipAlignRadios);
@@ -3510,7 +3749,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         addCommitHandler(arrowheadControls.arrowScaleInput, updatePreview);
         /* 終点も同じなら両端が同じになるので、入れ替えはディム / Same at both ends makes swapping pointless */
         arrowheadControls.sameEndToggle.onClick = function () {
-            setToggleRowEnabled(arrowheadControls.swapEndsToggle, !arrowheadControls.sameEndToggle.value);
+            syncArrowOptionsEnabled(arrowheadControls);
             updatePreview();
         };
         arrowheadControls.swapEndsToggle.onClick = updatePreview;
@@ -3521,15 +3760,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             syncDashEnabled(dialogControls);
             updateDashCalc();
         };
-        dashControls.adjustDashEndsCheckbox.onClick = updateDashCalc;
+        for (i = 0; i < dashControls.adjustDashEndsIcons.length; i++) dashControls.adjustDashEndsIcons[i].onClick = updateDashCalc;
         var dashInputs = [dashControls.segmentsInput, dashControls.gapInput, dashControls.dashLengthInput];
         for (i = 0; i < dashInputs.length; i++) {
             dashInputs[i].onChanging = invalidatePreview;
             addCommitHandler(dashInputs[i], updateDashCalc);
         }
         syncDashEnabled(dialogControls);
-
-        previewCheckbox.onClick = updatePreview;
+        syncArrowOptionsEnabled(arrowheadControls);
 
         /* プリセット / Presets：選んだら読み込む。ドロップダウンの作り直しでも onChange が来るので、書き込み中は読まない
            Picking one loads it; refilling the dropdown also fires onChange, so it is ignored while refilling */
@@ -3560,11 +3798,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
         refreshPresetDropdown(null);
 
+        /* プレビューは常にオン。開く前に今の設定で反映しておく / The preview is always on; show the current settings before opening */
+        updatePreview();
+
         prepareDialogWindow(dialogControls.settingsDialog, SCRIPT_NAME);
+        /* 「線」パネルを開くは、キャンセルと同じく閉じてから開く（モーダルの間はパネルを操作できない）
+           Open Stroke Panel closes like Cancel, then opens the panel (it cannot be used while the dialog is modal) */
+        var isStrokePanelRequested = false;
+        dialogControls.openStrokePanelButton.onClick = function () {
+            isStrokePanelRequested = true;
+            dialogControls.settingsDialog.close(2);
+        };
+
         var isAccepted = (dialogControls.settingsDialog.show() === 1);
 
         /* プレビューを必ず取り消してから本適用に進む / Always revert the preview before applying */
         previewController.reset();
+        if (isStrokePanelRequested) app.executeMenuCommand("Adobe Stroke Palette");
         if (!isAccepted) return null;
 
         var strokeSettings = readDialogSettings(dialogControls);
