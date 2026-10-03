@@ -32,10 +32,10 @@
 - [None] at the top removes the arrowheads from both ends
 - Pick a favorite arrowhead (Arrow 8, 11, 27) with a radio button. Arrow 11 is selected at start. The scale changes to suit it (100% for 11 and 27, 25% for 8). The tip alignment changes too (at end of path for 8 and 11, beyond end of path for 27)
 - Pick any other arrowhead from the pop-up menu (scale: 100%)
-- **Options**
-  - **Same at end**: puts the same arrowhead on the end. When off, the end has no arrowhead
-  - **Swap start and end**: puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
-  - Tip alignment (at end of path / beyond end of path)
+- Options (icons in one row; names are in the tooltips)
+  - **Same at end** (link icon): puts the same arrowhead on the end. When off, the end has no arrowhead
+  - **Swap start and end** (⇄ icon): puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
+  - Tip alignment (at end of path / beyond end of path), picked with icons
 
 #### Dashes
 
@@ -71,9 +71,10 @@
 - v1.0.2 (2026-10-04) The cap and corner now start at Butt and Miter. Arrow 27 joins the favorite arrowheads
 - v1.1.0 (2026-10-04) Added presets (save, load, delete). Added [None] at the top of the favorite arrowheads to remove arrowheads. Dashed and Dotted are now None / Dashed / Dotted radio buttons instead of checkboxes. Tip alignment moved into Options in the Arrowheads panel. Arrow 11 is now selected at start
 - v1.1.1 (2026-10-04) Same at end and Swap start and end moved into Options in the Arrowheads panel. Gap and Dash now show their unit (pt) inside the field. Arrow 1 moved from the favorites to the pop-up menu. Picking a favorite arrowhead also sets the tip alignment. Calculation and Adjust ends moved into the Dash Calculation panel
+- v1.1.2 (2026-10-04) Options are now a row of icons instead of a panel (link icon for Same at end, ⇄ for Swap start and end, two icons for tip alignment). Tightened the gap between the favorite arrowheads and the pop-up menu
 
 ### Script info
 
-- Version: v1.1.1
+- Version: v1.1.2
 - First release: 2026-10-03
 - Last updated: 2026-10-04

@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -184,8 +184,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ARROW_LABEL_WIDTH  = 40;             /* 矢印パネルの項目名の幅 / arrowhead panel label width */
     var DASH_LABEL_WIDTH   = 48;             /* 破線の計算の項目名の幅 / dash calculation label width */
     var FIELD_CHARACTERS   = 4;              /* 数値入力欄の文字数 / numeric field width */
+    var OPTION_ICON_WIDTH  = 32;             /* 先端位置アイコンの幅 / tip alignment icon width */
+    var OPTION_ICON_HEIGHT = 26;             /* 先端位置アイコンの高さ / tip alignment icon height */
     var UNIT_FIELD_CHARACTERS = 6;           /* 単位を欄の中に入れる数値欄の文字数 / width of a field holding its unit */
-    var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（オプション・破線の計算）の上の余白 / space above nested panels */
+    var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（破線の計算・計算方法）の上の余白 / space above nested panels */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_NAME_CHARS  = 20;             /* プリセット名の入力欄の文字数 / preset name field width */
 
@@ -343,6 +345,397 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // リンクアイコン（再利用パーツ） / Link toggle (reusable)
+
+    // -----------------------------------------
+    // リンクアイコンの寸法 / Link toggle metrics
+    // -----------------------------------------
+    var LINK_ICON_SIZE          = [22, 22]; /* アイコンの大きさ / icon size */
+    var LINK_ICON_STROKE        = 1.5;      /* 線幅 / stroke width */
+    var LINK_CUT_DIRECTION      = [1, 0];   /* 連動中の左辺の切れ目の向き（水平）/ direction of the left-leg cut when linked (horizontal) */
+    var LINK_HOOK_CUT_DIRECTION = [0, 1];   /* 連動中の巻き込みの切れ目の向き（垂直）/ direction of the hook cut when linked (vertical) */
+    var LINK_STRAND_COUNT       = 4;        /* 切れ目の向きをそろえるための細い線の本数 / strands used to shape the cuts */
+    var LINK_SLASH_CLEARANCE    = 2.2;      /* 連動OFFの斜線とフックの間（22px 基準）/ gap between the slash and the hooks when unlinked */
+
+    // -----------------------------------------
+    // リンクアイコンの配色 / Link toggle colors
+    // -----------------------------------------
+    var LINK_UI_DARK = isDarkUI();
+    /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
+       Translucent overlays that follow the dialog background; same values as the stepper buttons */
+    var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
+    var LINK_FRAME_COLOR    = LINK_UI_DARK ? [1, 1, 1, 0.07] : [0, 0, 0, 0.10]; /* 連動中の枠 / frame while linked */
+    var LINK_ICON_COLOR     = LINK_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* アイコンの線 / icon strokes */
+    var LINK_DIM_ICON_COLOR = LINK_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の線 / strokes when disabled */
+
+    // -----------------------------------------
+    // アイコンを作る・切り替える（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 連動の ON／OFF を切り替えるリンクアイコンを追加する（onDraw で自作描画）。
+     * クリックで切り替わる。連動中は押し込んだボタンのように地と枠を描く。
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 連動の初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @returns {Group} アイコン（.value で連動中かを読む）
+     */
+    function addLinkToggle(parent, initialValue, onToggle) {
+        var linkToggle = parent.add("group");
+        linkToggle.preferredSize = LINK_ICON_SIZE;
+        linkToggle.minimumSize = LINK_ICON_SIZE;
+        linkToggle.maximumSize = LINK_ICON_SIZE;
+        linkToggle.value = initialValue;
+
+        linkToggle.onDraw = function () {
+            var iconGraphics = linkToggle.graphics;
+            var iconWidth = LINK_ICON_SIZE[0];
+            var iconHeight = LINK_ICON_SIZE[1];
+            /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
+            var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
+            /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
+            if (linkToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+        };
+
+        linkToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(linkToggle)) return;
+            linkToggle.value = !linkToggle.value;
+            redrawLinkToggle(linkToggle);
+            if (onToggle) onToggle();
+        });
+        return linkToggle;
+    }
+
+    /**
+     * 連動の状態をコードから変えて描き直す（onToggle は呼ばない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isLinked - 連動にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleValue(linkToggle, isLinked) {
+        if (linkToggle.value === isLinked) return;
+        linkToggle.value = isLinked;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * アイコンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleEnabled(linkToggle, isEnabled) {
+        if (linkToggle.enabled === isEnabled) return;
+        linkToggle.enabled = isEnabled;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isLinkToggleEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} linkToggle - 描き直すアイコン
+     * @returns {void}
+     */
+    function redrawLinkToggle(linkToggle) {
+        linkToggle.hide();
+        linkToggle.show();
+    }
+
+    // -----------------------------------------
+    // アイコンの形 / Icon geometry
+    // -----------------------------------------
+    /**
+     * 連動アイコンを描く。Illustrator の［縦横比を固定］に合わせ、連動中は縦につながったチェーン、
+     * 連動していないときは上下に分かれたチェーンに斜線を重ねる。座標は 22px 四方を基準に拡大縮小する。
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - 描画範囲の幅
+     * @param {number} iconHeight - 描画範囲の高さ
+     * @param {boolean} isLinked - 連動中なら true
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
+        for (var i = 0; i < strokes.length; i++) {
+            var strokePoints = strokes[i].points;
+            /* newPath() を呼ばないとパスが前の描画に積み重なる / Without newPath() the paths accumulate */
+            iconGraphics.newPath();
+            for (var j = 0; j < strokePoints.length; j++) {
+                var pointX = offsetX + strokePoints[j][0] * iconScale;
+                var pointY = offsetY + strokePoints[j][1] * iconScale;
+                if (j === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, strokes[i].width * iconScale));
+        }
+    }
+
+    /**
+     * 連動中のチェーン（縦に組み合った2つの輪）の線を返す。
+     * 上の輪は左辺の途中から上端を回って右辺を下り、下端で内側へ巻き込む。下の輪はそれを180度回したもの。
+     * 切れ目の向きをそろえるため、輪を細い線の束にし、両端を延ばしてから直線で切る（左辺は水平、巻き込みは垂直）
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildLinkedChainStrokes() {
+        /* 左辺は上端の丸みだけ残して短く切り、下の輪の巻き込みとの間を空ける
+           Keep only a stub on the left so it stays clear of the lower ring's hook */
+        var upperRing = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360)
+            .concat([[14.5, 11.2]])
+            .concat(buildArcPoints(11, 11.2, 3.5, 2.3, 0, 115)));
+        var ringStart = upperRing[0];
+        var ringEnd = upperRing[upperRing.length - 1];
+        var extendedRing = extendPolylineEnds(upperRing, LINK_ICON_STROKE);
+        /* 延ばした先がどちら側かで、切り捨てる側を決める / The extended tips tell which side to cut away */
+        var startOutsideSign = sideOfLine(extendedRing[0], ringStart, LINK_CUT_DIRECTION);
+        var endOutsideSign = sideOfLine(extendedRing[extendedRing.length - 1], ringEnd, LINK_HOOK_CUT_DIRECTION);
+
+        var upperStrands = buildStrandStrokes(extendedRing, function (strandPoints) {
+            var trimmed = trimPolylineTail(strandPoints, ringEnd, LINK_HOOK_CUT_DIRECTION, endOutsideSign);
+            trimmed = trimPolylineTail(trimmed.reverse(), ringStart, LINK_CUT_DIRECTION, startOutsideSign).reverse();
+            return [trimmed];
+        });
+        var strokes = [];
+        for (var i = 0; i < upperStrands.length; i++) {
+            strokes.push(upperStrands[i]);
+            strokes.push({ points: rotatePointsHalfTurn(upperStrands[i].points), width: upperStrands[i].width });
+        }
+        return strokes;
+    }
+
+    /**
+     * 中心線を線幅の中で等分した細い線に分け、clipStrand で切った結果を線として返す。
+     * @param {Array<number[]>} centerline - 中心線の点列
+     * @param {Function} clipStrand - 細い線の点列を受け取り、残す点列の配列を返す関数
+     * @returns {Array<{points: Array<number[]>, width: number}>} 細い線ごとの点列と線幅
+     */
+    function buildStrandStrokes(centerline, clipStrand) {
+        var strandWidth = LINK_ICON_STROKE / LINK_STRAND_COUNT;
+        var strokes = [];
+        for (var k = 0; k < LINK_STRAND_COUNT; k++) {
+            /* 線幅の中を等分した位置に細い線を並べる / Lay the strands evenly across the stroke width */
+            var strandOffset = -LINK_ICON_STROKE / 2 + strandWidth * (k + 0.5);
+            var strandPieces = clipStrand(offsetPolyline(centerline, strandOffset));
+            for (var j = 0; j < strandPieces.length; j++) {
+                /* 隣の線と少し重ねて隙間を埋める / Overlap neighbours slightly so no seams show */
+                if (strandPieces[j].length > 1) strokes.push({ points: strandPieces[j], width: strandWidth * 1.4 });
+            }
+        }
+        return strokes;
+    }
+
+    /**
+     * 点列の両端を、端の向きのまま length だけ延ばす。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} length - 延ばす長さ
+     * @returns {Array<number[]>} 延ばした点列
+     */
+    function extendPolylineEnds(points, length) {
+        /* from から to の向きへ、to から length 先の点 / point length beyond to, heading from from to to */
+        function extendBeyond(from, to) {
+            var dx = to[0] - from[0];
+            var dy = to[1] - from[1];
+            var segmentLength = Math.sqrt(dx * dx + dy * dy) || 1;
+            return [to[0] + dx / segmentLength * length, to[1] + dy / segmentLength * length];
+        }
+        var lastIndex = points.length - 1;
+        return [extendBeyond(points[1], points[0])].concat(points, [extendBeyond(points[lastIndex - 1], points[lastIndex])]);
+    }
+
+    /**
+     * 点が直線のどちら側にあるかを符号で返す。
+     * @param {number[]} point - 点
+     * @param {number[]} linePoint - 直線上の1点
+     * @param {number[]} direction - 直線の向き
+     * @returns {number} 正・負で側を表す値
+     */
+    function sideOfLine(point, linePoint, direction) {
+        return direction[0] * (point[1] - linePoint[1]) - direction[1] * (point[0] - linePoint[0]);
+    }
+
+    /**
+     * 点列の終わり側で、直線より outsideSign の側にはみ出した部分を切り、直線との交点で止める。
+     * 輪の別の場所が同じ直線をまたいでも切らないよう、終わりから数点の範囲だけを見る。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} cutPoint - 切る直線上の1点
+     * @param {number[]} direction - 切る直線の向き
+     * @param {number} outsideSign - 切り捨てる側の符号
+     * @returns {Array<number[]>} 切った点列
+     */
+    function trimPolylineTail(points, cutPoint, direction, outsideSign) {
+        var lastIndex = points.length - 1;
+        var searchLimit = Math.max(0, lastIndex - 12);
+        var index = lastIndex;
+        while (index > searchLimit && sideOfLine(points[index], cutPoint, direction) * outsideSign > 0) index--;
+        if (index === lastIndex) return points.slice(0);
+        var inside = points[index];
+        var outside = points[index + 1];
+        var insideSide = sideOfLine(inside, cutPoint, direction);
+        var ratio = insideSide / (insideSide - sideOfLine(outside, cutPoint, direction));
+        return points.slice(0, index + 1).concat([[inside[0] + (outside[0] - inside[0]) * ratio, inside[1] + (outside[1] - inside[1]) * ratio]]);
+    }
+
+    /**
+     * 連動していないときのチェーン（上下に分かれた輪と斜線）の線を返す。
+     * フックは斜線の近くで切る。線の端は進む向きに直角にしか切れないため、フックを細い線の束にして
+     * 1本ずつ斜線と平行な境界で切り、切り口が斜線に沿って見えるようにする。
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildUnlinkedChainStrokes() {
+        var slashStart = [3.5, 3.5];
+        var slashEnd = [18.5, 18.5];
+        var upperHook = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360).concat([[14.5, 11.5]]));
+        var hooks = [upperHook, rotatePointsHalfTurn(upperHook)];
+
+        /* 斜線の近くの帯を切り取る / Cut away the band around the slash */
+        function clipAroundSlash(strandPoints) {
+            return clipOutsideBand(strandPoints, slashStart, slashEnd, LINK_SLASH_CLEARANCE);
+        }
+        var strokes = buildStrandStrokes(hooks[0], clipAroundSlash).concat(buildStrandStrokes(hooks[1], clipAroundSlash));
+        strokes.push({ points: [slashStart, slashEnd], width: LINK_ICON_STROKE });
+        return strokes;
+    }
+
+    /**
+     * 点の間隔が 0.5 以下になるよう、線分の間に点を足す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 細かくした点列
+     */
+    function densifyPoints(points) {
+        var densePoints = [points[0]];
+        for (var i = 1; i < points.length; i++) {
+            var from = points[i - 1];
+            var to = points[i];
+            var steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(to[0] - from[0], 2) + Math.pow(to[1] - from[1], 2)) / 0.5));
+            for (var j = 1; j <= steps; j++) {
+                densePoints.push([from[0] + (to[0] - from[0]) * j / steps, from[1] + (to[1] - from[1]) * j / steps]);
+            }
+        }
+        return densePoints;
+    }
+
+    /**
+     * 点列を、進む向きの左側へ offset だけずらした点列を返す（負の値なら右側）。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} offset - ずらす距離
+     * @returns {Array<number[]>} ずらした点列
+     */
+    function offsetPolyline(points, offset) {
+        var shifted = [];
+        for (var i = 0; i < points.length; i++) {
+            var before = points[Math.max(0, i - 1)];
+            var after = points[Math.min(points.length - 1, i + 1)];
+            var tangentX = after[0] - before[0];
+            var tangentY = after[1] - before[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            shifted.push([points[i][0] - tangentY / tangentLength * offset, points[i][1] + tangentX / tangentLength * offset]);
+        }
+        return shifted;
+    }
+
+    /**
+     * 直線（線分を延長したもの）から clearance 未満の帯に入る部分を切り取り、残りを点列に分けて返す。
+     * 帯の境界で線分を補間して切るので、切り口は直線と平行にそろう。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} lineStart - 直線上の1点
+     * @param {number[]} lineEnd - 直線上のもう1点
+     * @param {number} clearance - 空ける距離
+     * @returns {Array<Array<number[]>>} 帯の外側に残った点列（2点未満のものは除く）
+     */
+    function clipOutsideBand(points, lineStart, lineEnd, clearance) {
+        var directionX = lineEnd[0] - lineStart[0];
+        var directionY = lineEnd[1] - lineStart[1];
+        var directionLength = Math.sqrt(directionX * directionX + directionY * directionY);
+
+        /* 直線からの符号付き距離 / signed distance from the line */
+        function signedDistance(point) {
+            return (directionX * (point[1] - lineStart[1]) - directionY * (point[0] - lineStart[0])) / directionLength;
+        }
+        /* 2点の間で、距離が boundary になる点 / point between two points where the distance equals boundary */
+        function interpolateAt(from, to, fromDistance, toDistance, boundary) {
+            var ratio = (boundary - fromDistance) / (toDistance - fromDistance);
+            return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
+        }
+
+        var pieces = [];
+        var currentPiece = [];
+        for (var i = 0; i < points.length; i++) {
+            var distance = signedDistance(points[i]);
+            var isOutside = Math.abs(distance) >= clearance;
+            if (i > 0) {
+                var previousDistance = signedDistance(points[i - 1]);
+                var wasOutside = Math.abs(previousDistance) >= clearance;
+                if (wasOutside && !isOutside) {
+                    /* 帯に入る: 境界で止める / entering the band: stop at the boundary */
+                    currentPiece.push(interpolateAt(points[i - 1], points[i], previousDistance, distance, previousDistance > 0 ? clearance : -clearance));
+                    if (currentPiece.length > 1) pieces.push(currentPiece);
+                    currentPiece = [];
+                } else if (!wasOutside && isOutside) {
+                    /* 帯から出る: 境界から始める / leaving the band: start at the boundary */
+                    currentPiece = [interpolateAt(points[i - 1], points[i], previousDistance, distance, distance > 0 ? clearance : -clearance)];
+                }
+            }
+            if (isOutside) currentPiece.push(points[i]);
+        }
+        if (currentPiece.length > 1) pieces.push(currentPiece);
+        return pieces;
+    }
+
+    /**
+     * 楕円弧の点列を返す（角度は右が0度、下が90度の画面座標）。
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
+     * @param {number} radiusX - 横の半径
+     * @param {number} radiusY - 縦の半径
+     * @param {number} startDegrees - 開始角度
+     * @param {number} endDegrees - 終了角度
+     * @returns {Array<number[]>} 点列
+     */
+    function buildArcPoints(centerX, centerY, radiusX, radiusY, startDegrees, endDegrees) {
+        var arcSteps = 12;
+        var arcPoints = [];
+        for (var i = 0; i <= arcSteps; i++) {
+            var angle = (startDegrees + (endDegrees - startDegrees) * i / arcSteps) * Math.PI / 180;
+            arcPoints.push([centerX + radiusX * Math.cos(angle), centerY + radiusY * Math.sin(angle)]);
+        }
+        return arcPoints;
+    }
+
+    /**
+     * 点列を 22px 四方の中心で180度回す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 回した点列
+     */
+    function rotatePointsHalfTurn(points) {
+        var rotated = [];
+        for (var i = 0; i < points.length; i++) {
+            rotated.push([22 - points[i][0], 22 - points[i][1]]);
+        }
+        return rotated;
+    }
+
+    // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
 
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
 
@@ -1050,8 +1443,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             arrowhead: { ja: "矢印", en: "Arrowheads" },
             dash: { ja: "破線", en: "Dashed Line" },
             dashCalc: { ja: "破線の計算", en: "Dash Calculation" },
-            calcMethod: { ja: "計算方法", en: "Calculation" },
-            arrowOptions: { ja: "オプション", en: "Options" }
+            calcMethod: { ja: "計算方法", en: "Calculation" }
         },
         fieldLabel: {
             preset: { ja: "プリセット", en: "Preset" },
@@ -1084,8 +1476,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tipBeyondEnd: { ja: "パスの終点から配置", en: "Beyond end of path" }
         },
         checkbox: {
-            sameEnd: { ja: "終点も同じ", en: "Same at end" },
-            swapEnds: { ja: "始点と終点を入れ替え", en: "Swap start and end" },
             adjustDashEnds: { ja: "両端を調整", en: "Adjust ends" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
@@ -1139,7 +1529,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "オープンパスで、両端が線分で終わるように配分します（クローズパスでは使いません）。",
                 en: "On an open path, distributes the dashes so both ends finish with a dash (unused for closed paths)."
             },
-            tipAlign: { ja: "矢印をパスの端にどう合わせるかです。", en: "How the arrowhead lines up with the end of the path." },
             preview: {
                 ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
                 en: "Shows the result on the canvas. Cancel restores the original state."
@@ -1745,6 +2134,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        線端・角の形状は表示名がそのまま説明になるので、helpTip にも actionName を使う
        Tip alignment, cap and join options; value is the action's enumerated value.
        The cap and join display names explain themselves, so they double as helpTips */
+    /* 先端位置アイコンの図形。563×450 の枠の中の長方形 [左, 上, 右, 下] で描く
+       Tip alignment icon shapes: rectangles [left, top, right, bottom] in a 563 x 450 frame */
+    var OPTION_ICON_DESIGN_SIZE = [563, 450];
+    var OPTION_ICON_SHAPES = {
+        atEnd: [
+            [110, 53, 281, 110],                          /* 上の線分 / top dash */
+            [395, 53, 509, 110], [452, 110, 509, 282],    /* 右上の L / top-right L */
+            [53, 224, 110, 338], [53, 338, 167, 395],     /* 左下の L / bottom-left L */
+            [281, 338, 452, 395]                          /* 下の線分 / bottom dash */
+        ],
+        beyondEnd: [
+            [53, 53, 225, 110], [53, 110, 111, 167],      /* 左上 / top-left */
+            [338, 53, 510, 110], [452, 110, 510, 167],    /* 右上 / top-right */
+            [53, 281, 111, 338], [53, 338, 225, 395],     /* 左下 / bottom-left */
+            [452, 281, 510, 338], [338, 338, 510, 395]    /* 右下 / bottom-right */
+        ]
+    };
+
     var TIP_ALIGN_OPTIONS = [
         { key: "atEnd",     label: "radio.tipAtEnd",     actionName: "actionName.tipAtEnd",     value: 0 },
         { key: "beyondEnd", label: "radio.tipBeyondEnd", actionName: "actionName.tipBeyondEnd", value: 1 }
@@ -2157,6 +2564,105 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * ラジオボタンの代わりに、onDraw で描いたアイコンを横に並べる。
+     * 各アイコンはラジオボタンと同じく value / optionDefinition / onClick を持つ（getCheckedOption・checkOptionByKey でそのまま扱える）
+     * @param {Panel|Group} parent - 追加先
+     * @param {Object[]} optionDefinitions - 選択肢（key / label。図形は OPTION_ICON_SHAPES[key]）
+     * @param {string} selectedKey - 初期選択の key
+     * @returns {Group[]} 追加したアイコン
+     */
+    function addOptionIcons(parent, optionDefinitions, selectedKey) {
+        /* 隙間0で突き合わせ、2つ目以降は左の枠を描かずに1本の境界線を共有する
+           Butted together; later icons skip their left edge so neighbors share one border */
+        var iconRow = parent.add("group");
+        setupRow(iconRow, "left", 0);
+        var optionIcons = [];
+        for (var i = 0; i < optionDefinitions.length; i++) {
+            optionIcons.push(addOptionIcon(iconRow, optionDefinitions[i], optionIcons));
+            optionIcons[i].value = (optionDefinitions[i].key === selectedKey);
+            optionIcons[i].hasLeftEdge = (i === 0);
+        }
+        return optionIcons;
+    }
+
+    /**
+     * 選択肢のアイコンを1つ作る。押すと同じ組のほかのアイコンを外し、onClick を呼ぶ
+     * @param {Group} iconRow - 追加先の行
+     * @param {Object} optionDefinition - 選択肢
+     * @param {Group[]} optionIcons - 同じ組のアイコン（排他にする）
+     * @returns {Group} アイコン
+     */
+    function addOptionIcon(iconRow, optionDefinition, optionIcons) {
+        var optionIcon = iconRow.add("group");
+        optionIcon.preferredSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
+        optionIcon.minimumSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
+        optionIcon.maximumSize = [OPTION_ICON_WIDTH, OPTION_ICON_HEIGHT];
+        optionIcon.helpTip = getLabel(optionDefinition.label);
+        optionIcon.optionDefinition = optionDefinition;
+        optionIcon.isOptionIcon = true;
+        optionIcon.value = false;
+        optionIcon.onDraw = function () { drawOptionIcon(optionIcon); };
+        optionIcon.addEventListener("mousedown", function () {
+            if (!isStepperEnabledInTree(optionIcon)) return;
+            for (var i = 0; i < optionIcons.length; i++) {
+                optionIcons[i].value = (optionIcons[i] === optionIcon);
+                redrawStepperGroup(optionIcons[i]);
+            }
+            if (typeof optionIcon.onClick === "function") optionIcon.onClick();
+        });
+        return optionIcon;
+    }
+
+    /**
+     * 選択肢のアイコンを描く（選択中は灰色の地、そうでなければ白の地。ダークUIでは明暗を反転）
+     * @param {Group} optionIcon - addOptionIcon() で作ったアイコン
+     * @returns {void}
+     */
+    function drawOptionIcon(optionIcon) {
+        var iconGraphics = optionIcon.graphics;
+        var isDark = isDarkUI();
+        var isDimmed = !isStepperEnabledInTree(optionIcon);
+        var inkLevel = isDark ? 0.75 : 0.3; /* 図形と枠は真っ黒・真っ白より少し抑える / keep the ink slightly softer than pure black or white */
+        var groundLevel = optionIcon.value ? (isDark ? 0.45 : 0.7) : (isDark ? 0.2 : 1);
+        var inkColor = [inkLevel, inkLevel, inkLevel, isDimmed ? 0.4 : 1];
+        var groundColor = [groundLevel, groundLevel, groundLevel, isDimmed ? 0.4 : 1];
+        var iconWidth = OPTION_ICON_WIDTH;
+        var iconHeight = OPTION_ICON_HEIGHT;
+        var scaleX = iconWidth / OPTION_ICON_DESIGN_SIZE[0];
+        var scaleY = iconHeight / OPTION_ICON_DESIGN_SIZE[1];
+
+        /* 地と枠。左隣と接するアイコンは左の枠を描かない（隣の右の枠と共有）
+           Ground and frame; an icon next to another skips its left edge (shared with the neighbor's right edge) */
+        var groundLeft = optionIcon.hasLeftEdge ? 0 : -0.5;
+        iconGraphics.newPath();
+        iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, groundColor));
+        iconGraphics.newPath();
+        if (optionIcon.hasLeftEdge) {
+            iconGraphics.moveTo(0.5, iconHeight - 0.5);
+            iconGraphics.lineTo(0.5, 0.5);
+        } else {
+            iconGraphics.moveTo(groundLeft, 0.5);
+        }
+        iconGraphics.lineTo(iconWidth - 0.5, 0.5);
+        iconGraphics.lineTo(iconWidth - 0.5, iconHeight - 0.5);
+        iconGraphics.lineTo(optionIcon.hasLeftEdge ? 0.5 : groundLeft, iconHeight - 0.5);
+        iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, inkColor, 1));
+
+        /* 線分と角の図形 / dashes and corners */
+        var iconShapes = OPTION_ICON_SHAPES[optionIcon.optionDefinition.key] || [];
+        iconGraphics.newPath();
+        for (var i = 0; i < iconShapes.length; i++) {
+            var shapeLeft = Math.round(iconShapes[i][0] * scaleX);
+            var shapeTop = Math.round(iconShapes[i][1] * scaleY);
+            var shapeRight = Math.round(iconShapes[i][2] * scaleX);
+            var shapeBottom = Math.round(iconShapes[i][3] * scaleY);
+            iconGraphics.rectPath(shapeLeft, shapeTop, shapeRight - shapeLeft, shapeBottom - shapeTop);
+        }
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, inkColor));
+    }
+
+    /**
      * オンになっているラジオボタンの選択肢を返す
      * @param {RadioButton[]} optionRadios - addOptionRadios() で作ったラジオボタン
      * @returns {Object} 選択肢。どれもオフなら先頭
@@ -2270,17 +2776,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowheadPanel = parent.add("panel", undefined, getLabel("panel.arrowhead"));
         setupPanel(arrowheadPanel, 6);
 
+        /* よく使う矢印とその他の行は間隔0で続ける（ポップアップメニューの高さで空きが広がるため）
+           Favorites and the Others row sit flush; the pop-up's height would otherwise widen the gap */
+        var arrowChoiceGroup = arrowheadPanel.add("group");
+        arrowChoiceGroup.orientation = "column";
+        arrowChoiceGroup.alignChildren = ["fill", "top"];
+        arrowChoiceGroup.alignment = "fill";
+        arrowChoiceGroup.spacing = 0;
+        var favoriteArrowGroup = arrowChoiceGroup.add("group");
+        favoriteArrowGroup.orientation = "column";
+        favoriteArrowGroup.alignChildren = ["fill", "top"];
+        favoriteArrowGroup.spacing = 6;
+
         var favoriteArrowNames = buildFavoriteArrowNames();
         var favoriteArrowRadios = [];
         for (var i = 0; i < favoriteArrowNames.length; i++) {
-            favoriteArrowRadios.push(addOptionRadio(arrowheadPanel, favoriteArrowNames[i], getLabel("tooltip.favoriteArrow")));
+            favoriteArrowRadios.push(addOptionRadio(favoriteArrowGroup, favoriteArrowNames[i], getLabel("tooltip.favoriteArrow")));
         }
         var defaultFavoriteIndex = getDefaultFavoriteIndex();
         favoriteArrowRadios[defaultFavoriteIndex].value = true;
 
         /* その他：ラジオ＋ポップアップメニュー。別グループのラジオは排他にならないので、onClick で切り替える
            Others: radio + pop-up. Radios in another group are not exclusive, so onClick handles it */
-        var otherArrowRow = arrowheadPanel.add("group");
+        var otherArrowRow = arrowChoiceGroup.add("group");
         setupRow(otherArrowRow, "left", 4);
         var otherArrowTooltip = getLabel("tooltip.otherArrow", { scale: DEFAULT_ARROW_SCALE });
         var otherArrowRadio = otherArrowRow.add("radiobutton", undefined, "");
@@ -2299,18 +2817,137 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             min: 1, unitKey: "unit.percent", tooltipKey: "tooltip.arrowScale"
         });
 
-        var arrowOptionsPanel = addSubPanel(arrowheadPanel, "panel.arrowOptions");
+        /* オプション：終点も同じ・入れ替え・先端位置のアイコンを1行に並べる
+           Options: Same at end, Swap and the tip alignment icons in one row */
+        var arrowOptionsRow = arrowheadPanel.add("group");
+        setupRow(arrowOptionsRow, "left", ROW_SPACING);
 
         return {
             favoriteArrowRadios: favoriteArrowRadios,
             otherArrowRadio: otherArrowRadio,
             otherArrowList: otherArrowList,
             arrowScaleInput: arrowScaleInput,
-            sameEndCheckbox: addOptionCheckbox(arrowOptionsPanel, "checkbox.sameEnd", "tooltip.sameEnd", false),
-            swapEndsCheckbox: addOptionCheckbox(arrowOptionsPanel, "checkbox.swapEnds", "tooltip.swapEnds", false),
-            tipAlignRadios: addOptionRadios(arrowOptionsPanel, TIP_ALIGN_OPTIONS,
-                FAVORITE_ARROWS[defaultFavoriteIndex].tipAlign || TIP_ALIGN_OPTIONS[0].key, "tooltip.tipAlign")
+            sameEndToggle: addToggleRow(arrowOptionsRow, addLinkToggle, null, "tooltip.sameEnd"),
+            swapEndsToggle: addToggleRow(arrowOptionsRow, addSwapToggle, null, "tooltip.swapEnds"),
+            tipAlignRadios: addOptionIcons(arrowOptionsRow, TIP_ALIGN_OPTIONS,
+                FAVORITE_ARROWS[defaultFavoriteIndex].tipAlign || TIP_ALIGN_OPTIONS[0].key)
         };
+    }
+
+    /**
+     * アイコンのトグル＋項目名の行を作る。項目名のクリックでも切り替わる。
+     * 切り替えたあとはアイコンの onClick を呼ぶ（チェックボックスと同じつなぎ方にする）
+     * @param {Panel} parent - 追加先
+     * @param {Function} addToggle - アイコンを作る関数（addLinkToggle / addSwapToggle）
+     * @param {string|null} labelKey - 項目名の LABELS パス。null なら項目名を付けない（アイコンだけ）
+     * @param {string} tooltipKey - helpTip の LABELS パス
+     * @returns {Group} アイコン（.value でオンかを読む。項目名は .rowLabel、無ければ null）
+     */
+    function addToggleRow(parent, addToggle, labelKey, tooltipKey) {
+        var toggleRow = parent.add("group");
+        setupRow(toggleRow, "left", 4);
+        var iconToggle = addToggle(toggleRow, false, function () {
+            if (typeof iconToggle.onClick === "function") iconToggle.onClick();
+        });
+        iconToggle.helpTip = getLabel(tooltipKey);
+        iconToggle.rowLabel = null;
+        if (!labelKey) return iconToggle;
+        var rowLabel = toggleRow.add("statictext", undefined, getLabel(labelKey));
+        rowLabel.helpTip = getLabel(tooltipKey);
+        rowLabel.addEventListener("click", function () {
+            if (!isLinkToggleEnabledInTree(iconToggle)) return;
+            setLinkToggleValue(iconToggle, !iconToggle.value);
+            if (typeof iconToggle.onClick === "function") iconToggle.onClick();
+        });
+        iconToggle.rowLabel = rowLabel;
+        return iconToggle;
+    }
+
+    /**
+     * アイコンのトグルと項目名の有効／無効をまとめて切り替える
+     * @param {Group} iconToggle - addToggleRow() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setToggleRowEnabled(iconToggle, isEnabled) {
+        setLinkToggleEnabled(iconToggle, isEnabled);
+        if (iconToggle.rowLabel) iconToggle.rowLabel.enabled = isEnabled;
+    }
+
+    /**
+     * 始点と終点の入れ替えアイコン（⇄）を追加する。見た目と操作はリンクアイコンにそろえる
+     * （オンのときは押し込んだボタンのように地と枠を描く。配色・描き直しはリンクアイコンの部品を使う）
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @returns {Group} アイコン（.value でオンかを読む）
+     */
+    function addSwapToggle(parent, initialValue, onToggle) {
+        var swapToggle = parent.add("group");
+        swapToggle.preferredSize = LINK_ICON_SIZE;
+        swapToggle.minimumSize = LINK_ICON_SIZE;
+        swapToggle.maximumSize = LINK_ICON_SIZE;
+        swapToggle.value = initialValue;
+
+        swapToggle.onDraw = function () {
+            var iconGraphics = swapToggle.graphics;
+            var iconWidth = LINK_ICON_SIZE[0];
+            var iconHeight = LINK_ICON_SIZE[1];
+            var isDimmed = !isLinkToggleEnabledInTree(swapToggle);
+            if (swapToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawSwapIcon(iconGraphics, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+        };
+
+        swapToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(swapToggle)) return;
+            swapToggle.value = !swapToggle.value;
+            redrawLinkToggle(swapToggle);
+            if (onToggle) onToggle();
+        });
+        return swapToggle;
+    }
+
+    /**
+     * ⇄ を描く（22px 角の中に、右向きの矢印を上、左向きの矢印を下）。
+     * ScriptUI は多角形を塗れないため、矢じりは細い長方形を並べて三角形に近づける
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawSwapIcon(iconGraphics, iconColor) {
+        iconGraphics.newPath();
+        iconGraphics.rectPath(5.5, 7.2, 6, 2);   /* 上の矢印の軸 / upper shaft */
+        addArrowHeadPath(iconGraphics, 11.5, 17, 8.2, 2.8);
+        iconGraphics.rectPath(9.3, 13, 6, 2);    /* 下の矢印の軸 / lower shaft */
+        addArrowHeadPath(iconGraphics, 9.3, 3.8, 14, 2.8);
+        iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, iconColor));
+    }
+
+    /**
+     * 矢じり（三角形）を細い長方形の並びでパスに足す
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} baseX - 矢じりの付け根の x
+     * @param {number} tipX - 先端の x
+     * @param {number} centerY - 中心の y
+     * @param {number} halfHeight - 付け根の高さの半分
+     * @returns {void}
+     */
+    function addArrowHeadPath(iconGraphics, baseX, tipX, centerY, halfHeight) {
+        var sliceCount = 12;
+        var sliceWidth = Math.abs(tipX - baseX) / sliceCount;
+        var direction = (tipX > baseX) ? 1 : -1;
+        for (var k = 0; k < sliceCount; k++) {
+            var sliceStart = baseX + direction * sliceWidth * k;
+            var sliceHalf = halfHeight * (1 - (k + 0.5) / sliceCount);
+            iconGraphics.rectPath(direction > 0 ? sliceStart : sliceStart - sliceWidth, centerY - sliceHalf, sliceWidth, sliceHalf * 2);
+        }
     }
 
     /**
@@ -2476,8 +3113,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
            The start gets the arrowhead; same-at-end puts it on both ends, swap moves it to the end */
         var arrowName = getSelectedArrowName(arrowheadControls);
         var noArrowName = getLabel("actionName.noArrowhead");
-        var isSwapped = !arrowheadControls.sameEndCheckbox.value && arrowheadControls.swapEndsCheckbox.value;
-        var hasEndArrow = arrowheadControls.sameEndCheckbox.value || isSwapped;
+        var isSwapped = !arrowheadControls.sameEndToggle.value && arrowheadControls.swapEndsToggle.value;
+        var hasEndArrow = arrowheadControls.sameEndToggle.value || isSwapped;
 
         var dashCalc = readDashCalc(dialogControls.dash);
         /* ドット点線は長さ0の線分なので、丸型線端でないと見えない / Dots are zero-length dashes, visible only with round caps */
@@ -2628,6 +3265,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function checkOptionByKey(optionRadios, optionKey) {
         for (var i = 0; i < optionRadios.length; i++) {
             optionRadios[i].value = (optionRadios[i].optionDefinition.key === optionKey);
+            /* アイコンは value を変えても描き直されない / icons do not repaint on their own */
+            if (optionRadios[i].isOptionIcon) redrawStepperGroup(optionRadios[i]);
         }
     }
 
@@ -2646,8 +3285,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cornerJoin: getCheckedOption(strokeControls.cornerJoinRadios).key,
             arrowNumber: getSelectedArrowNumber(arrowheadControls),
             arrowScale: parseFloat(arrowheadControls.arrowScaleInput.text),
-            sameEnd: arrowheadControls.sameEndCheckbox.value,
-            swapEnds: arrowheadControls.swapEndsCheckbox.value,
+            sameEnd: arrowheadControls.sameEndToggle.value,
+            swapEnds: arrowheadControls.swapEndsToggle.value,
             tipAlign: getCheckedOption(arrowheadControls.tipAlignRadios).key,
             dashStyle: dashControls.dottedRadio.value ? "dotted" : (dashControls.dashedRadio.value ? "dashed" : "none"),
             dashMode: dashControls.dashToGapRadio.value ? "dashToGap" : "gapToDash",
@@ -2676,9 +3315,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* メニューで選ぶと倍率が 100% に戻るので、倍率は矢印のあとに書く / Picking from the menu resets the scale, so write it afterwards */
         if (typeof presetData.arrowNumber === "number") selectArrowByNumber(arrowheadControls, presetData.arrowNumber);
         if (!isNaN(presetData.arrowScale)) setNumberFieldValue(arrowheadControls.arrowScaleInput, presetData.arrowScale);
-        arrowheadControls.sameEndCheckbox.value = !!presetData.sameEnd;
-        arrowheadControls.swapEndsCheckbox.value = !!presetData.swapEnds;
-        arrowheadControls.swapEndsCheckbox.enabled = !arrowheadControls.sameEndCheckbox.value;
+        setLinkToggleValue(arrowheadControls.sameEndToggle, !!presetData.sameEnd);
+        setLinkToggleValue(arrowheadControls.swapEndsToggle, !!presetData.swapEnds);
+        setToggleRowEnabled(arrowheadControls.swapEndsToggle, !arrowheadControls.sameEndToggle.value);
         checkOptionByKey(arrowheadControls.tipAlignRadios, presetData.tipAlign);
 
         dashControls.noDashRadio.value = (presetData.dashStyle !== "dashed" && presetData.dashStyle !== "dotted");
@@ -2870,11 +3509,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         arrowheadControls.arrowScaleInput.onChanging = invalidatePreview;
         addCommitHandler(arrowheadControls.arrowScaleInput, updatePreview);
         /* 終点も同じなら両端が同じになるので、入れ替えはディム / Same at both ends makes swapping pointless */
-        arrowheadControls.sameEndCheckbox.onClick = function () {
-            arrowheadControls.swapEndsCheckbox.enabled = !arrowheadControls.sameEndCheckbox.value;
+        arrowheadControls.sameEndToggle.onClick = function () {
+            setToggleRowEnabled(arrowheadControls.swapEndsToggle, !arrowheadControls.sameEndToggle.value);
             updatePreview();
         };
-        arrowheadControls.swapEndsCheckbox.onClick = updatePreview;
+        arrowheadControls.swapEndsToggle.onClick = updatePreview;
 
         /* 破線 / Dashes */
         dashControls.noDashRadio.onClick = dashControls.dashedRadio.onClick = dashControls.dottedRadio.onClick = changeDashStyle;
