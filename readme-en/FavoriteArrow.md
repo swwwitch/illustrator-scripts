@@ -30,11 +30,12 @@
 #### Arrowheads
 
 - [None] at the top removes the arrowheads from both ends
-- Pick a favorite arrowhead (Arrow 1, 8, 11, 27) with a radio button. Arrow 11 is selected at start. The scale changes to suit it (100% for 1, 11 and 27, 25% for 8)
+- Pick a favorite arrowhead (Arrow 8, 11, 27) with a radio button. Arrow 11 is selected at start. The scale changes to suit it (100% for 11 and 27, 25% for 8). The tip alignment changes too (at end of path for 8 and 11, beyond end of path for 27)
 - Pick any other arrowhead from the pop-up menu (scale: 100%)
-- **Same at end**: puts the same arrowhead on the end. When off, the end has no arrowhead
-- **Swap start and end**: puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
-- **Options**: tip alignment (at end of path / beyond end of path)
+- **Options**
+  - **Same at end**: puts the same arrowhead on the end. When off, the end has no arrowhead
+  - **Swap start and end**: puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
+  - Tip alignment (at end of path / beyond end of path)
 
 #### Dashes
 
@@ -69,9 +70,10 @@
 - v1.0.1 (2026-10-04) The initial stroke weight now follows the general unit (0.25 pt for mm, 1 px for px, 5 pt otherwise)
 - v1.0.2 (2026-10-04) The cap and corner now start at Butt and Miter. Arrow 27 joins the favorite arrowheads
 - v1.1.0 (2026-10-04) Added presets (save, load, delete). Added [None] at the top of the favorite arrowheads to remove arrowheads. Dashed and Dotted are now None / Dashed / Dotted radio buttons instead of checkboxes. Tip alignment moved into Options in the Arrowheads panel. Arrow 11 is now selected at start
+- v1.1.1 (2026-10-04) Same at end and Swap start and end moved into Options in the Arrowheads panel. Gap and Dash now show their unit (pt) inside the field. Arrow 1 moved from the favorites to the pop-up menu. Picking a favorite arrowhead also sets the tip alignment. Calculation and Adjust ends moved into the Dash Calculation panel
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.1
 - First release: 2026-10-03
 - Last updated: 2026-10-04

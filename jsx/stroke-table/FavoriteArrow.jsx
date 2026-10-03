@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -53,16 +53,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_STROKE_CAP   = "butt";       /* 線端の初期値（butt / round / projecting）/ default cap */
     var DEFAULT_CORNER_JOIN  = "miter";      /* 角の形状の初期値（miter / round / bevel）/ default join */
 
-    /* ラジオボタンで出す矢印と倍率。ここに無い矢印はポップアップメニューに並ぶ
-       number 0 は「[なし]」（矢印を外す）
-       Arrowheads offered as radio buttons, with their scales. The rest go in the pop-up menu.
-       Number 0 is [None], which removes the arrowheads */
+    /* ラジオボタンで出す矢印と倍率・先端位置。ここに無い矢印はポップアップメニューに並ぶ
+       number 0 は「[なし]」（矢印を外す）。tipAlign は TIP_ALIGN_OPTIONS の key（atEnd / beyondEnd）、省略すると先端位置を変えない
+       Arrowheads offered as radio buttons, with their scales and tip alignment. The rest go in the pop-up menu.
+       Number 0 is [None], which removes the arrowheads. tipAlign is a TIP_ALIGN_OPTIONS key; omit it to leave the tip alone */
     var FAVORITE_ARROWS = [
         { number: 0,  scale: 100 },
-        { number: 1,  scale: 100 },
-        { number: 8,  scale: 25 },
-        { number: 11, scale: 100 },
-        { number: 27, scale: 100 }
+        { number: 8,  scale: 25,  tipAlign: "atEnd" },
+        { number: 11, scale: 100, tipAlign: "atEnd" },
+        { number: 27, scale: 100, tipAlign: "beyondEnd" }
     ];
 
     /* 破線のパターン（線幅に対する倍率）。オンにしたときの分割数・間隔・線分の初期値に使う
@@ -185,7 +184,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var ARROW_LABEL_WIDTH  = 40;             /* 矢印パネルの項目名の幅 / arrowhead panel label width */
     var DASH_LABEL_WIDTH   = 48;             /* 破線の計算の項目名の幅 / dash calculation label width */
     var FIELD_CHARACTERS   = 4;              /* 数値入力欄の文字数 / numeric field width */
-    var DASH_CALC_TOP_MARGIN = 10;           /* 破線の計算の上の余白 / space above the dash calculation */
+    var UNIT_FIELD_CHARACTERS = 6;           /* 単位を欄の中に入れる数値欄の文字数 / width of a field holding its unit */
+    var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（オプション・破線の計算）の上の余白 / space above nested panels */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
     var PRESET_NAME_CHARS  = 20;             /* プリセット名の入力欄の文字数 / preset name field width */
 
@@ -1102,8 +1102,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             presetName: { ja: "保存する設定の名前です。同じ名前は上書きします。", en: "Name the settings are saved under. The same name is overwritten." },
             strokeWidth: { ja: "線の太さです。", en: "Weight of the stroke." },
             favoriteArrow: {
-                ja: "始点に付ける矢印です。倍率はこの矢印に合わせた値に変わります。",
-                en: "Arrowhead for the start of the path. The scale changes to suit it."
+                ja: "始点に付ける矢印です。倍率と先端位置はこの矢印に合わせた値に変わります。",
+                en: "Arrowhead for the start of the path. The scale and tip alignment change to suit it."
             },
             otherArrow: {
                 ja: "ほかの矢印をメニューから選びます。倍率は {scale}% に戻ります。",
@@ -2073,6 +2073,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
+     * 上に余白を取った入れ子のパネルを追加する（余白はパネルを包むグループの margins で取る）
+     * @param {Panel} parent - 追加先のパネル
+     * @param {string} titleKey - パネル名の LABELS パス
+     * @returns {Panel} 追加したパネル
+     */
+    function addSubPanel(parent, titleKey) {
+        var subPanelGroup = parent.add("group");
+        subPanelGroup.orientation = "column";
+        subPanelGroup.alignChildren = ["fill", "top"];
+        subPanelGroup.alignment = "fill";
+        subPanelGroup.margins = [0, SUB_PANEL_TOP_MARGIN, 0, 0];
+        var subPanel = subPanelGroup.add("panel", undefined, getLabel(titleKey));
+        setupPanel(subPanel, 6);
+        return subPanel;
+    }
+
+    /**
      * 右揃えの項目名を持つ行を追加する
      * @param {Panel|Group} parent - 追加先
      * @param {string} labelKey - 項目名の LABELS パス
@@ -2154,24 +2171,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 項目名・∧∨・入力欄・単位をひと組にした数値欄を追加する（ステップボタン部品の addSteppedField を使う）
      * @param {Panel|Group} parent - 追加先
-     * @param {Object} fieldOptions - labelKey / labelWidth / text / min / integer / unitKey / tooltipKey
+     * @param {Object} fieldOptions - labelKey / labelWidth / text / min / integer / unitKey / unitInField（true で単位を欄の中に入れる）/ tooltipKey
      * @returns {EditText} 入力欄
      */
     function addNumberField(parent, fieldOptions) {
+        var unitInField = !!(fieldOptions.unitInField && fieldOptions.unitKey);
+        var fieldUnit = unitInField ? " " + getLabel(fieldOptions.unitKey) : undefined;
         var numberInput = addSteppedField(parent, {
             label: labelText(fieldOptions.labelKey),
             labelWidth: fieldOptions.labelWidth,
-            text: fieldOptions.text,
-            characters: FIELD_CHARACTERS,
+            text: unitInField ? fieldOptions.text + fieldUnit : fieldOptions.text,
+            characters: unitInField ? UNIT_FIELD_CHARACTERS : FIELD_CHARACTERS,
             min: fieldOptions.min,
             integer: fieldOptions.integer,
+            unit: fieldUnit,
             onStep: notifySteppedInput
         });
         numberInput.helpTip = getLabel(fieldOptions.tooltipKey);
         /* 行の間隔をほかの行にそろえ、単位を後ろに足す / match the other rows and append the unit */
         var fieldRow = numberInput.parent.parent;
         fieldRow.spacing = ROW_SPACING;
-        if (fieldOptions.unitKey) fieldRow.add("statictext", undefined, getLabel(fieldOptions.unitKey));
+        if (fieldOptions.unitKey && !unitInField) fieldRow.add("statictext", undefined, getLabel(fieldOptions.unitKey));
         return numberInput;
     }
 
@@ -2242,7 +2262,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 矢印パネル（よく使う矢印・その他の矢印・倍率・終点の扱い）を作る
+     * 矢印パネル（よく使う矢印・その他の矢印・倍率・オプション）を作る
      * @param {Window|Group} parent - 追加先
      * @returns {Object} 矢印パネルのコントロール
      */
@@ -2279,26 +2299,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             min: 1, unitKey: "unit.percent", tooltipKey: "tooltip.arrowScale"
         });
 
+        var arrowOptionsPanel = addSubPanel(arrowheadPanel, "panel.arrowOptions");
+
         return {
             favoriteArrowRadios: favoriteArrowRadios,
             otherArrowRadio: otherArrowRadio,
             otherArrowList: otherArrowList,
             arrowScaleInput: arrowScaleInput,
-            sameEndCheckbox: addOptionCheckbox(arrowheadPanel, "checkbox.sameEnd", "tooltip.sameEnd", false),
-            swapEndsCheckbox: addOptionCheckbox(arrowheadPanel, "checkbox.swapEnds", "tooltip.swapEnds", false),
-            tipAlignRadios: buildTipAlignPanel(arrowheadPanel)
+            sameEndCheckbox: addOptionCheckbox(arrowOptionsPanel, "checkbox.sameEnd", "tooltip.sameEnd", false),
+            swapEndsCheckbox: addOptionCheckbox(arrowOptionsPanel, "checkbox.swapEnds", "tooltip.swapEnds", false),
+            tipAlignRadios: addOptionRadios(arrowOptionsPanel, TIP_ALIGN_OPTIONS,
+                FAVORITE_ARROWS[defaultFavoriteIndex].tipAlign || TIP_ALIGN_OPTIONS[0].key, "tooltip.tipAlign")
         };
-    }
-
-    /**
-     * 矢印パネルの中にオプションのパネル（先端位置）を作る
-     * @param {Panel} arrowheadPanel - 矢印パネル
-     * @returns {RadioButton[]} 先端位置のラジオボタン
-     */
-    function buildTipAlignPanel(arrowheadPanel) {
-        var tipAlignPanel = arrowheadPanel.add("panel", undefined, getLabel("panel.arrowOptions"));
-        setupPanel(tipAlignPanel, 6);
-        return addOptionRadios(tipAlignPanel, TIP_ALIGN_OPTIONS, TIP_ALIGN_OPTIONS[0].key, "tooltip.tipAlign");
     }
 
     /**
@@ -2316,28 +2328,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         noDashRadio.value = true;
 
         /* 破線の計算（DashGapCalculator から移植）/ Dash calculation (ported from DashGapCalculator) */
-        var dashCalcGroup = dashPanel.add("group");
-        dashCalcGroup.orientation = "column";
-        dashCalcGroup.alignChildren = ["fill", "top"];
-        dashCalcGroup.alignment = "fill";
-        dashCalcGroup.margins = [0, DASH_CALC_TOP_MARGIN, 0, 0];
-        var dashCalcPanel = dashCalcGroup.add("panel", undefined, getLabel("panel.dashCalc"));
-        setupPanel(dashCalcPanel, 6);
+        var dashCalcPanel = addSubPanel(dashPanel, "panel.dashCalc");
         var segmentsInput = addNumberField(dashCalcPanel, {
             labelKey: "fieldLabel.segments", labelWidth: DASH_LABEL_WIDTH, text: "1",
             min: 1, integer: true, tooltipKey: "tooltip.segments"
         });
         var gapInput = addNumberField(dashCalcPanel, {
             labelKey: "fieldLabel.gap", labelWidth: DASH_LABEL_WIDTH, text: "0",
-            min: 0, unitKey: "unit.point", tooltipKey: "tooltip.gap"
+            min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.gap"
         });
         var dashLengthInput = addNumberField(dashCalcPanel, {
             labelKey: "fieldLabel.dash", labelWidth: DASH_LABEL_WIDTH, text: "0",
-            min: 0, unitKey: "unit.point", tooltipKey: "tooltip.dash"
+            min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.dash"
         });
 
-        var calcMethodPanel = dashPanel.add("panel", undefined, getLabel("panel.calcMethod"));
-        setupPanel(calcMethodPanel, 6);
+        /* 計算方法と両端を調整は破線の計算の中に置く / Calculation and Adjust ends sit inside Dash Calculation */
+        var calcMethodPanel = addSubPanel(dashCalcPanel, "panel.calcMethod");
         var gapToDashRadio = addOptionRadio(calcMethodPanel, getLabel("radio.gapToDash"), getLabel("tooltip.gapToDash"));
         var dashToGapRadio = addOptionRadio(calcMethodPanel, getLabel("radio.dashToGap"), getLabel("tooltip.dashToGap"));
         gapToDashRadio.value = true;
@@ -2353,7 +2359,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             calcMethodPanel: calcMethodPanel,
             gapToDashRadio: gapToDashRadio,
             dashToGapRadio: dashToGapRadio,
-            adjustDashEndsCheckbox: addOptionCheckbox(dashPanel, "checkbox.adjustDashEnds", "tooltip.adjustDashEnds", true)
+            adjustDashEndsCheckbox: addOptionCheckbox(dashCalcPanel, "checkbox.adjustDashEnds", "tooltip.adjustDashEnds", true)
         };
     }
 
@@ -2832,12 +2838,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateDashCalc();
         }
 
-        /* 矢印のラジオを1つだけ選び、倍率を入れる / Select one arrowhead radio and set its scale */
-        function selectArrowRadio(targetRadio, arrowScale) {
+        /* 矢印のラジオを1つだけ選び、倍率と先端位置を入れる（先端位置は指定があるときだけ）
+           Select one arrowhead radio and set its scale, plus the tip alignment when given */
+        function selectArrowRadio(targetRadio, arrowScale, tipAlignKey) {
             var favoriteArrowRadios = arrowheadControls.favoriteArrowRadios;
             for (var j = 0; j < favoriteArrowRadios.length; j++) favoriteArrowRadios[j].value = (favoriteArrowRadios[j] === targetRadio);
             arrowheadControls.otherArrowRadio.value = (arrowheadControls.otherArrowRadio === targetRadio);
             setNumberFieldValue(arrowheadControls.arrowScaleInput, arrowScale);
+            if (tipAlignKey) checkOptionByKey(arrowheadControls.tipAlignRadios, tipAlignKey);
             updatePreview();
         }
 
@@ -2852,7 +2860,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 矢印 / Arrowheads：形状を選んだら、その矢印の倍率を入れる */
         for (i = 0; i < arrowheadControls.favoriteArrowRadios.length; i++) {
             arrowheadControls.favoriteArrowRadios[i].onClick = (function (favoriteRadio, favoriteArrow) {
-                return function () { selectArrowRadio(favoriteRadio, favoriteArrow.scale); };
+                return function () { selectArrowRadio(favoriteRadio, favoriteArrow.scale, favoriteArrow.tipAlign); };
             })(arrowheadControls.favoriteArrowRadios[i], FAVORITE_ARROWS[i]);
         }
         /* メニューから選んだときも、その他のラジオをオンにする / Picking from the menu turns on its radio */
