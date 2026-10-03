@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionI
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectionInspectorPalette";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspectorPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspectorPalette.md"; /* README (English) */
@@ -133,6 +133,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
     var MEMO_PREVIEW_SIZE = [160, 50];        /* 情報タブのメモ表示の寸法 / Note preview size on the Info tab */
     var MEMO_FIELD_SIZE = [340, 44];          /* メモタブの入力欄の寸法 / Note field size on the Notes tab */
     var PALETTE_OPACITY = 0.97;               /* パレットの不透明度 / Palette opacity */
+    var BRIDGE_TIMEOUT_SECONDS = 300;         /* 集計の応答を待つ秒数（大きなドキュメント向け）/ Seconds to wait for the count, for large documents */
 
     // =========================================
     // ローカライズ / Localization
@@ -499,6 +500,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             selectedSuffix: { ja: " 件を集計", en: " object(s)" },
             timeout: { ja: "Illustrator から応答がありません", en: "No response from Illustrator" },
             busy: { ja: "処理中です", en: "Busy" },
+            counting: { ja: "集計しています...", en: "Counting..." },
             error: { ja: "エラー", en: "Error" },
             memoApplied: { ja: "メモを適用しました", en: "Note applied" },
             selChanged: { ja: "選択が変わりました。更新してください", en: "Selection changed. Please refresh." },
@@ -646,30 +648,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
     // and every statement ends with a semicolon. Register new functions in WORKER_FUNCS.
     // =========================================
 
-    /* アートボードの幅・高さのうち最大の値を返す / Largest artboard width or height */
-    function wkGetMaxArtboardSpan(doc) {
-        var maxSpan = 0;
+    /* アートボードの辺の長さと最大値を1度だけ控える / Read artboard side lengths and the largest one once */
+    function wkReadArtboardSides(doc) {
+        var artboardSides = { lengths: [], maxSpan: 0 };
         try {
             var artboards = doc.artboards;
-            for (var i = 0; i < artboards.length; i++) {
+            var artboardCount = artboards.length;
+            for (var i = 0; i < artboardCount; i++) {
                 var artboardRect = artboards[i].artboardRect;
                 var artboardWidth = Math.abs(artboardRect[2] - artboardRect[0]);
                 var artboardHeight = Math.abs(artboardRect[1] - artboardRect[3]);
-                if (artboardWidth > maxSpan) { maxSpan = artboardWidth; }
-                if (artboardHeight > maxSpan) { maxSpan = artboardHeight; }
+                artboardSides.lengths.push(artboardWidth, artboardHeight);
+                if (artboardWidth > artboardSides.maxSpan) { artboardSides.maxSpan = artboardWidth; }
+                if (artboardHeight > artboardSides.maxSpan) { artboardSides.maxSpan = artboardHeight; }
             }
         } catch (e) {}
-        return maxSpan;
+        return artboardSides;
     }
 
     /* 水平・垂直の2点のガイドなら長さを、それ以外は -1 を返す / Length of a straight 2-point guide, otherwise -1 */
     function wkStraightGuideLength(pathItem) {
-        if (!pathItem || pathItem.typename !== "PathItem") { return -1; }
-        if (!pathItem.guides) { return -1; }
         if (pathItem.closed) { return -1; }
-        if (!pathItem.pathPoints || pathItem.pathPoints.length !== 2) { return -1; }
-        var anchor0 = pathItem.pathPoints[0].anchor;
-        var anchor1 = pathItem.pathPoints[1].anchor;
+        var pathPoints = pathItem.pathPoints;
+        if (pathPoints.length !== 2) { return -1; }
+        var anchor0 = pathPoints[0].anchor;
+        var anchor1 = pathPoints[1].anchor;
         var straightTolerance = 0.01;
         var isVertical = Math.abs(anchor0[0] - anchor1[0]) <= straightTolerance;
         var isHorizontal = Math.abs(anchor0[1] - anchor1[1]) <= straightTolerance;
@@ -679,76 +682,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    /* 長さがいずれかのアートボードの幅または高さと同じガイドか / Whether a guide is as long as an artboard side */
-    function wkIsArtboardGuide(pathItem, doc) {
-        try {
-            var guideLength = wkStraightGuideLength(pathItem);
-            if (guideLength < 0) { return false; }
-            var lengthTolerance = 0.5;
-            var artboards = doc.artboards;
-            for (var i = 0; i < artboards.length; i++) {
-                var artboardRect = artboards[i].artboardRect;
-                if (Math.abs(guideLength - Math.abs(artboardRect[2] - artboardRect[0])) <= lengthTolerance) { return true; }
-                if (Math.abs(guideLength - Math.abs(artboardRect[1] - artboardRect[3])) <= lengthTolerance) { return true; }
-            }
-            return false;
-        } catch (e) { return false; }
+    /* 長さがいずれかのアートボードの幅または高さと同じか / Whether a length matches an artboard side */
+    function wkMatchesArtboardSide(guideLength, artboardSides) {
+        var lengthTolerance = 0.5;
+        for (var i = 0; i < artboardSides.lengths.length; i++) {
+            if (Math.abs(guideLength - artboardSides.lengths[i]) <= lengthTolerance) { return true; }
+        }
+        return false;
     }
 
-    /* どのアートボードの幅・高さよりも長いガイド（ルーラーガイド）か / Whether a guide is longer than every artboard side */
-    function wkIsRulerGuide(pathItem, doc) {
-        try {
-            var guideLength = wkStraightGuideLength(pathItem);
-            if (guideLength < 0) { return false; }
-            var maxSpan = wkGetMaxArtboardSpan(doc);
-            if (!(maxSpan > 0)) { return true; }
-            return (guideLength > maxSpan);
-        } catch (e) { return false; }
+    /* ガイド1本を種類別に集計に足す（ルーラー・アートボード・その他）/ Classify one guide into the tally */
+    function wkAddGuideCount(pathItem, tally, artboardSides) {
+        var guideLength = -1;
+        try { guideLength = wkStraightGuideLength(pathItem); } catch (e) {}
+        if (guideLength >= 0 && (!(artboardSides.maxSpan > 0) || guideLength > artboardSides.maxSpan)) { tally.ruler++; }
+        else if (guideLength >= 0 && wkMatchesArtboardSide(guideLength, artboardSides)) { tally.abguide++; }
+        else { tally.otherguide++; }
     }
 
-    /* ガイド1本を種類別に数える / Classify one guide */
-    function wkCountGuides(pathItem, doc) {
-        var guideCounts = { ruler: 0, artboard: 0, other: 0 };
-        try {
-            if (!pathItem || pathItem.typename !== "PathItem") { return guideCounts; }
-            if (!pathItem.guides) { return guideCounts; }
-            if (wkIsRulerGuide(pathItem, doc)) { guideCounts.ruler = 1; }
-            else if (wkIsArtboardGuide(pathItem, doc)) { guideCounts.artboard = 1; }
-            else { guideCounts.other = 1; }
-        } catch (e) {}
-        return guideCounts;
-    }
-
-    /* ガイドの種類別の数を集計に足す / Add guide counts into a tally */
-    function wkAddGuideCounts(tally, guideCounts) {
-        tally.ruler += guideCounts.ruler;
-        tally.abguide += guideCounts.artboard;
-        tally.otherguide += guideCounts.other;
-    }
-
-    /* 不透明度が100未満か・描画モードが通常以外かを数える / Opacity below 100 and non-normal blend mode */
-    function wkCountTransparency(pageItem) {
-        var transparency = { opacityLt100: 0, blendNotNormal: 0 };
-        if (!pageItem) { return transparency; }
-        try { if (typeof pageItem.opacity === "number" && pageItem.opacity < 100) { transparency.opacityLt100 = 1; } } catch (e) {}
-        try { if (pageItem.blendingMode !== undefined && pageItem.blendingMode !== BlendModes.NORMAL) { transparency.blendNotNormal = 1; } } catch (e2) {}
-        return transparency;
-    }
-
-    /* ガイドのパスか / Whether a path is a guide */
-    function wkIsGuidePath(pathItem) {
-        try { return (pathItem && pathItem.typename === "PathItem" && pathItem.guides === true); } catch (e) { return false; }
+    /* 不透明度が100未満・描画モードが通常以外なら集計に足す / Count opacity below 100 and non-normal blend mode */
+    function wkAddTransparency(pageItem, tally) {
+        try { if (typeof pageItem.opacity === "number" && pageItem.opacity < 100) { tally.opacity++; } } catch (e) {}
+        try { if (pageItem.blendingMode !== undefined && pageItem.blendingMode !== BlendModes.NORMAL) { tally.blend++; } } catch (e2) {}
     }
 
     /* アンカーから伸びている方向線の数を数える / Count direction handles that stick out of their anchors */
-    function wkCountHandles(pathItem) {
+    function wkCountHandles(pathPoints, pointCount) {
         var handleCount = 0;
         try {
-            var pathPoints = pathItem.pathPoints;
-            for (var i = 0; i < pathPoints.length; i++) {
-                var anchor = pathPoints[i].anchor;
-                var leftDirection = pathPoints[i].leftDirection;
-                var rightDirection = pathPoints[i].rightDirection;
+            for (var i = 0; i < pointCount; i++) {
+                var pathPoint = pathPoints[i];
+                var anchor = pathPoint.anchor;
+                var leftDirection = pathPoint.leftDirection;
+                var rightDirection = pathPoint.rightDirection;
                 if (leftDirection[0] !== anchor[0] || leftDirection[1] !== anchor[1]) { handleCount++; }
                 if (rightDirection[0] !== anchor[0] || rightDirection[1] !== anchor[1]) { handleCount++; }
             }
@@ -756,24 +722,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         return handleCount;
     }
 
-    /* ガイドでないパス1本ぶんを集計に足す / Add one non-guide path into the path stats */
-    function wkAddPathStats(pathItem, pathStats) {
-        if (wkIsGuidePath(pathItem)) { return; }
-        pathStats.pathCount++;
-        pathStats.anchorCount += pathItem.pathPoints.length;
-        pathStats.handleCount += wkCountHandles(pathItem);
-        if (pathItem.closed) { pathStats.closedPath++; } else { pathStats.openPath++; }
-    }
-
-    /* パスの数・アンカー・ハンドル・開閉を集計する（グループと複合パスは中まで）/ Path stats, recursing into groups and compound paths */
-    function wkCountPathStats(pageItem, pathStats) {
-        if (pageItem.typename === "GroupItem") {
-            for (var gi = 0; gi < pageItem.pageItems.length; gi++) { wkCountPathStats(pageItem.pageItems[gi], pathStats); }
-        } else if (pageItem.typename === "PathItem") {
-            wkAddPathStats(pageItem, pathStats);
-        } else if (pageItem.typename === "CompoundPathItem") {
-            for (var ci = 0; ci < pageItem.pathItems.length; ci++) { wkAddPathStats(pageItem.pathItems[ci], pathStats); }
+    /* パス1本を集計に足す（ガイドはガイドとして数える）/ Add one path into the tally, guides counted separately */
+    function wkAddPath(pathItem, tally, artboardSides) {
+        var isGuide = false;
+        try { isGuide = (pathItem.guides === true); } catch (e) {}
+        if (isGuide) {
+            if (artboardSides) { wkAddGuideCount(pathItem, tally, artboardSides); }
+            return;
         }
+        var pathStats = tally.path;
+        var pathPoints = pathItem.pathPoints;
+        var pointCount = pathPoints.length;
+        pathStats.pathCount++;
+        pathStats.anchorCount += pointCount;
+        pathStats.handleCount += wkCountHandles(pathPoints, pointCount);
+        if (pathItem.closed) { pathStats.closedPath++; } else { pathStats.openPath++; }
     }
 
     /* 文字列に含まれる改行（\n）を数える / Count \n in a string */
@@ -783,88 +746,150 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         return breakMatches ? breakMatches.length : 0;
     }
 
-    /* テキストの数・文字数・段落数・種類を集計する（グループは中まで）/ Text stats, recursing into groups */
-    function wkCountTextStats(pageItem, textStats) {
-        if (pageItem.typename === "GroupItem") {
-            for (var gi = 0; gi < pageItem.pageItems.length; gi++) { wkCountTextStats(pageItem.pageItems[gi], textStats); }
-        } else if (pageItem.typename === "TextFrame") {
-            textStats.textCount++;
-            try { textStats.charCount += pageItem.characters.length; } catch (e) {}
-            try { textStats.paraCount += pageItem.paragraphs.length; } catch (e2) {}
-            try { textStats.forcedBreakCount += wkCountForcedBreaks(pageItem.contents); } catch (e3) {}
-            if (pageItem.kind === TextType.POINTTEXT) { textStats.pointText++; }
-            else if (pageItem.kind === TextType.AREATEXT) { textStats.areaText++; }
-            else if (pageItem.kind === TextType.PATHTEXT) { textStats.pathText++; }
+    /* テキスト1つの文字数・段落数・種類を集計に足す / Add one text frame into the text stats */
+    function wkAddText(textFrame, textStats) {
+        textStats.textCount++;
+        try { textStats.charCount += textFrame.characters.length; } catch (e) {}
+        try { textStats.paraCount += textFrame.paragraphs.length; } catch (e2) {}
+        try { textStats.forcedBreakCount += wkCountForcedBreaks(textFrame.contents); } catch (e3) {}
+        var textKind = textFrame.kind;
+        if (textKind === TextType.POINTTEXT) { textStats.pointText++; }
+        else if (textKind === TextType.AREATEXT) { textStats.areaText++; }
+        else if (textKind === TextType.PATHTEXT) { textStats.pathText++; }
+    }
+
+    /* 進捗の状態を作る（ウィンドウは時間がかかったときだけ開く）/ Create the progress state; the window opens only when counting runs long */
+    function wkCreateProgress(totalCount, encodedTitle) {
+        var progressTitle = "";
+        try { progressTitle = decodeURIComponent(encodedTitle); } catch (e) {}
+        return { totalCount: totalCount, doneCount: 0, startTime: new Date().getTime(), title: progressTitle, progressWindow: null, progressBar: null, progressText: null, failed: false };
+    }
+
+    /* 1件進め、0.5秒を過ぎていたら進捗ウィンドウを開いて更新する / Advance by one; open and update the window once 0.5 s have passed */
+    function wkStepProgress(progress) {
+        progress.doneCount++;
+        if (progress.failed || progress.doneCount % 50 !== 0) { return; }
+        if (!progress.progressWindow) {
+            if (new Date().getTime() - progress.startTime < 500) { return; }
+            try {
+                var progressWindow = new Window("palette", progress.title);
+                progressWindow.orientation = "column";
+                progressWindow.alignChildren = ["fill", "center"];
+                progressWindow.margins = [15, 15, 15, 15];
+                progressWindow.spacing = 8;
+                var progressText = progressWindow.add("statictext", undefined, progress.title);
+                progressText.preferredSize.width = 300;
+                var progressBar = progressWindow.add("progressbar", undefined, 0, progress.totalCount);
+                progressBar.minvalue = 0;
+                progressBar.maxvalue = progress.totalCount;
+                progressBar.preferredSize = [300, 8];
+                progressWindow.center();
+                progressWindow.show();
+                progress.progressWindow = progressWindow;
+                progress.progressBar = progressBar;
+                progress.progressText = progressText;
+            } catch (e) { progress.failed = true; return; }
+        }
+        try {
+            progress.progressBar.value = Math.min(progress.doneCount, progress.totalCount);
+            progress.progressText.text = progress.title + " (" + Math.min(progress.doneCount, progress.totalCount) + " / " + progress.totalCount + ")";
+            progress.progressWindow.update();
+        } catch (e2) {}
+    }
+
+    /* 進捗ウィンドウを閉じる / Close the progress window */
+    function wkCloseProgress(progress) {
+        if (!progress || !progress.progressWindow) { return; }
+        try { progress.progressWindow.close(); } catch (e) {}
+        progress.progressWindow = null;
+    }
+
+    /* グループ・複合パスの中のパスとテキストを集計に足す（選択用）/ Add paths and text inside groups and compound paths (selection only) */
+    function wkAddNestedStats(pageItem, itemType, tally, progress) {
+        var i;
+        if (itemType === "GroupItem") {
+            var childItems = pageItem.pageItems;
+            var childCount = childItems.length;
+            for (i = 0; i < childCount; i++) {
+                var childItem = childItems[i];
+                wkStepProgress(progress);
+                wkAddNestedStats(childItem, childItem.typename, tally, progress);
+            }
+        } else if (itemType === "CompoundPathItem") {
+            var memberPaths = pageItem.pathItems;
+            var memberCount = memberPaths.length;
+            for (i = 0; i < memberCount; i++) { wkAddPath(memberPaths[i], tally, null); }
+        } else if (itemType === "PathItem") {
+            wkAddPath(pageItem, tally, null);
+        } else if (itemType === "TextFrame") {
+            wkAddText(pageItem, tally.text);
         }
     }
 
-    /* 上端と左端を返す（取れなければ 0）/ Top and left of an item, 0 when unavailable */
-    function wkTopLeft(pageItem) {
-        var topLeft = [0, 0];
-        try { var itemBounds = pageItem.geometricBounds; topLeft = [itemBounds[1], itemBounds[0]]; } catch (e) {}
-        return topLeft;
-    }
-
-    /* 選択を上から、同じ高さなら左から並べ替える / Sort the selection top to bottom, then left to right */
-    function wkSortSelection(selectedItems) {
-        var sortedItems = [];
-        for (var i = 0; i < selectedItems.length; i++) { sortedItems.push(selectedItems[i]); }
-        sortedItems.sort(function (itemA, itemB) {
-            var topLeftA = wkTopLeft(itemA);
-            var topLeftB = wkTopLeft(itemB);
-            if (topLeftA[0] !== topLeftB[0]) { return topLeftB[0] - topLeftA[0]; }
-            return topLeftA[1] - topLeftB[1];
-        });
-        return sortedItems;
-    }
-
-    /* オブジェクト数を数える（グループと複合パスは中まで）/ Count items, recursing into groups and compound paths */
-    function wkCountAllItems(pageItems) {
-        var itemCount = 0;
-        for (var i = 0; i < pageItems.length; i++) {
-            itemCount++;
-            if (pageItems[i].typename === "GroupItem") { itemCount += wkCountAllItems(pageItems[i].pageItems); }
-            else if (pageItems[i].typename === "CompoundPathItem") { itemCount += wkCountAllItems(pageItems[i].pathItems); }
-        }
-        return itemCount;
-    }
-
-    /* オブジェクトの一覧を種類別に集計する（選択と全体で共通）/ Tally a list of items (shared by selection and document) */
-    function wkTallyItems(pageItems, doc) {
+    /* オブジェクトの一覧を種類別に集計する。isFlat は入れ子が一覧に含まれる doc.pageItems 用 / Tally a list of items; isFlat for doc.pageItems, which already lists nested items */
+    function wkTallyItems(pageItems, artboardSides, isFlat, progress) {
         var tally = {
             cpath: 0, cshape: 0, opacity: 0, blend: 0, ruler: 0, abguide: 0, otherguide: 0,
             linked: 0, embed: 0, broken: 0, group: 0, clip: 0,
             path: { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 },
             text: { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 }
         };
-        for (var i = 0; i < pageItems.length; i++) {
+        var itemCount = pageItems.length;
+        for (var i = 0; i < itemCount; i++) {
             var pageItem = pageItems[i];
-            if (pageItem.typename === "CompoundPathItem") { tally.cpath++; }
-            if (pageItem.typename === "PluginItem") {
-                try { if (pageItem.name && pageItem.name.indexOf("Compound Shape") !== -1) { tally.cshape++; } } catch (e) {}
-            }
-            var transparency = wkCountTransparency(pageItem);
-            tally.opacity += transparency.opacityLt100;
-            tally.blend += transparency.blendNotNormal;
-            try {
-                if (pageItem.typename === "PathItem") {
-                    wkAddGuideCounts(tally, wkCountGuides(pageItem, doc));
-                } else if (pageItem.typename === "CompoundPathItem") {
-                    for (var j = 0; j < pageItem.pathItems.length; j++) { wkAddGuideCounts(tally, wkCountGuides(pageItem.pathItems[j], doc)); }
+            var itemType = pageItem.typename;
+            wkStepProgress(progress);
+            wkAddTransparency(pageItem, tally);
+            if (itemType === "PathItem") {
+                wkAddPath(pageItem, tally, artboardSides);
+            } else if (itemType === "CompoundPathItem") {
+                tally.cpath++;
+                if (!isFlat) {
+                    var memberPaths = pageItem.pathItems;
+                    var memberCount = memberPaths.length;
+                    for (var j = 0; j < memberCount; j++) { wkAddPath(memberPaths[j], tally, artboardSides); }
                 }
-            } catch (e2) {}
-            wkCountPathStats(pageItem, tally.path);
-            wkCountTextStats(pageItem, tally.text);
-            if (pageItem.typename === "PlacedItem") {
+            } else if (itemType === "TextFrame") {
+                wkAddText(pageItem, tally.text);
+            } else if (itemType === "GroupItem") {
+                tally.group++;
+                if (pageItem.clipped) { tally.clip++; }
+                if (!isFlat) { wkAddNestedStats(pageItem, itemType, tally, progress); }
+            } else if (itemType === "PlacedItem") {
                 if (pageItem.embedded) { tally.embed++; }
                 else {
                     tally.linked++;
-                    try { var linkedFile = pageItem.file; if (!linkedFile || !linkedFile.exists) { tally.broken++; } } catch (e3) { tally.broken++; }
+                    try { var linkedFile = pageItem.file; if (!linkedFile || !linkedFile.exists) { tally.broken++; } } catch (e) { tally.broken++; }
                 }
+            } else if (itemType === "PluginItem") {
+                try { if (pageItem.name && pageItem.name.indexOf("Compound Shape") !== -1) { tally.cshape++; } } catch (e2) {}
             }
-            if (pageItem.typename === "GroupItem") { tally.group++; if (pageItem.clipped) { tally.clip++; } }
         }
         return tally;
+    }
+
+    /* 0以上の整数を12桁の0埋め文字列にする / Zero-pad a non-negative integer to 12 digits */
+    function wkPadSortKey(intValue) {
+        var keyText = String(intValue);
+        while (keyText.length < 12) { keyText = "0" + keyText; }
+        return keyText;
+    }
+
+    /* 選択を上から、同じ高さなら左から並べ替える（比較関数なしの sort で）/ Sort the selection top to bottom, then left to right, without a comparator */
+    function wkSortSelection(selectedItems) {
+        var itemCount = selectedItems.length;
+        var coordOffset = 100000000;
+        var sortKeys = [];
+        for (var i = 0; i < itemCount; i++) {
+            var itemTop = 0;
+            var itemLeft = 0;
+            try { var itemBounds = selectedItems[i].geometricBounds; itemTop = itemBounds[1]; itemLeft = itemBounds[0]; } catch (e) {}
+            sortKeys.push(wkPadSortKey(Math.round((coordOffset - itemTop) * 1000)) + wkPadSortKey(Math.round((coordOffset + itemLeft) * 1000)) + wkPadSortKey(i));
+        }
+        sortKeys.sort();
+        var sortedItems = [];
+        for (var k = 0; k < itemCount; k++) { sortedItems.push(selectedItems[parseInt(sortKeys[k].substring(24), 10)]); }
+        return sortedItems;
     }
 
     /* 「key+Sel=値」「key+All=値」の組を足す / Push a Sel/All pair */
@@ -874,16 +899,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
     }
 
     /* 集計して「OK|key=value|...|MEMO|件数|メモ...」の文字列で返す / Collect and return OK|key=value|...|MEMO|count|notes */
-    function wkCollect() {
+    function wkCollect(encodedProgressTitle) {
         if (app.documents.length === 0) { return "NODOC"; }
         var doc = app.activeDocument;
         var selectedItems = doc.selection;
         if (!selectedItems) { selectedItems = []; }
         var selCount = selectedItems.length;
-        var allCount = wkCountAllItems(doc.pageItems);
+        var docItems = doc.pageItems;
+        var allCount = docItems.length;
+        var artboardSides = wkReadArtboardSides(doc);
 
-        var selTally = wkTallyItems(selectedItems, doc);
-        var allTally = wkTallyItems(doc.pageItems, doc);
+        /* 選択にグループがあると中まで数えるので、進捗の分母は全体の件数を上限として見込む / Selected groups are counted inside, so budget up to the document count for them */
+        var selWeight = selCount;
+        for (var si = 0; si < selCount; si++) {
+            if (selectedItems[si].typename === "GroupItem") { selWeight = allCount; break; }
+        }
+        var progress = wkCreateProgress(allCount + selWeight, encodedProgressTitle);
+        var selTally, allTally;
+        try {
+            allTally = wkTallyItems(docItems, artboardSides, true, progress);
+            selTally = wkTallyItems(selectedItems, artboardSides, false, progress);
+        } finally {
+            wkCloseProgress(progress);
+        }
 
         var sortedItems = wkSortSelection(selectedItems);
         var memoParts = [];
@@ -943,23 +981,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
     /* worker 関数は全登録（追加漏れ防止） / Register every worker function */
     var WORKER_FUNCS = [
-        wkGetMaxArtboardSpan,
+        wkReadArtboardSides,
         wkStraightGuideLength,
-        wkIsArtboardGuide,
-        wkIsRulerGuide,
-        wkCountGuides,
-        wkAddGuideCounts,
-        wkCountTransparency,
-        wkIsGuidePath,
+        wkMatchesArtboardSide,
+        wkAddGuideCount,
+        wkAddTransparency,
         wkCountHandles,
-        wkAddPathStats,
-        wkCountPathStats,
+        wkAddPath,
         wkCountForcedBreaks,
-        wkCountTextStats,
-        wkTopLeft,
-        wkSortSelection,
-        wkCountAllItems,
+        wkAddText,
+        wkAddNestedStats,
+        wkCreateProgress,
+        wkStepProgress,
+        wkCloseProgress,
         wkTallyItems,
+        wkPadSortKey,
+        wkSortSelection,
         wkPushPair,
         wkCollect,
         wkApplyMemo
@@ -995,7 +1032,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             bridgeMessage.onError = function (bridgeError) {
                 resultHolder.value = "ERR:" + ((bridgeError && bridgeError.body) ? bridgeError.body : "bridge");
             };
-            bridgeMessage.send(10);
+            bridgeMessage.send(BRIDGE_TIMEOUT_SECONDS);
         } catch (e) {
             resultHolder.value = "ERR:" + e;
         } finally {
@@ -1346,7 +1383,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
          */
         function refresh() {
             setStatus(getLabel('status.busy'));
-            var response = callMainEngine("wkCollect()");
+            var response = callMainEngine("wkCollect(\"" + encodeURIComponent(getLabel('status.counting')) + "\")");
 
             if (response === "ERR:BUSY") { setStatus(getLabel('status.busy')); return; }
             if (response === null || response === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
@@ -1389,7 +1426,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
          */
         function exportReport() {
             setStatus(getLabel('status.busy'));
-            var response = callMainEngine("wkCollect()");
+            var response = callMainEngine("wkCollect(\"" + encodeURIComponent(getLabel('status.counting')) + "\")");
             if (response === "NODOC") { setStatus(getLabel('status.noDoc')); return; }
             if (response === null || response === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
             if (typeof response === "string" && response.indexOf("ERR:") === 0) { setStatus(labelValueText('status.error', response.substring(4))); return; }
