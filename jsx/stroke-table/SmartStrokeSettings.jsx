@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrok
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -2555,7 +2555,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     }
 
     /**
-     * 破線の計算結果を表示するための、先頭のパスの長さと開閉を控える（undo で参照が切れるため値だけ持つ）
+     * 破線の計算結果を表示するための、先頭のパスの長さと開閉を控える
      * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
      * @returns {Object|null} { length, closed }。パスが無ければ null
      */
@@ -2765,29 +2765,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
     // =========================================
 
     /**
-     * プレビューを制御する。線幅は DOM で即時プレビュー（元の値を控えて書き戻すので undo に頼らない）、
-     * 矢印は DOM に無いのでアクション実行＋app.undo() でプレビューする
+     * プレビューを制御する。線幅は DOM で即時プレビュー（元の値を控えて書き戻す）、
+     * 矢印を含む設定は複製に適用してプレビューする（元のアイテムは一時的に隠す。app.undo() は段数が合わないため使わない）
      * @returns {Object} previewStrokeWidth / previewSettings / clearAction / reset を持つオブジェクト
      */
     function createPreviewController() {
+        var targetDocument = app.activeDocument;
+        var sourceItems = [];
         var strokePaths = [];
         var originalStates = [];
-        var isActionPreviewApplied = false;
+        var previewItems = [];
+        var isActionErrorShown = false;
 
-        /* 現在の線設定を控える / Capture the current stroke state */
-        function captureStrokeState() {
-            strokePaths = collectStrokePaths(app.activeDocument.selection);
-            originalStates = [];
-            for (var i = 0; i < strokePaths.length; i++) {
-                var strokePath = strokePaths[i];
-                originalStates.push({
-                    stroked: strokePath.stroked,
-                    strokeWidth: strokePath.strokeWidth,
-                    strokeColor: strokePath.strokeColor,
-                    strokeDashes: strokePath.strokeDashes,
-                    strokeDashOffset: strokePath.strokeDashOffset
-                });
-            }
+        /* 元の選択と線設定を控える / Capture the selection and its stroke state */
+        var selectedItems = targetDocument.selection;
+        for (var i = 0; i < selectedItems.length; i++) sourceItems.push(selectedItems[i]);
+        strokePaths = collectStrokePaths(sourceItems);
+        for (i = 0; i < strokePaths.length; i++) {
+            var strokePath = strokePaths[i];
+            originalStates.push({
+                stroked: strokePath.stroked,
+                strokeWidth: strokePath.strokeWidth,
+                strokeColor: strokePath.strokeColor,
+                strokeDashes: strokePath.strokeDashes,
+                strokeDashOffset: strokePath.strokeDashOffset
+            });
         }
 
         /* 控えた線設定を書き戻す / Restore the captured stroke state */
@@ -2804,17 +2806,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             }
         }
 
-        /* アクションによるプレビューを undo で取り消す / Undo the action based preview */
+        /* プレビュー用の複製を消し、元のアイテムを表示して選択し直す / Remove the preview copies and bring the originals back */
         function clearActionPreview() {
-            if (!isActionPreviewApplied) return;
-            /* 取り消す履歴が無いと例外になる / app.undo() throws when there is nothing to undo */
-            try { app.undo(); } catch (e) {}
-            isActionPreviewApplied = false;
-            /* undo でオブジェクト参照が無効になるため取り直す / References die on undo, re-capture */
-            captureStrokeState();
+            if (previewItems.length === 0) return;
+            for (var i = 0; i < previewItems.length; i++) previewItems[i].remove();
+            previewItems = [];
+            for (i = 0; i < sourceItems.length; i++) sourceItems[i].hidden = false;
+            targetDocument.selection = sourceItems;
         }
 
-        captureStrokeState();
+        /* 元のアイテムを複製して隠し、複製を選択する（複製は hidden を引き継ぐので隠す前に作る）
+           Duplicate the originals, hide them and select the copies (copies inherit hidden, so duplicate first) */
+        function createPreviewItems() {
+            for (var i = 0; i < sourceItems.length; i++) {
+                previewItems.push(sourceItems[i].duplicate());
+                sourceItems[i].hidden = true;
+            }
+            targetDocument.selection = previewItems;
+        }
 
         return {
             /* 線幅のみ DOM で即時プレビュー / Preview stroke width only, via the DOM */
@@ -2828,18 +2837,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
                 app.redraw();
             },
 
-            /* 矢印を含む全設定をアクションで 1 回だけプレビュー / Preview all settings via the action */
+            /* 矢印を含む全設定を複製に適用してプレビュー / Preview all settings on copies */
             previewSettings: function (strokeSettings) {
                 clearActionPreview();
                 restoreStrokeState();
-                applyStrokeSettings(strokePaths, strokeSettings);
-                isActionPreviewApplied = true;
+                createPreviewItems();
+                try {
+                    applyStrokeSettings(collectStrokePaths(previewItems), strokeSettings);
+                } catch (e) {
+                    /* 入力のたびに出さないよう、知らせるのは1回だけ / tell only once, not on every edit */
+                    if (!isActionErrorShown) alert(e.message);
+                    isActionErrorShown = true;
+                }
                 app.redraw();
             },
 
-            /* アクションによるプレビューだけを取り消す / Clear only the action based preview */
+            /* 複製によるプレビューだけを取り消す / Clear only the preview on copies */
             clearAction: function () {
-                if (!isActionPreviewApplied) return;
+                if (previewItems.length === 0) return;
                 clearActionPreview();
                 app.redraw();
             },
@@ -2875,7 +2890,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         colorSwatch.addEventListener("mousedown", function () {
             /* キャンセルでは渡した色がそのまま返るので、中身を比べて変化を見る / Cancel returns the passed color, so compare */
             var pickedColor = app.showColorPicker(colorSwatch.strokeColor);
-            if (!pickedColor || getColorKey(pickedColor) === getColorKey(colorSwatch.strokeColor)) return;
+            if (!pickedColor || isSameColor(pickedColor, colorSwatch.strokeColor)) return;
             setSwatchColor(colorSwatch, pickedColor);
             colorSwatch.isChanged = true;
             if (typeof colorSwatch.onColorChange === "function") colorSwatch.onColorChange();
@@ -2953,6 +2968,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             case "GrayColor": return ["Gray", sourceColor.gray].join(",");
             case "SpotColor": return ["Spot", sourceColor.spot.name, sourceColor.tint].join(",");
             default: return sourceColor.typename;
+        }
+    }
+
+    /**
+     * 2つの色が同じかを返す。カラーピッカーは OK でドキュメントのカラーモードの型を返すため、
+     * グレー・スポットカラーはドキュメントのカラーモードの値に直して比べる（直せない色は型と値の一致で比べる）
+     * @param {Color} firstColor - 色
+     * @param {Color} secondColor - 色
+     * @returns {boolean} 同じなら true
+     */
+    function isSameColor(firstColor, secondColor) {
+        if (getColorKey(firstColor) === getColorKey(secondColor)) return true;
+        var isCmykDocument = (app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK);
+        var firstValues = getDocumentColorValues(firstColor, isCmykDocument);
+        var secondValues = getDocumentColorValues(secondColor, isCmykDocument);
+        if (!firstValues || !secondValues) return false;
+        /* 変換の丸めを許す（CMYK は %、RGB は 0〜255）/ allow for rounding in the conversion */
+        var tolerance = isCmykDocument ? 0.5 : 1;
+        for (var i = 0; i < firstValues.length; i++) {
+            if (Math.abs(firstValues[i] - secondValues[i]) > tolerance) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 色をドキュメントのカラーモードの値の並びにする（グレー・スポットカラーは換算する）
+     * @param {Color} sourceColor - 色
+     * @param {boolean} isCmykDocument - CMYK ドキュメントなら true
+     * @returns {number[]|null} CMYK なら [C, M, Y, K]、RGB なら [R, G, B]。換算できない色は null
+     */
+    function getDocumentColorValues(sourceColor, isCmykDocument) {
+        switch (sourceColor.typename) {
+            case "CMYKColor":
+                return isCmykDocument ? [sourceColor.cyan, sourceColor.magenta, sourceColor.yellow, sourceColor.black] : null;
+            case "RGBColor":
+                return isCmykDocument ? null : [sourceColor.red, sourceColor.green, sourceColor.blue];
+            case "GrayColor":
+                if (isCmykDocument) return [0, 0, 0, sourceColor.gray];
+                var grayLevel = 255 * (1 - sourceColor.gray / 100);
+                return [grayLevel, grayLevel, grayLevel];
+            case "SpotColor":
+                /* 濃度は、CMYK は各版に掛け、RGB は白との間で混ぜる / apply the tint: scale CMYK inks, mix RGB with white */
+                var baseValues = getDocumentColorValues(sourceColor.spot.color, isCmykDocument);
+                if (!baseValues) return null;
+                var tintRatio = sourceColor.tint / 100;
+                for (var i = 0; i < baseValues.length; i++) {
+                    baseValues[i] = isCmykDocument ? baseValues[i] * tintRatio : 255 - (255 - baseValues[i]) * tintRatio;
+                }
+                return baseValues;
+            default:
+                return null;
         }
     }
 
@@ -4313,8 +4379,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             previewController: createPreviewController(),
             firstPathMetrics: getFirstPathMetrics(selectedPaths),
             isApplyingPreset: false, /* プリセットの書き込み中はプレビューを止める / suspend the preview while a preset is written */
-            strokeWidthScale: getArrowStrokeWidthScale(DEFAULT_ARROW_NUMBER) /* 今の矢印が線幅に掛けている倍数 / weight multiplier of the current arrowhead */
+            strokeWidthScale: 1 /* 今の矢印が線幅に掛けている倍数 / weight multiplier of the current arrowhead */
         };
+        /* 線幅欄は倍数の掛かっていない値で始まるので、最初の矢印の倍数をここで掛ける / the field starts unscaled, so apply the first arrowhead's multiplier */
+        changeArrowStrokeWidthScale(dialogSession, getArrowStrokeWidthScale(DEFAULT_ARROW_NUMBER));
         bindStrokeEvents(dialogSession);
         bindArrowheadEvents(dialogSession);
         bindDashEvents(dialogSession);
@@ -4884,7 +4952,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
             return;
         }
         var targetDocument = app.activeDocument;
-        if (targetDocument.selection.length === 0) {
+        /* 文字ツールで文字を選択しているときは TextRange が返り、length は文字数になる / a TextRange's length counts characters */
+        if (targetDocument.selection.typename === "TextRange" || targetDocument.selection.length === 0) {
             alert(getLabel("alert.noSelection"));
             return;
         }
@@ -4892,7 +4961,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹�
         var strokeSettings = showSettingsDialog(targetDocument);
         if (!strokeSettings) return;
 
-        applyStrokeSettings(collectStrokePaths(targetDocument.selection), strokeSettings);
+        try {
+            applyStrokeSettings(collectStrokePaths(targetDocument.selection), strokeSettings);
+        } catch (e) {
+            alert(e.message);
+        }
     }
 
     main();

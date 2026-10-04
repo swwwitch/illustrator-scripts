@@ -71,7 +71,7 @@ The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left
 
 #### Preview and buttons
 
-- The preview is always on (from the moment the dialog opens). The weight updates live while you type; settings that include arrowheads are previewed by playing the action and undoing it. Cancel restores the original state
+- The preview is always on (from the moment the dialog opens). The weight updates live while you type; settings that include arrowheads are previewed on copies (the original paths are hidden only while previewing). Cancel restores the original state
 - **Open Stroke Panel** at the bottom left closes the dialog (reverting like Cancel) and opens Illustrator's Stroke panel
 
 ### Usage
@@ -107,9 +107,10 @@ https://note.com/dtp_tranist/n/n1726fc0f8dc9
 - v1.1.6 (2026-10-04) Added Arrow 21 to the favorites (33%; picking it sets Round Cap and Round Join). Thickened the bar in the Arrow 27 icon. Other arrowheads return the cap and corner to Butt and Miter. Added Arrow 13 (Round Cap and Round Join). Added a pop-up of common weights next to the weight field. Option-clicking an arrowhead icon swaps the start and end. The weight pop-up is now a drawn ▼ button with a list. Arrowhead icons sit in 3 rows by 2 columns, [None] included
 - v1.2.0 (2026-10-04) Added Color to the Stroke panel (click the swatch for the standard Color Picker; it starts from the selected stroke color). With dashes set to None (including presets without dashes), existing dashes are removed. Cmd-Option-clicking an arrowhead icon toggles Same at end. Without a color change, each path takes its original color (stroke, or fill when unstroked) as the stroke color. Stroke and dash calculation labels now take the width of their actual text. Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.1 (2026-10-04) Renamed from FavoriteArrow to SmartStrokeSettings (presets saved under the old name are carried over). Added the article link
+- v1.2.2 (2026-10-04) Fixed an error when run with characters selected by the Type tool. Fixed every path taking the first path's color when the Color Picker was closed with OK without changing the color. The preview is now built on copies instead of undo (fixes arrowheads or caps sometimes remaining after Cancel). A message now appears when the action fails. Fixed the weight multiplier not being applied when the starting arrowhead has one
 
 ### Script info
 
-- Version: v1.2.1
+- Version: v1.2.2
 - First release: 2026-10-03
 - Last updated: 2026-10-04
