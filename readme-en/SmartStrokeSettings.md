@@ -1,8 +1,8 @@
 # Apply a favorite arrowhead and stroke settings at once
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-FavoriteArrow.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/FavoriteArrow.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartStrokeSettings.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SmartStrokeSettings.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteArrow.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartStrokeSettings.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,46 +10,69 @@
 
 ### Overview
 
-- Applies a favorite arrowhead together with the stroke settings — weight, cap, corner and dashes — to the selected paths.
+- Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color and dashes — to the selected paths.
 - Arrowheads cannot be reached from the Illustrator DOM, so a temporary action (ai_plugin_setStroke) is generated and played instead.
 - An adaptation of [SetStrokeAndArrowheads](SetStrokeAndArrowheads.md) that adds the cap and corner settings from SetStrokeAlignment and the dash calculation from [DashGapCalculator](DashGapCalculator.md).
 
+<img alt="The Set Stroke and Arrowheads dialog" src="../png/ss-1066-1314-144-20261004-095642-s.png" width="50%" />
+
 ### Features
+
+The dialog has the presets at the top, **Stroke** and **Arrowheads** in the left column, and **Dashes** in the right column.
 
 #### Presets
 
-- The pop-up at the top of the dialog loads saved settings (stroke, arrowheads and dashes)
-- The save icon (tray with a down arrow) names and saves the current settings (an existing name is overwritten after confirming); the delete icon (trash can) removes the selected preset
-- Presets survive an Illustrator restart (Folder.userData/illustrator-scripts/FavoriteArrowPresets.json)
+- The pop-up loads saved settings (stroke, arrowheads and dashes)
+- The save icon (tray with a down arrow) names and saves the current settings; an existing name is overwritten after confirming
+- The delete icon (trash can) removes the selected preset
+- Presets survive an Illustrator restart (Folder.userData/illustrator-scripts/SmartStrokeSettingsPresets.json). Presets saved under the old name FavoriteArrow are read too. The color is not stored in presets
 
 #### Stroke
 
-- Color (click the swatch to open Illustrator's standard Color Picker; it starts from the selected path's color; unless you change it, each path gets its own original color as the stroke — the stroke color, or the fill color when it has no stroke)
-- Weight (the ▼ on the right picks a common weight from 0.25 to 100 pt; starts from the selected path's stroke weight; without a stroke, from a default that follows the general unit)
-- Cap (Butt / Round / Projecting) and corner (Miter / Round / Bevel), picked with icons like those in the Stroke panel. Option-clicking Round Cap also sets Round Join
+- Weight: starts from the selected path's stroke weight (without a stroke, from a default that follows the general unit). The ▼ on the right picks a common weight (0.25 to 100 pt)
+- Cap (Butt / Round / Projecting) and corner (Miter / Round / Bevel): picked with icons like those in the Stroke panel. Option-clicking Round Cap also sets Round Join
+- Color: click the swatch to open Illustrator's standard Color Picker
+  - The swatch starts from the selected path's stroke color (or its fill color when it has no stroke)
+  - Unless you change the color, each path gets its own original color as the stroke (its stroke color, or its fill color when it has no stroke)
+  - A changed color is applied to every selected path
 
 #### Arrowheads
 
-- Pick [None] or a favorite arrowhead (Arrow 8, 11, 13, 21, 27) with icons showing their shapes (the selected one has a gray background). [None] at the top (a plain line) removes the arrowheads from both ends. Option-click swaps the start and end; Cmd-Option-click toggles Same at end
--  Arrow 11 is selected at start. The scale changes to suit it (100% for 11, 13 and 27, 25% for 8, 33% for 21). The tip alignment changes too (at end of path for 8 and 11, beyond end of path for 27). Arrow 8 sets the weight to 300%, and Arrows 13 and 21 set Round Cap and Round Join (other arrowheads set Butt Cap and Miter Join)
+- Pick [None] or a favorite arrowhead (Arrow 8, 11, 13, 21, 27) with icons showing their shapes (3 rows by 2 columns). The selected one has a gray background
+  - [None] removes the arrowheads from both ends
+  - Option-click swaps the start and end; Cmd-Option-click toggles Same at end
+- Each arrowhead sets its own scale, tip alignment, weight, cap and corner (Arrow 11 is selected at start)
+
+  | Arrow | Scale | Tip alignment | Other |
+  |---|---|---|---|
+  | 8 | 25% | At end of path | Weight at 300% (restored when another arrowhead is picked) |
+  | 11 | 100% | At end of path | |
+  | 13 | 100% | | Round Cap and Round Join |
+  | 21 | 33% | | Round Cap and Round Join |
+  | 27 | 100% | Beyond end of path | |
+
+  Any arrowhead other than 13 and 21 returns the cap to Butt and the corner to Miter
 - Pick any other arrowhead from the pop-up menu (scale: 100%)
+- Scale: the size of the arrowhead (%)
 - Options (icons in one row; names are in the tooltips; dimmed while the arrowhead is [None])
-  - **Same at end** (link icon): puts the same arrowhead on the end (the arrowhead icons show both ends too). When off, the end has no arrowhead
+  - **Same at end** (link icon): puts the same arrowhead on the end. While on, the arrowhead icons show both ends. When off, the end has no arrowhead
   - **Swap start and end** (⇄ icon): puts the arrowhead on the end instead of the start (dimmed while Same at end is on)
   - Tip alignment (left: beyond end of path / right: at end of path)
 
 #### Dashes
 
-- Choose **None**, **Dashed** or **Dotted** with radio buttons. Choosing Dashed or Dotted fills in Segments, Gap and Dash based on the stroke weight, and sets the arrowhead to [None]
-- Dash Calculation: works out the dashes from Segments, Gap and Dash. With several paths selected, each path is calculated from its own length
+- Choose **None**, **Dashed** or **Dotted**
+  - Choosing Dashed or Dotted fills in Segments, Gap and Dash based on the stroke weight, and sets the arrowhead to [None]
+  - With None, any dashes the paths already had are removed, leaving a solid line
+- Dash calculation: works out the dashes from Segments, Gap and Dash. With several paths selected, each path is calculated from its own length
 - Calculation: Gap → Dash / Dash → Gap
 - Dotted works out the gap between zero-length dots from Segments and fixes the cap to Round
-- Adjust ends (picked with icons; left: keep dash lengths / right: adjust ends): on an open path, Adjust ends distributes the dashes so both ends finish with a dash (or dot)
+- Corner alignment (picked with icons; left: keep dash lengths / right: adjust ends): Adjust ends distributes the dashes on an open path so both ends finish with a dash (or dot)
 
-#### Preview
+#### Preview and buttons
 
-- **Open Stroke Panel** at the bottom left closes the dialog (reverting like Cancel) and opens Illustrator's Stroke panel
 - The preview is always on (from the moment the dialog opens). The weight updates live while you type; settings that include arrowheads are previewed by playing the action and undoing it. Cancel restores the original state
+- **Open Stroke Panel** at the bottom left closes the dialog (reverting like Cancel) and opens Illustrator's Stroke panel
 
 ### Usage
 
@@ -61,8 +84,12 @@
 
 - Arrowhead, tip alignment, cap and corner names must match Illustrator's UI labels (they depend on the UI language).
 - The arrowhead scale keys (asc1 / asc2) are estimated.
-- Dashes are set through the DOM after the action runs.
-- The favorite arrowheads and their scales can be changed in `FAVORITE_ARROWS` at the top of the script.
+- Dashes and the stroke color are set through the DOM after the action runs.
+- The favorite arrowheads and their scale, tip alignment, weight multiplier, cap and corner can be changed in `FAVORITE_ARROWS` at the top of the script.
+
+### Article
+
+https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ---
 
@@ -79,9 +106,10 @@
 - v1.1.5 (2026-10-04) Picking Arrow 8 sets the weight to 300%; picking another arrowhead restores it
 - v1.1.6 (2026-10-04) Added Arrow 21 to the favorites (33%; picking it sets Round Cap and Round Join). Thickened the bar in the Arrow 27 icon. Other arrowheads return the cap and corner to Butt and Miter. Added Arrow 13 (Round Cap and Round Join). Added a pop-up of common weights next to the weight field. Option-clicking an arrowhead icon swaps the start and end. The weight pop-up is now a drawn ▼ button with a list. Arrowhead icons sit in 3 rows by 2 columns, [None] included
 - v1.2.0 (2026-10-04) Added Color to the Stroke panel (click the swatch for the standard Color Picker; it starts from the selected stroke color). With dashes set to None (including presets without dashes), existing dashes are removed. Cmd-Option-clicking an arrowhead icon toggles Same at end. Without a color change, each path takes its original color (stroke, or fill when unstroked) as the stroke color. Stroke and dash calculation labels now take the width of their actual text. Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.2.1 (2026-10-04) Renamed from FavoriteArrow to SmartStrokeSettings (presets saved under the old name are carried over). Added the article link
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1
 - First release: 2026-10-03
 - Last updated: 2026-10-04

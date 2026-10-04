@@ -5738,9 +5738,9 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         }
     });
 
-    /* ==== FavoriteArrow (jsx/stroke-table/FavoriteArrow.jsx) ==== */
+    /* ==== SmartStrokeSettings (jsx/stroke-table/SmartStrokeSettings.jsx) ==== */
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "線端：線端なし",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -5861,7 +5861,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "線端：丸型線端",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -5982,7 +5982,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "線端：突出線端",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -6103,7 +6103,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "角の形状：マイター結合",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -6224,7 +6224,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "角の形状：ラウンド結合",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -6345,7 +6345,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "角の形状：ベベル結合",
         size: [28, 22],
         draw: function (g, w, h, ink, ground) {
@@ -6466,7 +6466,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "両端を調整：オフ（破線の長さを保持）",
         size: [36, 26],
         draw: function (g, w, h, ink, ground) {
@@ -6587,7 +6587,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "両端を調整：オン（コーナーやパス先端に破線の先端を整列）",
         size: [36, 26],
         draw: function (g, w, h, ink, ground) {
@@ -6708,7 +6708,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "先端位置：矢印の先端をパスの終点から配置",
         size: [36, 26],
         draw: function (g, w, h, ink, ground) {
@@ -6829,7 +6829,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "先端位置：矢印の先端をパスの終点に配置",
         size: [36, 26],
         draw: function (g, w, h, ink, ground) {
@@ -6950,7 +6950,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：なし（矢印0）",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7071,7 +7071,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印8",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7192,7 +7192,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印11",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7313,7 +7313,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印27",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7434,7 +7434,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印8（終点も同じ・両端）",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7556,7 +7556,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印11（終点も同じ・両端）",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7678,7 +7678,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "よく使う矢印：矢印27（終点も同じ・両端）",
         size: [76, 26],
         draw: function (g, w, h, ink, ground) {
@@ -7800,7 +7800,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     });
 
     ICON_CATALOG.push({
-        script: "FavoriteArrow",
+        script: "SmartStrokeSettings",
         name: "始点と終点を入れ替え（⇄）",
         size: [30, 30],
         draw: function (g, w, h, ink, ground) {

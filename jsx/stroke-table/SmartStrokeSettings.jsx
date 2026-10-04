@@ -1,38 +1,42 @@
 #target illustrator
-#targetengine "FavoriteArrowEngine"
+#targetengine "SmartStrokeSettingsEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・破線）をまとめて適用します。
+選択したパスに、よく使う矢印と線の設定（線幅・線端・角の形状・カラー・破線）をまとめて適用します。
 矢印はDOMから操作できないため、一時アクションを生成して実行します。
 
 詳細は README を参照してください。
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteArrow.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartStrokeSettings.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1726fc0f8dc9
 
 ### Overview
 
-Applies a favorite arrowhead together with the stroke settings — weight, cap, corner and dashes — to the selected paths.
+Applies a favorite arrowhead together with the stroke settings — weight, cap, corner, color and dashes — to the selected paths.
 Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
 
 See the README for details.
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteArrow.md
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrokeSettings.md
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "SmartStrokeSettings";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FavoriteArrow.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteArrow.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartStrokeSettings.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartStrokeSettings.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1726fc0f8dc9"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -2254,7 +2258,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* プリセットは名前をキーにした集まり（既定値 {} で中身を問わず受け取る）。再起動しても残す
        Presets: a map keyed by name (the {} default accepts any content), kept across restarts */
-    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent");
+    var presetSettingsStore = createSettingsStore(SCRIPT_NAME + "Presets", "persistent", {
+        /* 旧名 FavoriteArrow のときに保存したプリセットを読み継ぐ / carry over presets saved under the old name FavoriteArrow */
+        legacy: function () {
+            return readSettingsLegacyFile(Folder.userData + "/" + SETTINGS_STORE_FOLDER_NAME + "/FavoriteArrowPresets.json");
+        }
+    });
 
     // =========================================
     // 単位 / Units
