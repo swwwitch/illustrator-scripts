@@ -35,10 +35,11 @@ AiAdjustVerticalGapPalette / DirectPrefsPalette / DocumentFontListSelectorPalett
 
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.2
 
 ### Update History
 
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.1 (2026-10-03) Added ViewTogglePalette to the targets.
 - v1.1.0 (2026-10-03) Fixed palettes never closing: a BridgeTalk body's `#targetengine` was ignored and ran in the main engine. The script now closes palettes directly from the shared engine `SwwwitchPalettes`. All 28 target palettes have moved to that engine.
 - v1.0.5 (2026-10-02) Added FavoriteFontPickerPalette to the targets.

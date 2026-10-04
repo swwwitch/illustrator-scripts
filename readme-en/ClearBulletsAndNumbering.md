@@ -28,3 +28,4 @@ Removes Illustrator's built-in Bullets and Numbering from the selected text fram
 ### Update History
 
 - v1.0.0 (2026-08-18)
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

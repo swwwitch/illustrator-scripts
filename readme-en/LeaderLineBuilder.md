@@ -65,6 +65,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Changelog
 
+- v1.6.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.6.5 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.6.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool
@@ -77,7 +78,7 @@ When several leader lines are selected at once, "Keep each direction" is presele
 
 ### Script info
 
-- Version: v1.6.3
+- Version: v1.6.7
 - First release: 2026-03-06
-- Last updated: 2026-08-12
+- Last updated: 2026-10-04
 - Article: https://note.com/dtp_tranist/n/n506df641d5c5

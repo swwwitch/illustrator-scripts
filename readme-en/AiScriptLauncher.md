@@ -135,6 +135,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.6.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.0 (2026-10-01): With the helper app OpenInFileViewer.app, files are revealed and folders opened in Path Finder while it is running
 - v1.5.4 (2026-10-01): Fixed palette scripts run from the launcher closing right away instead of staying open
 - v1.5.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

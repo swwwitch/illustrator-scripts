@@ -75,6 +75,7 @@ The original artwork and path stay as they are, and the only additions are one c
 
 ### Changelog
 
+- v1.1.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.7 (2026-10-03): The number fields now show their units inside; removed the units from the labels and beside the fields
 - v1.1.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.1.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

@@ -19,10 +19,10 @@ getLabel accepts either a path such as "dialog.title" or a { ja, en } entry such
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Localization";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -43,8 +43,8 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     //      getLabel(LABELS.dialog.title)   … { ja, en } を直接
     //      getLabel("alert.count", { count: 3 })  … "{count} 個" の {count} を差し込む
     //      getLabel("alert.range", [1, 10])       … "%1〜%2" の %1・%2 を差し込む
-    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は全角「：」、英語は半角「:」）
-    //      labelValueText("message.count", 5) … 「件数：5」／「Count: 5」（値が続く1行。英語はコロンのあとに空白）
+    //      labelText("fieldLabel.width")   … 末尾にコロン（日本語は「 :」、英語は「:」）
+    //      labelValueText("message.count", 5) … 「件数 : 5」／「Count: 5」（値が続く1行。コロンのあとに空白）
     // 4. 見つからないパスはパスの文字列をそのまま返す（表示で気づけるように）。{ ja, en } が無いときは空文字
 
     // ローカライズ（再利用パーツ） / Localization (reusable)
@@ -83,23 +83,23 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
     }
 
     /**
-     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {Object|Array} [placeholderValues] - getLabel と同じ
      * @returns {string} コロン付きの文言
      */
     function labelText(labelRef, placeholderValues) {
-        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
     }
 
     /**
-     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {string|number} value - コロンのあとに続ける値
      * @returns {string} 項目名と値をつないだ文字列
      */
     function labelValueText(labelRef, value) {
-        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+        return labelText(labelRef) + " " + value;
     }
 
     /**

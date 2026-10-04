@@ -104,3 +104,4 @@ The up/down buttons to the left of each number field work the same way as the ar
 - v1.0.3 (20260921) : The cut direction is now decided from how much of the artwork the path spans. Unified the wording around "break lines" and matched the tooltips for weight, gap and offset to the actual unit and direction
 - v1.0.2 (20260921) : Left/right cutting with automatic direction detection; any object can be the artwork; settings are restored. Added the Mask shape panel (height and offset) and the stroke weight of the break lines; distances use the ruler unit and the weight uses the Stroke unit
 - v1.0.1 (20260921) : Initial release
+- v1.2.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

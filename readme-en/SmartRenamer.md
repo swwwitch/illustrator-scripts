@@ -48,6 +48,7 @@
     - Cancelling restores pre-dialog names for all three item types
 
 ### Update History
+- v1.6.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 
 #### v1.6.8 (2026-10-01)
@@ -70,4 +71,4 @@
 
 ### Script info
 
-- Version: v1.6.5
+- Version: v1.6.9

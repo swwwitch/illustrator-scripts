@@ -295,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.6.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.6.1 (2026-10-01): The palette now closes after clicking Open Links Panel
 - v1.6.0 (2026-10-01): Folders now open in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed

@@ -48,3 +48,4 @@ and Make Pixel Perfect. A demo script for building samples and mockups.
 - v1.2 (20250713) : Split into functions, header cleanup
 - v1.1 (20250511) : Comment cleanup and logic improvements
 - v1.0 (20250401) : Initial release
+- v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

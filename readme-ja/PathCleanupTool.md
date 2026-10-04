@@ -149,3 +149,4 @@ PathItem、CompoundPathItem、GroupItem（いずれも再帰的に PathItem を�
 ### note
 
 - [Illustratorでパスを最適化する](https://note.com/dtp_tranist/n/nd82f59bf63a8)
+- v1.7.7（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）

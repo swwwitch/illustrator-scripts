@@ -30,7 +30,8 @@
 
 - v1.0.0 (20260513): Initial release
 - v1.0.1 (20260927): Alerts are now localized in English
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2

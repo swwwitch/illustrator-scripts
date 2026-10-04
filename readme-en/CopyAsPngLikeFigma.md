@@ -37,3 +37,4 @@
 - v1.0.0 (20250502): Initial version
 - v1.0.1 (20250603): Adjusted scaling to even integer multiples, cleaned up comments
 - v1.0.2 (20260919): Tidied up internal names (no change in behavior)
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

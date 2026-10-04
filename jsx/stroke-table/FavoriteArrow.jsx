@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FavoriteAr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FavoriteArrow";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -50,17 +50,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_STROKE_WIDTH_BY_UNIT = { "mm": 0.25, "px": 1 };
     var DEFAULT_ARROW_NUMBER = 11;           /* 最初に選んでおく矢印の番号（FAVORITE_ARROWS から）/ arrowhead number selected at start (from FAVORITE_ARROWS) */
     var DEFAULT_ARROW_SCALE  = 100;          /* 倍率の初期値（ポップアップメニューの矢印にも使う）/ initial arrowhead scale, also used for the pop-up arrowheads */
+    /* 線幅のポップアップメニューに並べる値（pt、Illustrator の線パネルと同じ）/ weights in the pop-up menu (pt, as in Illustrator's Stroke panel) */
+    var STROKE_WIDTH_PRESETS = [0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     var DEFAULT_STROKE_CAP   = "butt";       /* 線端の初期値（butt / round / projecting）/ default cap */
     var DEFAULT_CORNER_JOIN  = "miter";      /* 角の形状の初期値（miter / round / bevel）/ default join */
 
     /* アイコンで出すよく使う矢印と倍率・先端位置。ここに無い矢印はポップアップメニューに並ぶ
-       number 0 は「[なし]」（矢印を外す）。tipAlign は TIP_ALIGN_OPTIONS の key（atEnd / beyondEnd）、省略すると先端位置を変えない
+       number 0 は「[なし]」（矢印を外す）。tipAlign は TIP_ALIGN_OPTIONS の key（atEnd / beyondEnd）、省略すると先端位置を変えない。
+       strokeWidthScale を付けた矢印は、選んだときに線幅をその倍数にし、ほかの矢印を選ぶと元に戻す。
+       strokeCap / cornerJoin（STROKE_CAP_OPTIONS・CORNER_JOIN_OPTIONS の key）を付けた矢印は、選んだときに線端・角の形状もそれにする。
+       付けていない矢印を選ぶと、線端・角の形状は DEFAULT_STROKE_CAP・DEFAULT_CORNER_JOIN（線端なし・マイター）に戻る
        Favorite arrowheads shown as icons, with their scales and tip alignment. The rest go in the pop-up menu.
-       Number 0 is [None], which removes the arrowheads. tipAlign is a TIP_ALIGN_OPTIONS key; omit it to leave the tip alone */
+       Number 0 is [None], which removes the arrowheads. tipAlign is a TIP_ALIGN_OPTIONS key; omit it to leave the tip alone.
+       An arrowhead with strokeWidthScale multiplies the weight while it is picked; picking another restores it.
+       strokeCap / cornerJoin (keys of STROKE_CAP_OPTIONS / CORNER_JOIN_OPTIONS) also set the cap and corner when it is picked;
+       picking an arrowhead without them returns the cap and corner to DEFAULT_STROKE_CAP / DEFAULT_CORNER_JOIN */
     var FAVORITE_ARROWS = [
         { number: 0,  scale: 100 },
-        { number: 8,  scale: 25,  tipAlign: "atEnd" },
+        { number: 8,  scale: 25,  tipAlign: "atEnd", strokeWidthScale: 3 },  /* 線幅は 300% / weight at 300% */
         { number: 11, scale: 100, tipAlign: "atEnd" },
+        { number: 13, scale: 100, strokeCap: "round", cornerJoin: "round" }, /* 丸型線端・ラウンド結合にする / round cap and join */
+        { number: 21, scale: 33,  strokeCap: "round", cornerJoin: "round" }, /* 丸型線端・ラウンド結合にする / round cap and join */
         { number: 27, scale: 100, tipAlign: "beyondEnd" }
     ];
 
@@ -181,16 +191,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* コントロールの寸法 / Control metrics */
     var ROW_SPACING        = 8;              /* 行内の要素間隔 / spacing inside a row */
-    var STROKE_LABEL_WIDTH = 76;             /* 線パネルの項目名の幅（「角の形状：」のコロンまで収まる幅）/ stroke panel label width */
+    var STEPPER_LABEL_GAP  = 0;              /* 項目名（コロン）と∧∨の間 / gap between a label's colon and the stepper */
+    var LABEL_GAP          = 4;              /* 項目名（コロン）と右の入力欄・アイコンの間 / gap between a label's colon and its control */
     var ARROW_LABEL_WIDTH  = 40;             /* 矢印パネルの項目名の幅 / arrowhead panel label width */
-    var DASH_LABEL_WIDTH   = 60;             /* 破線の計算の項目名の幅（「分割数：」のコロンまで収まる幅）/ dash calculation label width */
     var FIELD_CHARACTERS   = 4;              /* 数値入力欄の文字数 / numeric field width */
+    var PRESET_ICON_SIZE   = [20, 18];       /* プリセットの保存・削除アイコンの大きさ（部品の既定 24×22 よりひとまわり小さく）/ preset save and delete icon size */
     var SAVE_ICON_OPACITY  = 0.75;           /* 保存アイコンの濃さ（ほかのアイコンに対する比率）/ save icon opacity relative to the others */
     var CHOICE_ICON_SIZE   = [36, 26];       /* 選択肢アイコン（先端位置・両端を調整）の大きさ。4つともそろえる / shared size of the tip and adjust-ends icons */
     var ADJUST_ICON_SIZE   = CHOICE_ICON_SIZE; /* 両端を調整のアイコンの大きさ / adjust-ends icon size */
     var STROKE_ICON_SIZE   = [28, 22];       /* 線端・角の形状のアイコンの大きさ（ほかの選択肢アイコンよりひとまわり小さい）/ cap and corner icon size, a size smaller */
     var STROKE_ICON_INSET  = 3;              /* 線端・角の形状のアイコンの枠と図形の間（px）/ gap between the cap / corner icon frame and its shape */
     var TIP_ICON_SIZE      = CHOICE_ICON_SIZE; /* 先端位置のアイコンの大きさ / tip alignment icon size */
+    var ARROW_ICON_COLUMNS = 2;              /* よく使う矢印のアイコンを横に並べる数（［なし］も含む）/ favorite arrowhead icons per row, [None] included */
     var ARROW_ICON_SIZE    = [76, 26];       /* よく使う矢印のアイコンの大きさ / favorite arrowhead icon size */
     var ARROW_ICON_SCALE   = 22 / 383;       /* よく使う矢印の絵の倍率（高さを詰めても絵の大きさは変えない）/ fixed drawing scale, so a shorter icon keeps the same arrow */
     var ARROW_ICONS_BOTTOM_MARGIN = 10;      /* よく使う矢印のアイコン（最後の矢印）の下の余白 / space below the favorite arrowhead icons */
@@ -199,7 +211,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var LINK_CHAIN_RATIO   = 0.8;            /* リンクアイコンの鎖の大きさ（枠に対する比率）/ chain size relative to the link icon */
     var OPTION_TOGGLE_SIZE = [30, 30];       /* 終点も同じ・入れ替えのアイコンの大きさ / Same at end and Swap icon size */
     var ADJUST_ICON_INSET  = 3;              /* 両端を調整のアイコンの枠と図形の間（px）/ gap between the adjust-ends icon frame and its shapes */
-    var UNIT_FIELD_CHARACTERS = 6;           /* 単位を欄の中に入れる数値欄の文字数 / width of a field holding its unit */
+    var COLOR_SWATCH_SIZE  = [40, 20];       /* 線の色見本の大きさ / stroke color swatch size */
+    var WIDTH_POPUP_BUTTON_WIDTH  = 20;      /* 線幅の▼ボタンの幅 / width of the weight ▼ button */
+    var WIDTH_POPUP_BUTTON_HEIGHT = 22;      /* 線幅の▼ボタンの高さ（入力欄の高さが分からないとき）/ its height when the field's is unknown */
+    var WIDTH_POPUP_LIST_SIZE     = [90, 300]; /* 線幅のリストの大きさ / size of the weight list */
+    var UNIT_FIELD_CHARACTERS = 5;           /* 単位を欄の中に入れる数値欄の文字数 / width of a field holding its unit */
     var SEPARATOR_BOTTOM_MARGIN = 5;         /* 区切り線の下の余白 / space below a separator */
     var SUB_PANEL_TOP_MARGIN = 10;           /* 入れ子のパネル（計算方法）の上の余白 / space above nested panels */
     var PRESET_DROPDOWN_WIDTH = 160;         /* プリセットのドロップダウンの幅 / preset dropdown width */
@@ -1549,23 +1565,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {Object|Array} [placeholderValues] - getLabel と同じ
      * @returns {string} コロン付きの文言
      */
     function labelText(labelRef, placeholderValues) {
-        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
     }
 
     /**
-     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {string|number} value - コロンのあとに続ける値
      * @returns {string} 項目名と値をつないだ文字列
      */
     function labelValueText(labelRef, value) {
-        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+        return labelText(labelRef) + " " + value;
     }
 
     /**
@@ -1610,6 +1626,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             preset: { ja: "プリセット", en: "Preset" },
             presetName: { ja: "プリセット名", en: "Preset name" },
             strokeWidth: { ja: "線幅", en: "Weight" },
+            strokeColor: { ja: "カラー", en: "Color" },
             strokeCap: { ja: "線端", en: "Cap" },
             cornerJoin: { ja: "角の形状", en: "Corner" },
             arrowScale: { ja: "倍率", en: "Scale" },
@@ -1622,8 +1639,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             percent: { ja: "%", en: "%" }
         },
         radio: {
-            gapToDash: { ja: "間隔→線分", en: "Gap→Dash" },
-            dashToGap: { ja: "線分→間隔", en: "Dash→Gap" },
+            gapToDash: { ja: "間隔 → 線分", en: "Gap → Dash" },
+            dashToGap: { ja: "線分 → 間隔", en: "Dash → Gap" },
             noDash: { ja: "なし", en: "None" },
             dashed: { ja: "破線", en: "Dashed" },
             dotted: { ja: "ドット点線", en: "Dotted" },
@@ -1647,10 +1664,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             presetDelete: { ja: "選んでいるプリセットを削除します。", en: "Deletes the selected preset." },
             presetName: { ja: "保存する設定の名前です。同じ名前は上書きします。", en: "Name the settings are saved under. The same name is overwritten." },
             strokeWidth: { ja: "線の太さです。", en: "Weight of the stroke." },
+            strokeWidthList: { ja: "よく使う線幅から選びます。", en: "Pick a common weight." },
+            strokeColor: { ja: "クリックしてカラーピッカーで線の色を選びます。", en: "Click to pick the stroke color in the Color Picker." },
             roundCap: { ja: "option＋クリックで角の形状もラウンドにします。", en: "Option-click to set Round Join too." },
             favoriteArrow: {
-                ja: "始点に付ける矢印です。倍率と先端位置はこの矢印に合わせた値に変わります。",
-                en: "Arrowhead for the start of the path. The scale and tip alignment change to suit it."
+                ja: "始点に付ける矢印です。倍率と先端位置はこの矢印に合わせた値に変わります。option＋クリックで始点と終点を入れ替え、⌘＋option＋クリックで［終点も同じ］を切り替えます。",
+                en: "Arrowhead for the start of the path. The scale and tip alignment change to suit it. Option-click to swap the start and end; Cmd-Option-click to toggle Same at end."
             },
             otherArrow: {
                 ja: "ほかの矢印をメニューから選びます。倍率は {scale}% に戻ります。",
@@ -2394,9 +2413,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* 線の矢じり。折れ線1本で描いて先端を尖らせる / open head, one polyline so the tip comes to a point */
             lines: [[[191, 94], [73, 193], [191, 292], 24]]
         },
+        13: {
+            size: [883, 383],
+            rects: [[73, 178, 812, 208]],                     /* 軸 / shaft */
+            heads: [],
+            /* 線の矢じり（折れ線）。端と先端は丸く（丸型線端・ラウンド結合の見た目）/ open head; round ends and tip */
+            lines: [[[277, 66], [73, 193], [277, 320], 30]],
+            discs: [[73, 193, 15, "full"], [277, 66, 15, "full"], [277, 320, 15, "full"], [812, 193, 15, "full"]]
+        },
+        21: {
+            size: [883, 383],
+            rects: [[96, 164, 783, 220]],                     /* 軸 / shaft */
+            heads: [],
+            discs: [[96, 192, 68, "full"], [783, 192, 28, "right"]] /* 端の丸と、反対側の丸い線端 / end dot and the round far end */
+        },
         27: {
             size: [883, 383],
-            rects: [[96, 178, 812, 204], [70, 109, 96, 274]], /* 軸と縦棒 / shaft and bar */
+            rects: [[96, 178, 812, 204], [66, 109, 100, 274]], /* 軸と縦棒（縦棒は約2px。細すぎると1pxにつぶれる）/ shaft and bar, about 2 px so it does not collapse to 1 px */
             heads: []
         }
     };
@@ -2645,14 +2678,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 破線を DOM で設定する。アクションが破線を解除するので、アクションの後に呼ぶ
+     * 破線を DOM で設定する。アクションの後に呼ぶ。破線が［なし］なら破線を外して実線にする
+     * （アクションだけでは元の破線が残ることがあるため、DOM で明示的に外す）
      * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
-     * @param {Object|null} dashCalc - readDashCalc() の戻り値。null なら何もしない
+     * @param {Object|null} dashCalc - readDashCalc() の戻り値。null なら実線にする
      * @returns {void}
      */
     function applyDashStyle(strokePaths, dashCalc) {
-        if (!dashCalc) return;
-        for (var i = 0; i < strokePaths.length; i++) {
+        var i;
+        if (!dashCalc) {
+            for (i = 0; i < strokePaths.length; i++) {
+                strokePaths[i].strokeDashes = [];
+                strokePaths[i].strokeDashOffset = 0;
+            }
+            return;
+        }
+        for (i = 0; i < strokePaths.length; i++) {
             var dashArray = calcDashArray(dashCalc, strokePaths[i].length, strokePaths[i].closed);
             if (!dashArray) continue;
             strokePaths[i].strokeDashOffset = 0;
@@ -2667,8 +2708,47 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function applyStrokeSettings(strokePaths, strokeSettings) {
+        /* 元の色はアクションの前に控える（線の無いパスはアクションで線が付き、色が変わるため）/ note the colors before the action adds strokes */
+        var originalColors = collectOriginalColors(strokePaths);
         playStrokeAction(strokeSettings);
         applyDashStyle(strokePaths, strokeSettings.dashCalc);
+        applyStrokeColor(strokePaths, strokeSettings.strokeColor, originalColors);
+    }
+
+    /**
+     * パスごとの元の色を控える（線があれば線の色、線が無ければ塗りの色）
+     * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
+     * @returns {Array} 色の並び（色が無ければ null）
+     */
+    function collectOriginalColors(strokePaths) {
+        var originalColors = [];
+        for (var i = 0; i < strokePaths.length; i++) originalColors.push(getPathColor(strokePaths[i]));
+        return originalColors;
+    }
+
+    /**
+     * パスの色を返す（線があれば線の色、線が無ければ塗りの色）
+     * @param {PathItem} strokePath - パス
+     * @returns {Color|null} 色。線も塗りも無ければ null
+     */
+    function getPathColor(strokePath) {
+        if (strokePath.stroked) return strokePath.strokeColor;
+        if (strokePath.filled) return strokePath.fillColor;
+        return null;
+    }
+
+    /**
+     * 線の色を DOM で設定する。カラーを変えていればその色を、変えていなければパスごとの元の色を線の色にする
+     * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
+     * @param {Color|null} strokeColor - カラーで選んだ色。変えていなければ null
+     * @param {Array} originalColors - collectOriginalColors() の戻り値
+     * @returns {void}
+     */
+    function applyStrokeColor(strokePaths, strokeColor, originalColors) {
+        for (var i = 0; i < strokePaths.length; i++) {
+            var pathColor = strokeColor || originalColors[i];
+            if (pathColor) strokePaths[i].strokeColor = pathColor;
+        }
     }
 
     // =========================================
@@ -2694,6 +2774,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 originalStates.push({
                     stroked: strokePath.stroked,
                     strokeWidth: strokePath.strokeWidth,
+                    strokeColor: strokePath.strokeColor,
                     strokeDashes: strokePath.strokeDashes,
                     strokeDashOffset: strokePath.strokeDashOffset
                 });
@@ -2705,7 +2786,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < strokePaths.length; i++) {
                 var originalState = originalStates[i];
                 strokePaths[i].stroked = originalState.stroked;
-                if (originalState.stroked) strokePaths[i].strokeWidth = originalState.strokeWidth;
+                if (originalState.stroked) {
+                    strokePaths[i].strokeWidth = originalState.strokeWidth;
+                    strokePaths[i].strokeColor = originalState.strokeColor;
+                }
                 strokePaths[i].strokeDashes = originalState.strokeDashes;
                 strokePaths[i].strokeDashOffset = originalState.strokeDashOffset;
             }
@@ -2765,6 +2849,249 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
+     * 線の色の色見本を追加する（onDraw で塗る）。クリックで Illustrator 標準のカラーピッカーを開く。
+     * 色は .strokeColor に持ち、カラーピッカーで変えたら .isChanged を true にして .onColorChange を呼ぶ
+     * @param {Group} parent - 追加先
+     * @returns {Group} 色見本
+     */
+    function addColorSwatch(parent) {
+        var colorSwatch = parent.add("group");
+        colorSwatch.preferredSize = COLOR_SWATCH_SIZE;
+        colorSwatch.minimumSize = COLOR_SWATCH_SIZE;
+        colorSwatch.maximumSize = COLOR_SWATCH_SIZE;
+        colorSwatch.helpTip = getLabel("tooltip.strokeColor");
+        colorSwatch.strokeColor = createBlackColor();
+        colorSwatch.isChanged = false;
+        colorSwatch.onDraw = function () { drawColorSwatch(colorSwatch); };
+        colorSwatch.addEventListener("mousedown", function () {
+            /* キャンセルでは渡した色がそのまま返るので、中身を比べて変化を見る / Cancel returns the passed color, so compare */
+            var pickedColor = app.showColorPicker(colorSwatch.strokeColor);
+            if (!pickedColor || getColorKey(pickedColor) === getColorKey(colorSwatch.strokeColor)) return;
+            setSwatchColor(colorSwatch, pickedColor);
+            colorSwatch.isChanged = true;
+            if (typeof colorSwatch.onColorChange === "function") colorSwatch.onColorChange();
+        });
+        return colorSwatch;
+    }
+
+    /**
+     * 色見本の色を変えて描き直す
+     * @param {Group} colorSwatch - addColorSwatch() で作った色見本
+     * @param {Color} swatchColor - 色
+     * @returns {void}
+     */
+    function setSwatchColor(colorSwatch, swatchColor) {
+        colorSwatch.strokeColor = swatchColor;
+        redrawStepperGroup(colorSwatch);
+    }
+
+    /**
+     * 色見本を塗る（色が無い・表せないときは白地に赤の斜線）
+     * @param {Group} colorSwatch - addColorSwatch() で作った色見本
+     * @returns {void}
+     */
+    function drawColorSwatch(colorSwatch) {
+        var swatchGraphics = colorSwatch.graphics;
+        var swatchWidth = COLOR_SWATCH_SIZE[0];
+        var swatchHeight = COLOR_SWATCH_SIZE[1];
+        var displayRgb = getDisplayRgb(colorSwatch.strokeColor);
+        swatchGraphics.newPath();
+        swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+        swatchGraphics.fillPath(swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, displayRgb ? displayRgb.concat([1]) : [1, 1, 1, 1]));
+        if (!displayRgb) {
+            swatchGraphics.newPath();
+            swatchGraphics.moveTo(1, swatchHeight - 1);
+            swatchGraphics.lineTo(swatchWidth - 1, 1);
+            swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.9, 0.1, 0.1, 1], 1.5));
+        }
+        swatchGraphics.newPath();
+        swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+        swatchGraphics.strokePath(swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1));
+    }
+
+    /**
+     * 色見本に塗る RGB（0〜1）を求める。CMYK・グレーは簡易換算、スポットは元の色で、それ以外は null
+     * @param {Color} sourceColor - 色
+     * @returns {number[]|null} [r, g, b]。色が無い・グラデーション・パターンなら null
+     */
+    function getDisplayRgb(sourceColor) {
+        if (!sourceColor) return null;
+        switch (sourceColor.typename) {
+            case "RGBColor":
+                return [sourceColor.red / 255, sourceColor.green / 255, sourceColor.blue / 255];
+            case "CMYKColor":
+                var blackRatio = sourceColor.black / 100;
+                return [(1 - sourceColor.cyan / 100) * (1 - blackRatio), (1 - sourceColor.magenta / 100) * (1 - blackRatio), (1 - sourceColor.yellow / 100) * (1 - blackRatio)];
+            case "GrayColor":
+                var grayLevel = 1 - sourceColor.gray / 100;
+                return [grayLevel, grayLevel, grayLevel];
+            case "SpotColor":
+                return getDisplayRgb(sourceColor.spot.color);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * 色を比べるための文字列にする（カラーピッカーのキャンセルを見分けるため）
+     * @param {Color} sourceColor - 色
+     * @returns {string} 型と値をつないだ文字列
+     */
+    function getColorKey(sourceColor) {
+        switch (sourceColor.typename) {
+            case "RGBColor": return ["RGB", sourceColor.red, sourceColor.green, sourceColor.blue].join(",");
+            case "CMYKColor": return ["CMYK", sourceColor.cyan, sourceColor.magenta, sourceColor.yellow, sourceColor.black].join(",");
+            case "GrayColor": return ["Gray", sourceColor.gray].join(",");
+            case "SpotColor": return ["Spot", sourceColor.spot.name, sourceColor.tint].join(",");
+            default: return sourceColor.typename;
+        }
+    }
+
+    /**
+     * 黒（グレー100%）を作る。ドキュメントのカラーモードを問わず黒になる
+     * @returns {GrayColor} 黒
+     */
+    function createBlackColor() {
+        var blackColor = new GrayColor();
+        blackColor.gray = 100;
+        return blackColor;
+    }
+
+    /**
+     * 選択している最初のパスの色を返す（色見本の初期値に使う。線が無ければ塗りの色）
+     * @param {PathItem[]} strokePaths - collectStrokePaths() で集めたパス
+     * @returns {Color|null} 色。色のあるパスが無ければ null
+     */
+    function getSelectedStrokeColor(strokePaths) {
+        for (var i = 0; i < strokePaths.length; i++) {
+            var pathColor = getPathColor(strokePaths[i]);
+            if (pathColor) return pathColor;
+        }
+        return null;
+    }
+
+    /**
+     * 線幅欄のすぐ右に、よく使う線幅を選ぶ▼ボタン（onDraw で描く）を足す。
+     * ScriptUI にはコンボボックスが無く、ドロップダウンリストを開く処理も呼べないので、
+     * 押したら欄の下に小さなリストのダイアログボックスを出す
+     * @param {EditText} strokeWidthInput - addNumberField() で作った線幅欄
+     * @returns {Group} ▼ボタン（.onPick(線幅) を呼び出し側で付ける）
+     */
+    function addStrokeWidthPopupButton(strokeWidthInput) {
+        /* 入力欄と隙間0で突き合わせる（∧∨と入力欄が入っているグループに足す）/ butt it against the field */
+        var popupButton = strokeWidthInput.parent.add("group");
+        var buttonSize = [WIDTH_POPUP_BUTTON_WIDTH, strokeWidthInput.preferredSize.height > 0 ? strokeWidthInput.preferredSize.height : WIDTH_POPUP_BUTTON_HEIGHT];
+        popupButton.preferredSize = buttonSize;
+        popupButton.minimumSize = buttonSize;
+        popupButton.maximumSize = buttonSize;
+        popupButton.helpTip = getLabel("tooltip.strokeWidthList");
+        popupButton.onDraw = function () {
+            var buttonGraphics = popupButton.graphics;
+            var buttonWidth = popupButton.size ? popupButton.size[0] : buttonSize[0];
+            var buttonHeight = popupButton.size ? popupButton.size[1] : buttonSize[1];
+            var isDark = isDarkUI();
+            var frameColor = isDark ? [1, 1, 1, 0.25] : [0, 0, 0, 0.25];
+            var chevronColor = isDark ? [1, 1, 1, 0.85] : [0, 0, 0, 0.65];
+            /* 枠（左も描いて入力欄との境目にする）/ full frame; the left edge marks the border with the field */
+            buttonGraphics.newPath();
+            buttonGraphics.rectPath(0.5, 0.5, buttonWidth - 1, buttonHeight - 1);
+            buttonGraphics.strokePath(buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, frameColor, 1));
+            /* 下向きの山形 / downward chevron */
+            var centerX = buttonWidth / 2;
+            var centerY = buttonHeight / 2;
+            buttonGraphics.newPath();
+            buttonGraphics.moveTo(centerX - 4, centerY - 2);
+            buttonGraphics.lineTo(centerX, centerY + 2);
+            buttonGraphics.lineTo(centerX + 4, centerY - 2);
+            buttonGraphics.strokePath(buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, chevronColor, 1.5));
+        };
+        popupButton.addEventListener("mousedown", function () {
+            var pickedIndex = showValuePopup(strokeWidthInput, STROKE_WIDTH_PRESETS, getLabel("unit.point"), parseFloat(strokeWidthInput.text));
+            if (pickedIndex >= 0 && typeof popupButton.onPick === "function") popupButton.onPick(STROKE_WIDTH_PRESETS[pickedIndex]);
+        });
+        return popupButton;
+    }
+
+    /**
+     * コントロールの左上の画面上の位置を求める（親をたどって bounds を足し、ウィンドウの中身の位置を足す）
+     * @param {Object} control - コントロール
+     * @returns {number[]} [x, y]
+     */
+    function getScreenPosition(control) {
+        var screenX = 0;
+        var screenY = 0;
+        for (var node = control; node && node.parent; node = node.parent) {
+            screenX += node.bounds[0];
+            screenY += node.bounds[1];
+        }
+        screenX += control.window.bounds[0];
+        screenY += control.window.bounds[1];
+        return [screenX, screenY];
+    }
+
+    /**
+     * 値のリストを、基準のコントロールの下に枠なしの小さなダイアログボックスで出し、選んだ位置を返す
+     * （クリックで決定、Esc や外側をクリックで閉じる）
+     * @param {Object} anchorControl - この下に出す
+     * @param {number[]} values - 並べる値
+     * @param {string} unitLabel - 値の後ろに付ける単位
+     * @param {number} currentValue - 今の値（同じ値を選んだ状態で開く）
+     * @returns {number} 選んだ値の位置。選ばずに閉じたら -1
+     */
+    function showValuePopup(anchorControl, values, unitLabel, currentValue) {
+        var popupDialog = new Window("dialog", undefined, undefined, { borderless: true });
+        popupDialog.margins = 2;
+        var valueItems = [];
+        for (var i = 0; i < values.length; i++) valueItems.push(values[i] + " " + unitLabel);
+        var valueList = popupDialog.add("listbox", undefined, valueItems);
+        valueList.preferredSize = [Math.max(anchorControl.size ? anchorControl.size[0] : 0, WIDTH_POPUP_LIST_SIZE[0]), WIDTH_POPUP_LIST_SIZE[1]];
+        for (var j = 0; j < values.length; j++) {
+            if (Math.abs(values[j] - currentValue) < 0.001) valueList.selection = j;
+        }
+        var pickedIndex = -1;
+        valueList.onChange = function () {
+            if (!valueList.selection) return;
+            pickedIndex = valueList.selection.index;
+            popupDialog.close(1);
+        };
+        /* 外側をクリックしてフォーカスが外れたら閉じる / close when focus moves away */
+        popupDialog.onDeactivate = function () { popupDialog.close(2); };
+        var anchorPosition = getScreenPosition(anchorControl);
+        popupDialog.location = [anchorPosition[0], anchorPosition[1] + (anchorControl.size ? anchorControl.size[1] : 0) + 2];
+        popupDialog.show();
+        return pickedIndex;
+    }
+
+    /* 項目名の幅をそろえる（_templates/AlignLabelWidths.jsx から）/ align label widths (from _templates/AlignLabelWidths.jsx) */
+    /**
+     * 複数のラベル（statictext）の幅を最長のものへ揃え、指定方向に揃えます。
+     * 実際の描画幅（preferredSize.width）を測るため、文言長やロケールに依存しません。
+     * @param {StaticText[]} labelControls - 幅を揃える statictext の配列。
+     * @param {string} [justify] - 揃え方向 "left" | "center" | "right"（省略時は "right"）。
+     * @returns {number} 揃えた後の共通ラベル幅（px）。
+     */
+    function alignLabelWidths(labelControls, justify) {
+        if (!labelControls || !labelControls.length) return 0;
+        justify = justify || 'right';
+
+        /* 1パス目：各ラベルの自然幅を測り、最大値を求める / Pass 1: find the widest natural width */
+        var maxLabelWidth = 0;
+        for (var i = 0; i < labelControls.length; i++) {
+            /* preferredSize を返さない環境では実サイズで代用する / fall back to the laid-out size */
+            var naturalWidth = labelControls[i].preferredSize.width || labelControls[i].size.width;
+            if (naturalWidth > maxLabelWidth) maxLabelWidth = naturalWidth;
+        }
+
+        /* 2パス目：全ラベルを最大幅に固定し、揃え方向を適用 / Pass 2: apply common width and justification */
+        for (var j = 0; j < labelControls.length; j++) {
+            labelControls[j].preferredSize.width = maxLabelWidth;
+            labelControls[j].justify = justify;
+        }
+
+        return maxLabelWidth;
+    }
+
+    /**
      * 上に余白を取った入れ子のパネルを追加する（余白はパネルを包むグループの margins で取る）
      * @param {Panel} parent - 追加先のパネル
      * @param {string} titleKey - パネル名の LABELS パス
@@ -2795,18 +3122,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 右揃えの項目名を持つ行を追加する
+     * 右揃えの項目名を持つ行を追加する。項目名の幅は文字なりのまま（alignLabelWidths() でそろえる）
      * @param {Panel|Group} parent - 追加先
      * @param {string} labelKey - 項目名の LABELS パス
-     * @param {number} labelWidth - 項目名の幅
-     * @returns {Group} 追加した行
+     * @returns {Group} 追加した行（項目名は .rowLabel）
      */
-    function addLabeledRow(parent, labelKey, labelWidth) {
+    function addLabeledRow(parent, labelKey) {
         var labeledRow = parent.add("group");
-        setupRow(labeledRow, "left", ROW_SPACING);
+        setupRow(labeledRow, "left", LABEL_GAP);
         var rowLabel = labeledRow.add("statictext", undefined, labelText(labelKey));
-        rowLabel.preferredSize.width = labelWidth;
         rowLabel.justify = "right";
+        labeledRow.rowLabel = rowLabel;
         return labeledRow;
     }
 
@@ -2942,7 +3268,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function buildBothEndsShape(iconShape) {
         var shapeWidth = iconShape.size[0];
-        var bothEndsShape = { size: iconShape.size, rects: [], heads: [], lines: [] };
+        var bothEndsShape = { size: iconShape.size, rects: [], heads: [], lines: [], discs: [] };
+        var mirroredSides = { left: "right", right: "left", full: "full" };
         var i, j;
         for (i = 0; i < iconShape.rects.length; i++) {
             var shapeRect = iconShape.rects[i];
@@ -2951,6 +3278,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (i = 0; i < iconShape.heads.length; i++) {
             var headShape = iconShape.heads[i];
             bothEndsShape.heads.push(headShape, [shapeWidth - headShape[0], shapeWidth - headShape[1], headShape[2], headShape[3]]);
+        }
+        var shapeDiscs = iconShape.discs || [];
+        for (i = 0; i < shapeDiscs.length; i++) {
+            var discShape = shapeDiscs[i];
+            bothEndsShape.discs.push(discShape, [shapeWidth - discShape[0], discShape[1], discShape[2], mirroredSides[discShape[3]] || discShape[3]]);
         }
         var shapeLines = iconShape.lines || [];
         for (i = 0; i < shapeLines.length; i++) {
@@ -3107,9 +3439,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             onStep: notifySteppedInput
         });
         numberInput.helpTip = getLabel(fieldOptions.tooltipKey);
-        /* 行の間隔をほかの行にそろえ、単位を後ろに足す / match the other rows and append the unit */
+        /* 項目名のコロンと∧∨は隙間なしで続け、単位を後ろに足す / butt the stepper against the label's colon and append the unit */
         var fieldRow = numberInput.parent.parent;
-        fieldRow.spacing = ROW_SPACING;
+        fieldRow.spacing = STEPPER_LABEL_GAP;
         if (fieldOptions.unitKey && !unitInField) fieldRow.add("statictext", undefined, getLabel(fieldOptions.unitKey));
         return numberInput;
     }
@@ -3164,17 +3496,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(strokePanel, 6);
 
         var strokeWidthInput = addNumberField(strokePanel, {
-            labelKey: "fieldLabel.strokeWidth", labelWidth: STROKE_LABEL_WIDTH, text: String(getDefaultStrokeWidth()),
+            labelKey: "fieldLabel.strokeWidth", text: String(getDefaultStrokeWidth()),
             min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.strokeWidth"
         });
+        var strokeWidthPopupButton = addStrokeWidthPopupButton(strokeWidthInput);
         /* 線端・角の形状は Illustrator の線パネルと同じくアイコンで選ぶ / caps and corners are picked with icons, like the Stroke panel */
-        var strokeCapRow = addLabeledRow(strokePanel, "fieldLabel.strokeCap", STROKE_LABEL_WIDTH);
+        var strokeCapRow = addLabeledRow(strokePanel, "fieldLabel.strokeCap");
         var strokeCapIcons = addOptionIcons(strokeCapRow, STROKE_CAP_OPTIONS, DEFAULT_STROKE_CAP, STROKE_ICON_SIZE, STROKE_ICON_INSET);
-        var cornerJoinRow = addLabeledRow(strokePanel, "fieldLabel.cornerJoin", STROKE_LABEL_WIDTH);
+        var cornerJoinRow = addLabeledRow(strokePanel, "fieldLabel.cornerJoin");
         var cornerJoinIcons = addOptionIcons(cornerJoinRow, CORNER_JOIN_OPTIONS, DEFAULT_CORNER_JOIN, STROKE_ICON_SIZE, STROKE_ICON_INSET);
+        /* カラーはパネルの最下部 / Color sits at the bottom of the panel */
+        var strokeColorRow = addLabeledRow(strokePanel, "fieldLabel.strokeColor");
+        var strokeColorSwatch = addColorSwatch(strokeColorRow);
+        /* 項目名の幅は実際の文字幅のいちばん広いもの（「角の形状 :」）にそろえる / match the labels to the widest actual text */
+        alignLabelWidths([strokeWidthInput.fieldLabel, strokeColorRow.rowLabel, strokeCapRow.rowLabel, cornerJoinRow.rowLabel], "right");
 
         return {
             strokeWidthInput: strokeWidthInput,
+            strokeWidthPopupButton: strokeWidthPopupButton,
+            strokeColorSwatch: strokeColorSwatch,
             strokeCapRow: strokeCapRow,
             strokeCapIcons: strokeCapIcons,
             cornerJoinIcons: cornerJoinIcons
@@ -3236,10 +3576,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* よく使う矢印はアイコンで選ぶ（ラジオボタンと同じ value を持つ。排他は onClick で切り替える）
            Favorites are picked with icons that carry a radio-like value; onClick keeps them exclusive */
+        /* ［なし］も含めて ARROW_ICON_COLUMNS 個ずつ横に並べる / ARROW_ICON_COLUMNS per row, [None] included */
         var favoriteArrowNames = buildFavoriteArrowNames();
         var favoriteArrowIcons = [];
+        var arrowIconRow = null;
         for (var i = 0; i < favoriteArrowNames.length; i++) {
-            favoriteArrowIcons.push(addFavoriteArrowIcon(favoriteArrowGroup, FAVORITE_ARROWS[i], favoriteArrowNames[i]));
+            if (i % ARROW_ICON_COLUMNS === 0) {
+                arrowIconRow = favoriteArrowGroup.add("group");
+                setupRow(arrowIconRow, "left", favoriteArrowGroup.spacing);
+            }
+            favoriteArrowIcons.push(addFavoriteArrowIcon(arrowIconRow, FAVORITE_ARROWS[i], favoriteArrowNames[i]));
         }
         favoriteArrowIcons[defaultFavoriteIndex].value = true;
 
@@ -3362,23 +3708,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 円の一部（左半分・左上の四分円）を細い長方形の並びでパスに足す（ScriptUI は円弧を塗れないため）
+     * 円か円の一部（全体・左半分・右半分・左上の四分円）を細い長方形の並びでパスに足す（ScriptUI は円弧を塗れないため）
      * @param {ScriptUIGraphics} iconGraphics - 描画先
      * @param {number} centerX - 中心の x
      * @param {number} centerY - 中心の y
      * @param {number} radius - 半径
-     * @param {string} discSide - "left"（左半分）/ "topLeft"（左上の四分円）
+     * @param {string} discSide - "full"（全体）/ "left"（左半分）/ "right"（右半分）/ "topLeft"（左上の四分円）
      * @returns {void}
      */
     function addDiscPath(iconGraphics, centerX, centerY, radius, discSide) {
         var sliceCount = Math.max(8, Math.ceil(radius * 2));
         var sliceHeight = radius / sliceCount;
-        var bottomSlices = (discSide === "left") ? sliceCount : 0;
+        var bottomSlices = (discSide === "topLeft") ? 0 : sliceCount;
         for (var k = -sliceCount; k < bottomSlices; k++) {
             /* 帯の中央の高さで円の幅を測る / measure the half width at the slice's middle */
             var sliceCenterY = (k + 0.5) * sliceHeight;
             var halfWidth = Math.sqrt(Math.max(0, radius * radius - sliceCenterY * sliceCenterY));
-            iconGraphics.rectPath(centerX - halfWidth, centerY + k * sliceHeight, halfWidth, sliceHeight);
+            var sliceLeft = (discSide === "right") ? centerX : centerX - halfWidth;
+            var sliceWidth = (discSide === "full") ? halfWidth * 2 : halfWidth;
+            iconGraphics.rectPath(sliceLeft, centerY + k * sliceHeight, sliceWidth, sliceHeight);
         }
     }
 
@@ -3433,17 +3781,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dashCalcGroup.spacing = 6;
         dashCalcGroup.margins = [0, SEPARATOR_BOTTOM_MARGIN, 0, 0]; /* 区切り線の下 / below the separator */
         var segmentsInput = addNumberField(dashCalcGroup, {
-            labelKey: "fieldLabel.segments", labelWidth: DASH_LABEL_WIDTH, text: "1",
+            labelKey: "fieldLabel.segments", text: "1",
             min: 1, integer: true, tooltipKey: "tooltip.segments"
         });
         var gapInput = addNumberField(dashCalcGroup, {
-            labelKey: "fieldLabel.gap", labelWidth: DASH_LABEL_WIDTH, text: "0",
+            labelKey: "fieldLabel.gap", text: "0",
             min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.gap"
         });
         var dashLengthInput = addNumberField(dashCalcGroup, {
-            labelKey: "fieldLabel.dash", labelWidth: DASH_LABEL_WIDTH, text: "0",
+            labelKey: "fieldLabel.dash", text: "0",
             min: 0, unitKey: "unit.point", unitInField: true, tooltipKey: "tooltip.dash"
         });
+        /* 項目名の幅は実際の文字幅のいちばん広いものにそろえる / match the label widths to the widest actual text */
+        alignLabelWidths([segmentsInput.fieldLabel, gapInput.fieldLabel, dashLengthInput.fieldLabel], "right");
 
         /* 計算方法と両端を調整は破線の計算の中に置く / Calculation and Adjust ends sit inside Dash Calculation */
         var calcMethodPanel = addSubPanel(dashCalcGroup, "panel.calcMethod");
@@ -3483,11 +3833,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         presetDropdown.helpTip = getLabel("tooltip.preset");
         presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
         /* 保存アイコンは塗りの面が大きく濃く見えるので、色を薄めて描く / the save icon is mostly solid and looks heavy, so draw it lighter */
-        var presetSaveIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, function (iconGraphics, iconWidth, iconHeight, iconColor) {
+        var presetSaveIcon = addIconButton(presetRow, PRESET_ICON_SIZE, function (iconGraphics, iconWidth, iconHeight, iconColor) {
             drawSaveIcon(iconGraphics, iconWidth, iconHeight, [iconColor[0], iconColor[1], iconColor[2], iconColor[3] * SAVE_ICON_OPACITY]);
         });
         presetSaveIcon.helpTip = getLabel("tooltip.presetSave");
-        var presetDeleteIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawTrashIcon);
+        var presetDeleteIcon = addIconButton(presetRow, PRESET_ICON_SIZE, drawTrashIcon);
         presetDeleteIcon.helpTip = getLabel("tooltip.presetDelete");
         return {
             presetDropdown: presetDropdown,
@@ -3605,7 +3955,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tipAlign: getCheckedOption(arrowheadControls.tipAlignIcons),
             strokeCap: isDotted ? findOptionByKey(STROKE_CAP_OPTIONS, "round") : getCheckedOption(dialogControls.stroke.strokeCapIcons),
             cornerJoin: getCheckedOption(dialogControls.stroke.cornerJoinIcons),
-            dashCalc: dashCalc
+            dashCalc: dashCalc,
+            strokeColor: dialogControls.stroke.strokeColorSwatch.isChanged ? dialogControls.stroke.strokeColorSwatch.strokeColor : null
         };
     }
 
@@ -3945,11 +4296,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
            Start the weight from the selected path's stroke; without one, keep the unit-based default */
         var selectedStrokeWidth = getSelectedStrokeWidth(selectedPaths);
         if (selectedStrokeWidth !== null) setNumberFieldValue(dialogControls.stroke.strokeWidthInput, selectedStrokeWidth);
+        /* 色見本は選択しているパスの色から始める（線が無ければ塗りの色）/ the swatch starts from the selected path's color */
+        var selectedStrokeColor = getSelectedStrokeColor(selectedPaths);
+        if (selectedStrokeColor) dialogControls.stroke.strokeColorSwatch.strokeColor = selectedStrokeColor;
         var dialogSession = {
             controls: dialogControls,
             previewController: createPreviewController(),
             firstPathMetrics: getFirstPathMetrics(selectedPaths),
-            isApplyingPreset: false /* プリセットの書き込み中はプレビューを止める / suspend the preview while a preset is written */
+            isApplyingPreset: false, /* プリセットの書き込み中はプレビューを止める / suspend the preview while a preset is written */
+            strokeWidthScale: getArrowStrokeWidthScale(DEFAULT_ARROW_NUMBER) /* 今の矢印が線幅に掛けている倍数 / weight multiplier of the current arrowhead */
         };
         bindStrokeEvents(dialogSession);
         bindArrowheadEvents(dialogSession);
@@ -4010,22 +4365,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 矢印を1つだけ選び、倍率と先端位置を入れてプレビューする（先端位置は指定があるときだけ）
+     * 矢印を1つだけ選び、倍率を入れてプレビューする。よく使う矢印なら、その矢印の先端位置・線幅の倍数・線端・角の形状も入れる
+     * （線端・角の形状の指定が無い矢印は、既定の線端なし・マイター結合に戻す）
      * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
      * @param {Object} targetChoice - 選ぶよく使う矢印のアイコン、またはその他のラジオボタン
-     * @param {number} arrowScale - 倍率（%）
-     * @param {string} [tipAlignKey] - 先端位置の key
+     * @param {Object|null} favoriteArrow - FAVORITE_ARROWS の要素。その他の矢印なら null（倍率は DEFAULT_ARROW_SCALE）
      * @returns {void}
      */
-    function selectArrowChoice(dialogSession, targetChoice, arrowScale, tipAlignKey) {
-        var arrowheadControls = dialogSession.controls.arrowhead;
+    function selectArrowChoice(dialogSession, targetChoice, favoriteArrow) {
+        var dialogControls = dialogSession.controls;
+        var arrowheadControls = dialogControls.arrowhead;
+        var arrowSettings = favoriteArrow || {};
+        /* プリセットの書き込み中は線幅・線端もプリセットの値なので触らない / a preset brings its own weight, cap and corner */
+        if (!dialogSession.isApplyingPreset) {
+            changeArrowStrokeWidthScale(dialogSession, arrowSettings.strokeWidthScale || 1);
+            /* 指定の無い矢印は線端なし・マイター結合に戻す / arrowheads without their own cap and corner go back to the defaults */
+            checkOptionByKey(dialogControls.stroke.strokeCapIcons, arrowSettings.strokeCap || DEFAULT_STROKE_CAP);
+            checkOptionByKey(dialogControls.stroke.cornerJoinIcons, arrowSettings.cornerJoin || DEFAULT_CORNER_JOIN);
+        }
         var favoriteArrowIcons = arrowheadControls.favoriteArrowIcons;
         for (var i = 0; i < favoriteArrowIcons.length; i++) favoriteArrowIcons[i].value = (favoriteArrowIcons[i] === targetChoice);
         arrowheadControls.otherArrowRadio.value = (arrowheadControls.otherArrowRadio === targetChoice);
-        setNumberFieldValue(arrowheadControls.arrowScaleInput, arrowScale);
-        if (tipAlignKey) checkOptionByKey(arrowheadControls.tipAlignIcons, tipAlignKey);
+        setNumberFieldValue(arrowheadControls.arrowScaleInput, favoriteArrow ? favoriteArrow.scale : DEFAULT_ARROW_SCALE);
+        if (arrowSettings.tipAlign) checkOptionByKey(arrowheadControls.tipAlignIcons, arrowSettings.tipAlign);
         syncArrowOptionsEnabled(arrowheadControls);
         updatePreview(dialogSession);
+    }
+
+    /**
+     * 矢印の番号から、その矢印が線幅に掛ける倍数を返す
+     * @param {number} arrowNumber - 矢印の番号（[なし] は 0）
+     * @returns {number} 倍数。よく使う矢印に無いか指定が無ければ 1
+     */
+    function getArrowStrokeWidthScale(arrowNumber) {
+        var favoriteIndex = findFavoriteArrowIndex(arrowNumber);
+        return (favoriteIndex >= 0 && FAVORITE_ARROWS[favoriteIndex].strokeWidthScale) || 1;
+    }
+
+    /**
+     * 線幅欄の値から前の矢印の倍数を外し、新しい倍数を掛ける（同じ倍数なら何もしない）
+     * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
+     * @param {number} strokeWidthScale - 新しい矢印の倍数
+     * @returns {void}
+     */
+    function changeArrowStrokeWidthScale(dialogSession, strokeWidthScale) {
+        if (strokeWidthScale === dialogSession.strokeWidthScale) return;
+        var strokeWidthInput = dialogSession.controls.stroke.strokeWidthInput;
+        var strokeWidth = parseFloat(strokeWidthInput.text);
+        if (!isNaN(strokeWidth)) setNumberFieldValue(strokeWidthInput, strokeWidth / dialogSession.strokeWidthScale * strokeWidthScale);
+        dialogSession.strokeWidthScale = strokeWidthScale;
     }
 
     /**
@@ -4039,6 +4427,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dialogSession.previewController.previewStrokeWidth(parseFloat(strokeControls.strokeWidthInput.text));
         };
         addCommitHandler(strokeControls.strokeWidthInput, function () { updatePreview(dialogSession); });
+        strokeControls.strokeColorSwatch.onColorChange = function () { updatePreview(dialogSession); };
+        /* ▼で選んだ値は、手入力と同じく確定の処理を通す / a picked weight goes through the same commit as typing */
+        strokeControls.strokeWidthPopupButton.onPick = function (pickedWidth) {
+            setNumberFieldValue(strokeControls.strokeWidthInput, pickedWidth);
+            strokeControls.strokeWidthInput.onChange();
+        };
         var strokeOptionIcons = strokeControls.strokeCapIcons.concat(strokeControls.cornerJoinIcons);
         for (var i = 0; i < strokeOptionIcons.length; i++) {
             strokeOptionIcons[i].onClick = function () { updatePreview(dialogSession); };
@@ -4062,12 +4456,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var i;
         for (i = 0; i < arrowheadControls.favoriteArrowIcons.length; i++) {
             arrowheadControls.favoriteArrowIcons[i].onClick = (function (favoriteIcon, favoriteArrow) {
-                return function () { selectArrowChoice(dialogSession, favoriteIcon, favoriteArrow.scale, favoriteArrow.tipAlign); };
+                return function () {
+                    /* ⌘＋option＋クリックは［終点も同じ］（始点と終点のリンク）を切り替える。
+                       option＋クリックは始点と終点を入れ替える（終点も同じのときは入れ替えようがないので何もしない）
+                       Cmd-Option-click toggles Same at end; Option-click swaps the start and end (nothing to swap while Same at end is on) */
+                    var keyboardState = ScriptUI.environment.keyboardState;
+                    if (keyboardState.altKey && keyboardState.metaKey) {
+                        setLinkToggleValue(arrowheadControls.sameEndToggle, !arrowheadControls.sameEndToggle.value);
+                    } else if (keyboardState.altKey && !arrowheadControls.sameEndToggle.value) {
+                        setLinkToggleValue(arrowheadControls.swapEndsToggle, !arrowheadControls.swapEndsToggle.value);
+                    }
+                    selectArrowChoice(dialogSession, favoriteIcon, favoriteArrow);
+                };
             })(arrowheadControls.favoriteArrowIcons[i], FAVORITE_ARROWS[i]);
         }
         /* メニューから選んだときも、その他のラジオをオンにする / Picking from the menu turns on its radio */
         arrowheadControls.otherArrowRadio.onClick = arrowheadControls.otherArrowList.onChange = function () {
-            selectArrowChoice(dialogSession, arrowheadControls.otherArrowRadio, DEFAULT_ARROW_SCALE);
+            selectArrowChoice(dialogSession, arrowheadControls.otherArrowRadio, null);
         };
         /* 入力中はアクションのプレビューを取り消す（確定時に貼り直す）/ drop the action preview while typing; reapplied on commit */
         arrowheadControls.arrowScaleInput.onChanging = function () { dialogSession.previewController.clearAction(); };
@@ -4092,7 +4497,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var refreshDashCalc = function () { updateDashCalc(dialogSession); };
         var i;
         dashControls.noDashRadio.onClick = dashControls.dashedRadio.onClick = dashControls.dottedRadio.onClick = function () {
-            if (!dashControls.noDashRadio.value) selectNoArrowhead(dialogControls.arrowhead);
+            if (!dashControls.noDashRadio.value) selectNoArrowhead(dialogSession);
             fillDashCalcDefaults(dialogControls, dialogSession.firstPathMetrics);
             syncDashEnabled(dialogControls);
             refreshDashCalc();
@@ -4112,12 +4517,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 矢印を［なし］にする（プレビューは呼び出し側で更新する）
-     * @param {Object} arrowheadControls - buildArrowheadPanel() の戻り値
+     * @param {Object} dialogSession - showSettingsDialog() のダイアログの状態
      * @returns {void}
      */
-    function selectNoArrowhead(arrowheadControls) {
+    function selectNoArrowhead(dialogSession) {
+        var arrowheadControls = dialogSession.controls.arrowhead;
         var noArrowIndex = findFavoriteArrowIndex(0);
         if (noArrowIndex < 0) return;
+        changeArrowStrokeWidthScale(dialogSession, FAVORITE_ARROWS[noArrowIndex].strokeWidthScale || 1);
         selectArrowByNumber(arrowheadControls, 0);
         setNumberFieldValue(arrowheadControls.arrowScaleInput, FAVORITE_ARROWS[noArrowIndex].scale);
         syncArrowOptionsEnabled(arrowheadControls);
@@ -4150,6 +4557,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dialogSession.isApplyingPreset = true;
             applyPresetData(dialogControls, presetData);
             dialogSession.isApplyingPreset = false;
+            /* プリセットの線幅は矢印の倍数を掛けたあとの値なので、倍数だけ合わせる / the preset weight already includes the multiplier */
+            dialogSession.strokeWidthScale = getArrowStrokeWidthScale(presetData.arrowNumber);
             syncDashEnabled(dialogControls);
             updateDashCalc(dialogSession);
         };

@@ -103,3 +103,4 @@ The dialog follows the Japanese / English UI. The 3×3 registration widget is dr
 ### note
 
 - [【Illustrator】解説画像で使う「アンカーポイント表示」を自作オブジェクトで自動配置するスクリプト](https://note.com/dtp_tranist/n/n757f8802dc4b)
+- v1.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -103,3 +103,4 @@ PathItem、CompoundPathItem、GroupItem（いずれも再帰的にアンカー�
 ### note
 
 - [【Illustrator】解説画像で使う「アンカーポイント表示」を自作オブジェクトで自動配置するスクリプト](https://note.com/dtp_tranist/n/n757f8802dc4b)
+- v1.1.7（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）

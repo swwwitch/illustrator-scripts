@@ -104,3 +104,4 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.10.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.10.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.10.7 (2026-10-03): Units are now shown inside the number fields; removed the unit from the Margin panel title
+- v1.10.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

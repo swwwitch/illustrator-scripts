@@ -126,6 +126,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ## Changelog
 
+- v2.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.4.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v2.4.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v2.4.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open

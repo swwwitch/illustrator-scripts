@@ -27,7 +27,8 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 - v1.4.1 (20260928): The 3×3 reference point picker now uses the shared part
 - v1.4.2 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.4.3 (2026-10-03): Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
+- v1.4.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.4.3
+- Version: v1.4.4

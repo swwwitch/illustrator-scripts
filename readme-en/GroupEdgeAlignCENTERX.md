@@ -35,3 +35,5 @@ The target is the edge of the active artboard, or a matching guide. The directio
 - v1.0 (2025-04-06)
 - v1.0.2 (2026-09-27) : Alert messages are now localized for English. An invalid GUIDE_SEARCH_MODE is reported even when the document has no guides
 - v1.0.3 (2026-09-29) : Clip groups are measured by their masks, now also when nested inside a group (hidden parts are left out)
+- v1.0.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.0.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

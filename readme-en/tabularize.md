@@ -40,3 +40,4 @@ Interprets the selection as a table grid and generates fills and rules, both hor
 - v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.5 (2026-10-01) Removed the custom first-open offset so the shared part handles the position, and aligned the button row with the standard form. Unified the window and panel margins and spacing with the shared layout part
 - v1.3.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
+- v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -24,5 +24,6 @@
 
 ### Update History
 
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.0 (2026-10-01) Folders now open in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed
 - v1.0.1 (2026-09-27) Unsaved documents now stop with an alert. Fixed an already hidden "Guides Preview for Trim View" layer being shown after the export. Alerts now switch between Japanese and English

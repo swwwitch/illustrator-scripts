@@ -35,3 +35,4 @@ Moves the selected objects in every other open document to the same position, us
 
 - v1.0 (20251227): Initial version
 - v1.0.1 (20260903): Reorganized the alert messages into LABELS with `getLabel()` and added Japanese/English switching
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

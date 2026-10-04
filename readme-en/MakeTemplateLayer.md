@@ -18,9 +18,10 @@
 
 ### Script info
 
-- Version: v1.0.2
+- Version: v1.0.3
 
 ### Update History
 
 - v1.0.1 (2026-09-27): Messages now appear in the UI language only
 - v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -50,7 +50,8 @@ Last updated: 2025-11-09
 - v1.7.5 (2026-09-30): Dropped the script's own rightward shift of the dialog on first open
 - v1.7.6 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.7.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v1.7.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.7.5
+- Version: v1.7.8

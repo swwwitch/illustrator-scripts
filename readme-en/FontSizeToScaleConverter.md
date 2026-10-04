@@ -50,3 +50,4 @@ These can be changed in the user settings at the top of the script:
 ### Version history
 
 - v1.0.0 (2026-06-18): Initial version
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

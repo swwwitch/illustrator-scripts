@@ -203,3 +203,4 @@ TextFrame（ポイント文字／パス上文字／エリア内文字）、PathI
 ### note
 
 - [【Illustrator】「エリア内文字」を軽快に使うためのスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nfd6cc5e13654)
+- v1.3.8（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）

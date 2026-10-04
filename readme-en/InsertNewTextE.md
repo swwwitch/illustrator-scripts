@@ -48,3 +48,4 @@ A demo script for building samples and mockups.
 
 - v1.1 (20260702) : Switched to centering on the visible bounds
 - v1.0 (20250401) : Initial release
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

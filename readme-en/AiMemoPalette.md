@@ -83,6 +83,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 
 ### Change log
 
+- v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.8 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.1.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.1.6 (2026-09-28) In Japanese, the footer of saved text files (source and save time) now uses a full-width colon.
@@ -91,7 +92,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 
 ### Script info
 
-- Version: v1.1.8
+- Version: v1.1.9
 - First release: 2026-06-15
-- Last updated: 2026-09-28
+- Last updated: 2026-10-04
 - Article: https://note.com/dtp_tranist/n/n41e91e4b1a09

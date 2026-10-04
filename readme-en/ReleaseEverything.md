@@ -65,3 +65,4 @@ How clipping groups are released, and whether the mask path gets a fill, can be 
 - v1.0.0 (20261004) : Initial release
 - v1.1.0 (20261004) : Blends, envelopes, Live Paint, image tracing, repeats, and Intertwine are now released too, along with text wrap. Renamed from ReleaseGroupsAndMasks to ReleaseEverything
 - v1.1.1 (20261004) : Fixed clipping groups inside groups not being released
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

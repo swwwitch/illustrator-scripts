@@ -27,3 +27,4 @@ Turns on auto leading for each line of the selected text frames.
 
 - v1.0
 - v1.0.1 (2026-09-19): Tidied up internal names (no change in behavior)
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

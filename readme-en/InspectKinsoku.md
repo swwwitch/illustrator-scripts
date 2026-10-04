@@ -21,3 +21,4 @@ Lists the kinsoku (line-breaking) settings used by the selected paragraphs.
 
 - v1.0
 - v1.0.1 (2026-09-27): Reworded the list heading and added English alerts
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -658,12 +658,12 @@ var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last update
     }
 
     /**
-     * コロン付きの項目名を返す（日本語は全角「：」、英語は半角「:」）
+     * コロン付きの項目名を返す（日本語は「 :」、英語は半角「:」）
      * @param {Object} labelSet - { ja: string, en: string }
      * @returns {string} コロン付きのラベル文字列
      */
     function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelSet) + (uiLang === "ja" ? " :" : ":");
     }
 
     // =========================================

@@ -28,6 +28,7 @@ With two objects selected, treats the larger as the container and the smaller as
 
 ### Update History
 
+- v1.5.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.5.9 (2026-10-03) Number fields now show the unit inside the field; removed the unit beside the fields
 - v1.5.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.5.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

@@ -24,5 +24,6 @@ Shuffles all artboards into a grid with a fixed number of columns.
 
 ### Update History
 
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.1 (2026-09-27) The alert is now localized in English. Renamed the settings to `GRID_COLUMNS` / `ARTBOARD_GAP`
 - v1.0

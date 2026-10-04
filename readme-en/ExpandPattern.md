@@ -35,3 +35,4 @@ No dialog is shown; the script runs right away.
 ### Update History
 
 - v1.0.0 (2026-10-04) Initial release
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

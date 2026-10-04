@@ -27,3 +27,4 @@ Finds the "Guides Preview for Trim View" layer, unlocks and unhides it, removes 
 
 - v1.0
 - v1.0.1 (2026-09-27): Messages now appear in English on English systems; the no-document message was reworded
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

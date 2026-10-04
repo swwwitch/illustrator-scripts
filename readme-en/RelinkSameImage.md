@@ -26,3 +26,4 @@ Finds the placed images that reference the same linked file as the selected one 
 
 - v1.2 (2025-07-21)
 - v1.2.2 (2026-09-27): All messages now appear in English on English systems
+- v1.2.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

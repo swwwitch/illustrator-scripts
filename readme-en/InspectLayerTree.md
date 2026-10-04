@@ -26,3 +26,4 @@ Walks the document's layers and sublayers in hierarchy order and lists each name
 
 - v1.0
 - v1.0.1 (2026-09-27): The no-document message now appears in English on English systems
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

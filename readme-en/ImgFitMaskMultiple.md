@@ -26,3 +26,4 @@ With several images and shapes selected, scales each image to its matching shape
 
 - v1.0
 - v1.0.2 (2026-09-27): Messages now appear in English on English systems
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

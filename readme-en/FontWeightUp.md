@@ -44,6 +44,7 @@
 - v1.0.0 (20260927): Initial version
 - v1.0.1 (20260928): sw-L / sw-R / sw-B / sw-H are treated as one family
 - FontWeightDown v1.0.0 (20260928): Added FontWeightDown, which switches to the next lighter weight
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 

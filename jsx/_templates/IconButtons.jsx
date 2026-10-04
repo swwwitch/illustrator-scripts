@@ -225,7 +225,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
         saveIcon.onClick = function () { alert(isJapanese ? "保存" : "Save"); };
         var deleteIcon = addIconButton(presetRow, ICON_BUTTON_SIZE, drawTrashIcon);
         deleteIcon.helpTip = isJapanese ? "削除" : "Delete";
-        deleteIcon.onClick = function () { alert((isJapanese ? "削除：" : "Delete: ") + presetDropdown.selection.text); };
+        deleteIcon.onClick = function () { alert((isJapanese ? "削除 : " : "Delete: ") + presetDropdown.selection.text); };
         setIconButtonEnabled(deleteIcon, false);
         presetDropdown.onChange = function () { setIconButtonEnabled(deleteIcon, presetDropdown.selection.index > 0); };
 

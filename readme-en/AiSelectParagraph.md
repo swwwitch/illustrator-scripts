@@ -26,3 +26,4 @@ Selects the whole paragraph the text cursor is sitting in.
 
 - v1.0.1 (2026-07-17)
 - v1.0.2 (2026-09-19): Renamed the label lookup to getLabel() (no change in behavior)
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

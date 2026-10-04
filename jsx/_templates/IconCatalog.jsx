@@ -20,7 +20,7 @@ Each icon's drawing is lifted from its original script and runs on its own (the 
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IconCatalog";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
@@ -398,23 +398,23 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     }
 
     /**
-     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {Object|Array} [placeholderValues] - getLabel と同じ
      * @returns {string} コロン付きの文言
      */
     function labelText(labelRef, placeholderValues) {
-        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
     }
 
     /**
-     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {string|number} value - コロンのあとに続ける値
      * @returns {string} 項目名と値をつないだ文字列
      */
     function labelValueText(labelRef, value) {
-        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+        return labelText(labelRef) + " " + value;
     }
 
     /**
@@ -455,8 +455,11 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
             close: { ja: "閉じる", en: "Close" }
         },
         tooltip: {
-            scriptList: { ja: "アイコンを表示するスクリプトを選びます。", en: "Pick the script whose icons are shown." },
+            scriptList: { ja: "アイコンを表示するスクリプトを選びます。「すべて」は全スクリプトのアイコンを順に表示します。", en: "Pick the script whose icons are shown. All shows every script's icons in turn." },
             iconSlot: { ja: "{script}：{name}（{width}×{height}）", en: "{script}: {name} ({width} x {height})" }
+        },
+        list: {
+            allScripts: { ja: "すべて", en: "All" }
         },
         status: {
             summary: { ja: "{scripts} 本のスクリプト・{icons} 個のアイコン", en: "{icons} icons in {scripts} scripts" },
@@ -7424,7 +7427,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
             g.lineTo(w - 0.5, h - 0.5);
             g.lineTo(hasLeftEdge ? 0.5 : groundLeft, h - 0.5);
             g.strokePath(g.newPen(g.PenType.SOLID_COLOR, ink, 1));
-            var iconShape = {"size":[883,383],"rects":[[96,178,812,204],[70,109,96,274]],"heads":[]};
+            var iconShape = {"size":[883,383],"rects":[[96,178,812,204],[66,109,100,274]],"heads":[]};
             var inset = 5;
             drawIconShapes(g, iconShape, [inset, inset, w - inset * 2, h - inset * 2], ink, 22 / 383, ground);
         }
@@ -7789,7 +7792,7 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
             g.lineTo(w - 0.5, h - 0.5);
             g.lineTo(hasLeftEdge ? 0.5 : groundLeft, h - 0.5);
             g.strokePath(g.newPen(g.PenType.SOLID_COLOR, ink, 1));
-            var iconShape = {"size":[883,383],"rects":[[96,178,812,204],[70,109,96,274]],"heads":[]};
+            var iconShape = {"size":[883,383],"rects":[[96,178,812,204],[66,109,100,274]],"heads":[]};
             iconShape = buildBothEndsShape(iconShape);
             var inset = 5;
             drawIconShapes(g, iconShape, [inset, inset, w - inset * 2, h - inset * 2], ink, 22 / 383, ground);
@@ -10982,8 +10985,28 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
     }
 
     /**
-     * スクリプトごとにアイコンをまとめ、1ページ SLOT_COUNT 個に分ける
-     * @returns {Object[]} { script, page, pages, entries } の並び（スクリプト名順）
+     * アイコンの並びを 1ページ SLOT_COUNT 個に分けて、ページの並びに足す
+     * @param {Object[]} catalogPages - 足し先
+     * @param {string} pageTitle - リストに出す名前（スクリプト名か「すべて」）
+     * @param {Object[]} pageEntries - アイコンの並び
+     * @returns {void}
+     */
+    function pushCatalogPages(catalogPages, pageTitle, pageEntries) {
+        var pageCount = Math.ceil(pageEntries.length / SLOT_COUNT);
+        for (var page = 0; page < pageCount; page++) {
+            catalogPages.push({
+                script: pageTitle,
+                page: page + 1,
+                pages: pageCount,
+                total: pageEntries.length,
+                entries: pageEntries.slice(page * SLOT_COUNT, (page + 1) * SLOT_COUNT)
+            });
+        }
+    }
+
+    /**
+     * 先頭に「すべて」、続けてスクリプトごとにアイコンをまとめ、1ページ SLOT_COUNT 個に分ける
+     * @returns {Object[]} { script, page, pages, total, entries } の並び（「すべて」のあとはスクリプト名順）
      */
     function buildCatalogPages() {
         var scriptNames = [];
@@ -10997,25 +11020,17 @@ var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last update
             entriesByScript[scriptName].push(ICON_CATALOG[i]);
         }
         scriptNames.sort();
+        /* 「すべて」はスクリプト名順に全アイコンを続けて並べる / All lists every icon, script by script */
+        var allEntries = [];
+        for (var j = 0; j < scriptNames.length; j++) allEntries = allEntries.concat(entriesByScript[scriptNames[j]]);
         var catalogPages = [];
-        for (var j = 0; j < scriptNames.length; j++) {
-            var scriptEntries = entriesByScript[scriptNames[j]];
-            var pageCount = Math.ceil(scriptEntries.length / SLOT_COUNT);
-            for (var page = 0; page < pageCount; page++) {
-                catalogPages.push({
-                    script: scriptNames[j],
-                    page: page + 1,
-                    pages: pageCount,
-                    total: scriptEntries.length,
-                    entries: scriptEntries.slice(page * SLOT_COUNT, (page + 1) * SLOT_COUNT)
-                });
-            }
-        }
+        pushCatalogPages(catalogPages, getLabel("list.allScripts"), allEntries);
+        for (var k = 0; k < scriptNames.length; k++) pushCatalogPages(catalogPages, scriptNames[k], entriesByScript[scriptNames[k]]);
         return catalogPages;
     }
 
     /**
-     * 一覧のリストに出す項目名を作る（例「AdjustPairGap（6）」、複数ページなら「…（1/2）」も付ける）
+     * 一覧のリストに出す項目名を作る（例「AdjustPairGap (6)」、複数ページなら「1/2」も付ける）
      * @param {Object} catalogPage - buildCatalogPages() の要素
      * @returns {string} 項目名
      */

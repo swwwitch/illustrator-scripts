@@ -91,3 +91,4 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.8.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.7 (2026-10-03): Clicking a field label (Number, Gutter, and the margin labels) now focuses its field
 - v1.8.8 (2026-10-03): Number fields now show the unit inside the field; removed the unit from the panel title and beside the fields
+- v1.8.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

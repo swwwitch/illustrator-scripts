@@ -38,3 +38,4 @@
 - v1.0.5 (20260928): The dialog now reopens where it was last closed and moves sideways to avoid covering the selection; opacity unified at 97%. Clip groups are measured by their masks (hidden parts no longer count when searching and swapping)
 - v1.0.6 (20260929): Dialog opacity changed to 98%
 - v1.0.7 (20260930): Fixed an error when running with characters selected by the Type tool
+- v1.0.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

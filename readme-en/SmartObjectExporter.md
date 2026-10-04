@@ -72,6 +72,8 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.2.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.2.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.1 (2026-10-03): Units now appear inside the numeric fields; removed the unit from the Margin panel title and the unit labels next to the fields
 - v1.2.0 (2026-10-01): Folders now open in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed
 - v1.1.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs

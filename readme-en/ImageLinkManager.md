@@ -35,6 +35,7 @@ The mode selector at the top switches the operation, and only the matching panel
 
 ### Update History
 
+- v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.6 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.3.5 (2026-10-01) The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
 - v1.3.4 (2026-09-30) : Fixed an error when running with characters selected by the Type tool

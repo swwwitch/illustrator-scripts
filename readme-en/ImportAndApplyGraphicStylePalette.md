@@ -54,10 +54,11 @@ Flow:
 
 ### Script info
 
-- Version: v1.4.4
+- Version: v1.4.5
 
 ### Update History
 
+- v1.4.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.4 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.4.3 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.4.2 (2026-10-01) The button row at the bottom of the style panel now uses the shared part. Unified the window and panel margins and spacing with the shared layout part

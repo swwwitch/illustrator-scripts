@@ -37,6 +37,7 @@ https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 - v1.1.4: Dialog opacity changed to 98%
 - v1.1.5: Fixed an error when running with characters selected by the Type tool
 - v1.1.6 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
+- v1.1.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Article
 
@@ -44,4 +45,4 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 
 ### Script info
 
-- Version: v1.1.4
+- Version: v1.1.7

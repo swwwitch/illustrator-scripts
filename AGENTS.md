@@ -182,6 +182,9 @@ function getUnitInfo(prefKey) {
   `tooltip` / `button` / `alert` / `fallbackName`
 - Short entries on one line: `key: { ja: "...", en: "..." }`
 - Entries containing `\n`, or long text, expand across multiple lines
+- Labels carry no colon; add it at display time with `labelText()`: Japanese ends with ` :` (half-width space + colon,
+  as in Illustrator's Stroke panel), English with `:`. `labelValueText()` adds a space after the colon (`件数 : 5` / `Count: 5`).
+  Never write a full-width `：` into a label
 
 ## Naming
 

@@ -25,3 +25,4 @@ Groups the selection, converts strokes to fills, applies Pathfinder Merge as a l
 
 - v1.0.0
 - v1.0.1 (2026-09-27) Alerts now show only the UI language instead of both languages
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

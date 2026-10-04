@@ -100,3 +100,4 @@ TextFrame、PathItem、CompoundPathItem（グループ内も再帰的に処理�
 ### note
 
 - [カラーを配色（AiApplySwatchesToSelection.jsx）](https://note.com/dtp_tranist/n/n5602f3084d2b)
+- v1.8.10（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）

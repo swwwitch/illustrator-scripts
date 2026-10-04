@@ -21,7 +21,8 @@ This script targets a layer named `_guide` in the active Adobe Illustrator docum
 
 - v1.0.1 (20260916): Renamed from unlockGuideLayerAndClearGuides to ReleaseGuidesAsPaths. Fixed the stroke not becoming K100. Shows an alert when no document is open or no "_guide" layer exists. The destination layer is now "ReleasedGuides" (an existing "UnlockedGuides" layer is still reused)
 - v1.0 (20250716): Initial version
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.0.1
+- Version: v1.0.2

@@ -64,6 +64,7 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Change log
 
+- v1.0.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.0.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.0.3 (2026-09-29): Esc now closes the palette
@@ -73,6 +74,6 @@ The record is written into each object's **tag** (`PageItem.tags`, tag name `Loc
 
 ### Script info
 
-- Version: v1.0.5
+- Version: v1.0.6
 - First release: 2026-09-23
-- Last updated: 2026-09-29
+- Last updated: 2026-10-04

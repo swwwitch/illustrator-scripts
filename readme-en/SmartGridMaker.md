@@ -73,6 +73,8 @@ The Artboard tab is hidden when the script starts from a selected rectangle; mar
 
 ### Changelog
 
+- v1.7.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.7.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.7 (2026-10-03): Number fields now show the unit inside the field; removed the unit from the panel title and beside the fields
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part

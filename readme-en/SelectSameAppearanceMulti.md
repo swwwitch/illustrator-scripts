@@ -42,3 +42,4 @@ For example, selecting one red-stroked object and one blue-filled object selects
 
 - v1.1.0 (20261001) : Symbol instances now select the instances of the same symbol
 - v1.0.0 (20260906) : Initial release
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

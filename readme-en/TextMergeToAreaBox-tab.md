@@ -41,7 +41,8 @@ https://note.com/dtp_tranist/n/ne8d31278c266
 - v1.1 (2025-07-19): Added support for single line text, set kinsoku rules
 - v1.2 (2025-07-20): Added handling for line breaks after English words
 - v1.2.2 (2026-09-21): Lines are now simply joined with line breaks (no more blank paragraphs after sentence ends or leading spaces); changed kinsoku to "Soft_v2" (falls back to "Soft" where unavailable); the frame is extended downward when the last line overflows; narrow selections no longer fail; the bounding box no longer depends on the selection; single-line output is also set to horizontal; added a guard when no document is open; code cleanup
+- v1.2.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.2.2
+- Version: v1.2.3

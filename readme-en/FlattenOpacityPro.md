@@ -36,3 +36,4 @@ When the selection contains gradients, images, or other items that cannot be bak
 - v1.0
 - v1.0.2 (2026-09-27) Alerts are now shown in English as well
 - v1.1.0 (2026-09-29) Merged FlattenTransparency.jsx; selections containing anything that cannot be baked are now processed with the built-in Flatten Transparency
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

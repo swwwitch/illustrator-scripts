@@ -32,3 +32,4 @@
 
 - v1.0.0 (20250626): Initial version
 - v1.0.2 (20260927): Alerts are now shown in English as well
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

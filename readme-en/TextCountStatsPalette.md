@@ -36,7 +36,8 @@
 - v1.1.3 (2026-09-28) Keyboard shortcuts now use the shared part (ignored while Cmd etc. are held).
 - v1.1.4 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.1.5 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
+- v1.1.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.1.5
+- Version: v1.1.6

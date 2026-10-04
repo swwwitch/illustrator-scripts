@@ -83,6 +83,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Update History
 
+- v2.4.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.4.0 (2026-10-03) Split the View panel off into its own script, [ViewTogglePalette](ViewTogglePalette.md). Matched the UI wording to Illustrator's terms (Key Input → Keyboard Increment, Preview Bounds → Use Preview Bounds)
 - v2.3.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v2.3.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

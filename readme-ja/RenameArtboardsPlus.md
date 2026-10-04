@@ -116,3 +116,4 @@
 ### note
 
 - [【Illustrator】連番や指定文字を使ってアートボード名前を一括変更｜DTP Transit 別館](https://note.com/dtp_tranist/n/n80f9534bc6fb)
+- v1.3.11（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）

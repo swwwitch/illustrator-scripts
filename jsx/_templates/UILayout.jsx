@@ -166,7 +166,7 @@ var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last update
      * @returns {string} コロン付きの項目名
      */
     function labelText(labelEntry) {
-        return getLabel(labelEntry) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelEntry) + (uiLang === "ja" ? " :" : ":");
     }
 
     // =========================================

@@ -26,3 +26,4 @@
 ### Update History
 
 - v1.0.2 (2026-09-27) Alerts and the result report now switch between Japanese and English
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

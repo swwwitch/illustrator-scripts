@@ -70,3 +70,4 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.8.6 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.8.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.8 (2026-10-03): Units now appear inside the number fields; removed the unit from the panel title and beside the fields
+- v1.8.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

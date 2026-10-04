@@ -36,6 +36,7 @@ osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.apples
 
 ### Update History
 
+- v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.0 (2026-10-01) Added **Close the document after export** and **Open the output folder after export** below the list (both on by default; opening the folder is macOS only). With the helper app, the folder opens in Path Finder while it is running
 - v1.1.2 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.1.1 (2026-10-01) The progress palette's Cancel button now uses the shared button-row part. Unified the window and panel margins and spacing with the shared layout part
@@ -44,4 +45,4 @@ osacompile -o /Applications/OpenInFileViewer.app helpers/OpenInFileViewer.apples
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1

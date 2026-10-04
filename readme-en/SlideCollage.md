@@ -51,10 +51,11 @@ https://note.com/dtp_tranist/n/n9f8c7370f4e5
 
 ### Script info
 
-- Version: v1.7.3
+- Version: v1.7.7
 
 ### Update History
 
+- v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.7.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool

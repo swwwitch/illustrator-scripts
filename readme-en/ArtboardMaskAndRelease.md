@@ -45,7 +45,8 @@
 - v1.2.7 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.2.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.2.9 (2026-10-03) The number field now shows its unit inside the field; removed the unit label to the right of the field
+- v1.2.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Script info
 
-- Version: v1.2.9
+- Version: v1.2.10

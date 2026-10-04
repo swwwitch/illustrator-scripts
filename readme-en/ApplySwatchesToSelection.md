@@ -38,3 +38,4 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 - v1.0.0 (20241103): Initial version
 - v1.0.1 (20250625): Supported all process swatches when no swatches are selected
 - v1.0.2 (20260927): Internal cleanup (the Japanese error message now uses a full-width colon)
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

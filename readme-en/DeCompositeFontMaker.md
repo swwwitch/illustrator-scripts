@@ -47,3 +47,4 @@ Illustrator scripting cannot read what is inside a composite font, so the script
 ### Update History
 
 - v1.0.0 (20260927): Initial release
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

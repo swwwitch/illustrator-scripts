@@ -33,5 +33,6 @@
 
 ### Update History
 
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.1 (2026-09-28) Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure; a failure now shows an alert and stops
 - v1.0.0 (2026-09-26) Initial release

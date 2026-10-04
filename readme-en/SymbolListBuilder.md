@@ -41,6 +41,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 - v1.3.4 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.3.5 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.3.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
+- v1.3.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 ### Article
 
@@ -48,4 +49,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.3.3
+- Version: v1.3.7

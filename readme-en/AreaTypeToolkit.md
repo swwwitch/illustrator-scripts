@@ -201,3 +201,4 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 ### note
 
 - [An Illustrator script for working comfortably with Area Type (Japanese)](https://note.com/dtp_tranist/n/nfd6cc5e13654)
+- v1.3.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

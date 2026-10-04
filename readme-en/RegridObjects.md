@@ -33,6 +33,7 @@ Example with objects of different sizes and shapes (sample text and font names s
 
 ### Update History
 
+- v1.8.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.8.4 (2026-10-03): Units now appear inside the numeric fields; removed the unit from the panel title
 - v1.8.3 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.8.2 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Unified the window and panel margins and spacing with the shared layout part
@@ -53,4 +54,4 @@ https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Script info
 
-- Version: v1.8.0
+- Version: v1.8.5

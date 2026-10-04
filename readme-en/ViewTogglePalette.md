@@ -43,3 +43,4 @@ The preferences you toggle most often live in [AiQuickPrefsPalette](AiQuickPrefs
 ### Update History
 
 - v1.0.0 (2026-10-03) Split off from the View panel of AiQuickPrefsPalette
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

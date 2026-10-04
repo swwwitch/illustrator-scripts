@@ -33,3 +33,4 @@
 - v1.0.0 (20250618): Initial version
 - v1.0.1 (20250618): Added process to convert back to area text
 - v1.0.2 (20260919): Removed unused functions (no change in behavior)
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

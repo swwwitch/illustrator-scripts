@@ -77,3 +77,4 @@ Assigning a keyboard shortcut lets you work through the list with nothing but se
 - v1.0.2 (20260825): Added the behavior for running with no text frame selected. Instead of reporting and stopping, the script now pastes the clipboard at the center of the artboard as it is, without consuming a line or writing the clipboard back
 - v1.0.1 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid. When the selection holds no text frame at all, the script now reports it and stops instead of consuming a line from the clipboard
 - v1.0.0 (20260814): Initial release
+- v1.0.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

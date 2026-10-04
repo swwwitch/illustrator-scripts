@@ -112,6 +112,7 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.0.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v2.0.8 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v2.0.7 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v2.0.6 (2026-09-28): Temporary action files now go to Folder.temp, and the action set and temporary file are cleaned up even on failure; in Japanese, the error text now uses a full-width colon; temporary actions on the BridgeTalk side now use the shared part

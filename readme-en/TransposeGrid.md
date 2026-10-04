@@ -22,3 +22,4 @@ Even a selection that is not neatly aligned is resolved into rows and columns wi
 
 - v1.1 (2026-01-26): Added support for single-row and single-column selections
 - v1.1.2 (2026-09-25): Added English messages and reworded the alerts
+- v1.1.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

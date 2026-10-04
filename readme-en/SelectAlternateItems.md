@@ -41,3 +41,4 @@ Counts the selected objects in order and reselects only the odd- or even-numbere
 - v1.1.6 (2026-09-30): Fixed an error when running with characters selected by the Type tool
 - v1.1.7 (2026-10-01) The button row now uses the shared part. Unified the window and panel margins and spacing with the shared layout part
 - v1.1.8 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
+- v1.1.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

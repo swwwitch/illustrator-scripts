@@ -56,3 +56,4 @@ Edit the "ユーザー設定 / User Settings" block at the top of the script.
 ### Update history
 
 - v1.0.0 (20260907) : Initial release
+- v1.0.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

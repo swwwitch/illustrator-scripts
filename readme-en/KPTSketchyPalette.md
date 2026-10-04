@@ -69,6 +69,7 @@
 
 ### Changelog
 
+- v1.3.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.3.2 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.3.1 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part
 - v1.3.0 (2026-09-27) Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten).
@@ -86,6 +87,6 @@
 
 ### Script info
 
-- Version: v1.3.2
+- Version: v1.3.3
 - First release: 2026-04-14
-- Last updated: 2026-09-27
+- Last updated: 2026-10-04

@@ -149,3 +149,4 @@ The dialog position is remembered only while Illustrator is running (position on
 ### note
 
 - [Optimizing paths in Illustrator (Japanese)](https://note.com/dtp_tranist/n/nd82f59bf63a8)
+- v1.7.7 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

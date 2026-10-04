@@ -114,10 +114,11 @@ Arrow buttons:
 
 ### Script info
 
-- Version: v1.4.1
+- Version: v1.4.2
 
 ### Changelog
 
+- v1.4.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.4.1 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.4.1 (2026-10-03): Number fields now show their unit inside the field; removed the units from the panel titles
 - v1.4.0 (2026-10-03): With Per Artboard on, margin and divide guides are drawn on every artboard

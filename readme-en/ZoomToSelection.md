@@ -32,3 +32,4 @@ The animation interpolation is based on ArtboardNavigatorPalette.jsx by Yuki Fur
 ### Update History
 
 - v2.1.2 (2026-09-29) : Clip groups are now measured by their mask
+- v2.1.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

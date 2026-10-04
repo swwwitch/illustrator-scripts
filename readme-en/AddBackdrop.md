@@ -87,6 +87,7 @@ https://note.com/dtp_tranist/n/na8af4a7016ad
 
 ### Update History
 
+- v1.7.9 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.8 (2026-10-03): Units now appear inside the number fields; removed the unit from the panel title and beside the fields
 - v1.7.7 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.7.6 (2026-10-01): Aligned the button row with the standard form (no visible change). Unified the window and panel margins and spacing with the shared layout part

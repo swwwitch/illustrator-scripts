@@ -29,10 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalen
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md"; /* README (English) */
@@ -85,23 +85,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     }
 
     /**
-     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * 項目名の文言の末尾にコロンを付ける（日本語は半角スペース＋半角コロン「 :」、英語は「:」。Illustrator の線パネルなどの項目名に合わせる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {Object|Array} [placeholderValues] - getLabel と同じ
      * @returns {string} コロン付きの文言
      */
     function labelText(labelRef, placeholderValues) {
-        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? " :" : ":");
     }
 
     /**
-     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * 「項目名 : 値」の1行を返す（日本語は「件数 : 5」、英語は「Count: 5」。どちらもコロンのあとに空白を入れる）
      * @param {string|Object} labelRef - getLabel と同じ
      * @param {string|number} value - コロンのあとに続ける値
      * @returns {string} 項目名と値をつないだ文字列
      */
     function labelValueText(labelRef, value) {
-        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+        return labelText(labelRef) + " " + value;
     }
 
     /**
@@ -2637,7 +2637,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCellPosAdj = pnlCell.add("group");
         gCellPosAdj.orientation = "row";
         gCellPosAdj.alignChildren = ["left", "center"];
-        gCellPosAdj.add("statictext", undefined, "セル位置調整：");
+        gCellPosAdj.add("statictext", undefined, "セル位置調整 :");
         var inputCellPosAdjY = addStepperInput(gCellPosAdj, "0" + lengthUnitSuffix, { min: -2000, max: 2000, unit: lengthUnitSuffix, onStep: refreshPreviewOnStep });
         inputCellPosAdjY.helpTip = getLabel("tooltip.cellPosAdjY");
         inputCellPosAdjY.characters = 5;

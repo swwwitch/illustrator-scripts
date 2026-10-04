@@ -40,6 +40,7 @@ The style names have to match the names registered in the source AI file.
 
 ### Update History
 
+- v1.6.10 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.6.9 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.6.8 (2026-10-01): Unified the window and panel margins and spacing with the shared layout part
 - v1.6.7 (2026-10-01): Button rows with only right-side buttons are now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
@@ -58,4 +59,4 @@ The style names have to match the names registered in the source AI file.
 
 ### Script info
 
-- Version: v1.6.6
+- Version: v1.6.10

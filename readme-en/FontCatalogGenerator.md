@@ -30,6 +30,7 @@ Lists the fonts installed on the system and generates a specimen sheet for them 
 
 ### Update History
 
+- v1.7.11 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.10 (2026-10-03) Units now appear inside the numeric fields; removed the unit labels next to the fields
 - v1.7.9 (2026-10-01) Added space below the button row to match Illustrator's own dialogs
 - v1.7.8 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

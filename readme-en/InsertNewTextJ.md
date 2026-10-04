@@ -49,3 +49,4 @@ and leaves it selected. A demo script for building samples and mockups.
 
 - v1.1 (20250813) : Externalized settings and font candidates, split into helpers, added centered justification
 - v1.0 (20250401) : Initial release
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -58,3 +58,4 @@
 - v1.4.5 (2026-10-01): The button row, previously always centered, is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones. Removed the hand-written dialog centering; the shared part now handles the position. Unified the window and panel margins and spacing with the shared layout part
 - v1.4.6 (2026-10-01): Added space below the button row to match Illustrator's own dialogs
 - v1.4.7 (2026-10-03): The number field now shows its unit inside; removed the unit from the label
+- v1.4.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

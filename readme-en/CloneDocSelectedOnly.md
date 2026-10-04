@@ -33,3 +33,4 @@
 - v1.0.0 (20231226): Initial release
 - v1.0.1 (20250702): Minor adjustments
 - v1.0.2 (20260919): Tidied up internal names (no change in behavior)
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

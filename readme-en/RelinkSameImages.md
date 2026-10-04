@@ -63,6 +63,7 @@ To match on the file name only, or to select or delete the matches instead of re
 
 ## Changelog
 
+- v1.2.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.2.2 (2026-08-17): Tidied the header and metadata block, unified label lookup on `getLabel()`, added JSDoc, moved the body into `main()` (no behavior change)
 - v1.2.1 (2026-06-18): Refactor — clearer naming, categorized labels, removed unnecessary try blocks and dead branches
 - v1.2 (2026-03-09): Improved safety and maintainability

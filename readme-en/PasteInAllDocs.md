@@ -35,5 +35,6 @@ It uses Paste in Place, so the objects land on the coordinates of each document.
 
 ### Update History
 
+- v1.1.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.0 (2026-09-19): Localized the messages (Japanese/English), fixed the duplicate left in the source document, the offset caused by a mismatched active artboard and the undetected paste failures, and added a link to the article
 - v1.0

@@ -53,3 +53,4 @@ samples and mockups.
 - v1.2 (20250713) : Function cleanup and header updates
 - v1.1 (20250511) : Comment cleanup and logic improvements
 - v1.0 (20250401) : Initial release
+- v1.3.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

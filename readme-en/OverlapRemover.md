@@ -50,3 +50,4 @@ The order is Offset Path, Group, Pathfinder: Merge, then Expand Appearance. The 
 
 - v1.0.0 (20260301): Initial version
 - v1.0.1 (20260727): Dropped the "single Undo step via suspendHistory" claim (`suspendHistory` is a Photoshop API and is never called under Illustrator). Also added the basic-info and localization sections, replaced the Japanese-only messages with bilingual ones, and folded the repeated selectability checks into `isSelectable`
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

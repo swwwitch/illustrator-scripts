@@ -67,6 +67,7 @@ The sample text and its formatting can be changed in the "User settings" block a
 
 ### Update History
 
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.0.2 (2026-09-28): Temporary actions now go through a shared load/play/unload routine, so the action set and temporary file are cleaned up even on failure
 - v1.0.1 (2026-09-19): Support groups made of one closed path and one text object (each group handled on its own, released after the text is poured)
 - v1.0.0 (2026-08-28): Initial release

@@ -25,3 +25,4 @@ Swaps the contents of two selected text objects.
 
 - v1.0.0
 - v1.0.1: Alerts are now shown in English on non-Japanese systems
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

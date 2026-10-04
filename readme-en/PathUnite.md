@@ -33,3 +33,7 @@
 ### Script info
 
 - Version: v1.0.1
+
+### Update History
+
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

@@ -26,3 +26,4 @@
 ### Change Log
 
 - v1.0.2 (20260927): The new groups are selected afterwards. Alerts are shown in English on English systems. Shows an alert and stops while text is selected with the Type tool
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

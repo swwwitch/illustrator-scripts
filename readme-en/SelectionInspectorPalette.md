@@ -119,6 +119,7 @@ Enter is deliberately unassigned, because it conflicts with editing notes.
 
 ## Changelog
 
+- v1.7.8 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.7.7 (2026-10-04) Faster counting in documents with many paths. Fixed the whole-document totals counting the contents of groups and compound paths more than once. Shows a progress bar when counting takes a while
 - v1.7.6 (2026-10-03) Moved to the shared persistent engine `SwwwitchPalettes` so CloseAllPalettes can close it
 - v1.7.5 (2026-10-01) Unified the window and panel margins and spacing with the shared layout part

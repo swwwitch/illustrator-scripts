@@ -586,8 +586,8 @@ var SCRIPT_UPDATED  = "2026-09-28";                   /* 更新日 / last update
             roundCorners: { ja: "角を丸くする", en: "Round corners" }
         },
         fieldLabel: {
-            widthPt: { ja: "幅（pt）：", en: "Width (pt):" },
-            memo: { ja: "メモ：", en: "Memo:" }
+            widthPt: { ja: "幅（pt） :", en: "Width (pt):" },
+            memo: { ja: "メモ :", en: "Memo:" }
         },
         button: {
             reset: { ja: "初期化", en: "Reset" },

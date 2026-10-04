@@ -35,5 +35,6 @@ https://note.com/dtp_tranist/n/n140952ad5011 (Japanese)
 
 ### Update History
 
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 - v1.1.1 (2026-09-15) Added a link to the article, localized the alert into Japanese and English, and reorganized internal naming and processing
 - v1.1.0 (2026-05-09)
