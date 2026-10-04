@@ -19,13 +19,13 @@
 #### Presets
 
 - The pop-up at the top of the dialog loads saved settings (stroke, arrowheads and dashes)
-- **Save...** names and saves the current settings (an existing name is overwritten after confirming); **Delete** removes the selected preset
+- The save icon (tray with a down arrow) names and saves the current settings (an existing name is overwritten after confirming); the delete icon (trash can) removes the selected preset
 - Presets survive an Illustrator restart (Folder.userData/illustrator-scripts/FavoriteArrowPresets.json)
 
 #### Stroke
 
-- Weight
-- Cap (Butt / Round / Projecting) and corner (Miter / Round / Bevel)
+- Weight (starts from the selected path's stroke weight; without a stroke, from a default that follows the general unit)
+- Cap (Butt / Round / Projecting) and corner (Miter / Round / Bevel), picked with icons like those in the Stroke panel. Option-clicking Round Cap also sets Round Join
 
 #### Arrowheads
 
@@ -74,9 +74,10 @@
 - v1.1.1 (2026-10-04) Same at end and Swap start and end moved into Options in the Arrowheads panel. Gap and Dash now show their unit (pt) inside the field. Arrow 1 moved from the favorites to the pop-up menu. Picking a favorite arrowhead also sets the tip alignment. Calculation and Adjust ends moved into the Dash Calculation panel
 - v1.1.2 (2026-10-04) Options are now a row of icons instead of a panel (link icon for Same at end, ⇄ for Swap start and end, two icons for tip alignment). Tightened the gap between the favorite arrowheads and the pop-up menu
 - v1.1.3 (2026-10-04) The icons added for tip alignment in v1.1.2 now belong to Adjust ends (keep dash lengths / adjust ends). Tip alignment got its own icons (beyond end of path / at end of path). Fixed the last dot sometimes missing on dotted lines with Adjust ends. Options are dimmed while the arrowhead is [None]. Choosing Dashed or Dotted sets the arrowhead to [None]. Larger option icons, and the Adjust ends icons now have space between the frame and the shapes. [None] and the favorite arrowheads are now icons instead of radio buttons. The preview is always on; the Preview checkbox is replaced by an Open Stroke Panel button. The scale shows its % inside the field
+- v1.1.4 (2026-10-04) Code cleanup (naming, split functions, removed duplication). Fixed the colon being cut off after "Corner" and "Segments" labels. Caps and corners are now picked with icons. The weight now starts from the selected path's stroke weight. Option-clicking Round Cap also sets Round Join. The preset Save and Delete buttons are now icons. Dash Calculation is no longer a framed panel; a separator line sits above it. The weight shows its pt inside the field
 
 ### Script info
 
-- Version: v1.1.3
+- Version: v1.1.4
 - First release: 2026-10-03
 - Last updated: 2026-10-04
