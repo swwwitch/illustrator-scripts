@@ -29,7 +29,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatch
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartBatchImporter";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-05";                   /* 更新日 / last updated */
@@ -932,7 +932,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         checkbox: {
             byArtboard: { ja: "アートボード単位", en: "Import per artboard" },
             attachLabel: { ja: "ファイル名をラベルとして追加", en: "Add file names as labels" },
-            includeGuides: { ja: "ガイドを含める（ルーラーガイドを除く）", en: "Include guides (except ruler guides)" },
+            includeGuides: { ja: "ガイドを含める", en: "Include guides" },
             scale: { ja: "拡大・縮小", en: "Scale" },
             includeSubfolders: { ja: "サブフォルダーを含める", en: "Include subfolders" },
             splitDocs: { ja: "分割", en: "Split every" }

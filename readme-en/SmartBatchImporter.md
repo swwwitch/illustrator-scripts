@@ -24,7 +24,7 @@ Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder in
 - **Import options**
   - Import per artboard: imports each artboard, keeping its size and the content's position. Locked and hidden objects are included. Choose Artboard 1 only, All, or Specify (e.g. 1, 3-5)
   - Add file names as labels: adds the source file name below the imported content, on the "_label" layer
-  - Include guides (except ruler guides): imports horizontal guides up to the artboard's shorter side and vertical guides up to its longer side, even when Lock Guides is on
+  - Include guides: excludes ruler guides and imports horizontal guides up to the artboard's shorter side and vertical guides up to its longer side, even when Lock Guides is on
   - Scale: scales the content and artboards by a percentage (stroke widths too)
   - Spacing: gap between the arranged items, in ruler units
   - After import: close the open source documents or keep them open
@@ -71,3 +71,4 @@ Imports open documents or Illustrator files (.ai / .svg / .eps) from a folder in
   - The destination selection is cleared before pasting
   - "After import" now defaults to "Keep open", "Import per artboard" to off, and "Include guides" to on
   - File counts moved from the panel title to after the radio buttons. Width / height / unit labels are right-aligned, and UI wording was revised
+- v1.5.1 (2026-10-05): Moved "(except ruler guides)" from the Include guides checkbox to its tooltip
