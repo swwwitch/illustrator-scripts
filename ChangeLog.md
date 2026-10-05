@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261006
+
+### 調整
+
+- 数値欄（共通部品 StepperButtons）の単位換算を、独自の換算表から ExtendScript 標準の UnitValue に変更。「inches」「points」など単位の正式名でも入力できるようにした（154本）
+
 ## 20261005
 
 ### 調整

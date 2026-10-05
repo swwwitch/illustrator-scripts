@@ -562,13 +562,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
     var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
 
-    /* 入力された単位を欄の単位へ換算するための、1単位あたりのポイント数（値は UNITS 表と同じ。キーは小文字）。
+    /* 単位の換算は UnitValue に任せる（in / ft / yd / mm / cm / m / pt / pc / px ほか、単数形・複数形も可）。
+       UnitValue に無い単位だけ、ここで UnitValue の単位に読み替える（値は「1単位＝何 unit か」）。
        「p」は「1p6」（1パイカ6ポイント）の形にも使う
-       Points per unit for converting typed units into the field's unit (same values as the UNITS table; lowercase keys) */
-    var STEPPER_POINTS_PER_UNIT = {
-        "in": 72, "inch": 72, "mm": 72 / 25.4, "cm": 72 / 2.54, "m": 72 / 25.4 * 1000,
-        "pt": 1, "px": 1, "p": 12, "pc": 12, "pica": 12,
-        "q": 72 / 25.4 * 0.25, "h": 72 / 25.4 * 0.25, "ft": 72 * 12, "yd": 72 * 36
+       Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
+    var STEPPER_UNIT_ALIASES = {
+        "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
+        "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
+        "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
     };
 
     // -----------------------------------------
@@ -785,7 +786,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /**
      * 入力欄の文字列を四則演算（+ - * / と括弧）として計算する。eval は使わない。
-     * 数値の後ろの単位は欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
+     * 数値の後ろの単位は UnitValue で欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
      * 全角の数字・記号と × ÷ は半角に直す
      * @param {string} text - 入力欄の文字列
      * @param {string} [fieldUnit] - 欄の単位（例 " mm"。前後の空白は無視）
@@ -800,7 +801,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             .replace(/\s/g, "");
         if (source === "") return NaN;
         var fieldUnitKey = String(fieldUnit || "").replace(/^\s+|\s+$/g, "").toLowerCase();
-        var fieldPointsPerUnit = STEPPER_POINTS_PER_UNIT[fieldUnitKey];
+        var fieldUnitValue = createStepperUnitValue(1, fieldUnitKey); /* 欄の単位の1単位（換算できない欄は null） / one field unit */
         var position = 0;
 
         /**
@@ -867,9 +868,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             position += unitMatch[0].length;
             var unitKey = unitMatch[0].toLowerCase();
             if (unitKey === fieldUnitKey) return value;
-            var pointsPerUnit = STEPPER_POINTS_PER_UNIT[unitKey];
-            if (pointsPerUnit === undefined || fieldPointsPerUnit === undefined) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
-            var points = value * pointsPerUnit;
+            var typedValue = createStepperUnitValue(value, unitKey);
+            if (!typedValue || !fieldUnitValue) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
+            var points = typedValue.as("pt");
             /* 「1p6」＝1パイカ6ポイント / pica-point notation */
             if (unitKey === "p") {
                 var pointMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
@@ -878,12 +879,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     points += parseFloat(pointMatch[0]);
                 }
             }
-            return points / fieldPointsPerUnit;
+            return points / fieldUnitValue.as("pt");
         }
 
         var result = readSum();
         if (position !== source.length || !isFinite(result)) return NaN; /* 読み残しがあれば式として不正 / leftovers mean a malformed expression */
         return result;
+    }
+
+    /**
+     * 数値と単位から UnitValue を作る。Q・H・p は STEPPER_UNIT_ALIASES で UnitValue の単位に読み替える。
+     * %（percent）は基準の長さが無いと換算できないので扱わない
+     * @param {number} value - 数値
+     * @param {string} unitKey - 単位（小文字。例 "mm"、"inches"、"q"）
+     * @returns {UnitValue|null} UnitValue（UnitValue が知らない単位・空・% なら null）
+     */
+    function createStepperUnitValue(value, unitKey) {
+        if (unitKey === "" || unitKey === "%") return null;
+        var alias = STEPPER_UNIT_ALIASES[unitKey];
+        var unitValue = alias ? new UnitValue(value * alias.amount, alias.unit) : new UnitValue(value, unitKey);
+        if (unitValue.type === "?" || unitValue.type === "%") return null; /* 知らない単位は例外にならず "?" になる。"percent" も除く / unknown units become "?" */
+        return unitValue;
     }
 
     /**
